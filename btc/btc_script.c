@@ -1,0 +1,538 @@
+/*
+ *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
+/** @file   btc_script.c
+ *  @brief  btc_script
+ */
+#ifdef PTARM_USE_PRINTFUNC
+#endif  //PTARM_USE_PRINTFUNC
+
+#include "mbedtls/asn1write.h"
+#include "mbedtls/ecdsa.h"
+
+#include "utl_dbg.h"
+#include "utl_time.h"
+#include "utl_int.h"
+
+#include "btc_local.h"
+#include "btc_segwit_addr.h"
+#include "btc_script.h"
+
+
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+
+/**************************************************************************
+ * public functions
+ **************************************************************************/
+
+bool btc_script_create_p2pkh(utl_buf_t *pScript, const utl_buf_t *pSig, const uint8_t *pPubKey)
+{
+    if (!pSig->len) return false;
+
+    if (!utl_buf_realloc(pScript, 1 + pSig->len + 1 + BTC_SZ_PUBKEY)) return false;
+
+    uint8_t *p = pScript->buf;
+    *p++ = pSig->len;
+    memcpy(p, pSig->buf, pSig->len);
+    p += pSig->len;
+    *p++ = BTC_SZ_PUBKEY;
+    memcpy(p, pPubKey, BTC_SZ_PUBKEY);
+    return true;
+}
+
+
+bool btc_script_create_p2sh_multisig(utl_buf_t *pScript, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
+{
+    if (!Num) return false;
+    if (!pRedeem->len) return false;
+
+    /*
+     * OP_0
+     * (sig-len + sig) * num
+     * OP_PUSHDATAx
+     * redeemScript-len
+     * redeemScript
+     */
+    uint16_t len = 1 + Num + 1 + 1 + pRedeem->len;
+    if (pRedeem->len >> 8) {
+        len++;
+    }
+    for (int lp = 0; lp < Num; lp++) {
+         len += pSigs[lp]->len;
+    }
+    if (!utl_buf_realloc(pScript, len)) return false;
+    uint8_t *p = pScript->buf;
+
+    *p++ = OP_0;
+    for (int lp = 0; lp < Num; lp++) {
+        *p++ = pSigs[lp]->len;
+        memcpy(p, pSigs[lp]->buf, pSigs[lp]->len);
+        p += pSigs[lp]->len;
+    }
+    if (pRedeem->len >> 8) {
+        *p++ = OP_PUSHDATA2;
+        *p++ = pRedeem->len & 0xff;
+        *p++ = pRedeem->len >> 8;
+    } else {
+        *p++ = OP_PUSHDATA1;
+        *p++ = (uint8_t)pRedeem->len;
+    }
+    memcpy(p, pRedeem->buf, pRedeem->len);
+    return true;
+}
+
+
+bool btc_script_sign_p2pkh(utl_buf_t *pScript, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
+{
+    bool ret;
+    uint8_t pubkey[BTC_SZ_PUBKEY];
+    utl_buf_t sigbuf = UTL_BUF_INIT;
+
+    if (pPubKey == NULL) {
+        ret = btc_keys_priv2pub(pubkey, pPrivKey);
+        if (!ret) {
+            assert(0);
+            goto LABEL_EXIT;
+        }
+        pPubKey = pubkey;
+    }
+
+    ret = btc_sig_sign(&sigbuf, pTxHash, pPrivKey);
+    if (!ret) {
+        goto LABEL_EXIT;
+    }
+
+    ret = btc_script_create_p2pkh(pScript, &sigbuf, pPubKey);
+    if (!ret) {
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    utl_buf_free(&sigbuf);
+
+    return ret;
+}
+
+
+bool btc_script_verify_p2pkh(utl_buf_t *pScript, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
+{
+    //scriptSig(P2PSH): <sig> <pubKey>
+
+    bool ret = false;
+
+    uint8_t *buf = pScript->buf;
+
+    uint32_t sig_len;
+    const uint8_t *sig;
+    uint32_t pubkey_len;
+    uint8_t *pubkey;
+
+    if (pScript->len < 1) goto LABEL_EXIT;
+    sig_len = *buf;
+    sig = buf + 1;
+    if (sig_len < _OP_PUSHDATA_X_MIN) goto LABEL_EXIT;
+    if (sig_len > _OP_PUSHDATA_X_MAX) goto LABEL_EXIT;
+    if (pScript->len < 1 + sig_len + 1) goto LABEL_EXIT;
+    pubkey_len = *(buf + 1 + sig_len);
+    pubkey = buf + 1 + sig_len + 1;
+    if (pubkey_len != BTC_SZ_PUBKEY) goto LABEL_EXIT;
+    if (pScript->len != 1 + sig_len + 1 + pubkey_len) goto LABEL_EXIT;
+
+    uint8_t pkh[BTC_SZ_HASH160];
+    btc_util_hash160(pkh, pubkey, BTC_SZ_PUBKEY);
+    if (memcmp(pkh, pPubKeyHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
+
+    if (!btc_sig_verify_2(sig, sig_len, pTxHash, pubkey)) goto LABEL_EXIT;
+
+    ret = true;
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+bool btc_script_verify_p2pkh_spk(utl_buf_t *pScript, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+{
+    //scriptPubKey(P2PKH): DUP HASH160 0x14 <20 bytes> EQUALVERIFY CHECKSIG
+
+    bool ret = false;
+
+    if (pScriptPk->len != 3 + BTC_SZ_HASH160 + 2) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    if ( (pScriptPk->buf[0] != OP_DUP) ||
+         (pScriptPk->buf[1] != OP_HASH160) ||
+         (pScriptPk->buf[2] != BTC_SZ_HASH160) ||
+         (pScriptPk->buf[3 + BTC_SZ_HASH160] != OP_EQUALVERIFY) ||
+         (pScriptPk->buf[3 + BTC_SZ_HASH160 + 1] != OP_CHECKSIG) ) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+
+    ret =  btc_script_verify_p2pkh(pScript, pTxHash, pScriptPk->buf + 3);
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+bool btc_script_verify_p2pkh_addr(utl_buf_t *pScript, const uint8_t *pTxHash, const char *pAddr)
+{
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    int pref;
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
+    if (ret && (pref == BTC_PREF_P2PKH)) {
+        ret = btc_script_verify_p2pkh(pScript, pTxHash, hash);
+    } else {
+        ret = false;
+    }
+
+    return ret;
+}
+
+
+bool btc_script_verify_p2sh_multisig(utl_buf_t *pScript, const uint8_t *pTxHash, const uint8_t *pScriptHash)
+{
+    const uint8_t *p = pScript->buf;
+
+    //このvinはP2SHの予定
+    //      1. 前のvoutのscriptHashが、redeemScriptから計算したscriptHashと一致するか確認
+    //      2. 署名チェック
+    //
+    //  OP_0
+    //  <署名> x いくつか
+    //  <OP_PUSHDATAx>
+    //  pushデータ長
+    //  redeemScript
+    if (*p != OP_0) {
+        LOGD("top isnot OP_0\n");
+        return false;
+    }
+
+    //署名数取得
+    int signum = 0;
+    int sigpos = 1;     //OP_0の次
+    uint32_t pos = 1;
+    uint8_t op_pushdata;
+    while (pos < pScript->len) {
+        uint8_t len = *(p + pos);
+        if ((len == OP_PUSHDATA1) || (len == OP_PUSHDATA2)) {
+            op_pushdata = len;
+            pos++;
+            break;
+        }
+        signum++;
+        pos += 1 + len;
+    }
+    if (pos >= pScript->len) {
+        LOGD("no OP_PUSHDATAx(sign)\n");
+        return false;
+    }
+    uint16_t redm_len;  //OP_PUSHDATAxの引数
+    if (op_pushdata == OP_PUSHDATA1) {
+        redm_len = (uint16_t)*(p + pos);
+        pos++;
+    } else if (op_pushdata == OP_PUSHDATA2) {
+        redm_len = (uint16_t)(*(p + pos) | (*(p + pos + 1) << 8));
+        pos += 2;
+    } else {
+        LOGD("no OP_PUSHDATA-1or2\n");
+        return false;
+    }
+    if (pScript->len != pos + redm_len) {
+        LOGD("invalid len\n");
+        return false;
+    }
+    if (signum != (*(p + pos) - OP_x)) {
+        LOGD("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
+        return false;
+    }
+    pos++;
+    //公開鍵数取得
+    int pubnum = 0;
+    int pubpos = pos;
+    while (pos < pScript->len) {
+        uint8_t len = *(p + pos);
+        if ((OP_1 <= len) && (len <= OP_16)) {
+            break;
+        }
+        if (len != BTC_SZ_PUBKEY) {
+            LOGD("invalid pubkey len(%d)\n", len);
+            return false;
+        }
+        pubnum++;
+        pos += 1 + len;
+    }
+    if (pos >= pScript->len) {
+        LOGD("no OP_PUSHDATAx(pubkey)\n");
+        return false;
+    }
+    if (pubnum != (*(p + pos) - OP_x)) {
+        LOGD("OP_x mismatch(pubkey): signum=%d, OP_x=%d\n", pubnum, *(p + pos) - OP_x);
+        return false;
+    }
+    pos++;
+    if (*(p + pos) != OP_CHECKMULTISIG) {
+        LOGD("not OP_CHECKMULTISIG\n");
+        return false;
+    }
+    pos++;
+    if (pos != pScript->len) {
+        LOGD("invalid data length\n");
+        return false;
+    }
+
+    //scripthashチェック
+    uint8_t sh[BTC_SZ_HASH_MAX];
+    btc_util_hash160(sh, pScript->buf + pubpos - 1, pScript->len - pubpos + 1);
+    bool ret = (memcmp(sh, pScriptHash, BTC_SZ_HASH160) == 0);
+    if (!ret) {
+        LOGD("scripthash mismatch.\n");
+        return false;
+    }
+
+    //公開鍵の重複チェック
+    for (int lp = 0; lp < pubnum - 1; lp++) {
+        const uint8_t *p1 = pScript->buf + pubpos + (1 + BTC_SZ_PUBKEY) * lp;
+        for (int lp2 = lp + 1; lp2 < pubnum; lp2++) {
+            const uint8_t *p2 = pScript->buf + pubpos + (1 + BTC_SZ_PUBKEY) * lp2;
+            ret = (memcmp(p1, p2, 1 + BTC_SZ_PUBKEY) == 0);
+            if (ret) {
+                LOGD("same pubkey(%d, %d)\n", lp, lp2);
+                return false;
+            }
+        }
+    }
+
+    //署名チェック
+    // signum分のverifyが成功すればOK（満たした時点で抜けていい？）
+    // 許容される最大のverify失敗の数はpubnum - signum。それを即座に超えると抜けてNGとする
+    //
+    // ??? おそらくbitcoindでは、NG数が最短になるように配置される前提になっている。
+    //     そうするため、署名に一致する-公開鍵が見つかった場合、次はその公開鍵より後ろを検索する。
+    //         [SigA, SigB][PubA, PubB, PubC] ... OK
+    //             SigA=PubA(NG 0回), SigB=PubB(NG 0回)
+    //         [SigB, SigA][PubA, PubB, PubC] ... NG
+    // ???         SigB=PubB(NG 1回), SigA=none(PubC以降しか検索しないため)
+    uint32_t chk_pos = 0;   //bitが立った公開鍵はチェック済み
+    int ok_cnt = 0;
+    int ng_cnt = pubnum - signum;
+    for (int lp = 0; lp < signum; lp++) {
+        int pubpos_now = pubpos;
+        for (int lp2 = 0; lp2 < pubnum; lp2++) {
+            if ((chk_pos & (1 << lp2)) == 0) {
+                //未チェック公開鍵
+                const utl_buf_t sig = { pScript->buf + sigpos + 1, *(pScript->buf + sigpos) };
+                ret = *(pScript->buf + pubpos_now) == BTC_SZ_PUBKEY;
+                if (ret) {
+                    ret = btc_sig_verify(&sig, pTxHash, pScript->buf + pubpos_now + 1);
+                }
+                if (ret) {
+                    ok_cnt++;
+                    chk_pos |= (1 << (lp2 + 1)) - 1;    //以下を全部1にする(NG最短)
+                    LOGD("   verify ok: sig=%d, pub=%d\n", lp, lp2);
+                    break;
+                } else {
+                    ng_cnt--;
+                    if (ng_cnt < 0) {
+                        //NGとしてループを抜ける(NG最短)
+                        ok_cnt = -1;
+                        lp = signum;
+                        break;
+                    }
+                }
+            }
+            pubpos_now += *(pScript->buf + pubpos_now) + 1;
+        }
+        sigpos += *(pScript->buf + sigpos) + 1;
+    }
+    LOGD("ok_cnt=%d, ng_cnt=%d, signum=%d, pubnum=%d\n", ok_cnt, ng_cnt, signum, pubnum);
+
+    return ok_cnt == signum;
+}
+
+
+bool btc_script_verify_p2sh_multisig_spk(utl_buf_t *pScript, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+{
+    bool ret = false;
+
+    //P2SHのscriptPubKey(P2SH): HASH160 0x14 <20 bytes> EQUAL
+    if (pScriptPk->len != 2 + BTC_SZ_HASH160 + 1) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    if ( (pScriptPk->buf[0] != OP_HASH160) ||
+         (pScriptPk->buf[1] != BTC_SZ_HASH160) ||
+         (pScriptPk->buf[2 + BTC_SZ_HASH160] != OP_EQUAL) ) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+
+    ret =  btc_script_verify_p2sh_multisig(pScript, pTxHash, pScriptPk->buf + 2);
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+bool btc_script_verify_p2sh_multisig_addr(utl_buf_t *pScript, const uint8_t *pTxHash, const char *pAddr)
+{
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    int pref;
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
+    if (ret && (pref == BTC_PREF_P2SH)) {
+        ret = btc_script_verify_p2sh_multisig(pScript, pTxHash, hash);
+    } else {
+        ret = false;
+    }
+
+    return ret;
+}
+
+
+#if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
+void btc_script_print(const uint8_t *pData, uint16_t Len)
+{
+    bool ret = true;
+
+    const struct {
+        uint8_t         op;
+        const char      *name;
+    } OP_DIC[] = {
+        { OP_HASH160, "OP_HASH160" },
+        { OP_HASH256, "OP_HASH256" },
+        { OP_EQUAL, "OP_EQUAL" },
+        { OP_EQUALVERIFY, "OP_EQUALVERIFY" },
+        { OP_CHECKSIG, "OP_CHECKSIG" },
+        { OP_CHECKMULTISIG, "OP_CHECKMULTISIG" },
+        { OP_CHECKLOCKTIMEVERIFY, "OP_CHECKLOCKTIMEVERIFY" },
+        { OP_CHECKSEQUENCEVERIFY, "OP_CHECKSEQUENCEVERIFY" },
+        { OP_DROP, "OP_DROP" },
+        { OP_2DROP, "OP_2DROP" },
+        { OP_DUP, "OP_DUP" },
+        { OP_IF, "OP_IF" },
+        { OP_NOTIF, "OP_NOTIF" },
+        { OP_ELSE, "OP_ELSE" },
+        { OP_ENDIF, "OP_ENDIF" },
+        { OP_SWAP, "OP_SWAP" },
+        { OP_ADD, "OP_ADD" },
+        { OP_SIZE, "OP_SIZE" },
+    };
+
+    const uint8_t *end = pData + Len;
+    const char INDENT[] = "      ";
+    while (pData < end) {
+        if (*pData <= _OP_PUSHDATA_X_MAX) {
+            //pushdata
+            uint8_t len = *pData;
+            pData++;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%s%02x ", INDENT, len);
+            DUMPD(pData, len);
+            pData += len;
+        } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
+            //OP_x
+            LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
+            pData++;
+        } else if (*pData == OP_PUSHDATA1) {
+            //pushdata
+            if (pData + 2 > end) {
+                ret = false;
+                break;
+            }
+            uint8_t len = *(pData + 1);
+            pData += 2;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%sOP_PUSHDATA1 0x%02x ", INDENT, len);
+            DUMPD(pData, len);
+            pData += len;
+        } else if (*pData == OP_PUSHDATA2) {
+            //pushdata
+            if (pData + 3 > end) {
+                ret = false;
+                break;
+            }
+            uint16_t len = *(pData + 1) | (*(pData + 2) << 8);
+            pData += 3;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%sOP_PUSHDATA2 0x%02x ", INDENT, len);
+            DUMPD(pData, len);
+            pData += len;
+        } else if (*pData == OP_PUSHDATA3) {
+            //pushdata
+            if (pData + 5 > end) {
+                ret = false;
+                break;
+            }
+            uint32_t len = *(pData + 1) | (*(pData + 2) << 8) | (*(pData + 3) << 16) | (*(pData + 4) << 24);
+            pData += 5;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%sOP_PUSHDATA3 0x%02x ", INDENT, len);
+            DUMPD(pData, len);
+            pData += len;
+        } else {
+            int op;
+            for (op = 0; op < (int)ARRAY_SIZE(OP_DIC); op++) {
+                if (*pData == OP_DIC[op].op) {
+                    break;
+                }
+            }
+            if (op != ARRAY_SIZE(OP_DIC)) {
+                LOGD("%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
+            } else {
+                //unknown
+                LOGD("%s%02x [??]\n", INDENT, *pData);
+            }
+            pData++;
+        }
+    }
+    if (!ret) {
+        LOGD("%sinvalid script length\n", INDENT);
+    }
+}
+#endif  //PTARM_USE_PRINTFUNC
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+

@@ -1498,14 +1498,6 @@ void btc_tx_print(const btc_tx_t *pTx);
 void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
 
 
-/** スクリプトの内容表示
- *
- * @param[in]       pData       表示対象
- * @param[in]       Len         pData長
- */
-void btc_script_print(const uint8_t *pData, uint16_t Len);
-
-
 /** 拡張鍵の内容表示
  *
  * @param[in]       pEKey       拡張鍵構造体
@@ -1514,7 +1506,6 @@ void btc_extkey_print(const btc_extkey_t *pEKey);
 #else
 #define btc_tx_print(...)             //nothing
 #define btc_tx_print_raw(...)          //nothing
-#define btc_script_print(...)         //nothing
 #define btc_extkey_print(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
