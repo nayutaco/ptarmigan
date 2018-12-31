@@ -24,6 +24,7 @@
  */
 
 #include "btc_segwit_addr.h"
+#include "btc_script.h"
 
 #include "ln_signer.h"
 #include "ln_derkey.h"
@@ -139,7 +140,7 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
     utl_buf_t sigbuf = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
 
-    btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
+    btc_script_code_p2wpkh(&script_code, pKeys->pub);
 
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
     if (ret) {

@@ -60,6 +60,8 @@
 #include "utl_time.h"
 #include "utl_rng.h"
 
+#include "btc_script.h"
+
 #include "ptarmd.h"
 #include "cmd_json.h"
 #include "lnapp.h"

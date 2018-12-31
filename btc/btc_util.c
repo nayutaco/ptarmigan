@@ -37,6 +37,7 @@
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
+#include "btc_script.h"
 
 
 /**************************************************************************
@@ -51,10 +52,6 @@
  * prototypes
  **************************************************************************/
 
-static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
-static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
-static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
-static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
 static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 static int set_le32(uint8_t *pData, uint32_t val);
 static int set_le64(uint8_t *pData, uint64_t val);
@@ -147,7 +144,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
     utl_buf_t scrpk;
     uint8_t pkh[BTC_SZ_HASH_MAX];
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
-    btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
+    btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
 
     const utl_buf_t *scrpks[] = { &scrpk };
 
@@ -169,7 +166,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
     uint8_t pkh[BTC_SZ_HASH_MAX];
     utl_buf_t scrpk;
     btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
-    btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
+    btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
     const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[BTC_SZ_HASH256];
@@ -196,7 +193,7 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
         return false;
     }
 
-    if (!btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub)) {
+    if (!btc_script_code_p2wpkh(&script_code, pKeys->pub)) {
         LOGD("fail\n");
         return false;
     }
@@ -220,7 +217,6 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
 bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
                     const utl_buf_t *pWitScript)
 {
-    bool ret;
     utl_buf_t script_code = UTL_BUF_INIT;
 
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
@@ -229,10 +225,10 @@ bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t
         return false;
     }
 
-    btc_sw_scriptcode_p2wsh(&script_code, pWitScript);
-    ret = btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
+    if (!btc_script_code_p2wsh(&script_code, pWitScript)) return false;
+    if (!btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code)) return false;
     utl_buf_free(&script_code);
-    return ret;
+    return true;
 }
 
 
@@ -558,37 +554,6 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
 }
 
 
-bool btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pHash, int Prefix)
-{
-    switch (Prefix) {
-    case BTC_PREF_P2PKH:
-        //LOGD("BTC_PREF_P2PKH\n");
-        if (!utl_buf_alloc(pBuf, 3 + BTC_SZ_HASH160 + 2)) return false;
-        create_scriptpk_p2pkh(pBuf->buf, pHash);
-        break;
-    case BTC_PREF_P2SH:
-        //LOGD("BTC_PREF_P2SH\n");
-        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160 + 1)) return false;
-        create_scriptpk_p2sh(pBuf->buf, pHash);
-        break;
-    case BTC_PREF_P2WPKH:
-        //LOGD("BTC_PREF_P2WPKH\n");
-        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160)) return false;
-        create_scriptpk_p2wpkh(pBuf->buf, pHash);
-        break;
-    case BTC_PREF_P2WSH:
-        //LOGD("BTC_PREF_P2WSH\n");
-        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH256)) return false;
-        create_scriptpk_p2wsh(pBuf->buf, pHash);
-        break;
-    default:
-        assert(false);
-        return false;
-    }
-    return true;
-}
-
-
 int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA)
 {
     int ret;
@@ -850,7 +815,7 @@ bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t 
 bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    return btc_util_create_scriptpk(&vout->script, pPubKeyHash, Pref);
+    return btc_script_pk_create(&vout->script, pPubKeyHash, Pref);
 }
 
 
@@ -892,42 +857,6 @@ int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_
 /**************************************************************************
  * private functions
  **************************************************************************/
-
-static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
-{
-    p[0] = OP_DUP;
-    p[1] = OP_HASH160;
-    p[2] = BTC_SZ_HASH160;
-    memcpy(p + 3, pPubKeyHash, BTC_SZ_HASH160);
-    p[23] = OP_EQUALVERIFY;
-    p[24] = OP_CHECKSIG;
-}
-
-
-static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash)
-{
-    p[0] = OP_HASH160;
-    p[1] = BTC_SZ_HASH160;
-    memcpy(p + 2, pHash, BTC_SZ_HASH160);
-    p[22] = OP_EQUAL;
-}
-
-
-static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash)
-{
-    p[0] = 0x00;
-    p[1] = BTC_SZ_HASH160;
-    memcpy(p + 2, pHash, BTC_SZ_HASH160);
-}
-
-
-static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash)
-{
-    p[0] = 0x00;
-    p[1] = BTC_SZ_HASH256;
-    memcpy(p + 2, pHash, BTC_SZ_HASH256);
-}
-
 
 /** 2-of-2公開鍵ソート
  *
