@@ -2051,23 +2051,23 @@ static char *create_bolt11(
                 uint32_t MinFinalCltvExpiry)
 {
     uint8_t type;
-    btc_genesis_t gtype = btc_util_get_genesis(ln_genesishash_get());
+    btc_block_chain_t gtype = btc_block_get_chain(ln_genesishash_get());
     switch (gtype) {
-    case BTC_GENESIS_BTCMAIN:
+    case BTC_BLOCK_CHAIN_BTCMAIN:
         type = LN_INVOICE_MAINNET;
         break;
-    case BTC_GENESIS_BTCTEST:
+    case BTC_BLOCK_CHAIN_BTCTEST:
         type = LN_INVOICE_TESTNET;
         break;
-    case BTC_GENESIS_BTCREGTEST:
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
         type = LN_INVOICE_REGTEST;
         break;
     default:
-        type = BTC_GENESIS_UNKNOWN;
+        type = BTC_BLOCK_CHAIN_UNKNOWN;
         break;
     }
     char *p_invoice = NULL;
-    if (type != BTC_GENESIS_UNKNOWN) {
+    if (type != BTC_BLOCK_CHAIN_UNKNOWN) {
         ln_invoice_create(&p_invoice, type,
                 pPayHash, Amount, Expiry, pFieldR, FieldRNum, MinFinalCltvExpiry);
     }

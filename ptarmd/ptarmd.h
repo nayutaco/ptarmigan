@@ -206,7 +206,7 @@ typedef struct {
     char            rpcurl[SZ_RPC_URL];
     uint16_t        rpcport;
 #else
-    btc_genesis_t   gen;
+    btc_block_chain_t   gen;
 #endif
 } rpc_conf_t;
 

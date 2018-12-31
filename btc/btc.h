@@ -200,7 +200,7 @@ extern "C" {
 
 
 /**************************************************************************
- * types
+ * typedefs
  **************************************************************************/
 
 /** @enum   btc_chain_t
@@ -301,15 +301,6 @@ typedef enum {
     BTC_KEYS_SORT_ASC,            ///< 順番が昇順
     BTC_KEYS_SORT_OTHER           ///< それ以外
 } btc_keys_sort_t;
-
-
-/** @enum btc_genesis_t */
-typedef enum {
-    BTC_GENESIS_UNKNOWN,          ///< 不明
-    BTC_GENESIS_BTCMAIN,          ///< Bitcoin mainnet
-    BTC_GENESIS_BTCTEST,          ///< Bitcoin testnet
-    BTC_GENESIS_BTCREGTEST,       ///< Bitcoin regtest
-} btc_genesis_t;
 
 
 /**************************************************************************
@@ -1338,22 +1329,6 @@ bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys
  * @param[in,out]   pTx     処理対象のトランザクション
  */
 void btc_util_sort_bip69(btc_tx_t *pTx);
-
-
-/** ブロックチェーン種別取得
- *
- * @param[in]       pGenesisHash
- * @return      ブロックチェーン種別
- */
-btc_genesis_t btc_util_get_genesis(const uint8_t *pGenesisHash);
-
-
-/** genesis block hash取得
- *
- * @param[in]       Kind
- * @return      genesis block hash(未知のKindの場合はNULL)
- */
-const uint8_t *btc_util_get_genesis_block(btc_genesis_t Kind);
 
 
 /** RIPMED160計算

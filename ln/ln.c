@@ -558,10 +558,10 @@ const char *ln_status_string(const ln_self_t *self)
 void ln_genesishash_set(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, BTC_SZ_HASH256);
-    btc_genesis_t gen = btc_util_get_genesis(gGenesisChainHash);
+    btc_block_chain_t gen = btc_block_get_chain(gGenesisChainHash);
     LOGD("genesis(%d)=", (int)gen);
     DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
-    if (gen == BTC_GENESIS_UNKNOWN) {
+    if (gen == BTC_BLOCK_CHAIN_UNKNOWN) {
         LOGD("fail: unknown genesis block hash\n");
     }
 }
