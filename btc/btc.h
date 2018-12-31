@@ -58,8 +58,6 @@ extern "C" {
 #define BTC_SZ_EXTKEY           (82)                ///< サイズ:拡張鍵
 #define BTC_SZ_CHAINCODE        (32)                ///< サイズ:拡張鍵chaincode
 #define BTC_SZ_EXTKEY_ADDR_MAX  (112)               ///< サイズ:拡張鍵アドレス長上限
-#define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
-#define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
 #define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
 #define BTC_PREF_CHAIN          (0)             ///< Prefix: 1:mainnet, 2:testnet

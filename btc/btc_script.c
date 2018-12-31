@@ -464,6 +464,7 @@ bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 }
 
 
+//XXX:
 bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
 {
     if (!utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWitScript->len) + pWitScript->len)) return false;
