@@ -221,20 +221,20 @@ int main(int argc, char* argv[])
     ln_lmdb_setenv(pDbSelf, pDbNode, pDbAnno);
 
     uint8_t my_nodeid[BTC_SZ_PUBKEY];
-    btc_genesis_t gtype;
+    btc_block_chain_t gtype;
     bret = ln_db_ver_check(my_nodeid, &gtype);
     if (!bret) {
         fprintf(fp_err, "fail: DB version mismatch\n");
         return -7;
     }
 
-    ln_genesishash_set(btc_util_get_genesis_block(gtype));
+    ln_genesishash_set(btc_block_get_genesis_hash(gtype));
     switch (gtype) {
-    case BTC_GENESIS_BTCMAIN:
+    case BTC_BLOCK_CHAIN_BTCMAIN:
         btc_init(BTC_MAINNET, true);
         break;
-    case BTC_GENESIS_BTCTEST:
-    case BTC_GENESIS_BTCREGTEST:
+    case BTC_BLOCK_CHAIN_BTCTEST:
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
         btc_init(BTC_TESTNET, true);
         break;
     default:
