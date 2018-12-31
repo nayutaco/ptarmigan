@@ -21,6 +21,7 @@ extern "C" {
 #include "btc_keys.c"
 #include "btc_sw.c"
 #include "btc_sig.c"
+#include "btc_script.c"
 #include "btc_tx.c"
 #include "btc_util.c"
 #include "segwit_addr.c"

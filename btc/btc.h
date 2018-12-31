@@ -681,7 +681,7 @@ bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t 
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
+bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
 /** set P2SH-vin scriptSig with multisig and redeemScript
@@ -695,7 +695,7 @@ bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
+bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
 
 
 /* convert tx from data array to #btc_tx_t
@@ -814,7 +814,7 @@ bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t
  *      - pPubKeyは、既にあるなら計算を省略したいので引数にしている
  *          - 使ってみて、計算済みになることが少ないなら、引数から削除する予定
  */
-bool btc_tx_sign_p2pkh(btc_tx_t *pTx, int Index,
+bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index,
         const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
 
 
@@ -830,7 +830,7 @@ bool btc_tx_sign_p2pkh(btc_tx_t *pTx, int Index,
  *      - pPubKeyHashは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 
 
 /** P2PKH署名チェック(scriptPubKey)
@@ -845,7 +845,7 @@ bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash,
  *      - pScriptPkは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2PKH署名チェック(アドレス)
@@ -860,7 +860,7 @@ bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxH
  *      - pAddrは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
+bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr);
 
 
 /** MultiSig(P2SH)署名チェック
@@ -871,7 +871,7 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
  * @param[in]       pScriptHash     redeem script hash
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pScriptHash);
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pScriptHash);
 
 
 /** P2SH署名チェック(scriptPubKey)
@@ -882,7 +882,7 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
  * @param[in]       pScriptPk       scriptPubKey
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2SH署名チェック(アドレス)
@@ -893,7 +893,7 @@ bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
+bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr);
 
 
 /** 公開鍵復元
@@ -1037,7 +1037,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin);
  * @retval  false   pTxがトランザクションとして不正
  *
  */
-bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value,
                 const utl_buf_t *pScriptCode);
 
 
@@ -1052,7 +1052,7 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
  *      - pSigはコピーするため解放はpTxで管理しない。
  *      - mNativeSegwitがfalseの場合、scriptSigへの追加も行う
  */
-bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
+bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
 /** P2WPSHのscriptSig作成
@@ -1065,7 +1065,7 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, cons
  * @note
  *      - pWitはコピーするため解放はpTxで管理しない。
  */
-bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], int Num);
+bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWits[], int Num);
 
 
 /** P2WPKH署名チェック
@@ -1079,7 +1079,7 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], in
  * @note
  *      - pPubKeyHashは、pTxの署名部分が持つ公開鍵から生成したPubKeyHashと比較する
  */
-bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** P2WPKH署名チェック(アドレス)
@@ -1090,13 +1090,13 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
  * @param[in]       pAddr   Bitcoinアドレス
  * @return      true:チェックOK
  */
-bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, int Index, uint64_t Value, const char *pAddr);
+bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const char *pAddr);
 
 
 /** 2-of-2 multisigの署名チェック
  *
  */
-bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pVout);
+bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pVout);
 
 
 #if 0   //今のところ使い道がない
@@ -1294,7 +1294,7 @@ bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys);
+bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys);
 
 
 /** P2PKH署名チェック
@@ -1304,7 +1304,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys);
  * @param[in]       pAddrVout   チェック用
  * @return      true:成功
  */
-bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout);
+bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout);
 
 
 /** P2WPKH署名
@@ -1317,19 +1317,19 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout);
  * @note
  *      - #btc_init()の設定で署名する
  */
-bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKeys);
+bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成
  *
- * @param[out]      pTxHash
  * @param[in]       pTx
+ * @param[out]      pTxHash
  * @param[in]       Index
  * @param[in]       Value
  * @param[in]       pWitScript
  * @retval  false   pTxがトランザクションとして不正
  */
-bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
                     const utl_buf_t *pWitScript);
 
 
@@ -1498,14 +1498,6 @@ void btc_tx_print(const btc_tx_t *pTx);
 void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
 
 
-/** スクリプトの内容表示
- *
- * @param[in]       pData       表示対象
- * @param[in]       Len         pData長
- */
-void btc_script_print(const uint8_t *pData, uint16_t Len);
-
-
 /** 拡張鍵の内容表示
  *
  * @param[in]       pEKey       拡張鍵構造体
@@ -1514,7 +1506,6 @@ void btc_extkey_print(const btc_extkey_t *pEKey);
 #else
 #define btc_tx_print(...)             //nothing
 #define btc_tx_print_raw(...)          //nothing
-#define btc_script_print(...)         //nothing
 #define btc_extkey_print(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
