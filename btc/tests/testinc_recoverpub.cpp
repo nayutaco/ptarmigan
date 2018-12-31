@@ -60,13 +60,13 @@ TEST_F(recoverpub, rec1)
     };
 
     int recid;
-    ret = btc_tx_recover_pubkey_id(&recid, PUBKEY, SIG_RS, TXHASH);
+    ret = btc_sig_recover_pubkey_id(&recid, PUBKEY, SIG_RS, TXHASH);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, recid);
     //printf("recid=%d\n", recid);
 
     uint8_t recov_pub[BTC_SZ_PUBKEY];
-    ret = btc_tx_recover_pubkey(recov_pub, recid, SIG_RS, TXHASH);
+    ret = btc_sig_recover_pubkey(recov_pub, recid, SIG_RS, TXHASH);
     ASSERT_TRUE(ret);
     //printf("pubkey= ");
     //recoverpub::DumpBin(recov_pub, sizeof(recov_pub));
