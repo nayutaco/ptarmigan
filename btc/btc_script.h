@@ -57,15 +57,15 @@
  * prototypes
  **************************************************************************/
 
-bool btc_script_create_p2pkh(utl_buf_t *pScript, const utl_buf_t *pSig, const uint8_t *pPubKey);
-bool btc_script_create_p2sh_multisig(utl_buf_t *pScript, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
-bool btc_script_sign_p2pkh(utl_buf_t *pScript, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
-bool btc_script_verify_p2pkh(utl_buf_t *pScript, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
-bool btc_script_verify_p2pkh_spk(utl_buf_t *pScript, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-bool btc_script_verify_p2pkh_addr(utl_buf_t *pScript, const uint8_t *pTxHash, const char *pAddr);
-bool btc_script_verify_p2sh_multisig(utl_buf_t *pScript, const uint8_t *pTxHash, const uint8_t *pScriptHash);
-bool btc_script_verify_p2sh_multisig_spk(utl_buf_t *pScript, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-bool btc_script_verify_p2sh_multisig_addr(utl_buf_t *pScript, const uint8_t *pTxHash, const char *pAddr);
+bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey);
+bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
+bool btc_script_sig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
+bool btc_script_sig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_script_sig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+bool btc_script_sig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr);
+bool btc_script_sig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
+bool btc_script_sig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr);
 
 #ifdef PTARM_USE_PRINTFUNC
 /** スクリプトの内容表示
