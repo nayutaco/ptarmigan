@@ -49,7 +49,7 @@ TEST_F(sw, scriptcode_p2wpkh)
         0xeb, 0x0b, 0x92, 0x92, 0x08, 0xe6, 0x4e, 0x59,
         0x88, 0xac,
     };
-    ASSERT_TRUE(btc_sw_scriptcode_p2wpkh(&code, PUB));
+    ASSERT_TRUE(btc_script_code_p2wpkh(&code, PUB));
     ASSERT_EQ(0, memcmp(CODE, code.buf, sizeof(CODE)));
     ASSERT_EQ(sizeof(CODE), code.len);
     utl_buf_free(&code);
@@ -96,7 +96,7 @@ TEST_F(sw, scriptcode_p2wsh)
         0x18, 0x2e, 0x82, 0x04, 0x95, 0x3e, 0x74, 0x53,
         0xae,
     };
-    btc_sw_scriptcode_p2wsh(&code, &wit);
+    ASSERT_TRUE(btc_script_code_p2wsh(&code, &wit));
     ASSERT_EQ(0, memcmp(CODE, code.buf, sizeof(CODE)));
     ASSERT_EQ(sizeof(CODE), code.len);
     utl_buf_free(&code);

@@ -36,6 +36,8 @@
 #include "utl_time.h"
 #include "utl_rng.h"
 
+#include "btc_script.h"
+
 #include "ln_db.h"
 #include "ln_misc.h"
 #include "ln_msg_setupctl.h"
@@ -4503,7 +4505,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     M_DBG_PRINT_TX(pTxCommit);
 
     // verify
-    btc_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
+    btc_script_code_p2wsh(&script_code, &self->redeem_fund);
     ret = btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
     if (ret) {
         ret = btc_sw_verify_2of2(pTxCommit, 0, sighash,

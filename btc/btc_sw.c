@@ -25,6 +25,7 @@
 #include "utl_dbg.h"
 
 #include "btc_local.h"
+#include "btc_script.h"
 
 
 /**************************************************************************
@@ -62,25 +63,6 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
 }
 
 
-//XXX: script
-bool btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
-{
-    uint8_t hash[BTC_SZ_HASH_MAX];
-    btc_util_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
-    //XXX:
-    utl_buf_t tmp_spk;
-    if (!btc_util_create_scriptpk(&tmp_spk, hash, BTC_PREF_P2PKH)) return false;
-    if (!utl_buf_alloc(pScriptCode, 1 + tmp_spk.len)) {
-        utl_buf_free(&tmp_spk);
-        return false;
-    }
-    pScriptCode->buf[0] = (uint8_t)tmp_spk.len;
-    memcpy(pScriptCode->buf + 1, tmp_spk.buf, tmp_spk.len);
-    utl_buf_free(&tmp_spk);
-    return true;
-}
-
-
 //XXX: pTx
 bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
@@ -91,17 +73,7 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    return btc_sw_scriptcode_p2wpkh(pScriptCode, pVin->witness[1].buf);
-}
-
-
-//XXX: script //XXX: TODO
-void btc_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
-{
-    utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWitScript->len) + pWitScript->len);
-    uint8_t *p = pScriptCode->buf;
-    p += btcl_util_set_varint_len(p, NULL, pWit->len, false);
-    memcpy(p, pWit->buf, pWit->len);
+    return btc_script_code_p2wpkh(pScriptCode, pVin->witness[1].buf);
 }
 
 
@@ -118,8 +90,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    btc_sw_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
-    return true;
+    return btc_script_code_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
 }
 
 
@@ -346,7 +317,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     }
 
     utl_buf_t script_code = UTL_BUF_INIT;
-    if (!btc_sw_scriptcode_p2wpkh(&script_code, p_pub->buf)) {
+    if (!btc_script_code_p2wpkh(&script_code, p_pub->buf)) {
         return false;
     }
 
