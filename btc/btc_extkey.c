@@ -29,13 +29,14 @@
 #include "mbedtls/pkcs5.h"
 #include "mbedtls/bignum.h"
 
-#include "btc_local.h"
 #include "utl_dbg.h"
 #include "utl_rng.h"
 
+#include "btc_local.h"
 #ifdef BTC_ENABLE_GEN_MNEMONIC
 #include "bip39_wordlist_english.h"
 #endif  //BTC_ENABLE_GEN_MNEMONIC
+#include "btc_extkey.h"
 
 
 /**************************************************************************

@@ -54,10 +54,6 @@ extern "C" {
 #define BTC_SZ_WIF_STR_MAX      (55)                ///< サイズ:秘密鍵のWIF(上限不明)
 #define BTC_SZ_TXID             (32)                ///< サイズ:TXID
 #define BTC_SZ_SIGN_RS          (64)                ///< サイズ:RS形式の署名
-#define BTC_SZ_EXTKEY_SEED      (64)                ///< サイズ:拡張鍵seed
-#define BTC_SZ_EXTKEY           (82)                ///< サイズ:拡張鍵
-#define BTC_SZ_CHAINCODE        (32)                ///< サイズ:拡張鍵chaincode
-#define BTC_SZ_EXTKEY_ADDR_MAX  (112)               ///< サイズ:拡張鍵アドレス長上限
 #define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
 #define BTC_PREF_CHAIN          (0)             ///< Prefix: 1:mainnet, 2:testnet
@@ -69,13 +65,6 @@ extern "C" {
 #define BTC_PREF_MAX            (6)             ///< 内部管理用
 #define BTC_PREF_P2WPKH         (7)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
 #define BTC_PREF_P2WSH          (8)             ///< Prefix: Native Pay-to-Witness-Script-Hash
-
-#define BTC_EXTKEY_PRIV         (0)             ///< 拡張鍵種別:秘密鍵
-#define BTC_EXTKEY_PUB          (1)             ///< 拡張鍵種別:公開鍵
-#define BTC_EXTKEY_HARDENED     ((uint32_t)0x80000000)  ///< 拡張鍵:hardened
-#define BTC_EXTKEY_BIP_EXTERNAL (0)             ///< BIP44 Change: external chain
-#define BTC_EXTKEY_BIP_INTERNAL (1)             ///< BIP44 Change: internal chain(change addresses)
-#define BTC_EXTKEY_BIP_SKIP     ((uint32_t)-1)  ///< BIP44: account以降かchange以降をskipする
 
 //連結させるため文字列にしている
 #define BTC_OP_0                "\x00"          ///< OP_0
@@ -227,19 +216,6 @@ typedef enum {
     BTC_TXVALID_VOUT_SPKH_NONE,
     BTC_TXVALID_VOUT_VALUE_BAD,
 } btc_tx_valid_t;
-
-
-/** @struct     btc_extkey_t
- *  @brief      Extended Key管理構造体
- */
-typedef struct {
-    uint8_t     type;                           ///<
-    uint8_t     depth;                          ///<
-    uint32_t    fingerprint;                    ///<
-    uint32_t    child_number;                   ///<
-    uint8_t     chain_code[BTC_SZ_CHAINCODE];   ///<
-    uint8_t     key[BTC_SZ_PUBKEY];             ///< typeがBTC_EXTKEY_PRIVの場合、先頭の32byteが有効
-} btc_extkey_t;
 
 
 /** @struct     btc_keys_t
@@ -1082,138 +1058,6 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 
 
 //////////////////////
-//EXTKEY
-//////////////////////
-
-#ifdef BTC_ENABLE_GEN_MNEMONIC
-/** generate mnemonic 24words
- *
- * @return  mnemonic 24words
- * @note
- *      - call #UTL_DBG_FREE() after use
- */
-char *btc_extkey_generate_mnemonic24(void);
-#endif  //BTC_ENABLE_GEN_MNEMONIC
-
-/** mnemonic words --> seed[BTC_SZ_EXTKEY_SEED]
- *
- */
-bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass);
-
-
-/** generate BIP32 extended key
- *
- * if Type == #BTC_EXTKEY_PRIV && pSeed == NULL:<br>
- *     parent private key(pKey) --> generate child private/public keys<br>
- * if Type == #BTC_EXTKEY_PRIV && pSeed != NULL:<br>
- *     root seed(pSeed) --> generate master private/public keys<br>
- * if Type == #BTC_EXTKEY_PUB:<br>
- *     parent public key(pKey) --> generate child public keys<br>
- * copy the generated key to pEKey->key according to the type
- *
- * @param[out]      pEKey           extended key
- * @param[in]       Type            extended key type
- * @param[in]       Depth           depth
- * @param[in]       ChildNum        child number
- * @param[in]       pKey            parent key
- * @param[in]       pSeed           root seed
- * @param[in]       SzSeed          root seed size
- * @return       true:success
- */
-bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
-        const uint8_t *pKey,
-        const uint8_t *pSeed, int SzSeed);
-
-
-/** BIP44形式拡張鍵構造体初期化
- *
- * @param[out]      pEKey           拡張鍵構造体(depth2～4)
- * @param[in]       pSeed           拡張鍵seed(BTC_SZ_EXTKEY_SEED)
- * @param[in]       Account         0～。BTC_EXTKEY_BIP_SKIPの場合、"m/44'/coin_type'"までで終わる。
- * @param[in]       Change          BTC_EXTKEY_BIP_EXTERNAL or BTC_EXTKEY_BIP_INTERNAL。
- *                                  BTC_EXTKEY_BIP_SKIPの場合、"m/44'/coin_type'/account"までで終わる。
- * @retval  true    成功
- */
-bool btc_extkey_bip44_init(btc_extkey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change);
-
-
-/** BIP44形式拡張鍵構造体準備
- *
- * @param[in,out]   pEKey           [in]depth0 [out]拡張鍵構造体(depth2～4)
- * @param[in]       Account         0～。BTC_EXTKEY_BIP_SKIPの場合、"m/44'/coin_type'"までで終わる。
- * @param[in]       Change          BTC_EXTKEY_BIP_EXTERNAL or BTC_EXTKEY_BIP_INTERNAL。
- *                                  BTC_EXTKEY_BIP_SKIPの場合、"m/44'/coin_type'/account"までで終わる。
- * @retval  true    成功
- */
-bool btc_extkey_bip44_prepare(btc_extkey_t *pEKey, uint32_t Account, uint32_t Change);
-
-
-/** BIP49形式拡張鍵構造体初期化
- *
- * @param[out]      pEKey           拡張鍵構造体(depth2～4)
- * @param[in]       pSeed           拡張鍵seed(BTC_SZ_EXTKEY_SEED)
- * @param[in]       Account         0～。BTC_EXTKEY_BIP_SKIPの場合、"m/49'/coin_type'"までで終わる。
- * @param[in]       Change          BTC_EXTKEY_BIP_EXTERNAL or BTC_EXTKEY_BIP_INTERNAL。
- *                                  BTC_EXTKEY_BIP_SKIPの場合、"m/49'/coin_type'/account"までで終わる。
- * @retval  true    成功
- */
-bool btc_extkey_bip49_init(btc_extkey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change);
-
-
-/** BIP49形式拡張鍵構造体準備
- *
- * @param[in,out]   pEKey           [in]depth0 [out]拡張鍵構造体(depth2～4)
- * @param[in]       Account         0～。BTC_EXTKEY_BIP_SKIPの場合、"m/49'/coin_type'"までで終わる。
- * @param[in]       Change          BTC_EXTKEY_BIP_EXTERNAL or BTC_EXTKEY_BIP_INTERNAL。
- *                                  BTC_EXTKEY_BIP_SKIPの場合、"m/49'/coin_type'/account"までで終わる。
- * @retval  true    成功
- */
-bool btc_extkey_bip49_prepare(btc_extkey_t *pEKey, uint32_t Account, uint32_t Change);
-
-
-/** BIP44/49形式拡張鍵構造体生成
- *
- * @param[out]      pEKeyOut        拡張鍵構造体(depth4)
- * @param[in]       pEKeyIn         拡張鍵構造体(depth4)
- * @param[in]       Account         0～
- * @retval  true    成功
- * @note
- *      - 繰り返し使用する場合、pEKeyInの値を変更しないこと
- */
-bool btc_extkey_bip_generate(btc_extkey_t *pEKeyOut, const btc_extkey_t *pEKeyIn, uint32_t Index);
-
-
-/** 拡張鍵データ作成
- *
- * #btc_extkey_generate()で生成した拡張鍵構造体
- *
- * @param[out]      pData       鍵データ
- * @param[out]      pAddr       非NULL:鍵アドレス文字列(NULL時は生成しない)
- * @param[in]       pEKey       生成元情報
- */
-bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEKey);
-
-
-/** 拡張鍵データ読込み
- *
- * @param[out]  pEKey       拡張鍵構造体
- * @param[in]   pData       鍵データ(Base58CHKデコード後)
- * @param[in]   Len         pData長
- * @return      true:成功
- */
-bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len);
-
-
-/** 拡張鍵読込み
- *
- * @param[out]  pEKey       拡張鍵構造体
- * @param[in]   pXAddr      鍵データ(Base58CHK文字列)
- * @return      true:成功
- */
-bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr);
-
-
-//////////////////////
 //UTIL
 //////////////////////
 
@@ -1441,15 +1285,9 @@ void btc_tx_print(const btc_tx_t *pTx);
 void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
 
 
-/** 拡張鍵の内容表示
- *
- * @param[in]       pEKey       拡張鍵構造体
- */
-void btc_extkey_print(const btc_extkey_t *pEKey);
 #else
 #define btc_tx_print(...)             //nothing
 #define btc_tx_print_raw(...)          //nothing
-#define btc_extkey_print(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
 
