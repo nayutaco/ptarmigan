@@ -34,6 +34,7 @@
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
+#include "btc_sig.h"
 #include "btc_script.h"
 
 
