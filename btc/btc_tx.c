@@ -37,6 +37,7 @@
 #include "btc_segwit_addr.h"
 #include "btc_script.h"
 #include "btc_sig.h"
+#include "btc_tx_buf.h"
 #include "btc_tx.h"
 
 
@@ -44,27 +45,9 @@
  * typedefs
  **************************************************************************/
 
-typedef struct {
-    const uint8_t   *data;
-    uint32_t        len;
-    uint32_t        pos;
-} tx_buf;
-
-
 /**************************************************************************
  * prototypes
  **************************************************************************/
-
-static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len);
-static const uint8_t *tx_buf_get_pos(tx_buf *pBuf);
-static bool tx_buf_read(tx_buf *pBuf, uint8_t *pData, uint32_t Len);
-static bool tx_buf_read_byte(tx_buf *pBuf, uint8_t *pByte);
-static bool tx_buf_read_u32le(tx_buf *pBuf, uint32_t *U32);
-static bool tx_buf_read_u64le(tx_buf *pBuf, uint64_t *U64);
-static bool tx_buf_seek(tx_buf *pBuf, int32_t offset);
-static uint32_t tx_buf_remains(tx_buf *pBuf);
-static bool tx_buf_read_varint(tx_buf *pBuf, uint64_t *pValue);
-
 
 /**************************************************************************
  * public functions
@@ -356,30 +339,30 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     uint64_t tmp_u64;
     uint32_t i;
 
-    tx_buf txbuf;
-    tx_buf_init(&txbuf, pData, Len);
+    btc_buf_r_t txbuf;
+    btc_tx_buf_r_init(&txbuf, pData, Len);
 
     //version
-    if (!tx_buf_read_u32le(&txbuf, &tmp_u32)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_u32le(&txbuf, &tmp_u32)) goto LABEL_EXIT;
     pTx->version = (int32_t)tmp_u32;
 
     //mark, flag
     bool segwit;
     uint8_t mark;
     uint8_t flag;
-    if (!tx_buf_read_byte(&txbuf, &mark)) goto LABEL_EXIT;
-    if (!tx_buf_read_byte(&txbuf, &flag)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_byte(&txbuf, &mark)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_byte(&txbuf, &flag)) goto LABEL_EXIT;
     if (mark == 0x00 && flag == 0x01) { //2017/01/04:BIP-144
         segwit = true;
     } else if (mark == 0x00) {
         goto LABEL_EXIT;
     } else {
         segwit = false;
-        if (!tx_buf_seek(&txbuf, -2)) goto LABEL_EXIT; //rewind
+        if (!btc_tx_buf_r_seek(&txbuf, -2)) goto LABEL_EXIT; //rewind
     }
 
     //txin count
-    if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
     if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
     pTx->vin_cnt = (uint32_t)tmp_u64;
     //XXX: if (pTx->vin_cnt == 0) goto LABEL_EXIT;
@@ -394,24 +377,24 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
         btc_vin_t *vin = &(pTx->vin[i]);
 
         //txid
-        if (!tx_buf_read(&txbuf, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read(&txbuf, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
 
         //index
-        if (!tx_buf_read_u32le(&txbuf, &vin->index)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_u32le(&txbuf, &vin->index)) goto LABEL_EXIT;
 
         //scriptSig
-        if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
         if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-        if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
-        if (!utl_buf_alloccopy(&vin->script, tx_buf_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
-        if (!tx_buf_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
+        if (!utl_buf_alloccopy(&vin->script, btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
 
         //sequence
-        if (!tx_buf_read_u32le(&txbuf, &vin->sequence)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_u32le(&txbuf, &vin->sequence)) goto LABEL_EXIT;
     }
 
     //txout count
-    if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
     if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
     pTx->vout_cnt = (uint32_t)tmp_u64;
     //XXX: if (pTx->vout_cnt == 0) goto LABEL_EXIT;
@@ -426,23 +409,23 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
         btc_vout_t *vout = &(pTx->vout[i]);
 
         //value
-        if (!tx_buf_read_u64le(&txbuf, &vout->value)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_u64le(&txbuf, &vout->value)) goto LABEL_EXIT;
 
         //scriptPubKey
-        if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
         if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-        if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
-        if (!utl_buf_alloccopy(&vout->script, tx_buf_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
-        if (!tx_buf_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
+        if (!utl_buf_alloccopy(&vout->script, btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
     }
 
     //witness
     if (segwit) {
         for (i = 0; i < pTx->vin_cnt; i++) {
             //witness item count
-            if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
             if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-            if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+            if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
             pTx->vin[i].wit_item_cnt = (uint32_t)tmp_u64;
 
             //XXX:
@@ -452,20 +435,20 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 
             //witness item
             for (uint32_t lp = 0; lp < pTx->vin[i].wit_item_cnt; lp++) {
-                if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+                if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
                 if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-                if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
-                if (!utl_buf_alloccopy(&pTx->vin[i].witness[lp], tx_buf_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
-                if (!tx_buf_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+                if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
+                if (!utl_buf_alloccopy(&pTx->vin[i].witness[lp], btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
+                if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
             }
         }
     }
 
     //locktime
-    if (!tx_buf_read_u32le(&txbuf, &pTx->locktime)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_u32le(&txbuf, &pTx->locktime)) goto LABEL_EXIT;
 
     //check the end of the data
-    if (tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+    if (btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
 
     ret = true;
 
@@ -790,96 +773,3 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len)
  * private functions
  **************************************************************************/
 
-static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len)
-{
-    pBuf->data = pData;
-    pBuf->len = Len;
-    pBuf->pos = 0;
-}
-
-
-static const uint8_t *tx_buf_get_pos(tx_buf *pBuf)
-{
-    return pBuf->data + pBuf->pos;
-}
-
-
-static bool tx_buf_read(tx_buf *pBuf, uint8_t *pData, uint32_t Len)
-{
-    if (pBuf->pos + Len > pBuf->len) return false;
-    memcpy(pData, pBuf->data + pBuf->pos, Len);
-    pBuf->pos += Len;
-    return true;
-}
-
-
-static bool tx_buf_read_byte(tx_buf *pBuf, uint8_t *pByte)
-{
-    if (pBuf->pos + 1 > pBuf->len) return false;
-    *pByte = *(pBuf->data + pBuf->pos);
-    pBuf->pos++;
-    return true;
-}
-
-
-static bool tx_buf_read_u32le(tx_buf *pBuf, uint32_t *U32)
-{
-    if (pBuf->pos + 4 > pBuf->len) return false;
-    *U32 = utl_int_pack_u32le(pBuf->data + pBuf->pos);
-    pBuf->pos += 4;
-    return true;
-}
-
-
-static bool tx_buf_read_u64le(tx_buf *pBuf, uint64_t *U64)
-{
-    if (pBuf->pos + 8 > pBuf->len) return false;
-    *U64 = utl_int_pack_u64le(pBuf->data + pBuf->pos);
-    pBuf->pos += 8;
-    return true;
-}
-
-
-static bool tx_buf_seek(tx_buf *pBuf, int32_t offset)
-{
-    if (offset > 0) {
-        if (pBuf->pos + offset > pBuf->len) return false;
-    } else {
-        if (pBuf->pos < (uint32_t)-offset) return false;
-    }
-    pBuf->pos += offset;
-    return true;
-}
-
-
-static uint32_t tx_buf_remains(tx_buf *pBuf)
-{
-    return pBuf->len - pBuf->pos;
-}
-
-
-static bool tx_buf_read_varint(tx_buf *pBuf, uint64_t *pValue)
-{
-    if (pBuf->pos + 1 > pBuf->len) return false;
-    const uint8_t *data_pos = pBuf->data + pBuf->pos;
-    if (*(data_pos) < 0xfd) {
-        *pValue = *data_pos;
-        pBuf->pos += 1;
-    } else if (*(data_pos) == 0xfd) {
-        if (pBuf->pos + 3 > pBuf->len) return false;
-        *pValue = utl_int_pack_u16le(data_pos + 1);
-        pBuf->pos += 3;
-    } else if (*(data_pos) == 0xfe) {
-        if (pBuf->pos + 5 > pBuf->len) return false;
-        *pValue = utl_int_pack_u32le(data_pos + 1);
-        pBuf->pos += 5;
-    } else if (*(data_pos) == 0xff) {
-        if (pBuf->pos + 9 > pBuf->len) return false;
-        *pValue = utl_int_pack_u64le(data_pos + 1);
-        pBuf->pos += 9;
-    } else {
-        assert(false);
-        return false;
-    }
-    return true;
-}

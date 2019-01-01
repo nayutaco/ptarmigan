@@ -23,6 +23,7 @@ extern "C" {
 #include "btc_sig.c"
 #include "btc_script.c"
 #include "btc_tx.c"
+#include "btc_tx_buf.c"
 #include "btc_util.c"
 #include "segwit_addr.c"
 #include "btc_segwit_addr.c"
