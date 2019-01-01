@@ -5,6 +5,7 @@
 #define LOG_TAG     "wallet"
 #include "utl_log.h"
 
+#include "btc_util.h"
 #include "btc_sig.h"
 #include "btc_script.h"
 #include "btc_sw.h"

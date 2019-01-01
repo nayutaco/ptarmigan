@@ -35,6 +35,8 @@
 #include "utl_log.h"
 #include "utl_misc.h"
 
+#include "btc_util.h"
+
 #include "ln.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"

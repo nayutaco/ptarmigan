@@ -36,6 +36,7 @@
 #include "utl_misc.h"
 #include "utl_dbg.h"
 
+#include "btc_util.h"
 #include "btc_sw.h"
 
 #include "ln_local.h"

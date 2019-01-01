@@ -54,6 +54,8 @@
 #include "utl_log.h"
 #include "utl_time.h"
 
+#include "btc_util.h"
+
 #include "ptarmd.h"
 #include "btcrpc.h"
 #include "p2p_svr.h"
