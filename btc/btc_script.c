@@ -457,6 +457,8 @@ bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8
 
 bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
+    //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    // scriptCode: 0x1976a914{20-byte keyhash}88ac
     uint8_t hash[BTC_SZ_HASH_MAX];
     btc_util_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
     if (!utl_buf_alloc(pScriptCode, 1 + 3 + BTC_SZ_HASH160 + 2)) return false;
@@ -469,6 +471,9 @@ bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 //XXX:
 bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
 {
+    //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    // scriptCode: witnessScript
+    // XXX: OP_CODESEPARATOR?
     if (!utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWitScript->len) + pWitScript->len)) return false;
     uint8_t *p = pScriptCode->buf;
     p += btcl_util_set_varint_len(p, NULL, pWitScript->len, false);

@@ -33,10 +33,6 @@
 
 #include "utl_buf.h"
 
-#include "btc_keys.h"
-#include "btc_block.h"
-#include "btc_tx.h"
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,6 +129,7 @@ extern "C" {
  * macro functions
  **************************************************************************/
 
+//XXX:
 /** @def    BTC_MBTC2SATOSHI
  *  @brief  mBTCをsatochi変換
  */
@@ -172,6 +169,16 @@ extern "C" {
 /**************************************************************************
  * typedefs
  **************************************************************************/
+
+/** @enum   btc_chain_t
+ *  @brief  blockchain種別
+ */
+typedef enum {
+    BTC_UNKNOWN,
+    BTC_MAINNET,          ///< mainnet
+    BTC_TESTNET           ///< testnet, regtest
+} btc_chain_t;
+
 
 /**************************************************************************
  * prototypes

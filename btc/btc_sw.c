@@ -66,10 +66,9 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
 }
 
 
-//XXX: pTx
 bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
-    //P2WPKHのwitness
+    //P2WPKH witness
     //      0:<signature>
     //      1:<pubkey>
     if (pVin->wit_item_cnt != 2) {
@@ -80,10 +79,9 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 }
 
 
-//XXX: pTx
 bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
-    //P2WSHのwitness
+    //P2WSH witness
     //      0:OP_0
     //      1:data 1
     //      2:data 2
