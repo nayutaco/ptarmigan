@@ -107,6 +107,10 @@ bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, c
 
 bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
 {
+    //XXX: should use push opcode 0x01-0x4b
+    assert(false);
+    return false;
+
     if (!Num) return false;
     if (!pRedeem->len) return false;
 
@@ -133,7 +137,7 @@ bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t 
         memcpy(p, pSigs[lp]->buf, pSigs[lp]->len);
         p += pSigs[lp]->len;
     }
-    if (pRedeem->len >> 8) {
+    if (pRedeem->len >> 8) { //XXX:
         *p++ = OP_PUSHDATA2;
         *p++ = pRedeem->len & 0xff;
         *p++ = pRedeem->len >> 8;
@@ -258,6 +262,11 @@ bool btc_script_sig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxH
 
 bool btc_script_sig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
+    //XXX: should impl stack operation
+    //XXX: can't parse push opcode 0x01-0x4b
+    assert(false);
+    return false;
+
     const uint8_t *p = pScriptSig->buf;
 
     //このvinはP2SHの予定
@@ -281,7 +290,7 @@ bool btc_script_sig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *p
     uint8_t op_pushdata;
     while (pos < pScriptSig->len) {
         uint8_t len = *(p + pos);
-        if ((len == OP_PUSHDATA1) || (len == OP_PUSHDATA2)) {
+        if ((len == OP_PUSHDATA1) || (len == OP_PUSHDATA2)) { //XXX:
             op_pushdata = len;
             pos++;
             break;
@@ -457,6 +466,8 @@ bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8
 
 bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
+    //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    // scriptCode: 0x1976a914{20-byte keyhash}88ac
     uint8_t hash[BTC_SZ_HASH_MAX];
     btc_util_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
     if (!utl_buf_alloc(pScriptCode, 1 + 3 + BTC_SZ_HASH160 + 2)) return false;
@@ -469,6 +480,9 @@ bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 //XXX:
 bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
 {
+    //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    // scriptCode: witnessScript
+    // XXX: OP_CODESEPARATOR?
     if (!utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWitScript->len) + pWitScript->len)) return false;
     uint8_t *p = pScriptCode->buf;
     p += btcl_util_set_varint_len(p, NULL, pWitScript->len, false);

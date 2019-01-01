@@ -33,7 +33,7 @@
 
 #include "utl_buf.h"
 
-#include "btc_block.h"
+#include "btc.h"
 
 
 #ifdef __cplusplus
