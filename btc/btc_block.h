@@ -36,6 +36,17 @@
  * typedefs
  **************************************************************************/
 
+//XXX:
+/** @enum   btc_chain_t
+ *  @brief  blockchain種別
+ */
+typedef enum {
+    BTC_UNKNOWN,
+    BTC_MAINNET,          ///< mainnet
+    BTC_TESTNET           ///< testnet, regtest
+} btc_chain_t;
+
+
 /** @enum btc_block_chain_t */
 typedef enum {
     BTC_BLOCK_CHAIN_UNKNOWN,            ///< unknown chain
@@ -75,10 +86,6 @@ btc_block_chain_t btc_block_get_chain(const uint8_t *pGenesisHash);
  * @return      genesis hash | NULL
  */
 const uint8_t *btc_block_get_genesis_hash(btc_block_chain_t chain);
-
-
-
-
 
 
 #endif /* BTC_BLOCK_H__ */
