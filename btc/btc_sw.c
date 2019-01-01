@@ -27,6 +27,7 @@
 #include "btc_local.h"
 #include "btc_script.h"
 #include "btc_sig.h"
+#include "btc_sw.h"
 
 
 /**************************************************************************
