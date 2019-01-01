@@ -22,6 +22,7 @@ extern "C" {
 #include "btc_sw.c"
 #include "btc_sig.c"
 #include "btc_script.c"
+#include "btc_script_buf.c"
 #include "btc_tx.c"
 #include "btc_tx_buf.c"
 #include "btc_util.c"
@@ -96,3 +97,4 @@ TEST_F(btc, btc_setnet_mainnet)
 #include "testinc_extkey.cpp"
 #include "testinc_recoverpub.cpp"
 #include "testinc_segwit_addr.cpp"
+#include "testinc_script_buf.cpp"
