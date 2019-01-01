@@ -580,6 +580,8 @@ TEST_F(tx, script_p2pkh)
 }
 
 
+//XXX: disable multisig tests
+#if 0
 TEST_F(tx, script_p2sh)
 {
     btc_tx_t tx;
@@ -678,8 +680,11 @@ TEST_F(tx, script_p2sh)
 
     btc_tx_free(&tx);
 }
+#endif
 
 
+//XXX: disable multisig tests
+#if 0
 TEST_F(tx, create_p2pkh)
 {
     btc_tx_t tx;
@@ -786,6 +791,7 @@ TEST_F(tx, create_p2pkh)
 
     btc_tx_free(&tx);
 }
+#endif
 
 
 TEST_F(tx, read_p2pkh)
@@ -908,6 +914,8 @@ TEST_F(tx, read_p2pkh)
 }
 
 
+//XXX: disable multisig tests
+#if 0
 TEST_F(tx, create_p2sh)
 {
     btc_tx_t tx;
@@ -1051,6 +1059,7 @@ TEST_F(tx, create_p2sh)
 
     btc_tx_free(&tx);
 }
+#endif
 
 
 TEST_F(tx, read_p2sh)
@@ -1320,6 +1329,8 @@ TEST_F(tx, sighash_p2pkh)
 }
 
 
+//XXX: disable multisig tests
+#if 0
 TEST_F(tx, sighash_p2sh)
 {
     btc_tx_t tx;
@@ -1474,8 +1485,11 @@ TEST_F(tx, sighash_p2sh)
     utl_buf_free(&sig1);
     btc_tx_free(&tx);
 }
+#endif
 
 
+//XXX: disable multisig tests
+#if 0
 TEST_F(tx, sighash_p2sh_ng)
 {
     //sighash_p2shとほとんど同じだが、署名の順番が逆
@@ -1625,6 +1639,7 @@ TEST_F(tx, sighash_p2sh_ng)
     utl_buf_free(&sig1);
     btc_tx_free(&tx);
 }
+#endif
 
 
 TEST_F(tx, create_vout_p2pkh)
