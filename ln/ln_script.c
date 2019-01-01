@@ -27,6 +27,7 @@
 #include "utl_push.h"
 #include "utl_dbg.h"
 
+#include "btc_sig.h"
 #include "btc_script.h"
 
 #include "ln_script.h"

@@ -46,12 +46,9 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define BTC_SZ_FIELD            (32)                ///< secp256k1の世界
 #define BTC_SZ_HASH160          (20)                ///< サイズ:HASH160
 #define BTC_SZ_HASH256          (32)                ///< サイズ:HASH256
 #define BTC_SZ_HASH_MAX         (BTC_SZ_HASH256)    ///< サイズ:Hashの最大値
-#define BTC_SZ_SIGN_RS          (64)                ///< サイズ:RS形式の署名
-#define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
 #define BTC_PREF_CHAIN          (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define BTC_PREF_WIF            (1)             ///< Prefix: WIF
@@ -130,8 +127,6 @@ extern "C" {
 #define _OP_PUSHDATA_X_MIN      (0x01)
 #define _OP_PUSHDATA_X_MAX      (0x4b)
 
-#define SIGHASH_ALL             (0x01)
-
 #define VARINT_1BYTE_MAX        (0xfc)
 #define VARINT_3BYTE_MIN        (0xfd)
 
@@ -204,89 +199,6 @@ void btc_term(void);
  *
  */
 btc_chain_t btc_get_chain(void);
-
-
-/** 署名計算
- *
- * @param[out]      pSig        署名結果
- * @param[in]       pTxHash     トランザクションハッシュ
- * @param[in]       pPrivKey    秘密鍵
- * @return          true        成功
- *
- * @note
- *      - pSigは、成功かどうかにかかわらず#utl_buf_init()される
- *      - 成功時、pSigは #utl_buf_alloccopy() でメモリ確保するので、使用後は #utl_buf_free()で解放すること
- */
-bool btc_sig_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
-
-
-/** 署名計算(r/s)
- *
- * @param[out]      pRS         署名結果rs[64]
- * @param[in]       pTxHash     トランザクションハッシュ
- * @param[in]       pPrivKey    秘密鍵
- * @return          true        成功
- */
-bool btc_sig_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
-
-
-/** 署名チェック
- *
- * @param[in]       pSig        署名(ハッシュタイプあり)
- * @param[in]       pTxHash     トランザクションハッシュ
- * @param[in]       pPubKey     公開鍵
- * @return          true:チェックOK
- *
- * @note
- *      - pSigの末尾にハッシュタイプが入っていること
- */
-bool btc_sig_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
-
-
-/** 署名チェック
- *
- * @param[in]       pSig        署名(ハッシュタイプあり)
- * @param[in]       Len         length of pSig
- * @param[in]       pTxHash     トランザクションハッシュ
- * @param[in]       pPubKey     公開鍵
- * @return          true:チェックOK
- *
- * @note
- *      - pSigの末尾にハッシュタイプが入っていること
- */
-bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash, const uint8_t *pPubKey);
-
-
-/** 署名チェック(r/s)
- *
- * @param[in]       pRS         署名rs[64]
- * @param[in]       pTxHash     トランザクションハッシュ
- * @param[in]       pPubKey     公開鍵
- * @return          true:チェックOK
- */
-bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
-
-
-/** 公開鍵復元
- *
- * @param[out]      pPubKey
- * @param[in]       RecId       recovery ID
- * @param[in]       pRS
- * @param[in]       pTxHash
- * @retval      true    成功
- */
-bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash);
-
-
-/** 公開鍵復元ID取得
- *
- * @param[out]      pRecId      recovery ID
- * @param[in]       pPubKey
- * @param[in]       pRS
- * @param[in]       pTxHash
- * @retval      true    成功
- */
-bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
 
 
 //////////////////////
@@ -433,26 +345,6 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 //////////////////////
 //UTIL
 //////////////////////
-
-/** P2WSH署名 - Phase2: 署名作成
- *
- * @param[out]      pSig
- * @param[in]       pTxHash
- * @param[in]       pKeys
- * @return      true:成功
- */
-bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys);
-
-
-/** P2WSH署名 - Phase2: 署名作成(R/S)
- *
- * @param[out]      pRS
- * @param[in]       pTxHash
- * @param[in]       pKeys
- * @return      true:成功
- */
-bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys);
-
 
 /** RIPMED160計算
  *

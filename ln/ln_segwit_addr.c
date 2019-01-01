@@ -9,10 +9,11 @@
 
 #include "mbedtls/sha256.h"
 
-#include "btc_segwit_addr.h"
-
 #include "utl_dbg.h"
 #include "utl_time.h"
+
+#include "btc_sig.h"
+#include "btc_segwit_addr.h"
 
 #include "ln_node.h"
 #include "ln_misc.h"
