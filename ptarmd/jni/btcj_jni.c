@@ -115,7 +115,7 @@ const struct {
 
 
 //-----------------------------------------------------------------------------
-bool btcj_init(btc_genesis_t Gen)
+bool btcj_init(btc_block_chain_t Gen)
 {
     jclass cls;
     char exepath[PATH_MAX];
@@ -161,13 +161,13 @@ bool btcj_init(btc_genesis_t Gen)
     }
     const char *p_chain;
     switch (Gen) {
-    case BTC_GENESIS_BTCMAIN:
+    case BTC_BLOCK_CHAIN_BTCMAIN:
         p_chain = "main";
         break;
-    case BTC_GENESIS_BTCTEST:
+    case BTC_BLOCK_CHAIN_BTCTEST:
         p_chain = "test";
         break;
-    case BTC_GENESIS_BTCREGTEST:
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
         p_chain = "regtest";
         break;
     default:

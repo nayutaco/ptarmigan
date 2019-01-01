@@ -32,6 +32,8 @@
 
 #include "utl_dbg.h"
 
+#include "btc_util.h"
+
 #include "ln_msg_normalope.h"
 #include "ln_misc.h"
 #include "ln_local.h"

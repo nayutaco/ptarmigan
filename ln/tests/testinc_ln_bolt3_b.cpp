@@ -141,7 +141,7 @@ TEST_F(ln_bolt3_b, fuding3)
 
     //output
     //vout#0
-    btc_sw_add_vout_p2wsh(&tx, FUND_SATOSHI, &redeem_fund);
+    ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, FUND_SATOSHI, &redeem_fund));
 
     //vout#1
     //      feeを計算した後で額を決定する

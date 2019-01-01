@@ -36,6 +36,9 @@
 #include "utl_misc.h"
 #include "utl_dbg.h"
 
+#include "btc_util.h"
+#include "btc_sw.h"
+
 #include "ln_local.h"
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
@@ -787,9 +790,9 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
         goto LABEL_EXIT;
     }
     LOGD("DB genesis hash:\n");
-    btc_genesis_t dbtype = btc_util_get_genesis(genesis);
+    btc_block_chain_t dbtype = btc_block_get_chain(genesis);
     LOGD("node genesis hash:\n");
-    btc_genesis_t bctype = btc_util_get_genesis(gGenesisChainHash);
+    btc_block_chain_t bctype = btc_block_get_chain(gGenesisChainHash);
     if (dbtype != bctype) {
         LOGD("fail: genesis hash(%d != %d)\n", dbtype, bctype);
         if (bStdErr) fprintf(stderr, "genesis hash not match\n");
@@ -3576,7 +3579,7 @@ LABEL_EXIT:
  * [self]version
  ********************************************************************/
 
-bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
+bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType)
 {
     int             retval;
     ln_lmdb_db_t    db;
@@ -3603,12 +3606,12 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
         btc_keys_t key;
         btc_chain_t chain;
 
-        btc_genesis_t gtype = btc_util_get_genesis(genesis);
+        btc_block_chain_t gtype = btc_block_get_chain(genesis);
         bool ret = btc_util_wif2keys(&key, &chain, wif);
         if (
-          ((chain == BTC_MAINNET) && (gtype == BTC_GENESIS_BTCMAIN)) ||
+          ((chain == BTC_MAINNET) && (gtype == BTC_BLOCK_CHAIN_BTCMAIN)) ||
           ((chain == BTC_TESTNET) && (
-                (gtype == BTC_GENESIS_BTCTEST) || (gtype == BTC_GENESIS_BTCREGTEST)) ) ) {
+                (gtype == BTC_BLOCK_CHAIN_BTCTEST) || (gtype == BTC_BLOCK_CHAIN_BTCREGTEST)) ) ) {
             //ok
         } else {
             ret = false;

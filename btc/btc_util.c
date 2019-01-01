@@ -37,6 +37,10 @@
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
+#include "btc_script.h"
+#include "btc_sig.h"
+#include "btc_sw.h"
+#include "btc_util.h"
 
 
 /**************************************************************************
@@ -51,10 +55,6 @@
  * prototypes
  **************************************************************************/
 
-static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
-static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
-static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
-static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
 static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 static int set_le32(uint8_t *pData, uint32_t val);
 static int set_le64(uint8_t *pData, uint64_t val);
@@ -63,33 +63,6 @@ static int set_le64(uint8_t *pData, uint64_t val);
 /**************************************************************************
  *const variables
  **************************************************************************/
-
-// https://github.com/lightningnetwork/lightning-rfc/issues/237
-// https://github.com/bitcoin/bips/blob/master/bip-0122.mediawiki
-static const uint8_t M_BTC_GENESIS_MAIN[] = {
-    // bitcoin mainnet
-    0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
-    0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
-    0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
-    0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-static const uint8_t M_BTC_GENESIS_TEST[] = {
-    // bitcoin testnet
-    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-};
-
-static const uint8_t M_BTC_GENESIS_REGTEST[] = {
-    // bitcoin regtest
-    0x06, 0x22, 0x6e, 0x46, 0x11, 0x1a, 0x0b, 0x59,
-    0xca, 0xaf, 0x12, 0x60, 0x43, 0xeb, 0x5b, 0xbf,
-    0x28, 0xc3, 0x4f, 0x3a, 0x5e, 0x33, 0x2a, 0x1f,
-    0xc7, 0xb2, 0xb7, 0x3c, 0xf1, 0x88, 0x91, 0x0f,
-};
-
 
 /**************************************************************************
  * public functions
@@ -147,7 +120,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
     utl_buf_t scrpk;
     uint8_t pkh[BTC_SZ_HASH_MAX];
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
-    btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
+    btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
 
     const utl_buf_t *scrpks[] = { &scrpk };
 
@@ -169,7 +142,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
     uint8_t pkh[BTC_SZ_HASH_MAX];
     utl_buf_t scrpk;
     btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
-    btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
+    btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
     const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[BTC_SZ_HASH256];
@@ -196,7 +169,10 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
         return false;
     }
 
-    btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
+    if (!btc_script_code_p2wpkh(&script_code, pKeys->pub)) {
+        LOGD("fail\n");
+        return false;
+    }
 
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
     if (ret) {
@@ -217,7 +193,6 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
 bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
                     const utl_buf_t *pWitScript)
 {
-    bool ret;
     utl_buf_t script_code = UTL_BUF_INIT;
 
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
@@ -226,10 +201,10 @@ bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t
         return false;
     }
 
-    btc_sw_scriptcode_p2wsh(&script_code, pWitScript);
-    ret = btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
+    if (!btc_script_code_p2wsh(&script_code, pWitScript)) return false;
+    if (!btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code)) return false;
     utl_buf_free(&script_code);
-    return ret;
+    return true;
 }
 
 
@@ -312,44 +287,6 @@ void btc_util_sort_bip69(btc_tx_t *pTx)
             }
         }
     }
-}
-
-
-btc_genesis_t btc_util_get_genesis(const uint8_t *pGenesisHash)
-{
-    btc_genesis_t ret;
-
-    if (memcmp(pGenesisHash, M_BTC_GENESIS_MAIN, BTC_SZ_HASH256) == 0) {
-        LOGD("  bitcoin mainnet\n");
-        ret = BTC_GENESIS_BTCMAIN;
-    } else if (memcmp(pGenesisHash, M_BTC_GENESIS_TEST, BTC_SZ_HASH256) == 0) {
-        LOGD("  bitcoin testnet\n");
-        ret = BTC_GENESIS_BTCTEST;
-    } else if (memcmp(pGenesisHash, M_BTC_GENESIS_REGTEST, BTC_SZ_HASH256) == 0) {
-        LOGD("  bitcoin regtest\n");
-        ret = BTC_GENESIS_BTCREGTEST;
-    } else {
-        LOGD("  unknown genesis hash\n");
-        ret = BTC_GENESIS_UNKNOWN;
-    }
-    return ret;
-}
-
-
-const uint8_t *btc_util_get_genesis_block(btc_genesis_t kind)
-{
-    switch (kind) {
-    case BTC_GENESIS_BTCMAIN:
-        return M_BTC_GENESIS_MAIN;
-    case BTC_GENESIS_BTCTEST:
-        return M_BTC_GENESIS_TEST;
-    case BTC_GENESIS_BTCREGTEST:
-        return M_BTC_GENESIS_REGTEST;
-    default:
-        LOGD("unknown kind: %02x\n", kind);
-    }
-
-    return NULL;
 }
 
 
@@ -552,37 +489,6 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
     wit_prog[1] = (uint8_t)BTC_SZ_HASH160;
     memcpy(wit_prog + 2, pPubKeyHash, BTC_SZ_HASH160);
     btc_util_hash160(pWPubKeyHash, wit_prog, BTC_SZ_WITPROG_P2WPKH);
-}
-
-
-bool btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pHash, int Prefix)
-{
-    switch (Prefix) {
-    case BTC_PREF_P2PKH:
-        //LOGD("BTC_PREF_P2PKH\n");
-        if (!utl_buf_alloc(pBuf, 3 + BTC_SZ_HASH160 + 2)) return false;
-        create_scriptpk_p2pkh(pBuf->buf, pHash);
-        break;
-    case BTC_PREF_P2SH:
-        //LOGD("BTC_PREF_P2SH\n");
-        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160 + 1)) return false;
-        create_scriptpk_p2sh(pBuf->buf, pHash);
-        break;
-    case BTC_PREF_P2WPKH:
-        //LOGD("BTC_PREF_P2WPKH\n");
-        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160)) return false;
-        create_scriptpk_p2wpkh(pBuf->buf, pHash);
-        break;
-    case BTC_PREF_P2WSH:
-        //LOGD("BTC_PREF_P2WSH\n");
-        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH256)) return false;
-        create_scriptpk_p2wsh(pBuf->buf, pHash);
-        break;
-    default:
-        assert(false);
-        return false;
-    }
-    return true;
 }
 
 
@@ -847,7 +753,7 @@ bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t 
 bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    return btc_util_create_scriptpk(&vout->script, pPubKeyHash, Pref);
+    return btc_script_pk_create(&vout->script, pPubKeyHash, Pref);
 }
 
 
@@ -889,42 +795,6 @@ int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_
 /**************************************************************************
  * private functions
  **************************************************************************/
-
-static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
-{
-    p[0] = OP_DUP;
-    p[1] = OP_HASH160;
-    p[2] = BTC_SZ_HASH160;
-    memcpy(p + 3, pPubKeyHash, BTC_SZ_HASH160);
-    p[23] = OP_EQUALVERIFY;
-    p[24] = OP_CHECKSIG;
-}
-
-
-static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash)
-{
-    p[0] = OP_HASH160;
-    p[1] = BTC_SZ_HASH160;
-    memcpy(p + 2, pHash, BTC_SZ_HASH160);
-    p[22] = OP_EQUAL;
-}
-
-
-static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash)
-{
-    p[0] = 0x00;
-    p[1] = BTC_SZ_HASH160;
-    memcpy(p + 2, pHash, BTC_SZ_HASH160);
-}
-
-
-static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash)
-{
-    p[0] = 0x00;
-    p[1] = BTC_SZ_HASH256;
-    memcpy(p + 2, pHash, BTC_SZ_HASH256);
-}
-
 
 /** 2-of-2公開鍵ソート
  *

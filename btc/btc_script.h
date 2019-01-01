@@ -42,6 +42,9 @@
  * macros
  **************************************************************************/
 
+#define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
+#define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
+
 
 /**************************************************************************
  * macro functions
@@ -57,6 +60,17 @@
  * prototypes
  **************************************************************************/
 
+/** 種類に応じたscriptPubKey設定
+ *
+ * @param[out]      pScriptPk
+ * @param[in]       pPubKeyHash
+ * @param[in]       Prefix
+ * @return      true:success
+ */
+bool btc_script_pk_create(utl_buf_t *pScriptPk, const uint8_t *pPubKeyHash, int Prefix);
+
+
+//XXX: comment
 bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
 bool btc_script_sig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
@@ -66,6 +80,30 @@ bool btc_script_sig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxH
 bool btc_script_sig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
 bool btc_script_sig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr);
+
+
+/** P2WPKH署名計算で使用するScript Code取得
+ *
+ * @param[out]      pScriptCode     P2WPKH用Script Code
+ * @param[in]       pPubKey         公開鍵
+ * @retval      true    成功
+ *
+ * @note
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
+ */
+bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
+
+
+/** P2WSH署名計算で使用するScript Code取得
+ *
+ * @param[out]      pScriptCode     P2WPKH用Script Code
+ * @param[in]       pWit            witnessScript
+ *
+ * @note
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
+ */
+bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit);
+
 
 #ifdef PTARM_USE_PRINTFUNC
 /** スクリプトの内容表示

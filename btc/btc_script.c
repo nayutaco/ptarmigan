@@ -33,7 +33,9 @@
 #include "utl_int.h"
 
 #include "btc_local.h"
+#include "btc_util.h"
 #include "btc_segwit_addr.h"
+#include "btc_sig.h"
 #include "btc_script.h"
 
 
@@ -46,10 +48,46 @@
  * prototypes
  **************************************************************************/
 
+static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
+static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
+static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
+static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
+
 
 /**************************************************************************
  * public functions
  **************************************************************************/
+
+bool btc_script_pk_create(utl_buf_t *pScriptPk, const uint8_t *pHash, int Prefix)
+{
+    switch (Prefix) {
+    case BTC_PREF_P2PKH:
+        //LOGD("BTC_PREF_P2PKH\n");
+        if (!utl_buf_alloc(pScriptPk, 3 + BTC_SZ_HASH160 + 2)) return false;
+        create_scriptpk_p2pkh(pScriptPk->buf, pHash);
+        break;
+    case BTC_PREF_P2SH:
+        //LOGD("BTC_PREF_P2SH\n");
+        if (!utl_buf_alloc(pScriptPk, 2 + BTC_SZ_HASH160 + 1)) return false;
+        create_scriptpk_p2sh(pScriptPk->buf, pHash);
+        break;
+    case BTC_PREF_P2WPKH:
+        //LOGD("BTC_PREF_P2WPKH\n");
+        if (!utl_buf_alloc(pScriptPk, 2 + BTC_SZ_HASH160)) return false;
+        create_scriptpk_p2wpkh(pScriptPk->buf, pHash);
+        break;
+    case BTC_PREF_P2WSH:
+        //LOGD("BTC_PREF_P2WSH\n");
+        if (!utl_buf_alloc(pScriptPk, 2 + BTC_SZ_HASH256)) return false;
+        create_scriptpk_p2wsh(pScriptPk->buf, pHash);
+        break;
+    default:
+        assert(false);
+        return false;
+    }
+    return true;
+}
+
 
 bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
@@ -417,6 +455,28 @@ bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8
 }
 
 
+bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
+{
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    btc_util_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
+    if (!utl_buf_alloc(pScriptCode, 1 + 3 + BTC_SZ_HASH160 + 2)) return false;
+    pScriptCode->buf[0] = (uint8_t)pScriptCode->len - 1;
+    create_scriptpk_p2pkh(pScriptCode->buf + 1, hash);
+    return true;
+}
+
+
+//XXX:
+bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
+{
+    if (!utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWitScript->len) + pWitScript->len)) return false;
+    uint8_t *p = pScriptCode->buf;
+    p += btcl_util_set_varint_len(p, NULL, pWitScript->len, false);
+    memcpy(p, pWitScript->buf, pWitScript->len);
+    return true;
+}
+
+
 #if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
 void btc_script_print(const uint8_t *pData, uint16_t Len)
 {
@@ -535,4 +595,39 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
 /**************************************************************************
  * private functions
  **************************************************************************/
+
+static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
+{
+    p[0] = OP_DUP;
+    p[1] = OP_HASH160;
+    p[2] = BTC_SZ_HASH160;
+    memcpy(p + 3, pPubKeyHash, BTC_SZ_HASH160);
+    p[23] = OP_EQUALVERIFY;
+    p[24] = OP_CHECKSIG;
+}
+
+
+static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash)
+{
+    p[0] = OP_HASH160;
+    p[1] = BTC_SZ_HASH160;
+    memcpy(p + 2, pHash, BTC_SZ_HASH160);
+    p[22] = OP_EQUAL;
+}
+
+
+static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash)
+{
+    p[0] = 0x00;
+    p[1] = BTC_SZ_HASH160;
+    memcpy(p + 2, pHash, BTC_SZ_HASH160);
+}
+
+
+static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash)
+{
+    p[0] = 0x00;
+    p[1] = BTC_SZ_HASH256;
+    memcpy(p + 2, pHash, BTC_SZ_HASH256);
+}
 

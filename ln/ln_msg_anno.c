@@ -33,6 +33,9 @@
 
 #include "utl_time.h"
 
+#include "btc_util.h"
+#include "btc_sig.h"
+
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
 #include "ln_node.h"

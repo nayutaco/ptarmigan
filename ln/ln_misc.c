@@ -29,6 +29,8 @@
 
 #include "mbedtls/md.h"
 
+#include "btc_util.h"
+
 #include "ln_misc.h"
 #include "ln_derkey.h"
 #include "ln_local.h"

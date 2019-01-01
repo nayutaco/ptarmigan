@@ -31,7 +31,10 @@
 #include "libbase58.h"
 
 #include "btc_segwit_addr.h"
+#include "btc_util.h"
 #include "btc_local.h"
+#include "btc_script.h"
+#include "btc_sw.h"
 
 
 /********************************************************************
@@ -184,7 +187,6 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
 
 bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 {
-    bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
     uint8_t pref;
 
@@ -197,8 +199,8 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
         btc_util_create_pkh2wpkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
-    ret = btcl_util_keys_hash2addr(pWAddr, hash, pref);
-    return ret;
+    if (!btcl_util_keys_hash2addr(pWAddr, hash, pref)) return false;
+    return true;
 }
 
 
@@ -220,8 +222,8 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
         btc_util_create_pkh2wpkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
-    ret = btcl_util_keys_hash2addr(pWAddr, hash, pref);
-    return ret;
+    if (!btcl_util_keys_hash2addr(pWAddr, hash, pref)) return false;
+    return true;
 }
 
 
@@ -431,31 +433,22 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
 
 bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 {
-    bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
 
     int pref;
-    ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (ret) {
-        btc_util_create_scriptpk(pScriptPk, hash, pref);
-    }
-
-    return ret;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (!btc_script_pk_create(pScriptPk, hash, pref)) return false;
+    return true;
 }
 
 
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
-    bool ret;
     const uint8_t *pkh;
     int prefix = spk2prefix(&pkh, pScriptPk);
-    if (prefix != BTC_PREF_MAX) {
-        btcl_util_keys_hash2addr(pAddr, pkh, prefix);
-        ret = true;
-    } else {
-        ret = false;
-    }
-    return ret;
+    if (prefix != BTC_PREF_MAX) return false;
+    if (!btcl_util_keys_hash2addr(pAddr, pkh, prefix)) return false;
+    return true;
 }
 
 

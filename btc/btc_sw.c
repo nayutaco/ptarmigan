@@ -25,58 +25,48 @@
 #include "utl_dbg.h"
 
 #include "btc_local.h"
+#include "btc_util.h"
+#include "btc_script.h"
+#include "btc_sig.h"
+#include "btc_sw.h"
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
+bool btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    btcl_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    return btcl_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
 }
 
 
-void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
+bool btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    return btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
 }
 
 
-void btc_sw_add_vout_p2wsh(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript)
+bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript)
 {
+    if (!pWitScript->len) return false;
+
     uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
-
     btc_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
+        if (!utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog))) return false;
     } else {
         uint8_t sh[BTC_SZ_HASH_MAX];
 
         btc_util_hash160(sh, wit_prog, sizeof(wit_prog));
-        btc_tx_add_vout_p2sh(pTx, Value, sh);
+        if (!btc_tx_add_vout_p2sh(pTx, Value, sh)) return false;
     }
+    return true;
 }
 
 
-void btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
-{
-    const uint8_t HEAD[] = { 0x19, OP_DUP, OP_HASH160, BTC_SZ_HASH160 };
-    const uint8_t TAIL[] = { OP_EQUALVERIFY, OP_CHECKSIG };
-    uint8_t pkh[BTC_SZ_HASH_MAX];
-    int pos = 0;
-
-    utl_buf_alloc(pScriptCode, 1 + 0x19);
-    memcpy(pScriptCode->buf, HEAD, sizeof(HEAD));
-    pos += sizeof(HEAD);
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    memcpy(&(pScriptCode->buf[pos]), pkh, BTC_SZ_HASH160);
-    pos += BTC_SZ_HASH160;
-    memcpy(&(pScriptCode->buf[pos]), TAIL, sizeof(TAIL));
-}
-
-
+//XXX: pTx
 bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
     //P2WPKHのwitness
@@ -86,20 +76,11 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    btc_sw_scriptcode_p2wpkh(pScriptCode, pVin->witness[1].buf);
-    return true;
+    return btc_script_code_p2wpkh(pScriptCode, pVin->witness[1].buf);
 }
 
 
-void btc_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit)
-{
-    utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWit->len) + pWit->len);
-    uint8_t *p = pScriptCode->buf;
-    p += btcl_util_set_varint_len(p, NULL, pWit->len, false);
-    memcpy(p, pWit->buf, pWit->len);
-}
-
-
+//XXX: pTx
 bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
     //P2WSHのwitness
@@ -112,8 +93,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    btc_sw_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
-    return true;
+    return btc_script_code_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
 }
 
 
@@ -339,8 +319,10 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
         return false;
     }
 
-    utl_buf_t script_code;
-    btc_sw_scriptcode_p2wpkh(&script_code, p_pub->buf);
+    utl_buf_t script_code = UTL_BUF_INIT;
+    if (!btc_script_code_p2wpkh(&script_code, p_pub->buf)) {
+        return false;
+    }
 
     bool ret;
     uint8_t txhash[BTC_SZ_HASH256];

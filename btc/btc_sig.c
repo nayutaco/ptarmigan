@@ -29,6 +29,8 @@
 #include "utl_int.h"
 
 #include "btc_local.h"
+#include "btc_util.h"
+#include "btc_sig.h"
 
 
 /**************************************************************************

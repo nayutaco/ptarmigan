@@ -42,6 +42,8 @@
 #include "utl_log.h"
 #include "utl_time.h"
 
+#include "btc_util.h"
+
 #include "ptarmd.h"
 #include "p2p_cli.h"
 #include "lnapp.h"

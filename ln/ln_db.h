@@ -25,6 +25,8 @@
 #ifndef LN_DB_H__
 #define LN_DB_H__
 
+#include "btc_block.h"
+
 #include "ln.h"
 
 
@@ -765,7 +767,7 @@ bool ln_db_wallet_del(const uint8_t *pTxid, uint32_t Index);
  * @param[out]      pGType          (非NULL時)genesis hash type
  * @retval  true    チェックOK
  */
-bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType);
+bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType);
 
 
 /********************************************************************

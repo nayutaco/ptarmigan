@@ -29,7 +29,11 @@
 #include <stdbool.h>
 
 #include "utl_common.h"
+
 #include "btc.h"
+#include "btc_util.h"
+#include "btc_sig.h"
+
 #include "ln_err.h"
 
 

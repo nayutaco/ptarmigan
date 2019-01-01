@@ -28,6 +28,7 @@
 #include "lmdb.h"
 
 #include "ln.h"
+#include "ln_db.h"
 
 
 #ifdef __cplusplus

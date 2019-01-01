@@ -394,7 +394,7 @@ TEST_F(ln_bolt3_c, committx2)
     btc_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
     //vout#1:P2WSH - local
     if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= feeinfo.dust_limit_satoshi + feeinfo.commit) {
-        btc_sw_add_vout_p2wsh(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf);
+        ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf));
     }
 
     //input

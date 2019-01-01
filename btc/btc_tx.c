@@ -33,8 +33,11 @@
 #include "utl_int.h"
 
 #include "btc_local.h"
+#include "btc_util.h"
 #include "btc_segwit_addr.h"
 #include "btc_script.h"
+#include "btc_sig.h"
+#include "btc_tx.h"
 
 
 /**************************************************************************
@@ -232,7 +235,7 @@ bool btc_tx_add_vout_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
     if (ret) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
         if (!vout) return false;
-        if (!btc_util_create_scriptpk(&vout->script, hash, pref)) return false;
+        if (!btc_script_pk_create(&vout->script, hash, pref)) return false;
     }
     return ret;
 }
@@ -264,7 +267,7 @@ bool btc_tx_create_spk(utl_buf_t *pBuf, const char *pAddr)
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret) {
-        ret = btc_util_create_scriptpk(pBuf, hash, pref);
+        ret = btc_script_pk_create(pBuf, hash, pref);
     }
 
     return ret;
@@ -277,7 +280,7 @@ bool btc_tx_create_spk_p2pkh(utl_buf_t *pBuf, const char *pAddr)
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        ret = btc_util_create_scriptpk(pBuf, hash, pref);
+        ret = btc_script_pk_create(pBuf, hash, pref);
     } else {
         ret = false;
     }
@@ -305,7 +308,7 @@ bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pScriptH
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
     if (!vout) return false;
-    return btc_util_create_scriptpk(&vout->script, pScriptHash, BTC_PREF_P2SH);
+    return btc_script_pk_create(&vout->script, pScriptHash, BTC_PREF_P2SH);
 }
 
 
