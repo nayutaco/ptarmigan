@@ -31,8 +31,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
 #include "utl_buf.h"
+
+#include "btc_block.h"
 
 
 #ifdef __cplusplus
@@ -43,10 +44,13 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define BTC_SZ_EXTKEY_SEED      (64)                ///< サイズ:拡張鍵seed
-#define BTC_SZ_EXTKEY           (82)                ///< サイズ:拡張鍵
-#define BTC_SZ_CHAINCODE        (32)                ///< サイズ:拡張鍵chaincode
-#define BTC_SZ_EXTKEY_ADDR_MAX  (112)               ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_PRIVKEY          (32)                ///< サイズ:非公開鍵
+#define BTC_SZ_PUBKEY           (33)                ///< サイズ:圧縮された公開鍵
+#define BTC_SZ_PUBKEY_UNCOMP    (65)                ///< サイズ:圧縮されていない公開鍵
+#define BTC_SZ_ADDR_STR_MAX     (90)                ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_WIF_STR_MAX      (55)                ///< サイズ:秘密鍵のWIF(上限不明)
+//XXX:
+#define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
 
 /**************************************************************************
@@ -243,6 +247,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr);
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk);
 
 
+//XXX:
 //////////////////////
 //UTIL
 //////////////////////
