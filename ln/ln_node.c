@@ -29,6 +29,7 @@
 #include <time.h>
 #include <assert.h>
 
+#include "btc_util.h"
 #include "btc_sig.h"
 
 #include "ln_db.h"

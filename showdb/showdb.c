@@ -40,9 +40,11 @@
 #include "utl_log.h"
 #include "utl_time.h"
 
+#include "btc_util.h"
+
+#include "ln_db_lmdb.h"
 
 #include "ptarmd.h"
-#include "ln_db_lmdb.h"
 
 
 

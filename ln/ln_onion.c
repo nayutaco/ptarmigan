@@ -34,6 +34,8 @@
 
 #include "utl_dbg.h"
 
+#include "btc_util.h"
+
 #include "ln_onion.h"
 #include "ln_misc.h"
 #include "ln_node.h"

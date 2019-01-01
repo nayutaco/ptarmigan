@@ -23,6 +23,7 @@
  *  @brief  [LN]秘密鍵管理
  */
 
+#include "btc_util.h"
 #include "btc_segwit_addr.h"
 #include "btc_sig.h"
 #include "btc_script.h"

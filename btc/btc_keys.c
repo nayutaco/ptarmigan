@@ -31,6 +31,7 @@
 #include "libbase58.h"
 
 #include "btc_segwit_addr.h"
+#include "btc_util.h"
 #include "btc_local.h"
 #include "btc_script.h"
 #include "btc_sw.h"

@@ -25,6 +25,8 @@
  *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
  */
 #include "btc.h"
+#include "btc_util.h"
+
 #include "ln_derkey.h"
 #include "ln_local.h"
 //#define M_DBG_PRINT
