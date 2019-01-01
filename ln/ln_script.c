@@ -29,6 +29,7 @@
 
 #include "btc_sig.h"
 #include "btc_script.h"
+#include "btc_sw.h"
 
 #include "ln_script.h"
 #include "ln_signer.h"

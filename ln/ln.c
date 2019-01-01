@@ -37,6 +37,7 @@
 #include "utl_rng.h"
 
 #include "btc_script.h"
+#include "btc_sw.h"
 
 #include "ln_db.h"
 #include "ln_misc.h"

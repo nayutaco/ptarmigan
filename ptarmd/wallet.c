@@ -7,6 +7,7 @@
 
 #include "btc_sig.h"
 #include "btc_script.h"
+#include "btc_sw.h"
 
 #include "ptarmd.h"
 #include "btcrpc.h"
