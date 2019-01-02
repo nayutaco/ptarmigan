@@ -37,93 +37,93 @@
  * public functions
  **************************************************************************/
 
-void btc_tx_buf_r_init(btc_buf_r_t *pBuf, const uint8_t *pData, uint32_t Len)
+void btc_tx_buf_r_init(btc_buf_r_t *pBufR, const uint8_t *pData, uint32_t Len)
 {
-    pBuf->data = pData;
-    pBuf->len = Len;
-    pBuf->pos = 0;
+    pBufR->data = pData;
+    pBufR->len = Len;
+    pBufR->pos = 0;
 }
 
 
-const uint8_t *btc_tx_buf_r_get_pos(btc_buf_r_t *pBuf)
+const uint8_t *btc_tx_buf_r_get_pos(btc_buf_r_t *pBufR)
 {
-    return pBuf->data + pBuf->pos;
+    return pBufR->data + pBufR->pos;
 }
 
 
-bool btc_tx_buf_r_read(btc_buf_r_t *pBuf, uint8_t *pData, uint32_t Len)
+bool btc_tx_buf_r_read(btc_buf_r_t *pBufR, uint8_t *pData, uint32_t Len)
 {
-    if (pBuf->pos + Len > pBuf->len) return false;
-    memcpy(pData, pBuf->data + pBuf->pos, Len);
-    pBuf->pos += Len;
+    if (pBufR->pos + Len > pBufR->len) return false;
+    memcpy(pData, pBufR->data + pBufR->pos, Len);
+    pBufR->pos += Len;
     return true;
 }
 
 
-bool btc_tx_buf_r_read_byte(btc_buf_r_t *pBuf, uint8_t *pByte)
+bool btc_tx_buf_r_read_byte(btc_buf_r_t *pBufR, uint8_t *pByte)
 {
-    if (pBuf->pos + 1 > pBuf->len) return false;
-    *pByte = *(pBuf->data + pBuf->pos);
-    pBuf->pos++;
+    if (pBufR->pos + 1 > pBufR->len) return false;
+    *pByte = *(pBufR->data + pBufR->pos);
+    pBufR->pos++;
     return true;
 }
 
 
-bool btc_tx_buf_r_read_u32le(btc_buf_r_t *pBuf, uint32_t *U32)
+bool btc_tx_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32)
 {
-    if (pBuf->pos + 4 > pBuf->len) return false;
-    *U32 = utl_int_pack_u32le(pBuf->data + pBuf->pos);
-    pBuf->pos += 4;
+    if (pBufR->pos + 4 > pBufR->len) return false;
+    *U32 = utl_int_pack_u32le(pBufR->data + pBufR->pos);
+    pBufR->pos += 4;
     return true;
 }
 
 
-bool btc_tx_buf_r_read_u64le(btc_buf_r_t *pBuf, uint64_t *U64)
+bool btc_tx_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64)
 {
-    if (pBuf->pos + 8 > pBuf->len) return false;
-    *U64 = utl_int_pack_u64le(pBuf->data + pBuf->pos);
-    pBuf->pos += 8;
+    if (pBufR->pos + 8 > pBufR->len) return false;
+    *U64 = utl_int_pack_u64le(pBufR->data + pBufR->pos);
+    pBufR->pos += 8;
     return true;
 }
 
 
-bool btc_tx_buf_r_seek(btc_buf_r_t *pBuf, int32_t offset)
+bool btc_tx_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset)
 {
     if (offset > 0) {
-        if (pBuf->pos + offset > pBuf->len) return false;
+        if (pBufR->pos + offset > pBufR->len) return false;
     } else {
-        if (pBuf->pos < (uint32_t)-offset) return false;
+        if (pBufR->pos < (uint32_t)-offset) return false;
     }
-    pBuf->pos += offset;
+    pBufR->pos += offset;
     return true;
 }
 
 
-uint32_t btc_tx_buf_r_remains(btc_buf_r_t *pBuf)
+uint32_t btc_tx_buf_r_remains(btc_buf_r_t *pBufR)
 {
-    return pBuf->len - pBuf->pos;
+    return pBufR->len - pBufR->pos;
 }
 
 
-bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBuf, uint64_t *pValue)
+bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue)
 {
-    if (pBuf->pos + 1 > pBuf->len) return false;
-    const uint8_t *data_pos = pBuf->data + pBuf->pos;
+    if (pBufR->pos + 1 > pBufR->len) return false;
+    const uint8_t *data_pos = pBufR->data + pBufR->pos;
     if (*(data_pos) < 0xfd) {
         *pValue = *data_pos;
-        pBuf->pos += 1;
+        pBufR->pos += 1;
     } else if (*(data_pos) == 0xfd) {
-        if (pBuf->pos + 3 > pBuf->len) return false;
+        if (pBufR->pos + 3 > pBufR->len) return false;
         *pValue = utl_int_pack_u16le(data_pos + 1);
-        pBuf->pos += 3;
+        pBufR->pos += 3;
     } else if (*(data_pos) == 0xfe) {
-        if (pBuf->pos + 5 > pBuf->len) return false;
+        if (pBufR->pos + 5 > pBufR->len) return false;
         *pValue = utl_int_pack_u32le(data_pos + 1);
-        pBuf->pos += 5;
+        pBufR->pos += 5;
     } else if (*(data_pos) == 0xff) {
-        if (pBuf->pos + 9 > pBuf->len) return false;
+        if (pBufR->pos + 9 > pBufR->len) return false;
         *pValue = utl_int_pack_u64le(data_pos + 1);
-        pBuf->pos += 9;
+        pBufR->pos += 9;
     } else {
         assert(false);
         return false;
