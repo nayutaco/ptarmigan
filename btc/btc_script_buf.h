@@ -52,13 +52,13 @@ extern "C" {
 //https://en.bitcoin.it/wiki/Script
 // see `Constants`
 //XXX: comment
-bool btc_script_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size);
-void btc_script_buf_w_free(btc_buf_w_t *pBufW);
-uint8_t *btc_script_buf_w_get_data(btc_buf_w_t *pBufW);
-uint32_t btc_script_buf_w_get_len(btc_buf_w_t *pBufW);
-bool btc_script_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+#define btc_script_buf_w_init       btc_buf_w_init
+#define btc_script_buf_w_free       btc_buf_w_free
+#define btc_script_buf_w_get_data   btc_buf_w_get_data
+#define btc_script_buf_w_get_len    btc_buf_w_get_len
+#define btc_script_buf_w_write_data btc_buf_w_write_data
 bool btc_script_buf_w_write_item(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
-void btc_script_buf_w_truncate(btc_buf_w_t *pBufW);
+#define btc_script_buf_w_truncate   btc_buf_w_truncate
 
 
 /** write an item of a positive integer to the stack
