@@ -45,25 +45,25 @@
  **************************************************************************/
 
 //XXX: test & comment
-void btc_tx_buf_r_init(btc_buf_r_t *pBufR, const uint8_t *pData, uint32_t Len);
-const uint8_t *btc_tx_buf_r_get_pos(btc_buf_r_t *pBufR);
-bool btc_tx_buf_r_read(btc_buf_r_t *pBufR, uint8_t *pData, uint32_t Len);
-bool btc_tx_buf_r_read_byte(btc_buf_r_t *pBufR, uint8_t *pByte);
-bool btc_tx_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32);
-bool btc_tx_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64);
-bool btc_tx_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset);
-uint32_t btc_tx_buf_r_remains(btc_buf_r_t *pBufR);
+#define btc_tx_buf_r_init       btc_buf_r_init
+#define btc_tx_buf_r_get_pos    btc_buf_r_get_pos
+#define btc_tx_buf_r_read       btc_buf_r_read
+#define btc_tx_buf_r_read_byte  btc_buf_r_read_byte
+#define btc_tx_buf_r_read_u32le btc_buf_r_read_u32le
+#define btc_tx_buf_r_read_u64le btc_buf_r_read_u64le
+#define btc_tx_buf_r_seek       btc_buf_r_seek
+#define btc_tx_buf_r_remains    btc_buf_r_remains
 bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue);
 
 
 //XXX: comment
-bool btc_tx_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size);
-uint8_t *btc_tx_buf_w_get_data(btc_buf_w_t *pBufW);
-uint32_t btc_tx_buf_w_get_len(btc_buf_w_t *pBufW);
-bool btc_tx_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+#define btc_tx_buf_w_init       btc_buf_w_init
+#define btc_tx_buf_w_free       btc_buf_w_free
+#define btc_tx_buf_w_get_data   btc_buf_w_get_data
+#define btc_tx_buf_w_get_len    btc_buf_w_get_len
+#define btc_tx_buf_w_write_data btc_buf_w_write_data
 bool btc_tx_buf_w_write_varint_len(btc_buf_w_t *pBufW, uint64_t Size);
-bool btc_tx_buf_w_trim(btc_buf_w_t *pBufW);
-void btc_tx_buf_w_truncate(btc_buf_w_t *pBufW);
+#define btc_tx_buf_w_truncate   btc_buf_w_truncate
 
 
 #endif /* BTC_TX_BUF_H__ */

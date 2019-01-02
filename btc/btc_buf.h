@@ -41,20 +41,40 @@
  **************************************************************************/
 
 typedef struct {
-    const uint8_t   *data;
-    uint32_t        len;
-    uint32_t        pos;
+    const uint8_t   *_data;
+    uint32_t        _data_len;
+    uint32_t        _pos;
 } btc_buf_r_t;
 
 typedef struct {
-    utl_buf_t       *buf;
-    uint32_t        pos;
+    uint8_t         *_buf;
+    uint32_t        _buf_len;
+    uint32_t        _pos;
 } btc_buf_w_t;
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
+
+//XXX: test & comment
+void btc_buf_r_init(btc_buf_r_t *pBufR, const uint8_t *pData, uint32_t Len);
+const uint8_t *btc_buf_r_get_pos(btc_buf_r_t *pBufR);
+bool btc_buf_r_read(btc_buf_r_t *pBufR, uint8_t *pData, uint32_t Len);
+bool btc_buf_r_read_byte(btc_buf_r_t *pBufR, uint8_t *pByte);
+bool btc_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32);
+bool btc_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64);
+bool btc_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset);
+uint32_t btc_buf_r_remains(btc_buf_r_t *pBufR);
+
+
+//XXX: comment
+bool btc_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size);
+void btc_buf_w_free(btc_buf_w_t *pBufW);
+uint8_t *btc_buf_w_get_data(btc_buf_w_t *pBufW);
+uint32_t btc_buf_w_get_len(btc_buf_w_t *pBufW);
+bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+void btc_buf_w_truncate(btc_buf_w_t *pBufW);
 
 
 #endif /* BTC_BUF_H__ */

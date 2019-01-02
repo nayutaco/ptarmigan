@@ -32,45 +32,6 @@
  * public functions
  **************************************************************************/
 
-bool btc_script_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size)
-{
-    pBufW->pos = 0;
-    pBufW->buf = pBuf;
-    if (Size) {
-        if (!utl_buf_alloc(pBufW->buf, Size)) return false;
-    } else {
-        utl_buf_init(pBufW->buf);
-    }
-    return true;
-}
-
-
-uint8_t *btc_script_buf_w_get_data(btc_buf_w_t *pBufW)
-{
-    return pBufW->buf->buf;
-}
-
-
-uint32_t btc_script_buf_w_get_len(btc_buf_w_t *pBufW)
-{
-    return pBufW->pos;
-}
-
-
-bool btc_script_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
-{
-    int remains = pBufW->buf->len - pBufW->pos - Len;
-    if (remains < 0) {
-        pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->buf->len - remains);
-        if (!pBufW->buf->buf) return false;
-        pBufW->buf->len = pBufW->buf->len - remains;
-    }
-    memcpy(&pBufW->buf->buf[pBufW->pos], pData, Len);
-    pBufW->pos += Len;
-    return true;
-}
-
-
 bool btc_script_buf_w_write_item(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 {
 
@@ -108,27 +69,6 @@ bool btc_script_buf_w_write_item(btc_buf_w_t *pBufW, const void *pData, uint32_t
         return false;
     }
     return true;
-}
-
-
-bool btc_script_buf_w_trim(btc_buf_w_t *pBufW)
-{
-    if (pBufW->buf->len != pBufW->pos) {
-        if (pBufW->pos == 0) {
-            utl_buf_free(pBufW->buf);
-        } else {
-            pBufW->buf->len = pBufW->pos;
-            pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->pos);
-            if (!pBufW->buf->buf) return false;
-        }
-    }
-    return true;
-}
-
-
-void btc_script_buf_w_truncate(btc_buf_w_t *pBufW)
-{
-    pBufW->pos = 0;
 }
 
 
