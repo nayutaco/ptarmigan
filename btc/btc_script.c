@@ -485,11 +485,16 @@ bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
     // scriptCode: witnessScript
     // XXX: OP_CODESEPARATOR?
     btc_buf_w_t buf_w;
-    if (!btc_tx_buf_w_init(&buf_w, pScriptCode, 0)) return false;
-    if (!btc_tx_buf_w_write_varint_len(&buf_w, pWitScript->len)) return false;
-    if (!btc_tx_buf_w_write_data(&buf_w, pWitScript->buf, pWitScript->len)) return false;
-    if (!btc_tx_buf_w_trim(&buf_w)) return false;
+    if (!btc_tx_buf_w_init(&buf_w, 0)) return false;
+    if (!btc_tx_buf_w_write_varint_len(&buf_w, pWitScript->len)) goto LABEL_ERROR;
+    if (!btc_tx_buf_w_write_data(&buf_w, pWitScript->buf, pWitScript->len)) goto LABEL_ERROR;
+    if (!utl_buf_alloccopy(pScriptCode, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w))) goto LABEL_ERROR;
+    btc_tx_buf_w_free(&buf_w);
     return true;
+
+LABEL_ERROR:
+    btc_tx_buf_w_free(&buf_w);
+    return false;
 }
 
 

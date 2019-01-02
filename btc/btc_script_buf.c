@@ -32,41 +32,56 @@
  * public functions
  **************************************************************************/
 
-bool btc_script_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size)
+bool btc_script_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size)
 {
-    pBufW->pos = 0;
-    pBufW->buf = pBuf;
+    pBufW->_pos = 0;
     if (Size) {
-        if (!utl_buf_alloc(pBufW->buf, Size)) return false;
+        pBufW->_buf = (uint8_t *)UTL_DBG_MALLOC(Size);
+        if (!pBufW->_buf) return false;
+        pBufW->_buf_len = Size;
     } else {
-        utl_buf_init(pBufW->buf);
+        pBufW->_buf = NULL;
+        pBufW->_buf_len = 0;
     }
     return true;
 }
 
+void btc_script_buf_w_free(btc_buf_w_t *pBufW)
+{
+    pBufW->_pos = 0;
+    if (pBufW->_buf) {
+#ifdef PTARM_DEBUG
+        memset(pBufW->_buf, 0x00, pBufW->_buf_len);
+#endif  //PTARM_DEBUG
+        UTL_DBG_FREE(pBufW->_buf);
+        pBufW->_buf_len = 0;
+    } else {
+        //LOGD("no UTL_DBG_FREE memory\n");
+    }
+}
 
 uint8_t *btc_script_buf_w_get_data(btc_buf_w_t *pBufW)
 {
-    return pBufW->buf->buf;
+    return pBufW->_buf;
 }
 
 
 uint32_t btc_script_buf_w_get_len(btc_buf_w_t *pBufW)
 {
-    return pBufW->pos;
+    return pBufW->_pos;
 }
 
 
 bool btc_script_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 {
-    int remains = pBufW->buf->len - pBufW->pos - Len;
+    int remains = pBufW->_buf_len - pBufW->_pos - Len;
     if (remains < 0) {
-        pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->buf->len - remains);
-        if (!pBufW->buf->buf) return false;
-        pBufW->buf->len = pBufW->buf->len - remains;
+        pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, pBufW->_buf_len - remains);
+        if (!pBufW->_buf) return false;
+        pBufW->_buf_len = pBufW->_buf_len - remains;
     }
-    memcpy(&pBufW->buf->buf[pBufW->pos], pData, Len);
-    pBufW->pos += Len;
+    memcpy(&pBufW->_buf[pBufW->_pos], pData, Len);
+    pBufW->_pos += Len;
     return true;
 }
 
@@ -111,24 +126,9 @@ bool btc_script_buf_w_write_item(btc_buf_w_t *pBufW, const void *pData, uint32_t
 }
 
 
-bool btc_script_buf_w_trim(btc_buf_w_t *pBufW)
-{
-    if (pBufW->buf->len != pBufW->pos) {
-        if (pBufW->pos == 0) {
-            utl_buf_free(pBufW->buf);
-        } else {
-            pBufW->buf->len = pBufW->pos;
-            pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->pos);
-            if (!pBufW->buf->buf) return false;
-        }
-    }
-    return true;
-}
-
-
 void btc_script_buf_w_truncate(btc_buf_w_t *pBufW)
 {
-    pBufW->pos = 0;
+    pBufW->_pos = 0;
 }
 
 

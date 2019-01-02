@@ -41,14 +41,15 @@
  **************************************************************************/
 
 typedef struct {
-    const uint8_t   *data;
-    uint32_t        len;
-    uint32_t        pos;
+    const uint8_t   *_data;
+    uint32_t        _data_len;
+    uint32_t        _pos;
 } btc_buf_r_t;
 
 typedef struct {
-    utl_buf_t       *buf;
-    uint32_t        pos;
+    uint8_t         *_buf;
+    uint32_t        _buf_len;
+    uint32_t        _pos;
 } btc_buf_w_t;
 
 

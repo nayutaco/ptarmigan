@@ -57,12 +57,12 @@ bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue);
 
 
 //XXX: comment
-bool btc_tx_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size);
+bool btc_tx_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size);
+void btc_tx_buf_w_free(btc_buf_w_t *pBufW);
 uint8_t *btc_tx_buf_w_get_data(btc_buf_w_t *pBufW);
 uint32_t btc_tx_buf_w_get_len(btc_buf_w_t *pBufW);
 bool btc_tx_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
 bool btc_tx_buf_w_write_varint_len(btc_buf_w_t *pBufW, uint64_t Size);
-bool btc_tx_buf_w_trim(btc_buf_w_t *pBufW);
 void btc_tx_buf_w_truncate(btc_buf_w_t *pBufW);
 
 

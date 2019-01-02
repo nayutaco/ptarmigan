@@ -40,50 +40,50 @@
 
 void btc_tx_buf_r_init(btc_buf_r_t *pBufR, const uint8_t *pData, uint32_t Len)
 {
-    pBufR->data = pData;
-    pBufR->len = Len;
-    pBufR->pos = 0;
+    pBufR->_data = pData;
+    pBufR->_data_len = Len;
+    pBufR->_pos = 0;
 }
 
 
 const uint8_t *btc_tx_buf_r_get_pos(btc_buf_r_t *pBufR)
 {
-    return pBufR->data + pBufR->pos;
+    return pBufR->_data + pBufR->_pos;
 }
 
 
 bool btc_tx_buf_r_read(btc_buf_r_t *pBufR, uint8_t *pData, uint32_t Len)
 {
-    if (pBufR->pos + Len > pBufR->len) return false;
-    memcpy(pData, pBufR->data + pBufR->pos, Len);
-    pBufR->pos += Len;
+    if (pBufR->_pos + Len > pBufR->_data_len) return false;
+    memcpy(pData, pBufR->_data + pBufR->_pos, Len);
+    pBufR->_pos += Len;
     return true;
 }
 
 
 bool btc_tx_buf_r_read_byte(btc_buf_r_t *pBufR, uint8_t *pByte)
 {
-    if (pBufR->pos + 1 > pBufR->len) return false;
-    *pByte = *(pBufR->data + pBufR->pos);
-    pBufR->pos++;
+    if (pBufR->_pos + 1 > pBufR->_data_len) return false;
+    *pByte = *(pBufR->_data + pBufR->_pos);
+    pBufR->_pos++;
     return true;
 }
 
 
 bool btc_tx_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32)
 {
-    if (pBufR->pos + 4 > pBufR->len) return false;
-    *U32 = utl_int_pack_u32le(pBufR->data + pBufR->pos);
-    pBufR->pos += 4;
+    if (pBufR->_pos + 4 > pBufR->_data_len) return false;
+    *U32 = utl_int_pack_u32le(pBufR->_data + pBufR->_pos);
+    pBufR->_pos += 4;
     return true;
 }
 
 
 bool btc_tx_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64)
 {
-    if (pBufR->pos + 8 > pBufR->len) return false;
-    *U64 = utl_int_pack_u64le(pBufR->data + pBufR->pos);
-    pBufR->pos += 8;
+    if (pBufR->_pos + 8 > pBufR->_data_len) return false;
+    *U64 = utl_int_pack_u64le(pBufR->_data + pBufR->_pos);
+    pBufR->_pos += 8;
     return true;
 }
 
@@ -91,40 +91,40 @@ bool btc_tx_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64)
 bool btc_tx_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset)
 {
     if (offset > 0) {
-        if (pBufR->pos + offset > pBufR->len) return false;
+        if (pBufR->_pos + offset > pBufR->_data_len) return false;
     } else {
-        if (pBufR->pos < (uint32_t)-offset) return false;
+        if (pBufR->_pos < (uint32_t)-offset) return false;
     }
-    pBufR->pos += offset;
+    pBufR->_pos += offset;
     return true;
 }
 
 
 uint32_t btc_tx_buf_r_remains(btc_buf_r_t *pBufR)
 {
-    return pBufR->len - pBufR->pos;
+    return pBufR->_data_len - pBufR->_pos;
 }
 
 
 bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue)
 {
-    if (pBufR->pos + 1 > pBufR->len) return false;
-    const uint8_t *data_pos = pBufR->data + pBufR->pos;
+    if (pBufR->_pos + 1 > pBufR->_data_len) return false;
+    const uint8_t *data_pos = pBufR->_data + pBufR->_pos;
     if (*(data_pos) < 0xfd) {
         *pValue = *data_pos;
-        pBufR->pos += 1;
+        pBufR->_pos += 1;
     } else if (*(data_pos) == 0xfd) {
-        if (pBufR->pos + 3 > pBufR->len) return false;
+        if (pBufR->_pos + 3 > pBufR->_data_len) return false;
         *pValue = utl_int_pack_u16le(data_pos + 1);
-        pBufR->pos += 3;
+        pBufR->_pos += 3;
     } else if (*(data_pos) == 0xfe) {
-        if (pBufR->pos + 5 > pBufR->len) return false;
+        if (pBufR->_pos + 5 > pBufR->_data_len) return false;
         *pValue = utl_int_pack_u32le(data_pos + 1);
-        pBufR->pos += 5;
+        pBufR->_pos += 5;
     } else if (*(data_pos) == 0xff) {
-        if (pBufR->pos + 9 > pBufR->len) return false;
+        if (pBufR->_pos + 9 > pBufR->_data_len) return false;
         *pValue = utl_int_pack_u64le(data_pos + 1);
-        pBufR->pos += 9;
+        pBufR->_pos += 9;
     } else {
         assert(false);
         return false;
@@ -133,41 +133,58 @@ bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue)
 }
 
 
-bool btc_tx_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size)
+bool btc_tx_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size)
 {
-    pBufW->pos = 0;
-    pBufW->buf = pBuf;
+    pBufW->_pos = 0;
     if (Size) {
-        if (!utl_buf_alloc(pBufW->buf, Size)) return false;
+        pBufW->_buf = (uint8_t *)UTL_DBG_MALLOC(Size);
+        if (!pBufW->_buf) return false;
+        pBufW->_buf_len = Size;
     } else {
-        utl_buf_init(pBufW->buf);
+        pBufW->_buf = NULL;
+        pBufW->_buf_len = 0;
     }
     return true;
 }
 
 
+void btc_tx_buf_w_free(btc_buf_w_t *pBufW)
+{
+    pBufW->_pos = 0;
+    if (pBufW->_buf) {
+#ifdef PTARM_DEBUG
+        memset(pBufW->_buf, 0x00, pBufW->_buf_len);
+#endif  //PTARM_DEBUG
+        UTL_DBG_FREE(pBufW->_buf);
+        pBufW->_buf_len = 0;
+    } else {
+        //LOGD("no UTL_DBG_FREE memory\n");
+    }
+}
+
+
 uint8_t *btc_tx_buf_w_get_data(btc_buf_w_t *pBufW)
 {
-    return pBufW->buf->buf;
+    return pBufW->_buf;
 }
 
 
 uint32_t btc_tx_buf_w_get_len(btc_buf_w_t *pBufW)
 {
-    return pBufW->pos;
+    return pBufW->_pos;
 }
 
 
 bool btc_tx_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 {
-    int remains = pBufW->buf->len - pBufW->pos - Len;
+    int remains = pBufW->_buf_len - pBufW->_pos - Len;
     if (remains < 0) {
-        pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->buf->len - remains);
-        if (!pBufW->buf->buf) return false;
-        pBufW->buf->len = pBufW->buf->len - remains;
+        pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, pBufW->_buf_len - remains);
+        if (!pBufW->_buf) return false;
+        pBufW->_buf_len = pBufW->_buf_len - remains;
     }
-    memcpy(&pBufW->buf->buf[pBufW->pos], pData, Len);
-    pBufW->pos += Len;
+    memcpy(&pBufW->_buf[pBufW->_pos], pData, Len);
+    pBufW->_pos += Len;
     return true;
 }
 
@@ -197,22 +214,7 @@ bool btc_tx_buf_w_write_varint_len(btc_buf_w_t *pBufW, uint64_t Size)
 }
 
 
-bool btc_tx_buf_w_trim(btc_buf_w_t *pBufW)
-{
-    if (pBufW->buf->len != pBufW->pos) {
-        if (pBufW->pos == 0) {
-            utl_buf_free(pBufW->buf);
-        } else {
-            pBufW->buf->len = pBufW->pos;
-            pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->pos);
-            if (!pBufW->buf->buf) return false;
-        }
-    }
-    return true;
-}
-
-
 void btc_tx_buf_w_truncate(btc_buf_w_t *pBufW)
 {
-    pBufW->pos = 0;
+    pBufW->_pos = 0;
 }
