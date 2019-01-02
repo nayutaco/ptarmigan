@@ -98,3 +98,4 @@ TEST_F(btc, btc_setnet_mainnet)
 #include "testinc_recoverpub.cpp"
 #include "testinc_segwit_addr.cpp"
 #include "testinc_script_buf.cpp"
+#include "testinc_tx_buf.cpp"

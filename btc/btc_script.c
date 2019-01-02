@@ -37,6 +37,7 @@
 #include "btc_segwit_addr.h"
 #include "btc_sig.h"
 #include "btc_script.h"
+#include "btc_tx_buf.h"
 
 
 /**************************************************************************
@@ -483,10 +484,11 @@ bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     // scriptCode: witnessScript
     // XXX: OP_CODESEPARATOR?
-    if (!utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWitScript->len) + pWitScript->len)) return false;
-    uint8_t *p = pScriptCode->buf;
-    p += btcl_util_set_varint_len(p, NULL, pWitScript->len, false);
-    memcpy(p, pWitScript->buf, pWitScript->len);
+    btc_buf_w_t buf_w;
+    if (!btc_tx_buf_w_init(&buf_w, pScriptCode, 0)) return false;
+    if (!btc_tx_buf_w_write_varint_len(&buf_w, pWitScript->len)) return false;
+    if (!btc_tx_buf_w_write_data(&buf_w, pWitScript->buf, pWitScript->len)) return false;
+    if (!btc_tx_buf_w_trim(&buf_w)) return false;
     return true;
 }
 
