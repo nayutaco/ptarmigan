@@ -33,6 +33,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <utl_buf.h>
+
 
 /**************************************************************************
  * typedefs
@@ -43,6 +45,11 @@ typedef struct {
     uint32_t        len;
     uint32_t        pos;
 } btc_buf_r_t;
+
+typedef struct {
+    utl_buf_t       *buf;
+    uint32_t        pos;
+} btc_buf_w_t;
 
 
 /**************************************************************************

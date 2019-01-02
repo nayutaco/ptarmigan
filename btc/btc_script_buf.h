@@ -19,41 +19,63 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   btc_tx_buf.h
- *  @brief  btc_tx_buf
+/** @file   btc_script_buf.h
+ *  @brief  btc_script_buf
+ *
+ * @note
+ *      - btc_script_buf
+ *
  */
-#ifndef BTC_TX_BUF_H__
-#define BTC_TX_BUF_H__
+#ifndef BTC_SCRIPT_BUF_H__
+#define BTC_SCRIPT_BUF_H__
 
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-
-#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#include <utl_buf.h>
 
 #include <btc_buf.h>
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
+
 /**************************************************************************
- * typedefs
+ * types
  **************************************************************************/
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
+//https://en.bitcoin.it/wiki/Script
+// see `Constants`
 //XXX: comment
-void btc_tx_buf_r_init(btc_buf_r_t *pBufR, const uint8_t *pData, uint32_t Len);
-const uint8_t *btc_tx_buf_r_get_pos(btc_buf_r_t *pBufR);
-bool btc_tx_buf_r_read(btc_buf_r_t *pBufR, uint8_t *pData, uint32_t Len);
-bool btc_tx_buf_r_read_byte(btc_buf_r_t *pBufR, uint8_t *pByte);
-bool btc_tx_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32);
-bool btc_tx_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64);
-bool btc_tx_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset);
-uint32_t btc_tx_buf_r_remains(btc_buf_r_t *pBufR);
-bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue);
+bool btc_script_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size);
+uint8_t *btc_script_buf_w_get_data(btc_buf_w_t *pBufW);
+uint32_t btc_script_buf_w_get_len(btc_buf_w_t *pBufW);
+bool btc_script_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+bool btc_script_buf_w_write_item(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+bool btc_script_buf_w_trim(btc_buf_w_t *pBufW);
+void btc_script_buf_w_truncate(btc_buf_w_t *pBufW);
 
 
-#endif /* BTC_TX_BUF_H__ */
+/** write an item of a positive integer to the stack
+ *
+ * As a result `Value` will be 2-6 bytes on the stack.<br>
+ * Integers on the stack are interpreted as a signed.<br>
+ * However, only positive integers (0-549755813887) can be witten by this function.
+ *
+ * @param[out]  pBufW       buffer
+ * @param[in]   Value       value (0-549755813887)
+ * @retval      true    success
+ */
+bool btc_script_buf_w_write_item_positive_integer(btc_buf_w_t *pBufW, uint64_t Value);
+
+
+#ifdef __cplusplus
+}
+#endif //__cplusplus
+
+#endif /* BTC_SCRIPT_BUF_H__ */
