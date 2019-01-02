@@ -29,6 +29,7 @@
 #include <assert.h>
 
 #include "utl_int.h"
+#include "utl_dbg.h"
 
 #include "btc_tx_buf.h"
 
@@ -129,4 +130,89 @@ bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue)
         return false;
     }
     return true;
+}
+
+
+bool btc_tx_buf_w_init(btc_buf_w_t *pBufW, utl_buf_t *pBuf, uint32_t Size)
+{
+    pBufW->pos = 0;
+    pBufW->buf = pBuf;
+    if (Size) {
+        if (!utl_buf_alloc(pBufW->buf, Size)) return false;
+    } else {
+        utl_buf_init(pBufW->buf);
+    }
+    return true;
+}
+
+
+uint8_t *btc_tx_buf_w_get_data(btc_buf_w_t *pBufW)
+{
+    return pBufW->buf->buf;
+}
+
+
+uint32_t btc_tx_buf_w_get_len(btc_buf_w_t *pBufW)
+{
+    return pBufW->pos;
+}
+
+
+bool btc_tx_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
+{
+    int remains = pBufW->buf->len - pBufW->pos - Len;
+    if (remains < 0) {
+        pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->buf->len - remains);
+        if (!pBufW->buf->buf) return false;
+        pBufW->buf->len = pBufW->buf->len - remains;
+    }
+    memcpy(&pBufW->buf->buf[pBufW->pos], pData, Len);
+    pBufW->pos += Len;
+    return true;
+}
+
+
+bool btc_tx_buf_w_write_varint_len(btc_buf_w_t *pBufW, uint64_t Size)
+{
+    uint8_t buf[9];
+    uint32_t len;
+
+    if (Size < 0xfd) {
+        len = 1;
+        buf[0] = (uint8_t)Size;
+    } else if (Size <= UINT16_MAX) {
+        len = 3;
+        buf[0] = 0xfd;
+        utl_int_unpack_u16le(buf + 1, (uint16_t)Size);
+    } else if (Size <= UINT32_MAX) {
+        len = 5;
+        buf[0] = 0xfe;
+        utl_int_unpack_u32le(buf + 1, (uint32_t)Size);
+    } else {
+        len = 9;
+        buf[0] = 0xff;
+        utl_int_unpack_u64le(buf + 1, Size);
+    }
+    return btc_tx_buf_w_write_data(pBufW, buf, len);
+}
+
+
+bool btc_tx_buf_w_trim(btc_buf_w_t *pBufW)
+{
+    if (pBufW->buf->len != pBufW->pos) {
+        if (pBufW->pos == 0) {
+            utl_buf_free(pBufW->buf);
+        } else {
+            pBufW->buf->len = pBufW->pos;
+            pBufW->buf->buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->buf->buf, pBufW->pos);
+            if (!pBufW->buf->buf) return false;
+        }
+    }
+    return true;
+}
+
+
+void btc_tx_buf_w_truncate(btc_buf_w_t *pBufW)
+{
+    pBufW->pos = 0;
 }
