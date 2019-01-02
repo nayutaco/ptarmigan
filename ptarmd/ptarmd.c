@@ -542,7 +542,8 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
             ln_funding_txid(self),
             ln_funding_txindex(self),
             ln_funding_redeem(self),
-            p_bhash);
+            p_bhash,
+            ln_last_conf_get(self));
 
     return false;
 }

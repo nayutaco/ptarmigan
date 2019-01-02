@@ -980,7 +980,8 @@ static void *thread_main_start(void *pArg)
                     ln_funding_txid(p_self),
                     ln_funding_txindex(p_self),
                     ln_funding_redeem(p_self),
-                    ln_funding_blockhash(p_self));
+                    ln_funding_blockhash(p_self),
+                    ln_last_conf_get(p_self));
 #endif
         } else {
             const char *p_str = ln_status_string(p_self);
@@ -1704,7 +1705,8 @@ static void *thread_poll_start(void *pArg)
                         ln_funding_txid(p_conf->p_self),
                         ln_funding_txindex(p_conf->p_self),
                         ln_funding_redeem(p_conf->p_self),
-                        ln_funding_blockhash(p_conf->p_self));
+                        ln_funding_blockhash(p_conf->p_self),
+                        ln_last_conf_get(p_conf->p_self));
 #endif
 
                 LOGD2("***********************************\n");
@@ -2346,7 +2348,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
                 ln_funding_txid(p_conf->p_self),
                 ln_funding_txindex(p_conf->p_self),
                 ln_funding_redeem(p_conf->p_self),
-                ln_funding_blockhash(p_conf->p_self));
+                ln_funding_blockhash(p_conf->p_self),
+                ln_last_conf_get(p_conf->p_self));
 #endif
 
         const char *p_str;

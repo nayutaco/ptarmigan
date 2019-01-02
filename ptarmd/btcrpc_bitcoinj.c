@@ -166,6 +166,7 @@ typedef struct {
     int             fundingidx;
     const uint8_t   *p_scriptpubkey;
     const uint8_t   *mined_hash;
+    uint32_t        last_confirm;
 } setchannel_t;
 
 
@@ -619,7 +620,8 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
                 const uint8_t *pFundingTxid,
                 int FundingIdx,
                 const utl_buf_t *pRedeemScript,
-                const uint8_t *pMinedHash)
+                const uint8_t *pMinedHash,
+                uint32_t LastConfirm)
 {
     LOGD_BTCTRACE("\n");
 
@@ -633,6 +635,7 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
     prm.fundingidx = FundingIdx;
     prm.p_scriptpubkey = witprog + BTC_OFFSET_WITPROG;
     prm.mined_hash = pMinedHash;
+    prm.last_confirm = LastConfirm;
     call_jni(METHOD_PTARM_SETCHANNEL, &prm);
 }
 
@@ -953,15 +956,17 @@ static void jni_set_channel(void *pArg)
     LOGD("funding_index=%d\n", p->fundingidx);
     LOGD("scriptPubKey=");
     DUMPD(p->p_scriptpubkey, BTC_SZ_HASH256);
-        LOGD("mined_hash=");
-        TXIDD(p->mined_hash);
+    LOGD("mined_hash=");
+    TXIDD(p->mined_hash);
+    LOGD("last_confirm=%" PRIu32 "\n", p->last_confirm);
 
     btcj_set_channel(p->p_peer_id,
                 p->short_channel_id,
                 p->p_fundingtxid,
                 p->fundingidx,
                 p->p_scriptpubkey,
-                p->mined_hash);
+                p->mined_hash,
+                p->last_confirm);
 }
 
 

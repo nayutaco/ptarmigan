@@ -72,7 +72,8 @@ void btcj_set_channel(
     const uint8_t *pFundingTxid,
     int FundingIndex,
     const uint8_t *pScriptPubKey,
-    const uint8_t *pMinedHash);
+    const uint8_t *pMinedHash,
+    uint32_t LastConfirm);
 void btcj_del_channel(const uint8_t *pPeerId);
 // void btcj_set_committxid(const uint8_t *peerId, )
 bool btcj_getbalance(uint64_t *pAmount);
