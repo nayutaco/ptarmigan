@@ -437,7 +437,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 
     int pref;
     if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
-    if (!btc_script_pk_create(pScriptPk, hash, pref)) return false;
+    if (!btc_scriptpk_create(pScriptPk, hash, pref)) return false;
     return true;
 }
 

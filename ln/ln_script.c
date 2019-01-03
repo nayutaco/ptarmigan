@@ -178,11 +178,11 @@ bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, i
     case BTC_PREF_P2WPKH:
     case BTC_PREF_P2SH:
         btc_util_hash160(pkh, pPub->buf, pPub->len);
-        btc_script_pk_create(pBuf, pkh, Prefix);
+        btc_scriptpk_create(pBuf, pkh, Prefix);
         break;
     case BTC_PREF_P2WSH:
         btc_util_sha256(pkh, pPub->buf, pPub->len);
-        btc_script_pk_create(pBuf, pkh, Prefix);
+        btc_scriptpk_create(pBuf, pkh, Prefix);
         break;
     default:
         ret = false;
