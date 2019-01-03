@@ -23,6 +23,7 @@
  *  @brief  bitcoin処理: Segwitトランザクション生成関連
  */
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 #include "btc_local.h"
 #include "btc_util.h"
@@ -69,8 +70,8 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
 bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
     //P2WPKH witness
-    //      0:<signature>
-    //      1:<pubkey>
+    //      0: <signature>
+    //      1: <pubkey>
     if (pVin->wit_item_cnt != 2) {
         return false;
     }
@@ -82,11 +83,8 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
     //P2WSH witness
-    //      0:OP_0
-    //      1:data 1
-    //      2:data 2
     //      ....
-    //      n:witnessScript
+    //      wit_item_cnt - 1: witnessScript
     if (pVin->wit_item_cnt == 0) {
         return false;
     }
@@ -109,10 +107,13 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint6
     // [locktime : 4]
     // [hash_type : 4]
 
-    utl_buf_t preimg;
-    utl_buf_t hash_prevouts;
-    utl_buf_t hash_sequence;
-    utl_buf_t hash_outputs;
+    bool ret = false;
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_buf_t buf_tmp = UTL_BUF_INIT;
+    uint32_t lp;
+    uint8_t *p;
+    uint8_t *p_tmp;
+    int len;
 
     btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
@@ -120,97 +121,102 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint6
         return false;
     }
 
-    utl_buf_alloc(&preimg, 156 + pScriptCode->len);
-    uint8_t *p = preimg.buf;
-
-    const btc_vin_t *vin_now = &pTx->vin[Index];
+    if (!utl_buf_alloc(&buf, 156 + pScriptCode->len)) goto LABEL_EXIT;
+    p = buf.buf;
 
     //version
-    memcpy(p, &pTx->version, sizeof(pTx->version));
-    p += sizeof(pTx->version);
+    utl_int_unpack_u32le(p, pTx->version);
+    p += 4;
 
     //vin:
-    //  txid(32) + index(4)を連結した SHA256
-    //  sequence(4)を連結した SHA256
-    utl_buf_alloc(&hash_prevouts, pTx->vin_cnt * (32 + 4));
-    utl_buf_alloc(&hash_sequence, pTx->vin_cnt * 4);
-    uint8_t *p_prevouts = hash_prevouts.buf;
-    uint8_t *p_sequence = hash_sequence.buf;
-    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
+    // prev outs:
+
+    //hash_prevouts: double-SHA256((txid(32) | index(4)) * n)
+    if (!utl_buf_realloc(&buf_tmp, pTx->vin_cnt * (32 + 4))) goto LABEL_EXIT;
+    p_tmp = buf_tmp.buf;
+    for (lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &pTx->vin[lp];
 
-        //hash_prevouts
-        memcpy(p_prevouts, vin->txid, sizeof(vin->txid));
-        p_prevouts += sizeof(vin->txid);
-        memcpy(p_prevouts, &vin->index, sizeof(vin->index));
-        p_prevouts += sizeof(vin->index);
-
-        //hash_sequence
-        memcpy(p_sequence, &vin->sequence, sizeof(vin->sequence));
-        p_sequence += sizeof(vin->sequence);
+        memcpy(p_tmp, vin->txid, BTC_SZ_TXID);
+        p_tmp += BTC_SZ_TXID;
+        utl_int_unpack_u32le(p_tmp, vin->index);
+        p_tmp += 4;
     }
-    btc_util_hash256(p, hash_prevouts.buf, hash_prevouts.len);
-    p += BTC_SZ_HASH256;
-    btc_util_hash256(p, hash_sequence.buf, hash_sequence.len);
+    btc_util_hash256(p, buf_tmp.buf, buf_tmp.len);
     p += BTC_SZ_HASH256;
 
-    //output
-    //  vin[nIn]の txidとIndexを連結
-    memcpy(p, vin_now->txid, sizeof(vin_now->txid));
-    p += sizeof(pTx->vin[Index].txid);
-    memcpy(p, &vin_now->index, sizeof(vin_now->index));
-    p += sizeof(pTx->vin[Index].index);
+    //hash_sequence: double-SHA256(sequence(4) * n)
+    if (!utl_buf_realloc(&buf_tmp, pTx->vin_cnt * 4)) goto LABEL_EXIT;
+    p_tmp = buf_tmp.buf;
+    for (lp = 0; lp < pTx->vin_cnt; lp++) {
+        btc_vin_t *vin = &pTx->vin[lp];
+
+        utl_int_unpack_u32le(p_tmp, vin->sequence);
+        p_tmp += 4;
+    }
+    btc_util_hash256(p, buf_tmp.buf, buf_tmp.len);
+    p += BTC_SZ_HASH256;
+
+    //outpoint: double-SHA256(txid(32) | Index(4))
+    memcpy(p, pTx->vin[Index].txid, BTC_SZ_TXID);
+    p += BTC_SZ_TXID;
+    utl_int_unpack_u32le(p, pTx->vin[Index].index);
+    p += 4;
 
     //scriptcode
     memcpy(p, pScriptCode->buf, pScriptCode->len);
     p += pScriptCode->len;
 
     //amount
-    memcpy(p, &Value, sizeof(Value));
-    p += sizeof(Value);
+    utl_int_unpack_u64le(p, Value);
+    p += 8;
 
     //sequence
-    memcpy(p, &vin_now->sequence, sizeof(vin_now->sequence));
-    p += sizeof(vin_now->sequence);
+    utl_int_unpack_u32le(p, pTx->vin[Index].sequence);
+    p += 4;
 
     //vout:
-    //  amountも含めtxoutを連結した SHA256
-    int len = 0;
-    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
+    // next vins:
+
+    //hash_outputs: double-SHA256((value(8) | scriptPk) * n)
+    len = 0;
+    for (lp = 0; lp < pTx->vout_cnt; lp++) {
+        len += 8;
+        len += 1; //XXX:
         len += pTx->vout[lp].script.len;
     }
-    utl_buf_alloc(&hash_outputs, pTx->vout_cnt * (8 + 1) + len);
-    uint8_t *p_outputs = hash_outputs.buf;
-    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
+    if (!utl_buf_realloc(&buf_tmp, len)) goto LABEL_EXIT;
+    p_tmp = buf_tmp.buf;
+    for (lp = 0; lp < pTx->vout_cnt; lp++) {
         btc_vout_t *vout = &pTx->vout[lp];
 
-        memcpy(p_outputs, &vout->value, sizeof(vout->value));
-        p_outputs += sizeof(vout->value);
-        *p_outputs = vout->script.len;
-        p_outputs++;
-        memcpy(p_outputs, vout->script.buf, vout->script.len);
-        p_outputs += vout->script.len;
+        utl_int_unpack_u64le(p_tmp, vout->value);
+        p_tmp += 8;
+        *p_tmp = vout->script.len;
+        p_tmp++;
+        memcpy(p_tmp, vout->script.buf, vout->script.len);
+        p_tmp += vout->script.len;
     }
-    btc_util_hash256(p, hash_outputs.buf, hash_outputs.len);
+    btc_util_hash256(p, buf_tmp.buf, buf_tmp.len);
     p += BTC_SZ_HASH256;
 
     //locktime
-    memcpy(p, &pTx->locktime, sizeof(pTx->locktime));
-    p += sizeof(pTx->locktime);
+    utl_int_unpack_u32le(p, pTx->locktime);
+    p += 4;
 
-    //hash type = 0x00000001
-    uint32_t hashtype = 1;
-    memcpy(p, &hashtype, sizeof(hashtype));
-    //p += sizeof(hashtype);
+    //hashtype
+    utl_int_unpack_u32le(p, SIGHASH_ALL);
+    p += 4;
 
-    btc_util_hash256(pTxHash, preimg.buf, preimg.len);
+    btc_util_hash256(pTxHash, buf.buf, buf.len);
 
-    utl_buf_free(&hash_outputs);
-    utl_buf_free(&hash_sequence);
-    utl_buf_free(&hash_prevouts);
-    utl_buf_free(&preimg);
+    ret = true;
 
-    return true;
+LABEL_EXIT:
+    utl_buf_free(&buf);
+    utl_buf_free(&buf_tmp);
+
+    return ret;
 }
 
 
