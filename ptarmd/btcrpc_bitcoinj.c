@@ -30,6 +30,9 @@
 #include "utl_log.h"
 #include "utl_dbg.h"
 #include "utl_misc.h"
+
+#include "btc_script.h"
+
 #include "btcrpc.h"
 
 
