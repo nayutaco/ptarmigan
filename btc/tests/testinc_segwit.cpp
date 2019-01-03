@@ -58,7 +58,7 @@ TEST_F(sw, scriptcode_p2wpkh)
 
 TEST_F(sw, scriptcode_p2wsh)
 {
-    utl_buf_t code;
+    utl_buf_t code = UTL_BUF_INIT;
 
     //wif: cV7N1pozd3SNCkXYJAWeTUvoGpq9gcbvjWuWn8S2SCWy8W3zKmhk
     //pri: e0a29cfd87bf70e5f4e8c9bbf347d0185cd2057c7af1f19f2c13d264a7678189
@@ -628,7 +628,7 @@ TEST_F(sw, set_vin_p2wsh)
         0x88, 0x93, 0xd2, 0x78, 0x75, 0x44, 0xb6, 0x5f,
         0x3f, 0x71, 0x7e,
     };
-    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t wit0 = UTL_BUF_INIT;
     const utl_buf_t wit1 = { (uint8_t *)SIG1, sizeof(SIG1) };
     const utl_buf_t wit2 = { (uint8_t *)SIG2, sizeof(SIG2) };
     const utl_buf_t wit3 = { (uint8_t *)WIT,  sizeof(WIT)  };

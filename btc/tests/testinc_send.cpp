@@ -73,7 +73,7 @@ TEST_F(send, p2pkh)
     ASSERT_TRUE(ret);
 
     uint8_t txhash[BTC_SZ_HASH256];
-    utl_buf_t script_pk;
+    utl_buf_t script_pk = UTL_BUF_INIT;
     ret = btc_keys_addr2spk(&script_pk, "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1");
     ASSERT_TRUE(ret);
     const utl_buf_t *spks[] = { &script_pk };

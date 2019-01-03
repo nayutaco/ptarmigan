@@ -117,7 +117,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
         return false;
     }
 
-    utl_buf_t scrpk;
+    utl_buf_t scrpk = UTL_BUF_INIT;
     uint8_t pkh[BTC_SZ_HASH_MAX];
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
     btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
@@ -140,7 +140,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
     //公開鍵(署名サイズ[1],署名[sz],公開鍵サイズ[1], 公開鍵、の順になっている)
     const uint8_t *p_pubkey = pTx->vin[Index].script.buf + 1 + pTx->vin[Index].script.buf[0] + 1;
     uint8_t pkh[BTC_SZ_HASH_MAX];
-    utl_buf_t scrpk;
+    utl_buf_t scrpk = UTL_BUF_INIT;
     btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
     btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
     const utl_buf_t *scrpks[] = { &scrpk };

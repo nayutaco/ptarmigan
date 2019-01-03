@@ -143,7 +143,7 @@ bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
     // <script>
     const uint8_t WIT1 = 0x01;
     const utl_buf_t key = { (CONST_CAST uint8_t *)pKey->priv, BTC_SZ_PRIVKEY };
-    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t wit0 = UTL_BUF_INIT;
     const utl_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
     const utl_buf_t *wits[] = {
         &key,
@@ -478,7 +478,7 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
                     const utl_buf_t *pWitScript,
                     ln_script_htlcsign_t HtlcSign)
 {
-    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t wit0 = UTL_BUF_INIT;
     const utl_buf_t **pp_wits = NULL;
     int wits_num = 0;
     switch (HtlcSign) {
@@ -512,7 +512,7 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
             // <remotesig>
             // <payment-preimage>
             // <script>
-            utl_buf_t preimage;
+            utl_buf_t preimage = UTL_BUF_INIT;
             if (pPreImage != NULL) {
                 preimage.buf = (CONST_CAST uint8_t *)pPreImage;
                 preimage.len = LN_SZ_PREIMAGE;

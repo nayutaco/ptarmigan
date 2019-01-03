@@ -693,7 +693,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
 
     if ((ShutdownPref == BTC_PREF_P2PKH) || (ShutdownPref == BTC_PREF_P2WPKH)) {
         const utl_buf_t pub = { (CONST_CAST uint8_t *)pShutdownPubkey, BTC_SZ_PUBKEY };
-        utl_buf_t spk;
+        utl_buf_t spk = UTL_BUF_INIT;
 
         ln_script_scriptpkh_create(&spk, &pub, ShutdownPref);
         utl_buf_free(&self->shutdown_scriptpk_local);
@@ -1095,6 +1095,8 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 
 
         utl_buf_t wit[2];
+        utl_buf_init(&wit[0]);
+        utl_buf_init(&wit[1]);
         wit[0].buf = zero;
         wit[0].len = 72;
         wit[1].buf = zero;
@@ -2391,7 +2393,7 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     //脊髄反射的にpongを返す
-    utl_buf_t buf_bolt;
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
     ret = ln_pong_create(self, &buf_bolt, ping.num_pong_bytes);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
@@ -2520,7 +2522,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         acc_ch->p_pubkeys[lp] = self->funding_local.pubkeys[lp];
     }
-    utl_buf_t buf_bolt;
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_msg_accept_channel_create(&buf_bolt, acc_ch);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
@@ -2634,7 +2636,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
         fundc->p_funding_txid = self->funding_local.txid;
         fundc->p_signature = self->commit_remote.signature;
 
-        utl_buf_t buf_bolt;
+        utl_buf_t buf_bolt = UTL_BUF_INIT;
         ln_msg_funding_created_create(&buf_bolt, fundc);
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
         utl_buf_free(&buf_bolt);
@@ -2722,7 +2724,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     self->p_establish->cnl_funding_signed.p_channel_id = self->channel_id;
     self->p_establish->cnl_funding_signed.p_signature = self->commit_remote.signature;
 
-    utl_buf_t buf_bolt;
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_msg_funding_signed_create(&buf_bolt, &self->p_establish->cnl_funding_signed);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
@@ -3698,7 +3700,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
             //id一致
             clear_htlc_comrevflag(p_htlc, LN_DELHTLC_MALFORMED);
 
-            utl_buf_t reason;
+            utl_buf_t reason = UTL_BUF_INIT;
             utl_push_t push_rsn;
             utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_HASH256);
             ln_misc_push16be(&push_rsn, mal_htlc.failure_code);
@@ -3903,7 +3905,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         return true;
     }
 
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
 
@@ -3977,7 +3979,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     anno.anno = LN_CB_UPDATE_ANNODB_NONE;
     if (ret) {
         //DB保存
-        utl_buf_t buf;
+        utl_buf_t buf = UTL_BUF_INIT;
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
         ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
@@ -4023,7 +4025,7 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
     LOGV("node_id:");
     DUMPV(node_id, sizeof(node_id));
 
-    utl_buf_t buf_ann;
+    utl_buf_t buf_ann = UTL_BUF_INIT;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;
     buf_ann.len = Len;
     ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
@@ -4126,7 +4128,7 @@ static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
     // <sig1>
     // <sig2>
     // <script>
-    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t wit0 = UTL_BUF_INIT;
     const utl_buf_t *wits[] = {
         &wit0,
         NULL,
@@ -4708,7 +4710,7 @@ static bool create_to_local_htlcverify(const ln_self_t *self,
                     const utl_buf_t *pScript,
                     uint64_t Amount)
 {
-    utl_buf_t buf_sig;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, pHtlcSig);
 
     bool ret = ln_script_htlctx_verify(pTx,
@@ -4763,7 +4765,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
 {
     bool ret;
     utl_buf_t buf_local_sig = UTL_BUF_INIT;
-    utl_buf_t buf_remote_sig;
+    utl_buf_t buf_remote_sig = UTL_BUF_INIT;
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
@@ -5287,7 +5289,7 @@ static bool create_to_remote_spenthtlc(
 
     //署名
     if (htlcsign != LN_HTLCSIGN_NONE) {
-        utl_buf_t buf_localsig;
+        utl_buf_t buf_localsig = UTL_BUF_INIT;
         ret = ln_script_htlctx_sign(&tx,
                     &buf_localsig,
                     pTxCommit->vout[VoutIdx].value,

@@ -4335,7 +4335,7 @@ static int annocnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
     M_ANNOINFO_CNL_SET(keydata, key, pUpd->short_channel_id, (ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloc(&buf, sizeof(uint32_t) + pCnlUpd->len);
 
     //timestamp + channel_update
@@ -4443,7 +4443,7 @@ static int annonod_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const uin
     uint8_t keydata[M_SZ_ANNOINFO_NODE];
 
     M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloc(&buf, sizeof(uint32_t) + pNodeAnno->len);
 
     //timestamp + node_announcement

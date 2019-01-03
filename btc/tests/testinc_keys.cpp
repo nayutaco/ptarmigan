@@ -278,7 +278,7 @@ TEST_F(keys, multi_2of2_1)
     };
 
     bool ret;
-    utl_buf_t bufredeem;
+    utl_buf_t bufredeem = UTL_BUF_INIT;
     ret = btc_keys_create_2of2(&bufredeem, PUB1, PUB2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
@@ -319,7 +319,7 @@ TEST_F(keys, multi_2of2_2)
     };
 
     bool ret;
-    utl_buf_t bufredeem;
+    utl_buf_t bufredeem = UTL_BUF_INIT;
     ret = btc_keys_create_2of2(&bufredeem, PUB2, PUB1);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
@@ -341,7 +341,7 @@ TEST_F(keys, multi_2of2_same)
     };
 
     bool ret;
-    utl_buf_t bufredeem;
+    utl_buf_t bufredeem = UTL_BUF_INIT;
     ret = btc_keys_create_2of2(&bufredeem, PUB1, PUB1);
     ASSERT_FALSE(ret);
     //utl_buf_free(&bufredeem);
@@ -392,7 +392,7 @@ TEST_F(keys, multi_2of3)
         0xae,
     };
 
-    utl_buf_t bufredeem;
+    utl_buf_t bufredeem = UTL_BUF_INIT;
     bool ret = btc_keys_create_multisig(&bufredeem, PUBS, 3, 2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);

@@ -31,7 +31,7 @@ public:
 TEST_F(push, init)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -46,7 +46,7 @@ TEST_F(push, init)
 TEST_F(push, init_zero)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 0));
 
@@ -59,7 +59,7 @@ TEST_F(push, init_zero)
 TEST_F(push, data_in1)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -77,7 +77,7 @@ TEST_F(push, data_in1)
 TEST_F(push, data_in2)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -99,7 +99,7 @@ TEST_F(push, data_in2)
 TEST_F(push, data_expand1)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -117,7 +117,7 @@ TEST_F(push, data_expand1)
 TEST_F(push, data_expand2)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -143,7 +143,7 @@ TEST_F(push, data_expand2)
 TEST_F(push, value0)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -159,7 +159,7 @@ TEST_F(push, value0)
 TEST_F(push, value01_10)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -177,7 +177,7 @@ TEST_F(push, value01_10)
 TEST_F(push, value11_7f)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -197,7 +197,7 @@ TEST_F(push, value11_7f)
 TEST_F(push, value80_7fff)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -219,7 +219,7 @@ TEST_F(push, value80_7fff)
 TEST_F(push, value8000_7fffff)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -243,7 +243,7 @@ TEST_F(push, value8000_7fffff)
 TEST_F(push, value800000_7fffffff)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -269,7 +269,7 @@ TEST_F(push, value800000_7fffffff)
 TEST_F(push, value80000000_7fffffffff)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -296,7 +296,7 @@ TEST_F(push, value80000000_7fffffffff)
 TEST_F(push, invalid_value8000000000)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 16));
 
@@ -308,7 +308,7 @@ TEST_F(push, invalid_value8000000000)
 TEST_F(push, trim0)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
@@ -324,7 +324,7 @@ TEST_F(push, trim0)
 TEST_F(push, trim)
 {
     utl_push_t pushbuf;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 

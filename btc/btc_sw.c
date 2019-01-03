@@ -191,32 +191,18 @@ LABEL_EXIT:
 
 bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
-    //P2WPKH:
-    //witness
-    //  item[0]=sig
-    //  item[1]=pubkey
-
     btc_vin_t *vin = &(pTx->vin[Index]);
 
-
-    //vin
+    //scriptsig
     if (mNativeSegwit) {
+        //empty
         utl_buf_free(&vin->script);
     } else {
         if (!btc_script_sig_create_p2sh_p2wpkh(&vin->script, pPubKey)) return false;
     }
 
-    while (vin->wit_item_cnt) {
-        utl_buf_free(&vin->witness[--vin->wit_item_cnt]);
-    }
-
-    //[0]signature
-    utl_buf_t *p_sig = btc_tx_add_wit(vin);
-    utl_buf_alloccopy(p_sig, pSig->buf, pSig->len);
-    //[1]pubkey
-    utl_buf_t *p_pub = btc_tx_add_wit(vin);
-    utl_buf_alloccopy(p_pub, pPubKey, BTC_SZ_PUBKEY);
-    return true;
+    //witness
+    return btc_script_witness_create_p2wpkh(&vin->witness, &vin->wit_item_cnt, pSig, pPubKey);
 }
 
 
@@ -455,7 +441,7 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxH
  */
 bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
 {
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     if (!btc_sw_is_segwit(pTx)) {
         assert(0);
