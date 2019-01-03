@@ -23,101 +23,78 @@
  *  @brief  bitcoin処理: Segwitトランザクション生成関連
  */
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 #include "btc_local.h"
+#include "btc_util.h"
+#include "btc_script.h"
+#include "btc_sig.h"
+#include "btc_sw.h"
+#include "btc_tx_buf.h"
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
+bool btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    btcl_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    return btcl_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
 }
 
 
-void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
+bool btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    return btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
 }
 
 
-void btc_sw_add_vout_p2wsh(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript)
+bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript)
 {
+    if (!pWitScript->len) return false;
+
     uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
-
     btc_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
+        if (!utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog))) return false;
     } else {
         uint8_t sh[BTC_SZ_HASH_MAX];
 
         btc_util_hash160(sh, wit_prog, sizeof(wit_prog));
-        btc_tx_add_vout_p2sh(pTx, Value, sh);
+        if (!btc_tx_add_vout_p2sh(pTx, Value, sh)) return false;
     }
-}
-
-
-void btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
-{
-    const uint8_t HEAD[] = { 0x19, OP_DUP, OP_HASH160, BTC_SZ_HASH160 };
-    const uint8_t TAIL[] = { OP_EQUALVERIFY, OP_CHECKSIG };
-    uint8_t pkh[BTC_SZ_HASH_MAX];
-    int pos = 0;
-
-    utl_buf_alloc(pScriptCode, 1 + 0x19);
-    memcpy(pScriptCode->buf, HEAD, sizeof(HEAD));
-    pos += sizeof(HEAD);
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    memcpy(&(pScriptCode->buf[pos]), pkh, BTC_SZ_HASH160);
-    pos += BTC_SZ_HASH160;
-    memcpy(&(pScriptCode->buf[pos]), TAIL, sizeof(TAIL));
+    return true;
 }
 
 
 bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
-    //P2WPKHのwitness
-    //      0:<signature>
-    //      1:<pubkey>
+    //P2WPKH witness
+    //      0: <signature>
+    //      1: <pubkey>
     if (pVin->wit_item_cnt != 2) {
         return false;
     }
 
-    btc_sw_scriptcode_p2wpkh(pScriptCode, pVin->witness[1].buf);
-    return true;
-}
-
-
-void btc_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit)
-{
-    utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWit->len) + pWit->len);
-    uint8_t *p = pScriptCode->buf;
-    p += btcl_util_set_varint_len(p, NULL, pWit->len, false);
-    memcpy(p, pWit->buf, pWit->len);
+    return btc_script_code_p2wpkh(pScriptCode, pVin->witness[1].buf);
 }
 
 
 bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 {
-    //P2WSHのwitness
-    //      0:OP_0
-    //      1:data 1
-    //      2:data 2
+    //P2WSH witness
     //      ....
-    //      n:witnessScript
+    //      wit_item_cnt - 1: witnessScript
     if (pVin->wit_item_cnt == 0) {
         return false;
     }
 
-    btc_sw_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
-    return true;
+    return btc_script_code_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
 }
 
 
-bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value,
                 const utl_buf_t *pScriptCode)
 {
     // [transaction version : 4]
@@ -131,10 +108,10 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
     // [locktime : 4]
     // [hash_type : 4]
 
-    utl_buf_t preimg;
-    utl_buf_t hash_prevouts;
-    utl_buf_t hash_sequence;
-    utl_buf_t hash_outputs;
+    bool ret = false;
+    btc_buf_w_t buf_w;
+    btc_buf_w_t buf_w_tmp;
+    uint32_t lp;
 
     btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
@@ -142,101 +119,77 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
         return false;
     }
 
-    utl_buf_alloc(&preimg, 156 + pScriptCode->len);
-    uint8_t *p = preimg.buf;
-
-    const btc_vin_t *vin_now = &pTx->vin[Index];
+    if (!btc_buf_w_init(&buf_w, 0)) return false;
+    if (!btc_buf_w_init(&buf_w_tmp, 0)) return false;
 
     //version
-    memcpy(p, &pTx->version, sizeof(pTx->version));
-    p += sizeof(pTx->version);
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->version)) goto LABEL_EXIT;
 
     //vin:
-    //  txid(32) + index(4)を連結した SHA256
-    //  sequence(4)を連結した SHA256
-    utl_buf_alloc(&hash_prevouts, pTx->vin_cnt * (32 + 4));
-    utl_buf_alloc(&hash_sequence, pTx->vin_cnt * 4);
-    uint8_t *p_prevouts = hash_prevouts.buf;
-    uint8_t *p_sequence = hash_sequence.buf;
-    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
+    // prev outs:
+
+    //hash_prevouts: HASH256((txid(32) | index(4)) * n)
+    btc_buf_w_truncate(&buf_w_tmp);
+    for (lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &pTx->vin[lp];
 
-        //hash_prevouts
-        memcpy(p_prevouts, vin->txid, sizeof(vin->txid));
-        p_prevouts += sizeof(vin->txid);
-        memcpy(p_prevouts, &vin->index, sizeof(vin->index));
-        p_prevouts += sizeof(vin->index);
-
-        //hash_sequence
-        memcpy(p_sequence, &vin->sequence, sizeof(vin->sequence));
-        p_sequence += sizeof(vin->sequence);
+        if (!btc_buf_w_write_data(&buf_w_tmp, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_u32le(&buf_w_tmp, vin->index)) goto LABEL_EXIT;
     }
-    btc_util_hash256(p, hash_prevouts.buf, hash_prevouts.len);
-    p += BTC_SZ_HASH256;
-    btc_util_hash256(p, hash_sequence.buf, hash_sequence.len);
-    p += BTC_SZ_HASH256;
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
-    //output
-    //  vin[nIn]の txidとIndexを連結
-    memcpy(p, vin_now->txid, sizeof(vin_now->txid));
-    p += sizeof(pTx->vin[Index].txid);
-    memcpy(p, &vin_now->index, sizeof(vin_now->index));
-    p += sizeof(pTx->vin[Index].index);
+    //hash_sequence: HASH256(sequence(4) * n)
+    btc_buf_w_truncate(&buf_w_tmp);
+    for (lp = 0; lp < pTx->vin_cnt; lp++) {
+        if (!btc_buf_w_write_u32le(&buf_w_tmp, pTx->vin[lp].sequence)) goto LABEL_EXIT;
+    }
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
+
+    //outpoint: txid(32) | Index(4)
+    if (!btc_buf_w_write_data(&buf_w, pTx->vin[Index].txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->vin[Index].index)) goto LABEL_EXIT;
 
     //scriptcode
-    memcpy(p, pScriptCode->buf, pScriptCode->len);
-    p += pScriptCode->len;
+    if (!btc_buf_w_write_data(&buf_w, pScriptCode->buf, pScriptCode->len)) goto LABEL_EXIT;
 
     //amount
-    memcpy(p, &Value, sizeof(Value));
-    p += sizeof(Value);
+    if (!btc_buf_w_write_u64le(&buf_w, Value)) goto LABEL_EXIT;
 
     //sequence
-    memcpy(p, &vin_now->sequence, sizeof(vin_now->sequence));
-    p += sizeof(vin_now->sequence);
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->vin[Index].sequence)) goto LABEL_EXIT;
 
     //vout:
-    //  amountも含めtxoutを連結した SHA256
-    int len = 0;
-    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        len += pTx->vout[lp].script.len;
-    }
-    utl_buf_alloc(&hash_outputs, pTx->vout_cnt * (8 + 1) + len);
-    uint8_t *p_outputs = hash_outputs.buf;
-    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        btc_vout_t *vout = &pTx->vout[lp];
+    // next vins:
 
-        memcpy(p_outputs, &vout->value, sizeof(vout->value));
-        p_outputs += sizeof(vout->value);
-        *p_outputs = vout->script.len;
-        p_outputs++;
-        memcpy(p_outputs, vout->script.buf, vout->script.len);
-        p_outputs += vout->script.len;
+    //hash_outputs: HASH256((value(8) | scriptPk) * n)
+    btc_buf_w_truncate(&buf_w_tmp);
+    for (lp = 0; lp < pTx->vout_cnt; lp++) {
+        btc_vout_t *vout = &pTx->vout[lp];
+        if (!btc_buf_w_write_u64le(&buf_w_tmp, vout->value)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_varint_len(&buf_w_tmp, vout->script.len)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_data(&buf_w_tmp, vout->script.buf, vout->script.len)) goto LABEL_EXIT;
     }
-    btc_util_hash256(p, hash_outputs.buf, hash_outputs.len);
-    p += BTC_SZ_HASH256;
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
     //locktime
-    memcpy(p, &pTx->locktime, sizeof(pTx->locktime));
-    p += sizeof(pTx->locktime);
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->locktime)) goto LABEL_EXIT;
 
-    //hash type = 0x00000001
-    uint32_t hashtype = 1;
-    memcpy(p, &hashtype, sizeof(hashtype));
-    //p += sizeof(hashtype);
+    //hashtype
+    if (!btc_buf_w_write_u32le(&buf_w, SIGHASH_ALL)) goto LABEL_EXIT;
 
-    btc_util_hash256(pTxHash, preimg.buf, preimg.len);
+    btc_util_hash256(pTxHash, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
 
-    utl_buf_free(&hash_outputs);
-    utl_buf_free(&hash_sequence);
-    utl_buf_free(&hash_prevouts);
-    utl_buf_free(&preimg);
+    ret = true;
 
-    return true;
+LABEL_EXIT:
+    btc_tx_buf_w_free(&buf_w);
+    btc_tx_buf_w_free(&buf_w_tmp);
+
+    return ret;
 }
 
 
-bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
+bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     //P2WPKH:
     //witness
@@ -282,7 +235,7 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, cons
 }
 
 
-bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], int Num)
+bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWits[], int Num)
 {
     //P2WSH:
     //vin
@@ -324,7 +277,7 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], in
 }
 
 
-bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const uint8_t *pPubKeyHash)
+bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pPubKeyHash)
 {
     btc_vin_t *vin = &(pTx->vin[Index]);
     if (vin->wit_item_cnt != 2) {
@@ -339,8 +292,10 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
         return false;
     }
 
-    utl_buf_t script_code;
-    btc_sw_scriptcode_p2wpkh(&script_code, p_pub->buf);
+    utl_buf_t script_code = UTL_BUF_INIT;
+    if (!btc_script_code_p2wpkh(&script_code, p_pub->buf)) {
+        return false;
+    }
 
     bool ret;
     uint8_t txhash[BTC_SZ_HASH256];
@@ -365,7 +320,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
 }
 
 
-bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, int Index, uint64_t Value, const char *pAddr)
+bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const char *pAddr)
 {
     bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
@@ -390,7 +345,7 @@ bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, int Index, uint64_t Value, c
 }
 
 
-bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pVout)
+bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pVout)
 {
     if (pTx->vin[Index].wit_item_cnt != 4) {
         //2-of-2は4項目

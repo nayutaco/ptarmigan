@@ -293,7 +293,7 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_EQ(0, memcmp(keys_local_commit.pub, LOCAL_KEY, BTC_SZ_PUBKEY));
 
     //input script
-    ret = btc_util_create2of2(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
+    ret = btc_util_create_2of2(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
     ASSERT_TRUE(ret);
 
     //preimage-hash
@@ -394,7 +394,7 @@ TEST_F(ln_bolt3_c, committx2)
     btc_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
     //vout#1:P2WSH - local
     if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= feeinfo.dust_limit_satoshi + feeinfo.commit) {
-        btc_sw_add_vout_p2wsh(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf);
+        ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf));
     }
 
     //input
@@ -420,7 +420,7 @@ TEST_F(ln_bolt3_c, committx2)
         0xf4, 0x5a, 0x4c, 0xa3, 0xbd, 0xb7, 0xc0, 0x01,
     };
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(txhash, &tx, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
+    ret = btc_util_calc_sighash_p2wsh(&tx, txhash, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
     ASSERT_TRUE(ret);
     utl_buf_t buf_sig_local;
     utl_buf_t buf_sig_remote;

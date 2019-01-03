@@ -38,6 +38,8 @@
 
 #include "utl_dbg.h"
 
+#include "btc_util.h"
+
 #include "ln_enc_auth.h"
 #include "ln_misc.h"
 #include "ln_node.h"
@@ -119,7 +121,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
 
     //ephemeral key
-    ret = btc_util_createkeys(&pBolt->e);
+    ret = btc_util_create_keys(&pBolt->e);
     if (!ret) {
         LOGD("fail: ephemeral key\n");
         UTL_DBG_FREE(self->p_handshake);

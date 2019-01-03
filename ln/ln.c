@@ -36,6 +36,10 @@
 #include "utl_time.h"
 #include "utl_rng.h"
 
+#include "btc_util.h"
+#include "btc_script.h"
+#include "btc_sw.h"
+
 #include "ln_db.h"
 #include "ln_misc.h"
 #include "ln_msg_setupctl.h"
@@ -556,10 +560,10 @@ const char *ln_status_string(const ln_self_t *self)
 void ln_genesishash_set(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, BTC_SZ_HASH256);
-    btc_genesis_t gen = btc_util_get_genesis(gGenesisChainHash);
+    btc_block_chain_t gen = btc_block_get_chain(gGenesisChainHash);
     LOGD("genesis(%d)=", (int)gen);
     DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
-    if (gen == BTC_GENESIS_UNKNOWN) {
+    if (gen == BTC_BLOCK_CHAIN_UNKNOWN) {
         LOGD("fail: unknown genesis block hash\n");
     }
 }
@@ -2538,7 +2542,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
-    ret = btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+    ret = btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->fund_flag = (ln_fundflag_t)(((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
@@ -2679,7 +2683,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         //処理の都合上、voutの位置を調整している
         btc_tx_add_vout(&self->tx_funding, 0);
     }
-    btc_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
+    btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
     btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 
@@ -3955,7 +3959,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     uint8_t node_id[BTC_SZ_PUBKEY];
 
     ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
-    if (ret && btc_keys_chkpub(node_id)) {
+    if (ret && btc_keys_check_pub(node_id)) {
         ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         if (!ret) {
             LOGD("fail: verify\n");
@@ -4110,7 +4114,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
  *
  * @note
  *      - pTx
- *      - #btc_util_create2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
+ *      - #btc_util_create_2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
  *          例えば、先に自分のデータ、後に相手のデータ、など。
  */
 static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
@@ -4173,14 +4177,14 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     btc_tx_free(&self->tx_funding);
 
     //vout 2-of-2
-    btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+    btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
 #ifndef USE_SPV
     //output
     self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-    btc_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
+    btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
     //vout#1:P2WPKH - change(amountは後で代入)
     btc_tx_add_vout_spk(&self->tx_funding, (uint64_t)-1, &self->p_establish->p_fundin->change_spk);
@@ -4225,7 +4229,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
 #else
     //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
     //その代わり、self->funding_local.txindexは固定値にならない。
-    btc_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
+    btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
     //INPUTもダミーで入れておく
     btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 #endif
@@ -4503,7 +4507,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     M_DBG_PRINT_TX(pTxCommit);
 
     // verify
-    btc_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
+    btc_script_code_p2wsh(&script_code, &self->redeem_fund);
     ret = btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
     if (ret) {
         ret = btc_sw_verify_2of2(pTxCommit, 0, sighash,
@@ -5431,7 +5435,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 
     //署名
     uint8_t sighash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
+    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, self->funding_sat, &self->redeem_fund);
     if (ret) {
         ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     }

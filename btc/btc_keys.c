@@ -31,7 +31,10 @@
 #include "libbase58.h"
 
 #include "btc_segwit_addr.h"
+#include "btc_util.h"
 #include "btc_local.h"
+#include "btc_script.h"
+#include "btc_sw.h"
 
 
 /********************************************************************
@@ -104,7 +107,7 @@ bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifP
     memset(b58dec, 0, sizeof(b58dec));  //clear for security
 
     if (ret) {
-        ret = btc_keys_chkpriv(pPrivKey);
+        ret = btc_keys_check_priv(pPrivKey);
     }
 
     return ret;
@@ -117,7 +120,7 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
     uint8_t b58[1 + BTC_SZ_PRIVKEY + 1 + 4];
     uint8_t buf_sha256[BTC_SZ_HASH256];
 
-    ret = btc_keys_chkpriv(pPrivKey);
+    ret = btc_keys_check_priv(pPrivKey);
     if (!ret) {
         return false;
     }
@@ -184,7 +187,6 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
 
 bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 {
-    bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
     uint8_t pref;
 
@@ -197,8 +199,8 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
         btc_util_create_pkh2wpkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
-    ret = btcl_util_keys_hash2addr(pWAddr, hash, pref);
-    return ret;
+    if (!btcl_util_keys_hash2addr(pWAddr, hash, pref)) return false;
+    return true;
 }
 
 
@@ -220,8 +222,8 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
         btc_util_create_pkh2wpkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
-    ret = btcl_util_keys_hash2addr(pWAddr, hash, pref);
-    return ret;
+    if (!btcl_util_keys_hash2addr(pWAddr, hash, pref)) return false;
+    return true;
 }
 
 
@@ -248,7 +250,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript)
 }
 
 
-bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey)
+bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey)
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -265,7 +267,7 @@ bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey)
 }
 
 
-bool btc_keys_chkpriv(const uint8_t *pPrivKey)
+bool btc_keys_check_priv(const uint8_t *pPrivKey)
 {
     bool cmp;
     mbedtls_mpi priv;
@@ -292,7 +294,7 @@ bool btc_keys_chkpriv(const uint8_t *pPrivKey)
 }
 
 
-bool btc_keys_chkpub(const uint8_t *pPubKey)
+bool btc_keys_check_pub(const uint8_t *pPubKey)
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -305,7 +307,7 @@ bool btc_keys_chkpub(const uint8_t *pPubKey)
 }
 
 
-bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+bool btc_keys_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     utl_buf_alloc(pRedeem, BTC_SZ_2OF2);
 
@@ -431,31 +433,22 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
 
 bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 {
-    bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
 
     int pref;
-    ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (ret) {
-        btc_util_create_scriptpk(pScriptPk, hash, pref);
-    }
-
-    return ret;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (!btc_script_pk_create(pScriptPk, hash, pref)) return false;
+    return true;
 }
 
 
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
-    bool ret;
     const uint8_t *pkh;
     int prefix = spk2prefix(&pkh, pScriptPk);
-    if (prefix != BTC_PREF_MAX) {
-        btcl_util_keys_hash2addr(pAddr, pkh, prefix);
-        ret = true;
-    } else {
-        ret = false;
-    }
-    return ret;
+    if (prefix != BTC_PREF_MAX) return false;
+    if (!btcl_util_keys_hash2addr(pAddr, pkh, prefix)) return false;
+    return true;
 }
 
 

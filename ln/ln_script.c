@@ -27,6 +27,11 @@
 #include "utl_push.h"
 #include "utl_dbg.h"
 
+#include "btc_util.h"
+#include "btc_sig.h"
+#include "btc_script.h"
+#include "btc_sw.h"
+
 #include "ln_script.h"
 #include "ln_signer.h"
 #include "ln_local.h"
@@ -173,11 +178,11 @@ bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, i
     case BTC_PREF_P2WPKH:
     case BTC_PREF_P2SH:
         btc_util_hash160(pkh, pPub->buf, pPub->len);
-        btc_util_create_scriptpk(pBuf, pkh, Prefix);
+        btc_script_pk_create(pBuf, pkh, Prefix);
         break;
     case BTC_PREF_P2WSH:
         btc_util_sha256(pkh, pPub->buf, pPub->len);
-        btc_util_create_scriptpk(pBuf, pkh, Prefix);
+        btc_script_pk_create(pBuf, pkh, Prefix);
         break;
     default:
         ret = false;
@@ -343,7 +348,7 @@ bool HIDDEN ln_script_committx_create(
     //  P2WSH - local
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
-        btc_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
+        btc_sw_add_vout_p2wsh_wit(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
     } else {
         LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
@@ -368,7 +373,7 @@ bool HIDDEN ln_script_committx_create(
             break;
         }
         if (output_sat >= pCmt->p_feeinfo->dust_limit_satoshi + fee) {
-            btc_sw_add_vout_p2wsh(pTx,
+            btc_sw_add_vout_p2wsh_wit(pTx,
                     output_sat,
                     &pCmt->pp_htlcinfo[lp]->script);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
@@ -394,7 +399,7 @@ bool HIDDEN ln_script_committx_create(
     //署名
     bool ret;
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
+    ret = btc_util_calc_sighash_p2wsh(pTx, txhash, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
     if (ret) {
         ret = ln_signer_p2wsh(pSig, txhash, pPrivData, MSG_FUNDIDX_FUNDING);
     } else {
@@ -415,7 +420,7 @@ void HIDDEN ln_script_htlctx_create(
                     int Index)
 {
     //vout
-    btc_sw_add_vout_p2wsh(pTx, Value, pScript);
+    btc_sw_add_vout_p2wsh_wit(pTx, Value, pScript);
     pTx->vout[0].opt = (uint8_t)Type;
     switch (Type) {
     case LN_HTLCTYPE_RECEIVED:
@@ -455,7 +460,7 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
 
     bool ret;
     uint8_t sighash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     if (ret) {
         ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
     } else {
@@ -591,7 +596,7 @@ bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
     uint8_t sighash[BTC_SZ_HASH256];
 
     //vinは1つしかないので、Indexは0固定
-    ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
+    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, Value, pWitScript);
     //LOGD("sighash: ");
     //DUMPD(sighash, BTC_SZ_HASH256);
     if (ret && pLocalPubKey && pLocalSig) {

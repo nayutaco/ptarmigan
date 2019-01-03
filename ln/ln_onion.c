@@ -34,6 +34,8 @@
 
 #include "utl_dbg.h"
 
+#include "btc_util.h"
+
 #include "ln_onion.h"
 #include "ln_misc.h"
 #include "ln_node.h"
@@ -264,7 +266,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     const uint8_t *p_route = p_dhkey + BTC_SZ_PUBKEY;
     const uint8_t *p_hmac = p_route + M_SZ_ROUTING_INFO;
 
-    ret = btc_keys_chkpub(p_dhkey);
+    ret = btc_keys_check_pub(p_dhkey);
     if (!ret) {
         LOGD("fail: invalid pubkey\n");
 

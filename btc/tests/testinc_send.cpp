@@ -285,11 +285,11 @@ TEST_F(send, p2wsh)
 
     //2-of-2
     utl_buf_t redeem = UTL_BUF_INIT;
-    ret = btc_keys_create2of2(&redeem, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
+    ret = btc_keys_create_2of2(&redeem, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
     ASSERT_TRUE(ret);
     printf("redeem= \n");
     send::DumpBin(redeem.buf, redeem.len);
-    btc_sw_add_vout_p2wsh(&tx, BTC_MBTC2SATOSHI(5.8), &redeem);
+    ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, BTC_MBTC2SATOSHI(5.8), &redeem));
 
     const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
     char addr_2of2[BTC_SZ_ADDR_STR_MAX + 1];

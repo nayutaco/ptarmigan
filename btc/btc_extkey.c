@@ -29,13 +29,15 @@
 #include "mbedtls/pkcs5.h"
 #include "mbedtls/bignum.h"
 
-#include "btc_local.h"
 #include "utl_dbg.h"
 #include "utl_rng.h"
 
+#include "btc_local.h"
+#include "btc_util.h"
 #ifdef BTC_ENABLE_GEN_MNEMONIC
 #include "bip39_wordlist_english.h"
 #endif  //BTC_ENABLE_GEN_MNEMONIC
+#include "btc_extkey.h"
 
 
 /**************************************************************************
@@ -70,8 +72,8 @@ static const uint32_t VERSION_BYTES[][2] = {
  **************************************************************************/
 
 static bool extkey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCode, const uint8_t *pKey, int KeyLen, const uint8_t *pData, int DataLen);
-static bool extkey_bip_init(btc_extkey_t *pEKey, uint32_t Bip, const uint8_t *pSeed, uint32_t Account, uint32_t Change);
-static bool extkey_bip_prepare(btc_extkey_t *pEKey, uint32_t Bip, uint32_t Account, uint32_t Change);
+static bool extkey_bip_init(btc_extkey_t *pExtKey, uint32_t Bip, const uint8_t *pSeed, uint32_t Account, uint32_t Change);
+static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Account, uint32_t Change);
 
 
 /**************************************************************************
@@ -146,7 +148,7 @@ bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPa
 }
 
 
-bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
+bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
         const uint8_t *pKey,
         const uint8_t *pSeed, int SzSeed)
 {
@@ -160,37 +162,37 @@ bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint3
     int key_len;
     int input_len;
 
-    pEKey->type = Type;
-    pEKey->depth = Depth;
-    pEKey->child_number = ChildNum;
+    pExtKey->type = Type;
+    pExtKey->depth = Depth;
+    pExtKey->child_number = ChildNum;
 
-    if (pEKey->type == BTC_EXTKEY_PRIV && pSeed == NULL) {
+    if (pExtKey->type == BTC_EXTKEY_PRIV && pSeed == NULL) {
         //parent private key --> child private/public key
         if (pKey == NULL) return false;
 
         uint8_t pub[BTC_SZ_PUBKEY];
         if (!btc_keys_priv2pub(pub, pKey)) return false;
 
-        p_key = pEKey->chain_code;
+        p_key = pExtKey->chain_code;
         key_len = BTC_SZ_CHAINCODE;
 
-        if (pEKey->child_number & BTC_EXTKEY_HARDENED) {
+        if (pExtKey->child_number & BTC_EXTKEY_HARDENED) {
             output37[0] = 0x00;
             memcpy(output37 + 1, pKey, BTC_SZ_PRIVKEY);
         } else {
             memcpy(output37, pub, BTC_SZ_PUBKEY);
         }
-        output37[BTC_SZ_PUBKEY    ] =  pEKey->child_number  >> 24;
-        output37[BTC_SZ_PUBKEY + 1] = (pEKey->child_number  >> 16) & 0xff;
-        output37[BTC_SZ_PUBKEY + 2] = (pEKey->child_number  >>  8) & 0xff;
-        output37[BTC_SZ_PUBKEY + 3] =  pEKey->child_number         & 0xff;
+        output37[BTC_SZ_PUBKEY    ] =  pExtKey->child_number  >> 24;
+        output37[BTC_SZ_PUBKEY + 1] = (pExtKey->child_number  >> 16) & 0xff;
+        output37[BTC_SZ_PUBKEY + 2] = (pExtKey->child_number  >>  8) & 0xff;
+        output37[BTC_SZ_PUBKEY + 3] =  pExtKey->child_number         & 0xff;
         p_input = output37;
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
         btc_util_hash160(h160, pub, BTC_SZ_PUBKEY);
-        pEKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
-    } else if (pEKey->type == BTC_EXTKEY_PRIV && pSeed != NULL) {
+        pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
+    } else if (pExtKey->type == BTC_EXTKEY_PRIV && pSeed != NULL) {
         //root seed --> master private/public key
         if (pSeed == NULL) return false;
 
@@ -199,29 +201,29 @@ bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint3
         p_input = pSeed;
         input_len = SzSeed;
 
-        pEKey->fingerprint = 0;
-    } else if (pEKey->type == BTC_EXTKEY_PUB) {
+        pExtKey->fingerprint = 0;
+    } else if (pExtKey->type == BTC_EXTKEY_PUB) {
         //parent public key --> child public key
         if (pKey == NULL) return false;
 
-        if (pEKey->child_number & BTC_EXTKEY_HARDENED) {
+        if (pExtKey->child_number & BTC_EXTKEY_HARDENED) {
             LOGD("fail: hardened child number\n");
             return false;
         }
-        p_key = pEKey->chain_code;
+        p_key = pExtKey->chain_code;
         key_len = BTC_SZ_CHAINCODE;
 
         memcpy(output37, pKey, BTC_SZ_PUBKEY);
-        output37[BTC_SZ_PUBKEY    ] =  pEKey->child_number  >> 24;
-        output37[BTC_SZ_PUBKEY + 1] = (pEKey->child_number  >> 16) & 0xff;
-        output37[BTC_SZ_PUBKEY + 2] = (pEKey->child_number  >>  8) & 0xff;
-        output37[BTC_SZ_PUBKEY + 3] =  pEKey->child_number         & 0xff;
+        output37[BTC_SZ_PUBKEY    ] =  pExtKey->child_number  >> 24;
+        output37[BTC_SZ_PUBKEY + 1] = (pExtKey->child_number  >> 16) & 0xff;
+        output37[BTC_SZ_PUBKEY + 2] = (pExtKey->child_number  >>  8) & 0xff;
+        output37[BTC_SZ_PUBKEY + 3] =  pExtKey->child_number         & 0xff;
         p_input = output37;
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
         btc_util_hash160(h160, pKey, BTC_SZ_PUBKEY);
-        pEKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
+        pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else {
         LOGD("fail: invalid type\n");
         return false;
@@ -231,13 +233,13 @@ bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint3
     mbedtls_mpi l_L;
     mbedtls_mpi_init(&n);
     mbedtls_mpi_init(&l_L);
-    bool b = extkey_hmac512(&n, &l_L, pEKey->chain_code, p_key, key_len, p_input, input_len);
+    bool b = extkey_hmac512(&n, &l_L, pExtKey->chain_code, p_key, key_len, p_input, input_len);
     if (!b) {
         LOGD("fail : extkey_hmac512\n");
         goto LABEL_EXIT;
     }
 
-    if (pEKey->type == BTC_EXTKEY_PRIV && pSeed == NULL) {
+    if (pExtKey->type == BTC_EXTKEY_PRIV && pSeed == NULL) {
         //parent private key --> child private/public key
         mbedtls_mpi k_i;
         mbedtls_mpi kpar;
@@ -248,7 +250,7 @@ bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint3
         retval  = mbedtls_mpi_read_binary(&kpar, pKey, BTC_SZ_PRIVKEY);
         retval += mbedtls_mpi_add_mpi(&k_i, &l_L, &kpar);
         retval += mbedtls_mpi_mod_mpi(&k_i, &k_i, &n);
-        retval += mbedtls_mpi_write_binary(&k_i, pEKey->key, BTC_SZ_PRIVKEY);
+        retval += mbedtls_mpi_write_binary(&k_i, pExtKey->key, BTC_SZ_PRIVKEY);
 
         //k_i != 0
         ret = (retval == 0) && (mbedtls_mpi_cmp_int(&k_i, 0) != 0);
@@ -256,14 +258,14 @@ bool btc_extkey_generate(btc_extkey_t *pEKey, uint8_t Type, uint8_t Depth, uint3
 
         mbedtls_mpi_free(&kpar);
         mbedtls_mpi_free(&k_i);
-    } else if (pEKey->type == BTC_EXTKEY_PRIV && pSeed != NULL) {
+    } else if (pExtKey->type == BTC_EXTKEY_PRIV && pSeed != NULL) {
         //root seed --> master private/public key
-        retval = mbedtls_mpi_write_binary(&l_L, pEKey->key, BTC_SZ_PRIVKEY);
+        retval = mbedtls_mpi_write_binary(&l_L, pExtKey->key, BTC_SZ_PRIVKEY);
         ret = (retval == 0);
         assert(ret);
-    } else if (pEKey->type == BTC_EXTKEY_PUB) {
+    } else if (pExtKey->type == BTC_EXTKEY_PUB) {
         //parent public key --> child public key
-        ret = (btc_util_ecp_muladd(pEKey->key, pKey, &l_L) == 0);
+        ret = (btc_util_ecp_muladd(pExtKey->key, pKey, &l_L) == 0);
     } else {
         assert(ret);
     }
@@ -281,49 +283,49 @@ LABEL_EXIT:
 }
 
 
-bool btc_extkey_bip44_init(btc_extkey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+bool btc_extkey_bip44_init(btc_extkey_t *pExtKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
 {
-    return extkey_bip_init(pEKey, 44, pSeed, Account, Change);
+    return extkey_bip_init(pExtKey, 44, pSeed, Account, Change);
 }
 
 
-bool btc_extkey_bip44_prepare(btc_extkey_t *pEKey, uint32_t Account, uint32_t Change)
+bool btc_extkey_bip44_prepare(btc_extkey_t *pExtKey, uint32_t Account, uint32_t Change)
 {
-    return extkey_bip_prepare(pEKey, 44, Account, Change);
+    return extkey_bip_prepare(pExtKey, 44, Account, Change);
 }
 
 
-bool btc_extkey_bip49_init(btc_extkey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+bool btc_extkey_bip49_init(btc_extkey_t *pExtKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
 {
-    return extkey_bip_init(pEKey, 49, pSeed, Account, Change);
+    return extkey_bip_init(pExtKey, 49, pSeed, Account, Change);
 }
 
 
-bool btc_extkey_bip49_prepare(btc_extkey_t *pEKey, uint32_t Account, uint32_t Change)
+bool btc_extkey_bip49_prepare(btc_extkey_t *pExtKey, uint32_t Account, uint32_t Change)
 {
-    return extkey_bip_prepare(pEKey, 49, Account, Change);
+    return extkey_bip_prepare(pExtKey, 49, Account, Change);
 }
 
 
-bool btc_extkey_bip_generate(btc_extkey_t *pEKeyOut, const btc_extkey_t *pEKeyIn, uint32_t Index)
+bool btc_extkey_bip_generate(btc_extkey_t *pExtKeyOut, const btc_extkey_t *pExtKeyIn, uint32_t Index)
 {
-    memcpy(pEKeyOut, pEKeyIn, sizeof(btc_extkey_t));
-    return btc_extkey_generate(pEKeyOut, BTC_EXTKEY_PRIV, 5, Index, pEKeyIn->key, NULL, 0);
+    memcpy(pExtKeyOut, pExtKeyIn, sizeof(btc_extkey_t));
+    return btc_extkey_generate(pExtKeyOut, BTC_EXTKEY_PRIV, 5, Index, pExtKeyIn->key, NULL, 0);
 }
 
 
-bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEKey)
+bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pExtKey)
 {
     uint32_t ver;
     const uint8_t *p_ver = (const uint8_t *)&ver;
-    const uint8_t *p_fgr = (const uint8_t *)&pEKey->fingerprint;
-    const uint8_t *p_num = (const uint8_t *)&pEKey->child_number;
+    const uint8_t *p_fgr = (const uint8_t *)&pExtKey->fingerprint;
+    const uint8_t *p_num = (const uint8_t *)&pExtKey->child_number;
 
     if ((mPref[BTC_PREF_CHAIN] & 0x03) == 0) {
         //btc_init()未実施
         return false;
     }
-    ver = VERSION_BYTES[mPref[BTC_PREF_CHAIN] - 1][pEKey->type];
+    ver = VERSION_BYTES[mPref[BTC_PREF_CHAIN] - 1][pExtKey->type];
 
     for (int lp = 0; lp < 4; lp++) {
         pData[3 - lp] = *p_ver++;           //[0- 3]version bytes
@@ -331,17 +333,17 @@ bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEK
         pData[12 - lp] = *p_num++;       //[9-12]child number
     }
     //[4]depth
-    pData[4] = pEKey->depth;
+    pData[4] = pExtKey->depth;
     //[13-44]chain code
-    memcpy(&pData[13], pEKey->chain_code, 32);
+    memcpy(&pData[13], pExtKey->chain_code, 32);
     //[45-77]key
-    if (pEKey->type == BTC_EXTKEY_PRIV) {
+    if (pExtKey->type == BTC_EXTKEY_PRIV) {
         //privkey
         pData[45] = 0x00;
-        memcpy(&pData[46], pEKey->key, BTC_SZ_PRIVKEY);
+        memcpy(&pData[46], pExtKey->key, BTC_SZ_PRIVKEY);
     } else {
         //pubkey
-        memcpy(&pData[45], pEKey->key, BTC_SZ_PUBKEY);
+        memcpy(&pData[45], pExtKey->key, BTC_SZ_PUBKEY);
     }
     //[78-81]checksum
     uint8_t chksum[BTC_SZ_HASH256];
@@ -361,7 +363,7 @@ bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEK
 }
 
 
-bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
+bool btc_extkey_read(btc_extkey_t *pExtKey, const uint8_t *pData, int Len)
 {
     if (Len != 82) {
         //printf("Not extended key.");
@@ -379,10 +381,10 @@ bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
 
         switch (ver & 0x0000ffff) {
         case 0xade4:
-            pEKey->type = BTC_EXTKEY_PRIV;
+            pExtKey->type = BTC_EXTKEY_PRIV;
             break;
         case 0xb21e:
-            pEKey->type = BTC_EXTKEY_PUB;
+            pExtKey->type = BTC_EXTKEY_PUB;
             break;
         default:
             return false;
@@ -394,10 +396,10 @@ bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
 
         switch (ver & 0x0000ffff) {
         case 0x8394:
-            pEKey->type = BTC_EXTKEY_PRIV;
+            pExtKey->type = BTC_EXTKEY_PRIV;
             break;
         case 0x87cf:
-            pEKey->type = BTC_EXTKEY_PUB;
+            pExtKey->type = BTC_EXTKEY_PUB;
             break;
         default:
             return false;
@@ -411,16 +413,16 @@ bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
     }
     p += 4;
 
-    pEKey->depth = *p;
+    pExtKey->depth = *p;
     p++;
-    pEKey->fingerprint = (*p << 24) | (*(p + 1) << 16) | (*(p + 2) << 8) | *(p + 3);
+    pExtKey->fingerprint = (*p << 24) | (*(p + 1) << 16) | (*(p + 2) << 8) | *(p + 3);
     p += 4;
-    pEKey->child_number = (*p << 24) | (*(p + 1) << 16) | (*(p + 2) << 8) | *(p + 3);
+    pExtKey->child_number = (*p << 24) | (*(p + 1) << 16) | (*(p + 2) << 8) | *(p + 3);
     p += 4;
-    memcpy(pEKey->chain_code, p, 32);
+    memcpy(pExtKey->chain_code, p, 32);
     p += 32;
     int len;
-    if (pEKey->type == BTC_EXTKEY_PRIV) {
+    if (pExtKey->type == BTC_EXTKEY_PRIV) {
         //privkey
         p++;
         len = BTC_SZ_PRIVKEY;
@@ -428,7 +430,7 @@ bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
         //pubkey
         len = BTC_SZ_PUBKEY;
     }
-    memcpy(pEKey->key, p, len);
+    memcpy(pExtKey->key, p, len);
     p += len;
     uint8_t chksum[BTC_SZ_HASH256];
     btc_util_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
@@ -436,7 +438,7 @@ bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
 }
 
 
-bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr)
+bool btc_extkey_read_addr(btc_extkey_t *pExtKey, const char *pXAddr)
 {
     bool ret;
     uint8_t bin[BTC_SZ_EXTKEY];
@@ -449,7 +451,7 @@ bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr)
     size_t sz = BTC_SZ_EXTKEY;
     ret = b58tobin(bin, &sz, pXAddr, strlen(pXAddr));
     if (ret) {
-        ret = btc_extkey_read(pEKey, bin, sizeof(bin));
+        ret = btc_extkey_read(pExtKey, bin, sizeof(bin));
     }
 
     return ret;
@@ -457,13 +459,13 @@ bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr)
 
 
 #ifdef PTARM_USE_PRINTFUNC
-void btc_print_extendedkey(const btc_extkey_t *pEKey)
+void btc_extkey_print(const btc_extkey_t *pExtKey)
 {
     FILE *fp = stderr;
 
     fprintf(fp, "------------------------\n");
     fprintf(fp, "type: ");
-    switch (pEKey->type) {
+    switch (pExtKey->type) {
     case BTC_EXTKEY_PRIV:
         fprintf(fp, "privkey\n");
         break;
@@ -475,20 +477,20 @@ void btc_print_extendedkey(const btc_extkey_t *pEKey)
         return;
     }
 
-    fprintf(fp, "depth: %d\n", pEKey->depth);
-    fprintf(fp, "fingerprint: %08x\n", pEKey->fingerprint);
-    fprintf(fp, "child number: %08x\n", pEKey->child_number);
+    fprintf(fp, "depth: %d\n", pExtKey->depth);
+    fprintf(fp, "fingerprint: %08x\n", pExtKey->fingerprint);
+    fprintf(fp, "child number: %08x\n", pExtKey->child_number);
     fprintf(fp, "chain code: ");
-    btc_util_dumpbin(fp, pEKey->chain_code, 32, true);
-    if (pEKey->type == BTC_EXTKEY_PUB) {
+    btc_util_dumpbin(fp, pExtKey->chain_code, 32, true);
+    if (pExtKey->type == BTC_EXTKEY_PUB) {
         fprintf(fp, "pubkey: ");
-        btc_util_dumpbin(fp, pEKey->key, BTC_SZ_PUBKEY, true);
+        btc_util_dumpbin(fp, pExtKey->key, BTC_SZ_PUBKEY, true);
     } else {
         fprintf(fp, "privkey: ");
-        btc_util_dumpbin(fp, pEKey->key, BTC_SZ_PRIVKEY, true);
+        btc_util_dumpbin(fp, pExtKey->key, BTC_SZ_PRIVKEY, true);
 
         uint8_t pubkey[BTC_SZ_PUBKEY];
-        bool b = btc_keys_priv2pub(pubkey, pEKey->key);
+        bool b = btc_keys_priv2pub(pubkey, pExtKey->key);
         if (b) {
             fprintf(fp, "pubkey: ");
             btc_util_dumpbin(fp, pubkey, sizeof(pubkey), true);
@@ -548,27 +550,27 @@ static bool extkey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChain
 }
 
 
-static bool extkey_bip_init(btc_extkey_t *pEKey, uint32_t Bip, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+static bool extkey_bip_init(btc_extkey_t *pExtKey, uint32_t Bip, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
 {
     bool b;
 
     //depth=0は、master node(Chain m)
-    b = btc_extkey_generate(pEKey, BTC_EXTKEY_PRIV, 0, 0, NULL, pSeed, BTC_SZ_EXTKEY_SEED);
+    b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 0, 0, NULL, pSeed, BTC_SZ_EXTKEY_SEED);
     if (!b) {
         LOGD("fail: extkey depth 0\n");
         return false;
     }
 
-    return extkey_bip_prepare(pEKey, Bip, Account, Change);
+    return extkey_bip_prepare(pExtKey, Bip, Account, Change);
 }
 
 
-static bool extkey_bip_prepare(btc_extkey_t *pEKey, uint32_t Bip, uint32_t Account, uint32_t Change)
+static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Account, uint32_t Change)
 {
     bool b;
 
     //depth=1は、purpose(Chain m/4x')
-    b = btc_extkey_generate(pEKey, BTC_EXTKEY_PRIV, 1, BTC_EXTKEY_HARDENED | Bip, pEKey->key, NULL, 0);
+    b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 1, BTC_EXTKEY_HARDENED | Bip, pExtKey->key, NULL, 0);
     if (!b) {
         LOGD("fail: extkey depth 1\n");
         return false;
@@ -586,7 +588,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pEKey, uint32_t Bip, uint32_t Accou
     default:
         return false;
     }
-    b = btc_extkey_generate(pEKey, BTC_EXTKEY_PRIV, 2, BTC_EXTKEY_HARDENED | child_num, pEKey->key, NULL, 0);
+    b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 2, BTC_EXTKEY_HARDENED | child_num, pExtKey->key, NULL, 0);
     if (!b) {
         LOGD("fail: extkey depth 2\n");
         return false;
@@ -598,7 +600,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pEKey, uint32_t Bip, uint32_t Accou
     }
 
     //depth=3は、account(Chain m/4x'/coin_type'/account')
-    b = btc_extkey_generate(pEKey, BTC_EXTKEY_PRIV, 3,  BTC_EXTKEY_HARDENED | Account, pEKey->key, NULL, 0);
+    b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 3,  BTC_EXTKEY_HARDENED | Account, pExtKey->key, NULL, 0);
     if (!b) {
         LOGD("fail: extkey depth 3\n");
         return false;
@@ -614,7 +616,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pEKey, uint32_t Bip, uint32_t Accou
         LOGD("fail: invali change\n");
         return false;
     }
-    b = btc_extkey_generate(pEKey, BTC_EXTKEY_PRIV, 4, Change, pEKey->key, NULL, 0);
+    b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 4, Change, pExtKey->key, NULL, 0);
     if (!b) {
         LOGD("fail: extkey depth 4\n");
         return false;

@@ -5,6 +5,11 @@
 #define LOG_TAG     "wallet"
 #include "utl_log.h"
 
+#include "btc_util.h"
+#include "btc_sig.h"
+#include "btc_script.h"
+#include "btc_sw.h"
+
 #include "ptarmd.h"
 #include "btcrpc.h"
 
@@ -103,12 +108,12 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         utl_buf_t script_code = UTL_BUF_INIT;
         switch (type) {
         case LN_DB_WALLET_TYPE_TOREMOTE:
-            btc_sw_scriptcode_p2wpkh(&script_code, p_vin->witness[1].buf);
+            btc_script_code_p2wpkh(&script_code, p_vin->witness[1].buf);
             ret = btc_sw_sighash(txhash, &wallet.tx, lp, amount, &script_code);
             break;
         case LN_DB_WALLET_TYPE_TOLOCAL:
         case LN_DB_WALLET_TYPE_HTLCOUT:
-            ret = btc_util_calc_sighash_p2wsh(txhash, &wallet.tx, lp, amount,
+            ret = btc_util_calc_sighash_p2wsh(&wallet.tx, txhash, lp, amount,
                                                 &p_vin->witness[p_vin->wit_item_cnt-1]);
             break;
         default:

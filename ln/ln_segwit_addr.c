@@ -9,10 +9,11 @@
 
 #include "mbedtls/sha256.h"
 
-#include "btc_segwit_addr.h"
-
 #include "utl_dbg.h"
 #include "utl_time.h"
+
+#include "btc_sig.h"
+#include "btc_segwit_addr.h"
 
 #include "ln_node.h"
 #include "ln_misc.h"
@@ -356,7 +357,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     if (!ret) return false;
 
     int recid;
-    ret = btc_tx_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash);
+    ret = btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash);
     if (!ret) return false;
     sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
     if (!ln_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
@@ -466,7 +467,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     if (!ln_convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) {
         goto LABEL_EXIT;
     }
-    ret = btc_tx_recover_pubkey(p_invoice_data->pubkey, sig[BTC_SZ_SIGN_RS], sig, hash);
+    ret = btc_sig_recover_pubkey(p_invoice_data->pubkey, sig[BTC_SZ_SIGN_RS], sig, hash);
     if (!ret) {
         goto LABEL_EXIT;
     }

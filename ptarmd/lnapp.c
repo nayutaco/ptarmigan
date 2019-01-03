@@ -60,6 +60,9 @@
 #include "utl_time.h"
 #include "utl_rng.h"
 
+#include "btc_util.h"
+#include "btc_script.h"
+
 #include "ptarmd.h"
 #include "cmd_json.h"
 #include "lnapp.h"
@@ -667,7 +670,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         //peer node_id
         utl_misc_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-    } else if (btc_keys_chkpub(pAppConf->node_id)) {
+    } else if (btc_keys_check_pub(pAppConf->node_id)) {
         char str[256];
 
         const char *p_conn;

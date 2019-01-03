@@ -159,15 +159,15 @@ int main(int argc, char *argv[])
 #else
         case 'm':
             //mainnet
-            rpc_conf.gen = BTC_GENESIS_BTCMAIN;
+            rpc_conf.gen = BTC_BLOCK_CHAIN_BTCMAIN;
             break;
         case 't':
             //testnet
-            rpc_conf.gen = BTC_GENESIS_BTCTEST;
+            rpc_conf.gen = BTC_BLOCK_CHAIN_BTCTEST;
             break;
         case 'r':
             //regtest
-            rpc_conf.gen = BTC_GENESIS_BTCREGTEST;
+            rpc_conf.gen = BTC_BLOCK_CHAIN_BTCREGTEST;
             break;
 #endif
         case 'P':
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
         }
     }
 #else
-    if (rpc_conf.gen == BTC_GENESIS_UNKNOWN) {
+    if (rpc_conf.gen == BTC_BLOCK_CHAIN_UNKNOWN) {
         fprintf(stderr, "ERROR: you need select network.\n");
         goto LABEL_EXIT;
     }

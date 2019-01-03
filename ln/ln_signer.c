@@ -23,7 +23,11 @@
  *  @brief  [LN]秘密鍵管理
  */
 
+#include "btc_util.h"
 #include "btc_segwit_addr.h"
+#include "btc_sig.h"
+#include "btc_script.h"
+#include "btc_sw.h"
 
 #include "ln_signer.h"
 #include "ln_derkey.h"
@@ -68,7 +72,7 @@ void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
     //  open_channel/accept_channelの鍵は ln_signer_keys_update_storage()で生成
     for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            btc_util_createprivkey(self->priv_data.priv[lp]);
+            btc_util_create_privkey(self->priv_data.priv[lp]);
             btc_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
         }
     }
@@ -139,7 +143,7 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
     utl_buf_t sigbuf = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
 
-    btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
+    btc_script_code_p2wpkh(&script_code, pKeys->pub);
 
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
     if (ret) {
@@ -216,7 +220,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
     uint8_t sighash[BTC_SZ_HASH256];
 
     //vinは1つしかないので、Indexは0固定
-    ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
+    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, Value, pWitScript);
     if (ret) {
         ret = btc_sig_sign(pSig, sighash, sigkey.priv);
     }

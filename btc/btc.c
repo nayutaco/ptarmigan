@@ -30,6 +30,7 @@
 #include "utl_rng.h"
 
 #include "btc_local.h"
+#include "btc.h"
 
 #ifndef __ORDER_LITTLE_ENDIAN__
 #error Only Little Endian
