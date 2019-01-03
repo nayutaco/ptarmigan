@@ -969,20 +969,6 @@ static void *thread_main_start(void *pArg)
                 LOGD("fail: exchange channel_reestablish\n");
                 goto LABEL_JOIN;
             }
-
-#ifndef USE_SPV
-#else
-            //NOTE:
-            //  This process take a lot of time.
-            //  `init` and `channel_reestablish` require response quickly.
-            btcrpc_set_channel(ln_their_node_id(p_self),
-                    ln_short_channel_id(p_self),
-                    ln_funding_txid(p_self),
-                    ln_funding_txindex(p_self),
-                    ln_funding_redeem(p_self),
-                    ln_funding_blockhash(p_self),
-                    ln_last_conf_get(p_self));
-#endif
         } else {
             const char *p_str = ln_status_string(p_self);
             LOGD("$$$ now closing: %s\n", p_str);
