@@ -10,6 +10,8 @@
 #define LOG_TAG     "btcj_jni"
 #include "utl_log.h"
 
+#include "btc_sw.h"
+
 #include "ptarmd.h"
 
 
