@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "btc.h"
+#include "btc_block.h"
 
 
 typedef struct {
