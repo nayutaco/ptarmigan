@@ -31,6 +31,7 @@
 #include "utl_int.h"
 #include "utl_dbg.h"
 
+#include "btc_util.h"
 #include "btc_buf.h"
 
 
@@ -159,6 +160,39 @@ bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
     memcpy(&pBufW->_buf[pBufW->_pos], pData, Len);
     pBufW->_pos += Len;
     return true;
+}
+
+
+bool btc_buf_w_write_u16le(btc_buf_w_t *pBufW, uint16_t U16)
+{
+    uint8_t buf[2];
+    utl_int_unpack_u16le(buf, U16);
+    return btc_buf_w_write_data(pBufW, buf, 2);
+}
+
+
+bool btc_buf_w_write_u32le(btc_buf_w_t *pBufW, uint32_t U32)
+{
+    uint8_t buf[4];
+    utl_int_unpack_u32le(buf, U32);
+    return btc_buf_w_write_data(pBufW, buf, 4);
+}
+
+
+bool btc_buf_w_write_u64le(btc_buf_w_t *pBufW, uint64_t U64)
+{
+    uint8_t buf[8];
+    utl_int_unpack_u64le(buf, U64);
+    return btc_buf_w_write_data(pBufW, buf, 8);
+}
+
+
+bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
+{
+    uint8_t buf[BTC_SZ_HASH256];
+
+    btc_util_hash256(buf, (uint8_t *)pData, Len);
+    return btc_buf_w_write_data(pBufW, buf, BTC_SZ_HASH256);
 }
 
 

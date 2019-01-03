@@ -30,6 +30,7 @@
 #include "btc_script.h"
 #include "btc_sig.h"
 #include "btc_sw.h"
+#include "btc_tx_buf.h"
 
 
 /**************************************************************************
@@ -108,12 +109,9 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint6
     // [hash_type : 4]
 
     bool ret = false;
-    utl_buf_t buf = UTL_BUF_INIT;
-    utl_buf_t buf_tmp = UTL_BUF_INIT;
+    btc_buf_w_t buf_w;
+    btc_buf_w_t buf_w_tmp;
     uint32_t lp;
-    uint8_t *p;
-    uint8_t *p_tmp;
-    int len;
 
     btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
@@ -121,100 +119,71 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint6
         return false;
     }
 
-    if (!utl_buf_alloc(&buf, 156 + pScriptCode->len)) goto LABEL_EXIT;
-    p = buf.buf;
+    if (!btc_buf_w_init(&buf_w, 0)) return false;
+    if (!btc_buf_w_init(&buf_w_tmp, 0)) return false;
 
     //version
-    utl_int_unpack_u32le(p, pTx->version);
-    p += 4;
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->version)) goto LABEL_EXIT;
 
     //vin:
     // prev outs:
 
-    //hash_prevouts: double-SHA256((txid(32) | index(4)) * n)
-    if (!utl_buf_realloc(&buf_tmp, pTx->vin_cnt * (32 + 4))) goto LABEL_EXIT;
-    p_tmp = buf_tmp.buf;
+    //hash_prevouts: HASH256((txid(32) | index(4)) * n)
+    btc_buf_w_truncate(&buf_w_tmp);
     for (lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &pTx->vin[lp];
 
-        memcpy(p_tmp, vin->txid, BTC_SZ_TXID);
-        p_tmp += BTC_SZ_TXID;
-        utl_int_unpack_u32le(p_tmp, vin->index);
-        p_tmp += 4;
+        if (!btc_buf_w_write_data(&buf_w_tmp, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_u32le(&buf_w_tmp, vin->index)) goto LABEL_EXIT;
     }
-    btc_util_hash256(p, buf_tmp.buf, buf_tmp.len);
-    p += BTC_SZ_HASH256;
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
-    //hash_sequence: double-SHA256(sequence(4) * n)
-    if (!utl_buf_realloc(&buf_tmp, pTx->vin_cnt * 4)) goto LABEL_EXIT;
-    p_tmp = buf_tmp.buf;
+    //hash_sequence: HASH256(sequence(4) * n)
+    btc_buf_w_truncate(&buf_w_tmp);
     for (lp = 0; lp < pTx->vin_cnt; lp++) {
-        btc_vin_t *vin = &pTx->vin[lp];
-
-        utl_int_unpack_u32le(p_tmp, vin->sequence);
-        p_tmp += 4;
+        if (!btc_buf_w_write_u32le(&buf_w_tmp, pTx->vin[lp].sequence)) goto LABEL_EXIT;
     }
-    btc_util_hash256(p, buf_tmp.buf, buf_tmp.len);
-    p += BTC_SZ_HASH256;
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
-    //outpoint: double-SHA256(txid(32) | Index(4))
-    memcpy(p, pTx->vin[Index].txid, BTC_SZ_TXID);
-    p += BTC_SZ_TXID;
-    utl_int_unpack_u32le(p, pTx->vin[Index].index);
-    p += 4;
+    //outpoint: txid(32) | Index(4)
+    if (!btc_buf_w_write_data(&buf_w, pTx->vin[Index].txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->vin[Index].index)) goto LABEL_EXIT;
 
     //scriptcode
-    memcpy(p, pScriptCode->buf, pScriptCode->len);
-    p += pScriptCode->len;
+    if (!btc_buf_w_write_data(&buf_w, pScriptCode->buf, pScriptCode->len)) goto LABEL_EXIT;
 
     //amount
-    utl_int_unpack_u64le(p, Value);
-    p += 8;
+    if (!btc_buf_w_write_u64le(&buf_w, Value)) goto LABEL_EXIT;
 
     //sequence
-    utl_int_unpack_u32le(p, pTx->vin[Index].sequence);
-    p += 4;
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->vin[Index].sequence)) goto LABEL_EXIT;
 
     //vout:
     // next vins:
 
-    //hash_outputs: double-SHA256((value(8) | scriptPk) * n)
-    len = 0;
-    for (lp = 0; lp < pTx->vout_cnt; lp++) {
-        len += 8;
-        len += 1; //XXX:
-        len += pTx->vout[lp].script.len;
-    }
-    if (!utl_buf_realloc(&buf_tmp, len)) goto LABEL_EXIT;
-    p_tmp = buf_tmp.buf;
+    //hash_outputs: HASH256((value(8) | scriptPk) * n)
+    btc_buf_w_truncate(&buf_w_tmp);
     for (lp = 0; lp < pTx->vout_cnt; lp++) {
         btc_vout_t *vout = &pTx->vout[lp];
-
-        utl_int_unpack_u64le(p_tmp, vout->value);
-        p_tmp += 8;
-        *p_tmp = vout->script.len;
-        p_tmp++;
-        memcpy(p_tmp, vout->script.buf, vout->script.len);
-        p_tmp += vout->script.len;
+        if (!btc_buf_w_write_u64le(&buf_w_tmp, vout->value)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_varint_len(&buf_w_tmp, vout->script.len)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_data(&buf_w_tmp, vout->script.buf, vout->script.len)) goto LABEL_EXIT;
     }
-    btc_util_hash256(p, buf_tmp.buf, buf_tmp.len);
-    p += BTC_SZ_HASH256;
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
     //locktime
-    utl_int_unpack_u32le(p, pTx->locktime);
-    p += 4;
+    if (!btc_buf_w_write_u32le(&buf_w, pTx->locktime)) goto LABEL_EXIT;
 
     //hashtype
-    utl_int_unpack_u32le(p, SIGHASH_ALL);
-    p += 4;
+    if (!btc_buf_w_write_u32le(&buf_w, SIGHASH_ALL)) goto LABEL_EXIT;
 
-    btc_util_hash256(pTxHash, buf.buf, buf.len);
+    btc_util_hash256(pTxHash, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
 
     ret = true;
 
 LABEL_EXIT:
-    utl_buf_free(&buf);
-    utl_buf_free(&buf_tmp);
+    btc_tx_buf_w_free(&buf_w);
+    btc_tx_buf_w_free(&buf_w_tmp);
 
     return ret;
 }

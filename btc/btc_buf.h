@@ -68,12 +68,16 @@ bool btc_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset);
 uint32_t btc_buf_r_remains(btc_buf_r_t *pBufR);
 
 
-//XXX: comment
+//XXX: test & comment
 bool btc_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size);
 void btc_buf_w_free(btc_buf_w_t *pBufW);
 uint8_t *btc_buf_w_get_data(btc_buf_w_t *pBufW);
 uint32_t btc_buf_w_get_len(btc_buf_w_t *pBufW);
 bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+bool btc_buf_w_write_u16le(btc_buf_w_t *pBufW, uint16_t U16);
+bool btc_buf_w_write_u32le(btc_buf_w_t *pBufW, uint32_t U32);
+bool btc_buf_w_write_u64le(btc_buf_w_t *pBufW, uint64_t U64);
+bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
 void btc_buf_w_truncate(btc_buf_w_t *pBufW);
 
 
