@@ -1262,7 +1262,7 @@ TEST_F(tx, sighash_p2pkh)
         0xd2, 0xaf, 0x54, 0x66, 0x82, 0xcf, 0xed, 0xe6,
         0x5f, 0x9e, 0xd8, 0x48, 0xa8, 0x1d, 0xfa, 0xc6,
     };
-    utl_buf_t sig;
+    utl_buf_t sig = UTL_BUF_INIT;
     ret = btc_sig_sign(&sig, txhash, PRIV);
     ASSERT_TRUE(ret);
 
@@ -1271,14 +1271,14 @@ TEST_F(tx, sighash_p2pkh)
     btc_keys_priv2pub(pubkey, PRIV);
     ret = btc_tx_set_vin_p2pkh(&tx, 0, &sig, pubkey);
     ASSERT_TRUE(ret);
-    utl_buf_t txall;
+    utl_buf_t txall = UTL_BUF_INIT;
     btc_tx_write(&tx, &txall);
 //    printf("P2PKH tx=\n");
 //    tx::DumpBin(txall.buf, txall.len);
 
     ret = btc_tx_sign_p2pkh(&tx, 0, txhash, PRIV, pubkey);
     ASSERT_TRUE(ret);
-    utl_buf_t txall2;
+    utl_buf_t txall2 = UTL_BUF_INIT;
     btc_tx_write(&tx, &txall2);
     ASSERT_EQ(0, memcmp(txall.buf, txall2.buf, txall.len));
     ASSERT_EQ(txall.len, txall2.len);
@@ -1427,8 +1427,8 @@ TEST_F(tx, sighash_p2sh)
         0x8a, 0x88, 0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc,
         0xdc,
     };
-    utl_buf_t sig1;
-    utl_buf_t sig2;
+    utl_buf_t sig1 = UTL_BUF_INIT;
+    utl_buf_t sig2 = UTL_BUF_INIT;
     ret = btc_sig_sign(&sig1, txhash, PRIV1);
     ASSERT_TRUE(ret);
     ret = btc_sig_sign(&sig2, txhash, PRIV3);
@@ -1439,7 +1439,7 @@ TEST_F(tx, sighash_p2sh)
     const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
     ret = btc_tx_set_vin_p2sh_multisig(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
-    utl_buf_t txall;
+    utl_buf_t txall = UTL_BUF_INIT;
     btc_tx_write(&tx, &txall);
     printf("P2SH tx=\n");
     tx::DumpBin(txall.buf, txall.len);
@@ -1588,8 +1588,8 @@ TEST_F(tx, sighash_p2sh_ng)
         0x8a, 0x88, 0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc,
         0xdc,
     };
-    utl_buf_t sig1;
-    utl_buf_t sig2;
+    utl_buf_t sig1 = UTL_BUF_INIT;
+    utl_buf_t sig2 = UTL_BUF_INIT;
     ret = btc_sig_sign(&sig1, txhash, PRIV1);
     ASSERT_TRUE(ret);
     ret = btc_sig_sign(&sig2, txhash, PRIV3);
@@ -1600,7 +1600,7 @@ TEST_F(tx, sighash_p2sh_ng)
     const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
     ret = btc_tx_set_vin_p2sh_multisig(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
-    utl_buf_t txall;
+    utl_buf_t txall = UTL_BUF_INIT;
     btc_tx_write(&tx, &txall);
     printf("P2SH tx=\n");
     tx::DumpBin(txall.buf, txall.len);
@@ -1654,7 +1654,7 @@ TEST_F(tx, create_vout_p2pkh)
         0xac,
     };
 
-    utl_buf_t spk;
+    utl_buf_t spk = UTL_BUF_INIT;
     ret = btc_tx_create_spk_p2pkh(&spk, ADDR1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SCRPK1, spk.buf, sizeof(SCRPK1)));

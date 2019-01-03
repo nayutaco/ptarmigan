@@ -441,7 +441,7 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxH
  */
 bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
 {
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     if (!btc_sw_is_segwit(pTx)) {
         assert(0);

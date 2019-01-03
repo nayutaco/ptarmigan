@@ -363,7 +363,7 @@ TEST_F(ln_bolt3_c, committx2)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
     //dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -422,8 +422,8 @@ TEST_F(ln_bolt3_c, committx2)
     uint8_t txhash[BTC_SZ_HASH256];
     ret = btc_util_calc_sighash_p2wsh(&tx, txhash, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
     ASSERT_TRUE(ret);
-    utl_buf_t buf_sig_local;
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     ret = btc_util_sign_p2wsh(&buf_sig_local, txhash, &keys_local_funding);
     ASSERT_TRUE(ret);
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -498,7 +498,7 @@ TEST_F(ln_bolt3_c, committx2)
         0x9f, 0xa7, 0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19,
         0x52, 0x20,
     };
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
@@ -661,7 +661,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -699,7 +699,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -729,7 +729,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         0x68, 0x29, 0xe7, 0x4c, 0xd4, 0x37, 0x7f, 0x84,
         0xd2, 0x15, 0xc0, 0xb7, 0x06, 0x06, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -814,7 +814,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         0xa1, 0x32, 0xce, 0xc6, 0xd3, 0xc3, 0x9f, 0xa7,
         0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -1180,7 +1180,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -1212,7 +1212,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -1382,7 +1382,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -1420,7 +1420,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -1450,7 +1450,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
         0x52, 0xd0, 0x21, 0xe6, 0x08, 0x1a, 0x10, 0x0d,
         0x03, 0x4d, 0xe3, 0x66, 0x81, 0x5e, 0x9b, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -1537,7 +1537,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
         0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -1902,7 +1902,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -1932,7 +1932,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -2102,7 +2102,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -2140,7 +2140,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -2171,7 +2171,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
         0x80, 0x4f, 0x81, 0xdb, 0x6b, 0x69, 0x88, 0x21,
         0xdb, 0x60, 0x93, 0xd7, 0xb0, 0x57, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -2252,7 +2252,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
         0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -2559,7 +2559,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -2591,7 +2591,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -2761,7 +2761,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -2799,7 +2799,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -2830,7 +2830,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
         0x81, 0x06, 0x95, 0xa7, 0xd0, 0xa2, 0x47, 0xad,
         0x2a, 0xfb, 0xa8, 0x23, 0x2e, 0xb4, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -2911,7 +2911,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
         0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -3218,7 +3218,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -3250,7 +3250,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -3420,7 +3420,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -3458,7 +3458,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -3489,7 +3489,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
         0x52, 0x49, 0xb0, 0xd0, 0x62, 0xd4, 0x3e, 0xfb,
         0xfc, 0x56, 0x44, 0x99, 0xf3, 0x75, 0x26, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -3565,7 +3565,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
         0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -3813,7 +3813,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -3845,7 +3845,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -4015,7 +4015,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -4053,7 +4053,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -4084,7 +4084,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
         0xdb, 0xe1, 0xfb, 0x7a, 0x95, 0x48, 0x8c, 0x9a,
         0x4e, 0xc8, 0x62, 0x03, 0x95, 0x33, 0x48, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -4160,7 +4160,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
         0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -4408,7 +4408,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -4440,7 +4440,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -4610,7 +4610,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -4648,7 +4648,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -4679,7 +4679,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
         0x4e, 0xf4, 0xa1, 0xb3, 0x10, 0xcc, 0x91, 0x2d,
         0xb4, 0x4e, 0xb7, 0x92, 0x42, 0x98, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -4749,7 +4749,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
         0xc1, 0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -4942,7 +4942,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -4974,7 +4974,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -5144,7 +5144,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -5182,7 +5182,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -5213,7 +5213,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
         0xdb, 0xca, 0x52, 0x41, 0x26, 0x33, 0xf7, 0xe5,
         0xb2, 0x67, 0x0f, 0xc7, 0xc3, 0x81, 0xc1, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -5283,7 +5283,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
         0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -5476,7 +5476,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -5508,7 +5508,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -5678,7 +5678,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -5716,7 +5716,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -5747,7 +5747,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
         0x5c, 0x98, 0xf9, 0x89, 0xf7, 0xae, 0x81, 0x80,
         0xc2, 0x82, 0x89, 0xf9, 0xe6, 0xbd, 0xb0, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -5812,7 +5812,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
         0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -5950,7 +5950,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -5982,7 +5982,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -6151,7 +6151,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     }
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -6189,7 +6189,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -6220,7 +6220,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
         0x37, 0x80, 0x6a, 0x3c, 0x71, 0x38, 0xb7, 0x49,
         0x1e, 0x2c, 0xbb, 0x07, 0x7a, 0x0e, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -6285,7 +6285,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
         0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -6423,7 +6423,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
     //各HTLCのsuccess transaction作成
     btc_tx_t tx2;
 
-    utl_buf_t ws_buf;
+    utl_buf_t ws_buf = UTL_BUF_INIT;
     ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
@@ -6455,7 +6455,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
                         &htlcinfos[lp].script,
                         LN_HTLCSIGN_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
-            utl_buf_t hs;
+            utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
             //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
@@ -6625,7 +6625,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -6663,7 +6663,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -6694,7 +6694,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
         0x9d, 0x74, 0x00, 0x59, 0x56, 0x01, 0x91, 0xd7,
         0xdb, 0x53, 0xf8, 0x76, 0x55, 0x52, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -6754,7 +6754,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
         0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -6921,7 +6921,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -6959,7 +6959,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -6990,7 +6990,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
         0x6d, 0x10, 0x1d, 0xa5, 0x03, 0x76, 0x1c, 0x45,
         0xc7, 0x13, 0x99, 0x6e, 0x3b, 0xbd, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -7050,7 +7050,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
         0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -7218,7 +7218,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -7256,7 +7256,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -7287,7 +7287,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
         0xcc, 0xa6, 0x0c, 0x03, 0x65, 0x68, 0x2d, 0xcd,
         0x3d, 0xea, 0xf7, 0x39, 0x56, 0x7e, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -7341,7 +7341,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
         0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
@@ -7508,7 +7508,7 @@ TEST_F(ln_bolt3_c, committx_commit)
 
 
     //to-local wscript
-    utl_buf_t ws_local_buf;
+    utl_buf_t ws_local_buf = UTL_BUF_INIT;
 
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
@@ -7546,7 +7546,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfos;
     lntx_commit.htlcinfo_num = 5;
-    utl_buf_t buf_sig_local;
+    utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
@@ -7577,7 +7577,7 @@ TEST_F(ln_bolt3_c, committx_commit)
         0xcc, 0xa6, 0x0c, 0x03, 0x65, 0x68, 0x2d, 0xcd,
         0x3d, 0xea, 0xf7, 0x39, 0x56, 0x7e, 0x01,
     };
-    utl_buf_t buf_sig_remote;
+    utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
     ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
@@ -7631,7 +7631,7 @@ TEST_F(ln_bolt3_c, committx_commit)
         0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
     //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));

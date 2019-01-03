@@ -383,7 +383,7 @@ void ln_onion_failure_create(utl_buf_t *pNextPacket,
     uint8_t um_key[M_SZ_KEYLEN];
     const int DATALEN = 256;
 
-    utl_buf_t     buf_fail;
+    utl_buf_t     buf_fail = UTL_BUF_INIT;
     utl_push_t    proto;
 
     generate_key(um_key, UM, sizeof(UM), pSharedSecret->buf);
@@ -464,9 +464,9 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
     DUMPD(pSharedSecrets->buf, pSharedSecrets->len);
 #endif  //M_DBG_FAIL
 
-    utl_buf_t buf1;
+    utl_buf_t buf1 = UTL_BUF_INIT;
     utl_buf_t buf2 = UTL_BUF_INIT;
-    utl_buf_t reason;
+    utl_buf_t reason = UTL_BUF_INIT;
 
     utl_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
     const utl_buf_t *p_in = &buf1;

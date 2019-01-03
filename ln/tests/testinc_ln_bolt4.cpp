@@ -7,7 +7,7 @@
 
 ////////////////////////////////////////////////////////////////////////
 
-utl_buf_t sOnionBuffer;
+utl_buf_t sOnionBuffer = UTL_BUF_INIT;
 uint8_t *spEphPubkey = NULL;
 uint8_t *spShdSecret = NULL;
 uint8_t *spBlindFactor = NULL;
@@ -424,7 +424,7 @@ TEST_F(onion, testvector)
 
 TEST_F(onion, testvector_failure)
 {
-    utl_buf_t buf_failmsg;
+    utl_buf_t buf_failmsg = UTL_BUF_INIT;
     utl_buf_alloc(&buf_failmsg, 2);
     buf_failmsg.buf[0] = 0x20;
     buf_failmsg.buf[1] = 0x02;

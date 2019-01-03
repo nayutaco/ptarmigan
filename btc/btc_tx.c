@@ -470,6 +470,7 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
 {
     bool ret = false;
     const uint32_t sigtype = (uint32_t)SIGHASH_ALL;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
@@ -502,7 +503,6 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
     }
 
     //calc hash
-    utl_buf_t buf;
     if (!btc_tx_write(pTx, &buf)) {
         assert(0);
         goto LABEL_EXIT;
@@ -577,7 +577,7 @@ bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, uint32_t Index, const
 
 bool btc_tx_txid(const btc_tx_t *pTx, uint8_t *pTxId)
 {
-    utl_buf_t txbuf;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     bool ret = btcl_util_create_tx(&txbuf, pTx, false);
     if (!ret) {

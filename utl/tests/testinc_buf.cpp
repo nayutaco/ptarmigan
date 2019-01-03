@@ -37,7 +37,7 @@ public:
 
 TEST_F(buf, init)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     InitDummy(&buf);
 
     utl_buf_init(&buf);
@@ -51,7 +51,7 @@ TEST_F(buf, init)
 
 TEST_F(buf, alloc)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     InitDummy(&buf);
 
     ASSERT_TRUE(utl_buf_alloc(&buf, 10));
@@ -65,7 +65,7 @@ TEST_F(buf, alloc)
 
 TEST_F(buf, realloc)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     InitDummy(&buf);
 
     ASSERT_TRUE(utl_buf_alloc(&buf, 10));
@@ -83,7 +83,7 @@ TEST_F(buf, realloc)
 
 TEST_F(buf, alloccopy)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     InitDummy(&buf);
 
     const uint8_t BUF[] = {
@@ -102,9 +102,9 @@ TEST_F(buf, alloccopy)
 
 TEST_F(buf, cmp)
 {
-    utl_buf_t buf;
-    utl_buf_t buf2;
-    utl_buf_t buf3;
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_buf_t buf3 = UTL_BUF_INIT;
     InitDummy(&buf);
     InitDummy(&buf2);
     InitDummy(&buf3);

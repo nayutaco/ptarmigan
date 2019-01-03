@@ -800,7 +800,7 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
 
 static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     uint8_t txid[BTC_SZ_TXID];
 
     btc_tx_write(pTx, &buf);
@@ -902,7 +902,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 
     if (confm != ln_revoked_confm(self)) {
         //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
-        utl_buf_t txbuf;
+        utl_buf_t txbuf = UTL_BUF_INIT;
         const utl_buf_t *p_vout = ln_revoked_vout(self);
         bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(self), &p_vout[0]);
         if (ret) {
@@ -1021,7 +1021,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
 
     ln_revokedhtlc_create_spenttx(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
     btc_tx_print(&tx);
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     btc_tx_write(&tx, &buf);
     btc_tx_free(&tx);
     bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);

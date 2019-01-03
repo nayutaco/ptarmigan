@@ -1515,7 +1515,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
  */
 static void *thread_recv_start(void *pArg)
 {
-    utl_buf_t buf_recv;
+    utl_buf_t buf_recv = UTL_BUF_INIT;
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
     LOGD("[THREAD]recv initialize\n");
@@ -3101,7 +3101,7 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 
     pthread_mutex_lock(&p_conf->mux_send);
 
-    utl_buf_t buf_enc;
+    utl_buf_t buf_enc = UTL_BUF_INIT;
     struct pollfd fds;
     ssize_t len = -1;
 

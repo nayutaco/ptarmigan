@@ -592,7 +592,7 @@ TEST_F(bolt8test, responder)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
@@ -708,7 +708,7 @@ TEST_F(bolt8test, responder_act1_short_read)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -770,7 +770,7 @@ TEST_F(bolt8test, responder_act1_bad_version)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -833,7 +833,7 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -896,7 +896,7 @@ TEST_F(bolt8test, responder_act1_bad_mac)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6b,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -959,7 +959,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
@@ -1056,7 +1056,7 @@ TEST_F(bolt8test, responder_act3_short_read)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
@@ -1153,7 +1153,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
@@ -1250,7 +1250,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
@@ -1347,7 +1347,7 @@ TEST_F(bolt8test, responder_act3_bad_mac)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
@@ -1434,9 +1434,9 @@ TEST_F(bolt8test, enc_dec)
     self_dec.noise_send.nonce = 0;
     self_dec.noise_recv.nonce = 0;
 
-    utl_buf_t bufin;
+    utl_buf_t bufin = UTL_BUF_INIT;
     utl_buf_t buf = UTL_BUF_INIT;
-    utl_buf_t buf_dec;
+    utl_buf_t buf_dec = UTL_BUF_INIT;
     uint16_t len;
 
     utl_buf_alloccopy(&bufin, (const uint8_t *)"hello", 5);

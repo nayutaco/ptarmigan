@@ -32,7 +32,7 @@ public:
 
 TEST_F(misc, push8)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
@@ -46,7 +46,7 @@ TEST_F(misc, push8)
 
 TEST_F(misc, push16)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
@@ -61,7 +61,7 @@ TEST_F(misc, push16)
 
 TEST_F(misc, push32)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
@@ -78,7 +78,7 @@ TEST_F(misc, push32)
 
 TEST_F(misc, push64)
 {
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
@@ -248,7 +248,7 @@ TEST_F(misc, sigexp1)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG1, sizeof(SIG1)));
 
-    utl_buf_t     sig;
+    utl_buf_t     sig = UTL_BUF_INIT;
 
     ln_misc_sigexpand(&sig, SIG_1);
     ASSERT_EQ(0, memcmp(SIG1, sig.buf, sizeof(SIG1)));
@@ -271,7 +271,7 @@ TEST_F(misc, sigexp2)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG3, sizeof(SIG3)));
 
-    utl_buf_t     sig;
+    utl_buf_t     sig = UTL_BUF_INIT;
 
     ln_misc_sigexpand(&sig, SIG_3);
     ASSERT_EQ(0, memcmp(SIG3, sig.buf, sizeof(SIG3)));
@@ -294,7 +294,7 @@ TEST_F(misc, sigexp3)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG5, sizeof(SIG5)));
 
-    utl_buf_t     sig;
+    utl_buf_t     sig = UTL_BUF_INIT;
 
     ln_misc_sigexpand(&sig, SIG_5);
     ASSERT_EQ(0, memcmp(SIG5, sig.buf, sizeof(SIG5)));
@@ -317,7 +317,7 @@ TEST_F(misc, sigexp4)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG6, sizeof(SIG6)));
 
-    utl_buf_t     sig;
+    utl_buf_t     sig = UTL_BUF_INIT;
 
     ln_misc_sigexpand(&sig, SIG_6);
     ASSERT_EQ(0, memcmp(SIG6, sig.buf, sizeof(SIG6)));
