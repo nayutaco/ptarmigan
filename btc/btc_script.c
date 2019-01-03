@@ -53,6 +53,8 @@ static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
+static utl_buf_t *add_wit_item(utl_buf_t **ppWitness, uint32_t *pWitItemCnt);
+static void free_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt);
 
 
 /**************************************************************************
@@ -480,6 +482,20 @@ bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8
 }
 
 
+bool btc_script_witness_create_p2wpkh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey)
+{
+    free_witness(ppWitness, pWitItemCnt);
+
+    utl_buf_t *p = add_wit_item(ppWitness, pWitItemCnt);
+    if (!p) return false;
+    if (!utl_buf_alloccopy(p, pSig->buf, pSig->len)) return false;
+    p = add_wit_item(ppWitness, pWitItemCnt);
+    if (!p) return false;
+    if (!utl_buf_alloccopy(p, pPubKey, BTC_SZ_PUBKEY)) return false;
+    return true;
+}
+
+
 bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
@@ -667,3 +683,22 @@ static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash)
     memcpy(p + 2, pHash, BTC_SZ_HASH256);
 }
 
+
+static utl_buf_t *add_wit_item(utl_buf_t **ppWitness, uint32_t *pWitItemCnt)
+{
+    *ppWitness = (utl_buf_t *)UTL_DBG_REALLOC(*ppWitness, sizeof(utl_buf_t) * (*pWitItemCnt + 1));
+    if (!*ppWitness) return NULL;
+    utl_buf_t *p_buf = &((*ppWitness)[*pWitItemCnt]);
+    (*pWitItemCnt)++;
+
+    utl_buf_init(p_buf);
+    return p_buf;
+}
+
+
+static void free_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt)
+{
+    while (*pWitItemCnt) {
+        utl_buf_free(&(*ppWitness)[--(*pWitItemCnt)]);
+    }
+}
