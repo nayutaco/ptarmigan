@@ -197,34 +197,19 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig,
     //  item[1]=pubkey
 
     btc_vin_t *vin = &(pTx->vin[Index]);
-    utl_buf_t *p_buf = &vin->script;
 
-    if (p_buf->len != 0) {
-        utl_buf_free(p_buf);
-    }
 
+    //vin
     if (mNativeSegwit) {
-        //vin
-        //  空
+        utl_buf_free(&vin->script);
     } else {
-        //vin
-        //  len + <witness program>
-        p_buf->len = 3 + BTC_SZ_HASH160;
-        p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
-        p_buf->buf[0] = 0x16;
-        //witness program
-        p_buf->buf[1] = 0x00;
-        p_buf->buf[2] = (uint8_t)BTC_SZ_HASH160;
-        btc_util_hash160(&p_buf->buf[3], pPubKey, BTC_SZ_PUBKEY);
+        if (!btc_script_sig_create_p2sh_p2wpkh(&vin->script, pPubKey)) return false;
     }
 
-    if (vin->wit_item_cnt != 0) {
-        //一度解放する
-        for (uint32_t lp = 0; lp < vin->wit_item_cnt; lp++) {
-            utl_buf_free(&vin->witness[lp]);
-        }
-        vin->wit_item_cnt = 0;
+    while (vin->wit_item_cnt) {
+        utl_buf_free(&vin->witness[--vin->wit_item_cnt]);
     }
+
     //[0]signature
     utl_buf_t *p_sig = btc_tx_add_wit(vin);
     utl_buf_alloccopy(p_sig, pSig->buf, pSig->len);

@@ -73,6 +73,7 @@ bool btc_script_pk_create(utl_buf_t *pScriptPk, const uint8_t *pPubKeyHash, int 
 //XXX: comment
 bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
+bool btc_script_sig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPubKey);
 bool btc_script_sig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
 bool btc_script_sig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 bool btc_script_sig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
@@ -97,12 +98,12 @@ bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 /** P2WSH署名計算で使用するScript Code取得
  *
  * @param[out]      pScriptCode     P2WPKH用Script Code
- * @param[in]       pWit            witnessScript
+ * @param[in]       pWitScript      witnessScript
  *
  * @note
  *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit);
+bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript);
 
 
 #ifdef PTARM_USE_PRINTFUNC
