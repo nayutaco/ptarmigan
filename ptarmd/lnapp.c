@@ -1688,14 +1688,6 @@ static void *thread_poll_start(void *pArg)
                         ln_funding_blockhash_set(p_conf->p_self, mined_hash);
                     }
                 }
-
-                btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
-                        ln_short_channel_id(p_conf->p_self),
-                        ln_funding_txid(p_conf->p_self),
-                        ln_funding_txindex(p_conf->p_self),
-                        ln_funding_redeem(p_conf->p_self),
-                        ln_funding_blockhash(p_conf->p_self),
-                        ln_last_conf_get(p_conf->p_self));
 #endif
 
                 LOGD2("***********************************\n");
