@@ -83,7 +83,7 @@ TEST_F(tx_native, add_vout_addr_p2wsh)
 TEST_F(tx_native, addr2spk_p2wpkh)
 {
     bool ret;
-    utl_buf_t spk;
+    utl_buf_t spk = UTL_BUF_INIT;
 
     const char WADDR[] = "tb1q29ccnsx40wsam5lesxfx4w6ttmgz52q8qrpgla";
     const uint8_t SCRIPT_PK[] = {
@@ -104,7 +104,7 @@ TEST_F(tx_native, addr2spk_p2wpkh)
 TEST_F(tx_native, addr2spk_p2wsh)
 {
     bool ret;
-    utl_buf_t spk;
+    utl_buf_t spk = UTL_BUF_INIT;
 
     const char WADDR[] = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
     const uint8_t SCRIPT_PK[] = {
