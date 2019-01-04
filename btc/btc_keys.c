@@ -41,7 +41,6 @@
  * prototypes
  ********************************************************************/
 
-static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
 static bool addr_is_p2pkh(const char *pAddr);
 static bool addr_is_p2sh(const char *pAddr);
 static bool addr_is_segwit(const char *pAddr);
@@ -307,62 +306,6 @@ bool btc_keys_check_pub(const uint8_t *pPubKey)
 }
 
 
-bool btc_keys_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
-{
-    utl_buf_alloc(pRedeem, BTC_SZ_2OF2);
-
-    uint8_t *p = pRedeem->buf;
-
-    /*
-     * OP_2
-     * 0x21 (pubkey1[0x21])
-     * 0x21 (pubkey2[0x21])
-     * OP_2
-     * OP_CHECKMULTISIG
-     */
-    *p++ = OP_2;
-    *p++ = (uint8_t)BTC_SZ_PUBKEY;
-    memcpy(p, pPubKey1, BTC_SZ_PUBKEY);
-    p += BTC_SZ_PUBKEY;
-    *p++ = (uint8_t)BTC_SZ_PUBKEY;
-    memcpy(p, pPubKey2, BTC_SZ_PUBKEY);
-    p += BTC_SZ_PUBKEY;
-    *p++ = OP_2;
-    *p++ = OP_CHECKMULTISIG;
-    return true;
-}
-
-
-bool btc_keys_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
-{
-    if (Num > 16) return false;
-    if (M > 16) return false;
-    if (M > Num) return false;
-
-    utl_buf_alloc(pRedeem, 3 + Num * (BTC_SZ_PUBKEY + 1));
-
-    uint8_t *p = pRedeem->buf;
-
-    /*
-     * OP_n
-     * 0x21 (pubkey1[0x21])
-     *   ...
-     * 0x21 (pubkeyn[0x21])
-     * OP_m
-     * OP_CHECKMULTISIG
-     */
-    *p++ = OP_x + M;
-    for (int lp = 0; lp < Num; lp++) {
-        *p++ = (uint8_t)BTC_SZ_PUBKEY;
-        memcpy(p, pPubKeys[lp], BTC_SZ_PUBKEY);
-        p += BTC_SZ_PUBKEY;
-    }
-    *p++ = OP_x + Num;
-    *p++ = OP_CHECKMULTISIG;
-    return true;
-}
-
-
 bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
 {
     bool ret;
@@ -445,7 +388,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
     const uint8_t *pkh;
-    int prefix = spk2prefix(&pkh, pScriptPk);
+    int prefix = btc_scriptpk_prefix(&pkh, pScriptPk);
     if (prefix != BTC_PREF_MAX) return false;
     if (!btcl_util_keys_hash2addr(pAddr, pkh, prefix)) return false;
     return true;
@@ -455,42 +398,6 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 /********************************************************************
  * private functions
  ********************************************************************/
-
-/** scriptPubKeyからPREF変換
- *
- */
-static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
-{
-    if ( (pScriptPk->len == 25) &&
-         (pScriptPk->buf[0] == OP_DUP) &&
-         (pScriptPk->buf[1] == OP_HASH160) &&
-         (pScriptPk->buf[2] == BTC_SZ_HASH160) &&
-         (pScriptPk->buf[23] == OP_EQUALVERIFY) &&
-         (pScriptPk->buf[24] == OP_CHECKSIG) ) {
-        *ppPkh = pScriptPk->buf + 3;
-        return BTC_PREF_P2PKH;
-    }
-    else if ( (pScriptPk->len == 23) &&
-         (pScriptPk->buf[0] == OP_HASH160) &&
-         (pScriptPk->buf[1] == BTC_SZ_HASH160) &&
-         (pScriptPk->buf[22] == OP_EQUAL) ) {
-        *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_P2SH;
-    }
-    else if ( (pScriptPk->len == 22) &&
-         (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == BTC_SZ_HASH160) ) {
-        *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_P2WPKH;
-    }
-    else if ( (pScriptPk->len == 34) &&
-         (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == BTC_SZ_HASH256) ) {
-        *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_P2WSH;
-    }
-    return BTC_PREF_MAX;
-}
 
 static bool addr_is_p2pkh(const char *pAddr)
 {

@@ -7,6 +7,7 @@
 #include "utl_log.h"
 
 #include "btc_util.h"
+#include "btc_tx.h"
 #include "btc.h"
 
 static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);

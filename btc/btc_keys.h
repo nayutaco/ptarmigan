@@ -181,38 +181,6 @@ bool btc_keys_check_priv(const uint8_t *pPrivKey);
 bool btc_keys_check_pub(const uint8_t *pPubKey);
 
 
-/** MultiSig 2-of-2スキームのredeem scriptを作成
- * @code
- *  OP_2
- *  0x21 (pubkey1[0x21])
- *  0x21 (pubkey2[0x21])
- *  OP_2
- *  OP_CHECKMULTISIG
- * @endcode
- *
- * @param[out]      pRedeem     2-of-2 redeem script
- * @param[in]       pPubKey1    公開鍵1
- * @param[in]       pPubKey2    公開鍵2
- *
- * @note
- *      - 公開鍵の順番は pPubKey1, pPubKey2 の順
- */
-bool btc_keys_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
-
-
-/** M-of-Nスキームのredeem script作成
- *
- * @param[out]      pRedeem
- * @param[in]       pPubKeys
- * @param[in]       Num
- * @param[in]       M
- *
- * @note
- *      - 公開鍵はソートしない
- */
-bool btc_keys_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
-
-
 /** BitcoinアドレスからHash(PKH/SH/WPKH/WSH)を求める
  *
  * @param[out]      pHash           Hash(#BTC_SZ_HASH_MAX)
@@ -278,7 +246,7 @@ bool btc_util_create_privkey(uint8_t *pPriv);
 bool btc_util_create_keys(btc_keys_t *pKeys);
 
 
-/** #btc_keys_create_2of2()のソートあり版
+/** #btc_redeem_create_2of2()のソートあり版
  *
  * @param[out]      pRedeem     2-of-2 redeem script
  * @param[out]      pSort       ソート結果(#BTC_KEYS_SORT_ASC)

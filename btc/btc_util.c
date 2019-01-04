@@ -102,9 +102,9 @@ bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint
 {
     *pSort = pubkey_sort_2of2(pPubKey1, pPubKey2);
     if (*pSort == BTC_KEYS_SORT_ASC) {
-        return btc_keys_create_2of2(pRedeem, pPubKey1, pPubKey2);
+        return btc_redeem_create_2of2(pRedeem, pPubKey1, pPubKey2);
     } else {
-        return btc_keys_create_2of2(pRedeem, pPubKey2, pPubKey1);
+        return btc_redeem_create_2of2(pRedeem, pPubKey2, pPubKey1);
     }
 }
 
@@ -776,7 +776,7 @@ int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_
         //スクリプト用
         //データ長が1で値が1～16の場合はOP_1～OP_16を使う
         //実データでは使わないと思われるが、テスト用にOP_CSVの
-        *pData = OP_x + pOrg[0];
+        *pData = OP_X + pOrg[0];
         retval = 0;
     } else {
         //データ長が75より大きい場合、OP_PUSHDATA1などを使う必要があるかもしれない

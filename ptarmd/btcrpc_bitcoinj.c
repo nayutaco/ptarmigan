@@ -32,6 +32,7 @@
 #include "utl_misc.h"
 
 #include "btc_script.h"
+#include "btc_sw.h"
 
 #include "btcrpc.h"
 

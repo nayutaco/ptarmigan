@@ -197,28 +197,15 @@ bool btc_scriptsig_create_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitScri
 
 bool btc_scriptsig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
-    bool ret;
-    uint8_t pubkey[BTC_SZ_PUBKEY];
+    assert(pPubKey);
+
+    bool ret = false;
     utl_buf_t sigbuf = UTL_BUF_INIT;
 
-    if (pPubKey == NULL) {
-        ret = btc_keys_priv2pub(pubkey, pPrivKey);
-        if (!ret) {
-            assert(0);
-            goto LABEL_EXIT;
-        }
-        pPubKey = pubkey;
-    }
+    if (!btc_sig_sign(&sigbuf, pTxHash, pPrivKey)) goto LABEL_EXIT;
+    if (!btc_scriptsig_create_p2pkh(pScriptSig, &sigbuf, pPubKey)) goto LABEL_EXIT;
 
-    ret = btc_sig_sign(&sigbuf, pTxHash, pPrivKey);
-    if (!ret) {
-        goto LABEL_EXIT;
-    }
-
-    ret = btc_scriptsig_create_p2pkh(pScriptSig, &sigbuf, pPubKey);
-    if (!ret) {
-        goto LABEL_EXIT;
-    }
+    ret = true;
 
 LABEL_EXIT:
     utl_buf_free(&sigbuf);
@@ -243,8 +230,8 @@ bool btc_scriptsig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, c
     if (pScriptSig->len < 1) goto LABEL_EXIT;
     sig_len = *buf;
     sig = buf + 1;
-    if (sig_len < _OP_PUSHDATA_X_MIN) goto LABEL_EXIT;
-    if (sig_len > _OP_PUSHDATA_X_MAX) goto LABEL_EXIT;
+    if (sig_len < OP_X_PUSHDATA_MIN) goto LABEL_EXIT;
+    if (sig_len > OP_X_PUSHDATA_MAX) goto LABEL_EXIT;
     if (pScriptSig->len < 1 + sig_len + 1) goto LABEL_EXIT;
     pubkey_len = *(buf + 1 + sig_len);
     pubkey = buf + 1 + sig_len + 1;
@@ -286,21 +273,6 @@ bool btc_scriptsig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHas
     ret =  btc_scriptsig_verify_p2pkh(pScriptSig, pTxHash, pScriptPk->buf + 3);
 
 LABEL_EXIT:
-    return ret;
-}
-
-
-bool btc_scriptsig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
-{
-    uint8_t hash[BTC_SZ_HASH_MAX];
-    int pref;
-    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (ret && (pref == BTC_PREF_P2PKH)) {
-        ret = btc_scriptsig_verify_p2pkh(pScriptSig, pTxHash, hash);
-    } else {
-        ret = false;
-    }
-
     return ret;
 }
 
@@ -362,8 +334,8 @@ bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pT
         LOGD("invalid len\n");
         return false;
     }
-    if (signum != (*(p + pos) - OP_x)) {
-        LOGD("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
+    if (signum != (*(p + pos) - OP_X)) {
+        LOGD("OP_X mismatch(sign): signum=%d, OP_X=%d\n", signum, *(p + pos) - OP_X);
         return false;
     }
     pos++;
@@ -386,8 +358,8 @@ bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pT
         LOGD("no OP_PUSHDATAx(pubkey)\n");
         return false;
     }
-    if (pubnum != (*(p + pos) - OP_x)) {
-        LOGD("OP_x mismatch(pubkey): signum=%d, OP_x=%d\n", pubnum, *(p + pos) - OP_x);
+    if (pubnum != (*(p + pos) - OP_X)) {
+        LOGD("OP_X mismatch(pubkey): signum=%d, OP_X=%d\n", pubnum, *(p + pos) - OP_X);
         return false;
     }
     pos++;
@@ -494,18 +466,59 @@ LABEL_EXIT:
 }
 
 
-bool btc_scriptsig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
+bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    uint8_t hash[BTC_SZ_HASH_MAX];
-    int pref;
-    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (ret && (pref == BTC_PREF_P2SH)) {
-        ret = btc_scriptsig_verify_p2sh_multisig(pScriptSig, pTxHash, hash);
-    } else {
-        ret = false;
-    }
+    if (!utl_buf_realloc(pRedeem, BTC_SZ_2OF2)) return false;
 
-    return ret;
+    uint8_t *p = pRedeem->buf;
+
+    /*
+     * OP_2
+     * 0x21 (pubkey1[0x21])
+     * 0x21 (pubkey2[0x21])
+     * OP_2
+     * OP_CHECKMULTISIG
+     */
+    *p++ = OP_2;
+    *p++ = (uint8_t)BTC_SZ_PUBKEY;
+    memcpy(p, pPubKey1, BTC_SZ_PUBKEY);
+    p += BTC_SZ_PUBKEY;
+    *p++ = (uint8_t)BTC_SZ_PUBKEY;
+    memcpy(p, pPubKey2, BTC_SZ_PUBKEY);
+    p += BTC_SZ_PUBKEY;
+    *p++ = OP_2;
+    *p++ = OP_CHECKMULTISIG;
+    return true;
+}
+
+
+bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
+{
+    if (Num > 16) return false;
+    if (M > 16) return false;
+    if (M > Num) return false;
+
+    if (!utl_buf_realloc(pRedeem, 3 + Num * (BTC_SZ_PUBKEY + 1))) return false;
+
+    uint8_t *p = pRedeem->buf;
+
+    /*
+     * OP_n
+     * 0x21 (pubkey1[0x21])
+     *   ...
+     * 0x21 (pubkeyn[0x21])
+     * OP_m
+     * OP_CHECKMULTISIG
+     */
+    *p++ = OP_X + M;
+    for (int lp = 0; lp < Num; lp++) {
+        *p++ = (uint8_t)BTC_SZ_PUBKEY;
+        memcpy(p, pPubKeys[lp], BTC_SZ_PUBKEY);
+        p += BTC_SZ_PUBKEY;
+    }
+    *p++ = OP_X + Num;
+    *p++ = OP_CHECKMULTISIG;
+    return true;
 }
 
 
@@ -658,6 +671,14 @@ bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, con
 }
 
 
+bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk)
+{
+    if (!pScriptPk->len) return false;
+    if (pScriptPk->buf[0] != OP_RETURN) return false;
+    return true;
+}
+
+
 bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
@@ -688,6 +709,40 @@ bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
 LABEL_EXIT:
     btc_tx_buf_w_free(&buf_w);
     return ret;
+}
+
+
+int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk)
+{
+    if ( (pScriptPk->len == 25) &&
+         (pScriptPk->buf[0] == OP_DUP) &&
+         (pScriptPk->buf[1] == OP_HASH160) &&
+         (pScriptPk->buf[2] == BTC_SZ_HASH160) &&
+         (pScriptPk->buf[23] == OP_EQUALVERIFY) &&
+         (pScriptPk->buf[24] == OP_CHECKSIG) ) {
+        *ppHash = pScriptPk->buf + 3;
+        return BTC_PREF_P2PKH;
+    }
+    else if ( (pScriptPk->len == 23) &&
+         (pScriptPk->buf[0] == OP_HASH160) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH160) &&
+         (pScriptPk->buf[22] == OP_EQUAL) ) {
+        *ppHash = pScriptPk->buf + 2;
+        return BTC_PREF_P2SH;
+    }
+    else if ( (pScriptPk->len == 22) &&
+         (pScriptPk->buf[0] == 0x00) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH160) ) {
+        *ppHash = pScriptPk->buf + 2;
+        return BTC_PREF_P2WPKH;
+    }
+    else if ( (pScriptPk->len == 34) &&
+         (pScriptPk->buf[0] == 0x00) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH256) ) {
+        *ppHash = pScriptPk->buf + 2;
+        return BTC_PREF_P2WSH;
+    }
+    return BTC_PREF_MAX;
 }
 
 
@@ -723,7 +778,7 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
     const uint8_t *end = pData + Len;
     const char INDENT[] = "      ";
     while (pData < end) {
-        if (*pData <= _OP_PUSHDATA_X_MAX) {
+        if (*pData <= OP_X_PUSHDATA_MAX) {
             //pushdata
             uint8_t len = *pData;
             pData++;
@@ -735,8 +790,8 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
             DUMPD(pData, len);
             pData += len;
         } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
-            //OP_x
-            LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
+            //OP_X
+            LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_X);
             pData++;
         } else if (*pData == OP_PUSHDATA1) {
             //pushdata

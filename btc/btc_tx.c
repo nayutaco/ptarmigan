@@ -100,8 +100,6 @@ void btc_tx_free(btc_tx_t *pTx)
 
 btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
 {
-    const uint8_t M_OP_RETURN = 0x6a;
-
     if (pTx == NULL) {
         LOGD("fail: null\n");
         return BTC_TXVALID_ARG_NULL;
@@ -155,7 +153,7 @@ btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
             LOGD("fail: no scriptPubKeyHash[%u]\n", lp);
             return BTC_TXVALID_VOUT_SPKH_NONE;
         }
-        if ((vout->value == 0) && (vout->script.buf[0] != M_OP_RETURN)) {
+        if ((vout->value == 0) && !btc_scriptpk_is_op_return(&vout->script)) {
             LOGD("fail: no value[%u]\n", lp);
             return BTC_TXVALID_VOUT_VALUE_BAD;
         }
@@ -535,9 +533,16 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index,
-                const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
+bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
+    uint8_t pubkey[BTC_SZ_PUBKEY];
+    if (pPubKey == NULL) {
+        if (!btc_keys_priv2pub(pubkey, pPrivKey)) {
+            assert(0);
+            return false;
+        }
+        pPubKey = pubkey;
+    }
     return btc_scriptsig_sign_p2pkh(&(pTx->vin[Index].script), pTxHash, pPrivKey, pPubKey);
 }
 
@@ -556,7 +561,11 @@ bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t 
 
 bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    return btc_scriptsig_verify_p2pkh_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    int pref;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (pref != BTC_PREF_P2PKH) return false;
+    return btc_scriptsig_verify_p2pkh(&pTx->vin[Index].script, pTxHash, hash);
 }
 
 
@@ -574,7 +583,11 @@ bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, uint32_t Index, const 
 
 bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    return btc_scriptsig_verify_p2sh_multisig_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    int pref;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (pref != BTC_PREF_P2SH) return false;
+    return btc_scriptsig_verify_p2sh_multisig(&pTx->vin[Index].script, pTxHash, hash);
 }
 
 
@@ -716,30 +729,7 @@ void btc_tx_print(const btc_tx_t *pTx)
         DUMPD(buf->buf, buf->len);
         //btc_script_print(buf->buf, buf->len);
         char addr[BTC_SZ_ADDR_STR_MAX + 1];
-        addr[0] = '\0';
-        //standard transactions only(see bitcoind's `IsStandard`)
-        if ( (buf->len == 25) && (buf->buf[0] == OP_DUP) && (buf->buf[1] == OP_HASH160) &&
-             (buf->buf[2] == 0x14) && (buf->buf[23] == OP_EQUALVERIFY) && (buf->buf[24] == OP_CHECKSIG) ) {
-            (void)btcl_util_keys_hash2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
-        } else if ( (buf->len == 23) && (buf->buf[0] == OP_HASH160) && (buf->buf[1] == 0x14) && (buf->buf[22] == OP_EQUAL) ) {
-            (void)btcl_util_keys_hash2addr(addr, &(buf->buf[2]), BTC_PREF_P2SH);
-        } else if ( ((buf->len == 22) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x14)) ||
-                    ((buf->len == 34) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x20)) ) {
-            //bech32
-            int hrp_type;
-            switch (btc_get_chain()) {
-            case BTC_MAINNET:
-                hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-                break;
-            case BTC_TESTNET:
-                hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-                break;
-            default:
-                hrp_type = -1;
-            }
-            (void)btc_segwit_addr_encode(addr, sizeof(addr), hrp_type, buf->buf[0], &buf->buf[2], buf->buf[1]);
-        }
-        if (addr[0] != '\0') {
+        if (btc_keys_spk2addr(addr, buf)) {
             LOGD2("    (%s)\n", addr);
         }
         LOGD2("\n");
