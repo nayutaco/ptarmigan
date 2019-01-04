@@ -18,6 +18,8 @@ jni/node
 *.a
 *.log
 *.so
+*.gcno
+*.gcda
 GPATH
 GRTAGS
 GSYMS

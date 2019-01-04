@@ -1242,7 +1242,7 @@ int main(int argc, char *argv[])
     bool bret = ln_db_ver_check(NULL, &gtype);
     if (!bret) {
         fprintf(stderr, "fail: DB version not match.\n");
-        //return -1;
+        return -1;
     }
 
     ln_genesishash_set(btc_block_get_genesis_hash(gtype));

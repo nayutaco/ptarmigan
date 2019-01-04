@@ -5,7 +5,9 @@ CXX=g++
 MK := mkdir
 RM := rm -rf
 
-TEST_TARGET_SRC += test_main.cpp
+TEST_TARGET_SRC += \
+	test_main.cpp \
+	test_ln.cpp
 
 
 ################################
@@ -37,16 +39,15 @@ LDFLAGS  += -Wl,--gc-sections
 
 TEST_SRC_FILE_NAMES = $(notdir $(TEST_TARGET_SRC))
 TEST_PATHS = $(call remduplicates, $(dir $(TEST_TARGET_SRC) ) )
-TEST_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(TEST_SRC_FILE_NAMES:.cpp=.o) )
+TEST_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(TEST_SRC_FILE_NAMES:.cpp=) )
 
 
 vpath %.cpp $(TEST_PATHS)
 
 
-all: .Depend unittest
+all: .Depend unittest 
 
 unittest: $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TEST_OBJECTS) $(GTEST_DIR)/gtest_main.a -o $(OBJECT_DIRECTORY)/$@ $(LDFLAGS)
 
 $(OBJECT_DIRECTORY):
 	@echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -54,10 +55,10 @@ $(OBJECT_DIRECTORY):
 	@echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 	@$(MK) $@
 
-# Create objects from C SRC files
-$(OBJECT_DIRECTORY)/%.o: %.cpp
+# Create objects from CPP SRC files
+$(OBJECT_DIRECTORY)/%: %.cpp
 	@echo Compiling file: $(notdir $<) $@
-	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) -c -o $@ $<
+	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
 
 $(GTEST_DIR)/gtest_main.a:
 	make -C $(GTEST_DIR)
@@ -68,7 +69,7 @@ ifneq ($(MAKECMDGOALS),clean)
 endif
 
 rmlcov:
-	$(RM) $(OBJECT_DIRECTORY)/*.gcda
+	$(RM) $(OBJECT_DIRECTORY)/*.gcda *.gcda
 
 clean:
 	@$(RM) $(OBJECT_DIRECTORY) .Depend
@@ -78,7 +79,7 @@ clobber: clean
 
 exec: rmlcov
 	$(RM) $(OBJECT_DIRECTORY)/lcov.info
-	$(OBJECT_DIRECTORY)/unittest
+	$(foreach EXEC,$(TEST_OBJECTS),$(EXEC);)
 
 info:
 	@echo TEST_TARGET_SRC=$(TEST_TARGET_SRC)
