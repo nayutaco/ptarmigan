@@ -334,6 +334,9 @@ bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, uint32_t Index, const utl_buf_t
 
 bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 {
+    //XXX: check error
+    // segwit but non-witness is not permitted
+
     bool ret = false;
     uint32_t tmp_u32;
     uint64_t tmp_u64;

@@ -641,6 +641,11 @@ bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enabl
     //witness...wit
     //locktime[4]
 
+    //XXX: check error
+    // enableSegWit but non-witness is not permitted
+    // or we can automatically determine that it is a segwit transaction
+    // from the existence of witness
+
     //version + vin_cnt + vout_cnt
     uint32_t len = sizeof(uint32_t) + btcl_util_get_varint_len(pTx->vin_cnt) + btcl_util_get_varint_len(pTx->vout_cnt);
     bool segwit = false;

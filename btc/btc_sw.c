@@ -409,10 +409,11 @@ bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
 {
     utl_buf_t txbuf = UTL_BUF_INIT;
 
-    if (!btc_sw_is_segwit(pTx)) {
-        assert(0);
-        return false;
-    }
+    //XXX: if tx is non-segwit, WTXID == TXID
+    //if (!btc_sw_is_segwit(pTx)) {
+    //    assert(0);
+    //    return false;
+    //}
 
     bool ret = btcl_util_create_tx(&txbuf, pTx, true);
     if (!ret) {
@@ -429,6 +430,9 @@ LABEL_EXIT:
 
 bool btc_sw_is_segwit(const btc_tx_t *pTx)
 {
+    //https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki
+    // If the witness is empty, the old serialization format should be used.
+
     bool ret = false;
 
     for (int lp = 0; lp < pTx->vin_cnt; lp++) {
