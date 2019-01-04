@@ -44,7 +44,7 @@ FAKE_VALUE_FUNC(int, cmd_json_pay_retry, const uint8_t*);
 
 #ifndef USE_SPV
 #else
-FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t*, uint64_t, const uint8_t*, int, const utl_buf_t*, bool, const uint8_t*);
+FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t*, uint64_t, const uint8_t*, int, const utl_buf_t*, bool, const uint8_t*, uint32_t);
 FAKE_VOID_FUNC(btcrpc_set_committxid, const ln_self_t*);
 #endif
 

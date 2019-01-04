@@ -247,9 +247,20 @@ bool ln_db_self_load_status(ln_self_t *self);
 /** save self->status
  * 
  * @param[in]           self            channel info
- * @retval  load result
+ * @retval  save result
  */
 bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam);
+
+
+#ifndef USE_SPV
+#else
+/** save self->last_confirm
+ * 
+ * @param[in]           self            channel info
+ * @retval  save result
+ */
+bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam);
+#endif
 
 
 /** short_channel_idが自分が持つチャネルかどうか

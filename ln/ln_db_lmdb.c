@@ -358,6 +358,7 @@ static const backup_param_t DBSELF_VALUES[] = {
 #ifndef USE_SPV
 #else
     M_ITEM(ln_self_t, funding_bhash),   //[FUNDSPV01]
+    M_ITEM(ln_self_t, last_confirm),    //[FUNDSPV02]
 #endif
 
     //
@@ -1115,8 +1116,24 @@ bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam)
     const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, status);
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDbParam;
     int retval = self_item_save(self, &DBSELF_KEY, p_db);
+
+    LOGD("status=%02x, retval=%d\n", self->status, retval);
     return retval == 0;
 }
+
+
+#ifndef USE_SPV
+#else
+bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam)
+{
+    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, last_confirm);
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDbParam;
+    int retval = self_item_save(self, &DBSELF_KEY, p_db);
+
+    LOGD("last_confirm=%" PRIu32 ", retval=%d\n", self->last_confirm, retval);
+    return retval == 0;
+}
+#endif
 
 
 void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)

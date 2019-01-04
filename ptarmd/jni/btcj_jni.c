@@ -91,7 +91,7 @@ const struct {
     // METHOD_PTARM_ESTIMATEFEE,
     { "estimateFee", "()J" },
     // METHOD_PTARM_SETCHANNEL,
-    { "setChannel", "([BJ[BI[B[B)V" },
+    { "setChannel", "([BJ[BI[B[BI)V" },
     // METHOD_PTARM_DELCHANNEL,
     { "delChannel", "([B)V" },
     // METHOD_PTARM_SETCOMMITTXID,
@@ -574,11 +574,13 @@ void btcj_set_channel(
     const uint8_t *pFundingTxid,
     int FundingIndex,
     const uint8_t *pScriptPubKey,
-    const uint8_t *pMinedHash)
+    const uint8_t *pMinedHash,
+    uint32_t LastConfirm)
 {
     btcj_buf_t peer_id = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
     jbyteArray aryPeer = buf2jbarray(&peer_id);
     jlong sci = ShortChannelId;
+    jint last_confirm = (jint)LastConfirm;
 
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)pFundingTxid, BTC_SZ_TXID };
     jobject txHash = buf2jbarray(&buf);
@@ -592,7 +594,7 @@ void btcj_set_channel(
     LOGD("sci=%016" PRIx64 "\n", sci);
     (*env)->CallVoidMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
                               aryPeer, sci, txHash, FundingIndex, aryScriptPubKey,
-                              blkhash);
+                              blkhash, last_confirm);
     LOGD("called\n");
     check_exception(env);
     //

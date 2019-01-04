@@ -209,13 +209,15 @@ void btcrpc_set_creationhash(const uint8_t *pHash);
  * @param[in]   FundingIdx      funding vout index
  * @param[in]   pRedeemScript   funding_txのvout
  * @param[in]   pMinedHash      funding_txがマイニングされたblock hash(NULLの場合、変更しない)
+ * @param[in]   LastConfirm     last checked funding_tx confirmation
  */
 void btcrpc_set_channel(const uint8_t *pPeerId,
                 uint64_t ShortChannelId,
                 const uint8_t *pFundingTxid,
                 int FundingIdx,
                 const utl_buf_t *pRedeemScript,
-                const uint8_t *pMinedHash);
+                const uint8_t *pMinedHash,
+                uint32_t LastConfirm);
 
 
 /** [bitcoin IF]channel削除
