@@ -218,200 +218,64 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitne
         if (!btc_scriptsig_create_p2sh_p2wsh(&vin->script, pWitness, Num)) return false;
     }
 
-    if (vin->wit_item_cnt != 0) {
-        //一度解放する
-        for (uint32_t lp = 0; lp < vin->wit_item_cnt; lp++) {
-            utl_buf_free(&vin->witness[lp]);
-        }
-        vin->wit_item_cnt = 0;
-    }
-    for (int lp = 0; lp < Num; lp++) {
-        utl_buf_t *p = btc_tx_add_wit(vin);
-        utl_buf_alloccopy(p, pWitness[lp]->buf, pWitness[lp]->len);
-    }
-    return true;
+    //witness
+    return btc_witness_create_p2wsh(&vin->witness, &vin->wit_item_cnt, pWitness, Num);
 }
 
 
-bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pPubKeyHash)
+bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pHash)
 {
+    bool ret = false;
     btc_vin_t *vin = &(pTx->vin[Index]);
-    if (vin->wit_item_cnt != 2) {
-        //P2WPKHのwitness itemは2
-        return false;
-    }
+    utl_buf_t script_code = UTL_BUF_INIT;
 
+    if (vin->wit_item_cnt != 2) return false;
     const utl_buf_t *p_sig = &vin->witness[0];
     const utl_buf_t *p_pub = &vin->witness[1];
+    if (p_pub->len != BTC_SZ_PUBKEY) return false;
 
-    if (p_pub->len != BTC_SZ_PUBKEY) {
-        return false;
+    //check pkh
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY); //pkh
+    if (!mNativeSegwit) {
+        //P2SH-P2WPKH
+        btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
+        btc_util_create_pkh2wpkh(hash, hash); //pkh -> sh
     }
+    if (memcmp(hash, pHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
 
-    utl_buf_t script_code = UTL_BUF_INIT;
-    if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) {
-        return false;
-    }
-
-    bool ret;
+    //check sig
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
-    if (ret) {
-        ret = btc_sig_verify(p_sig, txhash, p_pub->buf);
-    }
-    if (ret) {
-        //pubKeyHashチェック
-        uint8_t pkh[BTC_SZ_HASH_MAX];
+    if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(txhash, pTx, Index, Value, &script_code)) goto LABEL_EXIT;
+    if (!btc_sig_verify(p_sig, txhash, p_pub->buf)) goto LABEL_EXIT;
 
-        btc_util_hash160(pkh, p_pub->buf, BTC_SZ_PUBKEY);
-        if (!mNativeSegwit) {
-            btc_util_create_pkh2wpkh(pkh, pkh);
-        }
-        ret = (memcmp(pkh, pPubKeyHash, BTC_SZ_HASH160) == 0);
-    }
+    ret = true;
 
+LABEL_EXIT:
     utl_buf_free(&script_code);
-
     return ret;
 }
 
 
 bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const char *pAddr)
 {
-    bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
-
     int pref;
-    ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (mNativeSegwit) {
-        if (ret && (pref == BTC_PREF_P2WPKH)) {
-            ret = btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
-        } else {
-            ret = false;
-        }
-    } else {
-        if (ret && (pref == BTC_PREF_P2SH)) {
-            ret = btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
-        } else {
-            ret = false;
-        }
-    }
 
-    return ret;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (mNativeSegwit) {
+        if (pref != BTC_PREF_P2WPKH) return false;
+    } else {
+        if (pref != BTC_PREF_P2SH) return false;
+    }
+    return btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
 }
 
 
-bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pVout)
+bool btc_sw_verify_p2wsh_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
-    if (pTx->vin[Index].wit_item_cnt != 4) {
-        //2-of-2は4項目
-        LOGD("items not 4.n");
-        return false;
-    }
-
-    utl_buf_t *wits = pTx->vin[Index].witness;
-    utl_buf_t *wit;
-
-    //このvinはP2SHの予定
-    //      1. 前のvoutのpubKeyHashが、redeemScriptから計算したpubKeyHashと一致するか確認
-    //      2. 署名チェック
-    //
-    //  none
-    //  <署名1>
-    //  <署名2>
-    //  redeemScript
-
-    //none
-    wit = &wits[0];
-    if (wit->len != 0) {
-        LOGD("top isnot none\n");
-        return false;
-    }
-
-    //署名
-    const utl_buf_t *sig1 = &wits[1];
-    if ((sig1->len == 0) || (sig1->buf[sig1->len - 1] != SIGHASH_ALL)) {
-        //SIGHASH_ALLではない
-        LOGD("SIG1: not SIGHASH_ALL\n");
-        return false;
-    }
-    const utl_buf_t *sig2 = &wits[2];
-    if ((sig2->len == 0) || (sig2->buf[sig2->len - 1] != SIGHASH_ALL)) {
-        //SIGHASH_ALLではない
-        LOGD("SIG2: not SIGHASH_ALL\n");
-        return false;
-    }
-
-    //witnessScript
-    wit = &wits[3];
-    if (wit->len != 71) {
-        //2-of-2 witnessScriptのサイズではない
-        LOGD("witScript: invalid length: %u\n", wit->len);
-        return false;
-    }
-    const uint8_t *p = wit->buf;
-    if ( (*p != OP_2) || (*(p + 1) != BTC_SZ_PUBKEY) || (*(p + 35) != BTC_SZ_PUBKEY) ||
-         (*(p + 69) != OP_2) || (*(p + 70) != OP_CHECKMULTISIG) ) {
-        //2-of-2のredeemScriptではない
-        LOGD("witScript: invalid script\n");
-        LOGD("1: %d\n", (*p != OP_2));
-        LOGD("2: %d\n", (*(p + 1) != BTC_SZ_PUBKEY));
-        LOGD("3: %d\n", (*(p + 35) != BTC_SZ_PUBKEY));
-        LOGD("4: %d\n", (*(p + 69) != OP_2));
-        LOGD("5: %d\n", (*(p + 70) != OP_CHECKMULTISIG));
-        return false;
-    }
-    const uint8_t *pub1 = p + 2;
-    const uint8_t *pub2 = p + 36;
-
-    //pubkeyhashチェック
-    //  native segwit
-    //      00 [len] [pubkeyHash/scriptHash]
-    if (pVout->buf[0] != 0x00) {
-        LOGD("invalid previous vout(not native segwit)\n");
-        return false;
-    }
-    if (pVout->buf[1] == BTC_SZ_HASH256) {
-        //native P2WSH
-        uint8_t pkh[BTC_SZ_HASH256];
-        btc_util_sha256(pkh, wit->buf, wit->len);
-        bool ret = (memcmp(pkh, &pVout->buf[2], BTC_SZ_HASH256) == 0);
-        if (!ret) {
-            LOGD("pubkeyhash mismatch.\n");
-            return false;
-        }
-    } else {
-        LOGD("invalid previous vout length(not P2WSH)\n");
-        return false;
-    }
-
-    //署名チェック
-    //      2-of-2なので、順番通りに全一致
-#if 1
-    bool ret = btc_sig_verify(sig1, pTxHash, pub1);
-    if (ret) {
-        ret = btc_sig_verify(sig2, pTxHash, pub2);
-        if (!ret) {
-            LOGD("fail: btc_sig_verify(sig2)\n");
-        }
-    } else {
-        LOGD("fail: btc_sig_verify(sig1)\n");
-    }
-#else
-    bool ret1 = btc_sig_verify(sig1, pTxHash, pub1);
-    bool ret2 = btc_sig_verify(sig2, pTxHash, pub2);
-    bool ret3 = btc_sig_verify(sig1, pTxHash, pub2);
-    bool ret4 = btc_sig_verify(sig2, pTxHash, pub1);
-    bool ret = ret1 && ret2;
-    printf("txhash=");
-    DUMPD(pTxHash, BTC_SZ_HASH256);
-    printf("ret1=%d\n", ret1);
-    printf("ret2=%d\n", ret2);
-    printf("ret3=%d\n", ret3);
-    printf("ret4=%d\n", ret4);
-#endif
-
-    return ret;
+    return btc_witness_verify_p2wsh_2of2(pTx->vin[Index].witness, pTx->vin[Index].wit_item_cnt, pTxHash, pScriptPk);
 }
 
 
@@ -428,10 +292,11 @@ bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
 {
     utl_buf_t txbuf = UTL_BUF_INIT;
 
-    if (!btc_sw_is_segwit(pTx)) {
-        assert(0);
-        return false;
-    }
+    //XXX: if tx is non-segwit, WTXID == TXID
+    //if (!btc_sw_is_segwit(pTx)) {
+    //    assert(0);
+    //    return false;
+    //}
 
     bool ret = btcl_util_create_tx(&txbuf, pTx, true);
     if (!ret) {
@@ -448,6 +313,9 @@ LABEL_EXIT:
 
 bool btc_sw_is_segwit(const btc_tx_t *pTx)
 {
+    //https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki
+    // If the witness is empty, the old serialization format should be used.
+
     bool ret = false;
 
     for (int lp = 0; lp < pTx->vin_cnt; lp++) {

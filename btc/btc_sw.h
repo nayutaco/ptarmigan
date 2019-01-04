@@ -158,13 +158,16 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitne
  * @param[in]       pTx             チェック対象
  * @param[in]       Index           対象vin
  * @param[in]       Value           該当するvinのvalue
- * @param[in]       pPubKeyHash     該当するvinのPubKeyHash(P2SH)
+ * @param[in]       pHash           該当するvinのHash(#BTC_SZ_HASH_MAX)
  * @return      true:チェックOK
  *
  * @note
- *      - pPubKeyHashは、pTxの署名部分が持つ公開鍵から生成したPubKeyHashと比較する
+ *      - if mNativeSegwit == true then P2WPKH
+ *          pHash is pubKeyHash
+ *      - if mNativeSegwit == false then P2SH-P2WPKH
+ *          pHash is scriptHash
  */
-bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pHash);
 
 
 /** P2WPKH署名チェック(アドレス)
@@ -181,7 +184,7 @@ bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Val
 /** 2-of-2 multisigの署名チェック
  *
  */
-bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pVout);
+bool btc_sw_verify_p2wsh_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 #if 0   //今のところ使い道がない
