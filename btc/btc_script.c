@@ -290,21 +290,6 @@ LABEL_EXIT:
 }
 
 
-bool btc_scriptsig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
-{
-    uint8_t hash[BTC_SZ_HASH_MAX];
-    int pref;
-    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (ret && (pref == BTC_PREF_P2PKH)) {
-        ret = btc_scriptsig_verify_p2pkh(pScriptSig, pTxHash, hash);
-    } else {
-        ret = false;
-    }
-
-    return ret;
-}
-
-
 bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
     //XXX: should impl stack operation
@@ -490,21 +475,6 @@ bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t
     ret =  btc_scriptsig_verify_p2sh_multisig(pScriptSig, pTxHash, pScriptPk->buf + 2);
 
 LABEL_EXIT:
-    return ret;
-}
-
-
-bool btc_scriptsig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
-{
-    uint8_t hash[BTC_SZ_HASH_MAX];
-    int pref;
-    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (ret && (pref == BTC_PREF_P2SH)) {
-        ret = btc_scriptsig_verify_p2sh_multisig(pScriptSig, pTxHash, hash);
-    } else {
-        ret = false;
-    }
-
     return ret;
 }
 

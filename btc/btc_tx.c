@@ -554,7 +554,11 @@ bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t 
 
 bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    return btc_scriptsig_verify_p2pkh_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    int pref;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (pref != BTC_PREF_P2PKH) return false;
+    return btc_scriptsig_verify_p2pkh(&pTx->vin[Index].script, pTxHash, hash);
 }
 
 
@@ -572,7 +576,11 @@ bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, uint32_t Index, const 
 
 bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    return btc_scriptsig_verify_p2sh_multisig_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    int pref;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (pref != BTC_PREF_P2SH) return false;
+    return btc_scriptsig_verify_p2sh_multisig(&pTx->vin[Index].script, pTxHash, hash);
 }
 
 
