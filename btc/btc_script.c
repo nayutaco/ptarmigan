@@ -168,6 +168,23 @@ bool btc_scriptsig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPub
 }
 
 
+bool btc_scriptsig_create_p2sh_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitness[], int Num)
+{
+    if (!Num) return false;
+
+    if (!utl_buf_realloc(pScriptSig, 1 + 1 + 1 + BTC_SZ_HASH256)) return false;
+
+    uint8_t *p = pScriptSig->buf;
+    //len + <witness program>
+    *p++ = 0x22;
+    //witness program
+    *p++ = 0x00;
+    *p++ = (uint8_t)BTC_SZ_HASH256;
+    btc_util_sha256(p, pWitness[Num - 1]->buf, pWitness[Num - 1]->len);
+    return true;
+}
+
+
 bool btc_scriptsig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
     bool ret;

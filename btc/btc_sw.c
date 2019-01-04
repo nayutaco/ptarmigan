@@ -206,31 +206,16 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig,
 }
 
 
-bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWits[], int Num)
+bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitness[], int Num)
 {
-    //P2WSH:
-    //vin
-    //  len + <witness program>
-    //witness
-    //  パターンが固定できないので、pWitsに作ってあるものをそのまま載せる。
     btc_vin_t *vin = &(pTx->vin[Index]);
-    utl_buf_t *p_buf = &vin->script;
 
-    if(mNativeSegwit) {
-        //vin
-        //  空
+    //scriptsig
+    if (mNativeSegwit) {
+        //empty
+        utl_buf_free(&vin->script);
     } else {
-        //vin
-        //  len + <witness program>
-        p_buf->len = 3 + BTC_SZ_HASH256;
-        p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
-        p_buf->buf[0] = 0x22;
-        //witness program
-        p_buf->buf[1] = 0x00;
-        p_buf->buf[2] = (uint8_t)BTC_SZ_HASH256;
-        //witnessScriptのSHA256値
-        //  witnessScriptは一番最後に置かれる
-        btc_util_sha256(p_buf->buf + 3, pWits[Num - 1]->buf, pWits[Num - 1]->len);
+        if (!btc_scriptsig_create_p2sh_p2wsh(&vin->script, pWitness, Num)) return false;
     }
 
     if (vin->wit_item_cnt != 0) {
@@ -242,7 +227,7 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWits[
     }
     for (int lp = 0; lp < Num; lp++) {
         utl_buf_t *p = btc_tx_add_wit(vin);
-        utl_buf_alloccopy(p, pWits[lp]->buf, pWits[lp]->len);
+        utl_buf_alloccopy(p, pWitness[lp]->buf, pWitness[lp]->len);
     }
     return true;
 }

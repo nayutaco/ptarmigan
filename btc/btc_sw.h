@@ -144,13 +144,13 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig,
  *
  * @param[in,out]   pTx         対象トランザクション
  * @param[in]       Index       対象vinのIndex
- * @param[in]       pWits       witnessScript
+ * @param[in]       pWitness    witness
  * @param[in]       Num         pWitの数
  *
  * @note
  *      - pWitはコピーするため解放はpTxで管理しない。
  */
-bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWits[], int Num);
+bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitness[], int Num);
 
 
 /** P2WPKH署名チェック
