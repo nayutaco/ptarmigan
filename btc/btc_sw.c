@@ -273,59 +273,91 @@ bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Val
 }
 
 
-bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pVout)
+bool btc_sw_verify_p2wsh_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     if (pTx->vin[Index].wit_item_cnt != 4) {
-        //2-of-2は4項目
         LOGD("items not 4.n");
         return false;
     }
 
-    utl_buf_t *wits = pTx->vin[Index].witness;
-    utl_buf_t *wit;
+    utl_buf_t *witness = pTx->vin[Index].witness;
+    utl_buf_t *wit_item;
 
-    //このvinはP2SHの予定
-    //      1. 前のvoutのpubKeyHashが、redeemScriptから計算したpubKeyHashと一致するか確認
-    //      2. 署名チェック
+    //verify P2WSH
+    // 1. check witnessScriptHash
+    // 2. check 2of2 multisig
     //
-    //  none
-    //  <署名1>
-    //  <署名2>
-    //  redeemScript
+    //  NULL
+    //  <sig1>
+    //  <sig2>
+    //  witnessScript
+    //
+    // Note: we support `MinimalPush` only.
 
-    //none
-    wit = &wits[0];
-    if (wit->len != 0) {
-        LOGD("top isnot none\n");
+    //check witnessScriptHash
+    // scriptPk (P2WSH-witnessPorg)
+    //      OP_0 <witnessScriptHash>
+    if (pScriptPk->len != 1 + 1 + BTC_SZ_HASH256) {
+        LOGD("invalid P2WSH-witnessProg\n");
+        return false;
+    }
+    if (pScriptPk->buf[0] != OP_0) {
+        LOGD("invalid P2WSH-witnessProg\n");
+        return false;
+    }
+    if (pScriptPk->buf[1] != BTC_SZ_HASH256) {
+        LOGD("invalid P2WSH-witnessProg\n");
+        return false;
+    }
+    uint8_t sh[BTC_SZ_HASH256];
+    wit_item = &witness[3];
+    btc_util_sha256(sh, wit_item->buf, wit_item->len);
+    if (memcmp(sh, &pScriptPk->buf[2], BTC_SZ_HASH256)) {
+        LOGD("pubkeyhash mismatch.\n");
         return false;
     }
 
-    //署名
-    const utl_buf_t *sig1 = &wits[1];
-    if ((sig1->len == 0) || (sig1->buf[sig1->len - 1] != SIGHASH_ALL)) {
-        //SIGHASH_ALLではない
-        LOGD("SIG1: not SIGHASH_ALL\n");
+    //NULL
+    wit_item = &witness[0];
+    if (wit_item->len != 0) {
+        LOGD("witness[0] is not NULL\n");
         return false;
     }
-    const utl_buf_t *sig2 = &wits[2];
-    if ((sig2->len == 0) || (sig2->buf[sig2->len - 1] != SIGHASH_ALL)) {
-        //SIGHASH_ALLではない
-        LOGD("SIG2: not SIGHASH_ALL\n");
+
+    //sigs
+    const utl_buf_t *sig1 = &witness[1];
+    if (sig1->len == 0) {
+        LOGD("sig1: invalid\n");
+        return false;
+    }
+    if (sig1->buf[sig1->len - 1] != SIGHASH_ALL) {
+        LOGD("sig1: not SIGHASH_ALL\n");
+        return false;
+    }
+    const utl_buf_t *sig2 = &witness[2];
+    if (sig2->len == 0) {
+        LOGD("sig2: invalid\n");
+        return false;
+    }
+    if (sig2->buf[sig2->len - 1] != SIGHASH_ALL) {
+        LOGD("sig2: not SIGHASH_ALL\n");
         return false;
     }
 
     //witnessScript
-    wit = &wits[3];
-    if (wit->len != 71) {
-        //2-of-2 witnessScriptのサイズではない
-        LOGD("witScript: invalid length: %u\n", wit->len);
+    wit_item = &witness[3];
+    if (wit_item->len != 71) {
+        // Note: we support `MinimalPush` only.
+        LOGD("witnessScript: invalid length: %u\n", wit_item->len);
         return false;
     }
-    const uint8_t *p = wit->buf;
-    if ( (*p != OP_2) || (*(p + 1) != BTC_SZ_PUBKEY) || (*(p + 35) != BTC_SZ_PUBKEY) ||
-         (*(p + 69) != OP_2) || (*(p + 70) != OP_CHECKMULTISIG) ) {
-        //2-of-2のredeemScriptではない
-        LOGD("witScript: invalid script\n");
+    const uint8_t *p = wit_item->buf;
+    if ( (*p != OP_2) ||
+         (*(p + 1) != BTC_SZ_PUBKEY) ||
+         (*(p + 35) != BTC_SZ_PUBKEY) ||
+         (*(p + 69) != OP_2) ||
+         (*(p + 70) != OP_CHECKMULTISIG) ) {
+        LOGD("witnessScript: non-standard 2-of-2\n");
         LOGD("1: %d\n", (*p != OP_2));
         LOGD("2: %d\n", (*(p + 1) != BTC_SZ_PUBKEY));
         LOGD("3: %d\n", (*(p + 35) != BTC_SZ_PUBKEY));
@@ -336,38 +368,15 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxH
     const uint8_t *pub1 = p + 2;
     const uint8_t *pub2 = p + 36;
 
-    //pubkeyhashチェック
-    //  native segwit
-    //      00 [len] [pubkeyHash/scriptHash]
-    if (pVout->buf[0] != 0x00) {
-        LOGD("invalid previous vout(not native segwit)\n");
-        return false;
-    }
-    if (pVout->buf[1] == BTC_SZ_HASH256) {
-        //native P2WSH
-        uint8_t pkh[BTC_SZ_HASH256];
-        btc_util_sha256(pkh, wit->buf, wit->len);
-        bool ret = (memcmp(pkh, &pVout->buf[2], BTC_SZ_HASH256) == 0);
-        if (!ret) {
-            LOGD("pubkeyhash mismatch.\n");
-            return false;
-        }
-    } else {
-        LOGD("invalid previous vout length(not P2WSH)\n");
-        return false;
-    }
-
-    //署名チェック
-    //      2-of-2なので、順番通りに全一致
+    //verify sigs
 #if 1
-    bool ret = btc_sig_verify(sig1, pTxHash, pub1);
-    if (ret) {
-        ret = btc_sig_verify(sig2, pTxHash, pub2);
-        if (!ret) {
-            LOGD("fail: btc_sig_verify(sig2)\n");
-        }
-    } else {
+    if (!btc_sig_verify(sig1, pTxHash, pub1)) {
         LOGD("fail: btc_sig_verify(sig1)\n");
+        return false;
+    }
+    if (!btc_sig_verify(sig2, pTxHash, pub2)) {
+        LOGD("fail: btc_sig_verify(sig2)\n");
+        return false;
     }
 #else
     bool ret1 = btc_sig_verify(sig1, pTxHash, pub1);
@@ -383,7 +392,7 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxH
     printf("ret4=%d\n", ret4);
 #endif
 
-    return ret;
+    return true;
 }
 
 

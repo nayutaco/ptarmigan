@@ -4512,7 +4512,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     btc_scriptcode_p2wsh(&script_code, &self->redeem_fund);
     ret = btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
     if (ret) {
-        ret = btc_sw_verify_2of2(pTxCommit, 0, sighash,
+        ret = btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash,
                 &self->tx_funding.vout[self->funding_local.txindex].script);
     }
 
@@ -5463,7 +5463,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
         //
         // 署名verify
         //
-        ret = btc_sw_verify_2of2(pTx, 0, sighash,
+        ret = btc_sw_verify_p2wsh_2of2(pTx, 0, sighash,
                         &self->tx_funding.vout[self->funding_local.txindex].script);
     } else {
         LOGD("no verify\n");
