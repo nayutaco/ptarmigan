@@ -306,62 +306,6 @@ bool btc_keys_check_pub(const uint8_t *pPubKey)
 }
 
 
-bool btc_keys_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
-{
-    utl_buf_alloc(pRedeem, BTC_SZ_2OF2);
-
-    uint8_t *p = pRedeem->buf;
-
-    /*
-     * OP_2
-     * 0x21 (pubkey1[0x21])
-     * 0x21 (pubkey2[0x21])
-     * OP_2
-     * OP_CHECKMULTISIG
-     */
-    *p++ = OP_2;
-    *p++ = (uint8_t)BTC_SZ_PUBKEY;
-    memcpy(p, pPubKey1, BTC_SZ_PUBKEY);
-    p += BTC_SZ_PUBKEY;
-    *p++ = (uint8_t)BTC_SZ_PUBKEY;
-    memcpy(p, pPubKey2, BTC_SZ_PUBKEY);
-    p += BTC_SZ_PUBKEY;
-    *p++ = OP_2;
-    *p++ = OP_CHECKMULTISIG;
-    return true;
-}
-
-
-bool btc_keys_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
-{
-    if (Num > 16) return false;
-    if (M > 16) return false;
-    if (M > Num) return false;
-
-    utl_buf_alloc(pRedeem, 3 + Num * (BTC_SZ_PUBKEY + 1));
-
-    uint8_t *p = pRedeem->buf;
-
-    /*
-     * OP_n
-     * 0x21 (pubkey1[0x21])
-     *   ...
-     * 0x21 (pubkeyn[0x21])
-     * OP_m
-     * OP_CHECKMULTISIG
-     */
-    *p++ = OP_x + M;
-    for (int lp = 0; lp < Num; lp++) {
-        *p++ = (uint8_t)BTC_SZ_PUBKEY;
-        memcpy(p, pPubKeys[lp], BTC_SZ_PUBKEY);
-        p += BTC_SZ_PUBKEY;
-    }
-    *p++ = OP_x + Num;
-    *p++ = OP_CHECKMULTISIG;
-    return true;
-}
-
-
 bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
 {
     bool ret;

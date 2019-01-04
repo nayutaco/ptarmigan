@@ -102,9 +102,9 @@ bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint
 {
     *pSort = pubkey_sort_2of2(pPubKey1, pPubKey2);
     if (*pSort == BTC_KEYS_SORT_ASC) {
-        return btc_keys_create_2of2(pRedeem, pPubKey1, pPubKey2);
+        return btc_redeem_create_2of2(pRedeem, pPubKey1, pPubKey2);
     } else {
-        return btc_keys_create_2of2(pRedeem, pPubKey2, pPubKey1);
+        return btc_redeem_create_2of2(pRedeem, pPubKey2, pPubKey1);
     }
 }
 

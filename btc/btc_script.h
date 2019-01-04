@@ -76,23 +76,19 @@ bool btc_scriptsig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *
 bool btc_scriptsig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPubKey);
 bool btc_scriptsig_create_p2sh_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
 bool btc_scriptsig_create_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
-//XXX: comment
 bool btc_scriptsig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
-//XXX: comment
 bool btc_scriptsig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 bool btc_scriptsig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 bool btc_scriptsig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr);
 bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
 bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 bool btc_scriptsig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr);
-//XXX: comment
+bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
 bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
-//XXX: comment
 bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-//XXX: comment
 bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk);
-//XXX: comment
 int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk);
 
 
