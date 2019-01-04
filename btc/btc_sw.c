@@ -53,15 +53,18 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
 {
     if (!pWitScript->len) return false;
 
-    uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
-    btc_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        if (!utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog))) return false;
+        if (!btc_scriptsig_create_p2wsh(&vout->script, pWitScript)) return false;
     } else {
+        utl_buf_t script_sig = UTL_BUF_INIT;
+        if (!btc_scriptsig_create_p2wsh(&script_sig, pWitScript)) {
+            utl_buf_free(&script_sig);
+            return false;
+        }
         uint8_t sh[BTC_SZ_HASH_MAX];
-
-        btc_util_hash160(sh, wit_prog, sizeof(wit_prog));
+        btc_util_hash160(sh, script_sig.buf, script_sig.len);
+        utl_buf_free(&script_sig);
         if (!btc_tx_add_vout_p2sh(pTx, Value, sh)) return false;
     }
     return true;
@@ -94,8 +97,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 }
 
 
-bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value,
-                const utl_buf_t *pScriptCode)
+bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode)
 {
     // [transaction version : 4]
     // [hash_prevouts : 32]
@@ -208,6 +210,8 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig,
 
 bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitness[], int Num)
 {
+    if (!Num) return false;
+
     btc_vin_t *vin = &(pTx->vin[Index]);
 
     //scriptsig
@@ -215,7 +219,7 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitne
         //empty
         utl_buf_free(&vin->script);
     } else {
-        if (!btc_scriptsig_create_p2sh_p2wsh(&vin->script, pWitness, Num)) return false;
+        if (!btc_scriptsig_create_p2sh_p2wsh(&vin->script, pWitness[Num - 1])) return false;
     }
 
     //witness

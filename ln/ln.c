@@ -1576,8 +1576,8 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
-    utl_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], BTC_SZ_WITPROG_P2WSH);
-    btc_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
+    utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
+    btc_scriptsig_create_p2wsh(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     // LOGD("calc to_local vout: ");
     // DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
 
@@ -1610,8 +1610,8 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
-                utl_buf_alloc(&self->p_revoked_vout[htlc_idx], BTC_SZ_WITPROG_P2WSH);
-                btc_sw_wit2prog_p2wsh(self->p_revoked_vout[htlc_idx].buf, &self->p_revoked_wit[htlc_idx]);
+                utl_buf_init(&self->p_revoked_vout[htlc_idx]);
+                btc_scriptsig_create_p2wsh(&self->p_revoked_vout[htlc_idx], &self->p_revoked_wit[htlc_idx]);
                 self->p_revoked_type[htlc_idx] = type;
 
                 LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_HTLCTYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
@@ -4257,17 +4257,17 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
 
             //search funding vout
             ret = false;
-            uint8_t witprog[BTC_SZ_WITPROG_P2WSH];
-            btc_sw_wit2prog_p2wsh(witprog, &self->redeem_fund);
-            const utl_buf_t TWOOFTWO = { witprog, sizeof(witprog) };
+            utl_buf_t two_of_two = UTL_BUF_INIT;
+            btc_scriptsig_create_p2wsh(&two_of_two, &self->redeem_fund);
             for (uint32_t lp = 0; lp < self->tx_funding.vout_cnt; lp++) {
-                if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &TWOOFTWO)) {
+                if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &two_of_two)) {
                     self->funding_local.txindex = (uint16_t)lp;
                     ret = true;
                     LOGD("funding_txindex=%d\n", self->funding_local.txindex);
                     break;
                 }
             }
+            utl_buf_free(&two_of_two);
         } else {
             LOGD("fail: signature\n");
             btc_tx_free(&self->tx_funding);
@@ -4905,12 +4905,13 @@ static bool create_to_remote(const ln_self_t *self,
                         pp_htlcinfo[lp]->expiry);
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
-        uint8_t vout[BTC_SZ_WITPROG_P2WSH];
-        btc_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[lp]->script);
+        utl_buf_t vout = UTL_BUF_INIT;
+        btc_scriptsig_create_p2wsh(&vout, &pp_htlcinfo[lp]->script);
         ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
-                        vout,
+                        vout.buf,
                         pp_htlcinfo[lp]->type,
                         pp_htlcinfo[lp]->expiry);
+        utl_buf_free(&vout);
 #endif  //LN_UGLY_NORMAL
     }
 
