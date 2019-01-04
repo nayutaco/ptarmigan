@@ -533,9 +533,16 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index,
-                const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
+bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
+    uint8_t pubkey[BTC_SZ_PUBKEY];
+    if (pPubKey == NULL) {
+        if (!btc_keys_priv2pub(pubkey, pPrivKey)) {
+            assert(0);
+            return false;
+        }
+        pPubKey = pubkey;
+    }
     return btc_scriptsig_sign_p2pkh(&(pTx->vin[Index].script), pTxHash, pPrivKey, pPubKey);
 }
 

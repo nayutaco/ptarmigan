@@ -197,28 +197,15 @@ bool btc_scriptsig_create_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitScri
 
 bool btc_scriptsig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
-    bool ret;
-    uint8_t pubkey[BTC_SZ_PUBKEY];
+    assert(pPubKey);
+
+    bool ret = false;
     utl_buf_t sigbuf = UTL_BUF_INIT;
 
-    if (pPubKey == NULL) {
-        ret = btc_keys_priv2pub(pubkey, pPrivKey);
-        if (!ret) {
-            assert(0);
-            goto LABEL_EXIT;
-        }
-        pPubKey = pubkey;
-    }
+    if (!btc_sig_sign(&sigbuf, pTxHash, pPrivKey)) goto LABEL_EXIT;
+    if (!btc_scriptsig_create_p2pkh(pScriptSig, &sigbuf, pPubKey)) goto LABEL_EXIT;
 
-    ret = btc_sig_sign(&sigbuf, pTxHash, pPrivKey);
-    if (!ret) {
-        goto LABEL_EXIT;
-    }
-
-    ret = btc_scriptsig_create_p2pkh(pScriptSig, &sigbuf, pPubKey);
-    if (!ret) {
-        goto LABEL_EXIT;
-    }
+    ret = true;
 
 LABEL_EXIT:
     utl_buf_free(&sigbuf);
