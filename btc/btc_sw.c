@@ -77,7 +77,7 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    return btc_script_code_p2wpkh(pScriptCode, pVin->witness[1].buf);
+    return btc_scriptcode_p2wpkh(pScriptCode, pVin->witness[1].buf);
 }
 
 
@@ -90,7 +90,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    return btc_script_code_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
+    return btc_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
 }
 
 
@@ -198,11 +198,11 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig,
         //empty
         utl_buf_free(&vin->script);
     } else {
-        if (!btc_script_sig_create_p2sh_p2wpkh(&vin->script, pPubKey)) return false;
+        if (!btc_scriptsig_create_p2sh_p2wpkh(&vin->script, pPubKey)) return false;
     }
 
     //witness
-    return btc_script_witness_create_p2wpkh(&vin->witness, &vin->wit_item_cnt, pSig, pPubKey);
+    return btc_witness_create_p2wpkh(&vin->witness, &vin->wit_item_cnt, pSig, pPubKey);
 }
 
 
@@ -264,7 +264,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     }
 
     utl_buf_t script_code = UTL_BUF_INIT;
-    if (!btc_script_code_p2wpkh(&script_code, p_pub->buf)) {
+    if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) {
         return false;
     }
 

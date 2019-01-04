@@ -120,7 +120,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
     utl_buf_t scrpk = UTL_BUF_INIT;
     uint8_t pkh[BTC_SZ_HASH_MAX];
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
-    btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
+    btc_scriptpk_create(&scrpk, pkh, BTC_PREF_P2PKH);
 
     const utl_buf_t *scrpks[] = { &scrpk };
 
@@ -142,7 +142,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
     uint8_t pkh[BTC_SZ_HASH_MAX];
     utl_buf_t scrpk = UTL_BUF_INIT;
     btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
-    btc_script_pk_create(&scrpk, pkh, BTC_PREF_P2PKH);
+    btc_scriptpk_create(&scrpk, pkh, BTC_PREF_P2PKH);
     const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[BTC_SZ_HASH256];
@@ -169,7 +169,7 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
         return false;
     }
 
-    if (!btc_script_code_p2wpkh(&script_code, pKeys->pub)) {
+    if (!btc_scriptcode_p2wpkh(&script_code, pKeys->pub)) {
         LOGD("fail\n");
         return false;
     }
@@ -201,7 +201,7 @@ bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t
         return false;
     }
 
-    if (!btc_script_code_p2wsh(&script_code, pWitScript)) return false;
+    if (!btc_scriptcode_p2wsh(&script_code, pWitScript)) return false;
     if (!btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code)) return false;
     utl_buf_free(&script_code);
     return true;
@@ -753,7 +753,7 @@ bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t 
 bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    return btc_script_pk_create(&vout->script, pPubKeyHash, Pref);
+    return btc_scriptpk_create(&vout->script, pPubKeyHash, Pref);
 }
 
 

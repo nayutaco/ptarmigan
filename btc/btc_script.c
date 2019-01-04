@@ -61,7 +61,7 @@ static void free_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt);
  * public functions
  **************************************************************************/
 
-bool btc_script_pk_create(utl_buf_t *pScriptPk, const uint8_t *pHash, int Prefix)
+bool btc_scriptpk_create(utl_buf_t *pScriptPk, const uint8_t *pHash, int Prefix)
 {
     switch (Prefix) {
     case BTC_PREF_P2PKH:
@@ -92,7 +92,7 @@ bool btc_script_pk_create(utl_buf_t *pScriptPk, const uint8_t *pHash, int Prefix
 }
 
 
-bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey)
+bool btc_scriptsig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     if (!pSig->len) return false;
 
@@ -108,7 +108,7 @@ bool btc_script_sig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, c
 }
 
 
-bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
+bool btc_scriptsig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
 {
     //XXX: should use push opcode 0x01-0x4b
     assert(false);
@@ -153,7 +153,7 @@ bool btc_script_sig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t 
 }
 
 
-bool btc_script_sig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPubKey)
+bool btc_scriptsig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPubKey)
 {
     if (!utl_buf_realloc(pScriptSig, 1 + 1 + 1 + BTC_SZ_HASH160)) return false;
 
@@ -168,7 +168,7 @@ bool btc_script_sig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPu
 }
 
 
-bool btc_script_sig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
+bool btc_scriptsig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
     bool ret;
     uint8_t pubkey[BTC_SZ_PUBKEY];
@@ -188,7 +188,7 @@ bool btc_script_sig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, co
         goto LABEL_EXIT;
     }
 
-    ret = btc_script_sig_create_p2pkh(pScriptSig, &sigbuf, pPubKey);
+    ret = btc_scriptsig_create_p2pkh(pScriptSig, &sigbuf, pPubKey);
     if (!ret) {
         goto LABEL_EXIT;
     }
@@ -200,7 +200,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_script_sig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
+bool btc_scriptsig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
 {
     //scriptSig(P2PSH): <sig> <pubKey>
 
@@ -237,7 +237,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_script_sig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+bool btc_scriptsig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     //scriptPubKey(P2PKH): DUP HASH160 0x14 <20 bytes> EQUALVERIFY CHECKSIG
 
@@ -256,20 +256,20 @@ bool btc_script_sig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHa
         goto LABEL_EXIT;
     }
 
-    ret =  btc_script_sig_verify_p2pkh(pScriptSig, pTxHash, pScriptPk->buf + 3);
+    ret =  btc_scriptsig_verify_p2pkh(pScriptSig, pTxHash, pScriptPk->buf + 3);
 
 LABEL_EXIT:
     return ret;
 }
 
 
-bool btc_script_sig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
+bool btc_scriptsig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        ret = btc_script_sig_verify_p2pkh(pScriptSig, pTxHash, hash);
+        ret = btc_scriptsig_verify_p2pkh(pScriptSig, pTxHash, hash);
     } else {
         ret = false;
     }
@@ -278,7 +278,7 @@ bool btc_script_sig_verify_p2pkh_addr(utl_buf_t *pScriptSig, const uint8_t *pTxH
 }
 
 
-bool btc_script_sig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash)
+bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
     //XXX: should impl stack operation
     //XXX: can't parse push opcode 0x01-0x4b
@@ -444,7 +444,7 @@ bool btc_script_sig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *p
 }
 
 
-bool btc_script_sig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     bool ret = false;
 
@@ -460,20 +460,20 @@ bool btc_script_sig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_
         goto LABEL_EXIT;
     }
 
-    ret =  btc_script_sig_verify_p2sh_multisig(pScriptSig, pTxHash, pScriptPk->buf + 2);
+    ret =  btc_scriptsig_verify_p2sh_multisig(pScriptSig, pTxHash, pScriptPk->buf + 2);
 
 LABEL_EXIT:
     return ret;
 }
 
 
-bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
+bool btc_scriptsig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2SH)) {
-        ret = btc_script_sig_verify_p2sh_multisig(pScriptSig, pTxHash, hash);
+        ret = btc_scriptsig_verify_p2sh_multisig(pScriptSig, pTxHash, hash);
     } else {
         ret = false;
     }
@@ -482,7 +482,7 @@ bool btc_script_sig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8
 }
 
 
-bool btc_script_witness_create_p2wpkh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey)
+bool btc_witness_create_p2wpkh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     free_witness(ppWitness, pWitItemCnt);
 
@@ -496,7 +496,7 @@ bool btc_script_witness_create_p2wpkh(utl_buf_t **ppWitness, uint32_t *pWitItemC
 }
 
 
-bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
+bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     // scriptCode: 0x1976a914{20-byte keyhash}88ac
@@ -510,7 +510,7 @@ bool btc_script_code_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 
 
 //XXX:
-bool btc_script_code_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
+bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     // scriptCode: witnessScript
