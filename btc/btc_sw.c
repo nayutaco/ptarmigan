@@ -223,45 +223,37 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitne
 }
 
 
-bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pPubKeyHash)
+bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const uint8_t *pHash)
 {
+    bool ret = false;
     btc_vin_t *vin = &(pTx->vin[Index]);
-    if (vin->wit_item_cnt != 2) {
-        //P2WPKHのwitness itemは2
-        return false;
-    }
+    utl_buf_t script_code = UTL_BUF_INIT;
 
+    if (vin->wit_item_cnt != 2) return false;
     const utl_buf_t *p_sig = &vin->witness[0];
     const utl_buf_t *p_pub = &vin->witness[1];
+    if (p_pub->len != BTC_SZ_PUBKEY) return false;
 
-    if (p_pub->len != BTC_SZ_PUBKEY) {
-        return false;
+    //check pkh
+    uint8_t hash[BTC_SZ_HASH_MAX];
+    btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY); //pkh
+    if (!mNativeSegwit) {
+        //P2SH-P2WPKH
+        btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
+        btc_util_create_pkh2wpkh(hash, hash); //pkh -> sh
     }
+    if (memcmp(hash, pHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
 
-    utl_buf_t script_code = UTL_BUF_INIT;
-    if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) {
-        return false;
-    }
-
-    bool ret;
+    //check sig
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
-    if (ret) {
-        ret = btc_sig_verify(p_sig, txhash, p_pub->buf);
-    }
-    if (ret) {
-        //pubKeyHashチェック
-        uint8_t pkh[BTC_SZ_HASH_MAX];
+    if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(txhash, pTx, Index, Value, &script_code)) goto LABEL_EXIT;
+    if (!btc_sig_verify(p_sig, txhash, p_pub->buf)) goto LABEL_EXIT;
 
-        btc_util_hash160(pkh, p_pub->buf, BTC_SZ_PUBKEY);
-        if (!mNativeSegwit) {
-            btc_util_create_pkh2wpkh(pkh, pkh);
-        }
-        ret = (memcmp(pkh, pPubKeyHash, BTC_SZ_HASH160) == 0);
-    }
+    ret = true;
 
+LABEL_EXIT:
     utl_buf_free(&script_code);
-
     return ret;
 }
 
