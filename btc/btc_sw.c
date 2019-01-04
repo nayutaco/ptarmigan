@@ -218,18 +218,8 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitne
         if (!btc_scriptsig_create_p2sh_p2wsh(&vin->script, pWitness, Num)) return false;
     }
 
-    if (vin->wit_item_cnt != 0) {
-        //一度解放する
-        for (uint32_t lp = 0; lp < vin->wit_item_cnt; lp++) {
-            utl_buf_free(&vin->witness[lp]);
-        }
-        vin->wit_item_cnt = 0;
-    }
-    for (int lp = 0; lp < Num; lp++) {
-        utl_buf_t *p = btc_tx_add_wit(vin);
-        utl_buf_alloccopy(p, pWitness[lp]->buf, pWitness[lp]->len);
-    }
-    return true;
+    //witness
+    return btc_witness_create_p2wsh(&vin->witness, &vin->wit_item_cnt, pWitness, Num);
 }
 
 

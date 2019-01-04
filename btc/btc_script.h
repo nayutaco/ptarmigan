@@ -86,6 +86,7 @@ bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t
 bool btc_scriptsig_verify_p2sh_multisig_addr(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const char *pAddr);
 //XXX: comment
 bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
+bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
 
 
 /** P2WPKH署名計算で使用するScript Code取得

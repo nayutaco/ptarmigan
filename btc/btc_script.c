@@ -513,6 +513,19 @@ bool btc_witness_create_p2wpkh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, con
 }
 
 
+bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num)
+{
+    free_witness(ppWitness, pWitItemCnt);
+
+    for (int lp = 0; lp < Num; lp++) {
+        utl_buf_t *p = add_wit_item(ppWitness, pWitItemCnt);
+        if (!p) return false;
+        if (!utl_buf_alloccopy(p, pWitness[lp]->buf, pWitness[lp]->len)) return false;
+    }
+    return true;
+}
+
+
 bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
