@@ -125,10 +125,11 @@ void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
     btc_script_print(pBuf->buf, pBuf->len);
-    uint8_t prog[BTC_SZ_WITPROG_P2WSH];
-    btc_sw_wit2prog_p2wsh(prog, pBuf);
+    utl_buf_t prog = UTL_BUF_INIT;
+    btc_scriptsig_create_p2wsh(&prog, pBuf);
     LOGD("vout: ");
-    DUMPD(prog, BTC_SZ_WITPROG_P2WSH);
+    DUMPD(prog.buf, prog.len);
+    utl_buf_free(&prog);
 #endif  //M_DBG_VERBOSE
 }
 
