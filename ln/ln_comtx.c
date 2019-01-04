@@ -300,12 +300,13 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
                         pp_htlcinfo[lp]->expiry);
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
-        uint8_t vout[BTC_SZ_WITPROG_P2WSH];
-        btc_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[lp]->script);
+        utl_buf_t vout = UTL_BUF_INIT;
+        btc_scriptsig_create_p2wsh(&vout, &pp_htlcinfo[lp]->script);
         ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
-                        vout,
+                        vout.buf,
                         pp_htlcinfo[lp]->type,
                         pp_htlcinfo[lp]->expiry);
+        utl_buf_free(&vout);
 #endif  //LN_UGLY_NORMAL
     }
 
