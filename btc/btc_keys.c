@@ -41,7 +41,6 @@
  * prototypes
  ********************************************************************/
 
-static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
 static bool addr_is_p2pkh(const char *pAddr);
 static bool addr_is_p2sh(const char *pAddr);
 static bool addr_is_segwit(const char *pAddr);
@@ -445,7 +444,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
     const uint8_t *pkh;
-    int prefix = spk2prefix(&pkh, pScriptPk);
+    int prefix = btc_scriptpk_prefix(&pkh, pScriptPk);
     if (prefix != BTC_PREF_MAX) return false;
     if (!btcl_util_keys_hash2addr(pAddr, pkh, prefix)) return false;
     return true;
@@ -455,42 +454,6 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 /********************************************************************
  * private functions
  ********************************************************************/
-
-/** scriptPubKeyからPREF変換
- *
- */
-static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
-{
-    if ( (pScriptPk->len == 25) &&
-         (pScriptPk->buf[0] == OP_DUP) &&
-         (pScriptPk->buf[1] == OP_HASH160) &&
-         (pScriptPk->buf[2] == BTC_SZ_HASH160) &&
-         (pScriptPk->buf[23] == OP_EQUALVERIFY) &&
-         (pScriptPk->buf[24] == OP_CHECKSIG) ) {
-        *ppPkh = pScriptPk->buf + 3;
-        return BTC_PREF_P2PKH;
-    }
-    else if ( (pScriptPk->len == 23) &&
-         (pScriptPk->buf[0] == OP_HASH160) &&
-         (pScriptPk->buf[1] == BTC_SZ_HASH160) &&
-         (pScriptPk->buf[22] == OP_EQUAL) ) {
-        *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_P2SH;
-    }
-    else if ( (pScriptPk->len == 22) &&
-         (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == BTC_SZ_HASH160) ) {
-        *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_P2WPKH;
-    }
-    else if ( (pScriptPk->len == 34) &&
-         (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == BTC_SZ_HASH256) ) {
-        *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_P2WSH;
-    }
-    return BTC_PREF_MAX;
-}
 
 static bool addr_is_p2pkh(const char *pAddr)
 {

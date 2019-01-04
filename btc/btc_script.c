@@ -699,6 +699,40 @@ LABEL_EXIT:
 }
 
 
+int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk)
+{
+    if ( (pScriptPk->len == 25) &&
+         (pScriptPk->buf[0] == OP_DUP) &&
+         (pScriptPk->buf[1] == OP_HASH160) &&
+         (pScriptPk->buf[2] == BTC_SZ_HASH160) &&
+         (pScriptPk->buf[23] == OP_EQUALVERIFY) &&
+         (pScriptPk->buf[24] == OP_CHECKSIG) ) {
+        *ppHash = pScriptPk->buf + 3;
+        return BTC_PREF_P2PKH;
+    }
+    else if ( (pScriptPk->len == 23) &&
+         (pScriptPk->buf[0] == OP_HASH160) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH160) &&
+         (pScriptPk->buf[22] == OP_EQUAL) ) {
+        *ppHash = pScriptPk->buf + 2;
+        return BTC_PREF_P2SH;
+    }
+    else if ( (pScriptPk->len == 22) &&
+         (pScriptPk->buf[0] == 0x00) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH160) ) {
+        *ppHash = pScriptPk->buf + 2;
+        return BTC_PREF_P2WPKH;
+    }
+    else if ( (pScriptPk->len == 34) &&
+         (pScriptPk->buf[0] == 0x00) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH256) ) {
+        *ppHash = pScriptPk->buf + 2;
+        return BTC_PREF_P2WSH;
+    }
+    return BTC_PREF_MAX;
+}
+
+
 #if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
 void btc_script_print(const uint8_t *pData, uint16_t Len)
 {

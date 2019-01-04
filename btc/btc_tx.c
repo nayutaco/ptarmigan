@@ -714,30 +714,7 @@ void btc_tx_print(const btc_tx_t *pTx)
         DUMPD(buf->buf, buf->len);
         //btc_script_print(buf->buf, buf->len);
         char addr[BTC_SZ_ADDR_STR_MAX + 1];
-        addr[0] = '\0';
-        //standard transactions only(see bitcoind's `IsStandard`)
-        if ( (buf->len == 25) && (buf->buf[0] == OP_DUP) && (buf->buf[1] == OP_HASH160) &&
-             (buf->buf[2] == 0x14) && (buf->buf[23] == OP_EQUALVERIFY) && (buf->buf[24] == OP_CHECKSIG) ) {
-            (void)btcl_util_keys_hash2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
-        } else if ( (buf->len == 23) && (buf->buf[0] == OP_HASH160) && (buf->buf[1] == 0x14) && (buf->buf[22] == OP_EQUAL) ) {
-            (void)btcl_util_keys_hash2addr(addr, &(buf->buf[2]), BTC_PREF_P2SH);
-        } else if ( ((buf->len == 22) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x14)) ||
-                    ((buf->len == 34) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x20)) ) {
-            //bech32
-            int hrp_type;
-            switch (btc_get_chain()) {
-            case BTC_MAINNET:
-                hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-                break;
-            case BTC_TESTNET:
-                hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-                break;
-            default:
-                hrp_type = -1;
-            }
-            (void)btc_segwit_addr_encode(addr, sizeof(addr), hrp_type, buf->buf[0], &buf->buf[2], buf->buf[1]);
-        }
-        if (addr[0] != '\0') {
+        if (btc_keys_spk2addr(addr, buf)) {
             LOGD2("    (%s)\n", addr);
         }
         LOGD2("\n");
