@@ -100,8 +100,6 @@ void btc_tx_free(btc_tx_t *pTx)
 
 btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
 {
-    const uint8_t M_OP_RETURN = 0x6a;
-
     if (pTx == NULL) {
         LOGD("fail: null\n");
         return BTC_TXVALID_ARG_NULL;
@@ -155,7 +153,7 @@ btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
             LOGD("fail: no scriptPubKeyHash[%u]\n", lp);
             return BTC_TXVALID_VOUT_SPKH_NONE;
         }
-        if ((vout->value == 0) && (vout->script.buf[0] != M_OP_RETURN)) {
+        if ((vout->value == 0) && !btc_scriptpk_is_op_return(&vout->script)) {
             LOGD("fail: no value[%u]\n", lp);
             return BTC_TXVALID_VOUT_VALUE_BAD;
         }

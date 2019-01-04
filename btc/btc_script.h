@@ -90,6 +90,8 @@ bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, cons
 bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
 //XXX: comment
 bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+//XXX: comment
+bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk);
 
 
 /** P2WPKH署名計算で使用するScript Code取得

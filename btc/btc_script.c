@@ -658,6 +658,14 @@ bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, con
 }
 
 
+bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk)
+{
+    if (!pScriptPk->len) return false;
+    if (pScriptPk->buf[0] != OP_RETURN) return false;
+    return true;
+}
+
+
 bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki

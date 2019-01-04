@@ -100,6 +100,7 @@ extern "C" {
 #define OP_NOTIF                (0x64)
 #define OP_ELSE                 (0x67)
 #define OP_ENDIF                (0x68)
+#define OP_RETURN               (0x6a)
 #define OP_2DROP                (0x6d)
 #define OP_DROP                 (0x75)
 #define OP_DUP                  (0x76)
