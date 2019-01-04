@@ -685,7 +685,7 @@ bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
     // scriptCode: 0x1976a914{20-byte keyhash}88ac
     uint8_t hash[BTC_SZ_HASH_MAX];
     btc_util_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
-    if (!utl_buf_alloc(pScriptCode, 1 + 3 + BTC_SZ_HASH160 + 2)) return false;
+    if (!utl_buf_realloc(pScriptCode, 1 + 3 + BTC_SZ_HASH160 + 2)) return false;
     pScriptCode->buf[0] = (uint8_t)pScriptCode->len - 1;
     create_scriptpk_p2pkh(pScriptCode->buf + 1, hash);
     return true;
@@ -698,8 +698,10 @@ bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript)
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     // scriptCode: witnessScript
     // XXX: OP_CODESEPARATOR?
+
     bool ret = false;
     btc_buf_w_t buf_w;
+    utl_buf_truncate(pScriptCode);
     if (!btc_tx_buf_w_init(&buf_w, 0)) return false;
     if (!btc_tx_buf_w_write_varint_len(&buf_w, pWitScript->len)) goto LABEL_EXIT;
     if (!btc_tx_buf_w_write_data(&buf_w, pWitScript->buf, pWitScript->len)) goto LABEL_EXIT;
