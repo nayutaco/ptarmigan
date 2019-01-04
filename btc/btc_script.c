@@ -526,6 +526,128 @@ bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, cons
 }
 
 
+bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+{
+    if (WitItemCnt != 4) {
+        LOGD("items not 4.n");
+        return false;
+    }
+
+    utl_buf_t *wit_item;
+
+    //verify P2WSH
+    // 1. check witnessScriptHash
+    // 2. check 2of2 multisig
+    //
+    //  NULL
+    //  <sig1>
+    //  <sig2>
+    //  witnessScript
+    //
+    // Note: we support `MinimalPush` only.
+
+    //check witnessScriptHash
+    // scriptPk (P2WSH-witnessPorg)
+    //      OP_0 <witnessScriptHash>
+    if (pScriptPk->len != 1 + 1 + BTC_SZ_HASH256) {
+        LOGD("invalid P2WSH-witnessProg\n");
+        return false;
+    }
+    if (pScriptPk->buf[0] != OP_0) {
+        LOGD("invalid P2WSH-witnessProg\n");
+        return false;
+    }
+    if (pScriptPk->buf[1] != BTC_SZ_HASH256) {
+        LOGD("invalid P2WSH-witnessProg\n");
+        return false;
+    }
+    uint8_t sh[BTC_SZ_HASH256];
+    wit_item = &pWitness[3];
+    btc_util_sha256(sh, wit_item->buf, wit_item->len);
+    if (memcmp(sh, &pScriptPk->buf[2], BTC_SZ_HASH256)) {
+        LOGD("pubkeyhash mismatch.\n");
+        return false;
+    }
+
+    //NULL
+    wit_item = &pWitness[0];
+    if (wit_item->len != 0) {
+        LOGD("witness[0] is not NULL\n");
+        return false;
+    }
+
+    //sigs
+    const utl_buf_t *sig1 = &pWitness[1];
+    if (sig1->len == 0) {
+        LOGD("sig1: invalid\n");
+        return false;
+    }
+    if (sig1->buf[sig1->len - 1] != SIGHASH_ALL) {
+        LOGD("sig1: not SIGHASH_ALL\n");
+        return false;
+    }
+    const utl_buf_t *sig2 = &pWitness[2];
+    if (sig2->len == 0) {
+        LOGD("sig2: invalid\n");
+        return false;
+    }
+    if (sig2->buf[sig2->len - 1] != SIGHASH_ALL) {
+        LOGD("sig2: not SIGHASH_ALL\n");
+        return false;
+    }
+
+    //witnessScript
+    wit_item = &pWitness[3];
+    if (wit_item->len != 71) {
+        // Note: we support `MinimalPush` only.
+        LOGD("witnessScript: invalid length: %u\n", wit_item->len);
+        return false;
+    }
+    const uint8_t *p = wit_item->buf;
+    if ( (*p != OP_2) ||
+         (*(p + 1) != BTC_SZ_PUBKEY) ||
+         (*(p + 35) != BTC_SZ_PUBKEY) ||
+         (*(p + 69) != OP_2) ||
+         (*(p + 70) != OP_CHECKMULTISIG) ) {
+        LOGD("witnessScript: non-standard 2-of-2\n");
+        LOGD("1: %d\n", (*p != OP_2));
+        LOGD("2: %d\n", (*(p + 1) != BTC_SZ_PUBKEY));
+        LOGD("3: %d\n", (*(p + 35) != BTC_SZ_PUBKEY));
+        LOGD("4: %d\n", (*(p + 69) != OP_2));
+        LOGD("5: %d\n", (*(p + 70) != OP_CHECKMULTISIG));
+        return false;
+    }
+    const uint8_t *pub1 = p + 2;
+    const uint8_t *pub2 = p + 36;
+
+    //verify sigs
+#if 1
+    if (!btc_sig_verify(sig1, pTxHash, pub1)) {
+        LOGD("fail: btc_sig_verify(sig1)\n");
+        return false;
+    }
+    if (!btc_sig_verify(sig2, pTxHash, pub2)) {
+        LOGD("fail: btc_sig_verify(sig2)\n");
+        return false;
+    }
+#else
+    bool ret1 = btc_sig_verify(sig1, pTxHash, pub1);
+    bool ret2 = btc_sig_verify(sig2, pTxHash, pub2);
+    bool ret3 = btc_sig_verify(sig1, pTxHash, pub2);
+    bool ret4 = btc_sig_verify(sig2, pTxHash, pub1);
+    bool ret = ret1 && ret2;
+    printf("txhash=");
+    DUMPD(pTxHash, BTC_SZ_HASH256);
+    printf("ret1=%d\n", ret1);
+    printf("ret2=%d\n", ret2);
+    printf("ret3=%d\n", ret3);
+    printf("ret4=%d\n", ret4);
+#endif
+
+    return true;
+}
+
+
 bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
