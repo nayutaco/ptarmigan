@@ -45,6 +45,70 @@
 #define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
 #define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
 
+//for string format
+#define BTC_OP_0                "\x00"          ///< OP_0
+#define BTC_OP_PUSHDATA1        "\x4c"          ///< OP_PUSHDATA1
+#define BTC_OP_PUSHDATA2        "\x4d"          ///< OP_PUSHDATA2
+#define BTC_OP_2                "\x52"          ///< OP_2
+#define BTC_OP_IF               "\x63"          ///< OP_IF
+#define BTC_OP_NOTIF            "\x64"          ///< OP_NOTIF
+#define BTC_OP_ELSE             "\x67"          ///< OP_ELSE
+#define BTC_OP_ENDIF            "\x68"          ///< OP_ENDIF
+#define BTC_OP_RETURN           "\x6a"          ///< OP_RETURN
+#define BTC_OP_2DROP            "\x6d"          ///< OP_2DROP
+#define BTC_OP_DROP             "\x75"          ///< OP_DROP
+#define BTC_OP_DUP              "\x76"          ///< OP_DUP
+#define BTC_OP_SWAP             "\x7c"          ///< OP_SWAP
+#define BTC_OP_SIZE             "\x82"          ///< OP_SIZE
+#define BTC_OP_EQUAL            "\x87"          ///< OP_EQUAL
+#define BTC_OP_EQUALVERIFY      "\x88"          ///< OP_EQUALVERIFY
+#define BTC_OP_ADD              "\x93"          ///< OP_ADD
+#define BTC_OP_CHECKSIG         "\xac"          ///< OP_CHECKSIG
+#define BTC_OP_CHECKMULTISIG    "\xae"          ///< OP_CHECKMULTISIG
+#define BTC_OP_CLTV             "\xb1"          ///< OP_CHECKLOCKTIMEVERIFY
+#define BTC_OP_CSV              "\xb2"          ///< OP_CHECKSEQUENCEVERIFY
+#define BTC_OP_HASH160          "\xa9"          ///< OP_HASH160
+#define BTC_OP_HASH256          "\xaa"          ///< OP_HASH256
+
+#define BTC_OP_SZ1              "\x01"          ///< 1byte値
+#define BTC_OP_SZ20             "\x14"          ///< 20byte値
+#define BTC_OP_SZ32             "\x20"          ///< 32byte値
+#define BTC_OP_SZ_PUBKEY        "\x21"          ///< 33byte値
+
+#define OP_0                    (0x00)
+#define OP_PUSHDATA1            (0x4c)
+#define OP_PUSHDATA2            (0x4d)
+#define OP_PUSHDATA3            (0x4e)
+#define OP_1NEGATE              (0x4f)
+#define OP_1                    (0x51)
+#define OP_2                    (0x52)
+#define OP_16                   (0x60)
+#define OP_IF                   (0x63)
+#define OP_NOTIF                (0x64)
+#define OP_ELSE                 (0x67)
+#define OP_ENDIF                (0x68)
+#define OP_RETURN               (0x6a)
+#define OP_2DROP                (0x6d)
+#define OP_DROP                 (0x75)
+#define OP_DUP                  (0x76)
+#define OP_SWAP                 (0x7c)
+#define OP_SIZE                 (0x82)
+#define OP_EQUAL                (0x87)
+#define OP_EQUALVERIFY          (0x88)
+#define OP_ADD                  (0x93)
+#define OP_CHECKSIG             (0xac)
+#define OP_CHECKMULTISIG        (0xae)
+#define OP_CHECKLOCKTIMEVERIFY  (0xb1)
+#define OP_CHECKSEQUENCEVERIFY  (0xb2)
+#define OP_HASH160              (0xa9)
+#define OP_HASH256              (0xaa)
+
+#define OP_X                    (0x50)  //0x50はOP_RESERVEDだが、ここでは足し算して使う用途
+#define OP_X_PUSHDATA_MIN       (0x01)
+#define OP_X_PUSHDATA_MAX       (0x4b)
+
+#define BTC_OFFSET_WITPROG      (2)     ///witnessProgram中のscriptPubKey位置
+
 
 /**************************************************************************
  * macro functions

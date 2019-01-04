@@ -25,6 +25,7 @@
 #include "utl_dbg.h"
 
 #include "btc.h"
+#include "btc_script.h"
 #include "btc_script_buf.h"
 
 
@@ -45,7 +46,7 @@ bool btc_script_buf_w_write_item(btc_buf_w_t *pBufW, const void *pData, uint32_t
         buf[0] = OP_0;
         if (!btc_script_buf_w_write_data(pBufW, buf, 1)) return false;
     } else if (Len == 1 && p_data[0] <= 0x10) {
-        buf[0] = OP_x + p_data[0];
+        buf[0] = OP_X + p_data[0];
         if (!btc_script_buf_w_write_data(pBufW, buf, 1)) return false;
     } else if (Len == 1 && p_data[0] == 0x81) {
         buf[0] = OP_1NEGATE;

@@ -354,97 +354,97 @@ TEST_F(script_buf, w_wirte_item_op_x)
     data[0] = 0x01;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x01, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x01, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x02;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x02, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x02, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x03;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x03, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x03, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x04;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x04, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x04, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x05;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x05, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x05, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x06;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x06, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x06, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x07;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x07, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x07, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x08;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x08, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x08, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x09;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x09, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x09, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x0a;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x0a, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x0a, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x0b;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x0b, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x0b, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x0c;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x0c, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x0c, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x0d;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x0d, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x0d, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x0e;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x0e, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x0e, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x0f;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x0f, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x0f, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_truncate(&buf_w);
     data[0] = 0x10;
     ASSERT_TRUE(btc_script_buf_w_write_item(&buf_w, &data, 1));
     ASSERT_EQ(1, btc_script_buf_w_get_len(&buf_w));
-    ASSERT_EQ(OP_x + 0x10, *btc_script_buf_w_get_data(&buf_w));
+    ASSERT_EQ(OP_X + 0x10, *btc_script_buf_w_get_data(&buf_w));
 
     btc_script_buf_w_free(&buf_w);
 }

@@ -230,8 +230,8 @@ bool btc_scriptsig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, c
     if (pScriptSig->len < 1) goto LABEL_EXIT;
     sig_len = *buf;
     sig = buf + 1;
-    if (sig_len < _OP_PUSHDATA_X_MIN) goto LABEL_EXIT;
-    if (sig_len > _OP_PUSHDATA_X_MAX) goto LABEL_EXIT;
+    if (sig_len < OP_X_PUSHDATA_MIN) goto LABEL_EXIT;
+    if (sig_len > OP_X_PUSHDATA_MAX) goto LABEL_EXIT;
     if (pScriptSig->len < 1 + sig_len + 1) goto LABEL_EXIT;
     pubkey_len = *(buf + 1 + sig_len);
     pubkey = buf + 1 + sig_len + 1;
@@ -334,8 +334,8 @@ bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pT
         LOGD("invalid len\n");
         return false;
     }
-    if (signum != (*(p + pos) - OP_x)) {
-        LOGD("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
+    if (signum != (*(p + pos) - OP_X)) {
+        LOGD("OP_X mismatch(sign): signum=%d, OP_X=%d\n", signum, *(p + pos) - OP_X);
         return false;
     }
     pos++;
@@ -358,8 +358,8 @@ bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pT
         LOGD("no OP_PUSHDATAx(pubkey)\n");
         return false;
     }
-    if (pubnum != (*(p + pos) - OP_x)) {
-        LOGD("OP_x mismatch(pubkey): signum=%d, OP_x=%d\n", pubnum, *(p + pos) - OP_x);
+    if (pubnum != (*(p + pos) - OP_X)) {
+        LOGD("OP_X mismatch(pubkey): signum=%d, OP_X=%d\n", pubnum, *(p + pos) - OP_X);
         return false;
     }
     pos++;
@@ -510,13 +510,13 @@ bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], u
      * OP_m
      * OP_CHECKMULTISIG
      */
-    *p++ = OP_x + M;
+    *p++ = OP_X + M;
     for (int lp = 0; lp < Num; lp++) {
         *p++ = (uint8_t)BTC_SZ_PUBKEY;
         memcpy(p, pPubKeys[lp], BTC_SZ_PUBKEY);
         p += BTC_SZ_PUBKEY;
     }
-    *p++ = OP_x + Num;
+    *p++ = OP_X + Num;
     *p++ = OP_CHECKMULTISIG;
     return true;
 }
@@ -778,7 +778,7 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
     const uint8_t *end = pData + Len;
     const char INDENT[] = "      ";
     while (pData < end) {
-        if (*pData <= _OP_PUSHDATA_X_MAX) {
+        if (*pData <= OP_X_PUSHDATA_MAX) {
             //pushdata
             uint8_t len = *pData;
             pData++;
@@ -790,8 +790,8 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
             DUMPD(pData, len);
             pData += len;
         } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
-            //OP_x
-            LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
+            //OP_X
+            LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_X);
             pData++;
         } else if (*pData == OP_PUSHDATA1) {
             //pushdata
