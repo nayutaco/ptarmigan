@@ -260,26 +260,16 @@ LABEL_EXIT:
 
 bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const char *pAddr)
 {
-    bool ret;
     uint8_t hash[BTC_SZ_HASH_MAX];
-
     int pref;
-    ret = btc_keys_addr2hash(hash, &pref, pAddr);
-    if (mNativeSegwit) {
-        if (ret && (pref == BTC_PREF_P2WPKH)) {
-            ret = btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
-        } else {
-            ret = false;
-        }
-    } else {
-        if (ret && (pref == BTC_PREF_P2SH)) {
-            ret = btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
-        } else {
-            ret = false;
-        }
-    }
 
-    return ret;
+    if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
+    if (mNativeSegwit) {
+        if (pref != BTC_PREF_P2WPKH) return false;
+    } else {
+        if (pref != BTC_PREF_P2SH) return false;
+    }
+    return btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
 }
 
 
