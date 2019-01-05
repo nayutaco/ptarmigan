@@ -34,7 +34,7 @@ static void bech32wpkh_to_hash(void)
     if (ret) {
         printf("ver: %02x\n", ver);
         printf("prog[%d]: ", (int)prog_len);
-        btc_util_dumpbin(stdout, prog, prog_len, true);
+        utl_dbg_dump(stdout, prog, prog_len, true);
     } else {
         printf("fail: segwit_addr_decode\n");
     }

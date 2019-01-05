@@ -542,14 +542,6 @@ bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t In
                     const utl_buf_t *pWitScript);
 
 
-#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
-void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid);
-#else
-#define btc_util_dumpbin(...)     //nothing
-#define btc_util_dumptxid(...)    //nothing
-#endif  //PTARM_USE_PRINTFUNC
-
-
 #ifdef PTARM_USE_PRINTFUNC
 //////////////////////
 //PRINT

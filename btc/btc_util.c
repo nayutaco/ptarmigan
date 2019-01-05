@@ -162,40 +162,6 @@ bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys
 }
 
 
-//XXX: dbg or log
-#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
-/** uint8[]の内容をFILE*出力
- *
- * @param[in]       fp          出力先
- * @param[in]       pData       対象データ
- * @param[in]       Len         pData長
- */
-void btc_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf)
-{
-    for (uint32_t lp = 0; lp < Len; lp++) {
-        fprintf(fp, "%02x", pData[lp]);
-    }
-    if (bLf) {
-        fprintf(fp, "\n");
-    }
-}
-
-
-//XXX: dbg or log
-/** uint8[]の内容をFILE*出力
- *
- * @param[in]       fp          出力先
- * @param[in]       pTxid
- */
-void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid)
-{
-    for (uint16_t lp = 0; lp < BTC_SZ_TXID; lp++) {
-        fprintf(fp, "%02x", pTxid[BTC_SZ_TXID - lp - 1]);
-    }
-}
-#endif  //PTARM_USE_PRINTFUNC || PTARM_DEBUG
-
-
 /**************************************************************************
  * package functions
  **************************************************************************/

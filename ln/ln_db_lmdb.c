@@ -39,6 +39,7 @@
 #include "btc_util.h"
 #include "btc_sw.h"
 #include "btc_script.h"
+#include "btc_dbg.h"
 
 #include "ln_local.h"
 #include "ln_msg_anno.h"
@@ -1164,7 +1165,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_REMOTECOMM:
                 if (DBSELF_COPYIDX[lp].disp) {
                     printf("\"");
-                    btc_util_dumpbin(stdout, p, DBSELF_COPYIDX[lp].length, false);
+                    utl_dbg_dump(stdout, p, DBSELF_COPYIDX[lp].length, false);
                     printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
@@ -1198,7 +1199,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_FUNDTXID:
                 if (DBSELF_COPYIDX[lp].disp) {
                     printf("\"");
-                    btc_util_dumptxid(stdout, p);
+                    btc_dbg_dump_txid(stdout, p);
                     printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
