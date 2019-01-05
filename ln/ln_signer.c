@@ -145,7 +145,7 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
 
     btc_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
-    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    ret = btc_sw_sighash(pTx, txhash, Index, Value, &script_code);
     if (ret) {
         ret = btc_sig_sign(&sigbuf, txhash, pKeys->priv);
     }
@@ -220,7 +220,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
     uint8_t sighash[BTC_SZ_HASH256];
 
     //vinは1つしかないので、Indexは0固定
-    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, Value, pWitScript);
+    ret = btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, Value, pWitScript);
     if (ret) {
         ret = btc_sig_sign(pSig, sighash, sigkey.priv);
     }

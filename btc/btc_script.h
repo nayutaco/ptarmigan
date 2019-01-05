@@ -36,6 +36,7 @@
 #include "utl_buf.h"
 
 #include "btc.h"
+#include "btc_keys.h"
 
 
 /**************************************************************************
@@ -44,6 +45,7 @@
 
 #define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
 #define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
+#define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
 //for string format
 #define BTC_OP_0                "\x00"          ///< OP_0
@@ -114,10 +116,21 @@
  * macro functions
  **************************************************************************/
 
-
 /**************************************************************************
  * package variables
  **************************************************************************/
+
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+/** @enum   btc_script_pubkey_order_t
+ *  @brief  order of the keys
+ */
+typedef enum {
+    BTC_SCRYPT_PUBKEY_ORDER_ASC,             ///< ascending order
+    BTC_SCRYPT_PUBKEY_ORDER_OTHER            ///< other
+} btc_script_pubkey_order_t;
 
 
 /**************************************************************************
@@ -146,6 +159,23 @@ bool btc_scriptsig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHas
 bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
 bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+
+
+/** #btc_redeem_create_2of2() with the sorted pubKeys
+ *
+ * @param[out]      pRedeem     2-of-2 redeem script
+ * @param[out]      pOrder       ソート結果(#btc_script_pubkey_order_t)
+ * @param[in]       pPubKey1    public key 1
+ * @param[in]       pPubKey2    public key 1
+ *
+ * @note
+ *      - if *pOrder == BTC_SCRYPT_PUBKEY_ORDER_ASC, then pPubKey1, pPbuKey2
+ *      - if *pOrder != BTC_SCRYPT_PUBKEY_ORDER_ASC, then pPubKey2, pPbuKey1
+ */
+bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_script_pubkey_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+
+
+//XXX: comment
 bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
 bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);

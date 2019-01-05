@@ -53,8 +53,11 @@ static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
+
 static utl_buf_t *add_wit_item(utl_buf_t **ppWitness, uint32_t *pWitItemCnt);
 static void free_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt);
+
+static btc_script_pubkey_order_t pubkey_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /**************************************************************************
@@ -492,6 +495,17 @@ bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const u
 }
 
 
+bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_script_pubkey_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+{
+    *pOrder = pubkey_order_2of2(pPubKey1, pPubKey2);
+    if (*pOrder == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
+        return btc_redeem_create_2of2(pRedeem, pPubKey1, pPubKey2);
+    } else {
+        return btc_redeem_create_2of2(pRedeem, pPubKey2, pPubKey1);
+    }
+}
+
+
 bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
 {
     if (Num > 16) return false;
@@ -922,3 +936,22 @@ static void free_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt)
         utl_buf_free(&(*ppWitness)[--(*pWitItemCnt)]);
     }
 }
+
+/** get the order of the keys
+ *
+ * @param[in]       pPubKey1
+ * @param[in]       pPubKey2
+ * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     引数の順番
+ *
+ */
+btc_script_pubkey_order_t pubkey_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+{
+    int cmp = memcmp(pPubKey1, pPubKey2, BTC_SZ_PUBKEY);
+    if (cmp < 0) {
+        return BTC_SCRYPT_PUBKEY_ORDER_ASC;
+    } else {
+        return BTC_SCRYPT_PUBKEY_ORDER_OTHER;
+    }
+}
+
+

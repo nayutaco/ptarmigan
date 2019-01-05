@@ -109,11 +109,11 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         switch (type) {
         case LN_DB_WALLET_TYPE_TOREMOTE:
             btc_scriptcode_p2wpkh(&script_code, p_vin->witness[1].buf);
-            ret = btc_sw_sighash(txhash, &wallet.tx, lp, amount, &script_code);
+            ret = btc_sw_sighash(&wallet.tx, txhash, lp, amount, &script_code);
             break;
         case LN_DB_WALLET_TYPE_TOLOCAL:
         case LN_DB_WALLET_TYPE_HTLCOUT:
-            ret = btc_util_calc_sighash_p2wsh(&wallet.tx, txhash, lp, amount,
+            ret = btc_sw_sighash_p2wsh_wit(&wallet.tx, txhash, lp, amount,
                                                 &p_vin->witness[p_vin->wit_item_cnt-1]);
             break;
         default:
@@ -122,7 +122,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         if (ret) {
             ret = btc_sig_sign(&sigbuf, txhash, p_secret);
         } else {
-            LOGD("fail: btc_util_calc_sighash_p2wsh()\n");
+            LOGD("fail: btc_sw_sighash_p2wsh_wit()\n");
         }
         if (ret) {
             //wit[0]: signature

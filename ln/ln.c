@@ -281,8 +281,8 @@ static void clear_htlc(ln_update_add_htlc_t *p_htlc);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
 static void free_establish(ln_self_t *self, bool bEndEstablish);
-static btc_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
-static inline uint8_t ln_sort_to_dir(btc_keys_sort_t Sort);
+static btc_script_pubkey_order_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
+static inline uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
 static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx);
 static void set_error(ln_self_t *self, int Err, const char *pFormat, ...);
 #ifdef M_DBG_COMMITNUM
@@ -1174,8 +1174,8 @@ bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cn
 {
     bool ret;
 
-    btc_keys_sort_t sort = sort_nodeid(self, NULL);
-    uint8_t dir = (sort == BTC_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
+    btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
+    uint8_t dir = (sort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
     ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_cnl_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
@@ -2466,7 +2466,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
-    ret = btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
+    ret = btc_redeem_create_2of2_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->fund_flag = (ln_fundflag_t)(((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
@@ -3788,7 +3788,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
 
     //channel_announcementを埋める
-    btc_keys_sort_t sort = sort_nodeid(self, NULL);
+    btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
     ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, false, sort);
 
     ln_announce_signs_t anno_signs;
@@ -4070,7 +4070,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     btc_tx_free(&self->tx_funding);
 
     //vout 2-of-2
-    btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
+    btc_redeem_create_2of2_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
 #ifndef USE_SPV
@@ -4275,7 +4275,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 
     //署名
     uint8_t sighash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, self->funding_sat, &self->redeem_fund);
+    ret = btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, self->funding_sat, &self->redeem_fund);
     if (ret) {
         ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     }
@@ -4992,9 +4992,9 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
     } else {
         if (short_channel_id == self->short_channel_id) {
             // DBには無いが、このchannelの情報
-            btc_keys_sort_t mysort = sort_nodeid(self, NULL);
-            if ( ((mysort == BTC_KEYS_SORT_ASC) && (Dir == 0)) ||
-                 ((mysort == BTC_KEYS_SORT_OTHER) && (Dir == 1)) ) {
+            btc_script_pubkey_order_t mysort = sort_nodeid(self, NULL);
+            if ( ((mysort == BTC_SCRYPT_PUBKEY_ORDER_ASC) && (Dir == 0)) ||
+                 ((mysort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) && (Dir == 1)) ) {
                 //自ノード
                 LOGD("this channel: my node\n");
                 memcpy(pNodeId, ln_node_getid(), BTC_SZ_PUBKEY);
@@ -5287,12 +5287,12 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
  *
  * @param[in]   self
  * @param[in]   pNodeId
- * @retval      BTC_KEYS_SORT_ASC     自ノードが先
- * @retval      BTC_KEYS_SORT_OTHER   相手ノードが先
+ * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     自ノードが先
+ * @retval      BTC_SCRYPT_PUBKEY_ORDER_OTHER   相手ノードが先
  */
-static btc_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId)
+static btc_script_pubkey_order_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId)
 {
-    btc_keys_sort_t sort;
+    btc_script_pubkey_order_t sort;
 
     int lp;
     const uint8_t *p_nodeid = ln_node_getid();
@@ -5309,20 +5309,20 @@ static btc_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId
     }
     if ((lp < BTC_SZ_PUBKEY) && (p_nodeid[lp] < p_peerid[lp])) {
         LOGD("my node= first\n");
-        sort = BTC_KEYS_SORT_ASC;
+        sort = BTC_SCRYPT_PUBKEY_ORDER_ASC;
     } else {
         LOGD("my node= second\n");
-        sort = BTC_KEYS_SORT_OTHER;
+        sort = BTC_SCRYPT_PUBKEY_ORDER_OTHER;
     }
 
     return sort;
 }
 
 
-/** btc_keys_sort_t --> Direction変換
+/** btc_script_pubkey_order_t --> Direction変換
  *
  */
-static inline uint8_t ln_sort_to_dir(btc_keys_sort_t Sort)
+static inline uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
 {
     return (uint8_t)Sort;
 }

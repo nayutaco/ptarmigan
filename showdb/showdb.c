@@ -306,7 +306,7 @@ static void ln_print_self(const ln_self_t *self)
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
     // btc_util_dumpbin(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == BTC_KEYS_SORT_ASC) ? "first" : "second");
+    printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
     printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", self->min_depth);
 
     //announce

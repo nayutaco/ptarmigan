@@ -97,7 +97,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 }
 
 
-bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode)
+bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode)
 {
     // [transaction version : 4]
     // [hash_prevouts : 32]
@@ -115,8 +115,8 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint6
     btc_buf_w_t buf_w_tmp;
     uint32_t lp;
 
-    btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
-    if (txvld != BTC_TXVALID_OK) {
+    btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
         LOGD("fail: invalid tx\n");
         return false;
     }
@@ -191,6 +191,23 @@ LABEL_EXIT:
 }
 
 
+bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pWitScript)
+{
+    utl_buf_t script_code = UTL_BUF_INIT;
+
+    btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
+        LOGD("fail\n");
+        return false;
+    }
+
+    if (!btc_scriptcode_p2wsh(&script_code, pWitScript)) return false;
+    if (!btc_sw_sighash(pTx, pTxHash, Index, Value, &script_code)) return false;
+    utl_buf_free(&script_code);
+    return true;
+}
+
+
 bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     btc_vin_t *vin = &(pTx->vin[Index]);
@@ -251,7 +268,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     //check sig
     uint8_t txhash[BTC_SZ_HASH256];
     if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) goto LABEL_EXIT;
-    if (!btc_sw_sighash(txhash, pTx, Index, Value, &script_code)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(pTx, txhash, Index, Value, &script_code)) goto LABEL_EXIT;
     if (!btc_sig_verify(p_sig, txhash, p_pub->buf)) goto LABEL_EXIT;
 
     ret = true;

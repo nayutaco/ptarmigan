@@ -226,7 +226,7 @@ protected:
 
     static uint64_t obscured;
     static utl_buf_t funding2of2;
-    static btc_keys_sort_t key_fund_sort;
+    static btc_script_pubkey_order_t key_fund_sort;
 
     static btc_tx_t tx;
     static uint8_t txid_commit[BTC_SZ_TXID];
@@ -251,7 +251,7 @@ uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];
 
 uint64_t ln_bolt3_c::obscured;
 utl_buf_t ln_bolt3_c::funding2of2;
-btc_keys_sort_t ln_bolt3_c::key_fund_sort;
+btc_script_pubkey_order_t ln_bolt3_c::key_fund_sort;
 
 btc_tx_t ln_bolt3_c::tx;
 uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];
@@ -293,7 +293,7 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_EQ(0, memcmp(keys_local_commit.pub, LOCAL_KEY, BTC_SZ_PUBKEY));
 
     //input script
-    ret = btc_util_create_2of2(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
+    ret = btc_redeem_create_2of2_sorted(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
     ASSERT_TRUE(ret);
 
     //preimage-hash
@@ -420,7 +420,7 @@ TEST_F(ln_bolt3_c, committx2)
         0xf4, 0x5a, 0x4c, 0xa3, 0xbd, 0xb7, 0xc0, 0x01,
     };
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(&tx, txhash, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
+    ret = btc_sw_sighash_p2wsh_wit(&tx, txhash, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
     ASSERT_TRUE(ret);
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
