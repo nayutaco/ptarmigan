@@ -41,6 +41,7 @@ extern "C" {
 #include "ln_node.c"
 #include "ln_onion.c"
 #include "ln_script.c"
+#include "ln_comtx.c"
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
 #include "ln_segwit_addr.c"
@@ -69,4 +70,3 @@ TEST_F(main, first)
 #include "testinc_ln_bolt8.cpp"
 #include "testinc_ln_misc.cpp"
 #include "testinc_bech32.cpp"
-#include "testinc_ln.cpp"

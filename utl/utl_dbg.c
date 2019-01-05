@@ -143,7 +143,7 @@ void HIDDEN *utl_dbg_malloc(size_t Size, const char* pFname, int Line, const cha
     } else {
         printf("0 malloc\n");
     }
-    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)Size, mcount, p);
+    printf("[MALLOC]%s:%d(%u)[%d] = %p\n", pFname, Line, (unsigned int)Size, mcount, p);
     return p;
 }
 
@@ -171,7 +171,7 @@ void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size, const char* pFname, int Li
     } else {
         printf("   realloc same\n");
     }
-    printf("%s(%p, %u)[%d] = %p\n", __func__, pBuf, (unsigned int)Size, mcount, p);
+    printf("[REALLOC]%s:%d(%p, %u)[%d] = %p\n", pFname, Line, pBuf, (unsigned int)Size, mcount, p);
     return p;
 }
 
@@ -188,7 +188,7 @@ void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size, const char* pFname, int L
             }
         }
     }
-    printf("%s(%u, %u)[%d] = %p\n", __func__, (unsigned int)Block, (unsigned int)Size, mcount, p);
+    printf("[CALLOC]%s:%d(%u, %u)[%d] = %p\n", pFname, Line, (unsigned int)Block, (unsigned int)Size, mcount, p);
     return p;
 }
 
@@ -207,7 +207,7 @@ char HIDDEN *utl_dbg_strdup(const char *pStr, const char* pFname, int Line, cons
     } else {
         printf("0 strdup\n");
     }
-    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)(strlen(pStr) + 1), mcount, p);
+    printf("[STRDUP]%s:%d(%u)[%d] = %p\n", pFname, Line, (unsigned int)(strlen(pStr) + 1), mcount, p);
     return p;
 }
 
@@ -222,12 +222,12 @@ void HIDDEN utl_dbg_free(void *pBuf, const char* pFname, int Line, const char *p
                 if (mem[lp].allocs == 0) {
                     mem[lp].p = NULL;
                 }
-                printf("%s(%p) allocs:%d\n", __func__, pBuf, mem[lp].allocs);
+                printf("[FREE]%s:%d(%p)[%d]\n", pFname, Line, pBuf, mcount);
                 break;
             }
         }
     }
-    printf("%s(%p)[%d]\n", __func__, pBuf, mcount);
+    printf("[FREE]%s:%d(%p)[%d]\n", pFname, Line, pBuf, mcount);
     free(pBuf);
 }
 

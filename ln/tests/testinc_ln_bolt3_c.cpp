@@ -441,7 +441,7 @@ TEST_F(ln_bolt3_c, committx2)
     ASSERT_EQ(sizeof(LOCAL_SIGNATURE), buf_sig_local.len);
 
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -731,7 +731,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -1452,7 +1452,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -2173,7 +2173,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -2832,7 +2832,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -3491,7 +3491,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -4086,7 +4086,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -4681,7 +4681,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -5215,7 +5215,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -5749,7 +5749,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6222,7 +6222,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6696,7 +6696,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6992,7 +6992,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -7289,7 +7289,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -7579,7 +7579,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);

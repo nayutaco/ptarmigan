@@ -4792,7 +4792,7 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
     if (retval == 0) {
         memcpy(pVer, data.mv_data, sizeof(int32_t));
         if (*pVer != M_DB_VERSION_VAL) {
-            LOGD("fail: version mismatch : %d(require %d)\n", *pVer, M_DB_VERSION_VAL);
+            fprintf(stderr, "fail: version mismatch : %d(require %d)\n", *pVer, M_DB_VERSION_VAL);
             retval = -1;
         }
     } else {
