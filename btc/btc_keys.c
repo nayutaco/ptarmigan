@@ -45,6 +45,8 @@ static bool addr_is_p2pkh(const char *pAddr);
 static bool addr_is_p2sh(const char *pAddr);
 static bool addr_is_segwit(const char *pAddr);
 
+static bool hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix);
+
 
 /**************************************************************************
  * public functions
@@ -180,7 +182,7 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
     uint8_t pkh[BTC_SZ_HASH_MAX];
 
     btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    return btcl_util_keys_hash2addr(pAddr, pkh, BTC_PREF_P2PKH);
+    return hash2addr(pAddr, pkh, BTC_PREF_P2PKH);
 }
 
 
@@ -198,7 +200,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
         btc_util_create_pkh2wpkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
-    if (!btcl_util_keys_hash2addr(pWAddr, hash, pref)) return false;
+    if (!hash2addr(pWAddr, hash, pref)) return false;
     return true;
 }
 
@@ -221,7 +223,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
         btc_util_create_pkh2wpkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
-    if (!btcl_util_keys_hash2addr(pWAddr, hash, pref)) return false;
+    if (!hash2addr(pWAddr, hash, pref)) return false;
     return true;
 }
 
@@ -244,7 +246,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript)
         btc_util_hash160(hash, wit_prog, sizeof(wit_prog));
         pref = BTC_PREF_P2SH;
     }
-    ret = btcl_util_keys_hash2addr(pWAddr, hash, pref);
+    ret = hash2addr(pWAddr, hash, pref);
     return ret;
 }
 
@@ -390,7 +392,7 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
     const uint8_t *pkh;
     int prefix = btc_scriptpk_prefix(&pkh, pScriptPk);
     if (prefix != BTC_PREF_MAX) return false;
-    if (!btcl_util_keys_hash2addr(pAddr, pkh, prefix)) return false;
+    if (!hash2addr(pAddr, pkh, prefix)) return false;
     return true;
 }
 
@@ -426,3 +428,52 @@ static bool addr_is_segwit(const char *pAddr)
     if (pAddr[0] == 't' && pAddr[1] == 'b' && pAddr[2] == '1') return true; //testnet
     return false;
 }
+
+
+/** Hash(PKH/SH/WPKH/WSH)をBitcoinアドレスに変換
+ *
+ * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
+ * @param[in]       pHash           対象データ(最大#BTC_SZ_HASH_MAX)
+ * @param[in]       Prefix          BTC_PREF_xxx
+ * @note
+ *      - if Prefix == #BTC_PREF_P2PKH then pHash is PKH(#BTC_SZ_HASH160)
+ *      - if Prefix == #BTC_PREF_P2SH then pHash is SH(#BTC_SZ_HASH160)
+ *      - if Prefix == #BTC_PREF_P2WPKH then pHash is WPKH(#BTC_SZ_HASH160)
+ *      - if Prefix == #BTC_PREF_P2WSH then pHash is WSH(#BTC_SZ_HASH256)
+ */
+static bool hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix)
+{
+    bool ret;
+
+    if (Prefix == BTC_PREF_P2WPKH || Prefix == BTC_PREF_P2WSH) {
+        uint8_t hrp_type;
+
+        switch (btc_get_chain()) {
+        case BTC_MAINNET:
+            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
+            break;
+        case BTC_TESTNET:
+            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
+            break;
+        default:
+            return false;
+        }
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pHash, (Prefix == BTC_PREF_P2WPKH) ? BTC_SZ_HASH160 : BTC_SZ_HASH256);
+    } else if (Prefix == BTC_PREF_P2PKH || Prefix == BTC_PREF_P2SH) {
+        uint8_t buf[1 + BTC_SZ_HASH160 + 4];
+        uint8_t checksum[BTC_SZ_HASH256];
+        size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
+
+        buf[0] = mPref[Prefix];
+        memcpy(buf + 1, pHash, BTC_SZ_HASH160);
+        btc_util_hash256(checksum, buf, 1 + BTC_SZ_HASH160);
+        memcpy(buf + 1 + BTC_SZ_HASH160, checksum, 4);
+        ret = b58enc(pAddr, &sz, buf, sizeof(buf));
+    } else {
+        ret = false;
+    }
+
+    return ret;
+}
+
+

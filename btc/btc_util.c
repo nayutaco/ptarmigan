@@ -588,42 +588,6 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 }
 
 
-bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix)
-{
-    bool ret;
-
-    if (Prefix == BTC_PREF_P2WPKH || Prefix == BTC_PREF_P2WSH) {
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pHash, (Prefix == BTC_PREF_P2WPKH) ? BTC_SZ_HASH160 : BTC_SZ_HASH256);
-    } else if (Prefix == BTC_PREF_P2PKH || Prefix == BTC_PREF_P2SH) {
-        uint8_t buf[1 + BTC_SZ_HASH160 + 4];
-        uint8_t checksum[BTC_SZ_HASH256];
-        size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
-
-        buf[0] = mPref[Prefix];
-        memcpy(buf + 1, pHash, BTC_SZ_HASH160);
-        btc_util_hash256(checksum, buf, 1 + BTC_SZ_HASH160);
-        memcpy(buf + 1 + BTC_SZ_HASH160, checksum, 4);
-        ret = b58enc(pAddr, &sz, buf, sizeof(buf));
-    } else {
-        ret = false;
-    }
-
-    return ret;
-}
-
-
 bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
 {
     bool ret = false;

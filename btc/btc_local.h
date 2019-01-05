@@ -76,20 +76,6 @@ extern bool     HIDDEN mNativeSegwit;
 int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
 
-/** Hash(PKH/SH/WPKH/WSH)をBitcoinアドレスに変換
- *
- * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
- * @param[in]       pHash           対象データ(最大#BTC_SZ_HASH_MAX)
- * @param[in]       Prefix          BTC_PREF_xxx
- * @note
- *      - if Prefix == #BTC_PREF_P2PKH then pHash is PKH(#BTC_SZ_HASH160)
- *      - if Prefix == #BTC_PREF_P2SH then pHash is SH(#BTC_SZ_HASH160)
- *      - if Prefix == #BTC_PREF_P2WPKH then pHash is WPKH(#BTC_SZ_HASH160)
- *      - if Prefix == #BTC_PREF_P2WSH then pHash is WSH(#BTC_SZ_HASH256)
- */
-bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix);
-
-
 /** トランザクションデータ作成
  *
  * @param[out]      pBuf            変換後データ
