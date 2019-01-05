@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2019/01/05
+
+* update libraries
+  * LMDB: 0.9.23
+  * MbedTLS 2.16.0
+    * enable `MBEDTLS_CHECK_PARAMS`
+  * jansson 2.12
+  * curl 7.63.0
+* DB version : -29
+
 ## 2018/12/12
 
 * node connection: [`initial_routing_sync`](https://github.com/lightningnetwork/lightning-rfc/blob/master/09-features.md#assigned-localfeatures-flags)=OFF
