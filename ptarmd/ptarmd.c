@@ -53,6 +53,7 @@
 #define LOG_TAG     "ptarmd"
 #include "utl_log.h"
 #include "utl_time.h"
+#include "utl_dbg.h"
 
 #include "btc_util.h"
 
@@ -173,7 +174,7 @@ int ptarmd_start(uint16_t my_rpcport)
         }
         fprintf(fp, "port=%d\n", p_addr->port);
         fprintf(fp, "node_id=");
-        btc_util_dumpbin(fp, ln_node_getid(), BTC_SZ_PUBKEY, true);
+        utl_dbg_dump(fp, ln_node_getid(), BTC_SZ_PUBKEY, true);
         fclose(fp);
     }
 

@@ -41,6 +41,7 @@
 #include "utl_time.h"
 
 #include "btc_util.h"
+#include "btc_dbg.h"
 
 #include "ln_db_lmdb.h"
 
@@ -144,16 +145,16 @@ static void ln_print_wallet(const ln_self_t *self)
     if (stat == LN_STATUS_NORMAL) {
         printf(INDENT2 "{\n");
         printf(INDENT3 M_QQ("node_id") ": \"");
-        btc_util_dumpbin(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
         printf("\",\n");
         printf(INDENT3 M_QQ("channel_id") ": \"");
-        btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
+        utl_dbg_dump(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
         printf("\",\n");
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, self->short_channel_id);
         printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
         printf(INDENT3 M_QQ("funding_tx") ": \"");
-        btc_util_dumptxid(stdout, self->funding_local.txid);
+        btc_dbg_dump_txid(stdout, self->funding_local.txid);
         printf(":%d\",\n", self->funding_local.txindex);
         uint64_t offered = 0;
         uint64_t received = 0;
@@ -198,12 +199,12 @@ static void ln_print_self(const ln_self_t *self)
 
     //peer_node
     printf(INDENT3 M_QQ("peer_node_id") ": \"");
-    btc_util_dumpbin(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
     printf("\",\n");
 
     //channel_id
     printf(INDENT3 M_QQ("channel_id") ": \"");
-    btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
+    utl_dbg_dump(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
     printf(INDENT3 M_QQ("short_channel_id") ": {\n");
     uint32_t height;
@@ -232,7 +233,7 @@ static void ln_print_self(const ln_self_t *self)
     //key storage
     printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->priv_data.storage_index);
     // printf(M_QQ("storage_seed") ": \"");
-    // btc_util_dumpbin(stdout, self->priv_data.storage_seed, BTC_SZ_PRIVKEY, false);
+    // utl_dbg_dump(stdout, self->priv_data.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
     printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->peer_storage_index);
 
@@ -246,22 +247,22 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 #ifdef USE_BITCOINJ
     printf(INDENT3 M_QQ("mined_block") ": \"");
-    btc_util_dumptxid(stdout, self->funding_bhash);
+    btc_dbg_dump_txid(stdout, self->funding_bhash);
     printf("\",\n");
     printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", self->last_confirm);
 #endif
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
-    btc_util_dumptxid(stdout, self->funding_local.txid);
+    btc_dbg_dump_txid(stdout, self->funding_local.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         // printf(INDENT4 M_QQ("priv") ": \"");
-        // btc_util_dumpbin(stdout, self->funding_local.keys[lp].priv, BTC_SZ_PRIVKEY, false);
+        // utl_dbg_dump(stdout, self->funding_local.keys[lp].priv, BTC_SZ_PRIVKEY, false);
         // printf("\",");
         printf(INDENT5 M_QQ("pub") ": \"");
-        btc_util_dumpbin(stdout, self->funding_local.pubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_local.pubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
@@ -271,7 +272,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        btc_util_dumpbin(stdout, self->funding_local.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_local.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -282,12 +283,12 @@ static void ln_print_self(const ln_self_t *self)
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        btc_util_dumpbin(stdout, self->funding_remote.pubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_remote.pubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
     printf(INDENT4 M_QQ("%s") ": \"", "prev_percommit");
-    btc_util_dumpbin(stdout, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY, false);
     printf("\",\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         if (lp != 0) {
@@ -295,7 +296,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        btc_util_dumpbin(stdout, self->funding_remote.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_remote.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -303,7 +304,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
     printf(INDENT3 M_QQ("obscured") ": " M_QQ("0x%016" PRIx64) ",\n", self->obscured);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
-    // btc_util_dumpbin(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
+    // utl_dbg_dump(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
     // printf("\",\n");
     printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
     printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", self->min_depth);
@@ -327,10 +328,10 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT5 M_QQ("shutdown_recv") ": %d\n", (self->shutdown_flag & 0x02) == 0x02);
     printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("local_scriptPubKey") ": \"");
-    btc_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
+    utl_dbg_dump(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
     printf("\",\n");
     printf(INDENT4 M_QQ("remote_scriptPubKey") ": \"");
-    btc_util_dumpbin(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
+    utl_dbg_dump(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
     printf("\"\n");
     printf(INDENT3 "},\n");
 
@@ -423,10 +424,10 @@ static void ln_print_self(const ln_self_t *self)
             printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
             printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
             printf(INDENT5 M_QQ("payhash") ": \"");
-            btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
+            utl_dbg_dump(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
             printf("\",\n");
             printf(INDENT5 M_QQ("preimage") ": \"");
-            btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
+            utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
             printf("\",\n");
             uint8_t sha[BTC_SZ_HASH256];
             btc_util_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
@@ -446,14 +447,14 @@ static void ln_print_self(const ln_self_t *self)
             printf(INDENT5 M_QQ("onion_reason") ": \"");
             if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
                 printf("length=%d, ", self->cnl_add_htlc[lp].buf_onion_reason.len);
-                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
+                utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
                 printf("...");
             } else {
-                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, self->cnl_add_htlc[lp].buf_onion_reason.len, false);
+                utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, self->cnl_add_htlc[lp].buf_onion_reason.len, false);
             }
             printf("\",\n");
             printf(INDENT5 M_QQ("shared_secret") ": \"");
-            btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_shared_secret.buf, self->cnl_add_htlc[lp].buf_shared_secret.len, false);
+            utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_shared_secret.buf, self->cnl_add_htlc[lp].buf_shared_secret.len, false);
             printf("\",\n");
             printf(INDENT5 M_QQ("index") ": %d\n", lp);
             printf(INDENT4 "}");
@@ -471,7 +472,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_local.to_self_delay);
     printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_local.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_util_dumptxid(stdout, self->commit_local.txid);
+    btc_dbg_dump_txid(stdout, self->commit_local.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_local.commit_num);
@@ -487,7 +488,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_remote.to_self_delay);
     printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_remote.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_util_dumptxid(stdout, self->commit_remote.txid);
+    btc_dbg_dump_txid(stdout, self->commit_remote.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_remote.htlc_num);
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_remote.commit_num);
@@ -539,10 +540,10 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 ln_short_channel_id_string(str_sci, ann.short_channel_id);
                 printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
                 printf(INDENT3 M_QQ("node1") ": \"");
-                btc_util_dumpbin(stdout, ann.node_id1, BTC_SZ_PUBKEY, false);
+                utl_dbg_dump(stdout, ann.node_id1, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
                 printf(INDENT3 M_QQ("node2") ": \"");
-                btc_util_dumpbin(stdout, ann.node_id2, BTC_SZ_PUBKEY, false);
+                utl_dbg_dump(stdout, ann.node_id2, BTC_SZ_PUBKEY, false);
                 printf("\"\n");
             }
         }
@@ -557,7 +558,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             bool ret = ln_msg_node_announce_read(&msg, pData, Len);
             if (ret) {
                 printf(INDENT3 M_QQ("node") ": \"");
-                btc_util_dumpbin(stdout, node_pub, BTC_SZ_PUBKEY, false);
+                utl_dbg_dump(stdout, node_pub, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
                 char esc_alias[LN_SZ_ALIAS * 2 + 1];
                 escape_json_string(esc_alias, node_alias);
@@ -573,7 +574,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                             msg.addr.port);
                     printf(INDENT3 M_QQ("addr") ": " M_QQ("%s") ",\n", addr);
                     printf(INDENT3 M_QQ("connect") ": \"");
-                    btc_util_dumpbin(stdout, node_pub, BTC_SZ_PUBKEY, false);
+                    utl_dbg_dump(stdout, node_pub, BTC_SZ_PUBKEY, false);
                     printf("@%s\",\n", addr);
                 } else {
                     printf(INDENT3 M_QQ("addrtype") ": %d,\n", msg.addr.type);
@@ -648,7 +649,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
         if (showflag & SHOW_SELF_LISTCH) {
             printf(INDENT2 "\"");
-            btc_util_dumpbin(stdout, p_self->peer_node_id, BTC_SZ_PUBKEY, false);
+            utl_dbg_dump(stdout, p_self->peer_node_id, BTC_SZ_PUBKEY, false);
             printf("\"");
         }
         ln_term(p_self);
@@ -681,7 +682,7 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
         printf(",\n");
     }
     printf(INDENT1 "\"");
-    btc_util_dumptxid(stdout, pWallet->p_txid);
+    btc_dbg_dump_txid(stdout, pWallet->p_txid);
     printf(":%d\": {\n", pWallet->index);
     const char *p_type_str;
     switch (pWallet->type) {
@@ -703,7 +704,7 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     printf(INDENT2 M_QQ("locktime") ": %" PRIu32 ",\n", pWallet->locktime);
     if (pWallet->wit_item_cnt > 0) {
         printf(INDENT2 M_QQ("privkey") ": \"");
-        btc_util_dumpbin(stdout, pWallet->p_wit[0].buf, pWallet->p_wit[0].len, false);
+        utl_dbg_dump(stdout, pWallet->p_wit[0].buf, pWallet->p_wit[0].len, false);
         printf("\",\n");
     }
     if (pWallet->wit_item_cnt > 1) {
@@ -713,7 +714,7 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
                 printf(",\n");
             }
             printf(INDENT3 "\"");
-            btc_util_dumpbin(stdout, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len, false);
+            utl_dbg_dump(stdout, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len, false);
             printf("\"");
         }
         printf("\n");
@@ -723,7 +724,7 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     // printf("cnt=%d\n", pWallet->wit_item_cnt);
     // for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
     //     printf("[%d][%d]", lp, pWallet->p_wit[lp].len);
-    //     btc_util_dumpbin(stdout, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len, true);
+    //     utl_dbg_dump(stdout, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len, true);
     // }
     cnt6++;
 
@@ -863,7 +864,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
             printf("%s\n", str_sci);
         } else if ((dbtype == LN_LMDB_DBTYPE_ANNOINFO_NODE) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
             printf("node_announcement: ");
-            btc_util_dumpbin(stdout, key.mv_data, M_SZ_ANNOINFO_NODE, true);
+            utl_dbg_dump(stdout, key.mv_data, M_SZ_ANNOINFO_NODE, true);
         } else {
             //skip
             continue;
@@ -873,7 +874,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
         const uint8_t *p_data = (const uint8_t *)data.mv_data;
         for (int lp = 0; lp < nums; lp++) {
             printf("  [%2d]", lp);
-            btc_util_dumpbin(stdout, p_data, BTC_SZ_PUBKEY, true);
+            utl_dbg_dump(stdout, p_data, BTC_SZ_PUBKEY, true);
             p_data += BTC_SZ_PUBKEY;
         }
         printf("\n");
@@ -952,7 +953,7 @@ static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
             }
 
             printf("[\"");
-            btc_util_dumpbin(stdout, key.mv_data, key.mv_size, false);
+            utl_dbg_dump(stdout, key.mv_data, key.mv_size, false);
             printf("\",");
             printf(M_QQ("%s") "]", (const char *)data.mv_data);
             cnt++;
@@ -987,7 +988,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                 }
                 printf("{\n");
                 printf(INDENT1 "\"");
-                btc_util_dumpbin(stdout, preimg.preimage, LN_SZ_PREIMAGE, false);
+                utl_dbg_dump(stdout, preimg.preimage, LN_SZ_PREIMAGE, false);
                 printf("\",\n");
                 printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimg.amount_msat);
                 printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimg.expiry);
@@ -1021,15 +1022,15 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             btc_keys_wif2keys(&keys, &chain, wif);
             // printf(INDENT2 M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
             // printf(INDENT2 M_QQ("node_secret") ": \"");
-            // btc_util_dumpbin(stdout, keys.priv, BTC_SZ_PRIVKEY, false);
+            // utl_dbg_dump(stdout, keys.priv, BTC_SZ_PRIVKEY, false);
             // printf("\",\n");
             printf(INDENT2 M_QQ("node_id") ": \"");
-            btc_util_dumpbin(stdout, keys.pub, BTC_SZ_PUBKEY, false);
+            utl_dbg_dump(stdout, keys.pub, BTC_SZ_PUBKEY, false);
             printf("\",\n");
             printf(INDENT2 M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
             printf(INDENT2 M_QQ("port") ": %" PRIu16 ",\n", port);
             printf(INDENT2 M_QQ("genesis") ": \"");
-            btc_util_dumptxid(stdout, genesis);
+            btc_dbg_dump_txid(stdout, genesis);
             printf("\",\n");
             const char *p_net;
             switch (chain) {
@@ -1047,7 +1048,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             if (version > 0) {
                 printf(",\n");
                 printf(INDENT2 M_QQ("creation_bhash") ": \"");
-                btc_util_dumptxid(stdout, ln_creationhash_get());
+                btc_dbg_dump_txid(stdout, ln_creationhash_get());
                 printf("\"");
             }
             printf("\n");

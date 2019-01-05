@@ -34,6 +34,7 @@
 #define LOG_TAG     "routing"
 #include "utl_log.h"
 #include "utl_misc.h"
+#include "utl_dbg.h"
 
 #include "btc_util.h"
 
@@ -255,7 +256,7 @@ int main(int argc, char* argv[])
                 printf("hop_num=%d\n", result.hop_num);
                 for (int lp = 0; lp < result.hop_num; lp++) {
                     printf("route%d=", lp);
-                    btc_util_dumpbin(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
+                    utl_dbg_dump(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
                     printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
                                 result.hop_datain[lp].short_channel_id,
                                 result.hop_datain[lp].amt_to_forward,
@@ -270,7 +271,7 @@ int main(int argc, char* argv[])
                         printf(",\n");
                     }
                     printf("[\"");
-                    btc_util_dumpbin(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
+                    utl_dbg_dump(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
                     printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
                                 result.hop_datain[lp].short_channel_id,
                                 result.hop_datain[lp].amt_to_forward,

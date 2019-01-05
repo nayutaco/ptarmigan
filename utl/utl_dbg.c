@@ -61,6 +61,19 @@ void utl_dbg_malloc_cnt_reset(void)
 #endif  //PTARM_DEBUG_MEM
 
 
+#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
+void utl_dbg_dump(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf)
+{
+    for (uint32_t lp = 0; lp < Len; lp++) {
+        fprintf(fp, "%02x", pData[lp]);
+    }
+    if (bLf) {
+        fprintf(fp, "\n");
+    }
+}
+#endif
+
+
 /**************************************************************************
  * package functions
  **************************************************************************/

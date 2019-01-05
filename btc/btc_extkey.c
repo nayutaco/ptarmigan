@@ -481,19 +481,19 @@ void btc_extkey_print(const btc_extkey_t *pExtKey)
     fprintf(fp, "fingerprint: %08x\n", pExtKey->fingerprint);
     fprintf(fp, "child number: %08x\n", pExtKey->child_number);
     fprintf(fp, "chain code: ");
-    btc_util_dumpbin(fp, pExtKey->chain_code, 32, true);
+    utl_dbg_dump(fp, pExtKey->chain_code, 32, true);
     if (pExtKey->type == BTC_EXTKEY_PUB) {
         fprintf(fp, "pubkey: ");
-        btc_util_dumpbin(fp, pExtKey->key, BTC_SZ_PUBKEY, true);
+        utl_dbg_dump(fp, pExtKey->key, BTC_SZ_PUBKEY, true);
     } else {
         fprintf(fp, "privkey: ");
-        btc_util_dumpbin(fp, pExtKey->key, BTC_SZ_PRIVKEY, true);
+        utl_dbg_dump(fp, pExtKey->key, BTC_SZ_PRIVKEY, true);
 
         uint8_t pubkey[BTC_SZ_PUBKEY];
         bool b = btc_keys_priv2pub(pubkey, pExtKey->key);
         if (b) {
             fprintf(fp, "pubkey: ");
-            btc_util_dumpbin(fp, pubkey, sizeof(pubkey), true);
+            utl_dbg_dump(fp, pubkey, sizeof(pubkey), true);
         }
     }
     fprintf(fp, "------------------------\n");

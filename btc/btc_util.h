@@ -130,14 +130,6 @@ int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *
 bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 
 
-#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
-//XXX: utl
-void btc_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
-#else
-#define btc_util_dumpbin(...)     //nothing
-#endif  //PTARM_USE_PRINTFUNC
-
-
 #ifdef __cplusplus
 }
 #endif //__cplusplus
