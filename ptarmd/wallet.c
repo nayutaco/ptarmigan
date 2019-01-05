@@ -109,7 +109,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         switch (type) {
         case LN_DB_WALLET_TYPE_TOREMOTE:
             btc_scriptcode_p2wpkh(&script_code, p_vin->witness[1].buf);
-            ret = btc_sw_sighash(txhash, &wallet.tx, lp, amount, &script_code);
+            ret = btc_sw_sighash(&wallet.tx, txhash, lp, amount, &script_code);
             break;
         case LN_DB_WALLET_TYPE_TOLOCAL:
         case LN_DB_WALLET_TYPE_HTLCOUT:

@@ -145,7 +145,7 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
 
     btc_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
-    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    ret = btc_sw_sighash(pTx, txhash, Index, Value, &script_code);
     if (ret) {
         ret = btc_sig_sign(&sigbuf, txhash, pKeys->priv);
     }

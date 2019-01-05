@@ -97,7 +97,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 }
 
 
-bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode)
+bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode)
 {
     // [transaction version : 4]
     // [hash_prevouts : 32]
@@ -251,7 +251,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     //check sig
     uint8_t txhash[BTC_SZ_HASH256];
     if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) goto LABEL_EXIT;
-    if (!btc_sw_sighash(txhash, pTx, Index, Value, &script_code)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(pTx, txhash, Index, Value, &script_code)) goto LABEL_EXIT;
     if (!btc_sig_verify(p_sig, txhash, p_pub->buf)) goto LABEL_EXIT;
 
     ret = true;

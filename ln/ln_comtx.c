@@ -515,7 +515,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
 
     // verify
     btc_scriptcode_p2wsh(&script_code, &self->redeem_fund);
-    ret = btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
+    ret = btc_sw_sighash(pTxCommit, sighash, 0, self->funding_sat, &script_code);
     if (ret) {
         ret = btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash,
                 &self->tx_funding.vout[self->funding_local.txindex].script);

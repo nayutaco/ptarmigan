@@ -129,7 +129,7 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
         return false;
     }
 
-    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    ret = btc_sw_sighash(pTx, txhash, Index, Value, &script_code);
     if (ret) {
         ret = btc_sig_sign(&sigbuf, txhash, pKeys->priv);
     }
@@ -157,7 +157,7 @@ bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t
     }
 
     if (!btc_scriptcode_p2wsh(&script_code, pWitScript)) return false;
-    if (!btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code)) return false;
+    if (!btc_sw_sighash(pTx, pTxHash, Index, Value, &script_code)) return false;
     utl_buf_free(&script_code);
     return true;
 }

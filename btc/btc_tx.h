@@ -369,8 +369,7 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
  *      - pPubKeyは、既にあるなら計算を省略したいので引数にしている
  *          - 使ってみて、計算済みになることが少ないなら、引数から削除する予定
  */
-bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index,
-        const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
+bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
 
 
 /** P2PKH署名チェック

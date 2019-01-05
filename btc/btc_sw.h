@@ -114,16 +114,15 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin);
 
 /** segwitトランザクション署名用ハッシュ値計算
  *
- * @param[out]      pTxHash             署名に使用するハッシュ値(BTC_SZ_HASH256)
  * @param[in]       pTx                 署名対象のトランザクションデータ
+ * @param[out]      pTxHash             署名に使用するハッシュ値(BTC_SZ_HASH256)
  * @param[in]       Index               署名するINPUTのindex番号
  * @param[in]       Value               署名するINPUTのvalue[単位:satoshi]
  * @param[in]       pScriptCode         Script Code
  * @retval  false   pTxがトランザクションとして不正
  *
  */
-bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value,
-                const utl_buf_t *pScriptCode);
+bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode);
 
 
 /** P2WPKHのwitness作成

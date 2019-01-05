@@ -402,7 +402,7 @@ TEST_F(sw, sighash_p2wpkh)
     utl_buf_t script_code = UTL_BUF_INIT;
     bool ret = btc_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
-    ret = btc_sw_sighash(txhash, &tx, 0, BTC_BTC2SATOSHI(0.007), &script_code);
+    ret = btc_sw_sighash(&tx, txhash, 0, BTC_BTC2SATOSHI(0.007), &script_code);
     ASSERT_TRUE(ret);
     //printf("txhash=\n");
     //sw::DumpBin(txhash, sizeof(txhash));
@@ -483,7 +483,7 @@ TEST_F(sw, sighash_p2wsh)
     ASSERT_TRUE(ret);
     //printf("script_code=\n");
     //sw::DumpBin(script_code.buf, script_code.len);
-    ret = btc_sw_sighash(txhash, &tx, 0, BTC_MBTC2SATOSHI(9), &script_code);
+    ret = btc_sw_sighash(&tx, txhash, 0, BTC_MBTC2SATOSHI(9), &script_code);
     ASSERT_TRUE(ret);
     //printf("txhash=\n");
     //sw::DumpBin(txhash, sizeof(txhash));
@@ -730,7 +730,7 @@ TEST_F(sw, sign_p2wpkh)
     utl_buf_t script_code = UTL_BUF_INIT;
     ret = btc_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
-    ret = btc_sw_sighash(txhash, &tx, 0, BTC_BTC2SATOSHI(0.007), &script_code);
+    ret = btc_sw_sighash(&tx, txhash, 0, BTC_BTC2SATOSHI(0.007), &script_code);
     ASSERT_TRUE(ret);
     sw::DumpBin(txhash, sizeof(txhash));
     utl_buf_free(&script_code);
