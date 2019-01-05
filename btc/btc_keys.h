@@ -49,8 +49,6 @@ extern "C" {
 #define BTC_SZ_PUBKEY_UNCOMP    (65)                ///< サイズ:圧縮されていない公開鍵
 #define BTC_SZ_ADDR_STR_MAX     (90)                ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
 #define BTC_SZ_WIF_STR_MAX      (55)                ///< サイズ:秘密鍵のWIF(上限不明)
-//XXX:
-#define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
 
 /**************************************************************************
@@ -62,21 +60,21 @@ extern "C" {
  **************************************************************************/
 
 /** @struct     btc_keys_t
- *  @brief      鍵情報
+ *  @brief      key information
  */
 typedef struct {
-    uint8_t     priv[BTC_SZ_PRIVKEY];             ///< 秘密鍵
-    uint8_t     pub[BTC_SZ_PUBKEY];               ///< 公開鍵
+    uint8_t     priv[BTC_SZ_PRIVKEY];           ///< private key
+    uint8_t     pub[BTC_SZ_PUBKEY];             ///< public key
 } btc_keys_t;
 
 
-/** @enum   btc_keys_sort_t
- *  @brief  鍵ソート結果
+/** @enum   btc_keys_order_t
+ *  @brief  order of the keys
  */
 typedef enum {
-    BTC_KEYS_SORT_ASC,            ///< 順番が昇順
-    BTC_KEYS_SORT_OTHER           ///< それ以外
-} btc_keys_sort_t;
+    BTC_KEYS_ORDER_ASC,             ///< ascending order
+    BTC_KEYS_ORDER_OTHER            ///< other
+} btc_keys_order_t;
 
 
 /**************************************************************************
@@ -241,21 +239,14 @@ bool btc_keys_create_priv(uint8_t *pPriv);
 bool btc_keys_create(btc_keys_t *pKeys);
 
 
-//XXX:
-//////////////////////
-//UTIL
-//////////////////////
-/** #btc_redeem_create_2of2()のソートあり版
+/** get the order of the keys
  *
- * @param[out]      pRedeem     2-of-2 redeem script
- * @param[out]      pSort       ソート結果(#BTC_KEYS_SORT_ASC)
- * @param[in]       pPubKey1    公開鍵1
- * @param[in]       pPubKey2    公開鍵2
+ * @param[in]       pPubKey1
+ * @param[in]       pPubKey2
+ * @retval      BTC_KEYS_ORDER_ASC     引数の順番
  *
- * @note
- *      - 公開鍵の順番は昇順
  */
-bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+btc_keys_order_t btc_keys_pub_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 #ifdef __cplusplus

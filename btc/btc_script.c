@@ -492,6 +492,17 @@ bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const u
 }
 
 
+bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_keys_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+{
+    *pOrder = btc_keys_pub_order_2of2(pPubKey1, pPubKey2);
+    if (*pOrder == BTC_KEYS_ORDER_ASC) {
+        return btc_redeem_create_2of2(pRedeem, pPubKey1, pPubKey2);
+    } else {
+        return btc_redeem_create_2of2(pRedeem, pPubKey2, pPubKey1);
+    }
+}
+
+
 bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
 {
     if (Num > 16) return false;

@@ -56,9 +56,6 @@
  * prototypes
  **************************************************************************/
 
-static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
-
-
 /**************************************************************************
  *const variables
  **************************************************************************/
@@ -66,17 +63,6 @@ static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *
 /**************************************************************************
  * public functions
  **************************************************************************/
-
-bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
-{
-    *pSort = pubkey_sort_2of2(pPubKey1, pPubKey2);
-    if (*pSort == BTC_KEYS_SORT_ASC) {
-        return btc_redeem_create_2of2(pRedeem, pPubKey1, pPubKey2);
-    } else {
-        return btc_redeem_create_2of2(pRedeem, pPubKey2, pPubKey1);
-    }
-}
-
 
 bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
 {
@@ -592,20 +578,4 @@ bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t 
  * private functions
  **************************************************************************/
 
-/** 2-of-2公開鍵ソート
- *
- * @param[in]       pPubKey1
- * @param[in]       pPubKey2
- * @retval      BTC_KEYS_SORT_ASC     引数の順番が昇順
- *
- */
-static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
-{
-    int cmp = memcmp(pPubKey1, pPubKey2, BTC_SZ_PUBKEY);
-    if (cmp < 0) {
-        return BTC_KEYS_SORT_ASC;
-    } else {
-        return BTC_KEYS_SORT_OTHER;
-    }
-}
 

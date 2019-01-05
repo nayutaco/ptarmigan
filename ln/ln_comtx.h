@@ -104,10 +104,10 @@ bool HIDDEN ln_comtx_create_to_remote(const ln_self_t *self,
  *
  * @note
  *      - pTx
- *      - #btc_util_create_2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
+ *      - #btc_redeem_create_2of2_sorted()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
  *          例えば、先に自分のデータ、後に相手のデータ、など。
  */
-bool HIDDEN ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
+bool HIDDEN ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_order_t Sort,
                     const utl_buf_t *pSig1,
                     const utl_buf_t *pSig2,
                     const utl_buf_t *pWit2of2);

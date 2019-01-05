@@ -389,7 +389,7 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
 }
 
 
-bool ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
+bool ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_order_t Sort,
                     const utl_buf_t *pSig1,
                     const utl_buf_t *pSig2,
                     const utl_buf_t *pWit2of2)
@@ -405,7 +405,7 @@ bool ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
         NULL,
         pWit2of2
     };
-    if (Sort == BTC_KEYS_SORT_ASC) {
+    if (Sort == BTC_KEYS_ORDER_ASC) {
         wits[1] = pSig1;
         wits[2] = pSig2;
     } else {

@@ -726,7 +726,7 @@ typedef struct {
     const uint8_t           *p_peer_funding_pub;
     uint8_t                 *p_peer_node_sign;
     uint8_t                 *p_peer_btc_sign;
-    btc_keys_sort_t         sort;                   ///< peerのln_node_announce_t.sort
+    btc_keys_order_t         sort;                   ///< peerのln_node_announce_t.sort
 } ln_cnl_announce_create_t;
 
 
@@ -780,7 +780,7 @@ typedef struct {
     ln_nodeaddr_t       addr;
 
     //受信したデータ用
-    btc_keys_sort_t   sort;                       ///< 自ノードとのソート結果(ASC=自ノードが先)
+    btc_keys_order_t   sort;                       ///< 自ノードとのソート結果(ASC=自ノードが先)
 } ln_node_announce_t;
 
 
@@ -1032,9 +1032,9 @@ typedef struct {
 typedef struct {
     uint8_t             node_id[BTC_SZ_PUBKEY];         ///< ノードID
     char                alias[LN_SZ_ALIAS + 1];         ///< 名前
-    btc_keys_sort_t     sort;                           ///< 自ノードの順番
-                                                            // #BTC_KEYS_SORT_ASC : 自ノードが先
-                                                            // #BTC_KEYS_SORT_OTHER : 他ノードが先
+    btc_keys_order_t     sort;                           ///< 自ノードの順番
+                                                            // #BTC_KEYS_ORDER_ASC : 自ノードが先
+                                                            // #BTC_KEYS_ORDER_OTHER : 他ノードが先
 } ln_node_info_t;
 
 
@@ -1144,7 +1144,7 @@ struct ln_self_t {
     uint64_t                    obscured;                       ///< [FUND_04]commitment numberをXORするとobscured commitment numberになる値。
                                                                     // 0の場合、1回でもclosing_signed受信した
     utl_buf_t                   redeem_fund;                    ///< [FUND_05]2-of-2のredeemScript
-    btc_keys_sort_t             key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
+    btc_keys_order_t             key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
     ln_establish_t              *p_establish;                   ///< [FUND_08]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_09]minimum_depth
