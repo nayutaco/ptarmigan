@@ -31,6 +31,7 @@
 #include "utl_dbg.h"
 #include "utl_time.h"
 #include "utl_int.h"
+#include "utl_mem.h"
 
 #include "btc_local.h"
 #include "btc_util.h"
@@ -677,68 +678,46 @@ LABEL_EXIT:
 
 void btc_tx_sort_bip69(btc_tx_t *pTx)
 {
-    //INPUT
-    //  1. output(txid)でソート
-    //      --> 同じならindexでソート
+    //sort vin
+    //  key1: txid
+    //  key2: index
     if (pTx->vin_cnt > 1) {
         for (uint32_t lp = 0; lp < pTx->vin_cnt - 1; lp++) {
             for (uint32_t lp2 = lp + 1; lp2 < pTx->vin_cnt; lp2++) {
-                uint8_t vin1[BTC_SZ_TXID];
-                uint8_t vin2[BTC_SZ_TXID];
-                for (int lp3 = 0; lp3 < BTC_SZ_TXID / 2; lp3++) {
-                    vin1[lp3] = pTx->vin[lp ].txid[BTC_SZ_TXID - 1 - lp3];
-                    vin2[lp3] = pTx->vin[lp2].txid[BTC_SZ_TXID - 1 - lp3];
+                btc_vin_t *p_vin1 = &pTx->vin[lp];
+                btc_vin_t *p_vin2 = &pTx->vin[lp2];
+                uint8_t txid1[BTC_SZ_TXID];
+                uint8_t txid2[BTC_SZ_TXID];
+                utl_mem_reverse_byte(txid1, p_vin1->txid, BTC_SZ_TXID);
+                utl_mem_reverse_byte(txid2, p_vin2->txid, BTC_SZ_TXID);
+                int cmp = memcmp(txid1, txid2, BTC_SZ_TXID);
+                if (cmp < 0) continue;
+                if (cmp == 0) {
+                    if (p_vin1->index < p_vin2->index) continue;
                 }
-                int cmp = memcmp(vin1, vin2, BTC_SZ_TXID);
-                if (cmp < 0) {
-                    //そのまま
-                } else if (cmp > 0) {
-                    //swap
-                } else {
-                    //index
-                    if (pTx->vin[lp].index < pTx->vin[lp2].index) {
-                        //そのまま
-                        cmp = -1;
-                    } else {
-                        //swap
-                        cmp = 1;
-                    }
-                }
-                if (cmp > 0) {
-                    //lpとlp2をswap
-                    btc_vin_t swap;
-                    memcpy(&swap, &pTx->vin[lp], sizeof(btc_vin_t));
-                    memcpy(&pTx->vin[lp], &pTx->vin[lp2], sizeof(btc_vin_t));
-                    memcpy(&pTx->vin[lp2], &swap, sizeof(btc_vin_t));
-                }
+                btc_vin_t tmp;
+                utl_mem_swap(p_vin1, p_vin2, &tmp, sizeof(btc_vin_t));
             }
         }
     }
 
-    //OUTPUT
-    //  1. amountでソート(整数として)
-    //      --> 同じならscriptPubKeyでソート
+    //sort vout
+    //  key1: amount (numerical order)
+    //  key2: scriptPubKey
     if (pTx->vout_cnt > 1) {
         for (uint32_t lp = 0; lp < pTx->vout_cnt - 1; lp++) {
             for (uint32_t lp2 = lp + 1; lp2 < pTx->vout_cnt; lp2++) {
-                int cmp;
-                if (pTx->vout[lp].value < pTx->vout[lp2].value) {
-                    //そのまま
-                    cmp = -1;
-                } else if (pTx->vout[lp].value > pTx->vout[lp2].value) {
-                    //swap
-                    cmp = 1;
-                } else {
-                    cmp = memcmp(pTx->vout[lp].script.buf, pTx->vout[lp2].script.buf,
-                            (pTx->vout[lp].script.len < pTx->vout[lp2].script.len) ? pTx->vout[lp].script.len : pTx->vout[lp2].script.len);
+                btc_vout_t *p_vout1 = &pTx->vout[lp];
+                btc_vout_t *p_vout2 = &pTx->vout[lp2];
+                if (p_vout1->value < p_vout2->value) continue;
+                if (p_vout1->value == p_vout2->value) {
+                    uint16_t min_len = (p_vout1->script.len < p_vout2->script.len) ?
+                        p_vout1->script.len : p_vout2->script.len;
+                    int cmp = memcmp(p_vout1->script.buf, p_vout2->script.buf, min_len);
+                    if (cmp <= 0) continue;
                 }
-                if (cmp > 0) {
-                    //lpとlp2をswap
-                    btc_vout_t swap;
-                    memcpy(&swap, &pTx->vout[lp], sizeof(btc_vout_t));
-                    memcpy(&pTx->vout[lp], &pTx->vout[lp2], sizeof(btc_vout_t));
-                    memcpy(&pTx->vout[lp2], &swap, sizeof(btc_vout_t));
-                }
+                btc_vout_t tmp;
+                utl_mem_swap(p_vout1, p_vout2, &tmp, sizeof(btc_vout_t));
             }
         }
     }

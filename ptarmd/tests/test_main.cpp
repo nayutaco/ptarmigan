@@ -15,6 +15,7 @@ extern "C" {
 #include "../../utl/utl_time.c"
 #include "../../utl/utl_rng.c"
 #include "../../utl/utl_int.c"
+#include "../../utl/utl_mem.c"
 //評価対象本体
 #undef LOG_TAG
 #include "lnapp.c"

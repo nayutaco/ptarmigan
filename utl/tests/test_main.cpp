@@ -19,6 +19,7 @@ extern "C" {
 #include "utl_addr.c"
 #include "utl_time.c"
 #include "utl_int.c"
+#include "utl_mem.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
