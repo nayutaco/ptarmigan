@@ -405,7 +405,7 @@ TEST_F(ln_bolt3_c, committx2)
     tx.locktime = LN_LOCKTIME(obscured);
 
     //BIP69
-    btc_util_sort_bip69(&tx);
+    btc_tx_sort_bip69(&tx);
 
     //署名
     const uint8_t REMOTE_SIGNATURE[] = {

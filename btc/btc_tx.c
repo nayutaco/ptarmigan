@@ -675,6 +675,76 @@ LABEL_EXIT:
 }
 
 
+void btc_tx_sort_bip69(btc_tx_t *pTx)
+{
+    //INPUT
+    //  1. output(txid)でソート
+    //      --> 同じならindexでソート
+    if (pTx->vin_cnt > 1) {
+        for (uint32_t lp = 0; lp < pTx->vin_cnt - 1; lp++) {
+            for (uint32_t lp2 = lp + 1; lp2 < pTx->vin_cnt; lp2++) {
+                uint8_t vin1[BTC_SZ_TXID];
+                uint8_t vin2[BTC_SZ_TXID];
+                for (int lp3 = 0; lp3 < BTC_SZ_TXID / 2; lp3++) {
+                    vin1[lp3] = pTx->vin[lp ].txid[BTC_SZ_TXID - 1 - lp3];
+                    vin2[lp3] = pTx->vin[lp2].txid[BTC_SZ_TXID - 1 - lp3];
+                }
+                int cmp = memcmp(vin1, vin2, BTC_SZ_TXID);
+                if (cmp < 0) {
+                    //そのまま
+                } else if (cmp > 0) {
+                    //swap
+                } else {
+                    //index
+                    if (pTx->vin[lp].index < pTx->vin[lp2].index) {
+                        //そのまま
+                        cmp = -1;
+                    } else {
+                        //swap
+                        cmp = 1;
+                    }
+                }
+                if (cmp > 0) {
+                    //lpとlp2をswap
+                    btc_vin_t swap;
+                    memcpy(&swap, &pTx->vin[lp], sizeof(btc_vin_t));
+                    memcpy(&pTx->vin[lp], &pTx->vin[lp2], sizeof(btc_vin_t));
+                    memcpy(&pTx->vin[lp2], &swap, sizeof(btc_vin_t));
+                }
+            }
+        }
+    }
+
+    //OUTPUT
+    //  1. amountでソート(整数として)
+    //      --> 同じならscriptPubKeyでソート
+    if (pTx->vout_cnt > 1) {
+        for (uint32_t lp = 0; lp < pTx->vout_cnt - 1; lp++) {
+            for (uint32_t lp2 = lp + 1; lp2 < pTx->vout_cnt; lp2++) {
+                int cmp;
+                if (pTx->vout[lp].value < pTx->vout[lp2].value) {
+                    //そのまま
+                    cmp = -1;
+                } else if (pTx->vout[lp].value > pTx->vout[lp2].value) {
+                    //swap
+                    cmp = 1;
+                } else {
+                    cmp = memcmp(pTx->vout[lp].script.buf, pTx->vout[lp2].script.buf,
+                            (pTx->vout[lp].script.len < pTx->vout[lp2].script.len) ? pTx->vout[lp].script.len : pTx->vout[lp2].script.len);
+                }
+                if (cmp > 0) {
+                    //lpとlp2をswap
+                    btc_vout_t swap;
+                    memcpy(&swap, &pTx->vout[lp], sizeof(btc_vout_t));
+                    memcpy(&pTx->vout[lp], &pTx->vout[lp2], sizeof(btc_vout_t));
+                    memcpy(&pTx->vout[lp2], &swap, sizeof(btc_vout_t));
+                }
+            }
+        }
+    }
+}
+
+
 #if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
 void btc_tx_print(const btc_tx_t *pTx)
 {
