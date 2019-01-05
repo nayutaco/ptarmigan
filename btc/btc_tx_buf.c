@@ -89,3 +89,10 @@ bool btc_tx_buf_w_write_varint_len(btc_buf_w_t *pBufW, uint64_t Size)
     return btc_tx_buf_w_write_data(pBufW, buf, len);
 }
 
+
+bool btc_tx_buf_w_write_varint_len_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
+{
+    if (!btc_tx_buf_w_write_varint_len(pBufW, Len)) return false;
+    if (!btc_tx_buf_w_write_data(pBufW, pData, Len)) return false;
+    return true;
+}

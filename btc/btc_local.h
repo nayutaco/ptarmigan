@@ -115,31 +115,4 @@ bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t 
 bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
 
 
-/** varint型のデータ長サイズ取得
- *
- * @param[in]   Len         データ長(16bit長まで)
- * @return      varint型のデータ長サイズ
- *
- * @note
- *      - 補足:<br/>
- *          varint型はデータ長＋データという構成になっているが、データ長のサイズが可変になっている。<br/>
- *          データ長が0～0xfcまでは1バイト、0xfd～0xffffまでは3バイト、などとなる。<br/>
- *              https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
- */
-int HIDDEN btcl_util_get_varint_len(uint32_t Len);
-
-
-/** varint型のデータ長設定
- *
- * @param[out]      pData       設定先
- * @param[in]       pOrg        データ先頭(isScript==trueのみ)
- * @param[in]       Len         pOrg長
- * @param[in]       isScript    true:スクリプト作成中
- * @return      varintデータ長サイズ
- *
- * @note
- *      - pDataにvarint型のデータ長だけ書込む。pDataから戻り値だけ進んだところにpOrgを書込むとよい。
- */
-int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript);
-
 #endif /* BTC_LOCAL_H__ */

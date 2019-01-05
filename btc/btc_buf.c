@@ -163,6 +163,12 @@ bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 }
 
 
+bool btc_buf_w_write_byte(btc_buf_w_t *pBufW, uint8_t Byte)
+{
+    return btc_buf_w_write_data(pBufW, &Byte, 1);
+}
+
+
 bool btc_buf_w_write_u16le(btc_buf_w_t *pBufW, uint16_t U16)
 {
     uint8_t buf[2];
