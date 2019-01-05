@@ -64,6 +64,7 @@
  * public functions
  **************************************************************************/
 
+//XXX: test
 bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
 {
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
@@ -90,6 +91,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
 }
 
 
+//XXX: test
 bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
 {
     //公開鍵(署名サイズ[1],署名[sz],公開鍵サイズ[1], 公開鍵、の順になっている)
@@ -111,6 +113,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
 }
 
 
+//XXX: test
 bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys)
 {
     bool ret;
@@ -145,30 +148,34 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
 }
 
 
+//XXX: test
 bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_sig_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
+//XXX: test
 bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_sig_sign_rs(pRS, pTxHash, pKeys->priv);
 }
 
-
+//XXX: crypto
 void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
 {
     mbedtls_ripemd160(pData, Len, pRipemd160);
 }
 
 
+//XXX: crypto
 void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
 {
     mbedtls_sha256(pData, Len, pSha256, 0);
 }
 
 
+//XXX: util
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 /** uint8[]の内容をFILE*出力
  *
@@ -187,6 +194,7 @@ void btc_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf)
 }
 
 
+//XXX: util
 /** uint8[]の内容をFILE*出力
  *
  * @param[in]       fp          出力先
@@ -205,6 +213,7 @@ void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid)
  * package functions
  **************************************************************************/
 
+//XXX: crypto
 void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 {
     uint8_t buf_sha256[BTC_SZ_HASH256];
@@ -214,6 +223,7 @@ void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 }
 
 
+//XXX: crypto
 void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 {
     btc_util_sha256(pHash256, pData, Len);
@@ -221,6 +231,7 @@ void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 }
 
 
+//XXX: crypto
 void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
 {
     mbedtls_sha256_context ctx;
@@ -234,6 +245,7 @@ void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, 
 }
 
 
+//XXX: crypto
 int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey)
 {
     int ret;
@@ -343,6 +355,7 @@ LABEL_EXIT:
 }
 
 
+//XXX: script
 void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
 {
     //nested in P2SH
@@ -359,6 +372,7 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
 }
 
 
+//XXX: crypto
 int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA)
 {
     int ret;
@@ -410,6 +424,7 @@ LABEL_EXIT:
 }
 
 
+//XXX: crypto
 bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen)
 {
     mbedtls_ecp_keypair keypair;
@@ -445,6 +460,7 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
  * package functions
  **************************************************************************/
 
+//XXX: crypto
 int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 {
     int ret;
@@ -456,6 +472,7 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 }
 
 
+//XXX: tx
 bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
 {
     bool ret = false;
@@ -540,6 +557,7 @@ LABEL_EXIT:
 }
 
 
+//XXX: tx
 bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
 {
     uint8_t pkh[BTC_SZ_HASH_MAX];
@@ -549,6 +567,7 @@ bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t 
 }
 
 
+//XXX: tx
 bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
