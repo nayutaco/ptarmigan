@@ -296,7 +296,7 @@
  *
  * Uncomment to enable validation of application-controlled parameters.
  */
-//#define MBEDTLS_CHECK_PARAMS
+#define MBEDTLS_CHECK_PARAMS
 
 /* \} name SECTION: System support */
 
@@ -3066,7 +3066,8 @@
  *
  * \param cond  The expression that should evaluate to true, but doesn't.
  */
-//#define MBEDTLS_PARAM_FAILED( cond )               assert( cond )
+#define MBEDTLS_PARAM_FAILED( cond )               assert( cond )
+#include <assert.h>
 
 /* SSL Cache options */
 //#define MBEDTLS_SSL_CACHE_DEFAULT_TIMEOUT       86400 /**< 1 day  */
