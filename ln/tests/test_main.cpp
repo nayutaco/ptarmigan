@@ -28,6 +28,7 @@ extern "C" {
 #include "../../btc/btc_tx.c"
 #include "../../btc/btc_tx_buf.c"
 #include "../../btc/btc_util.c"
+#include "../../btc/btc_crypto.c"
 #include "../../btc/segwit_addr.c"
 #include "../../btc/btc_segwit_addr.c"
 #undef LOG_TAG

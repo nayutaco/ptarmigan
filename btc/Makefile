@@ -49,6 +49,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/btc_tx.c
 C_SOURCE_FILES += $(PRJ_PATH)/btc_tx_buf.c
 C_SOURCE_FILES += $(PRJ_PATH)/btc_sw.c
 C_SOURCE_FILES += $(PRJ_PATH)/btc_block.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc_crypto.c
 C_SOURCE_FILES += $(PRJ_PATH)/segwit_addr.c
 C_SOURCE_FILES += $(PRJ_PATH)/btc_segwit_addr.c
 
