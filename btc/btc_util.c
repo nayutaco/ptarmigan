@@ -197,27 +197,6 @@ void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid)
 
 
 /**************************************************************************
- * package functions
- **************************************************************************/
-
-//XXX: script
-void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
-{
-    //nested in P2SH
-    if (mNativeSegwit) {
-        assert(false);
-    }
-
-    uint8_t wit_prog[2 + BTC_SZ_HASH_MAX];
-
-    wit_prog[0] = 0x00;
-    wit_prog[1] = (uint8_t)BTC_SZ_HASH160;
-    memcpy(wit_prog + 2, pPubKeyHash, BTC_SZ_HASH160);
-    btc_util_hash160(pWPubKeyHash, wit_prog, BTC_SZ_WITPROG_P2WPKH);
-}
-
-
-/**************************************************************************
  * package functions
  **************************************************************************/
 

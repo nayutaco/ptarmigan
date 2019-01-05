@@ -261,7 +261,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     if (!mNativeSegwit) {
         //P2SH-P2WPKH
         btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
-        btc_util_create_pkh2wpkh(hash, hash); //pkh -> sh
+        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash); //pkh -> sh
     }
     if (memcmp(hash, pHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
 

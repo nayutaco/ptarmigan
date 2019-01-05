@@ -536,6 +536,37 @@ bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], u
 }
 
 
+bool btc_redeem_create_p2sh_p2wpkh(utl_buf_t *pRedeem, const uint8_t *pPubKey)
+{
+    uint8_t pkh[BTC_SZ_HASH160];
+    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    return btc_redeem_create_p2sh_p2wpkh_pkh(pRedeem, pkh);
+}
+
+
+bool btc_redeem_create_p2sh_p2wpkh_pkh(utl_buf_t *pRedeem, const uint8_t *pPubKeyHash)
+{
+    if (!utl_buf_realloc(pRedeem, 1 + 1 + BTC_SZ_HASH160)) return false;
+
+    uint8_t *p = pRedeem->buf;
+
+    *p++ = OP_0;
+    *p++ = (uint8_t)BTC_SZ_HASH160;
+    memcpy(p, pPubKeyHash, BTC_SZ_HASH160);
+    return true;
+}
+
+
+bool btc_scripthash_create_p2sh_p2wpkh_pkh(uint8_t *pScriptHash, const uint8_t *pPubKeyHash)
+{
+    utl_buf_t redeem = UTL_BUF_INIT;
+    if (!btc_redeem_create_p2sh_p2wpkh_pkh(&redeem, pPubKeyHash)) return false;
+    btc_util_hash160(pScriptHash, redeem.buf, redeem.len);
+    utl_buf_free(&redeem);
+    return true;
+}
+
+
 bool btc_witness_create_p2wpkh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     free_witness(ppWitness, pWitItemCnt);

@@ -201,21 +201,6 @@ bool btc_sw_is_segwit(const btc_tx_t *pTx);
 void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 
 
-//////////////////////
-//UTIL
-//////////////////////
-
-//XXX:
-/** PubKeyHash(P2PKH)をPubKeyHash(P2WPKH)に変換
- *
- * [00][14][pubKeyHash] --> HASH160
- *
- * @param[out]      pWPubKeyHash    変換後データ(#BTC_SZ_HASH_MAX)
- * @param[in]       pPubKeyHash     対象データ(#BTC_SZ_HASH_MAX)
- */
-void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
-
-
 #ifdef __cplusplus
 }
 #endif //__cplusplus
