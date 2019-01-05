@@ -31,6 +31,7 @@
 #include "utl_dbg.h"
 #include "utl_time.h"
 #include "utl_int.h"
+#include "utl_mem.h"
 
 #include "btc_local.h"
 #include "btc_util.h"
@@ -672,6 +673,54 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 LABEL_EXIT:
     LOGD("vbyte=%" PRIu32 "\n", len);
     return len;
+}
+
+
+void btc_tx_sort_bip69(btc_tx_t *pTx)
+{
+    //sort vin
+    //  key1: txid
+    //  key2: index
+    if (pTx->vin_cnt > 1) {
+        for (uint32_t lp = 0; lp < pTx->vin_cnt - 1; lp++) {
+            for (uint32_t lp2 = lp + 1; lp2 < pTx->vin_cnt; lp2++) {
+                btc_vin_t *p_vin1 = &pTx->vin[lp];
+                btc_vin_t *p_vin2 = &pTx->vin[lp2];
+                uint8_t txid1[BTC_SZ_TXID];
+                uint8_t txid2[BTC_SZ_TXID];
+                utl_mem_reverse_byte(txid1, p_vin1->txid, BTC_SZ_TXID);
+                utl_mem_reverse_byte(txid2, p_vin2->txid, BTC_SZ_TXID);
+                int cmp = memcmp(txid1, txid2, BTC_SZ_TXID);
+                if (cmp < 0) continue;
+                if (cmp == 0) {
+                    if (p_vin1->index < p_vin2->index) continue;
+                }
+                btc_vin_t tmp;
+                utl_mem_swap(p_vin1, p_vin2, &tmp, sizeof(btc_vin_t));
+            }
+        }
+    }
+
+    //sort vout
+    //  key1: amount (numerical order)
+    //  key2: scriptPubKey
+    if (pTx->vout_cnt > 1) {
+        for (uint32_t lp = 0; lp < pTx->vout_cnt - 1; lp++) {
+            for (uint32_t lp2 = lp + 1; lp2 < pTx->vout_cnt; lp2++) {
+                btc_vout_t *p_vout1 = &pTx->vout[lp];
+                btc_vout_t *p_vout2 = &pTx->vout[lp2];
+                if (p_vout1->value < p_vout2->value) continue;
+                if (p_vout1->value == p_vout2->value) {
+                    uint16_t min_len = (p_vout1->script.len < p_vout2->script.len) ?
+                        p_vout1->script.len : p_vout2->script.len;
+                    int cmp = memcmp(p_vout1->script.buf, p_vout2->script.buf, min_len);
+                    if (cmp <= 0) continue;
+                }
+                btc_vout_t tmp;
+                utl_mem_swap(p_vout1, p_vout2, &tmp, sizeof(btc_vout_t));
+            }
+        }
+    }
 }
 
 

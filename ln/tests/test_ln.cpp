@@ -525,7 +525,7 @@ TEST_F(ln, recv_update_add_htlc1)
     LnInit(&self);
 
     btc_chain_t chain;
-    btc_util_wif2keys(&mNode.keys, &chain, LN_UPDATE_ADD_HTLC_A::WIF);
+    btc_keys_wif2keys(&mNode.keys, &chain, LN_UPDATE_ADD_HTLC_A::WIF);
     self.p_callback = dummy::callback;
     memcpy(self.peer_node_id, LN_UPDATE_ADD_HTLC_A::PEER_NODE_ID, BTC_SZ_PUBKEY);
     memcpy(self.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));
@@ -598,7 +598,7 @@ TEST_F(ln, recv_update_add_htlc2)
     LnInit(&self);
 
     btc_chain_t chain;
-    btc_util_wif2keys(&mNode.keys, &chain, LN_UPDATE_ADD_HTLC_A::WIF);
+    btc_keys_wif2keys(&mNode.keys, &chain, LN_UPDATE_ADD_HTLC_A::WIF);
     self.p_callback = dummy::callback;
     memcpy(self.peer_node_id, LN_UPDATE_ADD_HTLC_A::PEER_NODE_ID, BTC_SZ_PUBKEY);
     memcpy(self.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));

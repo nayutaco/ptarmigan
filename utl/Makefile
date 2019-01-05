@@ -49,6 +49,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/utl_log.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_time.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_rng.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_int.c
+C_SOURCE_FILES += $(PRJ_PATH)/utl_mem.c
 
 
 #includes common to all targets

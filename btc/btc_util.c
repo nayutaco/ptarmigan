@@ -67,36 +67,6 @@ static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *
  * public functions
  **************************************************************************/
 
-bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv)
-{
-    bool ret;
-
-    ret = btc_keys_wif2priv(pKeys->priv, pChain, pWifPriv);
-    if (ret) {
-        ret = btc_keys_priv2pub(pKeys->pub, pKeys->priv);
-    }
-
-    return ret;
-}
-
-
-bool btc_util_create_privkey(uint8_t *pPriv)
-{
-    for (int i = 0; i < 1000; i++) {
-        if (!utl_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
-        if (btc_keys_check_priv(pPriv)) return true;
-    }
-    return false;
-}
-
-
-bool btc_util_create_keys(btc_keys_t *pKeys)
-{
-    if (!btc_util_create_privkey(pKeys->priv)) return false;
-    return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
-}
-
-
 bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     *pSort = pubkey_sort_2of2(pPubKey1, pPubKey2);
@@ -216,76 +186,6 @@ bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys
 bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_sig_sign_rs(pRS, pTxHash, pKeys->priv);
-}
-
-
-void btc_util_sort_bip69(btc_tx_t *pTx)
-{
-    //INPUT
-    //  1. output(txid)でソート
-    //      --> 同じならindexでソート
-    if (pTx->vin_cnt > 1) {
-        for (uint32_t lp = 0; lp < pTx->vin_cnt - 1; lp++) {
-            for (uint32_t lp2 = lp + 1; lp2 < pTx->vin_cnt; lp2++) {
-                uint8_t vin1[BTC_SZ_TXID];
-                uint8_t vin2[BTC_SZ_TXID];
-                for (int lp3 = 0; lp3 < BTC_SZ_TXID / 2; lp3++) {
-                    vin1[lp3] = pTx->vin[lp ].txid[BTC_SZ_TXID - 1 - lp3];
-                    vin2[lp3] = pTx->vin[lp2].txid[BTC_SZ_TXID - 1 - lp3];
-                }
-                int cmp = memcmp(vin1, vin2, BTC_SZ_TXID);
-                if (cmp < 0) {
-                    //そのまま
-                } else if (cmp > 0) {
-                    //swap
-                } else {
-                    //index
-                    if (pTx->vin[lp].index < pTx->vin[lp2].index) {
-                        //そのまま
-                        cmp = -1;
-                    } else {
-                        //swap
-                        cmp = 1;
-                    }
-                }
-                if (cmp > 0) {
-                    //lpとlp2をswap
-                    btc_vin_t swap;
-                    memcpy(&swap, &pTx->vin[lp], sizeof(btc_vin_t));
-                    memcpy(&pTx->vin[lp], &pTx->vin[lp2], sizeof(btc_vin_t));
-                    memcpy(&pTx->vin[lp2], &swap, sizeof(btc_vin_t));
-                }
-            }
-        }
-    }
-
-    //OUTPUT
-    //  1. amountでソート(整数として)
-    //      --> 同じならscriptPubKeyでソート
-    if (pTx->vout_cnt > 1) {
-        for (uint32_t lp = 0; lp < pTx->vout_cnt - 1; lp++) {
-            for (uint32_t lp2 = lp + 1; lp2 < pTx->vout_cnt; lp2++) {
-                int cmp;
-                if (pTx->vout[lp].value < pTx->vout[lp2].value) {
-                    //そのまま
-                    cmp = -1;
-                } else if (pTx->vout[lp].value > pTx->vout[lp2].value) {
-                    //swap
-                    cmp = 1;
-                } else {
-                    cmp = memcmp(pTx->vout[lp].script.buf, pTx->vout[lp2].script.buf,
-                            (pTx->vout[lp].script.len < pTx->vout[lp2].script.len) ? pTx->vout[lp].script.len : pTx->vout[lp2].script.len);
-                }
-                if (cmp > 0) {
-                    //lpとlp2をswap
-                    btc_vout_t swap;
-                    memcpy(&swap, &pTx->vout[lp], sizeof(btc_vout_t));
-                    memcpy(&pTx->vout[lp], &pTx->vout[lp2], sizeof(btc_vout_t));
-                    memcpy(&pTx->vout[lp2], &swap, sizeof(btc_vout_t));
-                }
-            }
-        }
-    }
 }
 
 
@@ -583,42 +483,6 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 
     mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
     ret = btc_util_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
-
-    return ret;
-}
-
-
-bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix)
-{
-    bool ret;
-
-    if (Prefix == BTC_PREF_P2WPKH || Prefix == BTC_PREF_P2WSH) {
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pHash, (Prefix == BTC_PREF_P2WPKH) ? BTC_SZ_HASH160 : BTC_SZ_HASH256);
-    } else if (Prefix == BTC_PREF_P2PKH || Prefix == BTC_PREF_P2SH) {
-        uint8_t buf[1 + BTC_SZ_HASH160 + 4];
-        uint8_t checksum[BTC_SZ_HASH256];
-        size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
-
-        buf[0] = mPref[Prefix];
-        memcpy(buf + 1, pHash, BTC_SZ_HASH160);
-        btc_util_hash256(checksum, buf, 1 + BTC_SZ_HASH160);
-        memcpy(buf + 1 + BTC_SZ_HASH160, checksum, 4);
-        ret = b58enc(pAddr, &sz, buf, sizeof(buf));
-    } else {
-        ret = false;
-    }
 
     return ret;
 }

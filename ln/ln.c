@@ -4271,7 +4271,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     btc_tx_add_vin(pTx, self->funding_local.txid, self->funding_local.txindex);
 
     //BIP69
-    btc_util_sort_bip69(pTx);
+    btc_tx_sort_bip69(pTx);
 
     //署名
     uint8_t sighash[BTC_SZ_HASH256];

@@ -395,7 +395,7 @@ bool HIDDEN ln_script_committx_create(
     pTx->locktime = LN_LOCKTIME(pCmt->obscured);
 
     //BIP69
-    btc_util_sort_bip69(pTx);
+    btc_tx_sort_bip69(pTx);
 
     //署名
     bool ret;

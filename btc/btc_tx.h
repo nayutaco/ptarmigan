@@ -485,6 +485,13 @@ bool btc_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw);
 uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
 
 
+/** トランザクションをBIP69に従ってソートする
+ *
+ * @param[in,out]   pTx     処理対象のトランザクション
+ */
+void btc_tx_sort_bip69(btc_tx_t *pTx);
+
+
 //XXX:
 //////////////////////
 //UTIL
@@ -534,13 +541,6 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
  */
 bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
                     const utl_buf_t *pWitScript);
-
-
-/** トランザクションをBIP69に従ってソートする
- *
- * @param[in,out]   pTx     処理対象のトランザクション
- */
-void btc_util_sort_bip69(btc_tx_t *pTx);
 
 
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
