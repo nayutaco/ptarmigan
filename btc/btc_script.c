@@ -944,7 +944,7 @@ static void free_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt)
  * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     引数の順番
  *
  */
-btc_script_pubkey_order_t pubkey_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+static btc_script_pubkey_order_t pubkey_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     int cmp = memcmp(pPubKey1, pPubKey2, BTC_SZ_PUBKEY);
     if (cmp < 0) {
