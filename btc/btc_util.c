@@ -41,6 +41,7 @@
 #include "btc_sig.h"
 #include "btc_sw.h"
 #include "btc_util.h"
+#include "btc_tx_buf.h"
 
 
 /**************************************************************************
@@ -56,8 +57,6 @@
  **************************************************************************/
 
 static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
-static int set_le32(uint8_t *pData, uint32_t val);
-static int set_le64(uint8_t *pData, uint64_t val);
 
 
 /**************************************************************************
@@ -627,122 +626,85 @@ bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t 
 
 bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
 {
-    //version[4]
-    //mark[1]...wit
-    //flag[1]...wit
-    //vin_cnt[1]
-    //  txid[32]
-    //  index[4]
-    //  script[len]
-    //  sequence[4]
-    //vout_cnt[1]
-    //  value[8]
-    //  script[len]
-    //witness...wit
-    //locktime[4]
+    bool ret = false;
 
-    //XXX: check error
-    // enableSegWit but non-witness is not permitted
-    // or we can automatically determine that it is a segwit transaction
-    // from the existence of witness
+    utl_buf_truncate(pBuf);
 
-    //version + vin_cnt + vout_cnt
-    uint32_t len = sizeof(uint32_t) + btcl_util_get_varint_len(pTx->vin_cnt) + btcl_util_get_varint_len(pTx->vout_cnt);
+    //is segwit?
     bool segwit = false;
-
-    //vin + witness
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &(pTx->vin[lp]);
-
-        len += BTC_SZ_TXID + sizeof(uint32_t) + vin->script.len + sizeof(uint32_t);
-        len += btcl_util_get_varint_len(vin->script.len);
         if (enableSegWit && vin->wit_item_cnt) {
             segwit = true;
-            len++;          //wit_item_cnt
-            for (uint32_t lp2 = 0; lp2 < vin->wit_item_cnt; lp2++) {
-                utl_buf_t *buf = &(vin->witness[lp2]);
-                len += buf->len;
-                len += btcl_util_get_varint_len(buf->len);
-            }
         }
     }
+
+    btc_buf_w_t buf;
+    if (!btc_tx_buf_w_init(&buf, 0)) goto LABEL_EXIT;
+
+    //version[4]
+    //mark[1]...segwit
+    //flag[1]...segwit
+    //vin_cnt[v]
+    //  txid[32]
+    //  index[4]
+    //  script[v|data]
+    //  sequence[4]
+    //vout_cnt[v]
+    //  value[8]
+    //  script[v|data]
+    //witness...segwit
+    //  wit_item_cnt[v]
+    //  script[v|data]
+    //locktime[4]
+
+    if (!btc_tx_buf_w_write_u32le(&buf, pTx->version)) goto LABEL_EXIT;
+
     if (segwit) {
-        len += 2;       //mark + flag
-    }
-    //vout
-    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        btc_vout_t *vout = &(pTx->vout[lp]);
-
-        len += sizeof(uint64_t) + vout->script.len;
-        len += btcl_util_get_varint_len(vout->script.len);
-    }
-    //locktime
-    len += sizeof(uint32_t);
-
-    //LOGD("len=%d\n", len);
-
-    pBuf->len = len;
-    pBuf->buf = (uint8_t *)UTL_DBG_MALLOC(len);
-
-    uint8_t *p = pBuf->buf;
-
-    p += set_le32(p, pTx->version);
-    if (segwit) {
-        *p++ = 0x00;
-        *p++ = 0x01;
+        if (!btc_tx_buf_w_write_byte(&buf, 0x00)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_byte(&buf, 0x01)) goto LABEL_EXIT;
     }
 
-    //vin
-    p += btcl_util_set_varint_len(p, NULL, pTx->vin_cnt, false);
+    if (!btc_tx_buf_w_write_varint_len(&buf, pTx->vin_cnt)) goto LABEL_EXIT;
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &(pTx->vin[lp]);
-
-        //txid
-        memcpy(p, vin->txid, BTC_SZ_TXID);
-        p += BTC_SZ_TXID;
-        //index
-        p += set_le32(p, vin->index);
-        //scriptSig
-        p += btcl_util_set_varint_len(p, vin->script.buf, vin->script.len, false);
-        memcpy(p, vin->script.buf, vin->script.len);
-        p += vin->script.len;
-        //sequence
-        p += set_le32(p, vin->sequence);
+        if (!btc_tx_buf_w_write_data(&buf, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_u32le(&buf, vin->index)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_varint_len_data(&buf, vin->script.buf, vin->script.len)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_u32le(&buf, vin->sequence)) goto LABEL_EXIT;
     }
 
-    //vout
-    p += btcl_util_set_varint_len(p, NULL, pTx->vout_cnt, false);
+    if (!btc_tx_buf_w_write_varint_len(&buf, pTx->vout_cnt)) goto LABEL_EXIT;
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         btc_vout_t *vout = &(pTx->vout[lp]);
-
-        //value
-        p += set_le64(p, vout->value);
-        //scriptPubKey
-        p += btcl_util_set_varint_len(p, vout->script.buf, vout->script.len, false);
-        memcpy(p, vout->script.buf, vout->script.len);
-        p += vout->script.len;
+        if (!btc_tx_buf_w_write_u64le(&buf, vout->value)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_varint_len_data(&buf, vout->script.buf, vout->script.len)) goto LABEL_EXIT;
     }
 
-    //segwit
     if (segwit) {
         for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
             btc_vin_t *vin = &(pTx->vin[lp]);
-
-            p += btcl_util_set_varint_len(p, NULL, vin->wit_item_cnt, false);
+            if (!btc_tx_buf_w_write_varint_len(&buf, vin->wit_item_cnt)) goto LABEL_EXIT;
             for (uint32_t lp2 = 0; lp2 < vin->wit_item_cnt; lp2++) {
-                utl_buf_t *buf = &(vin->witness[lp2]);
-
-                p += btcl_util_set_varint_len(p, buf->buf, buf->len, false);
-                memcpy(p, buf->buf, buf->len);
-                p += buf->len;
+                utl_buf_t *wit_item = &(vin->witness[lp2]);
+                if (!btc_tx_buf_w_write_varint_len_data(&buf, wit_item->buf, wit_item->len)) goto LABEL_EXIT;
             }
         }
     }
 
-    //locktime
-    p += set_le32(p, pTx->locktime);
+    if (!btc_tx_buf_w_write_u32le(&buf, pTx->locktime)) goto LABEL_EXIT;
 
-    return ((uint32_t)(p - pBuf->buf) == pBuf->len);
+    pBuf->buf = btc_tx_buf_w_get_data(&buf);
+    pBuf->len = btc_tx_buf_w_get_len(&buf);
+
+    ret = true;
+
+LABEL_EXIT:
+    if (!ret) {
+        btc_tx_buf_w_free(&buf);
+    }
+
+    return ret;
 }
 
 
@@ -759,41 +721,6 @@ bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t 
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
     return btc_scriptpk_create(&vout->script, pPubKeyHash, Pref);
-}
-
-
-int HIDDEN btcl_util_get_varint_len(uint32_t Len)
-{
-    return (Len < VARINT_3BYTE_MIN) ? 1 : 3;
-}
-
-
-int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript)
-{
-    int retval = 0;
-
-    if (isScript && (Len == 1) && (1 <= pOrg[0]) && (pOrg[0] <= 16)) {
-        //スクリプト用
-        //データ長が1で値が1～16の場合はOP_1～OP_16を使う
-        //実データでは使わないと思われるが、テスト用にOP_CSVの
-        *pData = OP_X + pOrg[0];
-        retval = 0;
-    } else {
-        //データ長が75より大きい場合、OP_PUSHDATA1などを使う必要があるかもしれない
-        //P2SHのscriptSigは長くなりがちなので発生しやすい
-        //witnessにはその制約がなさそうである
-        if (Len < VARINT_3BYTE_MIN) {
-            *pData = (uint8_t)Len;
-            retval = 1;
-        } else {
-            *pData++ = VARINT_3BYTE_MIN;
-            *pData++ = (uint8_t)Len;
-            *pData++ = (uint8_t)(Len >> 8);
-            retval = 3;
-        }
-    }
-
-    return retval;
 }
 
 
@@ -818,32 +745,3 @@ static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *
     }
 }
 
-
-/** uint32-->uint8[4](little endian)
- *
- * @param[out]  pData       変換後データ
- * @param[in]   val         Little Endianデータ
- * @return      データ長(4)
- */
-static int set_le32(uint8_t *pData, uint32_t val)
-{
-    uint8_t *p = (uint8_t *)&val;
-    memcpy(pData, p, sizeof(uint32_t));
-
-    return (int)sizeof(uint32_t);
-}
-
-
-/** uint64-->uint8[8](little endian)
- *
- * @param[out]  pData       変換後データ
- * @param[in]   val         Little Endianデータ
- * @return      データ長(8)
- */
-static int set_le64(uint8_t *pData, uint64_t val)
-{
-    uint8_t *p = (uint8_t *)&val;
-    memcpy(pData, p, sizeof(uint64_t));
-
-    return (int)sizeof(uint64_t);
-}
