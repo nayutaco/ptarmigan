@@ -162,7 +162,7 @@ bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys
 }
 
 
-//XXX: util
+//XXX: dbg or log
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 /** uint8[]の内容をFILE*出力
  *
@@ -181,7 +181,7 @@ void btc_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf)
 }
 
 
-//XXX: util
+//XXX: dbg or log
 /** uint8[]の内容をFILE*出力
  *
  * @param[in]       fp          出力先
