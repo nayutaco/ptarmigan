@@ -115,8 +115,8 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     btc_buf_w_t buf_w_tmp;
     uint32_t lp;
 
-    btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
-    if (txvld != BTC_TXVALID_OK) {
+    btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
         LOGD("fail: invalid tx\n");
         return false;
     }
@@ -188,6 +188,23 @@ LABEL_EXIT:
     btc_tx_buf_w_free(&buf_w_tmp);
 
     return ret;
+}
+
+
+bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pWitScript)
+{
+    utl_buf_t script_code = UTL_BUF_INIT;
+
+    btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
+        LOGD("fail\n");
+        return false;
+    }
+
+    if (!btc_scriptcode_p2wsh(&script_code, pWitScript)) return false;
+    if (!btc_sw_sighash(pTx, pTxHash, Index, Value, &script_code)) return false;
+    utl_buf_free(&script_code);
+    return true;
 }
 
 

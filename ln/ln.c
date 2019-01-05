@@ -4275,7 +4275,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 
     //署名
     uint8_t sighash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(pTx, sighash, 0, self->funding_sat, &self->redeem_fund);
+    ret = btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, self->funding_sat, &self->redeem_fund);
     if (ret) {
         ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     }

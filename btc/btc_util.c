@@ -145,24 +145,6 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
 }
 
 
-bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
-                    const utl_buf_t *pWitScript)
-{
-    utl_buf_t script_code = UTL_BUF_INIT;
-
-    btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
-    if (txvalid != BTC_TXVALID_OK) {
-        LOGD("fail\n");
-        return false;
-    }
-
-    if (!btc_scriptcode_p2wsh(&script_code, pWitScript)) return false;
-    if (!btc_sw_sighash(pTx, pTxHash, Index, Value, &script_code)) return false;
-    utl_buf_free(&script_code);
-    return true;
-}
-
-
 bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_sig_sign(pSig, pTxHash, pKeys->priv);

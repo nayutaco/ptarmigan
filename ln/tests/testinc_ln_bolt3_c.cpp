@@ -420,7 +420,7 @@ TEST_F(ln_bolt3_c, committx2)
         0xf4, 0x5a, 0x4c, 0xa3, 0xbd, 0xb7, 0xc0, 0x01,
     };
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_util_calc_sighash_p2wsh(&tx, txhash, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
+    ret = btc_sw_sighash_p2wsh_wit(&tx, txhash, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
     ASSERT_TRUE(ret);
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
