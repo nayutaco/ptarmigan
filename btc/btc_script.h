@@ -116,10 +116,21 @@
  * macro functions
  **************************************************************************/
 
-
 /**************************************************************************
  * package variables
  **************************************************************************/
+
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+/** @enum   btc_script_pubkey_order_t
+ *  @brief  order of the keys
+ */
+typedef enum {
+    BTC_SCRYPT_PUBKEY_ORDER_ASC,             ///< ascending order
+    BTC_SCRYPT_PUBKEY_ORDER_OTHER            ///< other
+} btc_script_pubkey_order_t;
 
 
 /**************************************************************************
@@ -153,15 +164,15 @@ bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const u
 /** #btc_redeem_create_2of2() with the sorted pubKeys
  *
  * @param[out]      pRedeem     2-of-2 redeem script
- * @param[out]      pOrder       ソート結果(#btc_keys_order_t)
+ * @param[out]      pOrder       ソート結果(#btc_script_pubkey_order_t)
  * @param[in]       pPubKey1    public key 1
  * @param[in]       pPubKey2    public key 1
  *
  * @note
- *      - if *pOrder == BTC_KEYS_ORDER_ASC, then pPubKey1, pPbuKey2
- *      - if *pOrder != BTC_KEYS_ORDER_ASC, then pPubKey2, pPbuKey1
+ *      - if *pOrder == BTC_SCRYPT_PUBKEY_ORDER_ASC, then pPubKey1, pPbuKey2
+ *      - if *pOrder != BTC_SCRYPT_PUBKEY_ORDER_ASC, then pPubKey2, pPbuKey1
  */
-bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_keys_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_script_pubkey_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 //XXX: comment

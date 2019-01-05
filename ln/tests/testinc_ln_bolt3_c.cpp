@@ -226,7 +226,7 @@ protected:
 
     static uint64_t obscured;
     static utl_buf_t funding2of2;
-    static btc_keys_order_t key_fund_sort;
+    static btc_script_pubkey_order_t key_fund_sort;
 
     static btc_tx_t tx;
     static uint8_t txid_commit[BTC_SZ_TXID];
@@ -251,7 +251,7 @@ uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];
 
 uint64_t ln_bolt3_c::obscured;
 utl_buf_t ln_bolt3_c::funding2of2;
-btc_keys_order_t ln_bolt3_c::key_fund_sort;
+btc_script_pubkey_order_t ln_bolt3_c::key_fund_sort;
 
 btc_tx_t ln_bolt3_c::tx;
 uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];

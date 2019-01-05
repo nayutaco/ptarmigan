@@ -73,11 +73,11 @@ TEST_F(ln_bolt3_b, fuding1)
     };
 
     bool ret;
-    btc_keys_order_t sort;
+    btc_script_pubkey_order_t sort;
 
     ret = btc_redeem_create_2of2_sorted(&redeem_fund, &sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(BTC_KEYS_ORDER_ASC, sort);
+    ASSERT_EQ(BTC_SCRYPT_PUBKEY_ORDER_ASC, sort);
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
     ASSERT_EQ(sizeof(FUNDING_WSCRIPT), redeem_fund.len);
 
@@ -86,7 +86,7 @@ TEST_F(ln_bolt3_b, fuding1)
     //逆順
     ret = btc_redeem_create_2of2_sorted(&redeem_fund, &sort, REMOTE_FUNDING_PUBKEY, LOCAL_FUNDING_PUBKEY);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(BTC_KEYS_ORDER_OTHER, sort);
+    ASSERT_EQ(BTC_SCRYPT_PUBKEY_ORDER_OTHER, sort);
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
     ASSERT_EQ(sizeof(FUNDING_WSCRIPT), redeem_fund.len);
 }

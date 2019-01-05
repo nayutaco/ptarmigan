@@ -68,15 +68,6 @@ typedef struct {
 } btc_keys_t;
 
 
-/** @enum   btc_keys_order_t
- *  @brief  order of the keys
- */
-typedef enum {
-    BTC_KEYS_ORDER_ASC,             ///< ascending order
-    BTC_KEYS_ORDER_OTHER            ///< other
-} btc_keys_order_t;
-
-
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -237,16 +228,6 @@ bool btc_keys_create_priv(uint8_t *pPriv);
  * @return      true    成功
  */
 bool btc_keys_create(btc_keys_t *pKeys);
-
-
-/** get the order of the keys
- *
- * @param[in]       pPubKey1
- * @param[in]       pPubKey2
- * @retval      BTC_KEYS_ORDER_ASC     引数の順番
- *
- */
-btc_keys_order_t btc_keys_pub_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 #ifdef __cplusplus

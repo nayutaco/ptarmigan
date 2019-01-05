@@ -429,17 +429,6 @@ bool btc_keys_create(btc_keys_t *pKeys)
 }
 
 
-btc_keys_order_t btc_keys_pub_order_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
-{
-    int cmp = memcmp(pPubKey1, pPubKey2, BTC_SZ_PUBKEY);
-    if (cmp < 0) {
-        return BTC_KEYS_ORDER_ASC;
-    } else {
-        return BTC_KEYS_ORDER_OTHER;
-    }
-}
-
-
 /********************************************************************
  * private functions
  ********************************************************************/

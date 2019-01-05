@@ -90,7 +90,7 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  * prototypes
  **************************************************************************/
 
-static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_keys_order_t Sort);
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_script_pubkey_order_t Sort);
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
 
 #if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
@@ -168,7 +168,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, c
     const uint8_t *p_node_2;
     const uint8_t *p_btc_1;
     const uint8_t *p_btc_2;
-    if (pMsg->sort == BTC_KEYS_ORDER_ASC) {
+    if (pMsg->sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         //自ノードが先
         p_node_1 = pMsg->p_my_node_pub;
         p_node_2 = pMsg->p_peer_node_pub;
@@ -375,10 +375,10 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 }
 
 
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_keys_order_t Sort)
+void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort)
 {
-    if ( ((Sort == BTC_KEYS_ORDER_ASC) && bLocal) ||
-         ((Sort != BTC_KEYS_ORDER_ASC) && !bLocal) ) {
+    if ( ((Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) && bLocal) ||
+         ((Sort != BTC_SCRYPT_PUBKEY_ORDER_ASC) && !bLocal) ) {
         LOGD("addr: 1\n");
         *pp_sig_node = self->cnl_anno.buf + sizeof(uint16_t);
     } else {
@@ -391,7 +391,7 @@ void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_
 }
 
 
-bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_keys_order_t Sort)
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_script_pubkey_order_t Sort)
 {
     uint8_t *pData = self->cnl_anno.buf;
     int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
@@ -408,10 +408,10 @@ bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
 }
 
 
-static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_keys_order_t Sort)
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_script_pubkey_order_t Sort)
 {
     int offset_sig;
-    if (Sort == BTC_KEYS_ORDER_ASC) {
+    if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         //自ノードが先
         offset_sig = 0;
     } else {
