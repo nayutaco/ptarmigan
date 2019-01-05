@@ -215,11 +215,6 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr);
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk);
 
 
-//XXX:
-//////////////////////
-//UTIL
-//////////////////////
-
 /** extract keys from WIF
  *
  * @param[out]      pKeys           keys
@@ -227,7 +222,7 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk);
  * @param[in]       pWifPriv        WIF compressed formatted private key
  * @return      true    success
  */
-bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
+bool btc_keys_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
 
 
 /** generate private key from RNG
@@ -235,7 +230,7 @@ bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifP
  * @param[out]      pPriv           private key
  * @return      true    success
  */
-bool btc_util_create_privkey(uint8_t *pPriv);
+bool btc_keys_create_priv(uint8_t *pPriv);
 
 
 /** generate keys from RNG
@@ -243,9 +238,13 @@ bool btc_util_create_privkey(uint8_t *pPriv);
  * @param[out]      pKeys           鍵情報
  * @return      true    成功
  */
-bool btc_util_create_keys(btc_keys_t *pKeys);
+bool btc_keys_create(btc_keys_t *pKeys);
 
 
+//XXX:
+//////////////////////
+//UTIL
+//////////////////////
 /** #btc_redeem_create_2of2()のソートあり版
  *
  * @param[out]      pRedeem     2-of-2 redeem script

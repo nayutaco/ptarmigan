@@ -173,7 +173,7 @@ TEST_F(send, p2wpkh)
     btc_keys_t keys;
     const char WIF[] = "cW8SSTFrM42mX5YKHKbDfvXF5qEJrAgLoRTc68bNJo5GFDv6WvX1";
     btc_chain_t chain;
-    ret = btc_util_wif2keys(&keys, &chain, WIF);
+    ret = btc_keys_wif2keys(&keys, &chain, WIF);
     ASSERT_TRUE(ret);
     ASSERT_EQ(BTC_TESTNET, chain);
     ret = btc_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(3), &keys);
@@ -273,13 +273,13 @@ TEST_F(send, p2wsh)
     btc_keys_t keys1;
     btc_chain_t chain;
     const char WIF1[] = "cW8SSTFrM42mX5YKHKbDfvXF5qEJrAgLoRTc68bNJo5GFDv6WvX1";
-    ret = btc_util_wif2keys(&keys1, &chain, WIF1);
+    ret = btc_keys_wif2keys(&keys1, &chain, WIF1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(BTC_TESTNET, chain);
 
     btc_keys_t keys2;
     const char WIF2[] = "cR645M2xZJnE5mDWw5LpAghNLudXGZsCs4ZEUvRMr2NrHqU3rLWa";
-    ret = btc_util_wif2keys(&keys2, &chain, WIF2);
+    ret = btc_keys_wif2keys(&keys2, &chain, WIF2);
     ASSERT_TRUE(ret);
     ASSERT_EQ(BTC_TESTNET, chain);
 

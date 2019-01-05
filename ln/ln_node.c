@@ -112,7 +112,7 @@ bool ln_node_init(uint8_t Features)
     ret = ln_db_init(wif, mNode.alias, &mNode.addr.port, true);
     if (ret) {
         //新規設定 or DBから読み込み
-        ret = btc_util_wif2keys(&mNode.keys, &chain, wif);
+        ret = btc_keys_wif2keys(&mNode.keys, &chain, wif);
         if (!ret) {
             goto LABEL_EXIT;
         }
@@ -264,7 +264,7 @@ uint64_t ln_node_total_msat(void)
 void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 {
     btc_keys_t keys;
-    btc_util_create_keys(&keys);
+    btc_keys_create(&keys);
     memcpy(pPubKey, keys.pub, BTC_SZ_PUBKEY);
     btc_keys_priv2wif(pWif, keys.priv);
 }

@@ -107,7 +107,7 @@ TEST_F(ln_bolt3_b, fuding2)
     bool ret;
     btc_chain_t chain;
 
-    ret = btc_util_wif2keys(&keys, &chain, WIF_PRIV);
+    ret = btc_keys_wif2keys(&keys, &chain, WIF_PRIV);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, keys.priv, sizeof(PRIV)));
     ASSERT_EQ(BTC_TESTNET, chain);

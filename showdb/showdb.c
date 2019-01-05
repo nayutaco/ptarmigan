@@ -1019,7 +1019,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         if (retval == 0) {
             btc_keys_t keys;
             btc_chain_t chain;
-            btc_util_wif2keys(&keys, &chain, wif);
+            btc_keys_wif2keys(&keys, &chain, wif);
             // printf(INDENT2 M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
             // printf(INDENT2 M_QQ("node_secret") ": \"");
             // btc_util_dumpbin(stdout, keys.priv, BTC_SZ_PRIVKEY, false);

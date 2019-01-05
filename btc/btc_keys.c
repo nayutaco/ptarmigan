@@ -30,6 +30,8 @@
 #include "mbedtls/ecdsa.h"
 #include "libbase58.h"
 
+#include "utl_rng.h"
+
 #include "btc_segwit_addr.h"
 #include "btc_util.h"
 #include "btc_local.h"
@@ -394,6 +396,36 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
     if (prefix != BTC_PREF_MAX) return false;
     if (!hash2addr(pAddr, pkh, prefix)) return false;
     return true;
+}
+
+
+bool btc_keys_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv)
+{
+    bool ret;
+
+    ret = btc_keys_wif2priv(pKeys->priv, pChain, pWifPriv);
+    if (ret) {
+        ret = btc_keys_priv2pub(pKeys->pub, pKeys->priv);
+    }
+
+    return ret;
+}
+
+
+bool btc_keys_create_priv(uint8_t *pPriv)
+{
+    for (int i = 0; i < 1000; i++) {
+        if (!utl_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
+        if (btc_keys_check_priv(pPriv)) return true;
+    }
+    return false;
+}
+
+
+bool btc_keys_create(btc_keys_t *pKeys)
+{
+    if (!btc_keys_create_priv(pKeys->priv)) return false;
+    return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 

@@ -67,36 +67,6 @@ static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *
  * public functions
  **************************************************************************/
 
-bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv)
-{
-    bool ret;
-
-    ret = btc_keys_wif2priv(pKeys->priv, pChain, pWifPriv);
-    if (ret) {
-        ret = btc_keys_priv2pub(pKeys->pub, pKeys->priv);
-    }
-
-    return ret;
-}
-
-
-bool btc_util_create_privkey(uint8_t *pPriv)
-{
-    for (int i = 0; i < 1000; i++) {
-        if (!utl_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
-        if (btc_keys_check_priv(pPriv)) return true;
-    }
-    return false;
-}
-
-
-bool btc_util_create_keys(btc_keys_t *pKeys)
-{
-    if (!btc_util_create_privkey(pKeys->priv)) return false;
-    return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
-}
-
-
 bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     *pSort = pubkey_sort_2of2(pPubKey1, pPubKey2);

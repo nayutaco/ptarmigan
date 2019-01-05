@@ -3624,7 +3624,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType)
         btc_chain_t chain;
 
         btc_block_chain_t gtype = btc_block_get_chain(genesis);
-        bool ret = btc_util_wif2keys(&key, &chain, wif);
+        bool ret = btc_keys_wif2keys(&key, &chain, wif);
         if (
           ((chain == BTC_MAINNET) && (gtype == BTC_BLOCK_CHAIN_BTCMAIN)) ||
           ((chain == BTC_TESTNET) && (
