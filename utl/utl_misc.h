@@ -52,10 +52,8 @@ extern "C" {
  * @attention
  *  slpは1000未満にすること
  */
-static inline void utl_misc_msleep(unsigned long slp) {
-    struct timespec req = { 0, (long)(slp * 1000000UL) };
-    nanosleep(&req, NULL);
-}
+void utl_misc_msleep(unsigned long slp);
+
 
 /** 16進数文字列から変換
  *

@@ -345,13 +345,7 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd
  * @param[in]       TimeStamp       channel_updateの時刻(EPOCH)
  * @retval      true    削除してよし
  */
-static inline bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp) {
-    //BOLT#7: Pruning the Network View
-    //  if a channel's latest channel_updates timestamp is older than two weeks (1209600 seconds):
-    //      MAY prune the channel.
-    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendation-on-pruning-stale-entries
-    return (uint64_t)TimesStamp + (uint64_t)1209600 < Now;
-}
+bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp);
 
 
 /** channel_announcement系の送受信情報削除

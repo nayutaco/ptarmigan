@@ -1636,6 +1636,16 @@ LABEL_EXIT:
 }
 
 
+bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp)
+{
+    //BOLT#7: Pruning the Network View
+    //  if a channel's latest channel_updates timestamp is older than two weeks (1209600 seconds):
+    //      MAY prune the channel.
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendation-on-pruning-stale-entries
+    return (uint64_t)TimesStamp + (uint64_t)1209600 < Now;
+}
+
+
 /* [channel_announcement]delete
  *
  *

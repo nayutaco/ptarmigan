@@ -1894,6 +1894,324 @@ unsigned long ln_debug_get(void)
 }
 
 
+/**************************************************************************
+ * getter/setter
+ **************************************************************************/
+
+const uint8_t *ln_channel_id(const ln_self_t *self)
+{
+    return self->channel_id;
+}
+
+
+uint64_t ln_short_channel_id(const ln_self_t *self)
+{
+    return self->short_channel_id;
+}
+
+
+void ln_short_channel_id_clr(ln_self_t *self)
+{
+    self->short_channel_id = 0;
+}
+
+
+void *ln_get_param(ln_self_t *self)
+{
+    return self->p_param;
+}
+
+
+ln_status_t ln_status_get(const ln_self_t *self)
+{
+    return self->status;
+}
+
+
+bool ln_status_is_closing(const ln_self_t *self)
+{
+    return self->status > LN_STATUS_NORMAL;
+}
+
+
+uint64_t ln_our_msat(const ln_self_t *self)
+{
+    return self->our_msat;
+}
+
+
+uint64_t ln_their_msat(const ln_self_t *self)
+{
+    return self->their_msat;
+}
+
+
+const uint8_t *ln_funding_txid(const ln_self_t *self)
+{
+    return self->funding_local.txid;
+}
+
+
+uint32_t ln_funding_txindex(const ln_self_t *self)
+{
+    return self->funding_local.txindex;
+}
+
+
+const utl_buf_t *ln_funding_redeem(const ln_self_t *self)
+{
+    return &self->redeem_fund;
+}
+
+
+uint32_t ln_minimum_depth(const ln_self_t *self)
+{
+    return self->min_depth;
+}
+
+
+bool ln_is_funder(const ln_self_t *self)
+{
+    return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+}
+
+
+bool ln_is_funding(const ln_self_t *self)
+{
+    return (self->fund_flag & LN_FUNDFLAG_FUNDING);
+}
+
+
+#ifdef USE_BITCOINJ
+const btc_tx_t *ln_funding_tx(const ln_self_t *self)
+{
+    return &self->tx_funding;
+}
+
+
+const uint8_t *ln_funding_blockhash(const ln_self_t *self)
+{
+    return self->funding_bhash;
+}
+
+
+uint32_t ln_last_conf_get(const ln_self_t *self)
+{
+    return self->last_confirm;
+}
+
+
+void ln_last_conf_set(ln_self_t *self, uint32_t Conf)
+{
+    if (Conf > self->last_confirm) {
+        self->last_confirm = Conf;
+    }
+}
+#endif
+
+
+bool ln_need_init_routing_sync(const ln_self_t *self)
+{
+    return self->lfeature_remote & LN_INIT_LF_ROUTE_SYNC;
+}
+
+
+bool ln_is_announced(const ln_self_t *self)
+{
+    return (self->anno_flag & LN_ANNO_FLAG_END);
+}
+
+
+uint32_t ln_feerate_per_kw_calc(uint64_t feerate_kb)
+{
+    return (uint32_t)(feerate_kb / 4);
+}
+
+
+uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw)
+{
+    return vsize * feerate_kw * 4 / 1000;
+}
+
+
+uint32_t ln_feerate_per_kw(const ln_self_t *self)
+{
+    return self->feerate_per_kw;
+}
+
+
+void ln_feerate_per_kw_set(ln_self_t *self, uint32_t FeeratePerKw)
+{
+    self->feerate_per_kw = FeeratePerKw;
+}
+
+
+uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw)
+{
+    return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, FeeratePerKw);
+}
+
+
+uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw)
+{
+    return (LN_FEE_COMMIT_BASE * FeeratePerKw / 1000);
+}
+
+
+bool ln_is_shutdown_sent(const ln_self_t *self)
+{
+    return self->shutdown_flag & LN_SHDN_FLAG_SEND;
+}
+
+
+uint64_t ln_closing_signed_initfee(const ln_self_t *self)
+{
+    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
+}
+
+
+const ln_commit_data_t *ln_commit_local(const ln_self_t *self)
+{
+    return &self->commit_local;
+}
+
+
+const ln_commit_data_t *ln_commit_remote(const ln_self_t *self)
+{
+    return &self->commit_remote;
+}
+
+
+const utl_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *self)
+{
+    return &self->shutdown_scriptpk_local;
+}
+
+
+const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self)
+{
+    return &self->shutdown_scriptpk_remote;
+}
+
+
+const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, uint16_t htlc_idx)
+{
+    return (htlc_idx < LN_HTLC_MAX) ? &self->cnl_add_htlc[htlc_idx] : NULL;
+}
+
+
+bool ln_is_offered_htlc_timeout(const ln_self_t *self, uint16_t htlc_idx, uint32_t BlkCnt)
+{
+    return (htlc_idx < LN_HTLC_MAX) &&
+            ((self->cnl_add_htlc[htlc_idx].stat.bits & LN_HTLCFLAG_MASK_ALL) == LN_HTLCFLAG_SFT_TIMEOUT) &&
+            (self->cnl_add_htlc[htlc_idx].cltv_expiry <= BlkCnt);
+}
+
+
+const utl_buf_t *ln_preimage_remote(const btc_tx_t *pTx)
+{
+    return (pTx->vin[0].wit_item_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
+}
+
+
+uint16_t ln_revoked_cnt(const ln_self_t *self)
+{
+    return self->revoked_cnt;
+}
+
+
+bool ln_revoked_cnt_dec(ln_self_t *self)
+{
+    self->revoked_cnt--;
+    return self->revoked_cnt == 0;
+}
+
+
+uint16_t ln_revoked_num(const ln_self_t *self)
+{
+    return self->revoked_num;
+}
+
+
+void ln_set_revoked_confm(ln_self_t *self, uint32_t confm)
+{
+    self->revoked_chk = confm;
+}
+
+
+uint32_t ln_revoked_confm(const ln_self_t *self)
+{
+    return self->revoked_chk;
+}
+
+
+const utl_buf_t* ln_revoked_vout(const ln_self_t *self)
+{
+    return self->p_revoked_vout;
+}
+
+
+const utl_buf_t* ln_revoked_wit(const ln_self_t *self)
+{
+    return self->p_revoked_wit;
+}
+
+
+bool ln_open_channel_announce(const ln_self_t *self)
+{
+    return (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
+}
+
+
+const uint8_t *ln_their_node_id(const ln_self_t *self)
+{
+    return self->peer_node_id;
+}
+
+
+uint32_t ln_cltv_expily_delta(const ln_self_t *self)
+{
+    return self->anno_prm.cltv_expiry_delta;
+}
+
+
+uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat)
+{
+    return (uint64_t)self->anno_prm.fee_base_msat +
+            (AmountMsat * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
+}
+
+
+const ln_nodeaddr_t *ln_last_connected_addr(const ln_self_t *self)
+{
+    return &self->last_connected_addr;
+}
+
+
+int ln_err(const ln_self_t *self)
+{
+    return self->err;
+}
+
+
+const char *ln_errmsg(const ln_self_t *self)
+{
+    return self->err_msg;
+}
+
+
+int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd)
+{
+    return pCnlUpd->flags & LN_CNLUPD_FLAGS_DIRECTION;
+}
+
+
+bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd)
+{
+    return !(pCnlUpd->flags & LN_CNLUPD_FLAGS_DISABLE);
+}
+
+
 /********************************************************************
  * package functions
  ********************************************************************/
