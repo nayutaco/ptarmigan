@@ -28,10 +28,10 @@ extern "C" {
 #include "btc_script_buf.c"
 #include "btc_tx.c"
 #include "btc_tx_buf.c"
-#include "btc_util.c"
 #include "btc_crypto.c"
 #include "segwit_addr.c"
 #include "btc_segwit_addr.c"
+#include "btc_test_util.c"
 }
 
 ////////////////////////////////////////////////////////////////////////

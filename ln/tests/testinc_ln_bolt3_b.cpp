@@ -164,7 +164,7 @@ TEST_F(ln_bolt3_b, fuding3)
 
 
     //署名
-    ret = btc_util_sign_p2pkh(&tx, 0, &keys);
+    ret = btc_test_util_sign_p2pkh(&tx, 0, &keys);
     ASSERT_TRUE(ret);
     //btc_tx_print(&tx);
 

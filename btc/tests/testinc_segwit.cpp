@@ -705,7 +705,7 @@ TEST_F(sw, sign_p2wpkh)
 
     memcpy(keys.priv, PRIV, sizeof(PRIV));
     memcpy(keys.pub, PUB, sizeof(PUB));
-    bool ret = btc_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(7), &keys);
+    bool ret = btc_test_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(7), &keys);
     ASSERT_TRUE(ret);
 
     ASSERT_EQ(1, tx.vin_cnt);

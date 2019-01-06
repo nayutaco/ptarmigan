@@ -503,7 +503,7 @@ void btc_tx_sort_bip69(btc_tx_t *pTx);
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys);
+bool btc_test_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys);
 
 
 /** P2PKH署名チェック
@@ -513,7 +513,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
  * @param[in]       pAddrVout   チェック用
  * @return      true:成功
  */
-bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout);
+bool btc_test_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout);
 
 
 /** P2WPKH署名
@@ -526,7 +526,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
  * @note
  *      - #btc_init()の設定で署名する
  */
-bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys);
+bool btc_test_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成

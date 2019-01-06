@@ -176,7 +176,7 @@ TEST_F(send, p2wpkh)
     ret = btc_keys_wif2keys(&keys, &chain, WIF);
     ASSERT_TRUE(ret);
     ASSERT_EQ(BTC_TESTNET, chain);
-    ret = btc_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(3), &keys);
+    ret = btc_test_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(3), &keys);
     ASSERT_TRUE(ret);
 
     utl_buf_t txbuf = UTL_BUF_INIT;
@@ -299,9 +299,9 @@ TEST_F(send, p2wsh)
     utl_buf_free(&redeem);
 
     //vinの順番は、2-of-2の順番と関係が無い
-    ret = btc_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(1.9), &keys1);
+    ret = btc_test_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(1.9), &keys1);
     ASSERT_TRUE(ret);
-    ret = btc_util_sign_p2wpkh(&tx, 1, BTC_MBTC2SATOSHI(4), &keys2);
+    ret = btc_test_util_sign_p2wpkh(&tx, 1, BTC_MBTC2SATOSHI(4), &keys2);
     ASSERT_TRUE(ret);
 
 
