@@ -55,7 +55,7 @@ extern "C" {
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 void btc_dbg_dump_txid(FILE *fp, const uint8_t *pTxid);
 #else
-#define btc_dbg_dump_txid(...)    //nothing
+#define btc_dbg_dump_txid(...)
 #endif  //PTARM_USE_PRINTFUNC
 
 

@@ -146,7 +146,7 @@ typedef enum {
 
 
 /**************************************************************************
- * prototypes
+ * prototypes (btc_scriptpk)
  **************************************************************************/
 
 /** 種類に応じたscriptPubKey設定
@@ -160,6 +160,14 @@ bool btc_scriptpk_create(utl_buf_t *pScriptPk, const uint8_t *pPubKeyHash, int P
 
 
 //XXX: comment
+bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk);
+int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk);
+
+/**************************************************************************
+ * prototypes (btc_scriptsig)
+ **************************************************************************/
+
+//XXX: comment
 bool btc_scriptsig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_scriptsig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
 bool btc_scriptsig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPubKey);
@@ -170,6 +178,12 @@ bool btc_scriptsig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, c
 bool btc_scriptsig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
 bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+
+
+/**************************************************************************
+ * prototypes (btc_redeem)
+ **************************************************************************/
+
 bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
@@ -193,6 +207,10 @@ bool btc_redeem_create_p2sh_p2wpkh(utl_buf_t *pRedeem, const uint8_t *pPubKey);
 bool btc_redeem_create_p2sh_p2wpkh_pkh(utl_buf_t *pRedeem, const uint8_t *pPubKeyHash);
 
 
+/**************************************************************************
+ * prototypes (btc_scripthash)
+ **************************************************************************/
+
 /** PubKeyHash(P2WPKH)をScriptHash(P2SH)に変換
  *
  * [00][14][pubKeyHash] --> HASH160
@@ -203,13 +221,19 @@ bool btc_redeem_create_p2sh_p2wpkh_pkh(utl_buf_t *pRedeem, const uint8_t *pPubKe
 bool btc_scripthash_create_p2sh_p2wpkh_pkh(uint8_t *pScriptHash, const uint8_t *pPubKeyHash);
 
 
+/**************************************************************************
+ * prototypes (btc_witness)
+ **************************************************************************/
+
 //XXX: comment
 bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
 bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk);
-int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk);
 
+
+/**************************************************************************
+ * prototypes (btc_scriptcode)
+ **************************************************************************/
 
 /** P2WPKH署名計算で使用するScript Code取得
  *
@@ -234,6 +258,10 @@ bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript);
 
 
+/**************************************************************************
+ * prototypes (btc_script)
+ **************************************************************************/
+
 #ifdef PTARM_USE_PRINTFUNC
 /** スクリプトの内容表示
  *
@@ -242,10 +270,7 @@ bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript);
  */
 void btc_script_print(const uint8_t *pData, uint16_t Len);
 #else
-#define btc_tx_print(...)             //nothing
-#define btc_tx_print_raw(...)          //nothing
-#define btc_script_print(...)         //nothing
-#define btc_extkey_print(...)    //nothing
+#define btc_script_print(...)
 #endif  //PTARM_USE_PRINTFUNC
 
 

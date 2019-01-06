@@ -125,6 +125,18 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin);
 bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pScriptCode);
 
 
+/** P2WSH署名 - Phase1: トランザクションハッシュ作成
+ *
+ * @param[in]       pTx
+ * @param[out]      pTxHash
+ * @param[in]       Index
+ * @param[in]       Value
+ * @param[in]       pWitScript
+ * @retval  false   pTxがトランザクションとして不正
+ */
+bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value, const utl_buf_t *pWitScript);
+
+
 /** P2WPKHのwitness作成
  *
  * @param[in,out]   pTx         対象トランザクション
