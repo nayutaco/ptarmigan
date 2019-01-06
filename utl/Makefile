@@ -37,7 +37,7 @@ SIZE    		:= "$(GNU_PREFIX)size"
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 #sources project
-C_SOURCE_FILES += $(PRJ_PATH)/utl_misc.c
+C_SOURCE_FILES += $(PRJ_PATH)/utl_thread.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_buf.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_push.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_net.c

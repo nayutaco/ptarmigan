@@ -20,16 +20,17 @@
  *  under the License.
  */
 /**
- * @file    utl_mem.h
- * @brief   utl_mem
+ * @file    utl_thread.h
+ * @brief   utl_thread
  */
-#ifndef UTL_MEM_H__
-#define UTL_MEM_H__
+#ifndef UTL_THREAD_H__
+#define UTL_THREAD_H__
 
 #include <stdint.h>
 #include <inttypes.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <time.h>
+#include <errno.h>
 
 
 #ifdef __cplusplus
@@ -44,22 +45,17 @@ extern "C" {
  * prototypes
  **************************************************************************/
 
-//XXX: comment & test
-void utl_mem_reverse_byte(uint8_t *pDst, const uint8_t *pSrc, size_t Len);
-void utl_mem_swap(void *pA, void *pB, void *pTemp, size_t Len);
-
-
-/** 全データが0x00かのチェック
+/** sleep millisecond
  *
- * @param[in]       pData               チェック対象
- * @param[in]       Len                 pData長
- * @retval  true    全データが0x00
+ * @param[in]   slp     スリープする時間[msec]
+ * @attention
+ *  slpは1000未満にすること
  */
-bool utl_mem_is_all_zero(const void *pData, size_t Len);
+void utl_thread_msleep(unsigned long slp);
 
 
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
 
-#endif /* UTL_MEM_H__ */
+#endif /* UTL_THREAD_H__ */

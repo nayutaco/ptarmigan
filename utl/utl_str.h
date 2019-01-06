@@ -60,6 +60,7 @@ typedef struct {
  */
 bool utl_str_scan_u16(uint16_t *n, const char *s);
 
+
 /** convert string to uint32_t
  *
  * @param[out]  n       uint32_t number
@@ -68,11 +69,13 @@ bool utl_str_scan_u16(uint16_t *n, const char *s);
  */
 bool utl_str_scan_u32(uint32_t *n, const char *s);
 
+
 /** init #utl_str_t
  *
  * @param[in,out]   x   object
  */
 void utl_str_init(utl_str_t *x);
+
 
 /** append string
  *
@@ -80,17 +83,55 @@ void utl_str_init(utl_str_t *x);
  */
 bool utl_str_append(utl_str_t *x, const char *s);
 
+
 /** get string
  *
  * @param[in]   x   object
  */
 const char *utl_str_get(utl_str_t *x);
 
+
 /** free #utl_str_t
  *
  * @param[in]   x   object
  */
 void utl_str_free(utl_str_t *x);
+
+
+/** 16進数文字列から変換
+ *
+ * @param[out]      pBin        変換結果
+ * @param[out]      BinLen      pBin長
+ * @param[out]      pStr        元データ
+ */
+bool utl_str_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
+
+
+/** 16進数文字列から変換(エンディアン反転)
+ *
+ * @param[out]      pBin        変換結果(エンディアン反転)
+ * @param[out]      BinLen      pBin長
+ * @param[out]      pStr        元データ
+ */
+bool utl_str_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
+
+
+/** 16進数文字列に変換
+ *
+ * @param[out]      pStr        変換結果
+ * @param[in]       pBin        元データ
+ * @param[in]       BinLen      pBin長
+ */
+void utl_str_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+
+
+/** 16進数文字列に変換(エンディアン反転)
+ *
+ * @param[out]      pStr        変換結果(エンディアン反転)
+ * @param[in]       pBin        元データ
+ * @param[in]       BinLen      pBin長
+ */
+void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 #ifdef __cplusplus

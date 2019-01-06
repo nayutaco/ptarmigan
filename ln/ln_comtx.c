@@ -29,7 +29,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_buf.h"
 #include "utl_dbg.h"
 

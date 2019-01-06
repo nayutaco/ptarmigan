@@ -39,7 +39,7 @@ extern "C" {
 #endif
 
 
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_dbg.h"
 
 #include "ln.h"

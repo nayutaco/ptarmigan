@@ -6,7 +6,7 @@
 
 extern "C" {
 //評価対象本体
-#include "utl_misc.c"
+#include "utl_thread.c"
 #include "utl_dbg.c"
 #include "utl_buf.c"
 #include "utl_push.c"
@@ -43,7 +43,6 @@ TEST_F(utl, first)
 #include "testinc_addr.cpp"
 #include "testinc_buf.cpp"
 #include "testinc_jsonrpc.cpp"
-#include "testinc_misc.cpp"
 #include "testinc_net.cpp"
 #include "testinc_opts.cpp"
 #include "testinc_push.cpp"

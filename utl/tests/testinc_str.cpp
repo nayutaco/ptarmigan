@@ -80,6 +80,7 @@ TEST_F(str, scan_u16)
     ASSERT_FALSE(utl_str_scan_u16(&n, "100000"));
 }
 
+
 TEST_F(str, scan_u32)
 {
     uint32_t n;
@@ -132,6 +133,7 @@ TEST_F(str, scan_u32)
     ASSERT_FALSE(utl_str_scan_u32(&n, "10000000000"));
 }
 
+
 TEST_F(str, str_buf)
 {
     utl_str_t x;
@@ -152,3 +154,61 @@ TEST_F(str, str_buf)
     utl_str_free(&x);
 }
 
+
+TEST_F(str, valid)
+{
+    {
+        uint8_t bin[64];
+        const char *s = "01";
+        uint8_t result[] = {
+            0x01,
+        };
+        uint32_t len = ARRAY_SIZE(result);
+        ASSERT_TRUE(utl_str_str2bin(bin, len, s));
+        ASSERT_EQ(0, memcmp(bin, result, len));
+    }
+    {
+        uint8_t bin[64];
+        const char *s = "0123456789abcdefABCDEF";
+        uint8_t result[] = {
+            0x01, 0x23, 0x45, 0x67, 0x89,
+            0xab, 0xcd, 0xef,
+            0xAB, 0xCD, 0xEF,
+        };
+        uint32_t len = ARRAY_SIZE(result);
+        ASSERT_TRUE(utl_str_str2bin(bin, len, s));
+        ASSERT_EQ(0, memcmp(bin, result, len));
+    }
+}
+
+
+TEST_F(str, invalid_len)
+{
+    {
+        uint8_t bin[64];
+        const char *s = "0123456789abcdefABCDE";
+        ASSERT_FALSE(utl_str_str2bin(bin, 10, s));
+        ASSERT_FALSE(utl_str_str2bin(bin, 11, s));
+    }
+    {
+        uint8_t bin[64];
+        const char *s = "1";
+        ASSERT_FALSE(utl_str_str2bin(bin, 0, s));
+        ASSERT_FALSE(utl_str_str2bin(bin, 1, s));
+    }
+}
+
+
+TEST_F(str, invalid_chars)
+{
+    {
+        uint8_t bin[64];
+        const char *s = "g0";
+        ASSERT_FALSE(utl_str_str2bin(bin, 1, s));
+    }
+    {
+        uint8_t bin[64];
+        const char *s = "0g";
+        ASSERT_FALSE(utl_str_str2bin(bin, 1, s));
+    }
+}

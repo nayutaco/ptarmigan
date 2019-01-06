@@ -29,7 +29,7 @@
 
 #define LOG_TAG     "btcrpc"
 #include "utl_log.h"
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_push.h"
 
 #include "btcrpc.h"
@@ -198,7 +198,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 
     ret = getblockhash_rpc(&p_root, &p_result, &p_json, 0);
     if (ret && json_is_string(p_result)) {
-        ret = utl_misc_str2bin(pHash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
+        ret = utl_str_str2bin(pHash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
     } else {
         LOGD("fail: getblockhash_rpc\n");
     }
@@ -295,7 +295,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
         p_tx = json_object_get(p_result, M_TX);
 
         char txid[BTC_SZ_TXID * 2 + 1];
-        utl_misc_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
+        utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
         size_t index = 0;
         json_t *p_value = NULL;
@@ -341,7 +341,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
         json_array_foreach(p_tx, index, p_value) {
             if ((int)index == BIndex) {
                 //TXIDはLE/BE変換
-                utl_misc_str2bin_rev(pTxid, BTC_SZ_TXID, (const char *)json_string_value(p_value));
+                utl_str_str2bin_rev(pTxid, BTC_SZ_TXID, (const char *)json_string_value(p_value));
                 break;
             }
         }
@@ -418,14 +418,14 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
     json_t *p_result;
 
     transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
-    utl_misc_bin2str(transaction, pRawData, Len);
+    utl_str_bin2str(transaction, pRawData, Len);
 
     ret = sendrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     UTL_DBG_FREE(transaction);
     if (ret) {
         if (json_is_string(p_result)) {
             //TXIDはLE/BE変換
-            utl_misc_str2bin_rev(pTxid, BTC_SZ_TXID, (const char *)json_string_value(p_result));
+            utl_str_str2bin_rev(pTxid, BTC_SZ_TXID, (const char *)json_string_value(p_result));
             result = true;
         } else {
             int code = error_result(p_root);
@@ -450,7 +450,7 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
     char txid[BTC_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
-    utl_misc_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
+    utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
     return getraw_txstr(NULL, txid);
 }
@@ -607,7 +607,7 @@ static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const u
     char txid[BTC_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
-    utl_misc_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
+    utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
     bool ret = getrawtransaction_rpc(ppRoot, ppResult, ppJson, txid, true);
     return ret;
@@ -646,7 +646,7 @@ static bool getraw_txstr(btc_tx_t *pTx, const char *txid)
         if (pTx) {
             len >>= 1;
             p_hex = (uint8_t *)UTL_DBG_MALLOC(len);
-            utl_misc_str2bin(p_hex, len, str_hex);
+            utl_str_str2bin(p_hex, len, str_hex);
             btc_tx_read(pTx, p_hex, len);
             UTL_DBG_FREE(p_hex);
         }
@@ -675,7 +675,7 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
 
     *pCode = 0;
     transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
-    utl_misc_bin2str(transaction, pData, Len);
+    utl_str_bin2str(transaction, pData, Len);
 
     ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     UTL_DBG_FREE(transaction);
@@ -687,7 +687,7 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
             const char *p_sigtx = (const char *)json_string_value(p_hex);
             size_t len = strlen(p_sigtx) / 2;
             uint8_t *p_buf = UTL_DBG_MALLOC(len);
-            utl_misc_str2bin(p_buf, len, p_sigtx);
+            utl_str_str2bin(p_buf, len, p_sigtx);
             btc_tx_free(pTx);
             result = btc_tx_read(pTx, p_buf, len);
             UTL_DBG_FREE(p_buf);
@@ -720,7 +720,7 @@ static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t L
     json_t *p_result;
 
     transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
-    utl_misc_bin2str(transaction, pData, Len);
+    utl_str_bin2str(transaction, pData, Len);
 
     ret = signrawtransactionwithwallet_rpc(&p_root, &p_result, &p_json, transaction);
     UTL_DBG_FREE(transaction);
@@ -732,7 +732,7 @@ static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t L
             const char *p_sigtx = (const char *)json_string_value(p_hex);
             size_t len = strlen(p_sigtx) / 2;
             uint8_t *p_buf = UTL_DBG_MALLOC(len);
-            utl_misc_str2bin(p_buf, len, p_sigtx);
+            utl_str_str2bin(p_buf, len, p_sigtx);
             btc_tx_free(pTx);
             result = btc_tx_read(pTx, p_buf, len);
             UTL_DBG_FREE(p_buf);
@@ -763,7 +763,7 @@ static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint3
     json_t *p_result;
 
     //TXIDはBE/LE変換
-    utl_misc_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
+    utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
     //まずtxの存在確認を行う
     ret = getraw_txstr(NULL, txid);

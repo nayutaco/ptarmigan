@@ -19,47 +19,30 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/**
- * @file    utl_mem.h
- * @brief   utl_mem
- */
-#ifndef UTL_MEM_H__
-#define UTL_MEM_H__
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
-#include <stdint.h>
-#include <inttypes.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include "utl_local.h"
+#include "utl_thread.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif  //__cplusplus
 
 /**************************************************************************
- * macros
+ * private variables
  **************************************************************************/
 
 /**************************************************************************
- * prototypes
+ * public functions
  **************************************************************************/
 
-//XXX: comment & test
-void utl_mem_reverse_byte(uint8_t *pDst, const uint8_t *pSrc, size_t Len);
-void utl_mem_swap(void *pA, void *pB, void *pTemp, size_t Len);
-
-
-/** 全データが0x00かのチェック
- *
- * @param[in]       pData               チェック対象
- * @param[in]       Len                 pData長
- * @retval  true    全データが0x00
- */
-bool utl_mem_is_all_zero(const void *pData, size_t Len);
-
-
-#ifdef __cplusplus
+void utl_thread_msleep(unsigned long slp)
+{
+    struct timespec req = { 0, (long)(slp * 1000000UL) };
+    nanosleep(&req, NULL);
 }
-#endif  //__cplusplus
 
-#endif /* UTL_MEM_H__ */
+
+

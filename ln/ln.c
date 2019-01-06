@@ -30,11 +30,12 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_buf.h"
 #include "utl_dbg.h"
 #include "utl_time.h"
 #include "utl_rng.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 #include "btc_script.h"
@@ -3410,7 +3411,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         //      invalid_onion_key
         M_SET_ERR(self, LNERR_ONION, "onion-read");
 
-        uint16_t failure_code = utl_misc_be16(buf_reason.buf);
+        uint16_t failure_code = utl_int_pack_u16be(buf_reason.buf);
         if (failure_code & LNERR_ONION_BADONION) {
             //update_fail_malformed_htlc
             result = LN_CB_ADD_HTLC_RESULT_MALFORMED;
@@ -5498,7 +5499,7 @@ static void fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16
     ln_update_fail_malformed_htlc_t mal_htlc;
     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
 
-    uint16_t failure_code = utl_misc_be16(p_htlc->buf_onion_reason.buf);
+    uint16_t failure_code = utl_int_pack_u16be(p_htlc->buf_onion_reason.buf);
     mal_htlc.p_channel_id = self->channel_id;
     mal_htlc.id = p_htlc->id;
     memcpy(mal_htlc.sha256_onion, p_htlc->buf_onion_reason.buf + sizeof(uint16_t), BTC_SZ_HASH256);

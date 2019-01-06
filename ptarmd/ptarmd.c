@@ -54,6 +54,8 @@
 #include "utl_log.h"
 #include "utl_time.h"
 #include "utl_dbg.h"
+#include "utl_str.h"
+#include "utl_mem.h"
 
 #include "btc_crypto.h"
 
@@ -207,7 +209,7 @@ int ptarmd_start(uint16_t my_rpcport)
         // $2: node_id
         char param[256];
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "0x0x0 %s", node_id);
         ptarmd_call_script(PTARMD_EVT_STARTED, param);
     }
@@ -336,7 +338,7 @@ void ptarmd_nodefail_add(
     LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
-    if ( utl_misc_is_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
+    if ( utl_mem_is_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
          ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4, false) ) {
         //登録の必要なし
         LOGD("no save\n");
@@ -345,7 +347,7 @@ void ptarmd_nodefail_add(
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
+        utl_str_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
         LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)UTL_DBG_MALLOC(sizeof(nodefaillist_t));
@@ -365,7 +367,7 @@ bool ptarmd_nodefail_get(
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
+        utl_str_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
 
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {
@@ -418,7 +420,7 @@ void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...)
 
     if (pChannelId != NULL) {
         char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
-        utl_misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
+        utl_str_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
         sprintf(fname, FNAME_CHANNEL_LOG, chanid);
     } else {
         sprintf(fname, FNAME_EVENT_LOG);

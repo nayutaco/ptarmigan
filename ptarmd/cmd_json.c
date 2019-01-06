@@ -224,7 +224,7 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
     char nodestr[BTC_SZ_PUBKEY * 2 + 1];
     char json[256];
 
-    utl_misc_bin2str(nodestr, pNodeId, BTC_SZ_PUBKEY);
+    utl_str_bin2str(nodestr, pNodeId, BTC_SZ_PUBKEY);
     LOGD("connect:%s@%s:%d\n", nodestr, pIpAddr, Port);
 
     bool ret = p2p_cli_connect_test(pIpAddr, Port);
@@ -283,7 +283,7 @@ void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr)
     char fname[256];
     FILE *fp;
 
-    utl_misc_bin2str(str_payhash, pPaymentHash, BTC_SZ_HASH256);
+    utl_str_bin2str(str_payhash, pPaymentHash, BTC_SZ_HASH256);
     sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
     fp = fopen(fname, "a");
     if (fp != NULL) {
@@ -375,7 +375,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //basic info
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
-    utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+    utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddNumber64ToObject(result, "total_our_msat", total_amount);
@@ -404,7 +404,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         uint8_t *p = p_hash;
         for (int lp = 0; lp < cnt; lp++) {
             char hash_str[BTC_SZ_HASH256 * 2 + 1];
-            utl_misc_bin2str(hash_str, p, BTC_SZ_HASH256);
+            utl_str_bin2str(hash_str, p, BTC_SZ_HASH256);
             p += BTC_SZ_HASH256;
             cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
         }
@@ -500,7 +500,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
 #ifdef USE_BITCOIND
     if (json && (json->type == cJSON_String)) {
-        utl_misc_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
+        utl_str_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
         LOGD("txid=%s\n", json->valuestring);
     } else {
         goto LABEL_EXIT;
@@ -620,7 +620,7 @@ LABEL_EXIT:
         if (p_invoice != NULL) {
             char str_hash[BTC_SZ_HASH256 * 2 + 1];
 
-            utl_misc_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
+            utl_str_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             result = cJSON_CreateObject();
             cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
             cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
@@ -667,7 +667,7 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     if (strlen(json->valuestring) > 0) {
         LOGD("erase hash: %s\n", json->valuestring);
-        utl_misc_str2bin(preimage_hash, sizeof(preimage_hash), json->valuestring);
+        utl_str_str2bin(preimage_hash, sizeof(preimage_hash), json->valuestring);
         err = cmd_eraseinvoice_proc(preimage_hash);
     } else {
         err = cmd_eraseinvoice_proc(NULL);
@@ -709,7 +709,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON *json = cJSON_CreateObject();
 
             char str_hash[BTC_SZ_HASH256 * 2 + 1];
-            utl_misc_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
+            utl_str_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             cJSON_AddItemToObject(json, "hash", cJSON_CreateString(str_hash));
             cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(preimg.amount_msat));
             char time[UTL_SZ_TIME_FMT_STR + 1];
@@ -769,7 +769,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
     //payment_hash, hop_num
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        utl_misc_str2bin(payconf.payment_hash, BTC_SZ_HASH256, json->valuestring);
+        utl_str_str2bin(payconf.payment_hash, BTC_SZ_HASH256, json->valuestring);
         LOGD("payment_hash=%s\n", json->valuestring);
     } else {
         index = -1;
@@ -804,7 +804,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON *jprm = cJSON_GetArrayItem(jarray, 0);
             LOGD("jprm=%p\n", jprm);
             if (jprm && (jprm->type == cJSON_String)) {
-                utl_misc_str2bin(p->pubkey, BTC_SZ_PUBKEY, jprm->valuestring);
+                utl_str_str2bin(p->pubkey, BTC_SZ_PUBKEY, jprm->valuestring);
                 LOGD("  node_id=");
                 DUMPD(p->pubkey, BTC_SZ_PUBKEY);
             } else {
@@ -990,7 +990,7 @@ LABEL_EXIT:
             char str_payhash[BTC_SZ_HASH256 * 2 + 1];
             char time[UTL_SZ_TIME_FMT_STR + 1];
 
-            utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
+            utl_str_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
             sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
             LOGD("%s\n", mLastPayErr);
             ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
@@ -1232,7 +1232,7 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_String)) {
         uint8_t channel_id[LN_SZ_CHANNEL_ID];
-        utl_misc_str2bin(channel_id, sizeof(channel_id), json->valuestring);
+        utl_str_str2bin(channel_id, sizeof(channel_id), json->valuestring);
         ret = ln_db_self_del(channel_id);
     }
     if (ret) {
@@ -1453,7 +1453,7 @@ static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id)
 LABEL_EXIT:
     if (ret) {
         char str_txid[BTC_SZ_TXID * 2 + 1];
-        utl_misc_bin2str_rev(str_txid, txid, BTC_SZ_TXID);
+        utl_str_bin2str_rev(str_txid, txid, BTC_SZ_TXID);
         result = cJSON_CreateString(str_txid);
     } else {
         if (index < 0) {
@@ -1767,9 +1767,9 @@ static int cmd_routepay_proc2(
         //初回ログ
         uint64_t total_amount = ln_node_total_msat();
         char str_payhash[BTC_SZ_HASH256 * 2 + 1];
-        utl_misc_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+        utl_str_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
         char str_payee[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
+        utl_str_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
 
         ptarmd_eventlog(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
                     str_payhash, str_payee, total_amount, pInvoiceData->amount_msat);
@@ -1788,7 +1788,7 @@ static void cmd_routepay_save_info(
     char fname[256];
     FILE *fp;
 
-    utl_misc_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+    utl_str_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
     sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
 
     //file existance check
@@ -1824,7 +1824,7 @@ static void cmd_routepay_save_route(
     char fname[256];
     FILE *fp;
 
-    utl_misc_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+    utl_str_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
     sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
     fp = fopen(fname, "a");
     if (fp != NULL) {
@@ -1833,7 +1833,7 @@ static void cmd_routepay_save_route(
 
         fprintf(fp, "\n----------- route -----------\n");
         for (int lp = 0; lp < pRouteResult->hop_num; lp++) {
-            utl_misc_bin2str(str_pubkey, pRouteResult->hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
+            utl_str_bin2str(str_pubkey, pRouteResult->hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
             fprintf(fp, "[%d] %s\n", lp, str_pubkey);
             LOGD("[%d] %s\n", lp, str_pubkey);
             if (pRouteResult->hop_datain[lp].short_channel_id != 0) {
@@ -1937,7 +1937,7 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
     //peer_nodeid, peer_addr, peer_port
     json = cJSON_GetArrayItem(params, (*pIndex)++);
     if (json && (json->type == cJSON_String)) {
-        bool ret = utl_misc_str2bin(pConn->node_id, BTC_SZ_PUBKEY, json->valuestring);
+        bool ret = utl_str_str2bin(pConn->node_id, BTC_SZ_PUBKEY, json->valuestring);
         if (ret) {
             LOGD("pConn->node_id=%s\n", json->valuestring);
         } else {

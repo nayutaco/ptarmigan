@@ -7,7 +7,7 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 //評価対象本体
 #undef LOG_TAG
-#include "../../utl/utl_misc.c"
+#include "../../utl/utl_thread.c"
 #undef LOG_TAG
 #include "../../utl/utl_log.c"
 #include "../../utl/utl_dbg.c"
@@ -17,6 +17,7 @@ extern "C" {
 #include "../../utl/utl_rng.c"
 #include "../../utl/utl_int.c"
 #include "../../utl/utl_mem.c"
+#include "../../utl/utl_str.c"
 #undef LOG_TAG
 #include "../../btc/btc.c"
 #include "../../btc/btc_buf.c"

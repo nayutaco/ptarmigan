@@ -29,11 +29,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <errno.h>
 #include <assert.h>
 
 #define LOG_TAG     "routing"
 #include "utl_log.h"
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_dbg.h"
 
 #include "btc_crypto.h"
@@ -100,7 +101,7 @@ int main(int argc, char* argv[])
             break;
         case 's':
             //sender(payer)
-            bret = utl_misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
+            bret = utl_str_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
             if (!bret) {
                 fprintf(fp_err, "invalid arg: payer node id\n");
                 return -1;
@@ -109,7 +110,7 @@ int main(int argc, char* argv[])
             break;
         case 'r':
             //receiver(payee)
-            bret = utl_misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
+            bret = utl_str_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
             if (!bret) {
                 fprintf(fp_err, "invalid arg: payee node id\n");
                 return -1;
