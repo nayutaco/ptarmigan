@@ -40,7 +40,7 @@
 #include "utl_log.h"
 #include "utl_time.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_dbg.h"
 
 #include "ln_db_lmdb.h"

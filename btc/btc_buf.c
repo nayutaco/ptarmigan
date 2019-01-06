@@ -31,7 +31,7 @@
 #include "utl_int.h"
 #include "utl_dbg.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_buf.h"
 
 

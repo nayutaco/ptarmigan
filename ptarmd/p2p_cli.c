@@ -42,7 +42,7 @@
 #include "utl_log.h"
 #include "utl_time.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 
 #include "ptarmd.h"
 #include "p2p_cli.h"

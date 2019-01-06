@@ -34,7 +34,7 @@
 #include "utl_mem.h"
 
 #include "btc_local.h"
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_segwit_addr.h"
 #include "btc_script.h"
 #include "btc_sig.h"

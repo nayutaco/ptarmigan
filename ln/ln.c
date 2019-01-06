@@ -36,7 +36,7 @@
 #include "utl_time.h"
 #include "utl_rng.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_script.h"
 #include "btc_sw.h"
 

@@ -36,7 +36,7 @@
 #include "utl_misc.h"
 #include "utl_dbg.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 
 #include "ln.h"
 #include "ln_db.h"

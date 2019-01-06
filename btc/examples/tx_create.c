@@ -6,7 +6,7 @@
 
 #include "utl_log.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_tx.h"
 #include "btc.h"
 

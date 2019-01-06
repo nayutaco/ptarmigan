@@ -55,7 +55,7 @@
 #include "utl_time.h"
 #include "utl_dbg.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 
 #include "ptarmd.h"
 #include "btcrpc.h"

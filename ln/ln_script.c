@@ -27,7 +27,7 @@
 #include "utl_push.h"
 #include "utl_dbg.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_sig.h"
 #include "btc_script.h"
 #include "btc_sw.h"
