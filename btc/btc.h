@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utl_common.h"
 #include "utl_buf.h"
 
 
@@ -115,6 +116,14 @@ typedef enum {
     BTC_MAINNET,          ///< mainnet
     BTC_TESTNET           ///< testnet, regtest
 } btc_chain_t;
+
+
+/**************************************************************************
+ * package variables
+ **************************************************************************/
+
+extern uint8_t  HIDDEN mPref[BTC_PREF_MAX];
+extern bool     HIDDEN mNativeSegwit;
 
 
 /**************************************************************************

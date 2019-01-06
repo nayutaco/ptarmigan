@@ -39,10 +39,6 @@
 
 #define LOG_TAG "BTC"
 #include "utl_log.h"
-#include "utl_common.h"
-
-#include "btc.h"
-#include "btc_tx.h"
 
 
 /**************************************************************************
@@ -54,28 +50,9 @@
  **************************************************************************/
 
 /**************************************************************************
- * package variables
- **************************************************************************/
-
-extern uint8_t  HIDDEN mPref[BTC_PREF_MAX];
-extern bool     HIDDEN mNativeSegwit;
-
-
-/**************************************************************************
  * prototypes
  **************************************************************************/
 
-/** トランザクションデータ作成
- *
- * @param[out]      pBuf            変換後データ
- * @param[in]       pTx             対象データ
- * @param[in]       enableSegWit    false:pTxがsegwitでも、witnessを作らない(TXID計算用)
- *
- * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
- *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
- */
-bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
 
 
 #endif /* BTC_LOCAL_H__ */
