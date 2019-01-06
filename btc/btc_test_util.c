@@ -26,7 +26,6 @@
 #include <sys/types.h>
 
 #include "utl_dbg.h"
-#include "utl_rng.h"
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"

@@ -29,14 +29,15 @@
 #include <unistd.h>
 #include <linux/limits.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "jsonrpc-c.h"
 
 #define LOG_TAG     "lnapp"
 #include "utl_log.h"
 #include "utl_time.h"
-#include "utl_rng.h"
 
+#include "btc_crypto.h"
 #include "ln_segwit_addr.h"
 
 #include "ptarmd.h"
@@ -1615,7 +1616,7 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
 
     ln_db_preimg_t preimg;
 
-    utl_rng_rand(preimg.preimage, LN_SZ_PREIMAGE);
+    btc_rng_rand(preimg.preimage, LN_SZ_PREIMAGE);
 
     ptarmd_preimage_lock();
     preimg.amount_msat = AmountMsat;

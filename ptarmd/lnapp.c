@@ -58,7 +58,6 @@
 #include "utl_log.h"
 #include "utl_addr.h"
 #include "utl_time.h"
-#include "utl_rng.h"
 #include "utl_int.h"
 #include "utl_str.h"
 #include "utl_mem.h"
@@ -316,7 +315,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         }
     }
 
-    utl_rng_rand(session_key, sizeof(session_key));
+    btc_rng_rand(session_key, sizeof(session_key));
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, BTC_SZ_HASH256);
@@ -821,7 +820,7 @@ static void *thread_main_start(void *pArg)
 
     //seed作成(後でDB読込により上書きされる可能性あり)
     uint8_t seed[LN_SZ_SEED];
-    utl_rng_rand(seed, LN_SZ_SEED);
+    btc_rng_rand(seed, LN_SZ_SEED);
     ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = p_self;
