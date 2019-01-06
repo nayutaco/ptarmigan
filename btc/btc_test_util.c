@@ -77,7 +77,7 @@ bool btc_test_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *p
     if (txvalid != BTC_TXVALID_OK) goto LABEL_EXIT;
 
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
-    if (!btc_scriptpk_create(&spk, pkh, BTC_PREF_P2PKH)) goto LABEL_EXIT;
+    if (!btc_script_scriptpk_create(&spk, pkh, BTC_PREF_P2PKH)) goto LABEL_EXIT;
 
     p_spks[0] = &spk;
     if (!btc_tx_sighash(pTx, txhash, p_spks, 1)) goto LABEL_EXIT;
@@ -121,7 +121,7 @@ bool btc_test_util_verify_p2pkh_addr(btc_tx_t *pTx, uint32_t Index, const char *
     p_pubkey = &pTx->vin[Index].script.buf[ 1 + sig_len + 1];
 
     btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
-    if (!btc_scriptpk_create(&spk, pkh, BTC_PREF_P2PKH)) goto LABEL_EXIT;
+    if (!btc_script_scriptpk_create(&spk, pkh, BTC_PREF_P2PKH)) goto LABEL_EXIT;
 
     p_spks[0] = &spk;
     if (!btc_tx_sighash(pTx, txhash, p_spks, 1)) goto LABEL_EXIT;
@@ -147,7 +147,7 @@ bool btc_test_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, co
     txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) goto LABEL_EXIT;
 
-    if (!btc_scriptcode_p2wpkh(&script_code, pKeys->pub)) goto LABEL_EXIT;
+    if (!btc_script_p2wpkh_create_scriptcode(&script_code, pKeys->pub)) goto LABEL_EXIT;
 
     if (!btc_sw_sighash(pTx, txhash, Index, Value, &script_code)) goto LABEL_EXIT;
     if (!btc_sig_sign(&sig, txhash, pKeys->priv)) goto LABEL_EXIT;

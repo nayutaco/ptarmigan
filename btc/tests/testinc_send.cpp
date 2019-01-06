@@ -285,7 +285,7 @@ TEST_F(send, p2wsh)
 
     //2-of-2
     utl_buf_t redeem = UTL_BUF_INIT;
-    ret = btc_redeem_create_2of2(&redeem, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
+    ret = btc_script_2of2_create_redeem(&redeem, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
     ASSERT_TRUE(ret);
     printf("redeem= \n");
     send::DumpBin(redeem.buf, redeem.len);

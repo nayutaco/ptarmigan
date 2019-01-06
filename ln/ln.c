@@ -1486,7 +1486,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
     utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
-    btc_scriptsig_create_p2wsh(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
+    btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     // LOGD("calc to_local vout: ");
     // DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
 
@@ -1520,7 +1520,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
                         payhash,
                         expiry);
                 utl_buf_init(&self->p_revoked_vout[htlc_idx]);
-                btc_scriptsig_create_p2wsh(&self->p_revoked_vout[htlc_idx], &self->p_revoked_wit[htlc_idx]);
+                btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[htlc_idx], &self->p_revoked_wit[htlc_idx]);
                 self->p_revoked_type[htlc_idx] = type;
 
                 LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_HTLCTYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
@@ -2784,7 +2784,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
-    ret = btc_redeem_create_2of2_sorted(&self->redeem_fund, &self->key_fund_sort,
+    ret = btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->fund_flag = (ln_fundflag_t)(((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
@@ -4388,7 +4388,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     btc_tx_free(&self->tx_funding);
 
     //vout 2-of-2
-    btc_redeem_create_2of2_sorted(&self->redeem_fund, &self->key_fund_sort,
+    btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
 #if defined(USE_BITCOIND)
@@ -4467,7 +4467,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
             //search funding vout
             ret = false;
             utl_buf_t two_of_two = UTL_BUF_INIT;
-            btc_scriptsig_create_p2wsh(&two_of_two, &self->redeem_fund);
+            btc_script_p2wsh_create_scriptsig(&two_of_two, &self->redeem_fund);
             for (uint32_t lp = 0; lp < self->tx_funding.vout_cnt; lp++) {
                 if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &two_of_two)) {
                     self->funding_local.txindex = (uint16_t)lp;

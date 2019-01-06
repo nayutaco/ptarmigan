@@ -126,7 +126,7 @@ void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
     LOGD("script:\n");
     btc_script_print(pBuf->buf, pBuf->len);
     utl_buf_t prog = UTL_BUF_INIT;
-    btc_scriptsig_create_p2wsh(&prog, pBuf);
+    btc_script_p2wsh_create_scriptsig(&prog, pBuf);
     LOGD("vout: ");
     DUMPD(prog.buf, prog.len);
     utl_buf_free(&prog);
@@ -179,11 +179,11 @@ bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, i
     case BTC_PREF_P2WPKH:
     case BTC_PREF_P2SH:
         btc_util_hash160(pkh, pPub->buf, pPub->len);
-        btc_scriptpk_create(pBuf, pkh, Prefix);
+        btc_script_scriptpk_create(pBuf, pkh, Prefix);
         break;
     case BTC_PREF_P2WSH:
         btc_util_sha256(pkh, pPub->buf, pPub->len);
-        btc_scriptpk_create(pBuf, pkh, Prefix);
+        btc_script_scriptpk_create(pBuf, pkh, Prefix);
         break;
     default:
         ret = false;

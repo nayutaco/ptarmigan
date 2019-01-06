@@ -199,7 +199,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
     } else {
-        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash);
+        btc_script_p2sh_p2wpkh_create_scripthash_pkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
     if (!hash2addr(pWAddr, hash, pref)) return false;
@@ -222,7 +222,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
     } else {
-        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash);
+        btc_script_p2sh_p2wpkh_create_scripthash_pkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
     if (!hash2addr(pWAddr, hash, pref)) return false;
@@ -384,7 +384,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 
     int pref;
     if (!btc_keys_addr2hash(hash, &pref, pAddr)) return false;
-    if (!btc_scriptpk_create(pScriptPk, hash, pref)) return false;
+    if (!btc_script_scriptpk_create(pScriptPk, hash, pref)) return false;
     return true;
 }
 
@@ -392,7 +392,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
     const uint8_t *pkh;
-    int prefix = btc_scriptpk_prefix(&pkh, pScriptPk);
+    int prefix = btc_script_scriptpk_prefix(&pkh, pScriptPk);
     if (prefix != BTC_PREF_MAX) return false;
     if (!hash2addr(pAddr, pkh, prefix)) return false;
     return true;

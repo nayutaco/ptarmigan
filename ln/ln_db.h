@@ -683,7 +683,7 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
 /** payment_hash保存
  *
  * @param[in]       pPayHash        保存するpayment_hash
- * @param[in]       pVout           pPayHashを含むvoutスクリプトを#btc_scriptsig_create_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
+ * @param[in]       pVout           pPayHashを含むvoutスクリプトを#btc_script_p2wsh_create_scriptsig()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
  * @retval  true
