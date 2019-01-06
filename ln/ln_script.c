@@ -178,11 +178,11 @@ bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, i
     case BTC_PREF_P2PKH:
     case BTC_PREF_P2WPKH:
     case BTC_PREF_P2SH:
-        btc_util_hash160(pkh, pPub->buf, pPub->len);
+        btc_md_hash160(pkh, pPub->buf, pPub->len);
         btc_script_scriptpk_create(pBuf, pkh, Prefix);
         break;
     case BTC_PREF_P2WSH:
-        btc_util_sha256(pkh, pPub->buf, pPub->len);
+        btc_md_sha256(pkh, pPub->buf, pPub->len);
         btc_script_scriptpk_create(pBuf, pkh, Prefix);
         break;
     default:
@@ -253,7 +253,7 @@ void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
                     uint32_t Expiry)
 {
     uint8_t hash160[BTC_SZ_HASH160];
-    btc_util_ripemd160(hash160, pPaymentHash, BTC_SZ_HASH256);
+    btc_md_ripemd160(hash160, pPaymentHash, BTC_SZ_HASH256);
 
     switch (Type) {
     case LN_HTLCTYPE_OFFERED:
@@ -663,7 +663,7 @@ static void create_script_offered(utl_buf_t *pBuf,
     // payment-hash: payment-preimageをSHA256
     utl_push_init(&wscript, pBuf, 133);
     utl_push_data(&wscript, BTC_OP_DUP BTC_OP_HASH160 BTC_OP_SZ20, 3);
-    btc_util_hash160(h160, pLocalRevoKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(h160, pLocalRevoKey, BTC_SZ_PUBKEY);
     utl_push_data(&wscript, h160, BTC_SZ_HASH160);
     utl_push_data(&wscript, BTC_OP_EQUAL BTC_OP_IF BTC_OP_CHECKSIG BTC_OP_ELSE BTC_OP_SZ_PUBKEY, 5);
     utl_push_data(&wscript, pRemoteHtlcKey, BTC_SZ_PUBKEY);
@@ -723,7 +723,7 @@ static void create_script_received(utl_buf_t *pBuf,
     // payment-hash: payment-preimageをSHA256
     utl_push_init(&wscript, pBuf, 138);
     utl_push_data(&wscript, BTC_OP_DUP BTC_OP_HASH160 BTC_OP_SZ20, 3);
-    btc_util_hash160(h160, pLocalRevoKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(h160, pLocalRevoKey, BTC_SZ_PUBKEY);
     utl_push_data(&wscript, h160, BTC_SZ_HASH160);
     utl_push_data(&wscript, BTC_OP_EQUAL BTC_OP_IF BTC_OP_CHECKSIG BTC_OP_ELSE BTC_OP_SZ_PUBKEY, 5);
     utl_push_data(&wscript, pRemoteHtlcKey, BTC_SZ_PUBKEY);

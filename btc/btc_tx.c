@@ -231,7 +231,7 @@ bool btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript
 bool btc_tx_add_vout_p2pkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
     uint8_t pkh[BTC_SZ_HASH_MAX];
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
     return btc_tx_add_vout_p2pkh(pTx, Value, pkh);
 }
 
@@ -315,7 +315,7 @@ bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t 
     if (!pRedeem->len) return false;
 
     uint8_t sh[BTC_SZ_HASH_MAX];
-    btc_util_hash160(sh, pRedeem->buf, pRedeem->len);
+    btc_md_hash160(sh, pRedeem->buf, pRedeem->len);
     return btc_tx_add_vout_p2sh(pTx, Value, sh);
 }
 
@@ -515,7 +515,7 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
         goto LABEL_EXIT;
     }
     memcpy(buf.buf + buf.len - sizeof(sigtype), &sigtype, sizeof(sigtype));
-    btc_util_hash256(pTxHash, buf.buf, buf.len);
+    btc_md_hash256(pTxHash, buf.buf, buf.len);
     utl_buf_free(&buf);
 
     //tmp -> scriptSig
@@ -602,7 +602,7 @@ bool btc_tx_txid(const btc_tx_t *pTx, uint8_t *pTxId)
         assert(0);
         goto LABEL_EXIT;
     }
-    btc_util_hash256(pTxId, txbuf.buf, txbuf.len);
+    btc_md_hash256(pTxId, txbuf.buf, txbuf.len);
     utl_buf_free(&txbuf);
 
 LABEL_EXIT:
@@ -612,7 +612,7 @@ LABEL_EXIT:
 
 bool btc_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw)
 {
-    btc_util_hash256(pTxId, pTxRaw->buf, pTxRaw->len);
+    btc_md_hash256(pTxId, pTxRaw->buf, pTxRaw->len);
     return true;
 }
 

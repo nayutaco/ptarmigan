@@ -107,7 +107,7 @@ char *btc_extkey_generate_mnemonic24(void)
 #endif  //BTC_ENABLE_GEN_MNEMONIC
 
 
-bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass)
+bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass) //XXX: mbed
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#generating-the-mnemonic
     //  const int ENT = 256;
@@ -147,7 +147,7 @@ bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPa
 }
 
 
-bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
+bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum, //XXX: mbed
         const uint8_t *pKey,
         const uint8_t *pSeed, int SzSeed)
 {
@@ -189,7 +189,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
-        btc_util_hash160(h160, pub, BTC_SZ_PUBKEY);
+        btc_md_hash160(h160, pub, BTC_SZ_PUBKEY);
         pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else if (pExtKey->type == BTC_EXTKEY_PRIV && pSeed != NULL) {
         //root seed --> master private/public key
@@ -221,7 +221,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
-        btc_util_hash160(h160, pKey, BTC_SZ_PUBKEY);
+        btc_md_hash160(h160, pKey, BTC_SZ_PUBKEY);
         pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else {
         LOGD("fail: invalid type\n");
@@ -346,7 +346,7 @@ bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEx
     }
     //[78-81]checksum
     uint8_t chksum[BTC_SZ_HASH256];
-    btc_util_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
+    btc_md_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
     for (int lp = 0; lp < 4; lp++) {
         pData[78 + lp] = chksum[lp];
     }
@@ -432,7 +432,7 @@ bool btc_extkey_read(btc_extkey_t *pExtKey, const uint8_t *pData, int Len)
     memcpy(pExtKey->key, p, len);
     p += len;
     uint8_t chksum[BTC_SZ_HASH256];
-    btc_util_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
+    btc_md_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
     return memcmp(chksum, p, 4) == 0;
 }
 
@@ -504,7 +504,7 @@ void btc_extkey_print(const btc_extkey_t *pExtKey)
  * private functions
  **************************************************************************/
 
-static bool extkey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCode, const uint8_t *pKey, int KeyLen, const uint8_t *pData, int DataLen)
+static bool extkey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCode, const uint8_t *pKey, int KeyLen, const uint8_t *pData, int DataLen) //XXX: mbed
 {
     uint8_t output[64];
 

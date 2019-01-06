@@ -149,7 +149,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 
         blind_group_element(yToX, pHopData[lp].pubkey, pSessionKey);
         multi_scalar_mul(buf, yToX, blind_factors, lp);
-        btc_util_sha256(shd_secrets + M_SZ_SHARED_SECRET * lp, buf, sizeof(buf));
+        btc_md_sha256(shd_secrets + M_SZ_SHARED_SECRET * lp, buf, sizeof(buf));
 
         //SHA256(eph_pubkeys[lp] || shd_secrets[lp]) --> blind_factors[lp]
         compute_blinding_factor(blind_factors + M_SZ_BLINDING_FACT * lp,
@@ -653,7 +653,7 @@ static void compute_blinding_factor(uint8_t *pResult, const uint8_t *pPubKey, co
     //SHA256: PUBKEY || SharedSecret
     memcpy(array, pPubKey, BTC_SZ_PUBKEY);
     memcpy(array + BTC_SZ_PUBKEY, pSharedSecret, M_SZ_SHARED_SECRET);
-    btc_util_sha256(pResult, array, sizeof(array));
+    btc_md_sha256(pResult, array, sizeof(array));
 }
 
 
@@ -748,6 +748,6 @@ static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, u
     ln_misc_push16be(pPushReason, Code);
     //[32:sha256_of_onion]
     uint8_t sha256_of_onion[BTC_SZ_HASH256];
-    btc_util_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
+    btc_md_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
     utl_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
 }

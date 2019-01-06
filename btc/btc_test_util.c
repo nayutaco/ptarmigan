@@ -68,7 +68,7 @@ bool btc_test_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *p
     txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) goto LABEL_EXIT;
 
-    btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
     if (!btc_script_scriptpk_create(&spk, pkh, BTC_PREF_P2PKH)) goto LABEL_EXIT;
 
     p_spks[0] = &spk;
@@ -112,7 +112,7 @@ bool btc_test_util_verify_p2pkh_addr(btc_tx_t *pTx, uint32_t Index, const char *
 
     p_pubkey = &pTx->vin[Index].script.buf[ 1 + sig_len + 1];
 
-    btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
     if (!btc_script_scriptpk_create(&spk, pkh, BTC_PREF_P2PKH)) goto LABEL_EXIT;
 
     p_spks[0] = &spk;

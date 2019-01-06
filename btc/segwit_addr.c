@@ -27,8 +27,6 @@
 #include <time.h>
 #include <assert.h>
 
-#include "mbedtls/sha256.h"
-
 #include "segwit_addr.h"
 
 uint32_t bech32_polymod_step(uint32_t pre) {

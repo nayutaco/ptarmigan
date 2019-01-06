@@ -77,35 +77,35 @@ static mbedtls_ctr_drbg_context mRng;
  * public functions
  **************************************************************************/
 
-void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
+void btc_md_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
 {
     mbedtls_ripemd160(pData, Len, pRipemd160);
 }
 
 
-void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
+void btc_md_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
 {
     mbedtls_sha256(pData, Len, pSha256, 0);
 }
 
 
-void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
+void btc_md_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 {
     uint8_t buf_sha256[BTC_SZ_HASH256];
 
-    btc_util_sha256(buf_sha256, pData, Len);
-    btc_util_ripemd160(pHash160, buf_sha256, sizeof(buf_sha256));
+    btc_md_sha256(buf_sha256, pData, Len);
+    btc_md_ripemd160(pHash160, buf_sha256, sizeof(buf_sha256));
 }
 
 
-void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
+void btc_md_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 {
-    btc_util_sha256(pHash256, pData, Len);
-    btc_util_sha256(pHash256, pHash256, BTC_SZ_HASH256);
+    btc_md_sha256(pHash256, pData, Len);
+    btc_md_sha256(pHash256, pHash256, BTC_SZ_HASH256);
 }
 
 
-void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
+void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
 {
     mbedtls_sha256_context ctx;
 
@@ -118,7 +118,7 @@ void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, 
 }
 
 
-int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey)
+int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey) //XXX: mbed
 {
     int ret;
     uint8_t parity;
@@ -227,7 +227,7 @@ LABEL_EXIT:
 }
 
 
-int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA)
+int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA) //XXX: mbed
 {
     int ret;
     mbedtls_ecp_point P1;
@@ -278,7 +278,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen)
+bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen) //XXX: mbed
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -308,7 +308,8 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
     return ret == 0;
 }
 
-int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
+
+int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey) //XXX: mbed
 {
     int ret;
 

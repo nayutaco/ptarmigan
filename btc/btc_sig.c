@@ -47,7 +47,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
  * public functions
  **************************************************************************/
 
-bool btc_sig_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool btc_sig_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey) //XXX: mbed
 {
     int ret;
     bool bret;
@@ -97,7 +97,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_sig_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool btc_sig_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey) //XXX: mbed
 {
     int ret;
     mbedtls_mpi r, s;
@@ -130,12 +130,12 @@ LABEL_EXIT:
 }
 
 
-bool btc_sig_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey)
+bool btc_sig_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey) //XXX: mbed
 {
     return btc_sig_verify_2(pSig->buf, pSig->len, pTxHash, pPubKey);
 }
 
-bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash, const uint8_t *pPubKey)
+bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash, const uint8_t *pPubKey) //XXX: mbed
 {
     int ret;
     bool bret;
@@ -188,7 +188,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey)
+bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey) //XXX: mbed
 {
     int ret;
     mbedtls_mpi r, s;
@@ -240,7 +240,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash)
+bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash) //XXX: mbed
 {
     if ((RecId < 0) || (3 < RecId)) {
         LOGD("fail: invalid recid\n");
@@ -251,7 +251,7 @@ bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, con
 }
 
 
-bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash)
+bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash) //XXX: mbed
 {
     bool ret;
     uint8_t pub[BTC_SZ_PUBKEY];

@@ -99,7 +99,7 @@ bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifP
         }
         //checksum
         uint8_t buf_sha256[BTC_SZ_HASH256];
-        btc_util_hash256(buf_sha256, b58dec + idx, 1 + BTC_SZ_PRIVKEY + tail);
+        btc_md_hash256(buf_sha256, b58dec + idx, 1 + BTC_SZ_PRIVKEY + tail);
         ret = (memcmp(buf_sha256, b58dec + sizeof(b58dec) - 4, 4) == 0);
     }
     if (ret) {
@@ -129,7 +129,7 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
     b58[0] = mPref[BTC_PREF_WIF];
     memcpy(b58 + 1, pPrivKey, BTC_SZ_PRIVKEY);
     b58[1 + BTC_SZ_PRIVKEY] = 0x01;     //WIF compressed only
-    btc_util_hash256(buf_sha256, b58, 1 + BTC_SZ_PRIVKEY + 1);
+    btc_md_hash256(buf_sha256, b58, 1 + BTC_SZ_PRIVKEY + 1);
     memcpy(b58 + 1 + BTC_SZ_PRIVKEY + 1, buf_sha256, 4);
 
     size_t sz = BTC_SZ_WIF_STR_MAX + 1;
@@ -139,7 +139,7 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
 }
 
 
-bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
+bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey) //XXX: mbed
 {
     int ret;
 
@@ -181,7 +181,7 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
 {
     uint8_t pkh[BTC_SZ_HASH_MAX];
 
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
     return hash2addr(pAddr, pkh, BTC_PREF_P2PKH);
 }
 
@@ -192,7 +192,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
     uint8_t pref;
 
     //BTC_SZ_PUBKEY_UNCOMP for the BIP142 test data
-    btc_util_hash160(hash, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP : BTC_SZ_PUBKEY);
+    btc_md_hash160(hash, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP : BTC_SZ_PUBKEY);
 
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
@@ -235,15 +235,15 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript)
     uint8_t hash[BTC_SZ_HASH_MAX];
 
     if (mNativeSegwit) {
-        btc_util_sha256(hash, pWitnessScript->buf, pWitnessScript->len);
+        btc_md_sha256(hash, pWitnessScript->buf, pWitnessScript->len);
         pref = BTC_PREF_P2WSH;
     } else {
         uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
 
         wit_prog[0] = 0x00;
         wit_prog[1] = BTC_SZ_HASH256;
-        btc_util_sha256(wit_prog + 2, pWitnessScript->buf, pWitnessScript->len);
-        btc_util_hash160(hash, wit_prog, sizeof(wit_prog));
+        btc_md_sha256(wit_prog + 2, pWitnessScript->buf, pWitnessScript->len);
+        btc_md_hash160(hash, wit_prog, sizeof(wit_prog));
         pref = BTC_PREF_P2SH;
     }
     ret = hash2addr(pWAddr, hash, pref);
@@ -251,7 +251,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript)
 }
 
 
-bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey)
+bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey) //XXX: mbed
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -268,7 +268,7 @@ bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey)
 }
 
 
-bool btc_keys_check_priv(const uint8_t *pPrivKey)
+bool btc_keys_check_priv(const uint8_t *pPrivKey) //XXX: mbed
 {
     bool cmp;
     mbedtls_mpi priv;
@@ -295,7 +295,7 @@ bool btc_keys_check_priv(const uint8_t *pPrivKey)
 }
 
 
-bool btc_keys_check_pub(const uint8_t *pPubKey)
+bool btc_keys_check_pub(const uint8_t *pPubKey) //XXX: mbed
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -330,7 +330,7 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
         if (ret) {
             //checksum
             uint8_t buf[BTC_SZ_HASH256];
-            btc_util_hash256(buf, bin, sz - 4);
+            btc_md_hash256(buf, bin, sz - 4);
             ret = memcmp(buf, bin + sz - 4, 4) == 0;
         }
         if (ret) {
@@ -496,7 +496,7 @@ static bool hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix)
 
         buf[0] = mPref[Prefix];
         memcpy(buf + 1, pHash, BTC_SZ_HASH160);
-        btc_util_hash256(checksum, buf, 1 + BTC_SZ_HASH160);
+        btc_md_hash256(checksum, buf, 1 + BTC_SZ_HASH160);
         memcpy(buf + 1 + BTC_SZ_HASH160, checksum, 4);
         ret = b58enc(pAddr, &sz, buf, sizeof(buf));
     } else {

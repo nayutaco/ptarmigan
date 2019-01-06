@@ -102,7 +102,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
 
 //#ifdef PTARM_DEBUG
 //    char mbedver[18];
-//    mbedtls_version_get_string_full(mbedver);
+//    mbedtls_version_get_string_full(mbedver); //XXX: mbed
 //    LOGD("%s\n", mbedver);
 
 //    //TODO: テスト用
