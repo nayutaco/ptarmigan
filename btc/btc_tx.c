@@ -25,9 +25,6 @@
 #ifdef PTARM_USE_PRINTFUNC
 #endif  //PTARM_USE_PRINTFUNC
 
-#include "mbedtls/asn1write.h"
-#include "mbedtls/ecdsa.h"
-
 #include "utl_dbg.h"
 #include "utl_time.h"
 #include "utl_int.h"

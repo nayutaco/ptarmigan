@@ -25,15 +25,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/md.h"
-#include "mbedtls/sha256.h"
-#include "mbedtls/ripemd160.h"
-#include "mbedtls/ecp.h"
-#include "libbase58.h"
-
 #include "utl_dbg.h"
-#include "utl_rng.h"
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"

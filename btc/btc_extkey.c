@@ -30,7 +30,6 @@
 #include "mbedtls/bignum.h"
 
 #include "utl_dbg.h"
-#include "utl_rng.h"
 
 #include "btc_local.h"
 #include "btc_crypto.h"
@@ -88,7 +87,7 @@ char *btc_extkey_generate_mnemonic24(void)
     uint8_t r[M_MS * 2];
     int space = 1;
 
-    utl_rng_rand(r, sizeof(r));
+    btc_rng_rand(r, sizeof(r));
     for (int lp = 0; lp < M_MS; lp++) {
         uint16_t rval = (r[lp * 2] << 8) | r[lp * 2 + 1];
         const char *w = BIP39_WORDLIST_ENGLISH[rval % M_ITER_COUNT];

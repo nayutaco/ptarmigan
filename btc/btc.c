@@ -24,13 +24,13 @@
  */
 #include <unistd.h>
 
-#include "mbedtls/version.h"
+//#include "mbedtls/version.h"
 
 #include "utl_common.h"
-#include "utl_rng.h"
 
 #include "btc_local.h"
 #include "btc.h"
+#include "btc_crypto.h"
 
 #ifndef __ORDER_LITTLE_ENDIAN__
 #error Only Little Endian
@@ -97,7 +97,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
     mNativeSegwit = bSegNative;
 
     if (ret) {
-        ret = utl_rng_init();
+        ret = btc_rng_init();
     }
 
 //#ifdef PTARM_DEBUG
@@ -118,7 +118,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
 void btc_term(void)
 {
     mPref[BTC_PREF_WIF] = BTC_UNKNOWN;
-    utl_rng_free();
+    btc_rng_free();
 }
 
 

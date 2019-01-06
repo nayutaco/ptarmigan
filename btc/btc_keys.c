@@ -30,8 +30,6 @@
 #include "mbedtls/ecdsa.h"
 #include "libbase58.h"
 
-#include "utl_rng.h"
-
 #include "btc_segwit_addr.h"
 #include "btc_local.h"
 #include "btc_script.h"
@@ -415,7 +413,7 @@ bool btc_keys_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifP
 bool btc_keys_create_priv(uint8_t *pPriv)
 {
     for (int i = 0; i < 1000; i++) {
-        if (!utl_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
+        if (!btc_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
         if (btc_keys_check_priv(pPriv)) return true;
     }
     return false;

@@ -141,4 +141,26 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
 int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
 
+/** init random generator
+ *
+ * @return          true        success
+ */
+bool btc_rng_init(void);
+
+
+/** generate random data
+ *
+ * @param[out]      pData       random data
+ * @param[in]       Len         data length
+ * @return          true        success
+ */
+bool btc_rng_rand(uint8_t *pData, uint16_t Len);
+
+
+/** free random generator
+ *
+ */
+void btc_rng_free(void);
+
+
 #endif /* BTC_CRYPTO_H__ */

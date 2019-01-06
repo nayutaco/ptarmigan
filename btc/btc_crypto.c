@@ -30,10 +30,14 @@
 #include "mbedtls/sha256.h"
 #include "mbedtls/ripemd160.h"
 #include "mbedtls/ecp.h"
+#ifndef PTARM_NO_USE_RNG
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+#endif
+
 #include "libbase58.h"
 
 #include "utl_dbg.h"
-#include "utl_rng.h"
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
@@ -48,9 +52,18 @@
  * macros
  **************************************************************************/
 
+#define M_RNG_APP_SPECIFIC_DATA_STR     "ptarmigan@nayuta"
+
+
 /**************************************************************************
  * private variables
  **************************************************************************/
+
+#ifndef PTARM_NO_USE_RNG
+static mbedtls_entropy_context  mEntropy;
+static mbedtls_ctr_drbg_context mRng;
+#endif
+
 
 /**************************************************************************
  * prototypes
@@ -303,6 +316,43 @@ int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
     ret = btc_util_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
 
     return ret;
+}
+
+
+bool btc_rng_init(void)
+{
+#ifndef PTARM_NO_USE_RNG
+    mbedtls_entropy_init(&mEntropy);
+    mbedtls_ctr_drbg_init(&mRng);
+
+    //XXX: TODO: we not set the device-specific identifier yet
+    if (mbedtls_ctr_drbg_seed(&mRng, mbedtls_entropy_func, &mEntropy,
+        (const unsigned char *)M_RNG_APP_SPECIFIC_DATA_STR, strlen(M_RNG_APP_SPECIFIC_DATA_STR))) return false;
+
+    mbedtls_ctr_drbg_set_prediction_resistance(&mRng, MBEDTLS_CTR_DRBG_PR_ON);
+#endif
+    return true;
+}
+
+
+bool btc_rng_rand(uint8_t *pData, uint16_t Len)
+{
+#ifndef PTARM_NO_USE_RNG
+    if (mbedtls_ctr_drbg_random(&mRng, pData, Len)) return false;
+#else
+    for (uint16_t lp = 0; lp < Len; lp++) {
+        pData[lp] = (uint8_t)(rand() % 256);
+    }
+#endif
+    return true;
+}
+
+void btc_rng_free(void)
+{
+#ifndef PTARM_NO_USE_RNG
+    mbedtls_entropy_free(&mEntropy);
+    mbedtls_ctr_drbg_free(&mRng);
+#endif
 }
 
 

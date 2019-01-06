@@ -13,7 +13,6 @@ extern "C" {
 #include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
 #include "../../utl/utl_time.c"
-#include "../../utl/utl_rng.c"
 #include "../../utl/utl_int.c"
 #include "../../utl/utl_mem.c"
 #include "../../utl/utl_str.c"
