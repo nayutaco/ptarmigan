@@ -148,22 +148,6 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
 }
 
 
-//XXX: test
-bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys)
-{
-    return btc_sig_sign(pSig, pTxHash, pKeys->priv);
-}
-
-
-//XXX: test
-bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys)
-{
-    return btc_sig_sign_rs(pRS, pTxHash, pKeys->priv);
-}
-
-
-
-
 /**************************************************************************
  * private functions
  **************************************************************************/
