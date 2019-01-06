@@ -100,29 +100,6 @@ void utl_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
-/** convert uint8_t[] --> uint16_t
- * 
- * @param[in]   pData       big endian
- * @return  uint16_t
- */
-uint16_t utl_misc_be16(const uint8_t *pData);
-
-
-/** convert uint8_t[] --> uint32_t
- * 
- * @param[in]   pData       big endian
- * @return  uint32_t
- */
-uint32_t utl_misc_be32(const uint8_t *pData);
-
-
-/** convert uint8_t[] --> uint64_t
- * 
- * @param[in]   pData       big endian
- * @return  uint64_t
- */
-uint64_t utl_misc_be64(const uint8_t *pData);
-
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

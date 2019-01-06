@@ -59,6 +59,7 @@
 #include "utl_addr.h"
 #include "utl_time.h"
 #include "utl_rng.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 #include "btc_script.h"
@@ -2786,7 +2787,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
     } else {
         // update_fail_malformed_htlc
-        uint16_t failure_code = utl_misc_be16(p_fail->p_reason->buf);
+        uint16_t failure_code = utl_int_pack_u16be(p_fail->p_reason->buf);
         ret = (failure_code == p_fail->malformed_failure);
         utl_buf_alloccopy(&reason, p_fail->p_reason->buf, p_fail->p_reason->len);
         hop = 0;
