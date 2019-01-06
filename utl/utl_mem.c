@@ -46,3 +46,19 @@ void utl_mem_swap(void *pA, void *pB, void *pTemp, size_t Len)
     memcpy(pA, pB, Len);
     memcpy(pB, pTemp, Len);
 }
+
+
+bool utl_mem_is_all_zero(const void *pData, size_t Len)
+{
+    bool ret = true;
+    const uint8_t *p = (const uint8_t *)pData;
+    for (size_t lp = 0; lp < Len; lp++) {
+        if (p[lp] != 0x00) {
+            ret = false;
+            break;
+        }
+    }
+    return ret;
+}
+
+

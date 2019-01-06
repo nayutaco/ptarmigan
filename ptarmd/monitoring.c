@@ -417,7 +417,7 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
 
     btc_tx_t close_tx = BTC_TX_INIT;
     ln_status_t stat = ln_status_get(self);
-    utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
+    utl_str_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
 
     LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(self));
     if (stat <= LN_STATUS_CLOSE_SPENT) {

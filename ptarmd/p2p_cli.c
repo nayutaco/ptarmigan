@@ -179,7 +179,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
             char peer_id[BTC_SZ_PUBKEY * 2 + 1];
-            utl_misc_bin2str(peer_id, pConn->node_id, BTC_SZ_PUBKEY);
+            utl_str_bin2str(peer_id, pConn->node_id, BTC_SZ_PUBKEY);
 
             char time[UTL_SZ_TIME_FMT_STR + 1];
             fprintf(fp, "[%s]fail: %s@%s:%" PRIu16 "\n", utl_time_str_time(time), peer_id, pConn->ipaddr, pConn->port);

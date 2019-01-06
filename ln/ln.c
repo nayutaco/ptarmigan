@@ -30,11 +30,12 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_buf.h"
 #include "utl_dbg.h"
 #include "utl_time.h"
 #include "utl_rng.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 #include "btc_script.h"

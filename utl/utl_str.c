@@ -21,7 +21,9 @@
  */
 
 #include <string.h>
+#include <ctype.h>
 
+#include "utl_local.h"
 #include "utl_dbg.h"
 #include "utl_str.h"
 
@@ -120,3 +122,68 @@ void utl_str_free(utl_str_t *x)
     }
     memset(x, 0x00, sizeof(utl_str_t));
 }
+
+
+bool utl_str_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
+{
+    if (strlen(pStr) != BinLen * 2) {
+        LOGD("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
+        return false;
+    }
+
+    bool ret = true;
+
+    char str[3];
+    str[2] = '\0';
+    uint32_t lp;
+    for (lp = 0; lp < BinLen; lp++) {
+        str[0] = *(pStr + 2 * lp);
+        str[1] = *(pStr + 2 * lp + 1);
+        if (!isxdigit(str[0]) || !isxdigit(str[1])) {
+            LOGD("fail: str=%s\n", str);
+            ret = false;
+            break;
+        }
+        pBin[lp] = (uint8_t)strtoul(str, NULL, 16);
+    }
+
+    return ret;
+}
+
+
+bool utl_str_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
+{
+    bool ret = utl_str_str2bin(pBin, BinLen, pStr);
+    if (ret) {
+        for (uint32_t lp = 0; lp < BinLen / 2; lp++) {
+            uint8_t tmp = pBin[lp];
+            pBin[lp] = pBin[BinLen - lp - 1];
+            pBin[BinLen - lp - 1] = tmp;
+        }
+    }
+
+    return ret;
+}
+
+
+void utl_str_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+{
+    *pStr = '\0';
+    for (uint32_t lp = 0; lp < BinLen; lp++) {
+        char str[3];
+        sprintf(str, "%02x", pBin[lp]);
+        strcat(pStr, str);
+    }
+}
+
+
+void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+{
+    *pStr = '\0';
+    for (uint32_t lp = 0; lp < BinLen; lp++) {
+        char str[3];
+        sprintf(str, "%02x", pBin[BinLen - lp - 1]);
+        strcat(pStr, str);
+    }
+}
+

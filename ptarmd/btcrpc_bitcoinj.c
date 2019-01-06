@@ -29,7 +29,7 @@
 #define LOG_TAG     "btcrpc"
 #include "utl_log.h"
 #include "utl_dbg.h"
-#include "utl_misc.h"
+#include "utl_str.h"
 
 #include "btc_script.h"
 #include "btc_sw.h"
@@ -399,7 +399,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 
 bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 {
-    if (utl_misc_is_all_zero(pTxid, BTC_SZ_TXID)) {
+    if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
     }
 
@@ -441,7 +441,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
 
 bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
-    if (utl_misc_is_all_zero(pTxid, BTC_SZ_TXID)) {
+    if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
     }
 
@@ -545,7 +545,7 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 
 bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
 {
-    if (utl_misc_is_all_zero(pTxid, BTC_SZ_TXID)) {
+    if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
     }
 
@@ -563,7 +563,7 @@ bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat
 {
     (void)pSat;
 
-    if (utl_misc_is_all_zero(pTxid, BTC_SZ_TXID)) {
+    if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
     }
 

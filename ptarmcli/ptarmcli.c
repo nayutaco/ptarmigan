@@ -33,7 +33,7 @@
 #define LOG_TAG     "ptarmcli"
 #include "utl_log.h"
 #include "utl_dbg.h"
-#include "utl_misc.h"
+#include "utl_str.h"
 #include "utl_time.h"
 
 #include "ln_segwit_addr.h"
@@ -335,7 +335,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         *pConn = true;
         strcpy(mPeerAddr, peer.ipaddr);
         mPeerPort = peer.port;
-        utl_misc_bin2str(mPeerNodeId, peer.node_id, BTC_SZ_PUBKEY);
+        utl_str_bin2str(mPeerNodeId, peer.node_id, BTC_SZ_PUBKEY);
         *pOption = M_OPTIONS_CONN;
     } else if (optlen >= (BTC_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
         // <pubkey>@<ipaddr>:<port>
@@ -452,7 +452,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
     if (bret) {
         char txid[BTC_SZ_TXID * 2 + 1];
 
-        utl_misc_bin2str_rev(txid, fundconf.txid, BTC_SZ_TXID);
+        utl_str_bin2str_rev(txid, fundconf.txid, BTC_SZ_TXID);
         snprintf(mBuf, BUFFER_SIZE,
             "{"
                 M_STR("method", "fund") M_NEXT
@@ -567,7 +567,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     conf_payment_init(&payconf);
     bool bret = conf_payment_load(path, &payconf);
     if (hash) {
-        bret &= utl_misc_str2bin(payconf.payment_hash, BTC_SZ_HASH256, hash);
+        bret &= utl_str_str2bin(payconf.payment_hash, BTC_SZ_HASH256, hash);
     }
     if (!bret) {
         strcpy(mErrStr, "payment configuration file");
@@ -579,7 +579,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
     char forward[BTC_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
 
-    utl_misc_bin2str(payhash, payconf.payment_hash, BTC_SZ_HASH256);
+    utl_str_bin2str(payhash, payconf.payment_hash, BTC_SZ_HASH256);
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "PAY") M_NEXT
@@ -591,7 +591,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     for (int lp = 0; lp < payconf.hop_num; lp++) {
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
 
-        utl_misc_bin2str(node_id, payconf.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, payconf.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
         snprintf(forward, sizeof(forward), "[" M_QQ("%s") "," M_QQ("%" PRIx64) ",%" PRIu64 ",%d]",
                 node_id,
                 payconf.hop_datain[lp].short_channel_id,

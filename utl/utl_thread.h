@@ -20,11 +20,11 @@
  *  under the License.
  */
 /**
- * @file    utl_misc.h
- * @brief   utl_miscellaneous
+ * @file    utl_thread.h
+ * @brief   utl_thread
  */
-#ifndef UTL_MISC_H__
-#define UTL_MISC_H__
+#ifndef UTL_THREAD_H__
+#define UTL_THREAD_H__
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -41,7 +41,6 @@ extern "C" {
  * macros
  **************************************************************************/
 
-
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -52,56 +51,11 @@ extern "C" {
  * @attention
  *  slpは1000未満にすること
  */
-void utl_misc_msleep(unsigned long slp);
-
-
-/** 16進数文字列から変換
- *
- * @param[out]      pBin        変換結果
- * @param[out]      BinLen      pBin長
- * @param[out]      pStr        元データ
- */
-bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
-
-
-/** 16進数文字列から変換(エンディアン反転)
- *
- * @param[out]      pBin        変換結果(エンディアン反転)
- * @param[out]      BinLen      pBin長
- * @param[out]      pStr        元データ
- */
-bool utl_misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
-
-
-/** 全データが0x00かのチェック
- *
- * @param[in]       pData               チェック対象
- * @param[in]       Len                 pData長
- * @retval  true    全データが0x00
- */
-bool utl_misc_is_all_zero(const void *pData, size_t Len);
-
-
-/** 16進数文字列に変換
- *
- * @param[out]      pStr        変換結果
- * @param[in]       pBin        元データ
- * @param[in]       BinLen      pBin長
- */
-void utl_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
-
-
-/** 16進数文字列に変換(エンディアン反転)
- *
- * @param[out]      pStr        変換結果(エンディアン反転)
- * @param[in]       pBin        元データ
- * @param[in]       BinLen      pBin長
- */
-void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+void utl_thread_msleep(unsigned long slp);
 
 
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
 
-#endif /* UTL_MISC_H__ */
+#endif /* UTL_THREAD_H__ */

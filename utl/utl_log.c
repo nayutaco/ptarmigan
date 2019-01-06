@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "utl_misc.h"
+#include "utl_str.h"
 #define LOG_TAG "dummy"
 #include "utl_log.h"
 #include "utl_time.h"
@@ -145,7 +145,7 @@ void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *
 void utl_log_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
     char *p_str = (char *)malloc(Len * 2 + 1);
-    utl_misc_bin2str(p_str, (const uint8_t *)pData, Len);
+    utl_str_bin2str(p_str, (const uint8_t *)pData, Len);
     utl_log_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     free(p_str);
 }
@@ -154,7 +154,7 @@ void utl_log_dump(int Pri, const char* pFname, int Line, int Flag, const char *p
 void utl_log_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
     char *p_str = (char *)malloc(Len * 2 + 1);
-    utl_misc_bin2str_rev(p_str, (const uint8_t *)pData, Len);
+    utl_str_bin2str_rev(p_str, (const uint8_t *)pData, Len);
     utl_log_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     free(p_str);
 }
