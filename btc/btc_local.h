@@ -89,16 +89,4 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
 
 
-/** vout追加(pubkey)
- *
- */
-bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref);
-
-
-/** vout追加(pubkeyhash)
- *
- */
-bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
-
-
 #endif /* BTC_LOCAL_H__ */

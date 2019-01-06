@@ -233,13 +233,17 @@ bool btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript
 
 bool btc_tx_add_vout_p2pkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    return btcl_util_add_vout_pub(pTx, Value, pPubKey, BTC_PREF_P2PKH);
+    uint8_t pkh[BTC_SZ_HASH_MAX];
+    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    return btc_tx_add_vout_p2pkh(pTx, Value, pkh);
 }
 
 
 bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    return btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, BTC_PREF_P2PKH);
+    btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
+    if (!vout) return false;
+    return btc_scriptpk_create(&vout->script, pPubKeyHash, BTC_PREF_P2PKH);
 }
 
 

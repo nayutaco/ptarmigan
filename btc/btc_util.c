@@ -251,24 +251,6 @@ LABEL_EXIT:
 }
 
 
-//XXX: tx
-bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
-{
-    uint8_t pkh[BTC_SZ_HASH_MAX];
-
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    return btcl_util_add_vout_pkh(pTx, Value, pkh, Pref);
-}
-
-
-//XXX: tx
-bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
-{
-    btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    return btc_scriptpk_create(&vout->script, pPubKeyHash, Pref);
-}
-
-
 /**************************************************************************
  * private functions
  **************************************************************************/
