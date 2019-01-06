@@ -16,7 +16,7 @@ build:
 
 install:
 	-@mkdir -p $(INSTALL_DIR)
-ifeq ($(USE_SPV),1)
+ifeq ($(NODE_TYPE),BITCOINJ)
 	-cp -ra ptarmd/jni/jar $(INSTALL_DIR)/
 endif
 	-cp ptarmcli/ptarmcli $(INSTALL_DIR)/

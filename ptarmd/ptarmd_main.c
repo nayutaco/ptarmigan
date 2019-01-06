@@ -40,9 +40,9 @@
  * macros
  **************************************************************************/
 
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
 #define M_OPTSTRING     "p:n:a:c:d:xNh"
-#else
+#elif defined(USE_BITCOINJ)
 #define M_OPTSTRING     "p:n:a:mtrd:xNh"
 #endif
 
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
                 }
             }
             break;
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
         case 'c':
             //load btcconf file
             bret = conf_btcrpc_load(optarg, &rpc_conf);
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
                 goto LABEL_EXIT;
             }
             break;
-#else
+#elif defined(USE_BITCOINJ)
         case 'm':
             //mainnet
             rpc_conf.gen = BTC_BLOCK_CHAIN_BTCMAIN;
@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
         }
     }
 
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
         bret = conf_btcrpc_load_default(&rpc_conf);
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
             goto LABEL_EXIT;
         }
     }
-#else
+#elif defined(USE_BITCOINJ)
     if (rpc_conf.gen == BTC_BLOCK_CHAIN_UNKNOWN) {
         fprintf(stderr, "ERROR: you need select network.\n");
         goto LABEL_EXIT;
@@ -241,10 +241,10 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t-h : help\n");
     fprintf(stderr, "\t\t-p PORT : node port(default: 9735)\n");
     fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
-#else
+#elif defined(USE_BITCOINJ)
     //fprintf(stderr, "\t\t-m MAINNET\n");
     fprintf(stderr, "\t\t-t TESTNET\n");
     fprintf(stderr, "\t\t-r REGTEST\n");

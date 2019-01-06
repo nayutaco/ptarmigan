@@ -44,6 +44,7 @@ extern "C" {
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
 #include "ln_segwit_addr.c"
+#include "ln_print.c"
 
 #include "ln.c"
 }
@@ -2135,10 +2136,12 @@ TEST_F(ln, recv_accept_channel_ok)
         self.p_establish->cnl_accept.p_pubkeys[lp] = pubkey;
     }
 
+#ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)calloc(1, sizeof(ln_fundin_t));
     ln_fundin_t *p_fundin = self.p_establish->p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
     p_fundin->amount = 500000;
+#endif
 
     memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
@@ -2146,8 +2149,10 @@ TEST_F(ln, recv_accept_channel_ok)
     bool ret = recv_accept_channel(&self, NULL, 0);
     ASSERT_TRUE(ret);
 
+#ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
     free(self.p_establish->p_fundin);
+#endif
     free(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
@@ -2209,9 +2214,11 @@ TEST_F(ln, recv_accept_channel_receiver1)
     memcpy(self.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     self.p_establish->cnl_open.funding_sat = 100000;
 
+#ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)calloc(1, sizeof(ln_fundin_t));
     ln_fundin_t *p_fundin = self.p_establish->p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
+#endif
 
     memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
@@ -2219,8 +2226,10 @@ TEST_F(ln, recv_accept_channel_receiver1)
     bool ret = recv_accept_channel(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
+#ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
     free(self.p_establish->p_fundin);
+#endif
     free(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
@@ -2283,9 +2292,11 @@ TEST_F(ln, recv_accept_channel_receiver2)
     memcpy(self.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     self.p_establish->cnl_open.funding_sat = 100000;
 
+#ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)calloc(1, sizeof(ln_fundin_t));
     ln_fundin_t *p_fundin = self.p_establish->p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
+#endif
 
     memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
@@ -2293,8 +2304,10 @@ TEST_F(ln, recv_accept_channel_receiver2)
     bool ret = recv_accept_channel(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
+#ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
     free(self.p_establish->p_fundin);
+#endif
     free(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);

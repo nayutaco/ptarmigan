@@ -87,7 +87,7 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid);
 bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid);
 
 
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
 /** [bitcoin IF]short_channel_idパラメータからtxid取得
  *
  * @param[out]  pTxid       該当するtxid
@@ -189,8 +189,7 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_STR_MAX + 1]);
 bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 
 /** [bitcoin IF]node作成時のblock hash設定
  *      bitcoinjで過去ブロックに遡りながら検索することがあるが、その下限を決めるため。

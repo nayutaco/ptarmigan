@@ -33,9 +33,8 @@ script:
   - make full
   - make test
   - make clean
-  - sed -i -e 's/USE_SPV=0/USE_SPV=1/' options.mak
+  - sed -i -e 's/NODE_TYPE=BITCOIND/NODE_TYPE=BITCOINJ/' options.mak
   - make
-  - make test
 
 notifications:
   email:

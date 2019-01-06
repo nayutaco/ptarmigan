@@ -75,13 +75,14 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 # others
 CFLAGS += $(INC_PATHS)
 
-ifeq ($(USE_SPV),1)
+ifeq ($(NODE_TYPE),BITCOIND)
+	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
+endif
+ifeq ($(NODE_TYPE),BITCOINJ)
 	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoinj.c
 	C_SOURCE_FILES += $(PRJ_PATH)/jni/btcj_jni.c
 	INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
 	LIBS += $(USE_SPV_JVM) -ljvm
-else
-	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
 endif
 
 ifeq ($(ENABLE_PLOG_TO_STDOUT_PTARMD),1)
