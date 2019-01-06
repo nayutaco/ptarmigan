@@ -32,6 +32,10 @@ addons:
 script:
   - make full
   - make test
+  - make clean
+  - sed -i -e 's/USE_SPV=0/USE_SPV=1/' options.mak
+  - make
+  - make test
 
 notifications:
   email:
