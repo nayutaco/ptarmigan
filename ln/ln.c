@@ -1830,7 +1830,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
 
 void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
 {
-    btc_util_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
+    btc_md_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
 }
 
 
@@ -3544,7 +3544,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     }
 
     uint8_t sha256[BTC_SZ_HASH256];
-    btc_util_sha256(sha256, preimage, sizeof(preimage));
+    btc_md_sha256(sha256, preimage, sizeof(preimage));
 
     ln_update_add_htlc_t *p_htlc = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {

@@ -406,7 +406,7 @@ static void derive_secret(uint8_t *pOutput, const uint8_t *pBase, int bit, uint6
     for (int lp = bit; lp >= 0; lp--) {
         if (Index & ((uint64_t)1 << lp)) {
             output[lp / 8] ^= (1 << (lp % 8));
-            btc_util_sha256(output, output, BTC_SZ_HASH256);
+            btc_md_sha256(output, output, BTC_SZ_HASH256);
         }
     }
     memcpy(pOutput, output, BTC_SZ_HASH256);

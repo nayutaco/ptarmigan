@@ -189,7 +189,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
-        btc_util_hash160(h160, pub, BTC_SZ_PUBKEY);
+        btc_md_hash160(h160, pub, BTC_SZ_PUBKEY);
         pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else if (pExtKey->type == BTC_EXTKEY_PRIV && pSeed != NULL) {
         //root seed --> master private/public key
@@ -221,7 +221,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
-        btc_util_hash160(h160, pKey, BTC_SZ_PUBKEY);
+        btc_md_hash160(h160, pKey, BTC_SZ_PUBKEY);
         pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else {
         LOGD("fail: invalid type\n");
@@ -346,7 +346,7 @@ bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEx
     }
     //[78-81]checksum
     uint8_t chksum[BTC_SZ_HASH256];
-    btc_util_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
+    btc_md_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
     for (int lp = 0; lp < 4; lp++) {
         pData[78 + lp] = chksum[lp];
     }
@@ -432,7 +432,7 @@ bool btc_extkey_read(btc_extkey_t *pExtKey, const uint8_t *pData, int Len)
     memcpy(pExtKey->key, p, len);
     p += len;
     uint8_t chksum[BTC_SZ_HASH256];
-    btc_util_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
+    btc_md_hash256(chksum, pData, BTC_SZ_EXTKEY - 4);
     return memcmp(chksum, p, 4) == 0;
 }
 

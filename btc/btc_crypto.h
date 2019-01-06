@@ -54,16 +54,16 @@
  **************************************************************************/
 
 /**************************************************************************
- * prototypes
+ * prototypes (btc_hash)
  **************************************************************************/
 
-/** RIPMED160計算
+/** RIPMED-160計算
  *
  * @param[out]      pRipemd160      演算結果(BTC_SZ_RIPEMD160以上のサイズが必要)
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len);
+void btc_md_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len);
 
 
 /** SHA256計算
@@ -72,7 +72,7 @@ void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
  * @param[in]       pData           元データ
  * @param[in]       Len             pData長
  */
-void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len);
+void btc_md_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len);
 
 
 /** HASH160計算
@@ -81,7 +81,7 @@ void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len);
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len);
+void btc_md_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len);
 
 
 /** HASH256計算
@@ -90,7 +90,7 @@ void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len);
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
+void btc_md_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
 
 
 /** HASH256計算(連結)
@@ -101,9 +101,14 @@ void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
  * @param[in]       pData2          対象データ2
  * @param[in]       Len2            pData2長
  */
-void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2);
+void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2);
 
 
+/**************************************************************************
+ * prototypes (???)
+ **************************************************************************/
+
+//XXX: ec? keys?
 /** 圧縮公開鍵を非圧縮公開鍵展開
  *
  * @param[out]  point       非圧縮公開鍵座標
@@ -116,6 +121,7 @@ void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, 
 int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
 
 
+//XXX: ec? keys?
 /**
  * pPubKeyOut = pPubKeyIn + pA * G
  *
@@ -123,6 +129,7 @@ int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
 int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
 
 
+//XXX: ec? keys?
 /**
  * pResult = pPubKey * pMul
  *
@@ -130,6 +137,7 @@ int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *
 bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 
 
+//XXX: ec? keys?
 /** 圧縮された公開鍵をkeypairに展開する
  *
  * @param[in]       pPubKey     圧縮された公開鍵
@@ -140,6 +148,10 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
  */
 int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
+
+/**************************************************************************
+ * prototypes (btc_rng)
+ **************************************************************************/
 
 /** init random generator
  *

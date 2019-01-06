@@ -40,7 +40,7 @@
 bool btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
     uint8_t pkh[BTC_SZ_HASH_MAX];
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
     return btc_sw_add_vout_p2wpkh(pTx, Value, pkh);
 }
 
@@ -67,7 +67,7 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
             return false;
         }
         uint8_t sh[BTC_SZ_HASH_MAX];
-        btc_util_hash160(sh, script_sig.buf, script_sig.len);
+        btc_md_hash160(sh, script_sig.buf, script_sig.len);
         utl_buf_free(&script_sig);
         if (!btc_tx_add_vout_p2sh(pTx, Value, sh)) return false;
     }
@@ -183,7 +183,7 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     //hashtype
     if (!btc_buf_w_write_u32le(&buf_w, SIGHASH_ALL)) goto LABEL_EXIT;
 
-    btc_util_hash256(pTxHash, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
+    btc_md_hash256(pTxHash, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
 
     ret = true;
 
@@ -261,10 +261,10 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
 
     //check pkh
     uint8_t hash[BTC_SZ_HASH_MAX];
-    btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY); //pkh
+    btc_md_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY); //pkh
     if (!mNativeSegwit) {
         //P2SH-P2WPKH
-        btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
+        btc_md_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
         btc_script_p2sh_p2wpkh_create_scripthash_pkh(hash, hash); //pkh -> sh
     }
     if (memcmp(hash, pHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
@@ -328,7 +328,7 @@ bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
         assert(0);
         goto LABEL_EXIT;
     }
-    btc_util_hash256(pWTxId, txbuf.buf, txbuf.len);
+    btc_md_hash256(pWTxId, txbuf.buf, txbuf.len);
     utl_buf_free(&txbuf);
 
 LABEL_EXIT:
@@ -359,5 +359,5 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript)
 {
     pWitProg[0] = 0x00;
     pWitProg[1] = BTC_SZ_HASH256;
-    btc_util_sha256(pWitProg + 2, pWitScript->buf, pWitScript->len);
+    btc_md_sha256(pWitProg + 2, pWitScript->buf, pWitScript->len);
 }

@@ -393,5 +393,5 @@ void HIDDEN ln_misc_generate_shared_secret(uint8_t *pResult, const uint8_t *pPub
 {
     uint8_t pub[BTC_SZ_PUBKEY];
     btc_util_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY);
-    btc_util_sha256(pResult, pub, sizeof(pub));
+    btc_md_sha256(pResult, pub, sizeof(pub));
 }

@@ -129,10 +129,10 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     }
 
     // ck = sha256(protocolName)
-    btc_util_sha256(pBolt->ck, (const uint8_t *)M_PROTOCOL_NAME, M_PROTOCOL_LEN);
+    btc_md_sha256(pBolt->ck, (const uint8_t *)M_PROTOCOL_NAME, M_PROTOCOL_LEN);
 
     // h = sha256(ck || prologue)
-    btc_util_sha256cat(pBolt->h, pBolt->ck, BTC_SZ_HASH256, (const uint8_t *)M_PROLOGUE, M_PROLOGUE_LEN);
+    btc_md_sha256cat(pBolt->h, pBolt->ck, BTC_SZ_HASH256, (const uint8_t *)M_PROLOGUE, M_PROLOGUE_LEN);
 
 
     if (pNodeId != NULL) {
@@ -146,7 +146,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
         pBolt->state = WAIT_ACT_ONE;
     }
     //initiatorは相手node_id, responderは自node_id
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pNodeId, BTC_SZ_PUBKEY);
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pNodeId, BTC_SZ_PUBKEY);
 
     return true;
 }
@@ -545,7 +545,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
     int rc;
 
     // h = SHA-256(h || e.pub.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(rs, e.priv)
     ln_misc_generate_shared_secret(ss, pRS, pBolt->e.priv);
@@ -591,7 +591,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
     utl_buf_free(pBuf);
@@ -626,7 +626,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     memcpy(c, pBuf->buf + 1 + sizeof(re), sizeof(c));
 
     // h = SHA-256(h || re.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, s.priv)
     ln_node_generate_shared_secret(ss, re);
@@ -671,7 +671,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     ret = acttwo_sender(self, pBuf, re);
 
@@ -690,7 +690,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
     int rc;
 
     // h = SHA-256(h || e.pub.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
     ln_misc_generate_shared_secret(ss, pRE, pBolt->e.priv);
@@ -735,7 +735,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
     utl_buf_free(pBuf);
@@ -769,7 +769,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     memcpy(c, pBuf->buf + 1 + sizeof(re), sizeof(c));
 
     // h = SHA-256(h || re.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
     ln_misc_generate_shared_secret(ss, re, pBolt->e.priv);
@@ -815,7 +815,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     ret = actthree_sender(self, pBuf, re);
 
@@ -873,7 +873,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // ss = ECDH(re, s.priv)
     ln_node_generate_shared_secret(ss, pRE);
@@ -992,7 +992,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     DUMPD(rs, sizeof(rs));
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
+    btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // ss = ECDH(rs, e.priv)
     ln_misc_generate_shared_secret(ss, rs, pBolt->e.priv);

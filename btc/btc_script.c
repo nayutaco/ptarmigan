@@ -166,7 +166,7 @@ bool btc_script_p2sh_p2wpkh_create_scriptsig(utl_buf_t *pScriptSig, const uint8_
     //witness program
     *p++ = 0x00;
     *p++ = (uint8_t)BTC_SZ_HASH160;
-    btc_util_hash160(p, pPubKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(p, pPubKey, BTC_SZ_PUBKEY);
     return true;
 }
 
@@ -181,7 +181,7 @@ bool btc_script_p2sh_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf
     //witness program
     *p++ = 0x00;
     *p++ = (uint8_t)BTC_SZ_HASH256;
-    btc_util_sha256(p, pWitScript->buf, pWitScript->len);
+    btc_md_sha256(p, pWitScript->buf, pWitScript->len);
     return true;
 }
 
@@ -193,7 +193,7 @@ bool btc_script_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *p
     uint8_t *p = pScriptSig->buf;
     *p++ = 0x00;
     *p++ = (uint8_t)BTC_SZ_HASH256;
-    btc_util_sha256(p, pWitScript->buf, pWitScript->len);
+    btc_md_sha256(p, pWitScript->buf, pWitScript->len);
     return true;
 }
 
@@ -242,7 +242,7 @@ bool btc_script_p2pkh_verify_scriptsig(utl_buf_t *pScriptSig, const uint8_t *pTx
     if (pScriptSig->len != 1 + sig_len + 1 + pubkey_len) goto LABEL_EXIT;
 
     uint8_t pkh[BTC_SZ_HASH160];
-    btc_util_hash160(pkh, pubkey, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, pubkey, BTC_SZ_PUBKEY);
     if (memcmp(pkh, pPubKeyHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
 
     if (!btc_sig_verify_2(sig, sig_len, pTxHash, pubkey)) goto LABEL_EXIT;
@@ -378,7 +378,7 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
 
     //scripthashチェック
     uint8_t sh[BTC_SZ_HASH_MAX];
-    btc_util_hash160(sh, pScriptSig->buf + pubpos - 1, pScriptSig->len - pubpos + 1);
+    btc_md_hash160(sh, pScriptSig->buf + pubpos - 1, pScriptSig->len - pubpos + 1);
     bool ret = (memcmp(sh, pScriptHash, BTC_SZ_HASH160) == 0);
     if (!ret) {
         LOGD("scripthash mismatch.\n");
@@ -539,7 +539,7 @@ bool btc_script_p2sh_multisig_create_redeem(utl_buf_t *pRedeem, const uint8_t *p
 bool btc_script_p2sh_p2wpkh_create_redeem(utl_buf_t *pRedeem, const uint8_t *pPubKey)
 {
     uint8_t pkh[BTC_SZ_HASH160];
-    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
     return btc_script_p2sh_p2wpkh_create_redeem_pkh(pRedeem, pkh);
 }
 
@@ -561,7 +561,7 @@ bool btc_script_p2sh_p2wpkh_create_scripthash_pkh(uint8_t *pScriptHash, const ui
 {
     utl_buf_t redeem = UTL_BUF_INIT;
     if (!btc_script_p2sh_p2wpkh_create_redeem_pkh(&redeem, pPubKeyHash)) return false;
-    btc_util_hash160(pScriptHash, redeem.buf, redeem.len);
+    btc_md_hash160(pScriptHash, redeem.buf, redeem.len);
     utl_buf_free(&redeem);
     return true;
 }
@@ -631,7 +631,7 @@ bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemC
     }
     uint8_t sh[BTC_SZ_HASH256];
     wit_item = &pWitness[3];
-    btc_util_sha256(sh, wit_item->buf, wit_item->len);
+    btc_md_sha256(sh, wit_item->buf, wit_item->len);
     if (memcmp(sh, &pScriptPk->buf[2], BTC_SZ_HASH256)) {
         LOGD("pubkeyhash mismatch.\n");
         return false;
@@ -729,7 +729,7 @@ bool btc_script_p2wpkh_create_scriptcode(utl_buf_t *pScriptCode, const uint8_t *
     //https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     // scriptCode: 0x1976a914{20-byte keyhash}88ac
     uint8_t hash[BTC_SZ_HASH_MAX];
-    btc_util_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
+    btc_md_hash160(hash, pPubKey, BTC_SZ_PUBKEY);
     if (!utl_buf_realloc(pScriptCode, 1 + 3 + BTC_SZ_HASH160 + 2)) return false;
     pScriptCode->buf[0] = (uint8_t)pScriptCode->len - 1;
     create_scriptpk_p2pkh(pScriptCode->buf + 1, hash);

@@ -77,35 +77,35 @@ static mbedtls_ctr_drbg_context mRng;
  * public functions
  **************************************************************************/
 
-void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
+void btc_md_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
 {
     mbedtls_ripemd160(pData, Len, pRipemd160);
 }
 
 
-void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
+void btc_md_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
 {
     mbedtls_sha256(pData, Len, pSha256, 0);
 }
 
 
-void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
+void btc_md_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 {
     uint8_t buf_sha256[BTC_SZ_HASH256];
 
-    btc_util_sha256(buf_sha256, pData, Len);
-    btc_util_ripemd160(pHash160, buf_sha256, sizeof(buf_sha256));
+    btc_md_sha256(buf_sha256, pData, Len);
+    btc_md_ripemd160(pHash160, buf_sha256, sizeof(buf_sha256));
 }
 
 
-void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
+void btc_md_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 {
-    btc_util_sha256(pHash256, pData, Len);
-    btc_util_sha256(pHash256, pHash256, BTC_SZ_HASH256);
+    btc_md_sha256(pHash256, pData, Len);
+    btc_md_sha256(pHash256, pHash256, BTC_SZ_HASH256);
 }
 
 
-void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
+void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
 {
     mbedtls_sha256_context ctx;
 

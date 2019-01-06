@@ -256,7 +256,7 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    btc_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
+    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
                                 Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
     // LOGD("hash=");
     // DUMPD(hash, BTC_SZ_HASH256);
@@ -422,7 +422,7 @@ static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Le
     uint8_t hash[BTC_SZ_HASH256];
     bool ret;
 
-    btc_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
+    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
                                 Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
     //LOGD("hash=");
     //DUMPD(hash, BTC_SZ_HASH256);
@@ -604,7 +604,7 @@ bool HIDDEN ln_msg_node_announce_create(utl_buf_t *pBuf, const ln_node_announce_
     //署名
     uint8_t hash[BTC_SZ_HASH256];
 
-    btc_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
+    btc_md_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
     //LOGD("data=");
     //DUMPD(pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE, pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
@@ -713,7 +713,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
         //署名verify
         uint8_t hash[BTC_SZ_HASH256];
 
-        btc_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
+        btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                     pos - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
         //LOGD("data=");
         //DUMPD(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
@@ -824,7 +824,7 @@ bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMs
     uint8_t hash[BTC_SZ_HASH256];
     bool ret;
 
-    btc_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
+    btc_md_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
     LOGD("hash=");
     DUMPD(hash, BTC_SZ_HASH256);
@@ -927,7 +927,7 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     uint8_t hash[BTC_SZ_HASH256];
 
     // channel_updateからsignatureを除いたサイズ
-    btc_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
+    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
     //LOGD("hash=");
     //DUMPD(hash, BTC_SZ_HASH256);

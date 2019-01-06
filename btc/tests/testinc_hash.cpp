@@ -54,7 +54,7 @@ TEST_F(hash, hash160_null)
         0x7c, 0x3b, 0x9f, 0xcb, 
     };
     uint8_t hash[BTC_SZ_HASH160];
-    btc_util_hash160(hash, NULL, 0);
+    btc_md_hash160(hash, NULL, 0);
     ASSERT_EQ(0, memcmp(HASH160, hash, sizeof(HASH160)));
 }
 
@@ -68,7 +68,7 @@ TEST_F(hash, hash160_data)
     uint8_t hash[BTC_SZ_HASH160];
     size_t sz;
     const uint8_t *pData = hash::data(sz);
-    btc_util_hash160(hash, pData, sz);
+    btc_md_hash160(hash, pData, sz);
     ASSERT_EQ(0, memcmp(HASH160, hash, sizeof(HASH160)));
 }
 
@@ -81,7 +81,7 @@ TEST_F(hash, hash256_null)
        0x3e, 0x41, 0x98, 0x3f, 0x5d, 0x4c, 0x94, 0x56, 
     };
     uint8_t hash[BTC_SZ_HASH256];
-    btc_util_hash256(hash, NULL, 0);
+    btc_md_hash256(hash, NULL, 0);
     ASSERT_EQ(0, memcmp(HASH256, hash, sizeof(HASH256)));
 }
 
@@ -96,6 +96,6 @@ TEST_F(hash, hash256_data)
     uint8_t hash[BTC_SZ_HASH256];
     size_t sz;
     const uint8_t *pData = hash::data(sz);
-    btc_util_hash256(hash, pData, sz);
+    btc_md_hash256(hash, pData, sz);
     ASSERT_EQ(0, memcmp(HASH256, hash, sizeof(HASH256)));
 }

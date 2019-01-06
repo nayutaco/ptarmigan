@@ -197,7 +197,7 @@ bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len
 {
     uint8_t buf[BTC_SZ_HASH256];
 
-    btc_util_hash256(buf, (uint8_t *)pData, Len);
+    btc_md_hash256(buf, (uint8_t *)pData, Len);
     return btc_buf_w_write_data(pBufW, buf, BTC_SZ_HASH256);
 }
 

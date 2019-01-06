@@ -297,11 +297,11 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_TRUE(ret);
 
     //preimage-hash
-    btc_util_sha256(preimage_hash_htlc0, PREIMAGE_HTLC0, BTC_SZ_HASH256);
-    btc_util_sha256(preimage_hash_htlc1, PREIMAGE_HTLC1, BTC_SZ_HASH256);
-    btc_util_sha256(preimage_hash_htlc2, PREIMAGE_HTLC2, BTC_SZ_HASH256);
-    btc_util_sha256(preimage_hash_htlc3, PREIMAGE_HTLC3, BTC_SZ_HASH256);
-    btc_util_sha256(preimage_hash_htlc4, PREIMAGE_HTLC4, BTC_SZ_HASH256);
+    btc_md_sha256(preimage_hash_htlc0, PREIMAGE_HTLC0, BTC_SZ_HASH256);
+    btc_md_sha256(preimage_hash_htlc1, PREIMAGE_HTLC1, BTC_SZ_HASH256);
+    btc_md_sha256(preimage_hash_htlc2, PREIMAGE_HTLC2, BTC_SZ_HASH256);
+    btc_md_sha256(preimage_hash_htlc3, PREIMAGE_HTLC3, BTC_SZ_HASH256);
+    btc_md_sha256(preimage_hash_htlc4, PREIMAGE_HTLC4, BTC_SZ_HASH256);
 
     //fee
     feeinfo.dust_limit_satoshi = DUST_LIMIT_SATOSHIS;

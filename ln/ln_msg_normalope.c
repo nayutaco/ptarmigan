@@ -271,7 +271,7 @@ static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg)
     LOGD("p_payment_preimage: ");
     DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     uint8_t sha[BTC_SZ_HASH256];
-    btc_util_sha256(sha, pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
+    btc_md_sha256(sha, pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     LOGD("              hash: ");
     DUMPD(sha, sizeof(sha));
     LOGD("--------------------------------\n");

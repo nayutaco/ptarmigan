@@ -430,7 +430,7 @@ static void ln_print_self(const ln_self_t *self)
             utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
             printf("\",\n");
             uint8_t sha[BTC_SZ_HASH256];
-            btc_util_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
+            btc_md_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
             printf(INDENT5 M_QQ("preimage_check") ": ");
             if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
                 printf(M_QQ("OK") ",\n");
