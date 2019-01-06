@@ -1181,7 +1181,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -1903,7 +1903,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
     const int VOUTS[] = { 0, 2, 1, 3, 4 };
@@ -2560,7 +2560,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -3219,7 +3219,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -3814,7 +3814,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -4409,7 +4409,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -4943,7 +4943,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -5477,7 +5477,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -5951,7 +5951,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
@@ -6424,7 +6424,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
     btc_tx_t tx2;
 
     utl_buf_t ws_buf = UTL_BUF_INIT;
-    ln_script_create_successtx(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
+    ln_script_create_tolocal(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 
     //どのHTLCxがVOUTにいるか(ない場合は-1)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？

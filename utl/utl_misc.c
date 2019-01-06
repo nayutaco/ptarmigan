@@ -40,6 +40,13 @@
  * public functions
  **************************************************************************/
 
+void utl_misc_msleep(unsigned long slp)
+{
+    struct timespec req = { 0, (long)(slp * 1000000UL) };
+    nanosleep(&req, NULL);
+}
+
+
 bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {

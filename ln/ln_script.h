@@ -135,23 +135,6 @@ bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
 void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
 
 
-/** HTLC-Timeout Txの出力先スクリプト作成
- *
- * @param[out]      pBuf                生成したスクリプト
- * @param[in]       pLocalRevoKey       Local RevocationKey[33]
- * @param[in]       pLocalDelayedKey    Local Delayed Key[33]
- * @param[in]       LocalDelay          Local Delay(OP_CSV)
- * @note
- *      - ln_script_create_tolocal()と同じ
- */
-static inline void ln_script_create_successtx(utl_buf_t *pBuf,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pLocalDelayedKey,
-                    uint32_t LocalDelay) {
-    ln_script_create_tolocal(pBuf, pLocalRevoKey, pLocalDelayedKey, LocalDelay);
-}
-
-
 /** 公開鍵からscriptPubKeyを生成
  *
  * @param[out]      pBuf
