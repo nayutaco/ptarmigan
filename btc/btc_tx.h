@@ -542,14 +542,6 @@ bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t In
                     const utl_buf_t *pWitScript);
 
 
-#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
-void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid);
-#else
-#define btc_util_dumpbin(...)     //nothing
-#define btc_util_dumptxid(...)    //nothing
-#endif  //PTARM_USE_PRINTFUNC
-
-
 #ifdef PTARM_USE_PRINTFUNC
 //////////////////////
 //PRINT
@@ -574,6 +566,23 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
 #define btc_tx_print(...)             //nothing
 #define btc_tx_print_raw(...)          //nothing
 #endif  //PTARM_USE_PRINTFUNC
+
+
+/**************************************************************************
+ * package functions
+ **************************************************************************/
+
+/** トランザクションデータ作成
+ *
+ * @param[out]      pBuf            変換後データ
+ * @param[in]       pTx             対象データ
+ * @param[in]       enableSegWit    false:pTxがsegwitでも、witnessを作らない(TXID計算用)
+ *
+ * @note
+ *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
+ *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
+ */
+bool HIDDEN btc_tx_write_2(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
 
 
 #ifdef __cplusplus

@@ -29,7 +29,7 @@
 
 #include "mbedtls/md.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 
 #include "ln_misc.h"
 #include "ln_derkey.h"

@@ -424,7 +424,7 @@ TEST_F(ln_bolt3_c, committx2)
     ASSERT_TRUE(ret);
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
-    ret = btc_util_sign_p2wsh(&buf_sig_local, txhash, &keys_local_funding);
+    ret = btc_sig_sign(&buf_sig_local, txhash, keys_local_funding.priv);
     ASSERT_TRUE(ret);
     const uint8_t LOCAL_SIGNATURE[] = {
         0x30, 0x44, 0x02, 0x20, 0x51, 0xb7, 0x5c, 0x73,

@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utl_common.h"
 #include "utl_buf.h"
 
 
@@ -58,44 +59,34 @@ extern "C" {
                                                 //
                                                 // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
 
-#define VARINT_1BYTE_MAX        (0xfc)
-#define VARINT_3BYTE_MIN        (0xfd)
-
 
 /**************************************************************************
  * macro functions
  **************************************************************************/
 
-//XXX:
 /** @def    BTC_MBTC2SATOSHI
  *  @brief  mBTCをsatochi変換
  */
 #define BTC_MBTC2SATOSHI(mbtc)      ((uint64_t)((mbtc) * 100000 + 0.5))
+
 
 /** @def    BTC_BTC2SATOSHI
  *  @brief  BTCをsatochi変換
  */
 #define BTC_BTC2SATOSHI(btc)        ((uint64_t)((btc) * (uint64_t)100000000 + 0.5))
 
+
 /** @def    BTC_SATOSHI2MBTC
  *  @brief  satoshiをmBTC変換
  */
 #define BTC_SATOSHI2MBTC(stc)       ((double)(stc) / 100000)
+
 
 /** @def    BTC_SATOSHI2BTC
  *  @brief  satoshiをBTC変換
  */
 #define BTC_SATOSHI2BTC(stc)        ((double)(stc) / (double)100000000)
 
-/** @def    BTC_VOUT2PKH_P2PKH
- *  @brief  scriptPubKey(P2PKH)からPubKeyHashアドレス位置算出
- */
-#define BTC_VOUT2PKH_P2PKH(script)  ((script) + 4)
-
-/** @def    BTC_VOUT2PKH_P2SH
- *  @brief  scriptPubKey(P2SH)からPubKeyHashアドレス位置算出
- */
-#define BTC_VOUT2PKH_P2SH(script)   ((script) + 2)
 
 /** @def    BTC_IS_DUST
  *  @brief  amountが支払いに使用できないDUSTかどうかチェックする(true:支払えない)
@@ -115,6 +106,14 @@ typedef enum {
     BTC_MAINNET,          ///< mainnet
     BTC_TESTNET           ///< testnet, regtest
 } btc_chain_t;
+
+
+/**************************************************************************
+ * package variables
+ **************************************************************************/
+
+extern uint8_t  HIDDEN mPref[BTC_PREF_MAX];
+extern bool     HIDDEN mNativeSegwit;
 
 
 /**************************************************************************

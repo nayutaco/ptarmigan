@@ -19,40 +19,53 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   btc_local.h
- *  @brief  libbtc内インターフェース
+/** @file   btc_dbg.c
+ *  @brief  btc_dbg
  */
-#ifndef BTC_LOCAL_H__
-#define BTC_LOCAL_H__
-
-#include <unistd.h>
-#include <sys/syscall.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 
-#include <stdio.h>
-#include <inttypes.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-
-#define LOG_TAG "BTC"
-#include "utl_log.h"
+#include "btc_tx.h"
+#include "btc_dbg.h"
 
 
 /**************************************************************************
- * macros
+ * macros
  **************************************************************************/
 
 /**************************************************************************
- * macro functions
+ * private variables
  **************************************************************************/
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
+/**************************************************************************
+ *const variables
+ **************************************************************************/
+
+/**************************************************************************
+ * public functions
+ **************************************************************************/
+
+#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
+/** uint8[]の内容をFILE*出力
+ *
+ * @param[in]       fp          出力先
+ * @param[in]       pTxid
+ */
+void btc_dbg_dump_txid(FILE *fp, const uint8_t *pTxid)
+{
+    for (uint16_t lp = 0; lp < BTC_SZ_TXID; lp++) {
+        fprintf(fp, "%02x", pTxid[BTC_SZ_TXID - lp - 1]);
+    }
+}
+#endif  //PTARM_USE_PRINTFUNC || PTARM_DEBUG
 
 
-#endif /* BTC_LOCAL_H__ */
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+

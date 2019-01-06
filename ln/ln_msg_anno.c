@@ -33,7 +33,7 @@
 
 #include "utl_time.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_sig.h"
 
 #include "ln_msg_anno.h"

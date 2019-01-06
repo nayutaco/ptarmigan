@@ -19,27 +19,22 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   btc_local.h
- *  @brief  libbtc内インターフェース
+/** @file   btc_dbg.h
+ *  @brief  btc_dbg
  */
-#ifndef BTC_LOCAL_H__
-#define BTC_LOCAL_H__
+#ifndef BTC_DBG_H__
+#define BTC_DBG_H__
 
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-
+#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 #include <stdio.h>
-#include <inttypes.h>
+#endif
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 
-#define LOG_TAG "BTC"
-#include "utl_log.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
 
 /**************************************************************************
  * macros
@@ -50,9 +45,22 @@
  **************************************************************************/
 
 /**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+/**************************************************************************
  * prototypes
  **************************************************************************/
 
+#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
+void btc_dbg_dump_txid(FILE *fp, const uint8_t *pTxid);
+#else
+#define btc_dbg_dump_txid(...)    //nothing
+#endif  //PTARM_USE_PRINTFUNC
 
 
-#endif /* BTC_LOCAL_H__ */
+#ifdef __cplusplus
+}
+#endif //__cplusplus
+
+#endif /* BTC_DBG_H__ */

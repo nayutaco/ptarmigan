@@ -42,7 +42,7 @@
 #include "utl_log.h"
 #include "utl_time.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 
 #include "ptarmd.h"
 #include "p2p_cli.h"
@@ -196,7 +196,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 
     fprintf(stderr, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
     fprintf(stderr, "[client]node_id=");
-    btc_util_dumpbin(stderr, pConn->node_id, BTC_SZ_PUBKEY, true);
+    utl_dbg_dump(stderr, pConn->node_id, BTC_SZ_PUBKEY, true);
 
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信

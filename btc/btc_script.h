@@ -116,6 +116,18 @@
  * macro functions
  **************************************************************************/
 
+/** @def    BTC_VOUT2PKH_P2PKH
+ *  @brief  scriptPubKey(P2PKH)からPubKeyHashアドレス位置算出
+ */
+#define BTC_VOUT2PKH_P2PKH(script)  ((script) + 4)
+
+
+/** @def    BTC_VOUT2PKH_P2SH
+ *  @brief  scriptPubKey(P2SH)からPubKeyHashアドレス位置算出
+ */
+#define BTC_VOUT2PKH_P2SH(script)   ((script) + 2)
+
+
 /**************************************************************************
  * package variables
  **************************************************************************/
@@ -177,6 +189,21 @@ bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_script_pubkey_order_t
 
 //XXX: comment
 bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
+bool btc_redeem_create_p2sh_p2wpkh(utl_buf_t *pRedeem, const uint8_t *pPubKey);
+bool btc_redeem_create_p2sh_p2wpkh_pkh(utl_buf_t *pRedeem, const uint8_t *pPubKeyHash);
+
+
+/** PubKeyHash(P2WPKH)をScriptHash(P2SH)に変換
+ *
+ * [00][14][pubKeyHash] --> HASH160
+ *
+ * @param[out]      pScriptHash     変換後データ(#BTC_SZ_HASH_MAX)
+ * @param[in]       pPubKeyHash     対象データ(#BTC_SZ_HASH_MAX)
+ */
+bool btc_scripthash_create_p2sh_p2wpkh_pkh(uint8_t *pScriptHash, const uint8_t *pPubKeyHash);
+
+
+//XXX: comment
 bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
 bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
 bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);

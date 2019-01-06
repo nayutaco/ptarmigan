@@ -29,7 +29,9 @@
 #include <time.h>
 #include <assert.h>
 
-#include "btc_util.h"
+#include "utl_dbg.h"
+
+#include "btc_crypto.h"
 #include "btc_sig.h"
 
 #include "ln_db.h"
@@ -414,9 +416,9 @@ static void print_node(void)
 {
     printf("=NODE=============================================\n");
     // printf("node_key: ");
-    // btc_util_dumpbin(stdout, mNode.keys.priv, BTC_SZ_PRIVKEY, true);
+    // utl_dbg_dump(stdout, mNode.keys.priv, BTC_SZ_PRIVKEY, true);
     printf("node_id: ");
-    btc_util_dumpbin(stdout, mNode.keys.pub, BTC_SZ_PUBKEY, true);
+    utl_dbg_dump(stdout, mNode.keys.pub, BTC_SZ_PUBKEY, true);
     printf("features= %02x\n", mNode.features);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);

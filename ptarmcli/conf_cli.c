@@ -97,7 +97,7 @@ static void print_peer_conf(const peer_conf_t *pPeerConf)
     fprintf(stderr, "ipaddr=%s\n", pPeerConf->ipaddr);
     fprintf(stderr, "port=%d\n", pPeerConf->port);
     fprintf(stderr, "node_id=");
-    btc_util_dumpbin(stderr, pPeerConf->node_id, BTC_SZ_PUBKEY, true);
+    utl_dbg_dump(stderr, pPeerConf->node_id, BTC_SZ_PUBKEY, true);
 }
 #endif
 
@@ -133,7 +133,7 @@ static void print_funding_conf(const funding_conf_t *pFundConf)
 {
     fprintf(stderr, "\n--- funding ---\n");
     fprintf(stderr, "txid=");
-    btc_util_dumptxid(stderr, pFundConf->txid);
+    btc_dbg_dump_txid(stderr, pFundConf->txid);
     fprintf(stderr, "\n");
     fprintf(stderr, "txindex=%d\n", pFundConf->txindex);
     fprintf(stderr, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
@@ -176,12 +176,12 @@ static void print_payment_conf(const payment_conf_t *pPayConf)
 {
     fprintf(stderr, "\n--- payment ---\n");
     fprintf(stderr, "payment_hash=");
-    btc_util_dumpbin(stderr, pPayConf->payment_hash, BTC_SZ_HASH256, true);
+    utl_dbg_dump(stderr, pPayConf->payment_hash, BTC_SZ_HASH256, true);
     fprintf(stderr, "hop_num=%d\n", pPayConf->hop_num);
     for (int lp = 0; lp < pPayConf->hop_num; lp++) {
         fprintf(stderr, " [%d]:\n", lp);
         fprintf(stderr, "  node_id= ");
-        btc_util_dumpbin(stderr, pPayConf->hop_datain[lp].pubkey, BTC_SZ_PUBKEY, true);
+        utl_dbg_dump(stderr, pPayConf->hop_datain[lp].pubkey, BTC_SZ_PUBKEY, true);
         fprintf(stderr, "  short_channel_id= %016" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
         fprintf(stderr, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
         fprintf(stderr, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);

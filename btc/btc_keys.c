@@ -33,10 +33,10 @@
 #include "utl_rng.h"
 
 #include "btc_segwit_addr.h"
-#include "btc_util.h"
 #include "btc_local.h"
 #include "btc_script.h"
 #include "btc_sw.h"
+#include "btc_crypto.h"
 
 
 /********************************************************************
@@ -199,7 +199,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
     } else {
-        btc_util_create_pkh2wpkh(hash, hash);
+        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
     if (!hash2addr(pWAddr, hash, pref)) return false;
@@ -222,7 +222,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
     } else {
-        btc_util_create_pkh2wpkh(hash, hash);
+        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash);
         pref = BTC_PREF_P2SH;
     }
     if (!hash2addr(pWAddr, hash, pref)) return false;

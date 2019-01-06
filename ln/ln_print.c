@@ -29,7 +29,9 @@
 #include <time.h>
 #include <assert.h>
 
-#include "btc_util.h"
+#include "utl_dbg.h"
+
+#include "btc_crypto.h"
 
 #include "ln_db.h"
 #include "ln_misc.h"
@@ -119,7 +121,7 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
             }
             fprintf(fp, "port=%d\n", msg.addr.port);
             fprintf(fp, "node_id=");
-            btc_util_dumpbin(fp, node_pub, BTC_SZ_PUBKEY, true);
+            utl_dbg_dump(fp, node_pub, BTC_SZ_PUBKEY, true);
         }
     }
 

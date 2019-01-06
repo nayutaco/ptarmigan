@@ -60,7 +60,7 @@
 #include "utl_time.h"
 #include "utl_rng.h"
 
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_script.h"
 
 #include "ptarmd.h"
@@ -235,7 +235,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
     if (pAppConf->th != 0) {
         LOGD("stop lnapp: sock=%d\n", pAppConf->sock);
         fprintf(stderr, "stop: ");
-        btc_util_dumpbin(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
+        utl_dbg_dump(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
 
         stop_threads(pAppConf);
         pthread_join(pAppConf->th, NULL);
@@ -867,7 +867,7 @@ static void *thread_main_start(void *pArg)
     LOGD("connected peer(sock=%d): ", p_conf->sock);
     DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
     fprintf(stderr, "connected peer: ");
-    btc_util_dumpbin(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
+    utl_dbg_dump(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
     ln_peer_set_nodeid(p_self, p_conf->node_id);

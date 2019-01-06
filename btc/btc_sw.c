@@ -26,7 +26,7 @@
 #include "utl_int.h"
 
 #include "btc_local.h"
-#include "btc_util.h"
+#include "btc_crypto.h"
 #include "btc_script.h"
 #include "btc_sig.h"
 #include "btc_sw.h"
@@ -39,13 +39,17 @@
 
 bool btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    return btcl_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    uint8_t pkh[BTC_SZ_HASH_MAX];
+    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    return btc_sw_add_vout_p2wpkh(pTx, Value, pkh);
 }
 
 
 bool btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    return btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
+    if (!vout) return false;
+    return btc_scriptpk_create(&vout->script, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
 }
 
 
@@ -261,7 +265,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     if (!mNativeSegwit) {
         //P2SH-P2WPKH
         btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
-        btc_util_create_pkh2wpkh(hash, hash); //pkh -> sh
+        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash); //pkh -> sh
     }
     if (memcmp(hash, pHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
 
@@ -319,7 +323,7 @@ bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
     //    return false;
     //}
 
-    bool ret = btcl_util_create_tx(&txbuf, pTx, true);
+    bool ret = btc_tx_write_2(&txbuf, pTx, true);
     if (!ret) {
         assert(0);
         goto LABEL_EXIT;

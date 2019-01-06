@@ -31,6 +31,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "btc_keys.h"
+
 
 #ifdef __cplusplus
 extern "C" {

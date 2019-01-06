@@ -74,6 +74,20 @@ void utl_dbg_malloc_cnt_reset(void);
 #endif  //PTARM_DEBUG_MEM
 
 
+#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
+/** uint8[]の内容をFILE*出力
+ *
+ * @param[in]       fp          出力先
+ * @param[in]       pData       対象データ
+ * @param[in]       Len         pData長
+ */
+void utl_dbg_dump(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
+#else
+#define utl_dbg_dumpbin(...)
+#endif  //PTARM_USE_PRINTFUNC
+
+
+
 #ifdef __cplusplus
 }
 #endif //__cplusplus
