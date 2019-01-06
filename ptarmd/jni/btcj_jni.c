@@ -22,7 +22,7 @@
 
 #define check_exception(env)    { LOGD("\n"); _check_exception(env); }
 
-#error TravisCI test
+
 enum {
     M_FIELD_PTARMCHAN_HEIGHT,
     M_FIELD_PTARMCHAN_BINDEX,
