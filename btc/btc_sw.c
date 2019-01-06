@@ -323,7 +323,7 @@ bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
     //    return false;
     //}
 
-    bool ret = btcl_util_create_tx(&txbuf, pTx, true);
+    bool ret = btc_tx_write_2(&txbuf, pTx, true);
     if (!ret) {
         assert(0);
         goto LABEL_EXIT;

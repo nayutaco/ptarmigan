@@ -468,7 +468,7 @@ LABEL_EXIT:
 
 bool btc_tx_write(const btc_tx_t *pTx, utl_buf_t *pBuf)
 {
-    return btcl_util_create_tx(pBuf, pTx, true);
+    return btc_tx_write_2(pBuf, pTx, true);
 }
 
 
@@ -600,7 +600,7 @@ bool btc_tx_txid(const btc_tx_t *pTx, uint8_t *pTxId)
 {
     utl_buf_t txbuf = UTL_BUF_INIT;
 
-    bool ret = btcl_util_create_tx(&txbuf, pTx, false);
+    bool ret = btc_tx_write_2(&txbuf, pTx, false);
     if (!ret) {
         assert(0);
         goto LABEL_EXIT;
@@ -661,7 +661,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
             goto LABEL_EXIT;
         }
 
-        if (!btcl_util_create_tx(&txbuf_old, &txold, false)) {
+        if (!btc_tx_write_2(&txbuf_old, &txold, false)) {
             LOGD("fail: vbyte\n");
             len = 0;
             goto LABEL_EXIT;
@@ -819,7 +819,7 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len)
  * package functions
  **************************************************************************/
 
-bool btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
+bool btc_tx_write_2(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
 {
     bool ret = false;
 
