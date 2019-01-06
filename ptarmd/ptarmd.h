@@ -200,12 +200,12 @@ typedef struct payment_conf_t {
  *  @brief      bitcoind情報
  */
 typedef struct {
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     char            rpcuser[SZ_RPC_USER];
     char            rpcpasswd[SZ_RPC_PASSWD];
     char            rpcurl[SZ_RPC_URL];
     uint16_t        rpcport;
-#else
+#elif defined(USE_BITCOINJ)
     btc_block_chain_t   gen;
 #endif
 } rpc_conf_t;

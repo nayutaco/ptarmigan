@@ -72,11 +72,7 @@
 
 #define M_LMDB_ANNO_MAXDBS      (50)                        ///< 同時オープンできるDB数
 //#define M_LMDB_ANNO_MAPSIZE     ((size_t)4294963200)        // DB最大長[byte] Ubuntu 18.04(64bit)で使用できたサイズ
-#ifndef USE_SPV
-#define M_LMDB_ANNO_MAPSIZE     ((size_t)1610612736)        // DB最大長[byte] Raspberry Piで使用できたサイズ
-#else
-#define M_LMDB_ANNO_MAPSIZE     ((size_t)1073741824)        // DB最大長[byte] Raspberry Pi(SPV)で使用できたサイズ
-#endif
+#define M_LMDB_ANNO_MAPSIZE     ((size_t)1073741824)        // DB最大長[byte] Raspberry Piで使用できたサイズ
                                                             // 32bit環境ではsize_tが4byteになるため、32bitの範囲内にすること
 
 #define M_LMDB_WALT_MAXDBS      (MAX_CHANNELS)              ///< 同時オープンできるDB数
@@ -128,9 +124,9 @@
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
 #define M_DB_VERSION_BASE       ((int32_t)29)      ///< DBバージョン
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
 #define M_DB_VERSION_VAL        ((int32_t)(-M_DB_VERSION_BASE))     ///< DBバージョン
-#else
+#elif defined(USE_BITCOINJ)
 #define M_DB_VERSION_VAL        ((int32_t)M_DB_VERSION_BASE)        ///< DBバージョン
 #endif
 /*
@@ -263,8 +259,7 @@ typedef struct {
     char        wif[BTC_SZ_WIF_STR_MAX + 1];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     uint8_t     bhash[BTC_SZ_HASH256];
 #endif
 } nodeinfo_t;
@@ -356,8 +351,7 @@ static const backup_param_t DBSELF_VALUES[] = {
     //[FUND07]tx_funding --> script
     //[FUND08]p_establish
     M_ITEM(ln_self_t, min_depth),       //[FUND09]
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     M_ITEM(ln_self_t, funding_bhash),   //[FUNDSPV01]
     M_ITEM(ln_self_t, last_confirm),    //[FUNDSPV02]
 #endif
@@ -1123,8 +1117,7 @@ bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam)
 }
 
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam)
 {
     const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, last_confirm);
@@ -4755,8 +4748,7 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         nodeinfo.wif[BTC_SZ_WIF_STR_MAX] = '\0';
         nodeinfo.name[LN_SZ_ALIAS] = '\0';
         nodeinfo.port = Port;
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
         memcpy(nodeinfo.bhash, gCreationBlockHash, BTC_SZ_HASH256);
 #endif
         data.mv_size = sizeof(nodeinfo);
@@ -4831,8 +4823,7 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
         *pPort = nodeinfo.port;
     }
     memcpy(pGenesis, nodeinfo.genesis, BTC_SZ_HASH256);
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     memcpy(gCreationBlockHash, nodeinfo.bhash, BTC_SZ_HASH256);
 #endif
     // LOGD("wif=%s\n", pWif);

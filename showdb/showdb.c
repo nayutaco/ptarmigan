@@ -244,8 +244,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
     printf(INDENT4 M_QQ("is_opened") ": %d\n", ((self->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
     printf(INDENT3 "},\n");
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     printf(INDENT3 M_QQ("mined_block") ": \"");
     btc_util_dumptxid(stdout, self->funding_bhash);
     printf("\",\n");

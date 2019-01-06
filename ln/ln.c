@@ -333,8 +333,7 @@ static const struct {
 //< 32: chain-hash
 uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 //blockhash at node creation
 //      usage: search blockchain limit
 uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
@@ -486,23 +485,23 @@ const uint8_t* ln_genesishash_get(void)
 
 void ln_creationhash_set(const uint8_t *pHash)
 {
-#ifndef USE_SPV
-    (void)pHash;
-#else
+#ifdef USE_BITCOINJ
     memcpy(gCreationBlockHash, pHash, BTC_SZ_HASH256);
 
     LOGD("block hash=");
     DUMPD(gCreationBlockHash, BTC_SZ_HASH256);
+#else
+    (void)pHash;
 #endif
 }
 
 
 const uint8_t *ln_creationhash_get(void)
 {
-#ifndef USE_SPV
-    return NULL;
-#else
+#ifdef USE_BITCOINJ
     return gCreationBlockHash;
+#else
+    return NULL;
 #endif
 }
 
@@ -532,7 +531,7 @@ bool ln_establish_alloc(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
     self->p_establish = (ln_establish_t *)UTL_DBG_MALLOC(sizeof(ln_establish_t));   //UTL_DBG_FREE:proc_established()
 
     if (pEstPrm != NULL) {
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
         self->p_establish->p_fundin = NULL;       //open_channel送信側が設定する
 #endif
         memcpy(&self->p_establish->estprm, pEstPrm, sizeof(ln_establish_prm_t));
@@ -574,13 +573,13 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t
 
 void ln_funding_blockhash_set(ln_self_t *self, const uint8_t *pMinedHash)
 {
-#ifndef USE_SPV
-    (void)self; (void)pMinedHash;
-#else
+#ifdef USE_BITCOINJ
     LOGD("save minedHash=");
     TXIDD(pMinedHash);
     memcpy(self->funding_bhash, pMinedHash, BTC_SZ_HASH256);
     M_DB_SELF_SAVE(self);
+#else
+    (void)self; (void)pMinedHash;
 #endif
 }
 
@@ -1064,7 +1063,7 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     ln_signer_create_channelkeys(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
     self->p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
@@ -4073,7 +4072,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     btc_redeem_create_2of2_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     //output
     self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
@@ -4119,7 +4118,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         LOGD("    fee=%" PRIu64 "\n", fee);
         return false;
     }
-#else
+#elif defined(USE_BITCOINJ)
     //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
     //その代わり、self->funding_local.txindexは固定値にならない。
     btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
@@ -4132,11 +4131,11 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     if (bSign) {
         ln_cb_funding_sign_t sig;
         sig.p_tx =  &self->tx_funding;
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
         //bitcoindはfund-in amount
         sig.amount = self->p_establish->p_fundin->amount;
 #else
-        //SPVは未使用
+        //未使用
         sig.amount = 0;
 #endif
         (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
@@ -5267,7 +5266,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
     if (self->p_establish != NULL) {
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
         if (self->p_establish->p_fundin != NULL) {
             LOGD("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
             UTL_DBG_FREE(self->p_establish->p_fundin);  //UTL_DBG_MALLOC: ln_open_channel_create()

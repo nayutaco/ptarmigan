@@ -87,7 +87,7 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
         LOGD("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     if (pRpcConf->rpcport == 0) {
         pRpcConf->rpcport = 8332;
     }
@@ -100,7 +100,7 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
         return false;
     }
 #else
-    LOGD("fail: SPV mode\n");
+    LOGD("fail: not bitcoind\n");
     return false;
 #endif
 
@@ -179,7 +179,7 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
 {
     (void)section;
 
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     rpc_conf_t* pconfig = (rpc_conf_t *)user;
 
     if (strcmp(name, "rpcuser") == 0) {

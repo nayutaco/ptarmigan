@@ -130,8 +130,7 @@ static const char *kSCRIPT[] = {
  ********************************************************************/
 
 static void load_channel_settings(void);
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static void set_channels(void);
 #endif
@@ -181,8 +180,7 @@ int ptarmd_start(uint16_t my_rpcport)
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     load_channel_settings();
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     btcrpc_set_creationhash(ln_creationhash_get());
     set_channels();
 #endif
@@ -523,8 +521,7 @@ static void load_channel_settings(void)
 }
 
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 /** #ln_node_search_channel()処理関数
  *
  * @param[in,out]   self            DBから取得したself

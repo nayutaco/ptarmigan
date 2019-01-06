@@ -444,7 +444,7 @@ typedef struct {
 typedef struct {
     uint8_t                     txid[BTC_SZ_TXID];              ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
 #endif
     utl_buf_t                   change_spk;                     ///< 2-of-2へ入金したお釣りの送金先ScriptPubkey
@@ -476,7 +476,7 @@ typedef struct {
     ln_funding_created_t        cnl_funding_created;            ///< 送信 or 受信したfunding_created
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     ln_fundin_t                 *p_fundin;                      ///< 非NULL:open_channel側
 #endif
     ln_establish_prm_t          estprm;                         ///< channel establish parameter
@@ -1149,8 +1149,7 @@ struct ln_self_t {
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
     ln_establish_t              *p_establish;                   ///< [FUND_08]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_09]minimum_depth
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 #endif
@@ -1957,8 +1956,7 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 }
 
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 /** funding_tx
  *
  * @param[in]           self            channel info

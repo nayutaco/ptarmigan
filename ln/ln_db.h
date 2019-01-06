@@ -252,8 +252,7 @@ bool ln_db_self_load_status(ln_self_t *self);
 bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam);
 
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 /** save self->last_confirm
  * 
  * @param[in]           self            channel info

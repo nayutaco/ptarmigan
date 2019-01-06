@@ -114,8 +114,7 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -197,8 +196,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_setfeerate,   "setfeerate", NULL);
     jrpc_register_procedure(&mJrpc, cmd_estimatefundingfee, "estimatefundingfee", NULL);
     jrpc_register_procedure(&mJrpc, cmd_walletback, "walletback", NULL);
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
     jrpc_register_procedure(&mJrpc, cmd_getnewaddress,  "getnewaddress", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
     jrpc_register_procedure(&mJrpc, cmd_emptywallet, "emptywallet", NULL);
@@ -500,7 +498,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //funding parameter
     //txid
     json = cJSON_GetArrayItem(params, index++);
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     if (json && (json->type == cJSON_String)) {
         utl_misc_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
         LOGD("txid=%s\n", json->valuestring);
@@ -510,7 +508,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 #endif
     //txindex
     json = cJSON_GetArrayItem(params, index++);
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     if (json && (json->type == cJSON_Number)) {
         fundconf.txindex = json->valueint;
         LOGD("txindex=%d\n", json->valueint);
@@ -1374,8 +1372,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 }
 
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
 /** fund-inアドレス出力 : ptarmcli -F
  *
  */

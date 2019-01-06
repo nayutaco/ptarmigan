@@ -16,7 +16,7 @@ sudo apt install -y openjdk-8-jdk
 * configure
 
   * `options.mak`
-    * set `USE_SPV=1`
+    * set `NODE_TYPE=BITCOINJ`
 
 * build
 

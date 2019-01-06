@@ -7,6 +7,7 @@ RM := rm -rf
 
 TEST_TARGET_SRC += test_main.cpp
 
+include ../../options.mak
 
 ################################
 # GoogleTest
@@ -14,7 +15,7 @@ TEST_TARGET_SRC += test_main.cpp
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem $(GTEST_DIR)/.. -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
+CPPFLAGS += -isystem $(GTEST_DIR)/.. -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1 $(CFLAGS)
 CPPFLAGS += -DNDEBUG
 CPPFLAGS += -DPTARM_DEBUG
 CPPFLAGS += -DPTARM_DEBUG_MEM

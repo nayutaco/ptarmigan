@@ -220,9 +220,9 @@ int main(int argc, char *argv[])
 
         fprintf(stderr, "\tCONNECT:\n");
         fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
         fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
-#else
+#elif defined(USE_BITCOINJ)
         fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS : funding\n");
 #endif
         fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
@@ -240,8 +240,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\n");
 
         fprintf(stderr, "\tWALLET:\n");
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
         fprintf(stderr, "\t\t--getnewaddress : get wallet address(for fund-in)\n");
         fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
         fprintf(stderr, "\t\t--emptywallet BITCOIN_ADDRESS : send all Bitcoin balance\n");

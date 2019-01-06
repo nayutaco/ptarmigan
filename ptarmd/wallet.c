@@ -141,11 +141,11 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
     LOGD("raw=");
     DUMPD(txbuf.buf, txbuf.len);
 
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     //create sendrawtransaction date
     *ppResult = (char *)UTL_DBG_MALLOC(txbuf.len * 2 + 1);
     utl_misc_bin2str(*ppResult, txbuf.buf, txbuf.len);
-#else
+#elif defined(USE_BITCOINJ)
     //broadcast
     uint8_t txid[BTC_SZ_TXID];
     ret = btcrpc_send_rawtx(txid, NULL, txbuf.buf, txbuf.len);

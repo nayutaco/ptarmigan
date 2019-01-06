@@ -1,8 +1,10 @@
 # 0:mainnet, 1:testnet
 NETKIND=1
 
-# 0:not SPV 1:SPV
-USE_SPV=0
+# node type
+#    BITCOIND, BITCOINJ
+NODE_TYPE=BITCOIND
+
 JDK_COMPILE=x86_64
 #JDK_COMPILE=RASPI
 #JDK_COMPILE=RASPI_ARM11
@@ -41,9 +43,13 @@ MAX_CHANNELS=10
 
 CFLAGS += -DNETKIND=$(NETKIND)
 
-
-ifeq ($(USE_SPV),1)
-CFLAGS += -DUSE_SPV
+ifeq ($(NODE_TYPE),BITCOIND)
+CFLAGS += -DUSE_BITCOIND
+NODESET=1
+endif
+ifeq ($(NODE_TYPE),BITCOINJ)
+CFLAGS += -DUSE_BITCOINJ
+NODESET=1
 ifeq ($(JDK_COMPILE),x86_64)
     #JDK for x86_64
     JDK_HOME := /usr/lib/jvm/java-8-openjdk-amd64
@@ -65,6 +71,9 @@ endif
 USE_SPV_JVM = -L$(JDK_HOME)/jre/lib/$(JDK_CPU)
 endif
 
+ifneq ($(NODESET),1)
+    $(error You must set correct NODE_TYPE in options.mak.)
+endif
 
 ifeq ($(DISABLE_PRINTFUND),0)
 	CFLAGS += -DPTARM_USE_PRINTFUNC

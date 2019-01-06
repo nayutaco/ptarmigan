@@ -207,7 +207,7 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 #endif
 
@@ -1435,13 +1435,13 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     }
 
     bool unspent;
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
     //事前にfund-in txがunspentかどうかチェックしようとしている。
     //SPVの場合は1st Layerの処理も内部で行うので、チェック不要。
     ret = btcrpc_check_unspent(NULL, &unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
     LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
-#else
-    //SPVの場合、内部でfund-in txを生成するため、チェック不要
+#elif defined(USE_BITCOINJ)
+    //内部でfund-in txを生成するため、チェック不要
     unspent = true;
     ret = true;
 #endif
@@ -1454,7 +1454,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
-#ifndef USE_SPV
+#if defined(USE_BITCOIND)
         //bitcoindはptarmdがfunding_txを作るため、fee計算する
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
@@ -1467,8 +1467,8 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
         memcpy(fundin.txid, pFunding->txid, BTC_SZ_TXID);
         fundin.index = pFunding->txindex;
-#else
-        //SPVの場合、funding_txをSPVが作るため、fundin未使用
+#elif defined(USE_BITCOINJ)
+        //funding_txをbitcoinjが作るため、fundin未使用
         memset(&fundin, 0, sizeof(fundin));
 #endif
 
@@ -1675,8 +1675,7 @@ static void *thread_poll_start(void *pArg)
         bool b_get = btcrpc_get_confirm(&p_conf->funding_confirm, ln_funding_txid(p_conf->p_self));
         if (b_get) {
             if (bak_conf != p_conf->funding_confirm) {
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
                 const uint8_t *oldhash = ln_funding_blockhash(p_conf->p_self);
                 if (utl_misc_is_all_zero(oldhash, BTC_SZ_HASH256)) {
                     int32_t bheight = 0;
@@ -2068,7 +2067,7 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
 {
     bool ret = true;
 
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
     bool unspent = check_unspent_short_channel_id(short_channel_id);
     if (!unspent) {
         //使用済みのため、DBから削除
@@ -2322,8 +2321,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         TXIDD(ln_funding_txid(p_conf->p_self));
         p_conf->funding_waiting = true;
 
-#ifndef USE_SPV
-#else
+#ifdef USE_BITCOINJ
         btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
                 ln_short_channel_id(p_conf->p_self),
                 ln_funding_txid(p_conf->p_self),
@@ -3491,7 +3489,7 @@ static bool getnewaddress(utl_buf_t *pBuf)
 }
 
 
-#ifndef USE_SPV
+#ifdef USE_BITCOIND
 /** short_channel_idのfunding_tx未使用チェック
  *
  * @param[in]   ShortChannelId      short_channel_id
