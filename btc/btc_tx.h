@@ -529,6 +529,27 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
 bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys);
 
 
+/** P2WSH署名 - Phase2: 署名作成
+ *
+ * @param[out]      pSig
+ * @param[in]       pTxHash
+ * @param[in]       pKeys
+ * @return      true:成功
+ */
+bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys);
+
+
+/** P2WSH署名 - Phase2: 署名作成(R/S)
+ *
+ * @param[out]      pRS
+ * @param[in]       pTxHash
+ * @param[in]       pKeys
+ * @return      true:成功
+ */
+bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys);
+
+
+
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成
  *
  * @param[in]       pTx

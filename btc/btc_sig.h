@@ -144,31 +144,6 @@ bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, con
 bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
 
 
-//XXX:
-//////////////////////
-//UTIL
-//////////////////////
-
-/** P2WSH署名 - Phase2: 署名作成
- *
- * @param[out]      pSig
- * @param[in]       pTxHash
- * @param[in]       pKeys
- * @return      true:成功
- */
-bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys);
-
-
-/** P2WSH署名 - Phase2: 署名作成(R/S)
- *
- * @param[out]      pRS
- * @param[in]       pTxHash
- * @param[in]       pKeys
- * @return      true:成功
- */
-bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys);
-
-
 #ifdef __cplusplus
 }
 #endif //__cplusplus

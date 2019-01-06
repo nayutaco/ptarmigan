@@ -116,6 +116,18 @@
  * macro functions
  **************************************************************************/
 
+/** @def    BTC_VOUT2PKH_P2PKH
+ *  @brief  scriptPubKey(P2PKH)からPubKeyHashアドレス位置算出
+ */
+#define BTC_VOUT2PKH_P2PKH(script)  ((script) + 4)
+
+
+/** @def    BTC_VOUT2PKH_P2SH
+ *  @brief  scriptPubKey(P2SH)からPubKeyHashアドレス位置算出
+ */
+#define BTC_VOUT2PKH_P2SH(script)   ((script) + 2)
+
+
 /**************************************************************************
  * package variables
  **************************************************************************/
