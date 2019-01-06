@@ -37,6 +37,7 @@
 #include "btc_local.h"
 #include "btc_script.h"
 #include "btc_sw.h"
+#include "btc_crypto.h"
 
 
 /********************************************************************

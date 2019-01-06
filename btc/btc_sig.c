@@ -31,6 +31,7 @@
 #include "btc_local.h"
 #include "btc_util.h"
 #include "btc_sig.h"
+#include "btc_crypto.h"
 
 
 /**************************************************************************

@@ -65,17 +65,6 @@ extern bool     HIDDEN mNativeSegwit;
  * prototypes
  **************************************************************************/
 
-/** 圧縮された公開鍵をkeypairに展開する
- *
- * @param[in]       pPubKey     圧縮された公開鍵
- * @return      0   成功
- * @note
- *      - https://bitcointalk.org/index.php?topic=644919.0
- *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
- */
-int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
-
-
 /** トランザクションデータ作成
  *
  * @param[out]      pBuf            変換後データ
