@@ -75,7 +75,7 @@ TEST_F(ln_bolt3_b, fuding1)
     bool ret;
     btc_script_pubkey_order_t sort;
 
-    ret = btc_redeem_create_2of2_sorted(&redeem_fund, &sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
+    ret = btc_script_2of2_create_redeem_sorted(&redeem_fund, &sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
     ASSERT_TRUE(ret);
     ASSERT_EQ(BTC_SCRYPT_PUBKEY_ORDER_ASC, sort);
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
@@ -84,7 +84,7 @@ TEST_F(ln_bolt3_b, fuding1)
     utl_buf_free(&redeem_fund);
 
     //逆順
-    ret = btc_redeem_create_2of2_sorted(&redeem_fund, &sort, REMOTE_FUNDING_PUBKEY, LOCAL_FUNDING_PUBKEY);
+    ret = btc_script_2of2_create_redeem_sorted(&redeem_fund, &sort, REMOTE_FUNDING_PUBKEY, LOCAL_FUNDING_PUBKEY);
     ASSERT_TRUE(ret);
     ASSERT_EQ(BTC_SCRYPT_PUBKEY_ORDER_OTHER, sort);
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
@@ -164,7 +164,7 @@ TEST_F(ln_bolt3_b, fuding3)
 
 
     //署名
-    ret = btc_util_sign_p2pkh(&tx, 0, &keys);
+    ret = btc_test_util_sign_p2pkh(&tx, 0, &keys);
     ASSERT_TRUE(ret);
     //btc_tx_print(&tx);
 

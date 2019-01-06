@@ -301,7 +301,7 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
         utl_buf_t vout = UTL_BUF_INIT;
-        btc_scriptsig_create_p2wsh(&vout, &pp_htlcinfo[lp]->script);
+        btc_script_p2wsh_create_scriptsig(&vout, &pp_htlcinfo[lp]->script);
         ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
                         vout.buf,
                         pp_htlcinfo[lp]->type,
@@ -514,7 +514,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     M_DBG_PRINT_TX(pTxCommit);
 
     // verify
-    btc_scriptcode_p2wsh(&script_code, &self->redeem_fund);
+    btc_script_p2wsh_create_scriptcode(&script_code, &self->redeem_fund);
     ret = btc_sw_sighash(pTxCommit, sighash, 0, self->funding_sat, &script_code);
     if (ret) {
         ret = btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash,

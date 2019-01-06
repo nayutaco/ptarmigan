@@ -215,7 +215,7 @@ bool btc_extkey_read_addr(btc_extkey_t *pExtKey, const char *pXAddr);
  */
 void btc_extkey_print(const btc_extkey_t *pExtKey);
 #else
-#define btc_extkey_print(...)    //nothing
+#define btc_extkey_print(...)
 #endif  //PTARM_USE_PRINTFUNC
 
 

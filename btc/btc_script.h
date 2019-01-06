@@ -149,6 +149,7 @@ typedef enum {
  * prototypes
  **************************************************************************/
 
+//XXX: comment
 /** 種類に応じたscriptPubKey設定
  *
  * @param[out]      pScriptPk
@@ -156,24 +157,43 @@ typedef enum {
  * @param[in]       Prefix
  * @return      true:success
  */
-bool btc_scriptpk_create(utl_buf_t *pScriptPk, const uint8_t *pPubKeyHash, int Prefix);
+bool btc_script_scriptpk_create(utl_buf_t *pScriptPk, const uint8_t *pPubKeyHash, int Prefix);
+bool btc_script_scriptpk_is_op_return(const utl_buf_t *pScriptPk);
+int btc_script_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk);
 
 
 //XXX: comment
-bool btc_scriptsig_create_p2pkh(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey);
-bool btc_scriptsig_create_p2sh_multisig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
-bool btc_scriptsig_create_p2sh_p2wpkh(utl_buf_t *pScriptSig, const uint8_t *pPubKey);
-bool btc_scriptsig_create_p2sh_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
-bool btc_scriptsig_create_p2wsh(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
-bool btc_scriptsig_sign_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
-bool btc_scriptsig_verify_p2pkh(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
-bool btc_scriptsig_verify_p2pkh_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-bool btc_scriptsig_verify_p2sh_multisig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
-bool btc_scriptsig_verify_p2sh_multisig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_script_p2pkh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
-/** #btc_redeem_create_2of2() with the sorted pubKeys
+//XXX: comment
+bool btc_script_p2sh_p2wpkh_create_scriptsig(utl_buf_t *pScriptSig, const uint8_t *pPubKey);
+bool btc_script_p2sh_p2wpkh_create_redeem(utl_buf_t *pRedeem, const uint8_t *pPubKey);
+bool btc_script_p2sh_p2wpkh_create_redeem_pkh(utl_buf_t *pRedeem, const uint8_t *pPubKeyHash);
+/** PubKeyHash(P2WPKH)をScriptHash(P2SH)に変換
+ *
+ * [00][14][pubKeyHash] --> HASH160
+ *
+ * @param[out]      pScriptHash     変換後データ(#BTC_SZ_HASH_MAX)
+ * @param[in]       pPubKeyHash     対象データ(#BTC_SZ_HASH_MAX)
+ */
+bool btc_script_p2sh_p2wpkh_create_scripthash_pkh(uint8_t *pScriptHash, const uint8_t *pPubKeyHash);
+
+
+//XXX: comment
+bool btc_script_p2sh_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
+
+
+//XXX: comment
+bool btc_script_p2sh_multisig_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
+bool btc_script_p2sh_multisig_create_redeem(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
+bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pScriptHash);
+bool btc_script_p2sh_multisig_verify_scriptsig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+
+
+//XXX: comment
+bool btc_script_2of2_create_redeem(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+/** #btc_script_2of2_create_redeem() with the sorted pubKeys
  *
  * @param[out]      pRedeem     2-of-2 redeem script
  * @param[out]      pOrder       ソート結果(#btc_script_pubkey_order_t)
@@ -184,33 +204,17 @@ bool btc_redeem_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const u
  *      - if *pOrder == BTC_SCRYPT_PUBKEY_ORDER_ASC, then pPubKey1, pPbuKey2
  *      - if *pOrder != BTC_SCRYPT_PUBKEY_ORDER_ASC, then pPubKey2, pPbuKey1
  */
-bool btc_redeem_create_2of2_sorted(utl_buf_t *pRedeem, btc_script_pubkey_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_script_2of2_create_redeem_sorted(utl_buf_t *pRedeem, btc_script_pubkey_order_t *pOrder, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 //XXX: comment
-bool btc_redeem_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
-bool btc_redeem_create_p2sh_p2wpkh(utl_buf_t *pRedeem, const uint8_t *pPubKey);
-bool btc_redeem_create_p2sh_p2wpkh_pkh(utl_buf_t *pRedeem, const uint8_t *pPubKeyHash);
-
-
-/** PubKeyHash(P2WPKH)をScriptHash(P2SH)に変換
- *
- * [00][14][pubKeyHash] --> HASH160
- *
- * @param[out]      pScriptHash     変換後データ(#BTC_SZ_HASH_MAX)
- * @param[in]       pPubKeyHash     対象データ(#BTC_SZ_HASH_MAX)
- */
-bool btc_scripthash_create_p2sh_p2wpkh_pkh(uint8_t *pScriptHash, const uint8_t *pPubKeyHash);
+bool btc_script_p2pkh_sign_scriptsig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
+bool btc_script_p2pkh_verify_scriptsig(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_script_p2pkh_verify_scriptsig_spk(utl_buf_t *pScriptSig, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 //XXX: comment
-bool btc_witness_create_p2wpkh(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
-bool btc_witness_create_p2wsh(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
-bool btc_witness_verify_p2wsh_2of2(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
-bool btc_scriptpk_is_op_return(const utl_buf_t *pScriptPk);
-int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk);
-
-
+bool btc_script_p2wpkh_create_witness(utl_buf_t **pWitness, uint32_t *pWitItemCnt, const utl_buf_t *pSig, const uint8_t *pPubKey);
 /** P2WPKH署名計算で使用するScript Code取得
  *
  * @param[out]      pScriptCode     P2WPKH用Script Code
@@ -220,9 +224,12 @@ int btc_scriptpk_prefix(const uint8_t **ppHash, const utl_buf_t *pScriptPk);
  * @note
  *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
+bool btc_script_p2wpkh_create_scriptcode(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 
 
+//XXX: comment
+bool btc_script_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
+bool btc_script_p2wsh_create_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
 /** P2WSH署名計算で使用するScript Code取得
  *
  * @param[out]      pScriptCode     P2WPKH用Script Code
@@ -231,7 +238,11 @@ bool btc_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
  * @note
  *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript);
+bool btc_script_p2wsh_create_scriptcode(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript);
+
+
+//XXX: comment
+bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 #ifdef PTARM_USE_PRINTFUNC
@@ -242,10 +253,7 @@ bool btc_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWitScript);
  */
 void btc_script_print(const uint8_t *pData, uint16_t Len);
 #else
-#define btc_tx_print(...)             //nothing
-#define btc_tx_print_raw(...)          //nothing
-#define btc_script_print(...)         //nothing
-#define btc_extkey_print(...)    //nothing
+#define btc_script_print(...)
 #endif  //PTARM_USE_PRINTFUNC
 
 

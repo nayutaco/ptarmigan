@@ -491,62 +491,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
 void btc_tx_sort_bip69(btc_tx_t *pTx);
 
 
-//XXX:
-//////////////////////
-//UTIL
-//////////////////////
-
-/** P2PKH署名
- *
- * @param[out]      pTx
- * @param[in]       Index
- * @param[in]       pKeys
- * @return      true:成功
- */
-bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys);
-
-
-/** P2PKH署名チェック
- *
- * @param[in,out]   pTx         一時的に更新する
- * @param[in]       Index
- * @param[in]       pAddrVout   チェック用
- * @return      true:成功
- */
-bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout);
-
-
-/** P2WPKH署名
- *
- * @param[out]      pTx
- * @param[in]       Index
- * @param[in]       Value
- * @param[in]       pKeys
- * @return      true:成功
- * @note
- *      - #btc_init()の設定で署名する
- */
-bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys);
-
-
-/** P2WSH署名 - Phase1: トランザクションハッシュ作成
- *
- * @param[in]       pTx
- * @param[out]      pTxHash
- * @param[in]       Index
- * @param[in]       Value
- * @param[in]       pWitScript
- * @retval  false   pTxがトランザクションとして不正
- */
-bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
-                    const utl_buf_t *pWitScript);
-
-
 #ifdef PTARM_USE_PRINTFUNC
-//////////////////////
-//PRINT
-//////////////////////
-
 /** #btc_tx_t の内容表示
  *
  * @param[in]       pTx     表示対象
@@ -560,11 +505,9 @@ void btc_tx_print(const btc_tx_t *pTx);
  * @param[in]       Len         pDatat長
  */
 void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
-
-
 #else
-#define btc_tx_print(...)             //nothing
-#define btc_tx_print_raw(...)          //nothing
+#define btc_tx_print(...)
+#define btc_tx_print_raw(...)
 #endif  //PTARM_USE_PRINTFUNC
 
 

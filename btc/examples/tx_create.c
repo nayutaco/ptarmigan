@@ -80,7 +80,7 @@ int tx_create1(void)
     btc_keys_t prev_keys;
     btc_chain_t chain;
     btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
     btc_tx_print(&tx);
@@ -192,7 +192,7 @@ int tx_create2(void)
     btc_keys_t prev_keys;
     btc_chain_t chain;
     btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
     btc_tx_print(&tx);
@@ -303,7 +303,7 @@ int tx_create3(void)
     btc_keys_t prev_keys;
     btc_chain_t chain;
     btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
     btc_tx_print(&tx);
@@ -403,7 +403,7 @@ int tx_create4(void)
     btc_keys_t prev_keys;
     btc_chain_t chain;
     btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = btc_util_sign_p2pkh(&tx, 0, &prev_keys);
+    bool ret = btc_test_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
     btc_tx_print(&tx);
@@ -507,7 +507,7 @@ int tx_create5(void)
     btc_keys_t prev_keys;
     btc_chain_t chain;
     btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = btc_util_sign_p2pkh(&tx, 0, &prev_keys);
+    bool ret = btc_test_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
     btc_tx_print(&tx);

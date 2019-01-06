@@ -49,7 +49,7 @@ bool btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKe
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
     if (!vout) return false;
-    return btc_scriptpk_create(&vout->script, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
+    return btc_script_scriptpk_create(&vout->script, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_P2WPKH : BTC_PREF_P2SH);
 }
 
 
@@ -59,10 +59,10 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
 
     if (mNativeSegwit) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        if (!btc_scriptsig_create_p2wsh(&vout->script, pWitScript)) return false;
+        if (!btc_script_p2wsh_create_scriptsig(&vout->script, pWitScript)) return false;
     } else {
         utl_buf_t script_sig = UTL_BUF_INIT;
-        if (!btc_scriptsig_create_p2wsh(&script_sig, pWitScript)) {
+        if (!btc_script_p2wsh_create_scriptsig(&script_sig, pWitScript)) {
             utl_buf_free(&script_sig);
             return false;
         }
@@ -84,7 +84,7 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    return btc_scriptcode_p2wpkh(pScriptCode, pVin->witness[1].buf);
+    return btc_script_p2wpkh_create_scriptcode(pScriptCode, pVin->witness[1].buf);
 }
 
 
@@ -97,7 +97,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
         return false;
     }
 
-    return btc_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
+    return btc_script_p2wsh_create_scriptcode(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
 }
 
 
@@ -205,7 +205,7 @@ bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t In
         return false;
     }
 
-    if (!btc_scriptcode_p2wsh(&script_code, pWitScript)) return false;
+    if (!btc_script_p2wsh_create_scriptcode(&script_code, pWitScript)) return false;
     if (!btc_sw_sighash(pTx, pTxHash, Index, Value, &script_code)) return false;
     utl_buf_free(&script_code);
     return true;
@@ -221,11 +221,11 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig,
         //empty
         utl_buf_free(&vin->script);
     } else {
-        if (!btc_scriptsig_create_p2sh_p2wpkh(&vin->script, pPubKey)) return false;
+        if (!btc_script_p2sh_p2wpkh_create_scriptsig(&vin->script, pPubKey)) return false;
     }
 
     //witness
-    return btc_witness_create_p2wpkh(&vin->witness, &vin->wit_item_cnt, pSig, pPubKey);
+    return btc_script_p2wpkh_create_witness(&vin->witness, &vin->wit_item_cnt, pSig, pPubKey);
 }
 
 
@@ -240,11 +240,11 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pWitne
         //empty
         utl_buf_free(&vin->script);
     } else {
-        if (!btc_scriptsig_create_p2sh_p2wsh(&vin->script, pWitness[Num - 1])) return false;
+        if (!btc_script_p2sh_p2wsh_create_scriptsig(&vin->script, pWitness[Num - 1])) return false;
     }
 
     //witness
-    return btc_witness_create_p2wsh(&vin->witness, &vin->wit_item_cnt, pWitness, Num);
+    return btc_script_p2wsh_create_witness(&vin->witness, &vin->wit_item_cnt, pWitness, Num);
 }
 
 
@@ -265,13 +265,13 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, uint32_t Index, uint64_t Value, c
     if (!mNativeSegwit) {
         //P2SH-P2WPKH
         btc_util_hash160(hash, p_pub->buf, BTC_SZ_PUBKEY);
-        btc_scripthash_create_p2sh_p2wpkh_pkh(hash, hash); //pkh -> sh
+        btc_script_p2sh_p2wpkh_create_scripthash_pkh(hash, hash); //pkh -> sh
     }
     if (memcmp(hash, pHash, BTC_SZ_HASH160)) goto LABEL_EXIT;
 
     //check sig
     uint8_t txhash[BTC_SZ_HASH256];
-    if (!btc_scriptcode_p2wpkh(&script_code, p_pub->buf)) goto LABEL_EXIT;
+    if (!btc_script_p2wpkh_create_scriptcode(&script_code, p_pub->buf)) goto LABEL_EXIT;
     if (!btc_sw_sighash(pTx, txhash, Index, Value, &script_code)) goto LABEL_EXIT;
     if (!btc_sig_verify(p_sig, txhash, p_pub->buf)) goto LABEL_EXIT;
 
@@ -300,7 +300,7 @@ bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, uint32_t Index, uint64_t Val
 
 bool btc_sw_verify_p2wsh_2of2(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
-    return btc_witness_verify_p2wsh_2of2(pTx->vin[Index].witness, pTx->vin[Index].wit_item_cnt, pTxHash, pScriptPk);
+    return btc_script_p2wsh_2of2_verify_witness(pTx->vin[Index].witness, pTx->vin[Index].wit_item_cnt, pTxHash, pScriptPk);
 }
 
 

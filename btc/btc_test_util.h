@@ -19,17 +19,21 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   btc_dbg.h
- *  @brief  btc_dbg
+/** @file   btc_test_util.h
+ *  @brief  btc_test_util
  */
-#ifndef BTC_DBG_H__
-#define BTC_DBG_H__
+#ifndef BTC_TEST_UTIL_H__
+#define BTC_TEST_UTIL_H__
 
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 #include <stdio.h>
 #endif
 #include <stdint.h>
 #include <stdbool.h>
+
+#include "utl_buf.h"
+
+#include "btc_keys.h"
 
 
 #ifdef __cplusplus
@@ -52,15 +56,41 @@ extern "C" {
  * prototypes
  **************************************************************************/
 
-#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
-void btc_dbg_dump_txid(FILE *fp, const uint8_t *pTxid);
-#else
-#define btc_dbg_dump_txid(...)
-#endif  //PTARM_USE_PRINTFUNC
+/** P2PKH署名
+ *
+ * @param[out]      pTx
+ * @param[in]       Index
+ * @param[in]       pKeys
+ * @return      true:成功
+ */
+bool btc_test_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys);
+
+
+/** P2PKH署名チェック
+ *
+ * @param[in,out]   pTx         一時的に更新する
+ * @param[in]       Index
+ * @param[in]       pAddrVout   チェック用
+ * @return      true:成功
+ */
+bool btc_test_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout);
+
+
+/** P2WPKH署名
+ *
+ * @param[out]      pTx
+ * @param[in]       Index
+ * @param[in]       Value
+ * @param[in]       pKeys
+ * @return      true:成功
+ * @note
+ *      - #btc_init()の設定で署名する
+ */
+bool btc_test_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys);
 
 
 #ifdef __cplusplus
 }
 #endif //__cplusplus
 
-#endif /* BTC_DBG_H__ */
+#endif /* BTC_TEST_UTIL_H__ */
