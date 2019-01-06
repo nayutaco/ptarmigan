@@ -107,7 +107,7 @@ char *btc_extkey_generate_mnemonic24(void)
 #endif  //BTC_ENABLE_GEN_MNEMONIC
 
 
-bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass)
+bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass) //XXX: mbed
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#generating-the-mnemonic
     //  const int ENT = 256;
@@ -147,7 +147,7 @@ bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPa
 }
 
 
-bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
+bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum, //XXX: mbed
         const uint8_t *pKey,
         const uint8_t *pSeed, int SzSeed)
 {
@@ -504,7 +504,7 @@ void btc_extkey_print(const btc_extkey_t *pExtKey)
  * private functions
  **************************************************************************/
 
-static bool extkey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCode, const uint8_t *pKey, int KeyLen, const uint8_t *pData, int DataLen)
+static bool extkey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCode, const uint8_t *pKey, int KeyLen, const uint8_t *pData, int DataLen) //XXX: mbed
 {
     uint8_t output[64];
 

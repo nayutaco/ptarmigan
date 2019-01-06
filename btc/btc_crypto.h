@@ -108,7 +108,6 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
  * prototypes (???)
  **************************************************************************/
 
-//XXX: ec? keys?
 /** 圧縮公開鍵を非圧縮公開鍵展開
  *
  * @param[out]  point       非圧縮公開鍵座標
@@ -121,7 +120,6 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
 int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
 
 
-//XXX: ec? keys?
 /**
  * pPubKeyOut = pPubKeyIn + pA * G
  *
@@ -129,7 +127,6 @@ int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
 int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
 
 
-//XXX: ec? keys?
 /**
  * pResult = pPubKey * pMul
  *
@@ -137,7 +134,6 @@ int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *
 bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 
 
-//XXX: ec? keys?
 /** 圧縮された公開鍵をkeypairに展開する
  *
  * @param[in]       pPubKey     圧縮された公開鍵

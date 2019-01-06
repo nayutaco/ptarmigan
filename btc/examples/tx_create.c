@@ -10,6 +10,7 @@
 #include "btc_crypto.h"
 #include "btc_tx.h"
 #include "btc.h"
+#include "btc_test_util.h"
 
 static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 static bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);

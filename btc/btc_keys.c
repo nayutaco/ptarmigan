@@ -139,7 +139,7 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
 }
 
 
-bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
+bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey) //XXX: mbed
 {
     int ret;
 
@@ -251,7 +251,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript)
 }
 
 
-bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey)
+bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey) //XXX: mbed
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -268,7 +268,7 @@ bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey)
 }
 
 
-bool btc_keys_check_priv(const uint8_t *pPrivKey)
+bool btc_keys_check_priv(const uint8_t *pPrivKey) //XXX: mbed
 {
     bool cmp;
     mbedtls_mpi priv;
@@ -295,7 +295,7 @@ bool btc_keys_check_priv(const uint8_t *pPrivKey)
 }
 
 
-bool btc_keys_check_pub(const uint8_t *pPubKey)
+bool btc_keys_check_pub(const uint8_t *pPubKey) //XXX: mbed
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
