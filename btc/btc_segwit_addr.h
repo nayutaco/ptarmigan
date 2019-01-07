@@ -122,7 +122,7 @@ bool btc_segwit_addr_decode(
 
 bool btc_convert_bits(
     uint8_t* out,
-    size_t* outlen,
+    size_t* outlen, //XXX: [in/out] offset of out
     int outbits,
     const uint8_t* in,
     size_t inlen,

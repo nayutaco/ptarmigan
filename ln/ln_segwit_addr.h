@@ -19,10 +19,10 @@ extern "C" {
  */
 typedef struct ln_fieldr_t {
     uint8_t     node_id[BTC_SZ_PUBKEY];           ///< node_id
-    uint64_t    short_channel_id;                   ///< short_channel_id
-    uint32_t    fee_base_msat;                      ///< fee_base_msat
-    uint32_t    fee_prop_millionths;                ///< fee_proportional_millionths
-    uint16_t    cltv_expiry_delta;                  ///< cltv_expiry_delta
+    uint64_t    short_channel_id;                 ///< short_channel_id
+    uint32_t    fee_base_msat;                    ///< fee_base_msat
+    uint32_t    fee_prop_millionths;              ///< fee_proportional_millionths
+    uint16_t    cltv_expiry_delta;                ///< cltv_expiry_delta
 } ln_fieldr_t;
 
 
@@ -50,7 +50,7 @@ typedef struct ln_invoice_t {
  * @note
  *      - need `UTL_DBG_FREE(pp_invoice)' if don't use it.
  */
-bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data);
+bool ln_invoice_encode(char **pp_invoice, const ln_invoice_t *p_invoice_data);
 
 /** Decode a BOLT11 invoice
  *
