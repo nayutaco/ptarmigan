@@ -76,3 +76,8 @@ bool btc_segwit_addr_decode(int* ver, uint8_t* prog, size_t* prog_len, uint8_t h
     return segwit_addr_decode(ver, prog, prog_len, hrp_type, addr);
 }
 
+bool btc_convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* in, size_t inlen, int inbits, bool pad)
+{
+    return convert_bits(out, outlen, outbits, in, inlen, inbits, pad);
+}
+
