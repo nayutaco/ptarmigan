@@ -31,6 +31,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utl_common.h"
+
 
 /**************************************************************************
  * typedefs
@@ -54,7 +56,7 @@
  **************************************************************************/
 
 /**************************************************************************
- * prototypes (btc_hash)
+ * prototypes (btc_md)
  **************************************************************************/
 
 /** RIPMED-160計算
@@ -105,7 +107,7 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
 
 
 /**************************************************************************
- * prototypes (???)
+ * prototypes (btc_ecc)
  **************************************************************************/
 
 /** 圧縮公開鍵を非圧縮公開鍵展開
@@ -117,32 +119,21 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
  * @note
  *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
  */
-int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
+int btc_ecc_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
 
 
 /**
  * pPubKeyOut = pPubKeyIn + pA * G
  *
  */
-int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
+int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
 
 
 /**
  * pResult = pPubKey * pMul
  *
  */
-bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
-
-
-/** 圧縮された公開鍵をkeypairに展開する
- *
- * @param[in]       pPubKey     圧縮された公開鍵
- * @return      0   成功
- * @note
- *      - https://bitcointalk.org/index.php?topic=644919.0
- *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
- */
-int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
+bool btc_ecc_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 
 
 /**************************************************************************
@@ -169,6 +160,21 @@ bool btc_rng_rand(uint8_t *pData, uint16_t Len);
  *
  */
 void btc_rng_free(void);
+
+
+/**************************************************************************
+ * package functions (btc_ecc)
+ **************************************************************************/
+
+/** 圧縮された公開鍵をkeypairに展開する
+ *
+ * @param[in]       pPubKey     圧縮された公開鍵
+ * @return      0   成功
+ * @note
+ *      - https://bitcointalk.org/index.php?topic=644919.0
+ *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
+ */
+int HIDDEN btc_ecc_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
 
 #endif /* BTC_CRYPTO_H__ */

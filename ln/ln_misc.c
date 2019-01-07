@@ -392,6 +392,6 @@ void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIn
 void HIDDEN ln_misc_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
 {
     uint8_t pub[BTC_SZ_PUBKEY];
-    btc_util_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY);
+    btc_ecc_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY);
     btc_md_sha256(pResult, pub, sizeof(pub));
 }

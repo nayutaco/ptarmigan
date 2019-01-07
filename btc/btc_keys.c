@@ -257,7 +257,7 @@ bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey) //XXX: mbed
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = btcl_util_set_keypair(&keypair, pPubKey);
+    int ret = btc_ecc_set_keypair(&keypair, pPubKey);
     if (!ret) {
         mbedtls_mpi_write_binary(&(keypair.Q.X), pUncomp, BTC_SZ_PUBKEY - 1);
         mbedtls_mpi_write_binary(&(keypair.Q.Y), pUncomp + BTC_SZ_PUBKEY - 1, BTC_SZ_PUBKEY - 1);
@@ -301,7 +301,7 @@ bool btc_keys_check_pub(const uint8_t *pPubKey) //XXX: mbed
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = btcl_util_set_keypair(&keypair, pPubKey);
+    int ret = btc_ecc_set_keypair(&keypair, pPubKey);
     mbedtls_ecp_keypair_free(&keypair);
 
     return ret == 0;
