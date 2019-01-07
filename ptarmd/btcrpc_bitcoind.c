@@ -962,29 +962,30 @@ static bool getversion(int64_t *pVersion)
  */
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
 {
+    size_t realsize = size * nmemb;
     write_result_t *result = (write_result_t *)stream;
 
-    if (result->pos + size * nmemb >= result->sz - 1) {
+    if (result->pos + realsize >= result->sz) {
         //enlarge
-        result->sz += size * nmemb * 2;   //倍程度確保する
+        result->sz += result->pos + realsize + 1;
         *result->pp_data = (char *)UTL_DBG_REALLOC(*result->pp_data, result->sz);
     }
 #ifdef M_DBG_SHOWREPLY
     int pos = result->pos;
 #endif //M_DBG_SHOWREPLY
 
-    memcpy(*result->pp_data + result->pos, ptr, size * nmemb);
-    result->pos += size * nmemb;
+    memcpy(*result->pp_data + result->pos, ptr, realsize);
+    result->pos += realsize;
 
     // \0は付与されないので、毎回つける
     // バッファが足りなくなることは無いだろう
     *(*result->pp_data + result->pos) = 0;       //\0
 
 #ifdef M_DBG_SHOWREPLY
-    LOGD("@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, *result->pp_data + pos);
+    LOGD("@@@[size=%lu]\n%s@@@\n\n", realsize, *result->pp_data + pos);
 #endif //M_DBG_SHOWREPLY
 
-    return size * nmemb;
+    return realsize;
 }
 
 
@@ -1268,6 +1269,7 @@ static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pD
     curl_easy_setopt(mCurl, CURLOPT_USERPWD, mRpcUserPwd);
     curl_easy_setopt(mCurl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
     curl_easy_setopt(mCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(mCurl, CURLOPT_FORBID_REUSE, 1L);
 
     //取得データはメモリに持つ
     write_result_t result;
@@ -1297,15 +1299,18 @@ static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pD
             if (*ppResult != NULL) {
                 ret = true;
             } else {
+                LOGE("fail: object_get [%s]\n", *ppJson);
                 json_decref(*ppRoot);
                 *ppRoot = NULL;
             }
         } else {
-            LOGD("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d,%d: %s[%s]\n", error.line, error.column, error.text, *ppJson);
         }
         if (!ret) {
             UTL_DBG_FREE(*ppJson);
         }
+    } else {
+        LOGE("curl err: %d\n", retval);
     }
 
     return ret;
