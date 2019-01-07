@@ -102,7 +102,7 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
 
     int len = p_tag[1] * 0x20 + p_tag[2];
     p_tag += 3;
-    uint8_t *p_data = (uint8_t *)malloc((len * 5 + 7) / 8); //確保サイズは切り上げ
+    uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC((len * 5 + 7) / 8); //確保サイズは切り上げ
     size_t d_len = 0;
     switch (tag) {
     case 6:
@@ -125,7 +125,7 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
         d_len =  (len * 5) / 8;
         if (d_len < 51) return false;
         d_len /= 51;
-        p_invoice_data = (ln_invoice_t *)realloc(p_invoice_data, sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * d_len);
+        p_invoice_data = (ln_invoice_t *)UTL_DBG_REALLOC(p_invoice_data, sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * d_len);
         p_invoice_data->r_field_num = d_len;
 
         {
@@ -188,7 +188,7 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
         //    DUMPD(p_data, d_len);
         //}
     }
-    free(p_data);
+    UTL_DBG_FREE(p_data);
 
     *p_len = 3 + len;
     *pp_invoice_data = p_invoice_data;
@@ -326,7 +326,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
     if (!btc_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
 
-    *pp_invoice = (char *)malloc(2048);
+    *pp_invoice = (char *)UTL_DBG_MALLOC(2048);
     return btc_bech32_encode(*pp_invoice, 2048, hrp, data, datalen, true);
 }
 
@@ -348,7 +348,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     time_t tm;
     uint8_t sig[65];
     size_t sig_len = 0;
-    ln_invoice_t *p_invoice_data = (ln_invoice_t *)malloc(sizeof(ln_invoice_t));
+    ln_invoice_t *p_invoice_data = (ln_invoice_t *)UTL_DBG_MALLOC(sizeof(ln_invoice_t));
 
     data_len = sizeof(data);
     if (!btc_bech32_decode(hrp_actual, sizeof(hrp_actual), data, &data_len, invoice, true)) {
@@ -460,7 +460,7 @@ LABEL_EXIT:
     if (ret) {
         *pp_invoice_data = p_invoice_data;
     } else {
-        free(p_invoice_data);
+        UTL_DBG_FREE(p_invoice_data);
         *pp_invoice_data = NULL;
     }
     return ret;

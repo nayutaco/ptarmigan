@@ -843,8 +843,8 @@ static void jni_search_outpoint(void *pArg)
     p->ret = btcj_search_outpoint(&p_txbuf, p->blks, p->p_txid, p->v_index);
     if (p->ret) {
         p->ret = btc_tx_read(p->p_tx, p_txbuf->buf, p_txbuf->len);
-        free(p_txbuf->buf);
-        free(p_txbuf);
+        UTL_DBG_FREE(p_txbuf->buf);
+        UTL_DBG_FREE(p_txbuf);
     }
 }
 
@@ -866,10 +866,10 @@ static void jni_search_vout(void *pArg)
         btcj_buf_t *p_jbuf = (btcj_buf_t *)p_jtxbuf->buf;
         for (int lp = 0; lp < num; lp++) {
             p->ret &= btc_tx_read(&p_txs[lp], p_jbuf[lp].buf, p_jbuf[lp].len);
-            free(p_jbuf->buf);
-            free(p_jbuf);
+            UTL_DBG_FREE(p_jbuf->buf);
+            UTL_DBG_FREE(p_jbuf);
         }
-        free(p_jtxbuf);
+        UTL_DBG_FREE(p_jtxbuf);
     }
 }
 
@@ -889,8 +889,8 @@ static void jni_sign_rawtx(void *pArg)
         p->ret = btc_tx_read(p->p_tx, p_tx->buf, p_tx->len);
     }
     if (p_tx != NULL) {
-        free(p_tx->buf);
-        free(p_tx);
+        UTL_DBG_FREE(p_tx->buf);
+        UTL_DBG_FREE(p_tx);
     }
 }
 

@@ -64,7 +64,7 @@ typedef struct {
  *
  * @note
  *      - データ追加時に初期サイズより領域が必要になれば拡張しているが、
- *          realloc()を繰り返すことになるので、必要なサイズ以上を確保した方が望ましい。
+ *          UTL_DBG_REALLOC()を繰り返すことになるので、必要なサイズ以上を確保した方が望ましい。
  *      - pDataは解放せず初期化して使用するため、必要なら先に解放すること。
  */
 bool utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
@@ -78,7 +78,7 @@ bool utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
  * @return      true        success
  *
  * @note
- *      - 初期化時のサイズからあふれる場合、realloc()して拡張する。
+ *      - 初期化時のサイズからあふれる場合、UTL_DBG_REALLOC()して拡張する。
  *      - そのまま追加するため、OP_PUSHDATAxなどは呼び出し元で行うこと。
  */
 bool utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len);

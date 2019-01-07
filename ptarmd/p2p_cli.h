@@ -55,7 +55,7 @@ bool p2p_cli_connect_test(const char *pIpAddr, uint16_t Port);
 /** [p2p_cli]開始
  *
  */
-bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx);
+bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode);
 
 
 /** [p2p_cli]全停止

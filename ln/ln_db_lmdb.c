@@ -47,7 +47,6 @@
 #include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
-
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 
@@ -2645,7 +2644,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
     key.mv_data = (CONST_CAST uint8_t *)pPayHash;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval == 0) {
-        *ppInvoice = strdup(data.mv_data);
+        *ppInvoice = UTL_DBG_STRDUP(data.mv_data);
         size_t len = strlen(*ppInvoice);
         data.mv_size -= len;
         if (data.mv_size > sizeof(uint64_t)) {
@@ -2693,7 +2692,7 @@ int ln_db_invoice_get(uint8_t **ppPayHash)
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
         if (key.mv_size == BTC_SZ_HASH256) {
             cnt++;
-            *ppPayHash = (uint8_t *)realloc(*ppPayHash, cnt * BTC_SZ_HASH256);
+            *ppPayHash = (uint8_t *)UTL_DBG_REALLOC(*ppPayHash, cnt * BTC_SZ_HASH256);
             memcpy(*ppPayHash + (cnt - 1) * BTC_SZ_HASH256, key.mv_data, BTC_SZ_HASH256);
         }
     }
@@ -3777,13 +3776,13 @@ bool ln_db_reset(void)
         if (memcmp(key.mv_data, M_DBI_VERSION, sizeof(M_DBI_VERSION) - 1) != 0) {
             //"version"以外は削除
             MDB_dbi dbi2;
-            char *name = (char *)malloc(key.mv_size + 1);
+            char *name = (char *)UTL_DBG_MALLOC(key.mv_size + 1);
             memcpy(name, key.mv_data, key.mv_size);
             name[key.mv_size] = '\0';
             LOGD("dbname: %s\n", name);
 
             retval = mdb_dbi_open(cur.txn, name, 0, &dbi2);
-            free(name);
+            UTL_DBG_FREE(name);
             if (retval == 0) {
                 retval = mdb_drop(cur.txn, dbi2, 1);
                 if (retval != 0) {

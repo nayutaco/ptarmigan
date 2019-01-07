@@ -329,7 +329,7 @@ bool btcj_getgenesisblockhash(uint8_t *pHash)
     memcpy(pHash, bytes->buf, bytes->len);
     //
     (*env)->DeleteLocalRef(env, hash_obj);
-    free(bytes->buf);
+    UTL_DBG_FREE(bytes->buf);
     //
     return true;
 }
@@ -364,7 +364,7 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
         if(hash_obj != NULL) {
             btcj_buf_t *bytes = jbarray2buf(hash_obj);
             memcpy(pMinedHash, bytes->buf, bytes->len);
-            free(bytes->buf);
+            UTL_DBG_FREE(bytes->buf);
             LOGD("minedHash: ");
             TXIDD(pMinedHash);
         } else {
@@ -471,7 +471,7 @@ bool btcj_sendraw_tx(uint8_t *pTxid, int *pCode, const btcj_buf_t *pTxData)
     if (hash_obj != NULL) {
         btcj_buf_t *hash = jbarray2buf(hash_obj);
         memcpy(pTxid, hash->buf, hash->len);
-        free(hash->buf);
+        UTL_DBG_FREE(hash->buf);
         ret = true;
         LOGD("success\n");
     } else {
@@ -636,7 +636,7 @@ bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid)
     if (hash_obj != NULL) {
         btcj_buf_t *hash = jbarray2buf(hash_obj);
         memcpy(pTxid, hash->buf, hash->len);
-        free(hash->buf);
+        UTL_DBG_FREE(hash->buf);
         ret = true;
         (*env)->DeleteLocalRef(env, hash_obj);
     } else {
@@ -652,7 +652,7 @@ bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid)
 static uint8_t* hash2bytes(jobject hash_obj)
 {
     jbyteArray array = (*env)->CallObjectMethod(env, hash_obj, sha256_getrevbytes_method);
-    uint8_t *bytes = malloc(BTC_SZ_HASH256);
+    uint8_t *bytes = UTL_DBG_MALLOC(BTC_SZ_HASH256);
     (*env)->GetByteArrayRegion(env, array, 0, BTC_SZ_HASH256, (jbyte *)bytes);
     return bytes;
 }
@@ -667,9 +667,9 @@ static jbyteArray buf2jbarray(const btcj_buf_t *buf)
 static btcj_buf_t* jbarray2buf(jbyteArray jbarray)
 {
     jsize size = (*env)->GetArrayLength(env, jbarray);
-    btcj_buf_t *buf = malloc(sizeof(btcj_buf_t));
+    btcj_buf_t *buf = UTL_DBG_MALLOC(sizeof(btcj_buf_t));
     buf->len = size;
-    buf->buf = malloc(size);
+    buf->buf = UTL_DBG_MALLOC(size);
     (*env)->GetByteArrayRegion(env, jbarray, 0, size, (jbyte *)buf->buf);
     return buf;
 }
@@ -692,9 +692,9 @@ static jobject bufs2list(const btcj_buf_t *bufs)
 static btcj_buf_t* list2bufs(jobject list)
 {
     jint size = (*env)->CallIntMethod(env, list, list_size_method);
-    btcj_buf_t *bufs = malloc(sizeof(btcj_buf_t));
+    btcj_buf_t *bufs = UTL_DBG_MALLOC(sizeof(btcj_buf_t));
     bufs->len = sizeof(btcj_buf_t*)*size;
-    bufs->buf = malloc(bufs->len);
+    bufs->buf = UTL_DBG_MALLOC(bufs->len);
     //
     for(int i = 0; i < size; i++) {
         jbyteArray ba = (*env)->CallObjectMethod(env, list, list_get_method, (jint)i);

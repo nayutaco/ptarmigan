@@ -48,7 +48,7 @@ typedef struct ln_invoice_t {
  * @param[in]       p_invoice_data
  * @return  true:success
  * @note
- *      - need `free(pp_invoice)' if don't use it.
+ *      - need `UTL_DBG_FREE(pp_invoice)' if don't use it.
  */
 bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data);
 
@@ -72,7 +72,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
  * @param[in]       MinFinalCltvExpiry  min_final_cltv_expiry
  * @retval      true        成功
  * @attention
- *      - ppInoviceはmalloc()で確保するため、、使用後にfree()すること
+ *      - ppInoviceはUTL_DBG_MALLOC()で確保するため、、使用後にUTL_DBG_FREE()すること
  */
 bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
                         const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry);

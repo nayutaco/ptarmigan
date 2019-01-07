@@ -544,7 +544,7 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
 bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason)
 {
     pOnionErr->reason = ((uint16_t)pReason->buf[0] << 8) | pReason->buf[1];
-    pOnionErr->p_data = NULL;   //TODO:reasonに応じた結果をmallocして代入
+    pOnionErr->p_data = NULL;   //TODO:reasonに応じた結果をUTL_DBG_MALLOCして代入
     return true;
 }
 
@@ -609,7 +609,7 @@ char *ln_onion_get_errstr(const ln_onion_err_t *pOnionErr)
         sprintf(str, "unknown reason[%04x]", pOnionErr->reason);
         p_str = str;
     }
-    return strdup(p_str);
+    return UTL_DBG_STRDUP(p_str);
 }
 
 

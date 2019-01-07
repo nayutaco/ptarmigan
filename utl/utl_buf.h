@@ -51,7 +51,7 @@ extern "C" {
  *
  */
 typedef struct {
-    uint8_t         *buf;       ///< バッファ(malloc前提)
+    uint8_t         *buf;       ///< バッファ(UTL_DBG_MALLOC/UTL_DBG_REALLOC前提)
     uint32_t        len;        ///< bufサイズ
 } utl_buf_t;
 

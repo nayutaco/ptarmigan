@@ -67,7 +67,7 @@ extern "C" {
 #define FNAME_INVOICE_LOG           FNAME_LOGDIR "/invoice_%s.log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
 
-//need update ptarmd_error_str()
+//need update ptarmd_error_cstr()
 #define RPCERR_ERROR                (-10000)
 #define RPCERR_NOCONN               (-10001)
 #define RPCERR_ALCONN               (-10002)
@@ -113,7 +113,6 @@ extern "C" {
 /********************************************************************
  * macros functions
  ********************************************************************/
-
 
 /********************************************************************
  * typedefs
@@ -387,10 +386,8 @@ void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...);
  *
  * @param[in]       ErrCode     エラー番号
  * @return      エラー文字列
- * @note
- *      - エラー文字列はstrdup()しているため、呼び元でfree()すること
  */
-char *ptarmd_error_str(int ErrCode);
+const char *ptarmd_error_cstr(int ErrCode);
 
 
 #ifdef __cplusplus

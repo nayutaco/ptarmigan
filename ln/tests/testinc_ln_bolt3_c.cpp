@@ -332,7 +332,7 @@ TEST_F(ln_bolt3_c, committx1)
     htlcinfos[4].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC4);
     htlcinfos[4].preimage_hash = preimage_hash_htlc4;
 
-    pp_htlcinfos = (ln_script_htlcinfo_t **)malloc(sizeof(ln_script_htlcinfo_t*) * 5);
+    pp_htlcinfos = (ln_script_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t*) * 5);
     for (int lp = 0; lp < 5; lp++) {
         pp_htlcinfos[lp] = &htlcinfos[lp];
     }
@@ -7655,7 +7655,7 @@ TEST_F(ln_bolt3_c, fin)
     utl_buf_free(&funding2of2);
     btc_term();
 
-    free(pp_htlcinfos);
+    UTL_DBG_FREE(pp_htlcinfos);
 
     ASSERT_EQ(0, utl_dbg_malloc_cnt());
 }

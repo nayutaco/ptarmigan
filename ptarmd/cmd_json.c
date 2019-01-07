@@ -58,7 +58,12 @@
 #define M_SZ_PAYERR             (128)
 #define M_RETRY_CONN_CHK        (10)        ///< 接続チェック[sec]
 
-#define M_RPCERR_FREESTRING     (-1)        //no ptarmd_error_str()
+#define M_RPCERR_FREESTRING     (-1)        //no error_str_cjson() or strdup_cjson()
+
+
+/********************************************************************
+ * macros functions
+ ********************************************************************/
 
 
 /********************************************************************
@@ -160,6 +165,8 @@ static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum);
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
+static char *strdup_cjson(const char *pStr);
+static char *error_str_cjson(int errCode);
 
 
 /********************************************************************
@@ -246,12 +253,12 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
 {
     LOGD("invoice:%s\n", pInvoice);
-    char *json = (char *)UTL_DBG_MALLOC(M_SZ_JSONSTR);      //UTL_DBG_FREE: この中
+    char *json = (char *)UTL_DBG_MALLOC(M_SZ_JSONSTR);
     snprintf(json, M_SZ_JSONSTR,
         "{\"method\":\"_routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
     LOGD("retval=%d\n", retval);
-    UTL_DBG_FREE(json);     //UTL_DBG_MALLOC: この中
+    UTL_DBG_FREE(json);
 
     return retval;
 }
@@ -265,13 +272,13 @@ int cmd_json_pay_retry(const uint8_t *pPayHash)
     uint64_t add_amount_msat;
 
     LOGD("pay_retry\n");
-    ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPayHash);   //p_invoiceはmalloc()される
+    ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPayHash);   //p_invoiceはUTL_DBG_MALLOC()される
     if (ret) {
         retval = cmd_json_pay(p_invoice, add_amount_msat);
     } else {
         LOGD("fail: invoice not found\n");
     }
-    free(p_invoice);
+    UTL_DBG_FREE(p_invoice);
 
     return retval;
 }
@@ -332,7 +339,7 @@ LABEL_EXIT:
         result = cJSON_CreateString(kOK);
     } else {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
     return result;
 }
@@ -409,7 +416,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
             p += BTC_SZ_HASH256;
             cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
         }
-        free(p_hash);       //ln_lmdbでmalloc/realloc()している
+        UTL_DBG_FREE(p_hash);       //UTL_DBG_MALLOC or UTL_DBG_MALLOC by ln_lmdb
         cJSON_AddItemToObject(result, "paying_hash", result_hash);
     }
     cJSON_AddItemToObject(result, "last_errpay_date", cJSON_CreateString(mLastPayErr));
@@ -445,7 +452,7 @@ LABEL_EXIT:
         result = cJSON_CreateString(kOK);
     } else {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
     return result;
 }
@@ -468,7 +475,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
         result = cJSON_CreateString("OK");
     } else {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
     jrpc_server_stop(&mJrpc);
 
@@ -555,7 +562,7 @@ LABEL_EXIT:
         //
     } else {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
     return result;
 }
@@ -627,7 +634,7 @@ LABEL_EXIT:
             cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
             cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
 
-            free(p_invoice);
+            UTL_DBG_FREE(p_invoice);
         } else {
             LOGD("fail: BOLT11 format\n");
             err = RPCERR_PARSE;
@@ -636,7 +643,7 @@ LABEL_EXIT:
     }
     if (err != 0) {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
     return result;
 }
@@ -679,7 +686,7 @@ LABEL_EXIT:
         result = cJSON_CreateString(kOK);
     } else {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
     return result;
 }
@@ -723,7 +730,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
                 // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, p_rfield, rfieldnum, LN_MIN_FINAL_CLTV_EXPIRY);
                 // if (p_invoice != NULL) {
                 //     cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
-                //     free(p_invoice);
+                //     UTL_DBG_FREE(p_invoice);
                 //     APP_FREE(p_rfield);
                 // }
             } else {
@@ -863,22 +870,22 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
                 result = cJSON_CreateString("Progressing");
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
-                ctx->error_message = ptarmd_error_str(RPCERR_PAY_STOP);
+                ctx->error_message = error_str_cjson(RPCERR_PAY_STOP);
             }
         } else {
             //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
             ctx->error_code = RPCERR_NOINIT;
-            ctx->error_message = ptarmd_error_str(RPCERR_NOINIT);
+            ctx->error_message = error_str_cjson(RPCERR_NOINIT);
         }
     } else {
         ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = ptarmd_error_str(RPCERR_NOCONN);
+        ctx->error_message = error_str_cjson(RPCERR_NOCONN);
     }
 
 LABEL_EXIT:
     if (index < 0) {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
     }
     if (ctx->error_code != 0) {
         ln_db_invoice_del(payconf.payment_hash);
@@ -933,7 +940,7 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        p_invoice = strdup(json->valuestring);
+        p_invoice = UTL_DBG_STRDUP(json->valuestring);
     } else {
         LOGD("fail: invalid invoice string\n");
         goto LABEL_EXIT;
@@ -981,7 +988,7 @@ LABEL_EXIT:
         } else {
             //送金失敗
             ctx->error_code = err;
-            ctx->error_message = ptarmd_error_str(err);
+            ctx->error_message = error_str_cjson(err);
 
             ln_db_invoice_del(p_invoice_data->payment_hash);
             ln_db_routeskip_work(false);
@@ -997,8 +1004,8 @@ LABEL_EXIT:
             ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
         }
     }
-    free(p_invoice_data);
-    free(p_invoice);
+    UTL_DBG_FREE(p_invoice_data);
+    UTL_DBG_FREE(p_invoice);
 
     return result;
 }
@@ -1043,7 +1050,7 @@ LABEL_EXIT:
         result = cJSON_CreateString(p_str);
     } else {
         ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+        ctx->error_message = error_str_cjson(err);
     }
 
     return result;
@@ -1064,7 +1071,7 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
     bool ret = json_connect(params, &index, &conn);
     if (!ret) {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
         goto LABEL_EXIT;
     }
 
@@ -1077,11 +1084,11 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_code = p_appconf->err;
         if (p_appconf->p_errstr != NULL) {
             LOGD("error msg: %s\n", p_appconf->p_errstr);
-            ctx->error_message = p_appconf->p_errstr;
+            ctx->error_message = strdup_cjson(p_appconf->p_errstr);
         }
     } else {
         ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = ptarmd_error_str(RPCERR_NOCONN);
+        ctx->error_message = error_str_cjson(RPCERR_NOCONN);
     }
 
 LABEL_EXIT:
@@ -1102,7 +1109,7 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     if (params == NULL) {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
         goto LABEL_EXIT;
     }
 
@@ -1141,7 +1148,7 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         cJSON_AddItemToObject(result, "mode", js_mode);
     } else {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
     }
 
 LABEL_EXIT:
@@ -1178,7 +1185,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
 LABEL_EXIT:
     if (index < 0) {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
     }
     return result;
 }
@@ -1212,7 +1219,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
         return cJSON_CreateString(p_str);
     } else {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
         return NULL;
     }
 }
@@ -1240,7 +1247,7 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
         return cJSON_CreateString(kOK);
     } else {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
         return NULL;
     }
 }
@@ -1280,7 +1287,7 @@ static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id)
 LABEL_EXIT:
     if (index < 0) {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
     }
     return result;
 }
@@ -1324,7 +1331,7 @@ static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id
 LABEL_EXIT:
     if (index < 0) {
         ctx->error_code = RPCERR_PARSE;
-        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        ctx->error_message = error_str_cjson(RPCERR_PARSE);
     }
     return result;
 }
@@ -1354,7 +1361,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     ret = btcrpc_getnewaddress(addr);
     if (!ret) {
         ctx->error_code = RPCERR_BLOCKCHAIN;
-        ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+        ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
         return NULL;
     }
     uint64_t feerate;
@@ -1374,9 +1381,10 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     } else {
         ctx->error_code = RPCERR_WALLET_ERR;
         if (p_result != NULL) {
-            ctx->error_message = p_result;
+            ctx->error_message = strdup_cjson(p_result);
+            UTL_DBG_FREE(p_result);
         } else {
-            ctx->error_message = ptarmd_error_str(RPCERR_WALLET_ERR);
+            ctx->error_message = error_str_cjson(RPCERR_WALLET_ERR);
         }
     }
 
@@ -1403,7 +1411,7 @@ static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id)
         result = cJSON_CreateString(addr);
     } else {
         ctx->error_code = RPCERR_BLOCKCHAIN;
-        ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+        ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
     }
     return result;
 }
@@ -1427,7 +1435,7 @@ static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id)
         result = cJSON_CreateNumber64(amount);
     } else {
         ctx->error_code = RPCERR_BLOCKCHAIN;
-        ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+        ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
     }
     return result;
 }
@@ -1470,10 +1478,10 @@ LABEL_EXIT:
     } else {
         if (index < 0) {
             ctx->error_code = RPCERR_PARSE;
-            ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+            ctx->error_message = error_str_cjson(RPCERR_PARSE);
         } else {
             ctx->error_code = RPCERR_BLOCKCHAIN;
-            ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+            ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
         }
     }
     return result;
@@ -1495,8 +1503,11 @@ static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
 {
     LOGD("connect\n");
 
-    bool ret = p2p_cli_start(pConn, ctx);
+    int err;
+    bool ret = p2p_cli_start(pConn, &err);
     if (!ret) {
+        ctx->error_code = err;
+        ctx->error_message = error_str_cjson(err);
         return RPCERR_CONNECT;
     }
 
@@ -1602,7 +1613,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
                 pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN);
         LOGD(str);
         ctx->error_code = RPCERR_FUNDING;
-        ctx->error_message = strdup(str);
+        ctx->error_message = strdup_cjson(str);
         return M_RPCERR_FREESTRING;
     }
 
@@ -2131,4 +2142,25 @@ static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_par
     }
 
     return false;
+}
+
+
+/**
+ *
+ */
+static char *strdup_cjson(const char *pStr)
+{
+    //free by cjson
+    //  don't free yourself
+    //  don't use UTL_DBG_STRDUP
+    return strdup(pStr);
+}
+
+
+/**
+ *
+ */
+static char *error_str_cjson(int errCode)
+{
+    return strdup_cjson(ptarmd_error_cstr(errCode));
 }

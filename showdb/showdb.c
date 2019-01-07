@@ -616,7 +616,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
     //self
     if (showflag & (SHOW_SELF | SHOW_SELF_WALLET | SHOW_SELF_LISTCH)) {
-        ln_self_t *p_self = (ln_self_t *)malloc(sizeof(ln_self_t));
+        ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
         memset(p_self, 0, sizeof(ln_self_t));
 
         int retval = ln_lmdb_self_load(p_self, txn, dbi);
@@ -653,7 +653,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
             printf("\"");
         }
         ln_term(p_self);
-        free(p_self);
+        UTL_DBG_FREE(p_self);
         cnt0++;
     }
 }
@@ -1289,7 +1289,7 @@ int main(int argc, char *argv[])
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
-        char *name = (char *)malloc(key.mv_size + 1);
+        char *name = (char *)UTL_DBG_MALLOC(key.mv_size + 1);
         memcpy(name, key.mv_data, key.mv_size);
         name[key.mv_size] = '\0';
         ret = mdb_dbi_open(txn, name, 0, &dbi2);
@@ -1341,7 +1341,7 @@ int main(int argc, char *argv[])
             }
             mdb_close(mdb_txn_env(txn), dbi2);
         }
-        free(name);
+        UTL_DBG_FREE(name);
     }
     if (cnt0 || cnt2 || cnt4 || cnt5) {
         printf("\n" INDENT1 "]\n");

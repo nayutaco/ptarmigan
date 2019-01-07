@@ -588,7 +588,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
 /** "routepay" 全payment_hash取得
  *
  * @attention
- *      - 内部で realloc()するため、使用後に free()すること
+ *      - 内部で UTL_DBG_REALLOC()するため、使用後に UTL_DBG_FREE()すること
  */
 int ln_db_invoice_get(uint8_t **ppPayHash);
 

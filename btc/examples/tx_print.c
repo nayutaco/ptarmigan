@@ -80,7 +80,7 @@ int main(void)
     printf("=======================================\n");
     const char TXSTR[] = "0200000001516aef63107e8d4e909e3cd7a8e5b0bef1bd92a6a2a301ea06837ce26404da2a00000000002350528002882e000000000000220020eb474b65fe06d3c94bbf1cf6752859a6da090408e1af72bde932050a192a1bed90340800000000001600141e7cf6d85b86f2aca987b5519871e5891cd9b1d42a247220";
     size_t len = strlen(TXSTR);
-    uint8_t *tx = (uint8_t *)malloc(len / 2);
+    uint8_t *tx = (uint8_t *)UTL_DBG_MALLOC(len / 2);
     misc_str2bin(tx, len/2, TXSTR);
 
     const uint8_t byte = 0;
@@ -96,7 +96,7 @@ int main(void)
     uint32_t vsize = btc_tx_get_vbyte_raw(tx, len/2);
     printf("vsize=%" PRIu32 "\n", vsize);
 
-    free(tx);
+    UTL_DBG_FREE(tx);
 #endif
 
     printf("=======================================\n");
