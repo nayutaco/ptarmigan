@@ -36,7 +36,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param);
  ********************************************************************/
 
 // ptarmiganから外部walletへ送金
-bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb)
+bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const char *pAddr, uint32_t FeeratePerKb)
 {
     bool ret;
     wallet_t wallet;
@@ -85,6 +85,8 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
 
         wallet.tx.vout[0].value -= fee;
         utl_buf_free(&txbuf);
+
+        *pAmount = wallet.tx.vout[0].value;
     }
 
     //署名
@@ -141,27 +143,25 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
     LOGD("raw=");
     DUMPD(txbuf.buf, txbuf.len);
 
-#if defined(USE_BITCOIND)
-    //create sendrawtransaction date
-    *ppResult = (char *)UTL_DBG_MALLOC(txbuf.len * 2 + 1);
-    utl_str_bin2str(*ppResult, txbuf.buf, txbuf.len);
-#elif defined(USE_BITCOINJ)
-    //broadcast
-    uint8_t txid[BTC_SZ_TXID];
-    ret = btcrpc_send_rawtx(txid, NULL, txbuf.buf, txbuf.len);
-    if (ret) {
-        //remove from DB
-        LOGD("$$$ broadcast\n");
-        for (uint32_t lp = 0; lp < wallet.tx.vin_cnt; lp++) {
-            ln_db_wallet_del(wallet.tx.vin[lp].txid, wallet.tx.vin[lp].index);
-        }
+    if (bToSend) {
+        //broadcast
+        uint8_t txid[BTC_SZ_TXID];
+        ret = btcrpc_send_rawtx(txid, NULL, txbuf.buf, txbuf.len);
+        if (ret) {
+            //remove from DB
+            LOGD("$$$ broadcast\n");
+            for (uint32_t lp = 0; lp < wallet.tx.vin_cnt; lp++) {
+                ln_db_wallet_del(wallet.tx.vin[lp].txid, wallet.tx.vin[lp].index);
+            }
 
-        *ppResult = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);
-        utl_str_bin2str_rev(*ppResult, txid, BTC_SZ_TXID);
+            *ppResult = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);
+            utl_str_bin2str_rev(*ppResult, txid, BTC_SZ_TXID);
+        } else {
+            LOGE("fail: broadcast\n");
+        }
     } else {
-        LOGE("fail: broadcast\n");
+        *ppResult = UTL_DBG_STRDUP("Can pay to wallet.");
     }
-#endif
     utl_buf_free(&txbuf);
 
     btc_tx_free(&wallet.tx);

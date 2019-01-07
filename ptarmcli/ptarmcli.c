@@ -59,6 +59,7 @@
 #define M_OPT_GETBALANCE            '\x04'
 #define M_OPT_EMPTYWALLET           '\x05'
 #define M_OPT_INITROUTESYNC         '\x06'
+#define M_OPT_PAYTOWALLET           '\x07'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -159,7 +160,6 @@ static const struct {
     { 'g', optfunc_getcommittx },
     { 's', optfunc_disable_autoconn },
     { 'X', optfunc_remove_channel },
-    { 'W', optfunc_walletback },
 
     //long opt
     { M_OPT_SETFEERATE,         optfunc_setfeerate },
@@ -168,6 +168,7 @@ static const struct {
     { M_OPT_GETBALANCE,         optfunc_getbalance },
     { M_OPT_EMPTYWALLET,        optfunc_emptywallet },
     { M_OPT_INITROUTESYNC,      optfunc_initroutesync },
+    { M_OPT_PAYTOWALLET,        optfunc_walletback },
     { M_OPT_DEBUG,              optfunc_debug },
 };
 
@@ -183,6 +184,7 @@ int main(int argc, char *argv[])
         { "estimatefundingfee", optional_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
         { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
         { "getbalance", no_argument, NULL, M_OPT_GETBALANCE },
+        { "paytowallet", optional_argument, NULL, M_OPT_PAYTOWALLET },
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
@@ -195,7 +197,7 @@ int main(int argc, char *argv[])
     mTcpSend = true;
     mInitRouteSync[0] = '\0';
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -245,7 +247,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
         fprintf(stderr, "\t\t--emptywallet BITCOIN_ADDRESS : send all Bitcoin balance\n");
 #endif
-        fprintf(stderr, "\t\t-W : show wallet rawtransaction\n");
+        fprintf(stderr, "\t\t--paytowallet[=1 or 0] : 1:send from unilateral closed wallet to 1st layer wallet, 0:only show transaction\n");
         fprintf(stderr, "\n");
 
         fprintf(stderr, "\tDEBUG:\n");
@@ -831,18 +833,18 @@ static void optfunc_walletback(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
-    if (errno == 0) {
-        snprintf(mBuf, BUFFER_SIZE,
-            "{"
-                M_STR("method", "walletback") M_NEXT
-                M_QQ("params") ":[]"
-            "}");
-
-        *pOption = M_OPTIONS_EXEC;
-    } else {
-        sprintf(mErrStr, "%s", strerror(errno));
-        *pOption = M_OPTIONS_ERR;
+    int to_send = 0;
+    if ((optarg != NULL) && (optarg[0] != '\0')) {
+        to_send = atoi(optarg);
     }
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "walletback") M_NEXT
+            M_QQ("params") ":[ %d ]"
+        "}", to_send);
+
+    *pOption = M_OPTIONS_EXEC;
 }
 
 
