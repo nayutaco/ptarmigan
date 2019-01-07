@@ -26,9 +26,11 @@ static const char *ln_hrp_str[] = {
     "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
 };
 
-//inbits:5, outbits:8で64bitまで変換可能
-static uint64_t ln_convert_be64(const uint8_t *p_data, size_t dlen)
+//inbits:5, outbits:8, to u64
+static uint64_t pack_value(const uint8_t *p_data, size_t dlen)
 {
+    assert(dlen <= 8);
+
     uint64_t ret = 0;
     for (size_t lp = 0; lp < dlen; lp++) {
         ret <<= 5;
@@ -37,75 +39,67 @@ static uint64_t ln_convert_be64(const uint8_t *p_data, size_t dlen)
     return ret;
 }
 
-//inbits:8, outbits:5で64bitまで変換可能
-static int ln_convert64_to8(uint8_t *p_out, uint64_t val)
+//inbits:8, outbits:5
+static int unpack_value(uint8_t *p_out, uint64_t val)
 {
-    size_t lp;
-    for (lp = 0; lp < sizeof(val); lp++) {
-        p_out[lp] = val & 0x1f;
-        val >>= 5;
-        if (val == 0) {
-            break;
-        }
+    assert(val);
+
+    int lp;
+    uint64_t tmp = val;
+    for (lp = 0; lp < 8; lp++) {
+        tmp >>= 5;
+        if (!tmp) break;
     }
-    //swap endian
-    for (size_t lp2 = 0; lp2 < lp; lp2++) {
-        if (lp2 > lp - lp2) {
-            break;
-        }
-        uint8_t tmp = p_out[lp2];
-        p_out[lp2] = p_out[lp - lp2];
-        p_out[lp - lp2] = tmp;
+    for (int lp2 = lp; lp2 >= 0; lp2--) {
+        p_out[lp2] = val & 0x1f;
+        val >>= 5;
     }
     return lp + 1;
 }
 
-////32進数→10進数変換
-//static uint64_t convert_32(const uint8_t *p_data, size_t dlen)
-//{
-//    uint64_t ret = 0;
-//    for (size_t lp = 0; lp < dlen; lp++) {
-//        ret *= (uint64_t)32;
-//        ret += (uint64_t)p_data[lp];
-//    }
-//    return ret;
-//}
+#if 0
+static void print_tag(uint8_t tag)
+{
+    switch (tag) {
+    case 1:
+        LOGD("[payment_hash]\n");
+        break;
+    case 13:
+        LOGD("[purpose of payment(ASCII)]\n");
+        break;
+    case 19:
+        LOGD("[pubkey of payee node]\n");
+        break;
+    case 23:
+        LOGD("[purpose of payment(SHA256)]\n");
+        break;
+    case 6:
+        LOGD("[expiry second]\n");
+        break;
+    case 24:
+        LOGD("[min_final_cltv_expiry]\n");
+        break;
+    case 9:
+        LOGD("[fallback on-chain]\n");
+        break;
+    case 3:
+        LOGD("[extra routing info]\n");
+        break;
+    default:
+        LOGD("unknown tag: %02x\n", *p_tag);
+        break;
+    }
+}
+#endif
 
-static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_invoice_data)
+static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_invoice_data)
 {
     ln_invoice_t *p_invoice_data = *pp_invoice_data;
+    uint8_t tag = *p_tag;
 
     //LOGD("------------------\n");
-    uint8_t tag = *p_tag;
-    //switch (tag) {
-    //case 1:
-    //    LOGD("[payment_hash]\n");
-    //    break;
-    //case 13:
-    //    LOGD("[purpose of payment(ASCII)]\n");
-    //    break;
-    //case 19:
-    //    LOGD("[pubkey of payee node]\n");
-    //    break;
-    //case 23:
-    //    LOGD("[purpose of payment(SHA256)]\n");
-    //    break;
-    //case 6:
-    //    LOGD("[expiry second]\n");
-    //    break;
-    //case 24:
-    //    LOGD("[min_final_cltv_expiry]\n");
-    //    break;
-    //case 9:
-    //    LOGD("[Fallback on-chain]\n");
-    //    break;
-    //case 3:
-    //    LOGD("[extra routing info]\n");
-    //    break;
-    //default:
-    //    LOGD("unknown tag: %02x\n", *p_tag);
-    //    break;
-    //}
+    //print_tag(tag);
+
     int len = p_tag[1] * 0x20 + p_tag[2];
     p_tag += 3;
     uint8_t *p_data = (uint8_t *)malloc((len * 5 + 7) / 8); //確保サイズは切り上げ
@@ -114,14 +108,14 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
     case 6:
         //expiry second
         {
-            p_invoice_data->expiry = (uint32_t)ln_convert_be64(p_tag, len);
+            p_invoice_data->expiry = (uint32_t)pack_value(p_tag, len);
             //LOGD("%" PRIu32 " seconds\n", p_invoice_data->expiry);
         }
         break;
     case 24:
         //min_final_cltv_expiry
         {
-            p_invoice_data->min_final_cltv_expiry = ln_convert_be64(p_tag, len);
+            p_invoice_data->min_final_cltv_expiry = pack_value(p_tag, len);
             //LOGD("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
         }
         break;
@@ -236,7 +230,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 
     //timestamp
     time_t now = time(NULL);
-    datalen = ln_convert64_to8(data, now);
+    datalen = unpack_value(data, now);
 
     //tagged field
     //  1. type (5bits)
@@ -267,7 +261,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = 0;    // 最大32bitなので、ここは0になる
         datalen++;
 
-        int len = ln_convert64_to8(data + datalen, p_invoice_data->expiry);
+        int len = unpack_value(data + datalen, p_invoice_data->expiry);
         data[datalen - 1] = (uint8_t)len;
         datalen += len;
     }
@@ -278,7 +272,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = 0;    // 最大32bitなので、ここは0になる
         datalen++;
 
-        int len = ln_convert64_to8(data + datalen, p_invoice_data->min_final_cltv_expiry);
+        int len = unpack_value(data + datalen, p_invoice_data->min_final_cltv_expiry);
         data[datalen - 1] = (uint8_t)len;
         datalen += len;
     }
@@ -443,7 +437,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     }
 
     //timestamp(7 chars)
-    tm = (time_t)ln_convert_be64(data, 7);
+    tm = (time_t)pack_value(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
     char time[UTL_SZ_TIME_FMT_STR + 1];
     LOGD("timestamp= %" PRIu64 " : %s\n", (uint64_t)tm, utl_time_fmt(time, tm));
@@ -455,7 +449,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_invoice_data->r_field_num = 0;
     while (p_tag < p_sig) {
         size_t len;
-        ret = ln_analyze_tag(&len, p_tag, &p_invoice_data);
+        ret = analyze_tag(&len, p_tag, &p_invoice_data);
         if (!ret) {
             break;
         }
