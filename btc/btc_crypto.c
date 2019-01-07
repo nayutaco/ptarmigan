@@ -118,7 +118,7 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
 }
 
 
-int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey) //XXX: mbed
+int btc_ecc_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey) //XXX: mbed
 {
     int ret;
     uint8_t parity;
@@ -227,7 +227,7 @@ LABEL_EXIT:
 }
 
 
-int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA) //XXX: mbed
+int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA) //XXX: mbed
 {
     int ret;
     mbedtls_ecp_point P1;
@@ -242,7 +242,7 @@ int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
     //P1: 前の公開鍵座標
-    ret = btc_util_ecp_point_read_binary2(&P1, pPubKeyIn);
+    ret = btc_ecc_ecp_point_read_binary2(&P1, pPubKeyIn);
     if (ret) {
         goto LABEL_EXIT;
     }
@@ -278,13 +278,13 @@ LABEL_EXIT:
 }
 
 
-bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen) //XXX: mbed
+bool btc_ecc_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen) //XXX: mbed
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = btcl_util_set_keypair(&keypair, pPubKey);
+    int ret = btc_ecc_set_keypair(&keypair, pPubKey);
     if (!ret) {
         // keypair.Qに公開鍵(x, y)が入っている
         mbedtls_ecp_point pnt;
@@ -306,17 +306,6 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
     mbedtls_ecp_keypair_free(&keypair);
 
     return ret == 0;
-}
-
-
-int btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey) //XXX: mbed
-{
-    int ret;
-
-    mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
-    ret = btc_util_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
-
-    return ret;
 }
 
 
@@ -354,6 +343,21 @@ void btc_rng_free(void)
     mbedtls_entropy_free(&mEntropy);
     mbedtls_ctr_drbg_free(&mRng);
 #endif
+}
+
+
+/**************************************************************************
+ * package functions (btc_ecc)
+ **************************************************************************/
+
+int btc_ecc_set_keypair(void *pKeyPair, const uint8_t *pPubKey) //XXX: mbed
+{
+    int ret;
+
+    mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
+    ret = btc_ecc_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
+
+    return ret;
 }
 
 

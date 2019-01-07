@@ -637,7 +637,7 @@ static void multi_scalar_mul(uint8_t *pResult, const uint8_t *pPubKey, const uin
  */
 static bool blind_group_element(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactor)
 {
-    bool ret = btc_util_mul_pubkey(pResult, pPubKey, pBlindingFactor, M_SZ_BLINDING_FACT);
+    bool ret = btc_ecc_mul_pubkey(pResult, pPubKey, pBlindingFactor, M_SZ_BLINDING_FACT);
     return ret;
 }
 

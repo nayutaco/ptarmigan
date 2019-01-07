@@ -63,7 +63,7 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
 
     mbedtls_mpi_init(&bp);
     mbedtls_mpi_read_binary(&bp, base, sizeof(base));
-    ret = btc_util_ecp_muladd(pPubKey, pBasePoint, &bp);
+    ret = btc_ecc_ecp_muladd(pPubKey, pBasePoint, &bp);
     mbedtls_mpi_free(&bp);
 
 #ifdef M_DBG_PRINT
@@ -179,12 +179,12 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
     mbedtls_ecp_keypair_init(&keypair);
 
     mbedtls_mpi_read_binary(&bp1, base1, sizeof(base1));
-    ret = btc_util_ecp_point_read_binary2(&S1, pBasePoint);
+    ret = btc_ecc_ecp_point_read_binary2(&S1, pBasePoint);
     if (ret) {
         goto LABEL_EXIT;
     }
     mbedtls_mpi_read_binary(&bp2, base2, sizeof(base2));
-    ret = btc_util_ecp_point_read_binary2(&S2, pPerCommitPoint);
+    ret = btc_ecc_ecp_point_read_binary2(&S2, pPerCommitPoint);
     if (ret) {
         goto LABEL_EXIT;
     }

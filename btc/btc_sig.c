@@ -156,7 +156,7 @@ bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash,
         goto LABEL_EXIT;
     }
 
-    ret = btcl_util_set_keypair(&keypair, pPubKey);
+    ret = btc_ecc_set_keypair(&keypair, pPubKey);
     if (ret) {
         LOGD("fail keypair\n");
         goto LABEL_EXIT;
@@ -210,7 +210,7 @@ bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t
         goto LABEL_EXIT;
     }
 
-    ret = btcl_util_set_keypair(&keypair, pPubKey);
+    ret = btc_ecc_set_keypair(&keypair, pPubKey);
     if (ret) {
         LOGD("fail keypair\n");
         goto LABEL_EXIT;
@@ -556,7 +556,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
         pubx[0] = 0x02;
         ret = mbedtls_mpi_write_binary(&x, pubx + 1, BTC_SZ_FIELD);
         assert(ret == 0);
-        ret = btc_util_ecp_point_read_binary2(&R, pubx);
+        ret = btc_ecc_ecp_point_read_binary2(&R, pubx);
         assert(ret == 0);
 
         // 1.4.
