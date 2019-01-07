@@ -51,31 +51,31 @@ void utl_log_dump_rev(int Pri, const char* pFname, int Line, int Flag, const cha
 
 #define LOGV            ((void)__android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", __VA_ARGS__))
 #define DUMPV(dt,ln) {\
-    char *p_str = (char *)malloc(ln * 2 + 1);   \
+    char *p_str = (char *)UTL_DBG_MALLOC(ln * 2 + 1);   \
     utl_str_bin2str(p_str, dt, ln);          \
     __android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", "%s", p_str);  \
-    free(p_str); \
+    UTL_DBG_FREE(p_str); \
 }
 #define TXIDV(dt) {\
-    char *p_str = (char *)malloc(BTC_SZ_TXID * 2 + 1);   \
+    char *p_str = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);   \
     utl_str_bin2str_rev(p_str, dt, BTC_SZ_TXID);      \
     __android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", "%s", p_str);  \
-    free(p_str); \
+    UTL_DBG_FREE(p_str); \
 }
 
 #define LOGD(...)       ((void)__android_log_print(ANDROID_LOG_DEBUG, "ptarm::", __VA_ARGS__))
 #define LOGD2(...)      ((void)__android_log_print(ANDROID_LOG_DEBUG, "ptarm::", __VA_ARGS__))
 #define DUMPD(dt,ln) {\
-    char *p_str = (char *)malloc(ln * 2 + 1);   \
+    char *p_str = (char *)UTL_DBG_MALLOC(ln * 2 + 1);   \
     utl_str_bin2str(p_str, dt, ln);          \
     __android_log_print(ANDROID_LOG_DEBUG, "ptarm::", "%s", p_str);  \
-    free(p_str); \
+    UTL_DBG_FREE(p_str); \
 }
 #define TXIDD(dt) {\
-    char *p_str = (char *)malloc(BTC_SZ_TXID * 2 + 1);   \
+    char *p_str = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);   \
     utl_str_bin2str_rev(p_str, dt, BTC_SZ_TXID);      \
     __android_log_print(ANDROID_LOG_DEBUG, "ptarm::", "%s", p_str);  \
-    free(p_str); \
+    UTL_DBG_FREE(p_str); \
 }
 
 #else //PTARM_UTL_LOG_MACRO_DISABLED

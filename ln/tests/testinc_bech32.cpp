@@ -150,8 +150,8 @@ TEST_F(bech32, invoice_valid)
         ASSERT_EQ(0, memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, BTC_SZ_HASH256));
         ASSERT_EQ(p_invoice_data->expiry, p_invoice_data2->expiry);
 
-        free(p_invoice_data2);
-        free(p_invoice_data);
-        free(p_invoice);
+        UTL_DBG_FREE(p_invoice_data2);
+        UTL_DBG_FREE(p_invoice_data);
+        UTL_DBG_FREE(p_invoice);
     }
 }

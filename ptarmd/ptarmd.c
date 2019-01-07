@@ -441,7 +441,7 @@ void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...)
 }
 
 
-char *ptarmd_error_str(int ErrCode)
+const char *ptarmd_error_cstr(int ErrCode)
 {
     static const struct {
         int             err;
@@ -494,7 +494,7 @@ char *ptarmd_error_str(int ErrCode)
         }
     }
 
-    return strdup(p_str);
+    return p_str;
 }
 
 

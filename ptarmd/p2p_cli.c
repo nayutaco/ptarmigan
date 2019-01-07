@@ -108,7 +108,7 @@ LABEL_EXIT:
 }
 
 
-bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
+bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
 {
     bool bret = false;
     int ret;
@@ -118,15 +118,13 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 
     if (!btc_keys_check_pub(pConn->node_id)) {
         LOGD("invalid node_id\n");
-        ctx->error_code = RPCERR_NODEID;
-        ctx->error_message = ptarmd_error_str(RPCERR_NODEID);
+        *pErrCode = RPCERR_NODEID;
         goto LABEL_EXIT;
     }
     lnapp_conf_t *p_conf = ptarmd_search_connected_nodeid(pConn->node_id);
     if (p_conf != NULL) {
         LOGD("fail: already connected.\n");
-        ctx->error_code = RPCERR_ALCONN;
-        ctx->error_message = ptarmd_error_str(RPCERR_ALCONN);
+        *pErrCode = RPCERR_ALCONN;
         goto LABEL_EXIT;
     }
 
@@ -137,16 +135,14 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     }
     if (idx >= (int)ARRAY_SIZE(mAppConf)) {
         LOGD("client full\n");
-        ctx->error_code = RPCERR_FULLCLI;
-        ctx->error_message = ptarmd_error_str(RPCERR_FULLCLI);
+        *pErrCode = RPCERR_FULLCLI;
         goto LABEL_EXIT;
     }
 
     mAppConf[idx].sock = socket(PF_INET, SOCK_STREAM, 0);
     if (mAppConf[idx].sock < 0) {
         LOGD("socket\n");
-        ctx->error_code = RPCERR_SOCK;
-        ctx->error_message = ptarmd_error_str(RPCERR_SOCK);
+        *pErrCode = RPCERR_SOCK;
         goto LABEL_EXIT;
     }
     fcntl(mAppConf[idx].sock, F_SETFL, O_NONBLOCK);
@@ -171,8 +167,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     }
     if (ret < 0) {
         LOGD("connect: %s\n", strerror(errno));
-        ctx->error_code = RPCERR_CONNECT;
-        ctx->error_message = ptarmd_error_str(RPCERR_CONNECT);
+        *pErrCode = RPCERR_CONNECT;
         close(mAppConf[idx].sock);
         mAppConf[idx].sock = -1;
 

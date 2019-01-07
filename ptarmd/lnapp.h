@@ -116,7 +116,7 @@ typedef struct lnapp_conf_t {
     time_t          annodb_stamp;                       ///< last annodb_updated change true
 
     int             err;            ///< last error
-    char            *p_errstr;      ///< last error string(malloc)
+    char            *p_errstr;      ///< last error string(UTL_DBG_MALLOC)
 
 } lnapp_conf_t;
 

@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
             break;
         case 'p':
             //payment_hash
-            payment_hash = strdup(optarg);
+            payment_hash = UTL_DBG_STRDUP(optarg);
             break;
         case 'j':
             //JSON
@@ -287,7 +287,7 @@ int main(int argc, char* argv[])
             ret = -9;
         }
 
-        free(payment_hash);
+        UTL_DBG_FREE(payment_hash);
     } else {
         ln_routing_clear_skipdb();
     }

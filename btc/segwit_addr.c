@@ -90,7 +90,7 @@ bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t da
     }
     *(output++) = '1';
     for (i = 0; i < data_len; ++i) {
-        if (*data >> 5) return false;
+        if (*data >> 5) return false; //check that upper bits are zeros
         chk = bech32_polymod_step(chk) ^ (*data);
         *(output++) = charset[*(data++)];
     }
@@ -189,7 +189,7 @@ bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input
 //とした場合、
 //  out[0x0b 0x25 0xfe 0x64 0x40]
 //となる。
-static bool convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* in, size_t inlen, int inbits, bool pad) {
+/*static*/ bool convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* in, size_t inlen, int inbits, bool pad) {
     uint32_t val = 0;
     int bits = 0;
     uint32_t maxv = (((uint32_t)1) << outbits) - 1;

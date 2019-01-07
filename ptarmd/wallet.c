@@ -168,7 +168,7 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
 
 LABEL_EXIT:
     if (!ret && (p_err_str != NULL)) {
-        *ppResult = strdup(p_err_str);
+        *ppResult = UTL_DBG_STRDUP(p_err_str);
     }
     return ret;
 }

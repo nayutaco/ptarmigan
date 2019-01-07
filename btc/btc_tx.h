@@ -164,10 +164,10 @@ btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx);
  * @return          追加した #btc_vin_t のアドレス
  *
  * @attention
- *      - realloc()するため、取得したアドレスは次に #btc_tx_add_vin()しても有効なのか確実ではない。
+ *      - UTL_DBG_REALLOC()するため、取得したアドレスは次に #btc_tx_add_vin()しても有効なのか確実ではない。
  *          すぐに使用してアドレスは保持しないこと。
  * @note
- *      - realloc()するため、事前のfree処理は不要
+ *      - UTL_DBG_REALLOC()するため、事前のUTL_DBG_FREE()処理は不要
  *      - sequenceは0xFFFFFFFFで初期化している
  *      - scriptSigは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
@@ -180,7 +180,7 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, uint32_t Index);
  * @return          追加したwitnessのアドレス
  *
  * @note
- *      - realloc()するため、事前のfree処理は不要
+ *      - UTL_DBG_REALLOC()するため、事前のUTL_DBG_FREE()処理は不要
  *      - witnessは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
 utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin);
@@ -193,7 +193,7 @@ utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin);
  * @return          追加した #btc_vout_t のアドレス
  *
  * @note
- *      - realloc()するため、事前のfree処理は不要
+ *      - UTL_DBG_REALLOC()するため、事前のUTL_DBG_FREE()処理は不要
  *      - scriptPubKeyは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
 btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value);
@@ -333,7 +333,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len);
  * @param[out]      pBuf        変換後データ
  *
  * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
+ *      - 動的にメモリ確保するため、pBufは使用後 #UTL_DBG_FREE()で解放すること
  *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
  */
 bool btc_tx_write(const btc_tx_t *pTx, utl_buf_t *pBuf);

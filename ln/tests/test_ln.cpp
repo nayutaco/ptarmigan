@@ -1961,7 +1961,7 @@ TEST_F(ln, recv_open_channel_ok)
     self.p_callback = dummy::callback;
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
-    self.p_establish = (ln_establish_t *)calloc(1, sizeof(ln_establish_t));
+    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
     self.p_establish->estprm.dust_limit_sat = 10000;
     self.p_establish->estprm.channel_reserve_sat = 800;
@@ -1970,7 +1970,7 @@ TEST_F(ln, recv_open_channel_ok)
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
 
-    free(self.p_establish);
+    UTL_DBG_FREE(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
 }
@@ -2014,7 +2014,7 @@ TEST_F(ln, recv_open_channel_sender1)
     self.p_callback = dummy::callback;
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
-    self.p_establish = (ln_establish_t *)calloc(1, sizeof(ln_establish_t));
+    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
     self.p_establish->estprm.dust_limit_sat = 10000;
 
@@ -2024,7 +2024,7 @@ TEST_F(ln, recv_open_channel_sender1)
     bool ret = recv_open_channel(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
-    free(self.p_establish);
+    UTL_DBG_FREE(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
 }
@@ -2068,7 +2068,7 @@ TEST_F(ln, recv_open_channel_sender2)
     self.p_callback = dummy::callback;
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
-    self.p_establish = (ln_establish_t *)calloc(1, sizeof(ln_establish_t));
+    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
     self.p_establish->estprm.channel_reserve_sat = 800;
 
@@ -2077,7 +2077,7 @@ TEST_F(ln, recv_open_channel_sender2)
     bool ret = recv_open_channel(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
-    free(self.p_establish);
+    UTL_DBG_FREE(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
 }
@@ -2125,7 +2125,7 @@ TEST_F(ln, recv_accept_channel_ok)
     self.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
-    self.p_establish = (ln_establish_t *)calloc(1, sizeof(ln_establish_t));
+    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
     self.commit_local.dust_limit_sat = 10000;
     self.commit_local.channel_reserve_sat = 800;
@@ -2137,7 +2137,7 @@ TEST_F(ln, recv_accept_channel_ok)
     }
 
 #ifdef USE_BITCOIND
-    self.p_establish->p_fundin = (ln_fundin_t *)calloc(1, sizeof(ln_fundin_t));
+    self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
     ln_fundin_t *p_fundin = self.p_establish->p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
     p_fundin->amount = 500000;
@@ -2151,9 +2151,9 @@ TEST_F(ln, recv_accept_channel_ok)
 
 #ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
-    free(self.p_establish->p_fundin);
+    UTL_DBG_FREE(self.p_establish->p_fundin);
 #endif
-    free(self.p_establish);
+    UTL_DBG_FREE(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
 }
@@ -2207,7 +2207,7 @@ TEST_F(ln, recv_accept_channel_receiver1)
     self.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
-    self.p_establish = (ln_establish_t *)calloc(1, sizeof(ln_establish_t));
+    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
     self.commit_local.dust_limit_sat = 10000;    //★
     self.commit_local.channel_reserve_sat = 800;
@@ -2215,7 +2215,7 @@ TEST_F(ln, recv_accept_channel_receiver1)
     self.p_establish->cnl_open.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
-    self.p_establish->p_fundin = (ln_fundin_t *)calloc(1, sizeof(ln_fundin_t));
+    self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
     ln_fundin_t *p_fundin = self.p_establish->p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
@@ -2228,9 +2228,9 @@ TEST_F(ln, recv_accept_channel_receiver1)
 
 #ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
-    free(self.p_establish->p_fundin);
+    UTL_DBG_FREE(self.p_establish->p_fundin);
 #endif
-    free(self.p_establish);
+    UTL_DBG_FREE(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
 }
@@ -2285,7 +2285,7 @@ TEST_F(ln, recv_accept_channel_receiver2)
     self.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
-    self.p_establish = (ln_establish_t *)calloc(1, sizeof(ln_establish_t));
+    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
     self.commit_local.dust_limit_sat = 10000;
     self.commit_local.channel_reserve_sat = 800;    //★
@@ -2293,7 +2293,7 @@ TEST_F(ln, recv_accept_channel_receiver2)
     self.p_establish->cnl_open.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
-    self.p_establish->p_fundin = (ln_fundin_t *)calloc(1, sizeof(ln_fundin_t));
+    self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
     ln_fundin_t *p_fundin = self.p_establish->p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
@@ -2306,9 +2306,9 @@ TEST_F(ln, recv_accept_channel_receiver2)
 
 #ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
-    free(self.p_establish->p_fundin);
+    UTL_DBG_FREE(self.p_establish->p_fundin);
 #endif
-    free(self.p_establish);
+    UTL_DBG_FREE(self.p_establish);
     self.p_establish = NULL;
     ln_term(&self);
 }

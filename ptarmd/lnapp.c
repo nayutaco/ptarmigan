@@ -2801,7 +2801,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         payroute_print(p_conf);
 
         ln_onion_err_t onionerr;
-        ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_dataはmallocされる
+        ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_data = UTL_DBG_MALLOC()
         bool btemp = false;
         if (ret) {
             switch (onionerr.reason) {
@@ -2847,8 +2847,8 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         char *reasonstr = ln_onion_get_errstr(&onionerr);
         sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
         cmd_json_pay_result(p_fail->p_payment_hash, errstr);
-        free(reasonstr);
-        free(onionerr.p_data);
+        UTL_DBG_FREE(reasonstr);
+        UTL_DBG_FREE(onionerr.p_data);
     } else {
         //デコード失敗
         set_lasterror(p_conf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE);
@@ -3164,7 +3164,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 {
     p_conf->err = Err;
     if (p_conf->p_errstr != NULL) {
-        free(p_conf->p_errstr);
+        UTL_DBG_FREE(p_conf->p_errstr);
         p_conf->p_errstr = NULL;
     }
     if ((Err != 0) && (pErrStr != NULL)) {
@@ -3429,7 +3429,7 @@ static void payroute_print(lnapp_conf_t *p_conf)
  * @param[in,out]       p_conf
  * @param[in]           pBuf        追加対象
  * @note
- *      - pBufはshallow copyするため、呼び元でfreeしないこと
+ *      - pBufはshallow copyするため、呼び元でUTL_DBG_FREEしないこと
  */
 static void send_queue_push(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 {

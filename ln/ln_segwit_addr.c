@@ -26,39 +26,11 @@ static const char *ln_hrp_str[] = {
     "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
 };
 
-//inの先頭からinbitsずつ貯めていき、outbitsを超えるとその分をoutに代入していく
-//そのため、
-//  inbits:5
-//  in [01 0c 12 1f 1c 19 02]
-//  outbits:8
-//とした場合、out[0x0b 0x25 0xfe 0x64 0x40]が出ていく。
-//最後の0x40は最下位bitの0数はinbitsと同じなため、[0x59 0x2f 0xf3 0x22]とはならない。
-//その場合は、64bitまでであればconvert_be64()を使用する。
-static bool ln_convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* in, size_t inlen, int inbits, bool pad) {
-    uint32_t val = 0;
-    int bits = 0;
-    uint32_t maxv = (((uint32_t)1) << outbits) - 1;
-    while (inlen--) {
-        val = (val << inbits) | *(in++);
-        bits += inbits;
-        while (bits >= outbits) {
-            bits -= outbits;
-            out[(*outlen)++] = (val >> bits) & maxv;
-        }
-    }
-    if (pad) {
-        if (bits) {
-            out[(*outlen)++] = (val << (outbits - bits)) & maxv;
-        }
-    } else if (((val << (outbits - bits)) & maxv) || bits >= inbits) {
-        return false;
-    }
-    return true;
-}
-
-//inbits:5, outbits:8で64bitまで変換可能
-static uint64_t ln_convert_be64(const uint8_t *p_data, size_t dlen)
+//inbits:5, outbits:8, to u64
+static uint64_t pack_value(const uint8_t *p_data, size_t dlen)
 {
+    assert(dlen <= 8);
+
     uint64_t ret = 0;
     for (size_t lp = 0; lp < dlen; lp++) {
         ret <<= 5;
@@ -67,101 +39,93 @@ static uint64_t ln_convert_be64(const uint8_t *p_data, size_t dlen)
     return ret;
 }
 
-//inbits:8, outbits:5で64bitまで変換可能
-static int ln_convert64_to8(uint8_t *p_out, uint64_t val)
+//inbits:8, outbits:5
+static int unpack_value(uint8_t *p_out, uint64_t val)
 {
-    size_t lp;
-    for (lp = 0; lp < sizeof(val); lp++) {
-        p_out[lp] = val & 0x1f;
-        val >>= 5;
-        if (val == 0) {
-            break;
-        }
+    assert(val);
+
+    int lp;
+    uint64_t tmp = val;
+    for (lp = 0; lp < 8; lp++) {
+        tmp >>= 5;
+        if (!tmp) break;
     }
-    //swap endian
-    for (size_t lp2 = 0; lp2 < lp; lp2++) {
-        if (lp2 > lp - lp2) {
-            break;
-        }
-        uint8_t tmp = p_out[lp2];
-        p_out[lp2] = p_out[lp - lp2];
-        p_out[lp - lp2] = tmp;
+    for (int lp2 = lp; lp2 >= 0; lp2--) {
+        p_out[lp2] = val & 0x1f;
+        val >>= 5;
     }
     return lp + 1;
 }
 
-////32進数→10進数変換
-//static uint64_t convert_32(const uint8_t *p_data, size_t dlen)
-//{
-//    uint64_t ret = 0;
-//    for (size_t lp = 0; lp < dlen; lp++) {
-//        ret *= (uint64_t)32;
-//        ret += (uint64_t)p_data[lp];
-//    }
-//    return ret;
-//}
+#if 0
+static void print_tag(uint8_t tag)
+{
+    switch (tag) {
+    case 1:
+        LOGD("[payment_hash]\n");
+        break;
+    case 13:
+        LOGD("[purpose of payment(ASCII)]\n");
+        break;
+    case 19:
+        LOGD("[pubkey of payee node]\n");
+        break;
+    case 23:
+        LOGD("[purpose of payment(SHA256)]\n");
+        break;
+    case 6:
+        LOGD("[expiry second]\n");
+        break;
+    case 24:
+        LOGD("[min_final_cltv_expiry]\n");
+        break;
+    case 9:
+        LOGD("[fallback on-chain]\n");
+        break;
+    case 3:
+        LOGD("[extra routing info]\n");
+        break;
+    default:
+        LOGD("unknown tag: %02x\n", *p_tag);
+        break;
+    }
+}
+#endif
 
-static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_invoice_data)
+static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_invoice_data)
 {
     ln_invoice_t *p_invoice_data = *pp_invoice_data;
+    uint8_t tag = *p_tag;
 
     //LOGD("------------------\n");
-    uint8_t tag = *p_tag;
-    //switch (tag) {
-    //case 1:
-    //    LOGD("[payment_hash]\n");
-    //    break;
-    //case 13:
-    //    LOGD("[purpose of payment(ASCII)]\n");
-    //    break;
-    //case 19:
-    //    LOGD("[pubkey of payee node]\n");
-    //    break;
-    //case 23:
-    //    LOGD("[purpose of payment(SHA256)]\n");
-    //    break;
-    //case 6:
-    //    LOGD("[expiry second]\n");
-    //    break;
-    //case 24:
-    //    LOGD("[min_final_cltv_expiry]\n");
-    //    break;
-    //case 9:
-    //    LOGD("[Fallback on-chain]\n");
-    //    break;
-    //case 3:
-    //    LOGD("[extra routing info]\n");
-    //    break;
-    //default:
-    //    LOGD("unknown tag: %02x\n", *p_tag);
-    //    break;
-    //}
+    //print_tag(tag);
+
     int len = p_tag[1] * 0x20 + p_tag[2];
     p_tag += 3;
-    uint8_t *p_data = (uint8_t *)malloc((len * 5 + 7) / 8); //確保サイズは切り上げ
+    uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC((len * 5 + 7) / 8); //確保サイズは切り上げ
     size_t d_len = 0;
     switch (tag) {
     case 6:
         //expiry second
         {
-            p_invoice_data->expiry = (uint32_t)ln_convert_be64(p_tag, len);
+            p_invoice_data->expiry = (uint32_t)pack_value(p_tag, len);
             //LOGD("%" PRIu32 " seconds\n", p_invoice_data->expiry);
         }
         break;
     case 24:
         //min_final_cltv_expiry
         {
-            p_invoice_data->min_final_cltv_expiry = ln_convert_be64(p_tag, len);
+            p_invoice_data->min_final_cltv_expiry = pack_value(p_tag, len);
             //LOGD("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
         }
         break;
     case 3:
         //extra routing info
-        if (!ln_convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
+        if (!btc_convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
         d_len =  (len * 5) / 8;
         if (d_len < 51) return false;
         d_len /= 51;
-        p_invoice_data = (ln_invoice_t *)realloc(p_invoice_data, sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * d_len);
+        p_invoice_data = (ln_invoice_t *)UTL_DBG_REALLOC(p_invoice_data, sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * d_len);
         p_invoice_data->r_field_num = d_len;
 
         {
@@ -209,7 +173,7 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
         }
         break;
     default:
-        if (!ln_convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
+        if (!btc_convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
         d_len =  (len * 5) / 8;
         if (tag == 1) {
             memcpy(p_invoice_data->payment_hash, p_data, BTC_SZ_HASH256);
@@ -224,7 +188,7 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
         //    DUMPD(p_data, d_len);
         //}
     }
-    free(p_data);
+    UTL_DBG_FREE(p_data);
 
     *p_len = 3 + len;
     *pp_invoice_data = p_invoice_data;
@@ -266,7 +230,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 
     //timestamp
     time_t now = time(NULL);
-    datalen = ln_convert64_to8(data, now);
+    datalen = unpack_value(data, now);
 
     //tagged field
     //  1. type (5bits)
@@ -277,19 +241,19 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     data[datalen++] = 19;   // 33-byte public key of the payee node
     data[datalen++] = 1;    // 264bit ÷ 5 ≒ 53
     data[datalen++] = 21;   //      53 --(32進数)--> 32*1 + 21
-    if (!ln_convert_bits(data, &datalen, 5, p_invoice_data->pubkey, BTC_SZ_PUBKEY, 8, true)) return false;
+    if (!btc_convert_bits(data, &datalen, 5, p_invoice_data->pubkey, BTC_SZ_PUBKEY, 8, true)) return false;
 
     //payment_hash
     data[datalen++] = 1;    // 256-bit SHA256 payment_hash
     data[datalen++] = 1;    // 256bit ÷ 5 ≒ 52
     data[datalen++] = 20;   //      52 --(32進数)--> 32*1 + 20
-    if (!ln_convert_bits(data, &datalen, 5, p_invoice_data->payment_hash, BTC_SZ_HASH256, 8, true)) return false;
+    if (!btc_convert_bits(data, &datalen, 5, p_invoice_data->payment_hash, BTC_SZ_HASH256, 8, true)) return false;
 
     //short description
     data[datalen++] = 13;   // short description
     data[datalen++] = 0;    // "ptarmigan": 72bit ÷ 5 ≒ 15
     data[datalen++] = 15;   //      15 --(32進数)--> 32*0 + 15
-    if (!ln_convert_bits(data, &datalen, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, 9, 8, true)) return false;
+    if (!btc_convert_bits(data, &datalen, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, 9, 8, true)) return false;
 
     //expiry
     if (p_invoice_data->expiry != LN_INVOICE_EXPIRY) {
@@ -297,7 +261,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = 0;    // 最大32bitなので、ここは0になる
         datalen++;
 
-        int len = ln_convert64_to8(data + datalen, p_invoice_data->expiry);
+        int len = unpack_value(data + datalen, p_invoice_data->expiry);
         data[datalen - 1] = (uint8_t)len;
         datalen += len;
     }
@@ -308,7 +272,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = 0;    // 最大32bitなので、ここは0になる
         datalen++;
 
-        int len = ln_convert64_to8(data + datalen, p_invoice_data->min_final_cltv_expiry);
+        int len = unpack_value(data + datalen, p_invoice_data->min_final_cltv_expiry);
         data[datalen - 1] = (uint8_t)len;
         datalen += len;
     }
@@ -335,7 +299,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
             ln_misc_push32be(&push, r->fee_prop_millionths);
             ln_misc_push16be(&push, r->cltv_expiry_delta);
         }
-        bool ret = ln_convert_bits(data, &datalen, 5, rfield, push.pos, 8, true);
+        bool ret = btc_convert_bits(data, &datalen, 5, rfield, push.pos, 8, true);
         UTL_DBG_FREE(rfield);
         if (!ret) return false;
     }
@@ -346,7 +310,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     size_t hashdatalen = 0;
     strcpy((char *)hashdata, hrp);
     size_t hrp_len = strlen(hrp);
-    ln_convert_bits(hashdata + hrp_len, &hashdatalen, 8, data, datalen, 5, true);
+    btc_convert_bits(hashdata + hrp_len, &hashdatalen, 8, data, datalen, 5, true);
 
     //signature
     uint8_t hash[BTC_SZ_HASH256];
@@ -360,9 +324,9 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     ret = btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash);
     if (!ret) return false;
     sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
-    if (!ln_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
+    if (!btc_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
 
-    *pp_invoice = (char *)malloc(2048);
+    *pp_invoice = (char *)UTL_DBG_MALLOC(2048);
     return btc_bech32_encode(*pp_invoice, 2048, hrp, data, datalen, true);
 }
 
@@ -384,7 +348,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     time_t tm;
     uint8_t sig[65];
     size_t sig_len = 0;
-    ln_invoice_t *p_invoice_data = (ln_invoice_t *)malloc(sizeof(ln_invoice_t));
+    ln_invoice_t *p_invoice_data = (ln_invoice_t *)UTL_DBG_MALLOC(sizeof(ln_invoice_t));
 
     data_len = sizeof(data);
     if (!btc_bech32_decode(hrp_actual, sizeof(hrp_actual), data, &data_len, invoice, true)) {
@@ -448,7 +412,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
 
     //preimage
     pdata = (uint8_t *)UTL_DBG_MALLOC(((data_len - 104) * 5 + 7) / 8);
-    if (!ln_convert_bits(pdata, &pdata_len, 8, data, data_len - 104, 5, true)) {
+    if (!btc_convert_bits(pdata, &pdata_len, 8, data, data_len - 104, 5, true)) {
         UTL_DBG_FREE(pdata);
         goto LABEL_EXIT;
     }
@@ -464,7 +428,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     UTL_DBG_FREE(preimg);
 
     //signature(104 chars)
-    if (!ln_convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) {
+    if (!btc_convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) {
         goto LABEL_EXIT;
     }
     ret = btc_sig_recover_pubkey(p_invoice_data->pubkey, sig[BTC_SZ_SIGN_RS], sig, hash);
@@ -473,7 +437,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     }
 
     //timestamp(7 chars)
-    tm = (time_t)ln_convert_be64(data, 7);
+    tm = (time_t)pack_value(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
     char time[UTL_SZ_TIME_FMT_STR + 1];
     LOGD("timestamp= %" PRIu64 " : %s\n", (uint64_t)tm, utl_time_fmt(time, tm));
@@ -485,7 +449,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_invoice_data->r_field_num = 0;
     while (p_tag < p_sig) {
         size_t len;
-        ret = ln_analyze_tag(&len, p_tag, &p_invoice_data);
+        ret = analyze_tag(&len, p_tag, &p_invoice_data);
         if (!ret) {
             break;
         }
@@ -496,7 +460,7 @@ LABEL_EXIT:
     if (ret) {
         *pp_invoice_data = p_invoice_data;
     } else {
-        free(p_invoice_data);
+        UTL_DBG_FREE(p_invoice_data);
         *pp_invoice_data = NULL;
     }
     return ret;
