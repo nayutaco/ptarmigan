@@ -274,7 +274,7 @@ typedef enum {
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_SEND_QUEUE,           ///< 送信キュー保存(廃止予定)
-    LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
+    LN_CB_GET_LATEST_FEERATE,   ///< feerate_per_kw取得要求
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
 } ln_cb_t;

@@ -2693,9 +2693,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     }
 
     //feerate_per_kw更新
-    (*self->p_callback)(self, LN_CB_SET_LATEST_FEERATE, NULL);
-
-★
+    (*self->p_callback)(self, LN_CB_GET_LATEST_FEERATE, &self->feerate_per_kw);
 
     //feerate_per_kwの許容チェック
     const char *p_err = NULL;
@@ -3884,6 +3882,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret;
     ln_update_fee_t upfee;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint32_t rate;
     uint32_t old_fee;
 
     upfee.p_channel_id = channel_id;
@@ -3914,12 +3913,18 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    old_fee = self->feerate_per_kw;
+    (*self->p_callback)(self, LN_CB_GET_LATEST_FEERATE, &rate);
+    if (upfee.feerate_per_kw < (uint32_t)(rate * 0.2)) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw from current");
+        goto LABEL_EXIT;
+    }
+    if (upfee.feerate_per_kw > (uint32_t)(rate * 5)) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "too large feerate_per_kw from current");
+        goto LABEL_EXIT;
+    }
 
     //feerate_per_kw更新
-    (*self->p_callback)(self, LN_CB_SET_LATEST_FEERATE, NULL);
-
-
+    old_fee = self->feerate_per_kw;
     LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
     //M_DB_SELF_SAVE(self);    //確定するまでDB保存しない
