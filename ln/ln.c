@@ -1651,7 +1651,6 @@ bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
 
 bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
-#if 0
     LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
 
     bool ret;
@@ -1661,22 +1660,24 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
         return false;
     }
 
+    //BOLT02
+    //  The node not responsible for paying the Bitcoin fee:
+    //    MUST NOT send update_fee.
+    if (!ln_is_funder(self)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "not funder");
+        return false;
+    }
+
     ln_update_fee_t updfee;
     updfee.p_channel_id = self->channel_id;
     updfee.feerate_per_kw = FeeratePerKw;
     ret = ln_msg_update_fee_create(pUpdFee, &updfee);
-    if (ret) {
-        //self->uncommit = true;
+    if (!ret) {
+        LOGE("fail\n");
     }
 
     LOGD("END\n");
     return ret;
-#else
-#warning issue#798 `update_fee` support
-    (void)self; (void)pUpdFee; (void)FeeratePerKw;
-    LOGD("not support\n");
-    return false;
-#endif
 }
 
 
@@ -2693,6 +2694,8 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
     //feerate_per_kw更新
     (*self->p_callback)(self, LN_CB_SET_LATEST_FEERATE, NULL);
+
+★
 
     //feerate_per_kwの許容チェック
     const char *p_err = NULL;
@@ -3897,8 +3900,27 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
+    //BOLT02
+    //  A receiving node:
+    //    if the sender is not responsible for paying the Bitcoin fee:
+    //      MUST fail the channel.
+    if (ln_is_funder(self)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "not fundee");
+        goto LABEL_EXIT;
+    }
+
+    if (upfee.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw");
+        goto LABEL_EXIT;
+    }
+
     old_fee = self->feerate_per_kw;
+
+    //feerate_per_kw更新
+    (*self->p_callback)(self, LN_CB_SET_LATEST_FEERATE, NULL);
+
+
+    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
     //M_DB_SELF_SAVE(self);    //確定するまでDB保存しない
 
