@@ -1339,8 +1339,16 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     bool ret;
     cJSON *result = NULL;
+    bool tosend = false;
 
     LOGD("$$$ [JSONRPC]walletback\n");
+
+    if (params != NULL) {
+        cJSON *json = cJSON_GetArrayItem(params, 0);
+        if (json && (json->type == cJSON_Number)) {
+            tosend = (json->valueint != 0);
+        }
+    }
 
     char addr[BTC_SZ_ADDR_STR_MAX + 1];
     ret = btcrpc_getnewaddress(addr);
@@ -1356,9 +1364,12 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     char *p_result = NULL;
-    ret = wallet_from_ptarm(&p_result, addr, (uint32_t)feerate);
+    uint64_t vout_amount = 0;
+    ret = wallet_from_ptarm(&p_result, &vout_amount, tosend, addr, (uint32_t)feerate);
     if (ret) {
-        result = cJSON_CreateString(p_result);
+        result = cJSON_CreateObject();
+        cJSON_AddItemToObject(result, "txid", cJSON_CreateString(p_result));
+        cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(vout_amount));
         UTL_DBG_FREE(p_result);
     } else {
         ctx->error_code = RPCERR_WALLET_ERR;

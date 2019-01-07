@@ -1017,8 +1017,9 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
  */
 static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
-    snprintf(data, TXJSON_SIZE,
+    size_t len = 256 + strlen(pTransaction);
+    char *data = (char *)UTL_DBG_MALLOC(len);
+    snprintf(data, len,
         "{"
             ///////////////////////////////////////////
             M_RPCHEADER M_NEXT
@@ -1040,8 +1041,9 @@ static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
  */
 static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
-    snprintf(data, TXJSON_SIZE,
+    size_t len = 256 + strlen(pTransaction);
+    char *data = (char *)UTL_DBG_MALLOC(len);
+    snprintf(data, len,
         "{"
             ///////////////////////////////////////////
             M_RPCHEADER M_NEXT
@@ -1063,8 +1065,9 @@ static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult,
  */
 static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
-    snprintf(data, TXJSON_SIZE,
+    size_t len = 256 + strlen(pTransaction);
+    char *data = (char *)UTL_DBG_MALLOC(len);
+    snprintf(data, len,
         "{"
             ///////////////////////////////////////////
             M_RPCHEADER M_NEXT
