@@ -139,10 +139,15 @@
 #define M_HYSTE_CLTV_EXPIRY_SOON            (1)             ///< BOLT4 check:cltv_expiryのhysteresis
 #define M_HYSTE_CLTV_EXPIRY_FAR             (144 * 15)      ///< BOLT4 check:cltv_expiryのhysteresis(15日)
 
+//feerate: receive open_channel
 // #define M_FEERATE_CHK_MIN_OK(our,their)     ( 0.5 * (our) < 1.0 * (their))  ///< feerate_per_kwのmin判定
 // #define M_FEERATE_CHK_MAX_OK(our,their)     (10.0 * (our) > 1.0 * (their))  ///< feerate_per_kwのmax判定
 #define M_FEERATE_CHK_MIN_OK(our,their)     (true)  ///< feerate_per_kwのmin判定(ALL OK)
 #define M_FEERATE_CHK_MAX_OK(our,their)     (true)  ///< feerate_per_kwのmax判定(ALL OK)
+
+//feerate: receive update_fee
+#define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
+#define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
 
 #if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
@@ -3903,22 +3908,26 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     //  A receiving node:
     //    if the sender is not responsible for paying the Bitcoin fee:
     //      MUST fail the channel.
-    if (ln_is_funder(self)) {
+    ret = !ln_is_funder(self);
+    if (!ret) {
         M_SET_ERR(self, LNERR_INV_STATE, "not fundee");
         goto LABEL_EXIT;
     }
 
-    if (upfee.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+    ret = (upfee.feerate_per_kw >= LN_FEERATE_PER_KW_MIN);
+    if (!ret) {
         M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw");
         goto LABEL_EXIT;
     }
 
     (*self->p_callback)(self, LN_CB_GET_LATEST_FEERATE, &rate);
-    if (upfee.feerate_per_kw < (uint32_t)(rate * 0.2)) {
+    ret = M_UPDATEFEE_CHK_MIN_OK(upfee.feerate_per_kw, rate);
+    if (!ret) {
         M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw from current");
         goto LABEL_EXIT;
     }
-    if (upfee.feerate_per_kw > (uint32_t)(rate * 5)) {
+    ret = M_UPDATEFEE_CHK_MAX_OK(upfee.feerate_per_kw, rate);
+    if (!ret) {
         M_SET_ERR(self, LNERR_INV_VALUE, "too large feerate_per_kw from current");
         goto LABEL_EXIT;
     }

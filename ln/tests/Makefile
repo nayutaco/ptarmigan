@@ -7,7 +7,8 @@ RM := rm -rf
 
 TEST_TARGET_SRC += \
 	test_main.cpp \
-	test_ln.cpp
+	test_ln.cpp \
+	test_ln_updatefee.cpp
 
 include ../../options.mak
 
