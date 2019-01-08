@@ -154,7 +154,7 @@ public:
         case LN_CB_CLOSED: p_str = "LN_CB_CLOSED"; break;
         case LN_CB_SEND_REQ: p_str = "LN_CB_SEND_REQ"; break;
         case LN_CB_SEND_QUEUE: p_str = "LN_CB_SEND_QUEUE"; break;
-        case LN_CB_SET_LATEST_FEERATE: p_str = "LN_CB_SET_LATEST_FEERATE"; break;
+        case LN_CB_GET_LATEST_FEERATE: p_str = "LN_CB_GET_LATEST_FEERATE"; break;
         case LN_CB_GETBLOCKCOUNT: p_str = "LN_CB_GETBLOCKCOUNT"; break;
         default:
             p_str = "unknown";
@@ -1936,8 +1936,9 @@ TEST_F(ln, recv_open_channel_ok)
     class dummy {
     public:
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            if (type == LN_CB_SET_LATEST_FEERATE) {
-                self->feerate_per_kw = 500;
+            if (type == LN_CB_GET_LATEST_FEERATE) {
+                uint32_t *p = (uint32_t *)p_param;
+                *p = 500;
                 callback_called++;
             }
         }
@@ -1989,8 +1990,9 @@ TEST_F(ln, recv_open_channel_sender1)
     class dummy {
     public:
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            if (type == LN_CB_SET_LATEST_FEERATE) {
-                self->feerate_per_kw = 500;
+            if (type == LN_CB_GET_LATEST_FEERATE) {
+                uint32_t *p = (uint32_t *)p_param;
+                *p = 500;
                 callback_called++;
             }
         }
@@ -2043,8 +2045,9 @@ TEST_F(ln, recv_open_channel_sender2)
     class dummy {
     public:
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            if (type == LN_CB_SET_LATEST_FEERATE) {
-                self->feerate_per_kw = 500;
+            if (type == LN_CB_GET_LATEST_FEERATE) {
+                uint32_t *p = (uint32_t *)p_param;
+                *p = 500;
                 callback_called++;
             }
         }

@@ -112,6 +112,12 @@ extern "C" {
 // self.anno_flag
 #define LN_ANNO_FLAG_END                (0x80)      ///< 1:announcement_signatures交換済み
 
+//self.fund_flag
+#define LN_FUNDFLAG_FUNDER              (1 << 0)    ///< 1:funder / 0:fundee
+#define LN_FUNDFLAG_ANNO_CH             (1 << 1)    ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
+#define LN_FUNDFLAG_FUNDING             (1 << 2)    ///< 1:open_channel～funding_lockedまで
+#define LN_FUNDFLAG_OPENED              (1 << 7)    ///< 1:opened
+
 // revoked transaction closeされたときの self->p_revoked_vout, p_revoked_witのインデックス値
 #define LN_RCLOSE_IDX_TOLOCAL           (0)         ///< to_local
 #define LN_RCLOSE_IDX_TOREMOTE          (1)         ///< to_remote
@@ -239,13 +245,9 @@ typedef enum {
 
 /** @enum   ln_fundflag_t
  *  @brief  self->fund_flag
+ *  @note   LN_FUNDFLAG_xxx
  */
-typedef enum {
-    LN_FUNDFLAG_FUNDER      = 0x01,     ///< true:funder / false:fundee
-    LN_FUNDFLAG_ANNO_CH     = 0x02,     ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
-    LN_FUNDFLAG_FUNDING     = 0x04,     ///< 1:open_channel～funding_lockedまで
-    LN_FUNDFLAG_OPENED      = 0x80      ///< 1:opened
-} ln_fundflag_t;
+typedef uint8_t ln_fundflag_t;
 
 
 /** @enum   ln_cb_t
@@ -274,7 +276,7 @@ typedef enum {
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_SEND_QUEUE,           ///< 送信キュー保存(廃止予定)
-    LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
+    LN_CB_GET_LATEST_FEERATE,   ///< feerate_per_kw取得要求
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
 } ln_cb_t;

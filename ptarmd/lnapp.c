@@ -188,7 +188,7 @@ static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param);
-static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
+static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
@@ -2202,7 +2202,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_CLOSED: closing_signed receive(same fee)", cb_closed },
         { "  LN_CB_SEND_REQ: send request", cb_send_req },
         { "  LN_CB_SEND_QUEUE: add send queue", cb_send_queue },
-        { "  LN_CB_SET_LATEST_FEERATE: feerate_per_kw update", cb_set_latest_feerate },
+        { "  LN_CB_GET_LATEST_FEERATE: get feerate_per_kw", cb_get_latest_feerate },
         { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
     };
 
@@ -3004,13 +3004,12 @@ static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_SET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw更新(DB保存しない)
-static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
+//LN_CB_GET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw取得
+static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_param;
+    uint32_t *p_rate = (uint32_t *)p_param;
 
-    uint32_t feerate_kw = monitoring_get_latest_feerate_kw();
-    ln_feerate_per_kw_set(p_conf->p_self, feerate_kw);
+    *p_rate = monitoring_get_latest_feerate_kw();
 }
 
 

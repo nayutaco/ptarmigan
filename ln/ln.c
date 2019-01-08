@@ -139,10 +139,15 @@
 #define M_HYSTE_CLTV_EXPIRY_SOON            (1)             ///< BOLT4 check:cltv_expiryのhysteresis
 #define M_HYSTE_CLTV_EXPIRY_FAR             (144 * 15)      ///< BOLT4 check:cltv_expiryのhysteresis(15日)
 
+//feerate: receive open_channel
 // #define M_FEERATE_CHK_MIN_OK(our,their)     ( 0.5 * (our) < 1.0 * (their))  ///< feerate_per_kwのmin判定
 // #define M_FEERATE_CHK_MAX_OK(our,their)     (10.0 * (our) > 1.0 * (their))  ///< feerate_per_kwのmax判定
 #define M_FEERATE_CHK_MIN_OK(our,their)     (true)  ///< feerate_per_kwのmin判定(ALL OK)
 #define M_FEERATE_CHK_MAX_OK(our,their)     (true)  ///< feerate_per_kwのmax判定(ALL OK)
+
+//feerate: receive update_fee
+#define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
+#define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
 
 #if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
@@ -1651,7 +1656,6 @@ bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
 
 bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
-#if 0
     LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
 
     bool ret;
@@ -1661,22 +1665,24 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
         return false;
     }
 
+    //BOLT02
+    //  The node not responsible for paying the Bitcoin fee:
+    //    MUST NOT send update_fee.
+    if (!ln_is_funder(self)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "not funder");
+        return false;
+    }
+
     ln_update_fee_t updfee;
     updfee.p_channel_id = self->channel_id;
     updfee.feerate_per_kw = FeeratePerKw;
     ret = ln_msg_update_fee_create(pUpdFee, &updfee);
-    if (ret) {
-        //self->uncommit = true;
+    if (!ret) {
+        LOGE("fail\n");
     }
 
     LOGD("END\n");
     return ret;
-#else
-#warning issue#798 `update_fee` support
-    (void)self; (void)pUpdFee; (void)FeeratePerKw;
-    LOGD("not support\n");
-    return false;
-#endif
 }
 
 
@@ -2692,7 +2698,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     }
 
     //feerate_per_kw更新
-    (*self->p_callback)(self, LN_CB_SET_LATEST_FEERATE, NULL);
+    (*self->p_callback)(self, LN_CB_GET_LATEST_FEERATE, &self->feerate_per_kw);
 
     //feerate_per_kwの許容チェック
     const char *p_err = NULL;
@@ -3881,6 +3887,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret;
     ln_update_fee_t upfee;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint32_t rate;
     uint32_t old_fee;
 
     upfee.p_channel_id = channel_id;
@@ -3897,8 +3904,37 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
+    //BOLT02
+    //  A receiving node:
+    //    if the sender is not responsible for paying the Bitcoin fee:
+    //      MUST fail the channel.
+    ret = !ln_is_funder(self);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_INV_STATE, "not fundee");
+        goto LABEL_EXIT;
+    }
+
+    ret = (upfee.feerate_per_kw >= LN_FEERATE_PER_KW_MIN);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw");
+        goto LABEL_EXIT;
+    }
+
+    (*self->p_callback)(self, LN_CB_GET_LATEST_FEERATE, &rate);
+    ret = M_UPDATEFEE_CHK_MIN_OK(upfee.feerate_per_kw, rate);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw from current");
+        goto LABEL_EXIT;
+    }
+    ret = M_UPDATEFEE_CHK_MAX_OK(upfee.feerate_per_kw, rate);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "too large feerate_per_kw from current");
+        goto LABEL_EXIT;
+    }
+
+    //feerate_per_kw更新
     old_fee = self->feerate_per_kw;
+    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
     //M_DB_SELF_SAVE(self);    //確定するまでDB保存しない
 
