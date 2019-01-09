@@ -6,9 +6,12 @@ MK := mkdir
 RM := rm -rf
 
 TEST_TARGET_SRC += \
-	test_main.cpp \
+	test_ln_bolt.cpp \
+	test_ln_htlcflag.cpp \
 	test_ln.cpp \
-	test_ln_updatefee.cpp
+	test_ln_updatefee.cpp \
+	test_ln_misc.cpp \
+	test_ln_bech32.cpp
 
 include ../../options.mak
 
@@ -78,6 +81,7 @@ clean:
 
 clobber: clean
 	make -C $(GTEST_DIR) clean
+	$(RM) $(OBJECT_DIRECTORY) *.gcno
 
 exec: rmlcov
 	$(RM) $(OBJECT_DIRECTORY)/lcov.info
