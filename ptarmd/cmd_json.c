@@ -1316,7 +1316,12 @@ static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id
     LOGD("$$$ [JSONRPC]estimatefundingfee\n");
 
     if (feerate_per_kw == 0) {
-        feerate_per_kw = monitoring_get_latest_feerate_kw();
+        feerate_per_kw = ptarmd_get_latest_feerate_kw();
+    }
+    if (feerate_per_kw == 0) {
+        ctx->error_code = RPCERR_BLOCKCHAIN;
+        ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
+        goto LABEL_EXIT;
     }
     uint64_t fee = ln_estimate_fundingtx_fee(feerate_per_kw);
     result = cJSON_CreateNumber64(fee);
@@ -1597,7 +1602,10 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 
     uint32_t feerate_per_kw = pFund->feerate_per_kw;
     if (feerate_per_kw == 0) {
-        feerate_per_kw = monitoring_get_latest_feerate_kw();
+        feerate_per_kw = ptarmd_get_latest_feerate_kw();
+    }
+    if (feerate_per_kw == 0) {
+        return RPCERR_BLOCKCHAIN;
     }
     uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
     if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {

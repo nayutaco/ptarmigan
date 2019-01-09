@@ -173,7 +173,9 @@ public:
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
+
         ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
+        self->init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
         self->commit_local.dust_limit_sat = BTC_DUST_LIMIT;
         self->commit_local.htlc_minimum_msat = 0;
         self->commit_local.max_accepted_htlcs = 10;
@@ -187,6 +189,20 @@ public:
         self->p_callback = LnCallbackType;
         memcpy(self->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     }
+    static void LnInitSend(ln_self_t *self)
+    {
+        LnInit(self);
+
+        self->fund_flag = LN_FUNDFLAG_FUNDER;
+        ln_msg_update_fee_create_fake.return_val = true;
+    }
+    static void LnInitRecv(ln_self_t *self)
+    {
+        LnInit(self);
+
+        self->fund_flag = 0;
+        ln_msg_update_fee_create_fake.return_val = true;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -195,12 +211,7 @@ public:
 TEST_F(ln, create_updatefee_ok)
 {
     ln_self_t self;
-    LnInit(&self);
-
-    self.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV;
-    self.fund_flag = LN_FUNDFLAG_FUNDER;
-
-    ln_msg_update_fee_create_fake.return_val = true;
+    LnInitSend(&self);
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
@@ -214,12 +225,9 @@ TEST_F(ln, create_updatefee_ok)
 TEST_F(ln, create_updatefee_noinit_send)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitSend(&self);
 
-    self.init_flag = M_INIT_FLAG_RECV;
-    self.fund_flag = LN_FUNDFLAG_FUNDER;
-
-    ln_msg_update_fee_create_fake.return_val = true;
+    self.init_flag = M_INIT_FLAG_SEND | /*M_INIT_FLAG_RECV |*/ M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
@@ -233,12 +241,41 @@ TEST_F(ln, create_updatefee_noinit_send)
 TEST_F(ln, create_updatefee_noinit_recv)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitSend(&self);
 
-    self.init_flag = M_INIT_FLAG_SEND;
-    self.fund_flag = LN_FUNDFLAG_FUNDER;
+    self.init_flag = /*M_INIT_FLAG_SEND |*/ M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
 
-    ln_msg_update_fee_create_fake.return_val = true;
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
+    ASSERT_FALSE(ret);
+
+    utl_buf_free(&buf_bolt);
+    ln_term(&self);
+}
+
+//not init
+TEST_F(ln, create_updatefee_noinit_reest_recv)
+{
+    ln_self_t self;
+    LnInitSend(&self);
+
+    self.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND /*| M_INIT_FLAG_REEST_RECV*/;
+
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
+    ASSERT_FALSE(ret);
+
+    utl_buf_free(&buf_bolt);
+    ln_term(&self);
+}
+
+//not init
+TEST_F(ln, create_updatefee_noinit_reest_send)
+{
+    ln_self_t self;
+    LnInitSend(&self);
+
+    self.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV /*| M_INIT_FLAG_REEST_SEND */| M_INIT_FLAG_REEST_RECV;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
@@ -252,12 +289,9 @@ TEST_F(ln, create_updatefee_noinit_recv)
 TEST_F(ln, create_updatefee_noinit_both)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitSend(&self);
 
     self.init_flag = 0;
-    self.fund_flag = LN_FUNDFLAG_FUNDER;
-
-    ln_msg_update_fee_create_fake.return_val = true;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
@@ -271,12 +305,9 @@ TEST_F(ln, create_updatefee_noinit_both)
 TEST_F(ln, create_updatefee_fundee)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitSend(&self);
 
-    self.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV;
     self.fund_flag = 0;
-
-    ln_msg_update_fee_create_fake.return_val = true;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
@@ -290,10 +321,7 @@ TEST_F(ln, create_updatefee_fundee)
 TEST_F(ln, create_updatefee_create)
 {
     ln_self_t self;
-    LnInit(&self);
-
-    self.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV;
-    self.fund_flag = LN_FUNDFLAG_FUNDER;
+    LnInitSend(&self);
 
     ln_msg_update_fee_create_fake.return_val = false;
 
@@ -309,7 +337,7 @@ TEST_F(ln, create_updatefee_create)
 TEST_F(ln, recv_updatefee_ok)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -330,8 +358,6 @@ TEST_F(ln, recv_updatefee_ok)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    self.fund_flag = 0;     //fundee
-
     bool ret = recv_update_fee(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
@@ -344,7 +370,7 @@ TEST_F(ln, recv_updatefee_ok)
 TEST_F(ln, recv_updatefee_decode)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -365,8 +391,6 @@ TEST_F(ln, recv_updatefee_decode)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    self.fund_flag = 0;     //fundee
-
     bool ret = recv_update_fee(&self, NULL, 0);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, callback_called);
@@ -378,7 +402,7 @@ TEST_F(ln, recv_updatefee_decode)
 TEST_F(ln, recv_updatefee_channelid)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -400,8 +424,6 @@ TEST_F(ln, recv_updatefee_channelid)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    self.fund_flag = 0;     //fundee
-
     bool ret = recv_update_fee(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
@@ -412,7 +434,7 @@ TEST_F(ln, recv_updatefee_channelid)
 TEST_F(ln, recv_updatefee_funder)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -445,7 +467,7 @@ TEST_F(ln, recv_updatefee_funder)
 TEST_F(ln, recv_updatefee_min)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -466,8 +488,6 @@ TEST_F(ln, recv_updatefee_min)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    self.fund_flag = 0;     //fundee
-
     bool ret = recv_update_fee(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
@@ -478,7 +498,7 @@ TEST_F(ln, recv_updatefee_min)
 TEST_F(ln, recv_updatefee_low)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -502,8 +522,6 @@ TEST_F(ln, recv_updatefee_low)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    self.fund_flag = 0;     //fundee
-
     bool ret = recv_update_fee(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
@@ -514,7 +532,7 @@ TEST_F(ln, recv_updatefee_low)
 TEST_F(ln, recv_updatefee_hi)
 {
     ln_self_t self;
-    LnInit(&self);
+    LnInitRecv(&self);
 
     static int callback_called = 0;
     class dummy {
@@ -537,8 +555,6 @@ TEST_F(ln, recv_updatefee_hi)
     };
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
-
-    self.fund_flag = 0;     //fundee
 
     bool ret = recv_update_fee(&self, NULL, 0);
     ASSERT_FALSE(ret);

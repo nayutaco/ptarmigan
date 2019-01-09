@@ -143,7 +143,7 @@ static void set_channels(void);
  * entry point
  ********************************************************************/
 
-int ptarmd_start(uint16_t my_rpcport)
+int ptarmd_start(uint16_t RpcPort)
 {
     bool bret;
     ln_nodeaddr_t *p_addr = ln_node_addr();
@@ -215,7 +215,7 @@ int ptarmd_start(uint16_t my_rpcport)
     }
 
     //ptarmcli受信用
-    cmd_json_start(my_rpcport != 0 ? my_rpcport : p_addr->port + 1);
+    cmd_json_start(RpcPort != 0 ? RpcPort : p_addr->port + 1);
 
     //ptarmd_stop()待ち
 
@@ -495,6 +495,34 @@ const char *ptarmd_error_cstr(int ErrCode)
     }
 
     return p_str;
+}
+
+
+uint32_t ptarmd_get_latest_feerate_kw(void)
+{
+    //estimate fee
+    uint32_t feerate_kw;
+    uint64_t feerate_kb = 0;
+    bool ret = btcrpc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
+    if (ret) {
+        feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
+        if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
+            // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
+            //      https://github.com/ElementsProject/lightning/issues/1443
+            //      https://github.com/ElementsProject/lightning/issues/1391
+            //LOGD("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
+            feerate_kw = LN_FEERATE_PER_KW_MIN;
+        }
+        LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
+    } else if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
+        LOGD("regtest\n");
+        feerate_kw = LN_FEERATE_PER_KW;
+    } else {
+        LOGD("fail: estimatefee\n");
+        feerate_kw = 0;
+    }
+
+    return feerate_kw;
 }
 
 

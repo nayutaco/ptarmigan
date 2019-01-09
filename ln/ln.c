@@ -107,7 +107,14 @@
 // ln_self_t.init_flag
 #define M_INIT_FLAG_SEND                    (0x01)
 #define M_INIT_FLAG_RECV                    (0x02)
-#define M_INIT_FLAG_EXCHNAGED(flag)         (((flag) & (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)) == (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV))
+#define M_INIT_FLAG_EXCG                    (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)
+#define M_INIT_FLAG_EXCHNAGED(flag)         (((flag) & M_INIT_FLAG_EXCG) == M_INIT_FLAG_EXCG)
+#define M_INIT_FLAG_REEST_SEND              (0x04)
+#define M_INIT_FLAG_REEST_RECV              (0x08)
+#define M_INIT_FLAG_REEST_EXCG              (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV)
+#define M_INIT_FLAG_REEST_EXCHNAGED(flag)   (((flag) & M_INIT_FLAG_REEST_EXCG) == M_INIT_FLAG_REEST_EXCG)
+#define M_INIT_FLAG_ALL                     (M_INIT_FLAG_EXCG | M_INIT_FLAG_REEST_EXCG)
+#define M_INIT_CH_EXCHANGED(flag)           (((flag) & M_INIT_FLAG_ALL) == M_INIT_FLAG_ALL)
 
 // ln_self_t.anno_flag
 #define M_ANNO_FLAG_SEND                    (0x01)          ///< announcement_signatures送信済み
@@ -201,7 +208,7 @@ typedef bool (*pRecvFunc_t)(ln_self_t *self,const uint8_t *pData, uint16_t Len);
 
 static void channel_clear(ln_self_t *self);
 static void recv_idle_proc_final(ln_self_t *self);
-static void recv_idle_proc_nonfinal(ln_self_t *self);
+static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw);
 static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len);
@@ -714,7 +721,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 }
 
 
-void ln_recv_idle_proc(ln_self_t *self)
+void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw)
 {
     int htlc_num = 0;
     bool b_final = true;    //true: HTLCの追加から反映までが完了した状態
@@ -730,13 +737,18 @@ void ln_recv_idle_proc(ln_self_t *self)
             }
         }
     }
-    if (htlc_num == 0) {
+    if ( (htlc_num == 0) &&
+         ((self->feerate_per_kw == 0) || (self->feerate_per_kw == FeeratePerKw))) {
         return;
+    }
+    if (htlc_num == 0) {
+        LOGD("$$$ update_fee: %" PRIu32 "(%" PRIu32 ")\n", FeeratePerKw, self->feerate_per_kw);
+        b_final = false;
     }
     if (b_final) {
         recv_idle_proc_final(self);
     } else {
-        recv_idle_proc_nonfinal(self);
+        recv_idle_proc_nonfinal(self, FeeratePerKw);
     }
 }
 
@@ -807,6 +819,9 @@ bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
     }
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
+    if (ret) {
+        self->init_flag |= M_INIT_FLAG_REEST_SEND;
+    }
     return ret;
 }
 
@@ -955,6 +970,10 @@ bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked)
     cnl_funding_locked.p_channel_id = self->channel_id;
     cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
+    if (ret) {
+        //channel_reestablishと同じ扱いにする
+        self->init_flag |= M_INIT_FLAG_REEST_SEND;
+    }
 
     M_DBG_COMMITNUM(self);
 
@@ -1660,8 +1679,8 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
 
     bool ret;
 
-    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
+    if (!M_INIT_CH_EXCHANGED(self->init_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "no init/channel_reestablish finished");
         return false;
     }
 
@@ -1673,11 +1692,18 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
         return false;
     }
 
+    if (self->feerate_per_kw == FeeratePerKw) {
+        //same
+        return false;
+    }
+
     ln_update_fee_t updfee;
     updfee.p_channel_id = self->channel_id;
     updfee.feerate_per_kw = FeeratePerKw;
     ret = ln_msg_update_fee_create(pUpdFee, &updfee);
-    if (!ret) {
+    if (ret) {
+        self->feerate_per_kw = FeeratePerKw;
+    } else {
         LOGE("fail\n");
     }
 
@@ -2402,7 +2428,7 @@ static void recv_idle_proc_final(ln_self_t *self)
  *
  * HTLCとして有効だが、commitment_signed/revoke_and_ackの送受信が完了していないものがある
  */
-static void recv_idle_proc_nonfinal(ln_self_t *self)
+static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
 {
     bool b_comsiging = false;   //true: commitment_signed〜revoke_and_ackの途中
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -2422,6 +2448,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self)
     }
 
     bool b_comsig = false;      //true: commitment_signed送信可能
+    bool b_updfee = false;      //true: update_fee送信
     if (!b_comsiging) {
         for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
@@ -2474,24 +2501,37 @@ static void recv_idle_proc_nonfinal(ln_self_t *self)
             }
         }
     }
-    if (b_comsig) {
+    if (!b_comsig && (self->feerate_per_kw != FeeratePerKw)) {
+        utl_buf_t buf_bolt = UTL_BUF_INIT;
+        bool ret = ln_update_fee_create(self, &buf_bolt, FeeratePerKw);
+        if (ret) {
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+            b_updfee = true;
+        }
+        utl_buf_free(&buf_bolt);
+    }
+    if (b_comsig || b_updfee) {
         //commitment_signed送信
         utl_buf_t buf_bolt = UTL_BUF_INIT;
         bool ret = create_commitment_signed(self, &buf_bolt);
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
 
-            //commitment_signed送信済みフラグ
-            for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-                ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
-                if ( LN_HTLC_ENABLE(p_htlc) &&
-                    ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
-                    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
-                    LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ||
-                    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ) ) {
-                    LOGD(" [%d]comsend=1\n", idx);
-                    p_htlc->stat.flag.comsend = 1;
+            if (b_comsig) {
+                //commitment_signed送信済みフラグ
+                for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+                    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
+                    if ( LN_HTLC_ENABLE(p_htlc) &&
+                        ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ) ) {
+                        LOGD(" [%d]comsend=1\n", idx);
+                        p_htlc->stat.flag.comsend = 1;
+                    }
                 }
+            } else {
+                LOGD("$$$ commitment_signed for update_fee\n");
             }
 
             M_DBG_COMMITNUM(self);
@@ -3097,6 +3137,9 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     M_DB_SELF_SAVE(self);
 
     (*self->p_callback)(self, LN_CB_FUNDINGLOCKED_RECV, NULL);
+
+    //channel_reestablishと同じ扱いにする
+    self->init_flag |= M_INIT_FLAG_REEST_RECV;
 
     M_DBG_COMMITNUM(self);
 
@@ -4120,6 +4163,9 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
 LABEL_EXIT:
+    if (ret) {
+        self->init_flag |= M_INIT_FLAG_REEST_RECV;
+    }
     return ret;
 }
 

@@ -36,7 +36,7 @@ FAKE_VALUE_FUNC(lnapp_conf_t*, ptarmd_search_connected_nodeid, const uint8_t*);
 FAKE_VALUE_FUNC(lnapp_conf_t*, ptarmd_search_transferable_nodeid, const uint8_t*);
 FAKE_VALUE_FUNC(bool, ptarmd_nodefail_get, const uint8_t*, const char*, uint16_t, ln_nodedesc_t, bool);
 FAKE_VALUE_FUNC(char*, ptarmd_error_str, int);
-FAKE_VALUE_FUNC(uint32_t, monitoring_get_latest_feerate_kw);
+FAKE_VALUE_FUNC(uint32_t, ptarmd_get_latest_feerate_kw);
 FAKE_VALUE_FUNC(bool, monitor_close_unilateral_local, ln_self_t*, void*);
 FAKE_VALUE_FUNC(int, cmd_json_connect, const uint8_t*, const char*, uint16_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay, const char*, uint64_t);
@@ -82,7 +82,7 @@ protected:
         RESET_FAKE(ptarmd_search_connected_cnl);
         RESET_FAKE(ptarmd_nodefail_get);
         RESET_FAKE(ptarmd_error_str);
-        RESET_FAKE(monitoring_get_latest_feerate_kw);
+        RESET_FAKE(ptarmd_get_latest_feerate_kw);
         RESET_FAKE(monitor_close_unilateral_local);
         RESET_FAKE(cmd_json_connect);
         RESET_FAKE(cmd_json_pay);
