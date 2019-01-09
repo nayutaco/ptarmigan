@@ -582,13 +582,6 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     int index = 0;
     uint32_t min_final_cltv_expiry;
 
-    int cnt = p2p_cli_connected_peer() + p2p_svr_connected_peer();
-    if (cnt == 0) {
-        //未接続の場合はinvoiceを作らなくても良いだろう
-        err = RPCERR_NOCONN;
-        goto LABEL_EXIT;
-    }
-
     if (params == NULL) {
         goto LABEL_EXIT;
     }
