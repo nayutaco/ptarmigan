@@ -2458,7 +2458,7 @@ LABEL_EXIT:
  */
 ln_db_routeskip_t ln_db_routeskip_search(uint64_t ShortChannelId)
 {
-    ln_db_routeskip_t result = LN_DB_ROUTESKIP_ERROR;
+    ln_db_routeskip_t result = LN_DB_ROUTESKIP_NONE;
     int         retval;
     MDB_txn     *txn;
     MDB_dbi     dbi;
