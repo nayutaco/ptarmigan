@@ -33,18 +33,18 @@ extern "C" {
 #undef LOG_TAG
 #include "ln_derkey.c"
 #include "ln_misc.c"
-#include "ln_msg_anno.c"
-#include "ln_msg_close.c"
-#include "ln_msg_establish.c"
+// #include "ln_msg_anno.c"
+// #include "ln_msg_close.c"
+// #include "ln_msg_establish.c"
 //#include "ln_msg_normalope.c"
-#include "ln_msg_setupctl.c"
+// #include "ln_msg_setupctl.c"
 #include "ln_node.c"
-#include "ln_onion.c"
-#include "ln_script.c"
+// #include "ln_onion.c"
+// #include "ln_script.c"
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
-#include "ln_segwit_addr.c"
-#include "ln_print.c"
+// #include "ln_segwit_addr.c"
+// #include "ln_print.c"
 
 #include "ln.c"
 }
@@ -83,7 +83,7 @@ namespace LN_DUMMY {
 class ln: public testing::Test {
 protected:
     virtual void SetUp() {
-        utl_log_init_stderr();
+        //utl_log_init_stderr();
         RESET_FAKE(ln_db_preimg_cur_close)
         RESET_FAKE(ln_db_annocnlupd_load)
         RESET_FAKE(ln_db_preimg_del)
