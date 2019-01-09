@@ -1443,8 +1443,9 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
  * Normal Operationの処理を進める
  *
  * @param[in,out]       self            channel info
+ * @param[in]           FeeratePerKw    latest feerate_per_kw
  */
-void ln_recv_idle_proc(ln_self_t *self);
+void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw);
 
 
 /** initメッセージ作成

@@ -29,6 +29,7 @@
 #define LOG_TAG     "btcrpc"
 #include "utl_log.h"
 #include "utl_dbg.h"
+#include "utl_mem.h"
 #include "utl_str.h"
 
 #include "btc_script.h"

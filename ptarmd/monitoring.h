@@ -60,13 +60,6 @@ void monitor_stop(void);
 void monitor_disable_autoconn(bool bDisable);
 
 
-/** 最新のfeerate_per_kw取得
- *
- * @return      bitcoind estimatesmartfeeから算出したfeerate_per_kw
- */
-uint32_t monitoring_get_latest_feerate_kw(void);
-
-
 /** feerate_per_kw設定
  * 次回のfeerate更新周期で使用するfeerate_per_kwを手動設定する。
  * 0を指定した場合、bitcoind estimatesmartfeeから自動計算する。

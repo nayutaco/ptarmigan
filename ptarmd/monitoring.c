@@ -119,9 +119,13 @@ void *monitor_thread_start(void *pArg)
 
         monparam_t param;
         if (mFeeratePerKw == 0) {
-            param.feerate_per_kw = monitoring_get_latest_feerate_kw();
+            param.feerate_per_kw = ptarmd_get_latest_feerate_kw();
         } else {
             param.feerate_per_kw = mFeeratePerKw;
+        }
+        if (param.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+            LOGE("fail: feerate_per_kw\n");
+            continue;
         }
         bool ret = btcrpc_getblockcount(&param.height);
         if (ret) {
@@ -143,32 +147,6 @@ void monitor_stop(void)
 void monitor_disable_autoconn(bool bDisable)
 {
     mDisableAutoConn = bDisable;
-}
-
-
-uint32_t monitoring_get_latest_feerate_kw(void)
-{
-    //estimate fee
-    uint32_t feerate_kw;
-    uint64_t feerate_kb = 0;
-    bool ret = btcrpc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
-    if (ret) {
-        feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
-    } else {
-        LOGD("fail: estimatefee\n");
-        feerate_kw = LN_FEERATE_PER_KW;
-    }
-    LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
-    if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
-        // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
-        // 毎回変更が手間になるため、値を合わせる。
-        //      https://github.com/ElementsProject/lightning/issues/1443
-        //      https://github.com/ElementsProject/lightning/issues/1391
-        //LOGD("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
-        feerate_kw = LN_FEERATE_PER_KW_MIN;
-    }
-
-    return feerate_kw;
 }
 
 
@@ -361,11 +339,8 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
     } else if (p_app_conf != NULL) {
         //socket接続済みであれば、feerate_per_kwチェック
         //  当面、feerate_per_kwを手動で変更した場合のみとする
-        if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != p_prm->feerate_per_kw)) {
-            LOGD("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), p_prm->feerate_per_kw);
-            pthread_mutex_lock(&p_app_conf->mux_self);
-            lnapp_send_updatefee(p_app_conf, p_prm->feerate_per_kw);
-            pthread_mutex_unlock(&p_app_conf->mux_self);
+        if ((ln_status_get(self) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
+            lnapp_set_feerate(p_app_conf, p_prm->feerate_per_kw);
         }
     } else {
         //LOGD("No Auto connect mode\n");

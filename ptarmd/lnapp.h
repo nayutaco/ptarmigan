@@ -113,7 +113,9 @@ typedef struct lnapp_conf_t {
     uint64_t        last_annocnl_sci;                   ///< [#send_channel_anno()]最後にcur_getしたchannel_announcementのshort_channel_id
     bool            annodb_updated;                     ///< true: flag to notify annodb update
     bool            annodb_cont;                        ///< true: announcement連続送信中
-    time_t          annodb_stamp;                       ///< last annodb_updated change true
+    time_t          annodb_stamp;                       ///< last annodb_updated change time
+
+    uint32_t        feerate_per_kw;
 
     int             err;            ///< last error
     char            *p_errstr;      ///< last error string(UTL_DBG_MALLOC)
@@ -179,13 +181,12 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId);
  * fee関連
  *******************************************/
 
-/** [lnapp]update_fee送信
+/** [lnapp]feerate_per_kw更新
  *
  * @param[in,out]   pAppConf
  * @param[in]       FeeratePerKw
- * @retval  true    成功
  */
-bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw);
+void lnapp_set_feerate(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw);
 
 
 /*******************************************

@@ -494,37 +494,16 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
  * fee関連
  *******************************************/
 
-bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
+void lnapp_set_feerate(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
 {
-    if (!pAppConf->loop) {
-        //LOGD("This AppConf not working\n");
-        return false;
+    if ((pAppConf->flag_recv & RECV_MSG_END) == 0) {
+        return;
     }
 
-    DBGTRACE_BEGIN
+    LOGD("feerate=%" PRIu32 "\n", FeeratePerKw);
     pthread_mutex_lock(&pAppConf->mux_self);
-
-    bool ret;
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_self_t *p_self = pAppConf->p_self;
-
-    ret = ln_update_fee_create(p_self, &buf_bolt, FeeratePerKw);
-    if (ret) {
-        uint32_t oldrate = ln_feerate_per_kw(p_self);
-        ln_feerate_per_kw_set(p_self, FeeratePerKw);
-        send_peer_noise(pAppConf, &buf_bolt);
-        utl_buf_free(&buf_bolt);
-        ptarmd_eventlog(ln_channel_id(p_self),
-                "updatefee send: %" PRIu32 " --> %" PRIu32,
-                oldrate, FeeratePerKw);
-    } else {
-        ptarmd_eventlog(ln_channel_id(p_self), "fail updatefee");
-    }
-
+    pAppConf->feerate_per_kw = FeeratePerKw;    //use #rcvidle_pop_and_exec()
     pthread_mutex_unlock(&pAppConf->mux_self);
-    DBGTRACE_END
-
-    return ret;
 }
 
 
@@ -834,6 +813,7 @@ static void *thread_main_start(void *pArg)
     p_conf->annodb_stamp = 0;
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
+    p_conf->feerate_per_kw = ptarmd_get_latest_feerate_kw();
     utl_buf_init(&p_conf->buf_sendque);
     LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
@@ -1451,7 +1431,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
-            feerate_kw = monitoring_get_latest_feerate_kw();
+            feerate_kw = p_conf->feerate_per_kw;
         } else {
             feerate_kw = pFunding->feerate_per_kw;
         }
@@ -3008,8 +2988,7 @@ static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param)
 static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
 {
     uint32_t *p_rate = (uint32_t *)p_param;
-
-    *p_rate = monitoring_get_latest_feerate_kw();
+    *p_rate = p_conf->feerate_per_kw;
 }
 
 
@@ -3231,7 +3210,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     pthread_mutex_lock(&p_conf->mux_rcvidle);
 
     pthread_mutex_lock(&p_conf->mux_self);
-    ln_recv_idle_proc(p_conf->p_self);
+    ln_recv_idle_proc(p_conf->p_self, p_conf->feerate_per_kw);
     pthread_mutex_unlock(&p_conf->mux_self);
 
     struct rcvidlelist_t *p_rcvidle = LIST_FIRST(&p_conf->rcvidle_head);
