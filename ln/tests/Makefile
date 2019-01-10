@@ -98,7 +98,7 @@ info:
 	@echo TEST_OBJECTS=$(TEST_OBJECTS)
 
 lcov:
-	lcov -c -d $(OBJECT_DIRECTORY) -o $(OBJECT_DIRECTORY)/lcov.info
+	lcov -c -d . -o $(OBJECT_DIRECTORY)/lcov.info
 	genhtml -o $(OBJECT_DIRECTORY)/lcovhtml $(OBJECT_DIRECTORY)/lcov.info
 
 valgrind:
