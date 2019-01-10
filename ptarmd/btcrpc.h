@@ -87,7 +87,6 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid);
 bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid);
 
 
-#ifdef USE_BITCOIND
 /** [bitcoin IF]short_channel_idパラメータからtxid取得
  *
  * @param[out]  pTxid       該当するtxid
@@ -96,7 +95,6 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
  * @retval  true        取得成功
  */
 bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
-#endif
 
 
 /** [bitcoin IF]複数blockからvin[0]のoutpointが一致するトランザクションを検索
@@ -189,8 +187,6 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_STR_MAX + 1]);
 bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 
 
-#ifdef USE_BITCOINJ
-
 /** [bitcoin IF]node作成時のblock hash設定
  *      bitcoinjで過去ブロックに遡りながら検索することがあるが、その下限を決めるため。
  * 
@@ -247,7 +243,5 @@ bool btcrpc_get_balance(uint64_t *pAmount);
  * @param[in]   pAddr
  */
 bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr);
-
-#endif
 
 #endif /* BTCRPC_H__ */

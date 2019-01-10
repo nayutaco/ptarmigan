@@ -42,10 +42,8 @@ FAKE_VALUE_FUNC(int, cmd_json_connect, const uint8_t*, const char*, uint16_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay, const char*, uint64_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay_retry, const uint8_t*);
 
-#ifdef USE_BITCOINJ
-FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t*, uint64_t, const uint8_t*, int, const utl_buf_t*, bool, const uint8_t*, uint32_t);
+FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t *, uint64_t , const uint8_t *, int , const utl_buf_t *, const uint8_t *, uint32_t );
 FAKE_VOID_FUNC(btcrpc_set_committxid, const ln_self_t*);
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -87,10 +85,8 @@ protected:
         RESET_FAKE(cmd_json_connect);
         RESET_FAKE(cmd_json_pay);
         RESET_FAKE(cmd_json_pay_retry);
-#ifdef USE_BITCOINJ
         RESET_FAKE(btcrpc_set_channel);
         RESET_FAKE(btcrpc_set_committxid);
-#endif
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, false);
     }

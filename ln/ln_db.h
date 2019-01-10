@@ -252,14 +252,12 @@ bool ln_db_self_load_status(ln_self_t *self);
 bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam);
 
 
-#ifdef USE_BITCOINJ
 /** save self->last_confirm
  * 
  * @param[in]           self            channel info
  * @retval  save result
  */
 bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam);
-#endif
 
 
 /** short_channel_idが自分が持つチャネルかどうか

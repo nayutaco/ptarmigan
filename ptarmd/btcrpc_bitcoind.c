@@ -151,7 +151,32 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     } else {
         LOGD("fatal: fail getnetworkinfo\n");
     }
+    if (ret) {
+        int32_t height = 0;
+        uint8_t bhash[BTC_SZ_HASH256];
+        char *p_json = NULL;
+        json_t *p_root = NULL;
+        json_t *p_result;
 
+        ret = btcrpc_getblockcount(&height);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+        ret = getblockhash_rpc(&p_root, &p_result, &p_json, height);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+        ret = json_is_string(p_result);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+        ret = utl_str_str2bin_rev(bhash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
+        if (ret) {
+            ln_creationhash_set(bhash);
+        }
+    }
+
+LABEL_EXIT:
     return ret;
 }
 
@@ -254,7 +279,6 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
 {
     (void)pPeerId;
-    (void)pMinedHash;
 
     bool ret;
     char *p_json = NULL;
@@ -271,7 +295,11 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
 
         p_bhash = json_object_get(p_result, M_BLOCKHASH);
         if (json_is_string(p_bhash)) {
-            strcpy(blockhash, (const char *)json_string_value(p_bhash));
+            strncpy(blockhash, (const char *)json_string_value(p_bhash), sizeof(blockhash));
+            blockhash[sizeof(blockhash) - 1] = '\0';
+            if (pMinedHash != NULL) {
+                utl_str_str2bin_rev(pMinedHash, BTC_SZ_HASH256,  blockhash);
+            }
         }
     } else {
         LOGD("fail: getrawtransaction_rpc\n");
@@ -539,6 +567,51 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     UTL_DBG_FREE(p_json);
 
     return result;
+}
+
+
+void btcrpc_set_creationhash(const uint8_t *pHash)
+{
+    (void)pHash;
+}
+
+
+void btcrpc_set_channel(const uint8_t *pPeerId,
+                uint64_t ShortChannelId,
+                const uint8_t *pFundingTxid,
+                int FundingIdx,
+                const utl_buf_t *pRedeemScript,
+                const uint8_t *pMinedHash,
+                uint32_t LastConfirm)
+{
+    (void)pPeerId; (void)ShortChannelId; (void)pFundingTxid;
+    (void)FundingIdx; (void)pRedeemScript; (void)pMinedHash; (void)LastConfirm;
+}
+
+
+void btcrpc_del_channel(const uint8_t *pPeerId)
+{
+    (void)pPeerId;
+}
+
+
+void btcrpc_set_committxid(const ln_self_t *self)
+{
+    (void)self;
+}
+
+
+bool btcrpc_get_balance(uint64_t *pAmount)
+{
+    (void)pAmount;
+    return false;
+}
+
+
+bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
+{
+    (void)pTxid; (void)pAddr;
+    return false;
 }
 
 

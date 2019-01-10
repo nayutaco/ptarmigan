@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2019/01/10
+
+* DB version : -30
+
 ## 2019/01/05
 
 * update libraries

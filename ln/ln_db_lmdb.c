@@ -124,12 +124,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_BASE       ((int32_t)29)      ///< DBバージョン
-#if defined(USE_BITCOIND)
-#define M_DB_VERSION_VAL        ((int32_t)(-M_DB_VERSION_BASE))     ///< DBバージョン
-#elif defined(USE_BITCOINJ)
-#define M_DB_VERSION_VAL        ((int32_t)M_DB_VERSION_BASE)        ///< DBバージョン
-#endif
+#define M_DB_VERSION_VAL        ((int32_t)(-30))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -162,6 +157,7 @@
     -27: self.close_type変更
     -28: self.htlc_num削除
     -29: self.statusとself.close_typeのマージ
+    -30: bitcoindとSPVを同じにする
  */
 
 
@@ -260,9 +256,7 @@ typedef struct {
     char        wif[BTC_SZ_WIF_STR_MAX + 1];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
-#ifdef USE_BITCOINJ
-    uint8_t     bhash[BTC_SZ_HASH256];
-#endif
+    uint8_t     create_bhash[BTC_SZ_HASH256];
 } nodeinfo_t;
 
 
@@ -352,10 +346,8 @@ static const backup_param_t DBSELF_VALUES[] = {
     //[FUND07]tx_funding --> script
     //[FUND08]p_establish
     M_ITEM(ln_self_t, min_depth),       //[FUND09]
-#ifdef USE_BITCOINJ
     M_ITEM(ln_self_t, funding_bhash),   //[FUNDSPV01]
     M_ITEM(ln_self_t, last_confirm),    //[FUNDSPV02]
-#endif
 
     //
     //anno
@@ -1118,7 +1110,6 @@ bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam)
 }
 
 
-#ifdef USE_BITCOINJ
 bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam)
 {
     const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, last_confirm);
@@ -1128,7 +1119,6 @@ bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam)
     LOGD("last_confirm=%" PRIu32 ", retval=%d\n", self->last_confirm, retval);
     return retval == 0;
 }
-#endif
 
 
 void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
@@ -4759,9 +4749,7 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         nodeinfo.wif[BTC_SZ_WIF_STR_MAX] = '\0';
         nodeinfo.name[LN_SZ_ALIAS] = '\0';
         nodeinfo.port = Port;
-#ifdef USE_BITCOINJ
-        memcpy(nodeinfo.bhash, gCreationBlockHash, BTC_SZ_HASH256);
-#endif
+        memcpy(nodeinfo.create_bhash, gCreationBlockHash, BTC_SZ_HASH256);
         data.mv_size = sizeof(nodeinfo);
         data.mv_data = (void *)&nodeinfo;
         retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -4834,9 +4822,7 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
         *pPort = nodeinfo.port;
     }
     memcpy(pGenesis, nodeinfo.genesis, BTC_SZ_HASH256);
-#ifdef USE_BITCOINJ
-    memcpy(gCreationBlockHash, nodeinfo.bhash, BTC_SZ_HASH256);
-#endif
+    memcpy(gCreationBlockHash, nodeinfo.create_bhash, BTC_SZ_HASH256);
     // LOGD("wif=%s\n", pWif);
     // LOGD("name=%s\n", pNodeName);
     // LOGD("port=%" PRIu16 "\n", *pPort);

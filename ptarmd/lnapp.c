@@ -210,9 +210,7 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
-#ifdef USE_BITCOIND
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
-#endif
 
 static void send_queue_push(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 static void send_queue_flush(lnapp_conf_t *p_conf);
@@ -1658,7 +1656,6 @@ static void *thread_poll_start(void *pArg)
         bool b_get = btcrpc_get_confirm(&p_conf->funding_confirm, ln_funding_txid(p_conf->p_self));
         if (b_get) {
             if (bak_conf != p_conf->funding_confirm) {
-#ifdef USE_BITCOINJ
                 const uint8_t *oldhash = ln_funding_blockhash(p_conf->p_self);
                 if (utl_mem_is_all_zero(oldhash, BTC_SZ_HASH256)) {
                     int32_t bheight = 0;
@@ -1670,7 +1667,6 @@ static void *thread_poll_start(void *pArg)
                         ln_funding_blockhash_set(p_conf->p_self, mined_hash);
                     }
                 }
-#endif
 
                 LOGD2("***********************************\n");
                 LOGD2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
@@ -2050,16 +2046,12 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
 {
     bool ret = true;
 
-#ifdef USE_BITCOIND
     bool unspent = check_unspent_short_channel_id(short_channel_id);
     if (!unspent) {
         //使用済みのため、DBから削除
         LOGD("closed channel: %016" PRIx64 "\n", short_channel_id);
         ret = false;
     }
-#else
-    (void)short_channel_id;
-#endif
 
     return ret;
 }
@@ -2304,7 +2296,6 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         TXIDD(ln_funding_txid(p_conf->p_self));
         p_conf->funding_waiting = true;
 
-#ifdef USE_BITCOINJ
         btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
                 ln_short_channel_id(p_conf->p_self),
                 ln_funding_txid(p_conf->p_self),
@@ -2312,7 +2303,6 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
                 ln_funding_redeem(p_conf->p_self),
                 ln_funding_blockhash(p_conf->p_self),
                 ln_last_conf_get(p_conf->p_self));
-#endif
 
         const char *p_str;
         if (ln_is_funder(p_conf->p_self)) {
@@ -2935,27 +2925,26 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         p_closed->result = btcrpc_send_rawtx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
         if (p_closed->result) {
             LOGD("$$$ broadcast\n");
+
+            // method: closed
+            // $1: short_channel_id
+            // $2: node_id
+            // $3: closing_txid
+            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+            ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
+            char param[256];
+            char txidstr[BTC_SZ_TXID * 2 + 1];
+            utl_str_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
+            char node_id[BTC_SZ_PUBKEY * 2 + 1];
+            utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+            sprintf(param, "%s %s "
+                        "%s",
+                        str_sci, node_id,
+                        txidstr);
+            ptarmd_call_script(PTARMD_EVT_CLOSED, param);
         } else {
             LOGE("fail: broadcast\n");
-            assert(0);
         }
-
-        // method: closed
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: closing_txid
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-        char param[256];
-        char txidstr[BTC_SZ_TXID * 2 + 1];
-        utl_str_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%s %s "
-                    "%s",
-                    str_sci, node_id,
-                    txidstr);
-        ptarmd_call_script(PTARMD_EVT_CLOSED, param);
     } else {
         LOGD("DBG: no send closing_tx mode\n");
     }
@@ -3470,7 +3459,6 @@ static bool getnewaddress(utl_buf_t *pBuf)
 }
 
 
-#ifdef USE_BITCOIND
 /** short_channel_idのfunding_tx未使用チェック
  *
  * @param[in]   ShortChannelId      short_channel_id
@@ -3481,6 +3469,7 @@ static bool getnewaddress(utl_buf_t *pBuf)
  */
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 {
+#ifdef USE_BITCOIND
     bool ret;
     uint32_t bheight;
     uint32_t bindex;
@@ -3498,8 +3487,12 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
     }
 
     return ret && unspent;
-}
+#else
+    (void)ShortChannelId;
+
+    return true;
 #endif
+}
 
 
 /** ln_self_t内容表示(デバッグ用)

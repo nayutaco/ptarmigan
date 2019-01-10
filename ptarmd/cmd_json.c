@@ -1610,8 +1610,8 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
     uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
     if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {
         char str[256];
-        sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ")\n",
-                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN);
+        sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ") feerate_per_kw=%" PRIu32 "\n",
+                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN, feerate_per_kw);
         LOGD(str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);
