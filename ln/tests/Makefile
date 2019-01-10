@@ -9,7 +9,11 @@ TEST_TARGET_SRC += \
 	test_ln_bolt.cpp \
 	test_ln_htlcflag.cpp \
 	test_ln.cpp \
-	test_ln_updatefee.cpp \
+	test_ln_proto_init.cpp \
+	test_ln_proto_openchannel.cpp \
+	test_ln_proto_acceptchannel.cpp \
+	test_ln_proto_updateaddhtlc.cpp \
+	test_ln_proto_updatefee.cpp \
 	test_ln_misc.cpp \
 	test_ln_bech32.cpp
 
@@ -85,7 +89,7 @@ clobber: clean
 
 exec: rmlcov
 	$(RM) $(OBJECT_DIRECTORY)/lcov.info
-	$(foreach EXEC,$(TEST_OBJECTS),$(EXEC);)
+	$(foreach EXEC,$(TEST_OBJECTS),$(EXEC) &&) echo
 
 info:
 	@echo TEST_TARGET_SRC=$(TEST_TARGET_SRC)
