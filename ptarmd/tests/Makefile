@@ -75,8 +75,9 @@ rmlcov:
 clean:
 	@$(RM) $(OBJECT_DIRECTORY) .Depend
 
-clobber: clean
+clobber: clean rmlcov
 	make -C $(GTEST_DIR) clean
+	$(RM) $(OBJECT_DIRECTORY) *.gcno
 
 exec: rmlcov
 	$(RM) $(OBJECT_DIRECTORY)/lcov.info

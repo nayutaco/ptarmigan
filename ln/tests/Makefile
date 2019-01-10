@@ -9,7 +9,11 @@ TEST_TARGET_SRC += \
 	test_ln_bolt.cpp \
 	test_ln_htlcflag.cpp \
 	test_ln.cpp \
-	test_ln_updatefee.cpp \
+	test_ln_proto_init.cpp \
+	test_ln_proto_openchannel.cpp \
+	test_ln_proto_acceptchannel.cpp \
+	test_ln_proto_updateaddhtlc.cpp \
+	test_ln_proto_updatefee.cpp \
 	test_ln_misc.cpp \
 	test_ln_bech32.cpp
 
@@ -79,13 +83,13 @@ rmlcov:
 clean:
 	@$(RM) $(OBJECT_DIRECTORY) .Depend
 
-clobber: clean
+clobber: rmlcov clean
 	make -C $(GTEST_DIR) clean
 	$(RM) $(OBJECT_DIRECTORY) *.gcno
 
 exec: rmlcov
 	$(RM) $(OBJECT_DIRECTORY)/lcov.info
-	$(foreach EXEC,$(TEST_OBJECTS),$(EXEC);)
+	$(foreach EXEC,$(TEST_OBJECTS),$(EXEC) &&) echo
 
 info:
 	@echo TEST_TARGET_SRC=$(TEST_TARGET_SRC)
@@ -94,7 +98,7 @@ info:
 	@echo TEST_OBJECTS=$(TEST_OBJECTS)
 
 lcov:
-	lcov -c -d $(OBJECT_DIRECTORY) -o $(OBJECT_DIRECTORY)/lcov.info
+	lcov -c -d . -o $(OBJECT_DIRECTORY)/lcov.info
 	genhtml -o $(OBJECT_DIRECTORY)/lcovhtml $(OBJECT_DIRECTORY)/lcov.info
 
 valgrind:
