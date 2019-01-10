@@ -71,6 +71,42 @@ bool btc_buf_r_read_byte(btc_buf_r_t *pBufR, uint8_t *pByte)
 }
 
 
+bool btc_buf_r_read_u16be(btc_buf_r_t *pBufR, uint16_t *U16)
+{
+    if (pBufR->_pos + 2 > pBufR->_data_len) return false;
+    *U16 = utl_int_pack_u16be(pBufR->_data + pBufR->_pos);
+    pBufR->_pos += 2;
+    return true;
+}
+
+
+bool btc_buf_r_read_u32be(btc_buf_r_t *pBufR, uint32_t *U32)
+{
+    if (pBufR->_pos + 4 > pBufR->_data_len) return false;
+    *U32 = utl_int_pack_u32be(pBufR->_data + pBufR->_pos);
+    pBufR->_pos += 4;
+    return true;
+}
+
+
+bool btc_buf_r_read_u64be(btc_buf_r_t *pBufR, uint64_t *U64)
+{
+    if (pBufR->_pos + 8 > pBufR->_data_len) return false;
+    *U64 = utl_int_pack_u64be(pBufR->_data + pBufR->_pos);
+    pBufR->_pos += 8;
+    return true;
+}
+
+
+bool btc_buf_r_read_u16le(btc_buf_r_t *pBufR, uint16_t *U16)
+{
+    if (pBufR->_pos + 2 > pBufR->_data_len) return false;
+    *U16 = utl_int_pack_u16le(pBufR->_data + pBufR->_pos);
+    pBufR->_pos += 2;
+    return true;
+}
+
+
 bool btc_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32)
 {
     if (pBufR->_pos + 4 > pBufR->_data_len) return false;
