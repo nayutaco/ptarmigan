@@ -588,13 +588,14 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             ln_cnl_update_t ann;
             bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
             if (ret) {
-                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");
+                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? "2" : "1");
 
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
                 ln_short_channel_id_string(str_sci, ann.short_channel_id);
                 printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
                 //printf(INDENT3 M_QQ("node_sort") ": " M_QQ("%s") ",\n", (ann.flags & 1) ? "second" : "first");
-                printf(INDENT3 M_QQ("flags") ": " M_QQ("%04x") ",\n", ann.flags);
+                printf(INDENT3 M_QQ("message_flags") ": " M_QQ("%02x") ",\n", ann.message_flags);
+                printf(INDENT3 M_QQ("channel_flags") ": " M_QQ("%02x") ",\n", ann.channel_flags);
                 printf(INDENT3 M_QQ("cltv_expiry_delta") ": %d,\n", ann.cltv_expiry_delta);
                 printf(INDENT3 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", ann.htlc_minimum_msat);
                 printf(INDENT3 M_QQ("fee_base_msat") ": %" PRIu32 ",\n", ann.fee_base_msat);

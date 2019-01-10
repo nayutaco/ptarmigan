@@ -1303,7 +1303,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
         utl_buf_t buf_upd = UTL_BUF_INIT;
         uint32_t now = (uint32_t)time(NULL);
         ln_cnl_update_t upd;
-        ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_FLAGS_DISABLE);
+        ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_CHFLAGS_DISABLE);
         if (ret) {
             ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
             utl_buf_free(&buf_upd);
@@ -2234,13 +2234,13 @@ const char *ln_errmsg(const ln_self_t *self)
 
 int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd)
 {
-    return pCnlUpd->flags & LN_CNLUPD_FLAGS_DIRECTION;
+    return (pCnlUpd->channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? 1 : 0;
 }
 
 
 bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd)
 {
-    return !(pCnlUpd->flags & LN_CNLUPD_FLAGS_DISABLE);
+    return !(pCnlUpd->channel_flags & LN_CNLUPD_CHFLAGS_DISABLE);
 }
 
 
@@ -4291,12 +4291,12 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         return true;
     }
 
-    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), upd.short_channel_id);
 
     //short_channel_id と dir から node_id を取得する
     uint8_t node_id[BTC_SZ_PUBKEY];
 
-    ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+    ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
     if (ret && btc_keys_check_pub(node_id)) {
         ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         if (!ret) {
@@ -4320,7 +4320,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.len = Len;
         ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
         if (ret) {
-            LOGD("save channel_update: %016" PRIx64 ":%d\n", upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+            LOGD("save channel_update: %016" PRIx64 ":%d\n", upd.short_channel_id, upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
             anno.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
         } else {
             LOGD("fail: db save\n");
@@ -4757,8 +4757,8 @@ static bool create_channel_update(
     pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
-    pUpd->flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
-#warning channel_update.htlc_maximum_msat not supported
+    pUpd->message_flags = 0;
+    pUpd->channel_flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
     pUpd->htlc_maximum_msat = 0;
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
@@ -4858,7 +4858,7 @@ LABEL_EXIT:
         }
         if (ret) {
             if (retval) {
-                if (upd.flags & LN_CNLUPD_FLAGS_DISABLE) {
+                if (upd.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) {
                     //B13. if the channel is disabled:
                     //      channel_disabled
                     //      (report the current channel setting for the outgoing channel.)
