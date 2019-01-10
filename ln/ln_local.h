@@ -328,11 +328,9 @@
 extern uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
 
 
-#ifdef USE_BITCOINJ
 //blockhash at node creation
 //      usage: search blockchain limit
 extern uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
-#endif
 
 
 /**************************************************************************

@@ -245,12 +245,10 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
     printf(INDENT4 M_QQ("is_opened") ": %d\n", ((self->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
     printf(INDENT3 "},\n");
-#ifdef USE_BITCOINJ
     printf(INDENT3 M_QQ("mined_block") ": \"");
     btc_dbg_dump_txid(stdout, self->funding_bhash);
     printf("\",\n");
     printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", self->last_confirm);
-#endif
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
     btc_dbg_dump_txid(stdout, self->funding_local.txid);
@@ -1044,14 +1042,10 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
                 p_net = "unknown";
             }
             printf(INDENT2 M_QQ("network") ": " M_QQ("%s") ",\n", p_net);
-            printf(INDENT2 M_QQ("version") ": %d", version);
-            if (version > 0) {
-                printf(",\n");
-                printf(INDENT2 M_QQ("creation_bhash") ": \"");
-                btc_dbg_dump_txid(stdout, ln_creationhash_get());
-                printf("\"");
-            }
-            printf("\n");
+            printf(INDENT2 M_QQ("version") ": %d,\n", version);
+            printf(INDENT2 M_QQ("creation_bhash") ": \"");
+            btc_dbg_dump_txid(stdout, ln_creationhash_get());
+            printf("\"\n");
         } else {
             printf(INDENT2 M_QQ("node_id") ": " M_QQ("fail") ",\n");
         }

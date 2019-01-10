@@ -428,9 +428,12 @@ static void optfunc_funding(int *pOption, bool *pConn)
 {
     M_CHK_CONN
 
+    bool bret = false;
     funding_conf_t fundconf;
     conf_funding_init(&fundconf);
-    bool bret = conf_funding_load(optarg, &fundconf);
+#ifdef USE_BITCOIND
+    bret = conf_funding_load(optarg, &fundconf);
+#endif
     if (!bret) {
         //SPVの場合、funding_satoshisだけの指定でも受け付けられる
         const char *param = strtok(optarg, ",");

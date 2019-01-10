@@ -440,6 +440,13 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
 }
 
 
+bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
+{
+    (void)pTxid; (void)BHeight; (void)BIndex;
+    return true;
+}
+
+
 bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
     if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {

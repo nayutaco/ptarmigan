@@ -133,6 +133,7 @@ void *monitor_thread_start(void *pArg)
         }
     }
     LOGD("[exit]monitor thread\n");
+    ptarmd_stop();
 
     return NULL;
 }
@@ -318,9 +319,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             LOGD("fail: del channel: ");
             DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
         }
-#ifdef USE_BITCOINJ
         btcrpc_del_channel(ln_their_node_id(self));
-#endif
     }
 
     return false;
@@ -358,7 +357,6 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
         }
     }
 
-#ifdef USE_BITCOINJ
     if (p_prm->confm > ln_last_conf_get(self)) {
         ln_last_conf_set(self, p_prm->confm);
         ln_db_self_save_lastconf(self, p_db_param);
@@ -371,7 +369,6 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
                 ln_funding_blockhash(self),
                 ln_last_conf_get(self));
     }
-#endif
 
     return del;
 }
