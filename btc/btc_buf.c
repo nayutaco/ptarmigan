@@ -205,6 +205,30 @@ bool btc_buf_w_write_byte(btc_buf_w_t *pBufW, uint8_t Byte)
 }
 
 
+bool btc_buf_w_write_u16be(btc_buf_w_t *pBufW, uint16_t U16)
+{
+    uint8_t buf[2];
+    utl_int_unpack_u16be(buf, U16);
+    return btc_buf_w_write_data(pBufW, buf, 2);
+}
+
+
+bool btc_buf_w_write_u32be(btc_buf_w_t *pBufW, uint32_t U32)
+{
+    uint8_t buf[4];
+    utl_int_unpack_u32be(buf, U32);
+    return btc_buf_w_write_data(pBufW, buf, 4);
+}
+
+
+bool btc_buf_w_write_u64be(btc_buf_w_t *pBufW, uint64_t U64)
+{
+    uint8_t buf[8];
+    utl_int_unpack_u64be(buf, U64);
+    return btc_buf_w_write_data(pBufW, buf, 8);
+}
+
+
 bool btc_buf_w_write_u16le(btc_buf_w_t *pBufW, uint16_t U16)
 {
     uint8_t buf[2];
