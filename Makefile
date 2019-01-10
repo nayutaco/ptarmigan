@@ -91,10 +91,10 @@ test:
 
 test_clean:
 	$(MAKE) -C gtest clean
-	$(MAKE) -C utl/tests clean
-	$(MAKE) -C btc/tests clean
-	$(MAKE) -C ln/tests clean
-	$(MAKE) -C ptarmd/tests clean
+	$(MAKE) -C utl/tests clobber
+	$(MAKE) -C btc/tests clobber
+	$(MAKE) -C ln/tests clobber
+	$(MAKE) -C ptarmd/tests clobber
 	$(MAKE) -C btc/examples clean
 
 test-integration:
