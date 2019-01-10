@@ -206,7 +206,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
             ln_cnl_update_t upd;
             int idx = type - LN_DB_CNLANNO_UPD1;
             bool bret = ln_channel_update_get_params(&upd, p_buf->buf, p_buf->len);
-            if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
+            if (bret && ((upd.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) == 0)) {
                 if (p_nodes->short_channel_id == upd.short_channel_id) {
                     //disable状態ではない && channel_announcement.short_channel_idと一致
                     p_nodes->ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;

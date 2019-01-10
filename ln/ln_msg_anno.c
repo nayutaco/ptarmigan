@@ -772,7 +772,8 @@ bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMs
     //        [32:chain_hash]
     //        [8:short_channel_id]
     //        [4:timestamp]
-    //        [2:flags]
+    //        [1:message_flags]
+    //        [1:channel_flags]
     //        [2:cltv_expiry_delta]
     //        [8:htlc_minimum_msat]
     //        [4:fee_base_msat]
@@ -803,8 +804,11 @@ bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMs
     //        [4:timestamp]
     ln_misc_push32be(&proto, pMsg->timestamp);
 
-    //        [2:flags]
-    ln_misc_push16be(&proto, pMsg->flags);
+    //        [1:message_flags]
+    ln_misc_push8(&proto, pMsg->message_flags);
+
+    //        [1:channel_flags]
+    ln_misc_push8(&proto, pMsg->channel_flags);
 
     //        [2:cltv_expiry_delta]
     ln_misc_push16be(&proto, pMsg->cltv_expiry_delta);
@@ -853,14 +857,15 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
         return false;
     }
     int pos = sizeof(uint16_t);
+    bool result;
 
     //        [64:signature]
     //memcpy(pMsg->signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
     //    [32:chain_hash]
-    bool chain_match = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
-    if (!chain_match) {
+    result = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
+    if (!result) {
         LOGD("fail: chain_hash mismatch\n");
         LOGD("node: ");
         DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
@@ -881,9 +886,13 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pMsg->timestamp = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
-    //        [2:flags]
-    pMsg->flags = ln_misc_get16be(pData + pos);
-    pos += sizeof(uint16_t);
+    //        [1:message_flags]
+    pMsg->message_flags = *(pData + pos);
+    pos += sizeof(uint8_t);
+
+    //        [1:channel_flags]
+    pMsg->channel_flags = *(pData + pos);
+    pos += sizeof(uint8_t);
 
     //        [2:cltv_expiry_delta]
     pMsg->cltv_expiry_delta = ln_misc_get16be(pData + pos);
@@ -902,9 +911,14 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pos += sizeof(uint32_t);
 
     //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-    if (Len >= pos + sizeof(uint64_t)) {
-        pMsg->htlc_maximum_msat = ln_misc_get64be(pData + pos);
-        pos += sizeof(uint64_t);
+    if (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX) {
+        if (Len >= pos + sizeof(uint64_t)) {
+            pMsg->htlc_maximum_msat = ln_misc_get64be(pData + pos);
+            pos += sizeof(uint64_t);
+        } else {
+            result = false;
+            LOGE("fail: NO option_channel_htlc_max field\n");
+        }
     } else {
         pMsg->htlc_maximum_msat = 0;
     }
@@ -916,7 +930,7 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_READ_UPD
 
-    return chain_match;
+    return result;
 }
 
 
@@ -947,7 +961,9 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     char time[UTL_SZ_TIME_FMT_STR + 1];
     LOGD("timestamp: %lu : %s\n", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
-    LOGD("flags= 0x%04x\n", pMsg->flags);
+    LOGD("message_flags= 0x%02x\n", pMsg->message_flags);
+    LOGD("   option_channel_htlc_max=%d\n", (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX));
+    LOGD("channel_flags= 0x%02x\n", pMsg->channel_flags);
     LOGD("    direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1");
     LOGD("    %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable");
     LOGD("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);

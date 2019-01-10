@@ -94,9 +94,12 @@ extern "C" {
 #define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
 #define LN_DELHTLC_MALFORMED            (0x03)      ///< update_fail_malformed_htlc
 
-// channel_update.flags
-#define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
-#define LN_CNLUPD_FLAGS_DISABLE         (0x0002)    ///< b1: disable
+// channel_update.message_flags
+#define LN_CNLUPD_MSGFLAGS_HTLCMAX      (0x01)      ///< b0: option_channel_htlc_max
+
+// channel_update.channel_flags
+#define LN_CNLUPD_CHFLAGS_DIRECTION     (0x01)      ///< b0: direction
+#define LN_CNLUPD_CHFLAGS_DISABLE       (0x02)      ///< b1: disable
 
 // ln_self_t.shutdown_flag
 #define LN_SHDN_FLAG_SEND               (0x01)      ///< shutdown送信済み
@@ -790,7 +793,8 @@ typedef struct {
     //uint8_t     signature[LN_SZ_SIGNATURE];         ///< 64: signature
     uint64_t    short_channel_id;                   ///< 8:  short_channel_id
     uint32_t    timestamp;                          ///< 4:  timestamp
-    uint16_t    flags;                              ///< 2:  flags
+    uint8_t     message_flags;                      ///< 1:  message_flags
+    uint8_t     channel_flags;                      ///< 1:  channel_flags
     uint16_t    cltv_expiry_delta;                  ///< 2:  cltv_expiry_delta
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
