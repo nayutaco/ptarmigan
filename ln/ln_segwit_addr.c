@@ -24,8 +24,10 @@
 
 #define M_INVOICE_DESCRIPTION       "ptarmigan"
 #define M_SZ_SIG                    (BTC_SZ_SIGN_RS + 1) //with the recovery id
-#define M_SZ_TIMESTAMP_5BIT_BYTE    7
-#define M_SZ_SIG_5BIT_BYTE          104
+#define M_SZ_TIMESTAMP_5BIT_BYTE    (7)
+#define M_SZ_SIG_5BIT_BYTE          (104)
+#define M_5BIT_BYTES_LEN(bits)      (((bits) + 4) / 5)
+#define M_SZ_R_FIELD                (51)
 
 static const char *ln_prefix_str[] = {
     "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
@@ -70,22 +72,35 @@ static bool pack_value_u64(uint64_t *u64, const uint8_t *p_data, size_t dlen)
 }
 #endif
 
-//inbits:8, outbits:5
-static int unpack_value(uint8_t *p_out, uint64_t val)
+static int unpacked_value_len(uint64_t val)
 {
     assert(val);
 
     int lp;
-    uint64_t tmp = val;
     for (lp = 0; lp < 8; lp++) {
-        tmp >>= 5;
-        if (!tmp) break;
+        val >>= 5;
+        if (!val) break;
     }
-    for (int lp2 = lp; lp2 >= 0; lp2--) {
+    return lp + 1;
+}
+
+//inbits:8, outbits:5
+static int unpack_value(uint8_t *p_out, uint64_t val)
+{
+    int len = unpacked_value_len(val);
+    assert(len);
+    for (int lp2 = len - 1; lp2 >= 0; lp2--) {
         p_out[lp2] = val & 0x1f;
         val >>= 5;
     }
-    return lp + 1;
+    return len;
+}
+
+static void unpack_value_10bits(uint8_t *p_out_2bytes, uint16_t val)
+{
+    assert(!(val >> 10));
+    p_out_2bytes[0] = (val >> 5) & 0x1f;
+    p_out_2bytes[1] = val & 0x1f;
 }
 
 #if 0
@@ -192,15 +207,15 @@ static bool analyze_tagged_field(btc_buf_r_t *p_parts, ln_invoice_t **pp_invoice
             if (!data_length) goto LABEL_EXIT;
             tmp_len = 0;
             if (!btc_convert_bits(p_data, &tmp_len, 8, btc_buf_r_get_pos(p_parts), data_length, 5, true)) goto LABEL_EXIT;
-            if (tmp_len < 51) goto LABEL_EXIT;
-            n = tmp_len / 51;
+            if (tmp_len < M_SZ_R_FIELD) goto LABEL_EXIT;
+            n = tmp_len / M_SZ_R_FIELD;
             p_invoice_data = (ln_invoice_t *)UTL_DBG_REALLOC(
                 p_invoice_data,
                 sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * n);
             p_invoice_data->r_field_num = n;
-    
+
             btc_buf_r_init(&buf_r, p_data, tmp_len);
-            
+
             for (size_t lp = 0; lp < n; lp++) {
                 ln_fieldr_t *p_fieldr = &p_invoice_data->r_field[lp];
                 if (!btc_buf_r_read(&buf_r, p_fieldr->node_id, BTC_SZ_PUBKEY)) goto LABEL_EXIT;
@@ -235,138 +250,166 @@ LABEL_EXIT:
 }
 
 bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
-    uint8_t data[1024];
+    uint8_t data[1024]; //XXX: malloc
     char hrp[128];
-    size_t datalen = 0;
+    size_t data_len = 0;
     *pp_invoice = NULL;
-    if ((p_invoice_data->hrp_type < LN_INVOICE_MAINNET) || (LN_INVOICE_REGTEST < p_invoice_data->hrp_type)) return false;
+
+    if (p_invoice_data->hrp_type != LN_INVOICE_MAINNET &&
+        p_invoice_data->hrp_type != LN_INVOICE_TESTNET &&
+        p_invoice_data->hrp_type != LN_INVOICE_REGTEST) return false;
+
+    //prefix
     strcpy(hrp, ln_prefix_str[p_invoice_data->hrp_type]);
-    if (p_invoice_data->amount_msat > 0) {
-        //hrpにamount追加
-        char unit = '\0';
+
+    //amount //XXX: refactor
+    // 1BTC = 10 ^ 8 Satoshi
+    // 1BTC = 10 ^ 11 MilliSatoshi
+    if (p_invoice_data->amount_msat) {
+        char multiplier = '\0';
         uint64_t amount;
-        if ((p_invoice_data->amount_msat / (uint64_t)100000000) * (uint64_t)100000000 == p_invoice_data->amount_msat) {
-            //mBTC
-            unit = 'm';
+        if (!(p_invoice_data->amount_msat % (uint64_t)100000000000)) { //10 ^ 11
+            multiplier = '\0';
+            amount = p_invoice_data->amount_msat / (uint64_t)100000000000;
+        } else if (!(p_invoice_data->amount_msat % (uint64_t)100000000)) { //10 ^ 8
+            //milli 10 ^ -3
+            //  10 ^ (11 - 3)
+            multiplier = 'm';
             amount = p_invoice_data->amount_msat / (uint64_t)100000000;
-        } else if ((p_invoice_data->amount_msat / (uint64_t)100000) * (uint64_t)100000 == p_invoice_data->amount_msat) {
-            //uBTC
-            unit = 'u';
+        } else if (!(p_invoice_data->amount_msat % (uint64_t)100000)) { //10 ^ 5
+            //micro 10 ^ -6
+            //  10 ^ (11 - 6)
+            multiplier = 'u';
             amount = p_invoice_data->amount_msat / (uint64_t)100000;
-        } else if ((p_invoice_data->amount_msat / (uint64_t)100) * (uint64_t)100 == p_invoice_data->amount_msat) {
-            //nBTC
-            unit = 'n';
+        } else if (!(p_invoice_data->amount_msat % (uint64_t)100)) { //10 ^ 2
+            //nano 10 ^ -9
+            //  10 ^ (11 - 9)
+            multiplier = 'n';
             amount = p_invoice_data->amount_msat / (uint64_t)100;
-        } else {
-            //pBTC
-            unit = 'p';
+        } else { //10 ^ -1
+            //pico 10 ^ -12
+            //  10 ^ (11 - 12)
+            multiplier = 'p';
             amount = p_invoice_data->amount_msat * (uint64_t)10;
         }
         char amount_str[20];
-        sprintf(amount_str, "%" PRIu64 "%c", amount, unit);
+        sprintf(amount_str, "%" PRIu64 "%c", amount, multiplier);
         strcat(hrp, amount_str);
     }
 
     //timestamp
     time_t now = time(NULL);
-    datalen = unpack_value(data, now);
+    data_len = unpack_value(data, now);
 
     //tagged field
     //  1. type (5bits)
-    //  2. data_length (10bits, big-endian) [32進数]
+    //  2. data_length (10bits, big-endian)
     //  3. data (data_length x 5bits)
 
-    //payee pubkey
-    data[datalen++] = 19;   // 33-byte public key of the payee node
-    data[datalen++] = 1;    // 264bit ÷ 5 ≒ 53
-    data[datalen++] = 21;   //      53 --(32進数)--> 32*1 + 21
-    if (!btc_convert_bits(data, &datalen, 5, p_invoice_data->pubkey, BTC_SZ_PUBKEY, 8, true)) return false;
+    //33-byte public key of the payee node
+    data[data_len++] = 19; //type
+    unpack_value_10bits(data + data_len, M_5BIT_BYTES_LEN(264));
+    data_len += 2;
+    if (!btc_convert_bits(data, &data_len, 5, p_invoice_data->pubkey, BTC_SZ_PUBKEY, 8, true)) return false;
 
-    //payment_hash
-    data[datalen++] = 1;    // 256-bit SHA256 payment_hash
-    data[datalen++] = 1;    // 256bit ÷ 5 ≒ 52
-    data[datalen++] = 20;   //      52 --(32進数)--> 32*1 + 20
-    if (!btc_convert_bits(data, &datalen, 5, p_invoice_data->payment_hash, BTC_SZ_HASH256, 8, true)) return false;
+    //256-bit SHA256 payment_hash
+    data[data_len++] = 1; //type
+    unpack_value_10bits(data + data_len, M_5BIT_BYTES_LEN(256));
+    data_len += 2;
+    if (!btc_convert_bits(data, &data_len, 5, p_invoice_data->payment_hash, BTC_SZ_HASH256, 8, true)) return false;
 
     //short description
-    data[datalen++] = 13;   // short description
-    data[datalen++] = 0;    // "ptarmigan": 72bit ÷ 5 ≒ 15
-    data[datalen++] = 15;   //      15 --(32進数)--> 32*0 + 15
-    if (!btc_convert_bits(data, &datalen, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, 9, 8, true)) return false;
+    data[data_len++] = 13; //type
+    unpack_value_10bits(data + data_len, M_5BIT_BYTES_LEN(strlen(M_INVOICE_DESCRIPTION) * 8));
+    data_len += 2;
+    if (!btc_convert_bits(data, &data_len, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, strlen(M_INVOICE_DESCRIPTION), 8, true)) return false;
 
     //expiry
     if (p_invoice_data->expiry != LN_INVOICE_EXPIRY) {
-        data[datalen++] = 6;    // expiry
-        data[datalen++] = 0;    // 最大32bitなので、ここは0になる
-        datalen++;
-
-        int len = unpack_value(data + datalen, p_invoice_data->expiry);
-        data[datalen - 1] = (uint8_t)len;
-        datalen += len;
+        data[data_len++] = 6; //type
+        int len = unpacked_value_len(p_invoice_data->expiry);
+        unpack_value_10bits(data + data_len, len);
+        data_len += 2;
+        unpack_value(data + data_len, p_invoice_data->expiry);
+        data_len += len;
     }
 
     //min_final_cltv_expiry
     if (p_invoice_data->min_final_cltv_expiry != LN_MIN_FINAL_CLTV_EXPIRY) {
-        data[datalen++] = 24;   // min_final_cltv_expiry
-        data[datalen++] = 0;    // 最大32bitなので、ここは0になる
-        datalen++;
-
-        int len = unpack_value(data + datalen, p_invoice_data->min_final_cltv_expiry);
-        data[datalen - 1] = (uint8_t)len;
-        datalen += len;
+        data[data_len++] = 24; //type
+        int len = unpacked_value_len(p_invoice_data->min_final_cltv_expiry);
+        unpack_value_10bits(data + data_len, len);
+        data_len += 2;
+        unpack_value(data + data_len, p_invoice_data->min_final_cltv_expiry);
+        data_len += len;
     }
 
     //r field
     if (p_invoice_data->r_field_num > 0) {
-        // 1項目=408bit
-        int bits = 408 * p_invoice_data->r_field_num;
-        bits = (bits + 4) / 5;
-        int p32 = bits / 32;
+        int bits = (M_SZ_R_FIELD * 8) * p_invoice_data->r_field_num;
+        data[data_len++] = 3; //type
+        unpack_value_10bits(data + data_len, M_5BIT_BYTES_LEN(bits));
+        data_len += 2;
 
-        data[datalen++] = 3;    // r field
-        data[datalen++] = (uint8_t)p32;
-        data[datalen++] = (uint8_t)(bits - p32 * 32);
-        uint8_t *rfield = (uint8_t *)UTL_DBG_MALLOC(51 * p_invoice_data->r_field_num);     //408bit * n分
-        utl_buf_t buf = { rfield, (uint32_t)(51 * p_invoice_data->r_field_num) };
-        utl_push_t push = { 0, &buf };
+        btc_buf_w_t buf_w;
+        if (!btc_buf_w_init(&buf_w, M_SZ_R_FIELD * p_invoice_data->r_field_num)) return false;
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
             const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
-
-            utl_push_data(&push, r->node_id, BTC_SZ_PUBKEY);
-            ln_misc_push64be(&push, r->short_channel_id);
-            ln_misc_push32be(&push, r->fee_base_msat);
-            ln_misc_push32be(&push, r->fee_prop_millionths);
-            ln_misc_push16be(&push, r->cltv_expiry_delta);
+            if (!btc_buf_w_write_data(&buf_w, r->node_id, BTC_SZ_PUBKEY)) {
+                btc_buf_w_free(&buf_w);
+                return false;
+            }
+            if (!btc_buf_w_write_u64be(&buf_w, r->short_channel_id)) {
+                btc_buf_w_free(&buf_w);
+                return false;
+            }
+            if (!btc_buf_w_write_u32be(&buf_w, r->fee_base_msat)) {
+                btc_buf_w_free(&buf_w);
+                return false;
+            }
+            if (!btc_buf_w_write_u32be(&buf_w, r->fee_prop_millionths)) {
+                btc_buf_w_free(&buf_w);
+                return false;
+            }
+            if (!btc_buf_w_write_u16be(&buf_w, r->cltv_expiry_delta)) {
+                btc_buf_w_free(&buf_w);
+                return false;
+            }
         }
-        bool ret = btc_convert_bits(data, &datalen, 5, rfield, push.pos, 8, true);
-        UTL_DBG_FREE(rfield);
-        if (!ret) return false;
+        if (!btc_convert_bits(data, &data_len, 5, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), 8, true)) {
+            btc_buf_w_free(&buf_w);
+            return false;
+        }
+        btc_buf_w_free(&buf_w);
     }
 
-    //ここまで、data[0～datalen-1]に1byteずつ5bitデータが入っている
-    //署名は、これを詰めて8bitにしてhashを取っている
-    uint8_t hashdata[1024];
-    size_t hashdatalen = 0;
-    strcpy((char *)hashdata, hrp);
-    size_t hrp_len = strlen(hrp);
-    btc_convert_bits(hashdata + hrp_len, &hashdatalen, 8, data, datalen, 5, true);
+    //hash
+    // data (5bits data) -> pack 8 bits data
+    // and hashed
+    size_t preimg_len = strlen(hrp);
+    uint8_t *p_preimg = (uint8_t *)UTL_DBG_MALLOC(preimg_len + data_len);
+    if (!p_preimg) return false;
+    strncpy((char *)p_preimg, (const char *)hrp, preimg_len);
+    if (!btc_convert_bits(p_preimg, &preimg_len, 8, data, data_len, 5, true)) {
+        UTL_DBG_FREE(p_preimg);
+        return false;
+    }
+    uint8_t hash[BTC_SZ_HASH256];
+    btc_md_sha256(hash, p_preimg, preimg_len);
+    UTL_DBG_FREE(p_preimg);
 
     //signature
-    uint8_t hash[BTC_SZ_HASH256];
-    mbedtls_sha256(hashdata, hashdatalen + hrp_len, hash, 0);
-
-    uint8_t sign[BTC_SZ_SIGN_RS + 1];
-    bool ret = ln_node_sign_nodekey(sign, hash);
-    if (!ret) return false;
-
+    uint8_t sign[BTC_SZ_SIGN_RS + 1]; //with recovery id
+    if (!ln_node_sign_nodekey(sign, hash)) return false;
     int recid;
-    ret = btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash);
-    if (!ret) return false;
+    if (!btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash)) return false;
     sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
-    if (!btc_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
+    if (!btc_convert_bits(data, &data_len, 5, sign, sizeof(sign), 8, true)) return false;
 
-    *pp_invoice = (char *)UTL_DBG_MALLOC(2048);
-    return btc_bech32_encode(*pp_invoice, 2048, hrp, data, datalen, true);
+    size_t invoice_buf_len = strlen(hrp) + data_len + 8;
+    *pp_invoice = (char *)UTL_DBG_MALLOC(invoice_buf_len);
+    if (!*pp_invoice) return false;
+    return btc_bech32_encode(*pp_invoice, invoice_buf_len, hrp, data, data_len, true);
 }
 
 static bool read_prefix(uint8_t *type, size_t *len, char *hrp)
@@ -467,7 +510,6 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     size_t tmp_len;
 
     char hrp[128];
-    size_t hrp_len;
 
     uint8_t *p_data = NULL;
     size_t data_len;
@@ -526,11 +568,9 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_sig = p_data + data_len - M_SZ_SIG_5BIT_BYTE;
 
     //hash
-    hrp_len = strlen(hrp);
-    preimg_len = 0;
-    if (!btc_convert_bits(p_preimg + hrp_len, &preimg_len, 8, p_data, data_len - M_SZ_SIG_5BIT_BYTE, 5, true)) goto LABEL_EXIT;
-    preimg_len += hrp_len;
-    memcpy(p_preimg, hrp, hrp_len);
+    preimg_len = strlen(hrp);
+    strncpy((char *)p_preimg, (const char *)hrp, preimg_len);
+    if (!btc_convert_bits(p_preimg, &preimg_len, 8, p_data, data_len - M_SZ_SIG_5BIT_BYTE, 5, true)) goto LABEL_EXIT;
     btc_md_sha256(hash, p_preimg, preimg_len);
 
     //signature
@@ -578,10 +618,13 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     ln_invoice_t *p_invoice_data;
 
     size_t sz = sizeof(ln_invoice_t);
-    if (pFieldR != NULL) {
+    if (FieldRNum) {
+        if (!pFieldR) return false;
         sz += sizeof(ln_fieldr_t) * FieldRNum;
     }
     p_invoice_data = (ln_invoice_t *)UTL_DBG_MALLOC(sz);
+    if (!p_invoice_data) return false;
+
     p_invoice_data->hrp_type = Type;
     p_invoice_data->amount_msat = Amount;
     p_invoice_data->expiry = Expiry;
