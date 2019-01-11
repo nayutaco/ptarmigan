@@ -56,6 +56,9 @@ void utl_int_unpack_u16le(uint8_t *pData, uint16_t U16);
 void utl_int_unpack_u32le(uint8_t *pData, uint32_t U32);
 void utl_int_unpack_u64le(uint8_t *pData, uint64_t U64);
 
+//return digit number
+// note: if V=0 return 0 not 1
+uint8_t utl_int_digit(uint64_t V, uint8_t base);
 
 #ifdef __cplusplus
 }

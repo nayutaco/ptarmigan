@@ -19,6 +19,8 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+#include <assert.h>
+
 #include "utl_int.h"
 
 
@@ -158,3 +160,15 @@ void utl_int_unpack_u64le(uint8_t *pData, uint64_t U64)
     pData[7] = (uint8_t)(U64 >> 56);
 }
 
+
+uint8_t utl_int_digit(uint64_t V, uint8_t base)
+{
+    assert(base);
+
+    uint8_t digit = 0;
+    while (V) {
+        V /= base;
+        digit++;
+    }
+    return digit;
+}
