@@ -1075,11 +1075,11 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     ln_signer_create_channelkeys(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
+#if defined(USE_BITCOIND)
     //funding_tx作成用に保持
-    if (self->p_establish->p_fundin != NULL) {
-        self->p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
-        memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
-    }
+    self->p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
+    memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
+#endif
 
     //open_channel
     ln_open_channel_t *open_ch = &self->p_establish->cnl_open;
