@@ -81,3 +81,13 @@ bool btc_convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* 
     return convert_bits(out, outlen, outbits, in, inlen, inbits, pad);
 }
 
+bool btc_convert_bits_8to5(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
+{
+    return convert_bits(out, outlen, 5, in, inlen, 8, pad);
+}
+
+bool btc_convert_bits_5to8(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
+{
+    return convert_bits(out, outlen, 8, in, inlen, 5, pad);
+}
+

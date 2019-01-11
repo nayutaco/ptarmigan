@@ -130,6 +130,10 @@ bool btc_convert_bits(
     bool pad
 );
 
+bool btc_convert_bits_8to5(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad);
+
+bool btc_convert_bits_5to8(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad);
+
 #ifdef __cplusplus
 }
 #endif //__cplusplus
