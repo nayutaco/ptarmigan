@@ -711,15 +711,7 @@ typedef struct {
  *  @brief      channel_announcement
  */
 typedef struct {
-//    uint8_t     *p_node_signature1;                 ///< 64: node_signature_1
-//    uint8_t     *p_node_signature2;                 ///< 64: node_signature_2
-//    uint8_t     *p_btc_signature1;                  ///< 64: bitcoin_signature_1
-//    uint8_t     *p_btc_signature2;                  ///< 64: bitcoin_signature_2
     uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-//    uint8_t     *p_node_id1;                        ///< 33: node_id_1
-//    uint8_t     *p_node_id2;                        ///< 33: node_id_2
-//    uint8_t     *p_btc_key1;                        ///< 33: bitcoin_key_1
-//    uint8_t     *p_btc_key2;                        ///< 33: bitcoin_key_2
 //    uint8_t     features;                           ///< 1:  features
 
     const uint8_t           *p_my_node_pub;
@@ -773,7 +765,6 @@ typedef struct {
  *  @brief      node_announcement
  */
 typedef struct {
-//    uint8_t             *p_signature;               ///< 64: signature
     uint32_t            timestamp;                  ///< 4:  timestamp
     uint8_t             *p_node_id;                 ///< 33: node_id
     char                *p_alias;                   ///< 32: alias
@@ -790,16 +781,15 @@ typedef struct {
  *  @brief      channel_update
  */
 typedef struct {
-    //uint8_t     signature[LN_SZ_SIGNATURE];         ///< 64: signature
     uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-    uint32_t    timestamp;                          ///< 4:  timestamp
-    uint8_t     message_flags;                      ///< 1:  message_flags
-    uint8_t     channel_flags;                      ///< 1:  channel_flags
-    uint16_t    cltv_expiry_delta;                  ///< 2:  cltv_expiry_delta
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
+    uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)
+    uint32_t    timestamp;                          ///< 4:  timestamp
     uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
-    uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)
+    uint16_t    cltv_expiry_delta;                  ///< 2:  cltv_expiry_delta
+    uint8_t     message_flags;                      ///< 1:  message_flags
+    uint8_t     channel_flags;                      ///< 1:  channel_flags
 } ln_cnl_update_t;
 
 
