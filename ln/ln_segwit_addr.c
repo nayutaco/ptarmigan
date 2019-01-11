@@ -40,7 +40,38 @@ static const char *ln_prefix_str[] = {
     "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
 };
 
-//inbits:5, outbits:8, to u64
+static bool convert_bits_8to5(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
+{
+    return btc_convert_bits(out, outlen, 5, in, inlen, 8, pad);
+}
+
+static bool convert_bits_5to8(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
+{
+    return btc_convert_bits(out, outlen, 8, in, inlen, 5, pad);
+}
+
+static bool write_convert_bits_8to5(btc_buf_w_t *p_buf_w, const uint8_t* in, size_t inlen, bool pad)
+{
+    size_t len = btc_convert_bits_buf_len(5, inlen, 8);
+    if (!btc_buf_w_expand(p_buf_w, len)) return false;
+    size_t outlen = 0;
+    if (!convert_bits_8to5(btc_buf_w_get_pos(p_buf_w), &outlen, in, inlen, pad)) return false;
+    assert(len == outlen);
+    if (!btc_buf_w_seek(p_buf_w, len)) return false;
+    return true;
+}
+
+static bool write_convert_bits_5to8(btc_buf_w_t *p_buf_w, const uint8_t* in, size_t inlen, bool pad)
+{
+    size_t len = btc_convert_bits_buf_len(8, inlen, 5);
+    if (!btc_buf_w_expand(p_buf_w, len)) return false;
+    size_t outlen = 0;
+    if (!convert_bits_5to8(btc_buf_w_get_pos(p_buf_w), &outlen, in, inlen, pad)) return false;
+    assert(len == outlen);
+    if (!btc_buf_w_seek(p_buf_w, len)) return false;
+    return true;
+}
+
 static uint64_t convert_bits_5to8_value(const uint8_t *p_data, size_t dlen)
 {
     assert(dlen <= (64 / 5));
@@ -102,11 +133,28 @@ static int convert_bits_8to5_value(uint8_t *p_out, uint64_t val)
     return len;
 }
 
+static bool write_convert_bits_8to5_value(btc_buf_w_t *p_buf_w, uint64_t val)
+{
+    int len = convert_bits_8to5_value_len(val);
+    if (!btc_buf_w_expand(p_buf_w, len)) return false;
+    convert_bits_8to5_value(btc_buf_w_get_pos(p_buf_w), val);
+    if (!btc_buf_w_seek(p_buf_w, len)) return false;
+    return true;
+}
+
 static void convert_bits_8to5_value_10bits(uint8_t *p_out_2bytes, uint16_t val)
 {
     assert(!(val >> 10));
     p_out_2bytes[0] = (val >> 5) & 0x1f;
     p_out_2bytes[1] = val & 0x1f;
+}
+
+static bool write_convert_bits_8to5_value_10bits(btc_buf_w_t *p_buf_w, uint64_t val)
+{
+    uint8_t b[2];
+    convert_bits_8to5_value_10bits(b, val);
+    if (!btc_buf_w_write_data(p_buf_w, b, 2)) return false;
+    return true;
 }
 
 #if 0
@@ -172,7 +220,7 @@ static bool analyze_tagged_field(btc_buf_r_t *p_parts, ln_invoice_t **pp_invoice
     case 1:
         if (data_length != 52) break;
         tmp_len = 0;
-        if (!btc_convert_bits_5to8(p_data, &tmp_len, btc_buf_r_get_pos(p_parts), data_length, true)) goto LABEL_EXIT;
+        if (!convert_bits_5to8(p_data, &tmp_len, btc_buf_r_get_pos(p_parts), data_length, true)) goto LABEL_EXIT;
         memcpy(p_invoice_data->payment_hash, p_data, BTC_SZ_HASH256);
         break;
 
@@ -212,7 +260,7 @@ static bool analyze_tagged_field(btc_buf_r_t *p_parts, ln_invoice_t **pp_invoice
 
             if (!data_length) goto LABEL_EXIT;
             tmp_len = 0;
-            if (!btc_convert_bits_5to8(p_data, &tmp_len, btc_buf_r_get_pos(p_parts), data_length, true)) goto LABEL_EXIT;
+            if (!convert_bits_5to8(p_data, &tmp_len, btc_buf_r_get_pos(p_parts), data_length, true)) goto LABEL_EXIT;
             if (tmp_len < M_SZ_R_FIELD) goto LABEL_EXIT;
             n = tmp_len / M_SZ_R_FIELD;
             p_invoice_data = (ln_invoice_t *)UTL_DBG_REALLOC(
@@ -256,17 +304,30 @@ LABEL_EXIT:
 }
 
 bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
-    uint8_t data[1024]; //XXX: malloc
-    char hrp[M_SZ_PREFIX_MAX + M_UINT64_MAX_DIGIT + 1]; //prefix | amount | multiplier
-    size_t data_len = 0;
+    bool ret = false;
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_t buf_w_r_field;
+    btc_buf_w_t buf_w_preimg;
+
     *pp_invoice = NULL;
+
+    btc_buf_w_init(&buf_w, 0);
+    btc_buf_w_init(&buf_w_r_field, 0);
+    btc_buf_w_init(&buf_w_preimg, 0);
+
+    char hrp[M_SZ_PREFIX_MAX + M_UINT64_MAX_DIGIT + 1]; //prefix | amount | multiplier
 
     if (p_invoice_data->hrp_type != LN_INVOICE_MAINNET &&
         p_invoice_data->hrp_type != LN_INVOICE_TESTNET &&
-        p_invoice_data->hrp_type != LN_INVOICE_REGTEST) return false;
+        p_invoice_data->hrp_type != LN_INVOICE_REGTEST) goto LABEL_EXIT;
+
 
     //prefix
-    strcpy(hrp, ln_prefix_str[p_invoice_data->hrp_type]);
+    const char *tmp_cstr;
+    tmp_cstr = ln_prefix_str[p_invoice_data->hrp_type];
+    if (strlen(tmp_cstr) > M_SZ_PREFIX_MAX) goto LABEL_EXIT;
+    strcpy(hrp, tmp_cstr);
 
     //amount
     // 1BTC = 10 ^ 8 Satoshi
@@ -304,7 +365,10 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     }
 
     //timestamp
-    data_len = convert_bits_8to5_value(data, utl_time_time());
+    time_t t;
+    t = utl_time_time();
+    if (convert_bits_8to5_value_len(t) != 7) goto LABEL_EXIT;
+    if (!write_convert_bits_8to5_value(&buf_w, t)) goto LABEL_EXIT;
 
     //tagged field
     //  1. type (5bits)
@@ -312,109 +376,83 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     //  3. data (data_length x 5bits)
 
     //33-byte public key of the payee node
-    data[data_len++] = 19; //type
-    convert_bits_8to5_value_10bits(data + data_len, M_5BIT_BYTES_LEN(264));
-    data_len += 2;
-    if (!btc_convert_bits_8to5(data, &data_len, p_invoice_data->pubkey, BTC_SZ_PUBKEY, true)) return false;
+    if (!btc_buf_w_write_byte(&buf_w, 19)) goto LABEL_EXIT; //type
+    if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(264))) goto LABEL_EXIT;
+    if (!write_convert_bits_8to5(&buf_w, p_invoice_data->pubkey, BTC_SZ_PUBKEY, true)) goto LABEL_EXIT;
 
     //256-bit SHA256 payment_hash
-    data[data_len++] = 1; //type
-    convert_bits_8to5_value_10bits(data + data_len, M_5BIT_BYTES_LEN(256));
-    data_len += 2;
-    if (!btc_convert_bits_8to5(data, &data_len, p_invoice_data->payment_hash, BTC_SZ_HASH256, true)) return false;
+    if (!btc_buf_w_write_byte(&buf_w, 1)) goto LABEL_EXIT; //type
+    if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(256))) goto LABEL_EXIT;
+    if (!write_convert_bits_8to5(&buf_w, p_invoice_data->payment_hash, BTC_SZ_HASH256, true)) goto LABEL_EXIT;
 
     //short description
-    data[data_len++] = 13; //type
-    convert_bits_8to5_value_10bits(data + data_len, M_5BIT_BYTES_LEN(strlen(M_INVOICE_DESCRIPTION) * 8));
-    data_len += 2;
-    if (!btc_convert_bits_8to5(data, &data_len, (const uint8_t *)M_INVOICE_DESCRIPTION, strlen(M_INVOICE_DESCRIPTION), true)) return false;
+    if (!btc_buf_w_write_byte(&buf_w, 13)) goto LABEL_EXIT; //type
+    if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(strlen(M_INVOICE_DESCRIPTION) * 8))) goto LABEL_EXIT;
+    if (!write_convert_bits_8to5(&buf_w, (const uint8_t *)M_INVOICE_DESCRIPTION, strlen(M_INVOICE_DESCRIPTION), true)) goto LABEL_EXIT;
 
     //expiry
     if (p_invoice_data->expiry != LN_INVOICE_EXPIRY) {
-        data[data_len++] = 6; //type
+        if (!btc_buf_w_write_byte(&buf_w, 6)) goto LABEL_EXIT; //type
         int len = convert_bits_8to5_value_len(p_invoice_data->expiry);
-        convert_bits_8to5_value_10bits(data + data_len, len);
-        data_len += 2;
-        convert_bits_8to5_value(data + data_len, p_invoice_data->expiry);
-        data_len += len;
+        if (!write_convert_bits_8to5_value_10bits(&buf_w, len)) goto LABEL_EXIT;
+        if (!write_convert_bits_8to5_value(&buf_w, p_invoice_data->expiry)) goto LABEL_EXIT;
     }
 
     //min_final_cltv_expiry
     if (p_invoice_data->min_final_cltv_expiry != LN_MIN_FINAL_CLTV_EXPIRY) {
-        data[data_len++] = 24; //type
+        if (!btc_buf_w_write_byte(&buf_w, 24)) goto LABEL_EXIT; //type
         int len = convert_bits_8to5_value_len(p_invoice_data->min_final_cltv_expiry);
-        convert_bits_8to5_value_10bits(data + data_len, len);
-        data_len += 2;
-        convert_bits_8to5_value(data + data_len, p_invoice_data->min_final_cltv_expiry);
-        data_len += len;
+        if (!write_convert_bits_8to5_value_10bits(&buf_w, len)) goto LABEL_EXIT;
+        if (!write_convert_bits_8to5_value(&buf_w, p_invoice_data->min_final_cltv_expiry)) goto LABEL_EXIT;
     }
 
     //r field
     if (p_invoice_data->r_field_num > 0) {
         int bits = (M_SZ_R_FIELD * 8) * p_invoice_data->r_field_num;
-        data[data_len++] = 3; //type
-        convert_bits_8to5_value_10bits(data + data_len, M_5BIT_BYTES_LEN(bits));
-        data_len += 2;
+        if (!btc_buf_w_write_byte(&buf_w, 3)) goto LABEL_EXIT; //type
+        if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(bits))) goto LABEL_EXIT;
 
-        btc_buf_w_t buf_w;
-        if (!btc_buf_w_init(&buf_w, M_SZ_R_FIELD * p_invoice_data->r_field_num)) return false;
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
             const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
-            if (!btc_buf_w_write_data(&buf_w, r->node_id, BTC_SZ_PUBKEY)) {
-                btc_buf_w_free(&buf_w);
-                return false;
-            }
-            if (!btc_buf_w_write_u64be(&buf_w, r->short_channel_id)) {
-                btc_buf_w_free(&buf_w);
-                return false;
-            }
-            if (!btc_buf_w_write_u32be(&buf_w, r->fee_base_msat)) {
-                btc_buf_w_free(&buf_w);
-                return false;
-            }
-            if (!btc_buf_w_write_u32be(&buf_w, r->fee_prop_millionths)) {
-                btc_buf_w_free(&buf_w);
-                return false;
-            }
-            if (!btc_buf_w_write_u16be(&buf_w, r->cltv_expiry_delta)) {
-                btc_buf_w_free(&buf_w);
-                return false;
-            }
+            if (!btc_buf_w_write_data(&buf_w_r_field, r->node_id, BTC_SZ_PUBKEY)) goto LABEL_EXIT;
+            if (!btc_buf_w_write_u64be(&buf_w_r_field, r->short_channel_id)) goto LABEL_EXIT;
+            if (!btc_buf_w_write_u32be(&buf_w_r_field, r->fee_base_msat)) goto LABEL_EXIT;
+            if (!btc_buf_w_write_u32be(&buf_w_r_field, r->fee_prop_millionths)) goto LABEL_EXIT;
+            if (!btc_buf_w_write_u16be(&buf_w_r_field, r->cltv_expiry_delta)) goto LABEL_EXIT;
         }
-        if (!btc_convert_bits_8to5(data, &data_len, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), true)) {
-            btc_buf_w_free(&buf_w);
-            return false;
-        }
-        btc_buf_w_free(&buf_w);
+        if (!write_convert_bits_8to5(&buf_w, btc_buf_w_get_data(&buf_w_r_field), btc_buf_w_get_len(&buf_w_r_field), true)) goto LABEL_EXIT;
     }
 
     //hash
     // data: 5bits data -> 8 bits data
     // and hashed
-    size_t preimg_len = strlen(hrp);
-    uint8_t *p_preimg = (uint8_t *)UTL_DBG_MALLOC(preimg_len + data_len);
-    if (!p_preimg) return false;
-    strncpy((char *)p_preimg, (const char *)hrp, preimg_len);
-    if (!btc_convert_bits_5to8(p_preimg, &preimg_len, data, data_len, true)) {
-        UTL_DBG_FREE(p_preimg);
-        return false;
-    }
+    if (!btc_buf_w_write_data(&buf_w_preimg, hrp, strlen(hrp))) goto LABEL_EXIT;
+    if (!write_convert_bits_5to8(&buf_w_preimg, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), true)) goto LABEL_EXIT;
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_sha256(hash, p_preimg, preimg_len);
-    UTL_DBG_FREE(p_preimg);
+    btc_md_sha256(hash, btc_buf_w_get_data(&buf_w_preimg), btc_buf_w_get_len(&buf_w_preimg));
 
     //signature
     uint8_t sign[BTC_SZ_SIGN_RS + 1]; //with recovery id
-    if (!ln_node_sign_nodekey(sign, hash)) return false;
+    if (!ln_node_sign_nodekey(sign, hash)) goto LABEL_EXIT;
     int recid;
-    if (!btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash)) return false;
+    if (!btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash)) goto LABEL_EXIT;
     sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
-    if (!btc_convert_bits_8to5(data, &data_len, sign, sizeof(sign), true)) return false;
+    if (!write_convert_bits_8to5(&buf_w, sign, sizeof(sign), true)) goto LABEL_EXIT;
 
-    size_t invoice_buf_len = strlen(hrp) + data_len + 8;
+    size_t invoice_buf_len;
+    invoice_buf_len = btc_bech32_encode_buf_len(hrp, btc_buf_w_get_len(&buf_w));
     *pp_invoice = (char *)UTL_DBG_MALLOC(invoice_buf_len);
-    if (!*pp_invoice) return false;
-    return btc_bech32_encode(*pp_invoice, invoice_buf_len, hrp, data, data_len, true);
+    if (!*pp_invoice) goto LABEL_EXIT;
+    if (!btc_bech32_encode(*pp_invoice, invoice_buf_len, hrp, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), true)) goto LABEL_EXIT;
+
+    ret = true;
+
+LABEL_EXIT:
+    if (!ret) UTL_DBG_FREE(*pp_invoice);
+    btc_buf_w_free(&buf_w);
+    btc_buf_w_free(&buf_w_r_field);
+    btc_buf_w_free(&buf_w_preimg);
+    return ret;
 }
 
 static bool read_prefix(uint8_t *type, size_t *len, char *hrp)

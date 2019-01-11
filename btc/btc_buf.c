@@ -193,6 +193,12 @@ uint32_t btc_buf_w_get_len(btc_buf_w_t *pBufW)
 }
 
 
+uint8_t *btc_buf_w_get_pos(btc_buf_w_t *pBufW)
+{
+    return pBufW->_buf + pBufW->_pos;
+}
+
+
 bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 {
     int remains = pBufW->_buf_len - pBufW->_pos - Len;
@@ -276,6 +282,18 @@ bool btc_buf_w_expand(btc_buf_w_t *pBufW, uint32_t Size)
     pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, size);
     if (!pBufW->_buf) return false;
     pBufW->_buf_len = size;
+    return true;
+}
+
+
+bool btc_buf_w_seek(btc_buf_w_t *pBufW, int32_t offset)
+{
+    if (offset > 0) {
+        if (pBufW->_pos + offset > pBufW->_buf_len) return false;
+    } else {
+        if (pBufW->_pos < (uint32_t)-offset) return false;
+    }
+    pBufW->_pos += offset;
     return true;
 }
 

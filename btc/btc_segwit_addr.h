@@ -38,6 +38,8 @@ extern "C" {
 #define BTC_SEGWIT_ADDR_MAINNET2    ((uint8_t)2)
 #define BTC_SEGWIT_ADDR_TESTNET2    ((uint8_t)3)
 
+size_t btc_bech32_encode_buf_len(const char *hrp, size_t data_len);
+
 /** Encode a Bech32 string
  *
  *  Out: output:    Pointer to a buffer of size strlen(hrp) + data_len + 8 that
@@ -120,6 +122,8 @@ bool btc_segwit_addr_decode(
     const char* addr
 );
 
+size_t btc_convert_bits_buf_len(int outbits, size_t inlen, int inbits);
+
 bool btc_convert_bits(
     uint8_t* out,
     size_t* outlen, //XXX: [in/out] offset of out
@@ -129,10 +133,6 @@ bool btc_convert_bits(
     int inbits,
     bool pad
 );
-
-bool btc_convert_bits_8to5(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad);
-
-bool btc_convert_bits_5to8(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad);
 
 #ifdef __cplusplus
 }

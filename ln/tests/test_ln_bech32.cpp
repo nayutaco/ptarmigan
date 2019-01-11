@@ -60,6 +60,7 @@ extern "C" {
 class bech32: public testing::Test {
 protected:
     virtual void SetUp() {
+        //utl_log_init_stderr();
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, false);
