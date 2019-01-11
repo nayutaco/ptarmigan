@@ -156,6 +156,9 @@
 #define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
 
+//channel_update.timestamp
+#define M_UPDCNL_TIMERANGE                  (uint32_t)(60 * 60)     //1hour
+
 #if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
 //#define M_DBG_PRINT_TX(tx)    LOGD(""); btc_tx_print(tx)
@@ -4289,6 +4292,15 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
         LOGD("through: not found channel_announcement in DB, but save\n");
         ret = true;
+    }
+
+    //BOLT07
+    //  if the timestamp is unreasonably far in the future:
+    //    MAY discard the channel_update.
+    time_t now = utl_time_time();
+    if (upd.timestamp > now + M_UPDCNL_TIMERANGE) {
+        LOGD("through: timestamp is unreasonably far\n");
+        ret = false;
     }
 
     ln_cb_update_annodb_t anno;
