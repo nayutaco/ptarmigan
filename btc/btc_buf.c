@@ -197,10 +197,7 @@ bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 {
     int remains = pBufW->_buf_len - pBufW->_pos - Len;
     if (remains < 0) {
-        uint32_t size = M_ROUNDUP_BUF_SZ_UNSAFE(pBufW->_buf_len - remains);
-        pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, size);
-        if (!pBufW->_buf) return false;
-        pBufW->_buf_len = size;
+        if (!btc_buf_w_expand(pBufW, -(remains))) return false;
     }
     memcpy(&pBufW->_buf[pBufW->_pos], pData, Len);
     pBufW->_pos += Len;
@@ -268,6 +265,18 @@ bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len
 
     btc_md_hash256(buf, (uint8_t *)pData, Len);
     return btc_buf_w_write_data(pBufW, buf, BTC_SZ_HASH256);
+}
+
+
+bool btc_buf_w_expand(btc_buf_w_t *pBufW, uint32_t Size)
+{
+    assert(((uint64_t)pBufW->_buf_len + Size) <= (UINT32_MAX - M_SZ_BUF_UNIT));
+
+    uint32_t size = M_ROUNDUP_BUF_SZ_UNSAFE(pBufW->_buf_len + Size);
+    pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, size);
+    if (!pBufW->_buf) return false;
+    pBufW->_buf_len = size;
+    return true;
 }
 
 
