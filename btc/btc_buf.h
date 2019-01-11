@@ -87,6 +87,7 @@ bool btc_buf_w_write_u16le(btc_buf_w_t *pBufW, uint16_t U16);
 bool btc_buf_w_write_u32le(btc_buf_w_t *pBufW, uint32_t U32);
 bool btc_buf_w_write_u64le(btc_buf_w_t *pBufW, uint64_t U64);
 bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+bool btc_buf_w_expand(btc_buf_w_t *pBufW, uint32_t Size);
 void btc_buf_w_truncate(btc_buf_w_t *pBufW);
 
 
