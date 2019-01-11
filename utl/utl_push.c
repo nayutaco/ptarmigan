@@ -72,7 +72,7 @@ bool utl_push_value(utl_push_t *pPush, uint64_t Value)
         //use OP_1 ... OP_16
         buf[0] = 0x50 + Value;
         len = 1;
-    } else if (Value <= __UINT64_C(0x7fffffffff)) {
+    } else if (Value <= UINT64_C(0x7fffffffff)) {
         for (len = 1; len <= 6; len++) {
             if (Value < ((uint64_t)0x80 << 8 * (len - 1))) {
                 buf[0] = len;

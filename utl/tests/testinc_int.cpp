@@ -41,15 +41,15 @@ TEST_F(int_, pack)
     ASSERT_EQ(utl_int_pack_u16be(data1), 0xfedc);
     ASSERT_EQ(utl_int_pack_u32be(data0), 0x01234567);
     ASSERT_EQ(utl_int_pack_u32be(data1), 0xfedcba98);
-    ASSERT_EQ(utl_int_pack_u64be(data0), 0x0123456789abcdefUL);
-    ASSERT_EQ(utl_int_pack_u64be(data1), 0xfedcba9876543210UL);
+    ASSERT_EQ(utl_int_pack_u64be(data0), UINT64_C(0x0123456789abcdef));
+    ASSERT_EQ(utl_int_pack_u64be(data1), UINT64_C(0xfedcba9876543210));
 
     ASSERT_EQ(utl_int_pack_u16le(data0), 0x2301);
     ASSERT_EQ(utl_int_pack_u16le(data1), 0xdcfe);
     ASSERT_EQ(utl_int_pack_u32le(data0), 0x67452301);
     ASSERT_EQ(utl_int_pack_u32le(data1), 0x98badcfe);
-    ASSERT_EQ(utl_int_pack_u64le(data0), 0xefcdab8967452301UL);
-    ASSERT_EQ(utl_int_pack_u64le(data1), 0x1032547698badcfeUL);
+    ASSERT_EQ(utl_int_pack_u64le(data0), UINT64_C(0xefcdab8967452301));
+    ASSERT_EQ(utl_int_pack_u64le(data1), UINT64_C(0x1032547698badcfe));
 }
 
 
@@ -76,10 +76,10 @@ TEST_F(int_, unpack)
     utl_int_unpack_u32be(buf, 0xfedcba98);
     ASSERT_EQ(memcmp(buf, data1, 4), 0);
     memset(buf, 0x00, sizeof(buf));
-    utl_int_unpack_u64be(buf, 0x0123456789abcdefUL);
+    utl_int_unpack_u64be(buf, UINT64_C(0x0123456789abcdef));
     ASSERT_EQ(memcmp(buf, data0, 8), 0);
     memset(buf, 0x00, sizeof(buf));
-    utl_int_unpack_u64be(buf, 0xfedcba9876543210UL);
+    utl_int_unpack_u64be(buf, UINT64_C(0xfedcba9876543210));
     ASSERT_EQ(memcmp(buf, data1, 8), 0);
 
     memset(buf, 0x00, sizeof(buf));
@@ -95,10 +95,10 @@ TEST_F(int_, unpack)
     utl_int_unpack_u32le(buf, 0x98badcfe);
     ASSERT_EQ(memcmp(buf, data1, 4), 0);
     memset(buf, 0x00, sizeof(buf));
-    utl_int_unpack_u64le(buf, 0xefcdab8967452301UL);
+    utl_int_unpack_u64le(buf, UINT64_C(0xefcdab8967452301));
     ASSERT_EQ(memcmp(buf, data0, 8), 0);
     memset(buf, 0x00, sizeof(buf));
-    utl_int_unpack_u64le(buf, 0x1032547698badcfeUL);
+    utl_int_unpack_u64le(buf, UINT64_C(0x1032547698badcfe));
     ASSERT_EQ(memcmp(buf, data1, 8), 0);
 }
 
