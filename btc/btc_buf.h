@@ -77,6 +77,7 @@ bool btc_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size);
 void btc_buf_w_free(btc_buf_w_t *pBufW);
 uint8_t *btc_buf_w_get_data(btc_buf_w_t *pBufW);
 uint32_t btc_buf_w_get_len(btc_buf_w_t *pBufW);
+uint32_t btc_buf_w_get_buf_len(btc_buf_w_t *pBufW);
 bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
 bool btc_buf_w_write_byte(btc_buf_w_t *pBufW, uint8_t Byte);
 bool btc_buf_w_write_u16be(btc_buf_w_t *pBufW, uint16_t U16);

@@ -36,6 +36,14 @@
 
 
 /**************************************************************************
+ * macros
+ **************************************************************************/
+
+#define M_SZ_BUF_UNIT   (1024)
+#define M_ROUNDUP_BUF_SZ_UNSAFE(Value)  M_ROUNDUP_UNSAFE((Value), M_SZ_BUF_UNIT)
+
+
+/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -189,9 +197,10 @@ bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
 {
     int remains = pBufW->_buf_len - pBufW->_pos - Len;
     if (remains < 0) {
-        pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, pBufW->_buf_len - remains);
+        uint32_t size = M_ROUNDUP_BUF_SZ_UNSAFE(pBufW->_buf_len - remains);
+        pBufW->_buf = (uint8_t *)UTL_DBG_REALLOC(pBufW->_buf, size);
         if (!pBufW->_buf) return false;
-        pBufW->_buf_len = pBufW->_buf_len - remains;
+        pBufW->_buf_len = size;
     }
     memcpy(&pBufW->_buf[pBufW->_pos], pData, Len);
     pBufW->_pos += Len;

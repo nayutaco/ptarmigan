@@ -127,7 +127,7 @@ TEST_F(script_buf, w_data_expand1)
 
     ASSERT_EQ(6, btc_script_buf_w_get_len(&buf_w));
     ASSERT_EQ(0, memcmp(DATA, btc_script_buf_w_get_data(&buf_w), sizeof(DATA)));
-    ASSERT_EQ(6, buf_w._buf_len);
+    ASSERT_EQ(1024, buf_w._buf_len); //not buf unit size is 1024
 
     btc_script_buf_w_free(&buf_w);
 }
@@ -144,7 +144,7 @@ TEST_F(script_buf, w_data_expand2)
 
     ASSERT_EQ(6, btc_script_buf_w_get_len(&buf_w));
     ASSERT_EQ(0, memcmp(DATA, btc_script_buf_w_get_data(&buf_w), sizeof(DATA)));
-    ASSERT_EQ(6, buf_w._buf_len);
+    ASSERT_EQ(1024, buf_w._buf_len); //now buf unit size is 1024
 
     const uint8_t DATA2[] = { 7, 8, 9, 10 };
     ASSERT_TRUE(btc_script_buf_w_write_data(&buf_w, DATA2, sizeof(DATA2)));
@@ -152,7 +152,7 @@ TEST_F(script_buf, w_data_expand2)
     ASSERT_EQ(10, btc_script_buf_w_get_len(&buf_w));
     const uint8_t DATA_ALL[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
     ASSERT_EQ(0, memcmp(DATA_ALL, btc_script_buf_w_get_data(&buf_w), sizeof(DATA_ALL)));
-    ASSERT_EQ(10, buf_w._buf_len);
+    ASSERT_EQ(1024, buf_w._buf_len); //now buf unit size is 1024
 
     btc_script_buf_w_free(&buf_w);
 }
