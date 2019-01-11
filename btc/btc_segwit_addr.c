@@ -22,10 +22,16 @@
 /** @file   btc_segwit_addr.c
  *  @brief  btc_segwit_addr
  */
-#include "string.h"
+#include <string.h>
+#include <assert.h>
 
 #include "segwit_addr.h"
 #include "btc_segwit_addr.h"
+
+size_t btc_bech32_encode_buf_len(const char *hrp, size_t data_len)
+{
+    return strlen(hrp) + data_len + 8;
+}
 
 bool btc_bech32_encode(char *output, size_t output_len, const char *hrp, const uint8_t *data, size_t data_len, bool ln)
 {
@@ -33,7 +39,6 @@ bool btc_bech32_encode(char *output, size_t output_len, const char *hrp, const u
     if (output_len < strlen(hrp) + data_len + 8) return false;
     return bech32_encode(output, hrp, data, data_len, ln);
 }
-
 
 bool btc_bech32_decode(char* hrp, size_t hrp_len, uint8_t *data, size_t *data_len, const char *input, bool ln)
 {
@@ -61,7 +66,6 @@ bool btc_bech32_decode(char* hrp, size_t hrp_len, uint8_t *data, size_t *data_le
     return bech32_decode(hrp, data, data_len, input, ln);
 }
 
-
 bool btc_segwit_addr_encode(char* output, size_t output_len, uint8_t hrp_type, int ver, const uint8_t* prog, size_t prog_len)
 {
     if (output_len < 73 + hrp_len(hrp_type)) return false;
@@ -76,18 +80,18 @@ bool btc_segwit_addr_decode(int* ver, uint8_t* prog, size_t* prog_len, uint8_t h
     return segwit_addr_decode(ver, prog, prog_len, hrp_type, addr);
 }
 
+size_t btc_convert_bits_buf_len(int outbits, size_t inlen, int inbits)
+{
+    assert(outbits);
+    assert(outbits <= 8);
+    assert(inbits);
+    assert(inbits <= 8);
+
+    int bits = inlen * inbits;
+    return (bits + outbits - 1) / outbits;
+}
+
 bool btc_convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* in, size_t inlen, int inbits, bool pad)
 {
     return convert_bits(out, outlen, outbits, in, inlen, inbits, pad);
 }
-
-bool btc_convert_bits_8to5(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
-{
-    return convert_bits(out, outlen, 5, in, inlen, 8, pad);
-}
-
-bool btc_convert_bits_5to8(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
-{
-    return convert_bits(out, outlen, 8, in, inlen, 5, pad);
-}
-
