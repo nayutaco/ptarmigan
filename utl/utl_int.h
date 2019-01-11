@@ -42,6 +42,8 @@ extern "C" {
 #define M_UINT32_MAX_DIGIT  (10)
 #define M_UINT64_MAX_DIGIT  (20)
 
+#define M_ROUNDUP_UNSAFE(Value, Unit)   (((Value) + (Unit) - 1) / Unit * Unit)  //don't check overflow
+
 
 /**************************************************************************
  * prototypes
@@ -63,6 +65,7 @@ void utl_int_unpack_u64le(uint8_t *pData, uint64_t U64);
 //return digit number
 // note: if V=0 return 0 not 1
 uint8_t utl_int_digit(uint64_t V, uint8_t base);
+
 
 #ifdef __cplusplus
 }
