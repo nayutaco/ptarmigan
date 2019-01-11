@@ -1154,7 +1154,7 @@ bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd)
 {
     bool ret;
 
-    uint32_t now = (uint32_t)time(NULL);
+    uint32_t now = (uint32_t)utl_time_time();
     ln_cnl_update_t upd;
     ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
     if (ret) {
@@ -1283,7 +1283,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
 
         //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
         utl_buf_t buf_upd = UTL_BUF_INIT;
-        uint32_t now = (uint32_t)time(NULL);
+        uint32_t now = (uint32_t)utl_time_time();
         ln_cnl_update_t upd;
         ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_FLAGS_DISABLE);
         if (ret) {
@@ -4259,7 +4259,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
         //timestamp check
-        uint64_t now = (uint64_t)time(NULL);
+        uint64_t now = (uint64_t)utl_time_time();
         if (ln_db_annocnlupd_is_prune(now, upd.timestamp)) {
             //ret = false;
             char time[UTL_SZ_TIME_FMT_STR + 1];
@@ -5319,7 +5319,7 @@ static void proc_anno_sigs(ln_self_t *self)
 
         //channel_update
         utl_buf_t buf_upd = UTL_BUF_INIT;
-        uint32_t now = (uint32_t)time(NULL);
+        uint32_t now = (uint32_t)utl_time_time();
         ln_cnl_update_t upd;
         bool ret2 = create_channel_update(self, &upd, &buf_upd, now, 0);
         if (ret2) {

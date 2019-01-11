@@ -42,7 +42,7 @@ time_t utl_time_time(void)
 
 const char *utl_time_str_time(char pStr[UTL_SZ_TIME_FMT_STR + 1])
 {
-    utl_time_fmt(pStr, time(NULL));
+    utl_time_fmt(pStr, utl_time_time());
     return pStr;
 }
 

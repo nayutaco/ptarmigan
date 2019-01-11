@@ -1845,7 +1845,7 @@ static void *thread_anno_start(void *pArg)
             //まだ接続完了していない
             continue;
         }
-        time_t now = time(NULL);
+        time_t now = utl_time_time();
         if (p_conf->annodb_updated && p_conf->annodb_cont && (now - p_conf->annodb_stamp < M_WAIT_ANNO_HYSTER_SEC)) {
             LOGD("skip\n");
             continue;
@@ -2067,7 +2067,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
     bool ret = true;
 
     //BOLT#7: Pruning the Network View
-    uint64_t now = (uint64_t)time(NULL);
+    uint64_t now = (uint64_t)utl_time_time();
     if (ln_db_annocnlupd_is_prune(now, timestamp)) {
         //古いため送信しない
         char time[UTL_SZ_TIME_FMT_STR + 1];
@@ -2365,7 +2365,7 @@ static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
         p_conf->annodb_updated = true;
     }
     if (p_anno->anno == LN_CB_UPDATE_ANNODB_CNL_ANNO) {
-        time_t now = time(NULL);
+        time_t now = utl_time_time();
         if (now - p_conf->annodb_stamp < M_WAIT_ANNO_HYSTER_SEC) {
             //announcement連続受信中とみなす
             p_conf->annodb_cont = true;

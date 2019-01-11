@@ -1705,7 +1705,7 @@ static int cmd_routepay_proc1(
         LOGD("fail: mismatch blockchain\n");
         return RPCERR_INVOICE_FAIL;
     }
-    time_t now = time(NULL);
+    time_t now = utl_time_time();
     if (p_invoice_data->timestamp + p_invoice_data->expiry < (uint64_t)now) {
         LOGD("fail: invoice outdated\n");
         return RPCERR_INVOICE_OUTDATE;

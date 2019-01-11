@@ -298,7 +298,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     }
 
     //timestamp
-    time_t now = time(NULL);
+    time_t now = utl_time_time();
     data_len = unpack_value(data, now);
 
     //tagged field
