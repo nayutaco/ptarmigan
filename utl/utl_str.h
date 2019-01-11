@@ -134,6 +134,19 @@ void utl_str_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
+/** value -> string in base 10
+ *
+ * @param[out]      pStr        string
+ * @param[in]       pSize       size of pSize
+ * @param[in]       Value       value
+ * @return      true        success
+ *
+ * @note
+ *      - if Value==0, then return "0"
+ */
+bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value);
+
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
