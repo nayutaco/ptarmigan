@@ -25,6 +25,7 @@
 
 #include "utl_local.h"
 #include "utl_dbg.h"
+#include "utl_int.h"
 #include "utl_str.h"
 
 
@@ -48,7 +49,7 @@ bool utl_str_scan_u16(uint16_t *n, const char* s)
             break;
         }
     }
-  
+
     *n = 0;
     for (int i = 0; s[i]; i++) {
         *n *= 10;
@@ -75,7 +76,7 @@ bool utl_str_scan_u32(uint32_t *n, const char* s)
             break;
         }
     }
-  
+
     *n = 0;
     for (int i = 0; s[i]; i++) {
         *n *= 10;
@@ -107,7 +108,7 @@ bool utl_str_append(utl_str_t *x, const char *s)
         x->buf = UTL_DBG_STRDUP(s);
         if (!x->buf) return false;
     }
-    return true;       
+    return true;
 }
 
 const char *utl_str_get(utl_str_t *x)
@@ -187,3 +188,17 @@ void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
     }
 }
 
+
+bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value)
+{
+    uint8_t digit = (Value) ? utl_int_digit(Value, 10) : 1;
+
+    if (Size <= digit) return false;
+    pStr[digit] = '\0';
+
+    while (digit--) {
+        pStr[digit] = (uint8_t)('0' + Value % 10);
+        Value /= 10;
+    }
+    return true;
+}

@@ -212,3 +212,43 @@ TEST_F(str, invalid_chars)
         ASSERT_FALSE(utl_str_str2bin(bin, 1, s));
     }
 }
+
+
+TEST_F(str, itoa)
+{
+    char str[128];
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_TRUE(utl_str_itoa(str, 1 + 1, 0));
+    ASSERT_EQ(0, strcmp(str, "0"));
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_TRUE(utl_str_itoa(str, M_UINT16_MAX_DIGIT + 1, UINT16_MAX));
+    ASSERT_EQ(0, strcmp(str, "65535"));
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_TRUE(utl_str_itoa(str, M_UINT32_MAX_DIGIT + 1, UINT32_MAX));
+    ASSERT_EQ(0, strcmp(str, "4294967295"));
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_TRUE(utl_str_itoa(str, M_UINT64_MAX_DIGIT + 1, UINT64_MAX));
+    ASSERT_EQ(0, strcmp(str, "18446744073709551615"));
+}
+
+
+TEST_F(str, invalid_itoa)
+{
+    char str[128];
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_FALSE(utl_str_itoa(str, 1, 0));
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_FALSE(utl_str_itoa(str, M_UINT16_MAX_DIGIT, UINT16_MAX));
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_FALSE(utl_str_itoa(str, M_UINT32_MAX_DIGIT, UINT32_MAX));
+
+    memset(str, 0xff, sizeof(str));
+    ASSERT_FALSE(utl_str_itoa(str, M_UINT64_MAX_DIGIT, UINT64_MAX));
+}
