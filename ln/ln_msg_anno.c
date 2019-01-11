@@ -29,7 +29,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include "utl_time.h"
 
@@ -192,8 +191,6 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, c
     //        [33:bitcoin_key_2]
     utl_push_data(&proto, p_btc_2, BTC_SZ_PUBKEY);
 
-    assert(sizeof(uint16_t) + 430 == pBuf->len);
-
     utl_push_trim(&proto);
 
     bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
@@ -262,19 +259,15 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
     // DUMPD(hash, BTC_SZ_HASH256);
 
     ret = btc_sig_verify_rs(ptr.p_node_signature1, hash, ptr.p_node_id1);
-    assert(ret);
 
     if (ret) {
         ret = btc_sig_verify_rs(ptr.p_node_signature2, hash, ptr.p_node_id2);
-        assert(ret);
     }
     if (ret) {
         ret = btc_sig_verify_rs(ptr.p_btc_signature1, hash, ptr.p_btc_key1);
-        assert(ret);
     }
     if (ret) {
         ret = btc_sig_verify_rs(ptr.p_btc_signature2, hash, ptr.p_btc_key2);
-        assert(ret);
     }
 
     return ret;
@@ -597,8 +590,6 @@ bool HIDDEN ln_msg_node_announce_create(utl_buf_t *pBuf, const ln_node_announce_
         return false;
     }
 
-    assert(sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type] == pBuf->len);
-
     utl_push_trim(&proto);
 
     //署名
@@ -701,7 +692,10 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
     }
     pos += addrlen;
 
-    assert(Len >= pos);
+    if (Len < pos) {
+        LOGE("fail: length\n");
+        return false;
+    }
 
 #ifdef DBG_PRINT_READ_NOD
   LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -778,6 +772,7 @@ bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMs
     //        [8:htlc_minimum_msat]
     //        [4:fee_base_msat]
     //        [4:fee_proportional_millionths]
+    //        [8:htlc_maximum_msat] (option_channel_htlc_max)
 
     utl_push_t    proto;
 
@@ -822,7 +817,10 @@ bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMs
     //        [4:fee_proportional_millionths]
     ln_misc_push32be(&proto, pMsg->fee_prop_millionths);
 
-    assert(sizeof(uint16_t) + 128 == pBuf->len);
+    if (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX) {
+        //        [8:htlc_maximum_msat] (option_channel_htlc_max)
+        ln_misc_push64be(&proto, pMsg->htlc_maximum_msat);
+    }
 
     //署名
     uint8_t hash[BTC_SZ_HASH256];
@@ -923,7 +921,10 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
         pMsg->htlc_maximum_msat = 0;
     }
 
-    assert(Len >= pos);
+    if (Len < pos) {
+        LOGE("fail: length\n");
+        return false;
+    }
 
 #ifdef DBG_PRINT_READ_UPD
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -1016,8 +1017,6 @@ bool HIDDEN ln_msg_announce_signs_create(utl_buf_t *pBuf, const ln_announce_sign
     //        [64:bitcoin_signature]
     utl_push_data(&proto, pMsg->p_btc_signature, LN_SZ_SIGNATURE);
 
-    assert(sizeof(uint16_t) + 168 == pBuf->len);
-
     utl_push_trim(&proto);
 
     return true;
@@ -1088,7 +1087,10 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     memcpy(pMsg->p_btc_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    assert(Len >= pos);
+    if (Len < pos) {
+        LOGE("fail: length\n");
+        return false;
+    }
 
 #ifdef DBG_PRINT_READ_SIG
     LOGD("@@@@@ %s @@@@@\n", __func__);
