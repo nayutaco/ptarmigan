@@ -102,3 +102,29 @@ TEST_F(int_, unpack)
     ASSERT_EQ(memcmp(buf, data1, 8), 0);
 }
 
+
+TEST_F(int_, digit)
+{
+    uint8_t base;
+
+    //base 2
+    base = 2;
+    ASSERT_EQ(0, utl_int_digit(0, 2));
+    ASSERT_EQ(16, utl_int_digit(UINT16_MAX, base));
+    ASSERT_EQ(32, utl_int_digit(UINT32_MAX, base));
+    ASSERT_EQ(64, utl_int_digit(UINT64_MAX, base));
+
+    //base 10
+    base = 10;
+    ASSERT_EQ(0, utl_int_digit(0, 10));
+    ASSERT_EQ(5, utl_int_digit(UINT16_MAX, base));
+    ASSERT_EQ(10, utl_int_digit(UINT32_MAX, base));
+    ASSERT_EQ(20, utl_int_digit(UINT64_MAX, base));
+
+    //base 16
+    base = 16;
+    ASSERT_EQ(0, utl_int_digit(0, base));
+    ASSERT_EQ(4, utl_int_digit(UINT16_MAX, base));
+    ASSERT_EQ(8, utl_int_digit(UINT32_MAX, base));
+    ASSERT_EQ(16, utl_int_digit(UINT64_MAX, base));
+}
