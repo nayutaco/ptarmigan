@@ -1578,6 +1578,9 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd
     retval = annocnlupd_load(&db, &buf_upd, &timestamp, pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
     if (retval == 0) {
         if (timestamp > pUpd->timestamp) {
+            //BOLT07
+            //  if timestamp is NOT greater than that of the last-received channel_update for this short_channel_id AND for node_id:
+            //      SHOULD ignore the message.
             //自分の方が新しければ、スルー
             //LOGD("my channel_update is newer\n");
         } else if (timestamp < pUpd->timestamp) {

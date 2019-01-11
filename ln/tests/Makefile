@@ -6,6 +6,7 @@ MK := mkdir
 RM := rm -rf
 
 TEST_TARGET_SRC += \
+	test_ln_proto_updatechannel.cpp \
 	test_ln_msg_anno.cpp \
 	test_ln_bolt.cpp \
 	test_ln_htlcflag.cpp \
