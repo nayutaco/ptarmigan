@@ -36,6 +36,7 @@
 
 #include "utl_str.h"
 #include "utl_dbg.h"
+#include "utl_time.h"
 
 #include "btc_crypto.h"
 #include "btc_sw.h"
@@ -2788,7 +2789,7 @@ bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb)
     key.mv_data = pPreImg->preimage;
     data.mv_size = sizeof(info);
     info.amount = pPreImg->amount_msat;
-    info.creation = (uint64_t)time(NULL);
+    info.creation = (uint64_t)utl_time_time();
     info.expiry = pPreImg->expiry;
     data.mv_data = &info;
     int retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
@@ -2920,7 +2921,7 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
     MDB_val key, data;
-    uint64_t now = (uint64_t)time(NULL);
+    uint64_t now = (uint64_t)utl_time_time();
 
     *pDetect = false;
 
@@ -4584,7 +4585,7 @@ static void anno_del_prune(void)
     //時間がかかる場合があるため、状況を出力する
     fprintf(stderr, "DB checking: announcement...");
 
-    uint64_t now = (uint64_t)time(NULL);
+    uint64_t now = (uint64_t)utl_time_time();
     void *p_cur;
     ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNL);
     if (ret) {

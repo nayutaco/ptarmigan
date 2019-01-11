@@ -30,6 +30,8 @@
 #include <assert.h>
 
 #include "utl_dbg.h"
+#include "utl_net.h"
+#include "utl_time.h"
 
 #include "btc_crypto.h"
 #include "btc_sig.h"
@@ -39,7 +41,6 @@
 #include "ln_msg_anno.h"
 #include "ln_node.h"
 #include "ln_local.h"
-#include "utl_net.h"
 
 
 /**************************************************************************
@@ -168,7 +169,7 @@ bool ln_node_init(uint8_t Features)
                 }
                 if (update) {
                     LOGD("$$$ change node_announcement\n");
-                    anno.timestamp = (uint32_t)time(NULL);
+                    anno.timestamp = (uint32_t)utl_time_time();
                     ret = ln_msg_node_announce_create(&buf_node, &anno);
                     if (!ret) {
                         LOGD("fail: create node_announcement\n");
@@ -183,7 +184,7 @@ bool ln_node_init(uint8_t Features)
         //自node_announcement無し
         LOGD("new\n");
 
-        anno.timestamp = (uint32_t)time(NULL);
+        anno.timestamp = (uint32_t)utl_time_time();
         anno.p_node_id = mNode.keys.pub;
         anno.p_alias = mNode.alias;
         anno.rgbcolor[0] = 0;
