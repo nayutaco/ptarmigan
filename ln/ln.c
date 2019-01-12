@@ -1067,6 +1067,11 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already funding");
         return false;
     }
+    if (FeeRate < LN_FEERATE_PER_KW_MIN) {
+        //feerate_per_kw too low
+        M_SET_ERR(self, LNERR_INV_VALUE, "feerate_per_kw too low");
+        return false;
+    }
 
     //仮チャネルID
     btc_rng_rand(self->channel_id, LN_SZ_CHANNEL_ID);

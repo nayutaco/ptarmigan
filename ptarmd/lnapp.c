@@ -1432,7 +1432,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
-            feerate_kw = p_conf->feerate_per_kw;
+            feerate_kw = ptarmd_get_latest_feerate_kw();
         } else {
             feerate_kw = pFunding->feerate_per_kw;
         }
