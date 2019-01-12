@@ -63,13 +63,13 @@ extern "C" {
 // FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 // FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 
-// FAKE_VALUE_FUNC(bool, ln_msg_open_channel_create, utl_buf_t *, const ln_open_channel_t *);
+// FAKE_VALUE_FUNC(bool, ln_msg_open_channel_write, utl_buf_t *, const ln_open_channel_t *);
 // FAKE_VALUE_FUNC(bool, ln_msg_open_channel_read, ln_open_channel_t*, const uint8_t*, uint16_t);
-// FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_create, utl_buf_t *, const ln_accept_channel_t *);
+// FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_write, utl_buf_t *, const ln_accept_channel_t *);
 // FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_read, ln_accept_channel_t *, const uint8_t *, uint16_t );
-// FAKE_VALUE_FUNC(bool, ln_msg_funding_created_create, utl_buf_t *, const ln_funding_created_t *);
+// FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_funding_writed_t *);
 // FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_funding_created_t *, const uint8_t *, uint16_t );
-// FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_create, utl_buf_t *, const ln_funding_signed_t *);
+// FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_funding_signed_t *);
 // FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_funding_signed_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_data_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
@@ -91,11 +91,11 @@ protected:
         // RESET_FAKE(ln_db_preimg_search)
         // RESET_FAKE(ln_db_preimg_set_expiry)
         // RESET_FAKE(ln_msg_open_channel_read)
-        // RESET_FAKE(ln_msg_accept_channel_create)
+        // RESET_FAKE(ln_msg_accept_channel_write)
         // RESET_FAKE(ln_msg_accept_channel_read)
-        // RESET_FAKE(ln_msg_funding_created_create)
+        // RESET_FAKE(ln_msg_funding_created_write)
         // RESET_FAKE(ln_msg_funding_created_read)
-        // RESET_FAKE(ln_msg_funding_signed_create)
+        // RESET_FAKE(ln_msg_funding_signed_write)
         // RESET_FAKE(ln_msg_funding_signed_read)
         RESET_FAKE(ln_comtx_create_to_remote)
 

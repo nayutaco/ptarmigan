@@ -42,7 +42,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_open_channel_create(utl_buf_t *pBuf, const ln_open_channel_t *pMsg);
+bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_open_channel_t *pMsg);
 
 
 /** open_channel読込み
@@ -61,7 +61,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_accept_channel_create(utl_buf_t *pBuf, const ln_accept_channel_t *pMsg);
+bool HIDDEN ln_msg_accept_channel_write(utl_buf_t *pBuf, const ln_accept_channel_t *pMsg);
 
 
 /** accept_channel読込み
@@ -80,7 +80,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_created_create(utl_buf_t *pBuf, const ln_funding_created_t *pMsg);
+bool HIDDEN ln_msg_funding_created_write(utl_buf_t *pBuf, const ln_funding_created_t *pMsg);
 
 
 /** funding_created読込み
@@ -99,7 +99,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_signed_create(utl_buf_t *pBuf, const ln_funding_signed_t *pMsg);
+bool HIDDEN ln_msg_funding_signed_write(utl_buf_t *pBuf, const ln_funding_signed_t *pMsg);
 
 
 /** funding_signed読込み
@@ -118,7 +118,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_locked_create(utl_buf_t *pBuf, const ln_funding_locked_t *pMsg);
+bool HIDDEN ln_msg_funding_locked_write(utl_buf_t *pBuf, const ln_funding_locked_t *pMsg);
 
 
 /** funding_locked読込み
@@ -137,7 +137,7 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_channel_reestablish_create(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg);
+bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg);
 
 
 /** channel_reestablish読込み

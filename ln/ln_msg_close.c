@@ -55,7 +55,7 @@ static void closing_signed_print(const ln_closing_signed_t *pMsg);
  * shutdown
  ********************************************************************/
 
-bool HIDDEN ln_msg_shutdown_create(utl_buf_t *pBuf, const ln_shutdown_t *pMsg)
+bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_shutdown_t *pMsg)
 {
     //    type: 38 (shutdown)
     //    data:
@@ -151,7 +151,7 @@ static void shutdown_print(const ln_shutdown_t *pMsg)
  * closing_signed
  ********************************************************************/
 
-bool HIDDEN ln_msg_closing_signed_create(utl_buf_t *pBuf, const ln_closing_signed_t *pMsg)
+bool HIDDEN ln_msg_closing_signed_write(utl_buf_t *pBuf, const ln_closing_signed_t *pMsg)
 {
     //    type: 39 (closing_signed)
     //    data:

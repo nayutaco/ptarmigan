@@ -66,7 +66,7 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg);
  * open_channel
  ********************************************************************/
 
-bool HIDDEN ln_msg_open_channel_create(utl_buf_t *pBuf, const ln_open_channel_t *pMsg)
+bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_open_channel_t *pMsg)
 {
     //    type: 32 (open_channel)
     //    data:
@@ -327,7 +327,7 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
  * accept_channel
  ********************************************************************/
 
-bool HIDDEN ln_msg_accept_channel_create(utl_buf_t *pBuf, const ln_accept_channel_t *pMsg)
+bool HIDDEN ln_msg_accept_channel_write(utl_buf_t *pBuf, const ln_accept_channel_t *pMsg)
 {
     //    type: 33 (accept_channel)
     //    data:
@@ -525,7 +525,7 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg)
  * funding_created
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_created_create(utl_buf_t *pBuf, const ln_funding_created_t *pMsg)
+bool HIDDEN ln_msg_funding_created_write(utl_buf_t *pBuf, const ln_funding_created_t *pMsg)
 {
     //    type: 34 (funding_created)
     //    data:
@@ -646,7 +646,7 @@ static void funding_created_print(const ln_funding_created_t *pMsg)
  * funding_signed
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_signed_create(utl_buf_t *pBuf, const ln_funding_signed_t *pMsg)
+bool HIDDEN ln_msg_funding_signed_write(utl_buf_t *pBuf, const ln_funding_signed_t *pMsg)
 {
     //    type: 35 (funding_signed)
     //    data:
@@ -730,7 +730,7 @@ static void funding_signed_print(const ln_funding_signed_t *pMsg)
  * funding_locked
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_locked_create(utl_buf_t *pBuf, const ln_funding_locked_t *pMsg)
+bool HIDDEN ln_msg_funding_locked_write(utl_buf_t *pBuf, const ln_funding_locked_t *pMsg)
 {
     //    type: 36 (funding_locked)
     //    data:
@@ -814,7 +814,7 @@ static void funding_locked_print(const ln_funding_locked_t *pMsg)
  * channel_reestablish
  ********************************************************************/
 
-bool HIDDEN ln_msg_channel_reestablish_create(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg)
+bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg)
 {
     //    type: 136 (channel_reestablish)
     //    data:

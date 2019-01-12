@@ -105,7 +105,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg);
  * channel_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg)
+bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_write_t *pMsg)
 {
     //    type: 256 (channel_announcement)
     //    data:
@@ -514,7 +514,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
  * node_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_node_announce_create(utl_buf_t *pBuf, const ln_node_announce_t *pMsg)
+bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t *pMsg)
 {
     //    type: 257 (node_announcement)
     //    data:
@@ -759,7 +759,7 @@ static void node_announce_print(const ln_node_announce_t *pMsg)
  * channel_update
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg)
+bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg)
 {
     //    type: 258 (channel_update)
     //    data:
@@ -984,7 +984,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
  * announcement_signatures
  ********************************************************************/
 
-bool HIDDEN ln_msg_announce_signs_create(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg)
+bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg)
 {
     //    type: 259 (announcement_signatures)
     //    data:

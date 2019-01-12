@@ -39,7 +39,7 @@
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
+bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_write_t *pMsg);
 
 
 /** channel_announcement読込み(verify無し)
@@ -79,7 +79,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_node_announce_create(utl_buf_t *pBuf, const ln_node_announce_t *pMsg);
+bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t *pMsg);
 
 
 /** node_announcement読込み
@@ -98,7 +98,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg);
+bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg);
 
 
 /** channel_update読込み(verify無し)
@@ -127,7 +127,7 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_announce_signs_create(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg);
+bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg);
 
 
 /** announcement_signaturesのshort_channel_idのみ取得
