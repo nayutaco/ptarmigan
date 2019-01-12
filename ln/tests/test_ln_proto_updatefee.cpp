@@ -182,6 +182,7 @@ public:
         self->commit_remote.dust_limit_sat = BTC_DUST_LIMIT;
         self->commit_remote.htlc_minimum_msat = 0;
         self->commit_remote.max_accepted_htlcs = 10;
+        self->feerate_per_kw = 500;
         self->our_msat = 1000000;
         self->their_msat = 1000000;
         btc_tx_init(&self->tx_funding);
@@ -311,6 +312,48 @@ TEST_F(ln, create_updatefee_fundee)
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);
+    ASSERT_FALSE(ret);
+
+    utl_buf_free(&buf_bolt);
+    ln_term(&self);
+}
+
+//same
+TEST_F(ln, create_updatefee_same)
+{
+    ln_self_t self;
+    LnInitSend(&self);
+
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    bool ret = ln_update_fee_create(&self, &buf_bolt, self.feerate_per_kw);
+    ASSERT_FALSE(ret);
+
+    utl_buf_free(&buf_bolt);
+    ln_term(&self);
+}
+
+//low
+TEST_F(ln, create_updatefee_low)
+{
+    ln_self_t self;
+    LnInitSend(&self);
+
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    bool ret = ln_update_fee_create(&self, &buf_bolt, LN_FEERATE_PER_KW_MIN);
+    ASSERT_TRUE(ret);
+
+    utl_buf_free(&buf_bolt);
+    ln_term(&self);
+}
+
+//too low
+TEST_F(ln, create_updatefee_toolow)
+{
+    ln_self_t self;
+    LnInitSend(&self);
+
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    bool ret = ln_update_fee_create(&self, &buf_bolt, LN_FEERATE_PER_KW_MIN - 1);
     ASSERT_FALSE(ret);
 
     utl_buf_free(&buf_bolt);
