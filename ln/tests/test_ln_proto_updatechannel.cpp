@@ -75,7 +75,7 @@ FAKE_VALUE_FUNC(const char *, utl_time_fmt, char *, time_t );
 //FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_write, utl_buf_t *, const ln_cnl_update_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_read, ln_cnl_update_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_verify, const uint8_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_msg_cnl_announce_read, ln_cnl_announce_read_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_cnl_announce_read, ln_cnl_announce_t *, const uint8_t *, uint16_t );
 
 
 ////////////////////////////////////////////////////////////////////////

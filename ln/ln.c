@@ -1868,13 +1868,13 @@ void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
  */
 bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len)
 {
-    ln_cnl_announce_read_t ann;
+    ln_cnl_announce_t anno;
 
-    bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
-    if (ret && (ann.short_channel_id != 0)) {
-        *p_short_channel_id = ann.short_channel_id;
-        memcpy(pNodeId1, ann.node_id1, BTC_SZ_PUBKEY);
-        memcpy(pNodeId2, ann.node_id2, BTC_SZ_PUBKEY);
+    bool ret = ln_msg_cnl_announce_read(&anno, pData, Len);
+    if (ret && (anno.short_channel_id != 0)) {
+        *p_short_channel_id = anno.short_channel_id;
+        memcpy(pNodeId1, anno.p_node_id1, BTC_SZ_PUBKEY);
+        memcpy(pNodeId2, anno.p_node_id2, BTC_SZ_PUBKEY);
     } else {
         LOGD("fail\n");
     }
@@ -4222,10 +4222,10 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
  */
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    ln_cnl_announce_read_t ann;
+    ln_cnl_announce_t anno;
 
-    bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
-    if (!ret || (ann.short_channel_id == 0)) {
+    bool ret = ln_msg_cnl_announce_read(&anno, pData, Len);
+    if (!ret || (anno.short_channel_id == 0)) {
         LOGD("fail: do nothing\n");
         return true;
     }
@@ -4235,16 +4235,16 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     buf.len = Len;
 
     //DB保存
-    ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self),
-                                ann.node_id1, ann.node_id2);
-    ln_cb_update_annodb_t anno;
+    ret = ln_db_annocnl_save(&buf, anno.short_channel_id, ln_their_node_id(self),
+                                anno.p_node_id1, anno.p_node_id2);
+    ln_cb_update_annodb_t annodb;
     if (ret) {
-        LOGD("save channel_announcement: %016" PRIx64 "\n", ann.short_channel_id);
-        anno.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
+        LOGD("save channel_announcement: %016" PRIx64 "\n", anno.short_channel_id);
+        annodb.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
     } else {
-        anno.anno = LN_CB_UPDATE_ANNODB_NONE;
+        annodb.anno = LN_CB_UPDATE_ANNODB_NONE;
     }
-    (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+    (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &annodb);
 
     return true;
 }
@@ -4717,14 +4717,22 @@ static bool create_local_channel_announcement(ln_self_t *self)
     LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
     utl_buf_free(&self->cnl_anno);
 
-    ln_cnl_announce_write_t anno;
+    ln_cnl_announce_t anno;
 
     anno.short_channel_id = self->short_channel_id;
-    anno.p_my_node_pub = ln_node_getid();
-    anno.p_peer_node_pub = self->peer_node_id;
-    anno.p_my_funding_pub = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-    anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-    anno.sort = sort_nodeid(self, NULL);
+    if (sort_nodeid(self, NULL) == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
+        //自ノードが先
+        anno.p_node_id1 = ln_node_getid();
+        anno.p_node_id2 = self->peer_node_id;
+        anno.p_btc_key1 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+        anno.p_btc_key2 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+    } else {
+        anno.p_node_id1 = self->peer_node_id;
+        anno.p_node_id2 = ln_node_getid();
+        anno.p_btc_key1 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+        anno.p_btc_key2 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+    }
+
     bool ret = ln_msg_cnl_announce_write(self, &self->cnl_anno, &anno);
 
     return ret;
@@ -5370,17 +5378,11 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
     utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
     ret = ln_db_annocnl_load(&buf_cnl_anno, short_channel_id);
     if (ret) {
-        ln_cnl_announce_read_t ann;
+        ln_cnl_announce_t anno;
 
-        ret = ln_msg_cnl_announce_read(&ann, buf_cnl_anno.buf, buf_cnl_anno.len);
+        ret = ln_msg_cnl_announce_read(&anno, buf_cnl_anno.buf, buf_cnl_anno.len);
         if (ret) {
-            const uint8_t *p_node_id;
-            if (Dir == 0) {
-                p_node_id = ann.node_id1;
-            } else {
-                p_node_id = ann.node_id2;
-            }
-            memcpy(pNodeId, p_node_id, BTC_SZ_PUBKEY);
+            memcpy(pNodeId, Dir ? anno.p_node_id2 : anno.p_node_id1, BTC_SZ_PUBKEY);
         } else {
             LOGD("fail\n");
         }

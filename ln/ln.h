@@ -711,26 +711,16 @@ typedef struct {
  *  @brief      channel_announcement
  */
 typedef struct {
-    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-//    uint8_t     features;                           ///< 1:  features
-
-    const uint8_t           *p_my_node_pub;
-    const uint8_t           *p_my_funding_pub;
-    const uint8_t           *p_peer_node_pub;
-    const uint8_t           *p_peer_funding_pub;
-    uint8_t                 *p_peer_node_sign;
-    uint8_t                 *p_peer_btc_sign;
-    btc_script_pubkey_order_t         sort;                   ///< peerのln_node_announce_t.sort
-} ln_cnl_announce_write_t;
-
-
-typedef struct {
-    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-    uint8_t     node_id1[BTC_SZ_PUBKEY];            ///< 33: node_id_1
-    uint8_t     node_id2[BTC_SZ_PUBKEY];            ///< 33: node_id_2
-    uint8_t     btc_key1[BTC_SZ_PUBKEY];            ///< 33: bitcoin_key_1
-    uint8_t     btc_key2[BTC_SZ_PUBKEY];            ///< 33: bitcoin_key_2
-} ln_cnl_announce_read_t;
+    //const uint8_t   *p_node_sig1;
+    //const uint8_t   *p_node_sig2;
+    //const uint8_t   *p_btc_sig1;
+    //const uint8_t   *p_btc_sig2;
+    uint64_t        short_channel_id;
+    const uint8_t   *p_node_id1;
+    const uint8_t   *p_node_id2;
+    const uint8_t   *p_btc_key1;
+    const uint8_t   *p_btc_key2;
+} ln_cnl_announce_t;
 
 
 /** @struct     ln_nodeaddr_t
