@@ -726,11 +726,11 @@ void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw)
         }
     }
     if ( (htlc_num == 0) &&
-         ((self->feerate_per_kw == 0) || (self->feerate_per_kw == FeeratePerKw))) {
+         ((self->short_channel_id == 0) || (self->feerate_per_kw == FeeratePerKw))) {
         return;
     }
     if (htlc_num == 0) {
-        LOGD("$$$ update_fee: %" PRIu32 "(%" PRIu32 ")\n", FeeratePerKw, self->feerate_per_kw);
+        LOGD("$$$ update_fee: %" PRIu32 " ==> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
         b_final = false;
     }
     if (b_final) {
@@ -1679,6 +1679,12 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
 
     if (self->feerate_per_kw == FeeratePerKw) {
         //same
+        M_SET_ERR(self, LNERR_INV_STATE, "same feerate_per_kw");
+        return false;
+    }
+    if (FeeratePerKw < LN_FEERATE_PER_KW_MIN) {
+        //too low
+        M_SET_ERR(self, LNERR_INV_STATE, "feerate_per_kw too low");
         return false;
     }
 
@@ -2484,7 +2490,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
             }
         }
     }
-    if (!b_comsig && (self->feerate_per_kw != FeeratePerKw)) {
+    if (!b_comsig && ((FeeratePerKw != 0) && (self->feerate_per_kw != FeeratePerKw))) {
         utl_buf_t buf_bolt = UTL_BUF_INIT;
         bool ret = ln_update_fee_create(self, &buf_bolt, FeeratePerKw);
         if (ret) {

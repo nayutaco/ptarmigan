@@ -124,8 +124,7 @@ void *monitor_thread_start(void *pArg)
             param.feerate_per_kw = mFeeratePerKw;
         }
         if (param.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
-            LOGE("fail: feerate_per_kw\n");
-            continue;
+            param.feerate_per_kw = 0;
         }
         bool ret = btcrpc_getblockcount(&param.height);
         if (ret) {

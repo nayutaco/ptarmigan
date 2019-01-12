@@ -498,9 +498,11 @@ void lnapp_set_feerate(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         return;
     }
 
-    LOGD("feerate=%" PRIu32 "\n", FeeratePerKw);
     pthread_mutex_lock(&pAppConf->mux_self);
-    pAppConf->feerate_per_kw = FeeratePerKw;    //use #rcvidle_pop_and_exec()
+    if ((FeeratePerKw >= LN_FEERATE_PER_KW_MIN) && (pAppConf->feerate_per_kw != FeeratePerKw)) {
+        pAppConf->feerate_per_kw = FeeratePerKw;    //use #rcvidle_pop_and_exec()
+        LOGD("feerate_per_kw=%" PRIu32 "\n", pAppConf->feerate_per_kw);
+    }
     pthread_mutex_unlock(&pAppConf->mux_self);
 }
 
@@ -811,7 +813,6 @@ static void *thread_main_start(void *pArg)
     p_conf->annodb_stamp = 0;
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
-    p_conf->feerate_per_kw = ptarmd_get_latest_feerate_kw();
     utl_buf_init(&p_conf->buf_sendque);
     LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
@@ -870,6 +871,8 @@ static void *thread_main_start(void *pArg)
     //
     //selfへの設定はこれ以降に行う
     //
+
+    p_conf->feerate_per_kw = p_self->feerate_per_kw;
 
     //peer受信スレッド
     pthread_create(&th_recv, NULL, &thread_recv_start, p_conf);
@@ -3199,7 +3202,11 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     pthread_mutex_lock(&p_conf->mux_rcvidle);
 
     pthread_mutex_lock(&p_conf->mux_self);
-    ln_recv_idle_proc(p_conf->p_self, p_conf->feerate_per_kw);
+
+    if ((p_conf->flag_recv & RECV_MSG_END) == RECV_MSG_END) {
+        ln_recv_idle_proc(p_conf->p_self, p_conf->feerate_per_kw);
+    }
+
     pthread_mutex_unlock(&p_conf->mux_self);
 
     struct rcvidlelist_t *p_rcvidle = LIST_FIRST(&p_conf->rcvidle_head);
