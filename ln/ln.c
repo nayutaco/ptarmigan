@@ -681,7 +681,7 @@ bool ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
 
     //LOGD("short_channel_id= %016" PRIx64 "\n", self->short_channel_id);
     if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_EXCHNAGED(self->init_flag))) {
@@ -2479,7 +2479,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
                     //???
                 }
                 if (buf_bolt.len > 0) {
-                        uint16_t type = ln_misc_get16be(buf_bolt.buf);
+                        uint16_t type = utl_int_pack_u16be(buf_bolt.buf);
                     LOGD("send: %s\n", ln_misc_msgname(type));
                     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
                     utl_buf_free(&buf_bolt);

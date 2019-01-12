@@ -31,6 +31,7 @@
 #include <assert.h>
 
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 
@@ -120,7 +121,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_UPDATE_ADD_HTLC) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -133,11 +134,11 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:id]
-    pMsg->id = ln_misc_get64be(pData + pos);
+    pMsg->id = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:amount-msat]
-    pMsg->amount_msat = ln_misc_get64be(pData + pos);
+    pMsg->amount_msat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [32:payment-hash]
@@ -145,7 +146,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     pos += BTC_SZ_HASH256;
 
     //        [4:cltv-expiry]
-    pMsg->cltv_expiry = ln_misc_get32be(pData + pos);
+    pMsg->cltv_expiry = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [1366:onion-routing-packet]
@@ -230,7 +231,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_UPDATE_FULFILL_HTLC) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -243,7 +244,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:id]
-    pMsg->id = ln_misc_get64be(pData + pos);
+    pMsg->id = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
 //        [32:payment-preimage]
@@ -331,7 +332,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_UPDATE_FAIL_HTLC) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -344,11 +345,11 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:id]
-    pMsg->id = ln_misc_get64be(pData + pos);
+    pMsg->id = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
+    uint16_t len = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
     if (Len - pos < len) {
         LOGD("fail: invalid reason length: %d\n", Len);
@@ -437,7 +438,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_COMMITMENT_SIGNED) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -454,7 +455,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
     pos += LN_SZ_SIGNATURE;
 
     //        [2:num-htlcs]
-    pMsg->num_htlcs = ln_misc_get16be(pData + pos);
+    pMsg->num_htlcs = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
 
@@ -540,7 +541,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_REVOKE_AND_ACK) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -630,7 +631,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_UPDATE_FEE) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -643,7 +644,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [4:feerate-per-kw]
-    pMsg->feerate_per_kw = ln_misc_get32be(pData + pos);
+    pMsg->feerate_per_kw = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     assert(Len >= pos);
@@ -721,7 +722,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -734,7 +735,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:id]
-    pMsg->id = ln_misc_get64be(pData + pos);
+    pMsg->id = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [32:sha256-of-onion]
@@ -742,7 +743,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     pos += BTC_SZ_HASH256;
 
     //        [2:failure-code]
-    pMsg->failure_code = ln_misc_get16be(pData + pos);
+    pMsg->failure_code = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     assert(Len >= pos);

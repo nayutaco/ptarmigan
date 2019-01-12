@@ -31,6 +31,7 @@
 #include <assert.h>
 
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 #include "ln_msg_setupctl.h"
 #include "ln_misc.h"
@@ -116,7 +117,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_INIT) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -124,7 +125,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     int pos = sizeof(uint16_t);
 
     //        [2:gflen]
-    uint16_t gflen = ln_misc_get16be(pData + pos);
+    uint16_t gflen = utl_int_pack_u16be(pData + pos);
     if (Len < sizeof(uint16_t) + 4 + gflen) {
         LOGD("fail: invalid length: %d\n", Len);
         return false;
@@ -136,7 +137,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     pos += gflen;
 
     //        [2:lflen]
-    uint16_t lflen = ln_misc_get16be(pData + pos);
+    uint16_t lflen = utl_int_pack_u16be(pData + pos);
     if (Len < sizeof(uint16_t) + 4 + gflen + lflen) {
         LOGD("fail: invalid length: %d\n", Len);
         return false;
@@ -218,7 +219,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_ERROR) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -231,7 +232,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
     pos += LN_SZ_CHANNEL_ID;
 
     //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
+    uint16_t len = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [len:data]
@@ -325,19 +326,19 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_PING) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
-    pMsg->num_pong_bytes = ln_misc_get16be(pData + sizeof(uint16_t));
+    pMsg->num_pong_bytes = utl_int_pack_u16be(pData + sizeof(uint16_t));
     if (pMsg->num_pong_bytes > 65531) {
         LOGD("fail: num_pong_bytes too large %04x\n", pMsg->num_pong_bytes);
         return false;
     }
 
-    pMsg->byteslen = ln_misc_get16be(pData + sizeof(uint16_t) + 2);
+    pMsg->byteslen = utl_int_pack_u16be(pData + sizeof(uint16_t) + 2);
     if (Len < sizeof(uint16_t) + 4 + pMsg->byteslen) {
         LOGD("fail: invalid length2: %d, bytelen=%d\n", Len, pMsg->byteslen);
         return false;
@@ -426,13 +427,13 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_PONG) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
-    pMsg->byteslen = ln_misc_get16be(pData + sizeof(uint16_t));
+    pMsg->byteslen = utl_int_pack_u16be(pData + sizeof(uint16_t));
     if (pMsg->byteslen > 65531) {
         LOGD("fail: byteslen too large %04x\n", pMsg->byteslen);
         return false;

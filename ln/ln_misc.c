@@ -79,27 +79,6 @@ const char *ln_misc_msgname(uint16_t Type)
 }
 
 
-uint16_t ln_misc_get16be(const uint8_t *pData)
-{
-    return (pData[0] << 8) | pData[1];
-}
-
-
-uint32_t ln_misc_get32be(const uint8_t *pData)
-{
-    return (pData[0] << 24) | (pData[1] << 16) | (pData[2] << 8) | pData[3];
-}
-
-
-uint64_t ln_misc_get64be(const uint8_t *pData)
-{
-    return ((uint64_t)pData[0] << 56) | ((uint64_t)pData[1] << 48) |
-                        ((uint64_t)pData[2] << 40) | ((uint64_t)pData[3] << 32) |
-                        ((uint64_t)pData[4] << 24) | ((uint64_t)pData[5] << 16) |
-                        ((uint64_t)pData[6] << 8) | (uint64_t)pData[7];
-}
-
-
 /********************************************************************
  * functions
  ********************************************************************/

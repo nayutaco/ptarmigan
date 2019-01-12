@@ -979,11 +979,11 @@ TEST_F(onion, testvector_failure_resolve)
     ln_onion_failure_forward(&buf_fail, &buf_shared_secret4, &err);
     utl_buf_free(&buf_fail4);
 
-    uint16_t failure_len = ln_misc_get16be(buf_fail.buf + 32);
+    uint16_t failure_len = utl_int_pack_u16be(buf_fail.buf + 32);
     ASSERT_EQ(2, failure_len);
     ASSERT_EQ(0x20, buf_fail.buf[34]);
     ASSERT_EQ(0x02, buf_fail.buf[35]);
-    uint16_t pad_len = ln_misc_get16be(buf_fail.buf + 36);
+    uint16_t pad_len = utl_int_pack_u16be(buf_fail.buf + 36);
     ASSERT_EQ(0xfe, pad_len);
     for (int lp = 0; lp < pad_len; lp++) {
         ASSERT_EQ(0, buf_fail.buf[38 + lp]);

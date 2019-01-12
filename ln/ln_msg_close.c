@@ -28,6 +28,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "utl_int.h"
+
 #include "ln_msg_close.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -97,7 +99,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_SHUTDOWN) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -110,7 +112,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     pos += LN_SZ_CHANNEL_ID;
 
     //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
+    uint16_t len = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
     if (Len - pos < len) {
         LOGD("fail: invalid scriptpubkey length: %d\n", Len);
@@ -193,7 +195,7 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CLOSING_SIGNED) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -206,7 +208,7 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:fee-satoshis]
-    pMsg->fee_sat = ln_misc_get64be(pData + pos);
+    pMsg->fee_sat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [64:signature]

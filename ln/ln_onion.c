@@ -33,6 +33,7 @@
 #include "mbedtls/md.h"
 
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 
@@ -325,9 +326,9 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         return false;
     }
 
-    pNextData->short_channel_id = ln_misc_get64be(stream_bytes + M_SZ_REALM);
-    pNextData->amt_to_forward = ln_misc_get64be(stream_bytes + M_SZ_REALM + M_SZ_CHANNEL_ID);
-    pNextData->outgoing_cltv_value = ln_misc_get32be(stream_bytes + M_SZ_REALM + M_SZ_CHANNEL_ID + M_SZ_AMT_TO_FORWARD);
+    pNextData->short_channel_id = utl_int_pack_u64be(stream_bytes + M_SZ_REALM);
+    pNextData->amt_to_forward = utl_int_pack_u64be(stream_bytes + M_SZ_REALM + M_SZ_CHANNEL_ID);
+    pNextData->outgoing_cltv_value = utl_int_pack_u32be(stream_bytes + M_SZ_REALM + M_SZ_CHANNEL_ID + M_SZ_AMT_TO_FORWARD);
 
     uint8_t blind_factor[M_SZ_BLINDING_FACT];
     compute_blinding_factor(blind_factor, p_dhkey, shared_secret);
@@ -476,9 +477,9 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
         const utl_buf_t sharedsecret = { pSharedSecrets->buf + BTC_SZ_PRIVKEY * lp, BTC_SZ_PRIVKEY };
         ln_onion_failure_forward(p_out, &sharedsecret, p_in);
         reason.buf = p_out->buf + M_SZ_HMAC + 2;
-        reason.len = ln_misc_get16be(p_out->buf + M_SZ_HMAC);
+        reason.len = utl_int_pack_u16be(p_out->buf + M_SZ_HMAC);
         if (reason.len < DATALEN) {
-            uint32_t pad_len = ln_misc_get16be(p_out->buf + M_SZ_HMAC + 2 + reason.len);
+            uint32_t pad_len = utl_int_pack_u16be(p_out->buf + M_SZ_HMAC + 2 + reason.len);
             if (reason.len + pad_len == DATALEN) {
                 uint32_t lp2;
                 for (lp2 = 0; lp2 < pad_len; lp2++) {
