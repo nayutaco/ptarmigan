@@ -105,7 +105,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg);
  * channel_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_write_t *pMsg)
+bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg)
 {
     //    type: 256 (channel_announcement)
     //    data:
@@ -164,37 +164,23 @@ bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, co
     //        [8:short_channel_id]
     ln_misc_push64be(&proto, pMsg->short_channel_id);
 
-    const uint8_t *p_node_1;
-    const uint8_t *p_node_2;
-    const uint8_t *p_btc_1;
-    const uint8_t *p_btc_2;
-    if (pMsg->sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        //自ノードが先
-        p_node_1 = pMsg->p_my_node_pub;
-        p_node_2 = pMsg->p_peer_node_pub;
-        p_btc_1 = pMsg->p_my_funding_pub;
-        p_btc_2 = pMsg->p_peer_funding_pub;
-    } else {
-        p_node_1 = pMsg->p_peer_node_pub;
-        p_node_2 = pMsg->p_my_node_pub;
-        p_btc_1 = pMsg->p_peer_funding_pub;
-        p_btc_2 = pMsg->p_my_funding_pub;
-    }
     //        [33:node_id_1]
-    utl_push_data(&proto, p_node_1, BTC_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_node_id1, BTC_SZ_PUBKEY);
 
     //        [33:node_id_2]
-    utl_push_data(&proto, p_node_2, BTC_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_node_id2, BTC_SZ_PUBKEY);
 
     //        [33:bitcoin_key_1]
-    utl_push_data(&proto, p_btc_1, BTC_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_btc_key1, BTC_SZ_PUBKEY);
 
     //        [33:bitcoin_key_2]
-    utl_push_data(&proto, p_btc_2, BTC_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_btc_key2, BTC_SZ_PUBKEY);
 
     utl_push_trim(&proto);
 
-    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
+    btc_script_pubkey_order_t sort = (pMsg->p_node_id1 == ln_node_getid()) ?
+        BTC_SCRYPT_PUBKEY_ORDER_ASC : BTC_SCRYPT_PUBKEY_ORDER_OTHER;
+    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, sort);
     if (ret) {
 #ifdef DBG_PRINT_CREATE_CNL
         LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
@@ -208,7 +194,7 @@ bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, co
 }
 
 
-bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     //len=0
     if (Len < sizeof(uint16_t) + 430) {
@@ -225,10 +211,10 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData
     cnl_announce_ptr_t ptr;
     bool ret = cnl_announce_ptr(&ptr, pData, Len);
     if (ret) {
-        memcpy(pMsg->node_id1, ptr.p_node_id1, BTC_SZ_PUBKEY);
-        memcpy(pMsg->node_id2, ptr.p_node_id2, BTC_SZ_PUBKEY);
-        memcpy(pMsg->btc_key1, ptr.p_btc_key1, BTC_SZ_PUBKEY);
-        memcpy(pMsg->btc_key2, ptr.p_btc_key2, BTC_SZ_PUBKEY);
+        pMsg->p_node_id1 = ptr.p_node_id1;
+        pMsg->p_node_id2 = ptr.p_node_id2;
+        pMsg->p_btc_key1 = ptr.p_btc_key1;
+        pMsg->p_btc_key2 = ptr.p_btc_key2;
         pMsg->short_channel_id = ptr.short_channel_id;
 #ifdef DBG_PRINT_READ_CNL
         LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);

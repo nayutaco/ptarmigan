@@ -39,7 +39,7 @@
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_write_t *pMsg);
+bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg);
 
 
 /** channel_announcement読込み(verify無し)
@@ -49,7 +49,7 @@ bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, co
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** channel_announcement署名verify
