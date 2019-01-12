@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "utl_time.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 #include "btc_sig.h"
@@ -215,7 +216,7 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -279,7 +280,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 #ifdef PTARM_DEBUG
     LOGD("-[channel_announcement]-------------------------------\n");
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
         LOGD("fail: type not match: %04x\n", type);
         DUMPD(pData, Len);
@@ -313,7 +314,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
     Len -= LN_SZ_SIGNATURE;
 
     //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
+    uint16_t len = utl_int_pack_u16be(pData + pos);
     LOGD("len= %d\n", len);
     pos += sizeof(uint16_t);
     Len -= sizeof(uint16_t);
@@ -332,7 +333,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
     Len -= BTC_SZ_HASH256;
 
     //        [8:short_channel_id]
-    LOGD("short_channel_id= %016" PRIx64 "\n", ln_misc_get64be(pData + pos));
+    LOGD("short_channel_id= %016" PRIx64 "\n", utl_int_pack_u64be(pData + pos));
     pos += LN_SZ_SHORT_CHANNEL_ID;
     Len -= LN_SZ_SHORT_CHANNEL_ID;
 
@@ -389,7 +390,7 @@ bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
     uint8_t *pData = self->cnl_anno.buf;
     int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
     //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
+    uint16_t len = utl_int_pack_u16be(pData + pos);
     pos += sizeof(len) + len + BTC_SZ_HASH256;
     //        [8:short_channel_id]
     for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
@@ -460,7 +461,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     pos += LN_SZ_SIGNATURE;
 
     //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
+    uint16_t len = utl_int_pack_u16be(pData + pos);
     pos += sizeof(len);
 
     //        [len:features]
@@ -483,7 +484,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     pos += sizeof(gGenesisChainHash);
 
     //        [8:short_channel_id]
-    pPtr->short_channel_id = ln_misc_get64be(pData + pos);
+    pPtr->short_channel_id = utl_int_pack_u64be(pData + pos);
     if (pPtr->short_channel_id == 0) {
         LOGD("fail: short_channel_id == 0\n");
     }
@@ -616,7 +617,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_NODE_ANNOUNCEMENT) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -628,7 +629,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
     pos += LN_SZ_SIGNATURE;
 
     //        [2:flen]
-    uint16_t flen = ln_misc_get16be(pData + pos);
+    uint16_t flen = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [flen:features]
@@ -641,7 +642,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
     }
 
     //        [4:timestamp]
-    pMsg->timestamp = ln_misc_get32be(pData + pos);
+    pMsg->timestamp = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [33:node_id]
@@ -662,7 +663,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
     pos += LN_SZ_ALIAS;
 
     //        [2:addrlen]
-    uint16_t addrlen = ln_misc_get16be(pData + pos);
+    uint16_t addrlen = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [addrlen:addresses]
@@ -685,7 +686,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
             int addrpos = pos;
             memcpy(pMsg->addr.addrinfo.addr, pData + addrpos, M_ADDRLEN[pMsg->addr.type]);
             addrpos += M_ADDRLEN[pMsg->addr.type];
-            pMsg->addr.port = ln_misc_get16be(pData + addrpos);
+            pMsg->addr.port = utl_int_pack_u16be(pData + addrpos);
         }
     } else {
         pMsg->addr.type = LN_NODEDESC_NONE;
@@ -849,7 +850,7 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_UPDATE) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -873,7 +874,7 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pos += sizeof(gGenesisChainHash);
 
     //        [8:short_channel_id]
-    pMsg->short_channel_id = ln_misc_get64be(pData + pos);
+    pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
     if (pMsg->short_channel_id == 0) {
         LOGD("fail: short_channel_id == 0\n");
         return false;
@@ -881,7 +882,7 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
     //        [4:timestamp]
-    pMsg->timestamp = ln_misc_get32be(pData + pos);
+    pMsg->timestamp = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [1:message_flags]
@@ -893,25 +894,25 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pos += sizeof(uint8_t);
 
     //        [2:cltv_expiry_delta]
-    pMsg->cltv_expiry_delta = ln_misc_get16be(pData + pos);
+    pMsg->cltv_expiry_delta = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [8:htlc_minimum_msat]
-    pMsg->htlc_minimum_msat = ln_misc_get64be(pData + pos);
+    pMsg->htlc_minimum_msat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [4:fee_base_msat]
-    pMsg->fee_base_msat = ln_misc_get32be(pData + pos);
+    pMsg->fee_base_msat = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [4:fee_proportional_millionths]
-    pMsg->fee_prop_millionths = ln_misc_get32be(pData + pos);
+    pMsg->fee_prop_millionths = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [8:htlc_maximum_msat] (option_channel_htlc_max)
     if (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX) {
         if (Len >= pos + sizeof(uint64_t)) {
-            pMsg->htlc_maximum_msat = ln_misc_get64be(pData + pos);
+            pMsg->htlc_maximum_msat = utl_int_pack_u64be(pData + pos);
             pos += sizeof(uint64_t);
         } else {
             result = false;
@@ -1031,7 +1032,7 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
         return 0;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
         LOGD("fail: type not match: %04x\n", type);
         return 0;
@@ -1046,7 +1047,7 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
     }
     pos += LN_SZ_CHANNEL_ID;
 
-    return ln_misc_get64be(pData + pos);
+    return utl_int_pack_u64be(pData + pos);
 }
 
 
@@ -1058,7 +1059,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -1070,7 +1071,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:short_channel_id]
-    uint64_t short_channel_id = ln_misc_get64be(pData + pos);
+    uint64_t short_channel_id = utl_int_pack_u64be(pData + pos);
     if (pMsg->short_channel_id == 0) {
         pMsg->short_channel_id = short_channel_id;
     } else if (pMsg->short_channel_id != short_channel_id) {

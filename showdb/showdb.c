@@ -39,6 +39,7 @@
 #define LOG_TAG     "showdb"
 #include "utl_log.h"
 #include "utl_time.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 #include "btc_dbg.h"
@@ -523,7 +524,7 @@ static void escape_json_string(char *pOut, const char *pIn)
 
 static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
 {
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
 
     printf(INDENT2 "{\n");
     switch (type) {

@@ -30,6 +30,7 @@
 #include <assert.h>
 
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 
@@ -71,7 +72,7 @@ static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
  */
 void ln_print_announce(const uint8_t *pData, uint16_t Len)
 {
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
 
     switch (type) {
     case MSGTYPE_CHANNEL_ANNOUNCEMENT:
@@ -100,7 +101,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
 
     if (type == MSGTYPE_NODE_ANNOUNCEMENT) {
         ln_node_announce_t msg;

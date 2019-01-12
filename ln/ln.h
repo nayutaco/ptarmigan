@@ -2442,29 +2442,6 @@ void ln_routing_clear_skipdb(void);
  */
 const char *ln_misc_msgname(uint16_t Type);
 
-/** 16bit BE値の読込み
- *
- * @param[in]       pPush       読込み元
- * @return      16bit値
- */
-uint16_t ln_misc_get16be(const uint8_t *pData);
-
-
-/** 32bit BE値の読込み
- *
- * @param[in]       pPush       読込み元
- * @return      32bit値
- */
-uint32_t ln_misc_get32be(const uint8_t *pData);
-
-
-/** 64bit BE値の読込み
- *
- * @param[in]       pPush       読込み元
- * @return      64bit値
- */
-uint64_t ln_misc_get64be(const uint8_t *pData);
-
 
 /********************************************************************
  * デバッグ

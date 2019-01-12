@@ -1538,7 +1538,7 @@ static void *thread_recv_start(void *pArg)
         if (ret) {
             //LOGD("type=%02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
             pthread_mutex_lock(&p_conf->mux_self);
-            uint16_t type = ln_misc_get16be(buf_recv.buf);
+            uint16_t type = utl_int_pack_u16be(buf_recv.buf);
             LOGD("[RECV]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, buf_recv.len);
             ret = ln_recv(p_conf->p_self, buf_recv.buf, buf_recv.len);
             //LOGD("ln_recv() result=%d\n", ret);
@@ -3048,7 +3048,7 @@ static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 //peer送信(Noise Protocol送信)
 static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 {
-    uint16_t type = ln_misc_get16be(pBuf->buf);
+    uint16_t type = utl_int_pack_u16be(pBuf->buf);
     LOGD("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, pBuf->len);
 
     pthread_mutex_lock(&p_conf->mux_send);

@@ -30,6 +30,8 @@
 #include <inttypes.h>
 #include <assert.h>
 
+#include "utl_int.h"
+
 #include "ln_msg_establish.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -171,7 +173,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_OPEN_CHANNEL) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -192,7 +194,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:funding_satoshis]
-    pMsg->funding_sat = ln_misc_get64be(pData + pos);
+    pMsg->funding_sat = utl_int_pack_u64be(pData + pos);
     if (pMsg->funding_sat >= (uint64_t)16777216) {
         LOGD("fail: large funding-satoshis (%" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat));
         return false;
@@ -200,7 +202,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     pos += sizeof(uint64_t);
 
     //        [8:push_msat]
-    pMsg->push_msat = ln_misc_get64be(pData + pos);
+    pMsg->push_msat = utl_int_pack_u64be(pData + pos);
     if (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) {
         LOGD("fail: invalid funding-satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat), pMsg->push_msat);
         return false;
@@ -208,31 +210,31 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     pos += sizeof(uint64_t);
 
     //        [8:dust_limit_satoshis]
-    pMsg->dust_limit_sat = ln_misc_get64be(pData + pos);
+    pMsg->dust_limit_sat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:max_htlc_value_in_flight_msat]
-    pMsg->max_htlc_value_in_flight_msat = ln_misc_get64be(pData + pos);
+    pMsg->max_htlc_value_in_flight_msat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:channel_reserve_satoshis]
-    pMsg->channel_reserve_sat = ln_misc_get64be(pData + pos);
+    pMsg->channel_reserve_sat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:htlc_minimum_msat]
-    pMsg->htlc_minimum_msat = ln_misc_get64be(pData + pos);
+    pMsg->htlc_minimum_msat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [4:feerate_per_kw]
-    pMsg->feerate_per_kw = ln_misc_get32be(pData + pos);
+    pMsg->feerate_per_kw = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [2:to_self_delay]
-    pMsg->to_self_delay = ln_misc_get16be(pData + pos);
+    pMsg->to_self_delay = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [2:max_accepted_htlcs]
-    pMsg->max_accepted_htlcs = ln_misc_get16be(pData + pos);
+    pMsg->max_accepted_htlcs = utl_int_pack_u16be(pData + pos);
     if (pMsg->max_accepted_htlcs > 483) {
         LOGD("fail: invalid max-accepted-htlcs\n");
         return false;
@@ -266,7 +268,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     //        [2:shutdown_len] (option_upfront_shutdown_script)
     uint16_t shutdown_len = 0;
     if (Len - pos >= (int)sizeof(uint16_t)) {
-        shutdown_len = ln_misc_get16be(pData + pos);
+        shutdown_len = utl_int_pack_u16be(pData + pos);
         pos += sizeof(uint16_t);
         LOGD("shutdown_len= %" PRIu16 "\n", shutdown_len);
     }
@@ -409,7 +411,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_ACCEPT_CHANNEL) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -422,31 +424,31 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:dust_limit_satoshis]
-    pMsg->dust_limit_sat = ln_misc_get64be(pData + pos);
+    pMsg->dust_limit_sat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:max_htlc_value_in_flight_msat]
-    pMsg->max_htlc_value_in_flight_msat = ln_misc_get64be(pData + pos);
+    pMsg->max_htlc_value_in_flight_msat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:channel_reserve_satoshis]
-    pMsg->channel_reserve_sat = ln_misc_get64be(pData + pos);
+    pMsg->channel_reserve_sat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:htlc_minimum_msat]
-    pMsg->htlc_minimum_msat = ln_misc_get64be(pData + pos);
+    pMsg->htlc_minimum_msat = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [4:minimum_depth]
-    pMsg->min_depth = ln_misc_get32be(pData + pos);
+    pMsg->min_depth = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
 
     //        [2:to_self_delay]
-    pMsg->to_self_delay = ln_misc_get16be(pData + pos);
+    pMsg->to_self_delay = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [2:max_accepted_htlcs]
-    pMsg->max_accepted_htlcs = ln_misc_get16be(pData + pos);
+    pMsg->max_accepted_htlcs = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
@@ -467,7 +469,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
     //        [2:shutdown_len] (option_upfront_shutdown_script)
     uint16_t shutdown_len = 0;
     if (Len - pos >= (int)sizeof(uint16_t)) {
-        shutdown_len = ln_misc_get16be(pData + pos);
+        shutdown_len = utl_int_pack_u16be(pData + pos);
         pos += sizeof(uint16_t);
         LOGD("shutdown_len= %" PRIu16 "\n", shutdown_len);
     }
@@ -581,7 +583,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_FUNDING_CREATED) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -606,7 +608,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
     pos += BTC_SZ_TXID;
 
     //        [2:funding_output_index]
-    pMsg->funding_output_idx = ln_misc_get16be(pData + pos);
+    pMsg->funding_output_idx = utl_int_pack_u16be(pData + pos);
     pos += sizeof(uint16_t);
 
     //        [64:signature]
@@ -684,7 +686,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_FUNDING_SIGNED) {
         LOGD("fail: invalid parameter\n");
         return false;
@@ -768,7 +770,7 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
         return false;
     }
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_FUNDING_LOCKED) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -870,7 +872,7 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
     }
     pMsg->option_data_loss_protect = (Len >= sizeof(uint16_t) + 113);
 
-    uint16_t type = ln_misc_get16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_REESTABLISH) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
@@ -883,11 +885,11 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:next_local_commitment_number]
-    pMsg->next_local_commitment_number = ln_misc_get64be(pData + pos);
+    pMsg->next_local_commitment_number = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     //        [8:next_remote_revocation_number]
-    pMsg->next_remote_revocation_number = ln_misc_get64be(pData + pos);
+    pMsg->next_remote_revocation_number = utl_int_pack_u64be(pData + pos);
     pos += sizeof(uint64_t);
 
     if (pMsg->option_data_loss_protect) {
