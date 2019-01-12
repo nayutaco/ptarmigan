@@ -721,7 +721,7 @@ typedef struct {
     uint8_t                 *p_peer_node_sign;
     uint8_t                 *p_peer_btc_sign;
     btc_script_pubkey_order_t         sort;                   ///< peerのln_node_announce_t.sort
-} ln_cnl_announce_create_t;
+} ln_cnl_announce_write_t;
 
 
 typedef struct {

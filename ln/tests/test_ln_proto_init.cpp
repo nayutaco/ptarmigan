@@ -53,7 +53,7 @@ extern "C" {
 //FAKE関数
 
 FAKE_VALUE_FUNC(bool, ln_msg_init_read, ln_init_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_msg_error_create, utl_buf_t *, const ln_error_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_error_write, utl_buf_t *, const ln_error_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_error_read, ln_error_t *, const uint8_t *, uint16_t );
 
 
@@ -64,11 +64,11 @@ protected:
     virtual void SetUp() {
         //utl_log_init_stderr();
         RESET_FAKE(ln_msg_init_read)
-        RESET_FAKE(ln_msg_error_create)
+        RESET_FAKE(ln_msg_error_write)
         RESET_FAKE(ln_msg_error_read)
 
         ln_msg_init_read_fake.return_val = true;
-        ln_msg_error_create_fake.return_val = true;
+        ln_msg_error_write_fake.return_val = true;
         ln_msg_error_read_fake.return_val = true;
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, true);

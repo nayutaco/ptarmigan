@@ -603,7 +603,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
         const utl_buf_t pub = { (CONST_CAST uint8_t *)pShutdownPubkey, BTC_SZ_PUBKEY };
         utl_buf_t spk = UTL_BUF_INIT;
 
-        ln_script_scriptpkh_create(&spk, &pub, ShutdownPref);
+        ln_script_scriptpkh_write(&spk, &pub, ShutdownPref);
         utl_buf_free(&self->shutdown_scriptpk_local);
         utl_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
         utl_buf_free(&spk);
@@ -757,7 +757,7 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
     utl_buf_alloccopy(&msg.localfeatures, &self->lfeature_local, sizeof(self->lfeature_local));
     LOGD("localfeatures: ");
     DUMPD(msg.localfeatures.buf, msg.localfeatures.len);
-    bool ret = ln_msg_init_create(pInit, &msg);
+    bool ret = ln_msg_init_write(pInit, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_SEND;
     }
@@ -806,7 +806,7 @@ bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
         msg.option_data_loss_protect = false;
     }
 
-    bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
+    bool ret = ln_msg_channel_reestablish_write(pReEst, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
     }
@@ -844,7 +844,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
                     //update_add_htlc送信
                     LOGD("resend: update_add_htlc\n");
                     p_htlc->p_channel_id = self->channel_id;
-                    (void)ln_msg_update_add_htlc_create(&buf_bolt, p_htlc);
+                    (void)ln_msg_update_add_htlc_write(&buf_bolt, p_htlc);
                     break;
                 case M_HTLCFLAG_BITS_FULFILLHTLC:
                     //update_fulfill_htlc送信
@@ -897,7 +897,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
         revack.p_per_commit_secret = prev_secret;
         revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
         LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-        bool ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
+        bool ret = ln_msg_revoke_and_ack_write(&buf_bolt, &revack);
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
             LOGD("OK: re-send revoke_and_ack\n");
@@ -957,7 +957,7 @@ bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked)
     ln_funding_locked_t cnl_funding_locked;
     cnl_funding_locked.p_channel_id = self->channel_id;
     cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
+    bool ret = ln_msg_funding_locked_write(pLocked, &cnl_funding_locked);
     if (ret) {
         //channel_reestablishと同じ扱いにする
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
@@ -1097,7 +1097,7 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
         open_ch->p_pubkeys[lp] = self->funding_local.pubkeys[lp];
     }
     open_ch->channel_flags = CHANNEL_FLAGS_VALUE;
-    ln_msg_open_channel_create(pOpen, open_ch);
+    ln_msg_open_channel_write(pOpen, open_ch);
 
     self->commit_local.dust_limit_sat = open_ch->dust_limit_sat;
     self->commit_local.max_htlc_value_in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
@@ -1142,7 +1142,7 @@ bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
     anno_signs.short_channel_id = self->short_channel_id;
     anno_signs.p_node_signature = p_sig_node;
     anno_signs.p_btc_signature = p_sig_btc;
-    ret = ln_msg_announce_signs_create(pBufAnnoSigns, &anno_signs);
+    ret = ln_msg_announce_signs_write(pBufAnnoSigns, &anno_signs);
     if (ret) {
         self->anno_flag |= M_ANNO_FLAG_SEND;
         proc_anno_sigs(self);
@@ -1229,7 +1229,7 @@ bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
 
     shutdown_msg.p_channel_id = self->channel_id;
     shutdown_msg.p_scriptpk = &self->shutdown_scriptpk_local;
-    ret = ln_msg_shutdown_create(pShutdown, &shutdown_msg);
+    ret = ln_msg_shutdown_write(pShutdown, &shutdown_msg);
     if (ret) {
         self->shutdown_flag |= LN_SHDN_FLAG_SEND;
         M_DB_SELF_SAVE(self);
@@ -1691,7 +1691,7 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
     ln_update_fee_t updfee;
     updfee.p_channel_id = self->channel_id;
     updfee.feerate_per_kw = FeeratePerKw;
-    ret = ln_msg_update_fee_create(pUpdFee, &updfee);
+    ret = ln_msg_update_fee_write(pUpdFee, &updfee);
     if (ret) {
         self->feerate_per_kw = FeeratePerKw;
     } else {
@@ -1729,7 +1729,7 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing)
     btc_rng_rand((uint8_t *)&ping.byteslen, 2);
 #endif
     ping.num_pong_bytes = self->last_num_pong_bytes;
-    bool ret = ln_msg_ping_create(pPing, &ping);
+    bool ret = ln_msg_ping_write(pPing, &ping);
     if (ret) {
         self->missing_pong_cnt++;
         if (self->missing_pong_cnt > 1) {
@@ -1752,7 +1752,7 @@ bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
     ln_pong_t pong;
 
     pong.byteslen = NumPongBytes;
-    bool ret = ln_msg_pong_create(pPong, &pong);
+    bool ret = ln_msg_pong_write(pPong, &pong);
 
     return ret;
 }
@@ -2797,7 +2797,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         acc_ch->p_pubkeys[lp] = self->funding_local.pubkeys[lp];
     }
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_msg_accept_channel_create(&buf_bolt, acc_ch);
+    ln_msg_accept_channel_write(&buf_bolt, acc_ch);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 
@@ -2926,7 +2926,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
         fundc->p_signature = self->commit_remote.signature;
 
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ln_msg_funding_created_create(&buf_bolt, fundc);
+        ln_msg_funding_created_write(&buf_bolt, fundc);
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
         utl_buf_free(&buf_bolt);
     }
@@ -3014,7 +3014,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     self->p_establish->cnl_funding_signed.p_signature = self->commit_remote.signature;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_msg_funding_signed_create(&buf_bolt, &self->p_establish->cnl_funding_signed);
+    ln_msg_funding_signed_write(&buf_bolt, &self->p_establish->cnl_funding_signed);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 
@@ -3212,7 +3212,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         btc_tx_free(&self->tx_closing);
         ret = create_closing_tx(self, &self->tx_closing, self->close_fee_sat, false);
         if (ret) {
-            ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
+            ret = ln_msg_closing_signed_write(&buf_bolt, &cnl_close);
         } else {
             LOGD("fail: create close_t\n");
         }
@@ -3328,7 +3328,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         //closing_singnedを送信する
         LOGD("different fee!\n");
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
+        ret = ln_msg_closing_signed_write(&buf_bolt, &cnl_close);
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
@@ -3764,7 +3764,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     revack.p_per_commit_secret = prev_secret;
     revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
-    ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
+    ret = ln_msg_revoke_and_ack_write(&buf_bolt, &revack);
     if (ret) {
         //revoke_and_ack send flag
         for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -4379,7 +4379,7 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
 static void send_error(ln_self_t *self, const ln_error_t *pError)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_msg_error_create(&buf_bolt, pError);
+    ln_msg_error_write(&buf_bolt, pError);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 }
@@ -4602,7 +4602,7 @@ static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig)
     commsig.p_signature = self->commit_remote.signature;     //相手commit_txに行った自分の署名
     commsig.num_htlcs = self->commit_remote.htlc_num;
     commsig.p_htlc_signature = p_htlc_sigs;
-    ret = ln_msg_commit_signed_create(pCommSig, &commsig);
+    ret = ln_msg_commit_signed_write(pCommSig, &commsig);
     UTL_DBG_FREE(p_htlc_sigs);
 
     LOGD("END\n");
@@ -4717,7 +4717,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
     utl_buf_free(&self->cnl_anno);
 
-    ln_cnl_announce_create_t anno;
+    ln_cnl_announce_write_t anno;
 
     anno.short_channel_id = self->short_channel_id;
     anno.p_my_node_pub = ln_node_getid();
@@ -4725,7 +4725,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     anno.p_my_funding_pub = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
     anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
     anno.sort = sort_nodeid(self, NULL);
-    bool ret = ln_msg_cnl_announce_create(self, &self->cnl_anno, &anno);
+    bool ret = ln_msg_cnl_announce_write(self, &self->cnl_anno, &anno);
 
     return ret;
 }
@@ -4756,7 +4756,7 @@ static bool create_channel_update(
     pUpd->message_flags = 0;
     pUpd->channel_flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
     pUpd->htlc_maximum_msat = 0;
-    bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
+    bool ret = ln_msg_cnl_update_write(pCnlUpd, pUpd);
 
     return ret;
 }
@@ -5495,7 +5495,7 @@ static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx)
 static void add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
-    bool ret = ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[Idx]);
+    bool ret = ln_msg_update_add_htlc_write(pAdd, &self->cnl_add_htlc[Idx]);
     if (ret) {
         self->cnl_add_htlc[Idx].stat.flag.updsend = 1;
     } else {
@@ -5523,7 +5523,7 @@ static void fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t I
     fulfill_htlc.p_channel_id = self->channel_id;
     fulfill_htlc.id = p_htlc->id;
     fulfill_htlc.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
-    bool ret = ln_msg_update_fulfill_htlc_create(pFulfill, &fulfill_htlc);
+    bool ret = ln_msg_update_fulfill_htlc_write(pFulfill, &fulfill_htlc);
     if (ret) {
         p_htlc->stat.flag.updsend = 1;
     } else {
@@ -5551,7 +5551,7 @@ static void fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
     fail_htlc.p_channel_id = self->channel_id;
     fail_htlc.id = p_htlc->id;
     fail_htlc.p_reason = &p_htlc->buf_onion_reason;
-    bool ret = ln_msg_update_fail_htlc_create(pFail, &fail_htlc);
+    bool ret = ln_msg_update_fail_htlc_write(pFail, &fail_htlc);
     if (ret) {
         p_htlc->stat.flag.updsend = 1;
     } else {
@@ -5581,7 +5581,7 @@ static void fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16
     mal_htlc.id = p_htlc->id;
     memcpy(mal_htlc.sha256_onion, p_htlc->buf_onion_reason.buf + sizeof(uint16_t), BTC_SZ_HASH256);
     mal_htlc.failure_code = failure_code;
-    bool ret = ln_msg_update_fail_malformed_htlc_create(pFail, &mal_htlc);
+    bool ret = ln_msg_update_fail_malformed_htlc_write(pFail, &mal_htlc);
     if (ret) {
         p_htlc->stat.flag.updsend = 1;
     } else {

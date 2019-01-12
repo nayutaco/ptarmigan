@@ -65,7 +65,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 
 FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_data_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
-FAKE_VALUE_FUNC(bool, ln_msg_update_fee_create, utl_buf_t *, const ln_update_fee_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_update_fee_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_update_fee_t *, const uint8_t *, uint16_t );
 
 
@@ -97,7 +97,7 @@ protected:
 
         RESET_FAKE(ln_comtx_create_to_remote)
 
-        RESET_FAKE(ln_msg_update_fee_create)
+        RESET_FAKE(ln_msg_update_fee_write)
         RESET_FAKE(ln_msg_update_fee_read)
 
         ln_comtx_create_to_remote_fake.return_val = true;
@@ -195,14 +195,14 @@ public:
         LnInit(self);
 
         self->fund_flag = LN_FUNDFLAG_FUNDER;
-        ln_msg_update_fee_create_fake.return_val = true;
+        ln_msg_update_fee_write_fake.return_val = true;
     }
     static void LnInitRecv(ln_self_t *self)
     {
         LnInit(self);
 
         self->fund_flag = 0;
-        ln_msg_update_fee_create_fake.return_val = true;
+        ln_msg_update_fee_write_fake.return_val = true;
     }
 };
 
@@ -366,7 +366,7 @@ TEST_F(ln, create_updatefee_create)
     ln_self_t self;
     LnInitSend(&self);
 
-    ln_msg_update_fee_create_fake.return_val = false;
+    ln_msg_update_fee_write_fake.return_val = false;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     bool ret = ln_update_fee_create(&self, &buf_bolt, 1000);

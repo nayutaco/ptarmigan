@@ -149,7 +149,7 @@ TEST_F(ln, cnl_update_create_1)
     upd.message_flags = 0x00;
     upd.channel_flags = 0x00;
 
-    bool ret = ln_msg_cnl_update_create(&buf_bolt, &upd);
+    bool ret = ln_msg_cnl_update_write(&buf_bolt, &upd);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(PROTO), buf_bolt.len);
     ASSERT_EQ(0, memcmp(PROTO, buf_bolt.buf, 2));
@@ -214,7 +214,7 @@ TEST_F(ln, cnl_update_create_2)
     upd.message_flags = 0x01;
     upd.channel_flags = 0x00;
 
-    bool ret = ln_msg_cnl_update_create(&buf_bolt, &upd);
+    bool ret = ln_msg_cnl_update_write(&buf_bolt, &upd);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(PROTO), buf_bolt.len);
     ASSERT_EQ(0, memcmp(PROTO, buf_bolt.buf, 2));

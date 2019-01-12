@@ -170,7 +170,7 @@ bool ln_node_init(uint8_t Features)
                 if (update) {
                     LOGD("$$$ change node_announcement\n");
                     anno.timestamp = (uint32_t)utl_time_time();
-                    ret = ln_msg_node_announce_create(&buf_node, &anno);
+                    ret = ln_msg_node_announce_write(&buf_node, &anno);
                     if (!ret) {
                         LOGD("fail: create node_announcement\n");
                         goto LABEL_EXIT;
@@ -191,7 +191,7 @@ bool ln_node_init(uint8_t Features)
         anno.rgbcolor[1] = 0;
         anno.rgbcolor[2] = 0;
         memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
-        ret = ln_msg_node_announce_create(&buf_node, &anno);
+        ret = ln_msg_node_announce_write(&buf_node, &anno);
         if (!ret) {
             goto LABEL_EXIT;
         }

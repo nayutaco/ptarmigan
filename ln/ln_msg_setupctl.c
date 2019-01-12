@@ -63,7 +63,7 @@ static void error_print(const ln_error_t *pMsg);
  * init
  ********************************************************************/
 
-bool HIDDEN ln_msg_init_create(utl_buf_t *pBuf, const ln_init_t *pMsg)
+bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_init_t *pMsg)
 {
     //    type: 16 (init)
     //    data:
@@ -176,7 +176,7 @@ static void init_print(const ln_init_t *pMsg)
  * error
  ********************************************************************/
 
-bool HIDDEN ln_msg_error_create(utl_buf_t *pBuf, const ln_error_t *pMsg)
+bool HIDDEN ln_msg_error_write(utl_buf_t *pBuf, const ln_error_t *pMsg)
 {
     //    type: 17 (error)
     //    data:
@@ -276,7 +276,7 @@ static void error_print(const ln_error_t *pMsg)
  * ping
  ********************************************************************/
 
-bool HIDDEN ln_msg_ping_create(utl_buf_t *pBuf, const ln_ping_t *pMsg)
+bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_ping_t *pMsg)
 {
     //        type: 18 (ping)
     //        data:
@@ -381,7 +381,7 @@ static void ping_print(const ln_ping_t *pMsg)
  * pong
  ********************************************************************/
 
-bool HIDDEN ln_msg_pong_create(utl_buf_t *pBuf, const ln_pong_t *pMsg)
+bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_pong_t *pMsg)
 {
     //        type: 19 (pong)
     //        data:
