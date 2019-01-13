@@ -971,10 +971,6 @@ static void *thread_main_start(void *pArg)
         goto LABEL_JOIN;
     }
 
-    //初期化完了
-    LOGD("*** message inited ***\n");
-    p_conf->flag_recv |= RECV_MSG_END;
-
     if (ln_funding_locked_check_need(p_self)) {
         //funding_locked交換
         ret = exchange_funding_locked(p_conf);
@@ -1005,6 +1001,10 @@ static void *thread_main_start(void *pArg)
 
     // flush buffered BOLT message
     send_queue_flush(p_conf);
+
+    //初期化完了
+    LOGD("*** message inited ***\n");
+    p_conf->flag_recv |= RECV_MSG_END;
 
     // send `channel_update` for private/before publish channel
     send_cnlupd_before_announce(p_conf);
