@@ -39,6 +39,13 @@ void utl_buf_init(utl_buf_t *pBuf)
 }
 
 
+void utl_buf_init_2(utl_buf_t *pBuf, uint8_t *pData, uint32_t Len)
+{
+    pBuf->len = Len;
+    pBuf->buf = pData;
+}
+
+
 void utl_buf_free(utl_buf_t *pBuf)
 {
     if (pBuf->buf) {
