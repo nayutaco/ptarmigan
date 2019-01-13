@@ -60,6 +60,7 @@
 #define M_OPT_EMPTYWALLET           '\x05'
 #define M_OPT_INITROUTESYNC         '\x06'
 #define M_OPT_PAYTOWALLET           '\x07'
+#define M_OPT_NOINITROUTESYNC       '\x08'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -130,6 +131,7 @@ static void optfunc_walletback(int *pOption, bool *pConn);
 static void optfunc_getbalance(int *pOption, bool *pConn);
 static void optfunc_emptywallet(int *pOption, bool *pConn);
 static void optfunc_initroutesync(int *pOption, bool *pConn);
+static void optfunc_noinitroutesync(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -169,6 +171,8 @@ static const struct {
     { M_OPT_EMPTYWALLET,        optfunc_emptywallet },
     { M_OPT_INITROUTESYNC,      optfunc_initroutesync },
     { M_OPT_PAYTOWALLET,        optfunc_walletback },
+    { M_OPT_NOINITROUTESYNC,    optfunc_noinitroutesync },
+    //
     { M_OPT_DEBUG,              optfunc_debug },
 };
 
@@ -888,6 +892,16 @@ static void optfunc_initroutesync(int *pOption, bool *pConn)
     M_CHK_CONN
 
     strcpy(mInitRouteSync, ",1");
+}
+
+
+static void optfunc_noinitroutesync(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_CONN
+
+    strcpy(mInitRouteSync, ",0");
 }
 
 

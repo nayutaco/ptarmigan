@@ -1956,7 +1956,7 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
     if (params == NULL) {
         return false;
     }
-    pConn->routesync = 0;
+    pConn->routesync = PTARMD_ROUTESYNC_DEFAULT;
 
     //peer_nodeid, peer_addr, peer_port
     json = cJSON_GetArrayItem(params, (*pIndex)++);
