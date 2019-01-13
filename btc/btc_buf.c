@@ -44,6 +44,13 @@
 
 
 /**************************************************************************
+ * private variables
+ **************************************************************************/
+
+static void w_force_clear(btc_buf_w_t *pBufW);
+
+
+/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -300,5 +307,24 @@ bool btc_buf_w_seek(btc_buf_w_t *pBufW, int32_t offset)
 
 void btc_buf_w_truncate(btc_buf_w_t *pBufW)
 {
+    pBufW->_pos = 0;
+}
+
+
+void btc_buf_w_move(btc_buf_w_t *pBufW, utl_buf_t *pBuf)
+{
+    utl_buf_init_2(pBuf, pBufW->_buf, pBufW->_pos);
+    w_force_clear(pBufW);
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static void w_force_clear(btc_buf_w_t *pBufW)
+{
+    pBufW->_buf = NULL;
+    pBufW->_buf_len = 0;
     pBufW->_pos = 0;
 }

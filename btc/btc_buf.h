@@ -91,6 +91,7 @@ bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len
 bool btc_buf_w_expand(btc_buf_w_t *pBufW, uint32_t Size); //before writing the data by ptr (btc_buf_w_get_data()), expand the buf
 bool btc_buf_w_seek(btc_buf_w_t *pBufW, int32_t offset); //after writing the data by ptr (btc_buf_w_get_data()) , skip the data
 void btc_buf_w_truncate(btc_buf_w_t *pBufW);
+void btc_buf_w_move(btc_buf_w_t *pBufW, utl_buf_t *pBuf);
 
 
 #endif /* BTC_BUF_H__ */
