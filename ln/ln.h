@@ -60,6 +60,7 @@ extern "C" {
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< (size) noise packet header
 #define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< (size) funding_txのvsize(nested in BIP16 P2SH format)
 #define LN_SZ_ERRMSG                    (256)       ///< (size) last error string
+#define LN_SZ_RGBCOLOR                  (3)         ///< (size) rgb color
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
@@ -548,7 +549,7 @@ typedef struct {
     uint64_t    id;                                 ///< 8:  id
     uint64_t    amount_msat;                        ///< 8:  amount_msat
     uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
-    uint8_t     payment_sha256[BTC_SZ_HASH256];         ///< 32: payment_hash
+    uint8_t     payment_sha256[BTC_SZ_HASH256];     ///< 32: payment_hash //XXX:
     utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
     utl_buf_t   buf_onion_reason;                   ///<
                                                     //  update_add_htlc
@@ -631,7 +632,7 @@ typedef struct {
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
     uint64_t    id;                                 ///< 8:  id
-    uint8_t     sha256_onion[BTC_SZ_HASH256];        ///< 32: sha256-of-onion
+    uint8_t     *p_sha256_onion;                    ///< 32: sha256-of-onion
     uint16_t    failure_code;                       ///< 2:  failure-code
 } ln_update_fail_malformed_htlc_t;
 
@@ -644,8 +645,8 @@ typedef struct {
     uint64_t    next_local_commitment_number;       ///< 8:  next_local_commitment_number
     uint64_t    next_remote_revocation_number;      ///< 8:  next_remote_revocation_number
     bool        option_data_loss_protect;           ///< true:your_last_per_commitment_secretとmy_current_per_commitment_pointが有効
-    uint8_t     your_last_per_commitment_secret[BTC_SZ_PRIVKEY];      ///< 32: your_last_per_commitment_secret
-    uint8_t     my_current_per_commitment_point[BTC_SZ_PUBKEY];       ///< 33: my_current_per_commitment_point
+    uint8_t     *p_your_last_per_commitment_secret; ///< 32: your_last_per_commitment_secret
+    uint8_t     *p_my_current_per_commitment_point; ///< 33: my_current_per_commitment_point
 } ln_channel_reestablish_t;
 
 /// @}
@@ -711,15 +712,17 @@ typedef struct {
  *  @brief      channel_announcement
  */
 typedef struct {
-    //const uint8_t   *p_node_sig1;
-    //const uint8_t   *p_node_sig2;
-    //const uint8_t   *p_btc_sig1;
-    //const uint8_t   *p_btc_sig2;
-    uint64_t        short_channel_id;
-    const uint8_t   *p_node_id1;
-    const uint8_t   *p_node_id2;
-    const uint8_t   *p_btc_key1;
-    const uint8_t   *p_btc_key2;
+    const uint8_t   *p_node_signature1;                 ///< 64: node_signature_1
+    const uint8_t   *p_node_signature2;                 ///< 64: node_signature_2
+    const uint8_t   *p_btc_signature1;                  ///< 64: bitcoin_signature_1
+    const uint8_t   *p_btc_signature2;                  ///< 64: bitcoin_signature_2
+
+    uint64_t        short_channel_id;                   ///< 8:  short_channel_id
+
+    const uint8_t   *p_node_id1;                        ///< 33: node_id_1
+    const uint8_t   *p_node_id2;                        ///< 33: node_id_2
+    const uint8_t   *p_btc_key1;                        ///< 33: bitcoin_key_1
+    const uint8_t   *p_btc_key2;                        ///< 33: bitcoin_key_2
 } ln_cnl_announce_t;
 
 
@@ -758,7 +761,7 @@ typedef struct {
     uint32_t            timestamp;                  ///< 4:  timestamp
     uint8_t             *p_node_id;                 ///< 33: node_id
     char                *p_alias;                   ///< 32: alias
-    uint8_t             rgbcolor[3];                ///< 3:  rgbcolor
+    uint8_t             *p_rgbcolor;                ///< 3:  rgbcolor
 //    uint8_t     features;                           ///< 1:  features
     ln_nodeaddr_t       addr;
 

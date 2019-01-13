@@ -132,11 +132,13 @@ bool ln_node_init(uint8_t Features)
         //  少なくともnode_idは変更されていない
         uint8_t node_id[BTC_SZ_PUBKEY];
         char node_alias[LN_SZ_ALIAS + 1];
+        uint8_t rgbcolor[LN_SZ_RGBCOLOR];
 
         //mNode.addr: 引数(引数無しの場合、desc=NONE、port=最後の状態(新規は9735))
         //anno.addr : node_announcement(desc==NONEの場合、port情報無し)
         anno.p_node_id = node_id;
         anno.p_alias = node_alias;
+        anno.p_rgbcolor = rgbcolor;
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
         if (ret) {
             if (memcmp(anno.p_node_id, mNode.keys.pub, BTC_SZ_PUBKEY) != 0) {
@@ -150,8 +152,8 @@ bool ln_node_init(uint8_t Features)
                     memcpy(anno.p_alias, mNode.alias, LN_SZ_ALIAS);
                     update = true;
                 }
-                if ((anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0)) {
-                    memset(anno.rgbcolor, 0, 3);
+                if ((anno.p_rgbcolor[0] != 0) || (anno.p_rgbcolor[1] != 0) || (anno.p_rgbcolor[2] != 0)) {
+                    memset(anno.p_rgbcolor, 0, 3);
                     update = true;
                 }
                 if (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) {
@@ -183,13 +185,12 @@ bool ln_node_init(uint8_t Features)
     } else {
         //自node_announcement無し
         LOGD("new\n");
+        uint8_t rgbcolor[LN_SZ_RGBCOLOR] = {0};
 
         anno.timestamp = (uint32_t)utl_time_time();
         anno.p_node_id = mNode.keys.pub;
         anno.p_alias = mNode.alias;
-        anno.rgbcolor[0] = 0;
-        anno.rgbcolor[1] = 0;
-        anno.rgbcolor[2] = 0;
+        anno.p_rgbcolor = rgbcolor;
         memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
         ret = ln_msg_node_announce_write(&buf_node, &anno);
         if (!ret) {
@@ -239,8 +240,10 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 
     bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
     if (ret) {
+        uint8_t rgbcolor[LN_SZ_RGBCOLOR];
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
+        pNodeAnno->p_rgbcolor = rgbcolor;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
         if (!ret) {
             LOGD("fail: read node_announcement\n");

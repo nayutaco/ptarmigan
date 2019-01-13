@@ -560,8 +560,10 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             ln_node_announce_t msg;
             uint8_t node_pub[BTC_SZ_PUBKEY];
             char node_alias[LN_SZ_ALIAS + 1];
+            uint8_t rgb_color[LN_SZ_RGBCOLOR];
             msg.p_node_id = node_pub;
             msg.p_alias = node_alias;
+            msg.p_rgbcolor = rgb_color;
             bool ret = ln_msg_node_announce_read(&msg, pData, Len);
             if (ret) {
                 printf(INDENT3 M_QQ("node") ": \"");
@@ -570,7 +572,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 char esc_alias[LN_SZ_ALIAS * 2 + 1];
                 escape_json_string(esc_alias, node_alias);
                 printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", esc_alias);
-                printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
+                printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.p_rgbcolor[0], msg.p_rgbcolor[1], msg.p_rgbcolor[2]);
                 if (msg.addr.type == LN_NODEDESC_IPV4) {
                     char addr[50];
                     sprintf(addr, "%d.%d.%d.%d:%d",
