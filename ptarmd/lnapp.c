@@ -872,7 +872,7 @@ static void *thread_main_start(void *pArg)
     //selfへの設定はこれ以降に行う
     //
 
-    p_conf->feerate_per_kw = p_self->feerate_per_kw;
+    p_conf->feerate_per_kw = ln_feerate_per_kw(p_self);
 
     //peer受信スレッド
     pthread_create(&th_recv, NULL, &thread_recv_start, p_conf);
@@ -979,6 +979,8 @@ static void *thread_main_start(void *pArg)
             goto LABEL_JOIN;
         }
     }
+
+    p_conf->annosig_send_req = ln_open_channel_announce(p_self);
 
     if (b_channelreestablished) {
         ln_channel_reestablish_after(p_self);
@@ -1696,14 +1698,14 @@ static void *thread_poll_start(void *pArg)
         //announcement_signatures
         //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
         //  両方を満たす可能性があるため、先に poll_funding_wait()を行って self->cnl_anno の準備を済ませる。
-        if ( ln_open_channel_announce(p_conf->p_self) &&
+        if ( p_conf->annosig_send_req &&
              (p_conf->funding_confirm >= LN_ANNOSIGS_CONFIRM) &&
              (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) ) {
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             utl_buf_t buf = UTL_BUF_INIT;
             rcvidle_push(p_conf, RCVIDLE_ANNOSIGNS, &buf);
-            ln_open_channel_clr_announce(p_conf->p_self);
+            p_conf->annosig_send_req = false;
         }
     }
 
@@ -2318,6 +2320,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         ptarmd_eventlog(ln_channel_id(p_conf->p_self),
                 "open: funding wait start(%s): peer_id=%s",
                 p_str, str_peerid);
+
+        p_conf->annosig_send_req = ln_open_channel_announce(p_conf->p_self);
+        p_conf->feerate_per_kw = ln_feerate_per_kw(p_conf->p_self);
     } else {
         LOGE("fail: broadcast\n");
         ptarmd_eventlog(ln_channel_id(p_conf->p_self),

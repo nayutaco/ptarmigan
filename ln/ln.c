@@ -115,6 +115,7 @@
 #define M_INIT_FLAG_REEST_EXCHNAGED(flag)   (((flag) & M_INIT_FLAG_REEST_EXCG) == M_INIT_FLAG_REEST_EXCG)
 #define M_INIT_FLAG_ALL                     (M_INIT_FLAG_EXCG | M_INIT_FLAG_REEST_EXCG)
 #define M_INIT_CH_EXCHANGED(flag)           (((flag) & M_INIT_FLAG_ALL) == M_INIT_FLAG_ALL)
+#define M_INIT_ANNOSIG_SENT                 (0x10)          ///< announcement_signatures送信/再送済み
 
 // ln_self_t.anno_flag
 #define M_ANNO_FLAG_SEND                    (0x01)          ///< announcement_signatures送信済み
@@ -295,6 +296,7 @@ static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc)
 static void clear_htlc(ln_update_add_htlc_t *p_htlc);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
+static void disable_channel_update(ln_self_t *self);
 static void free_establish(ln_self_t *self, bool bEndEstablish);
 static btc_script_pubkey_order_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
 static inline uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
@@ -1121,13 +1123,6 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
 }
 
 
-void ln_open_channel_clr_announce(ln_self_t *self)
-{
-    self->fund_flag = (ln_fundflag_t)(self->fund_flag & ~LN_FUNDFLAG_ANNO_CH);
-    M_DB_SELF_SAVE(self);
-}
-
-
 bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
 {
     bool ret;
@@ -1152,6 +1147,7 @@ bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
         self->anno_flag |= M_ANNO_FLAG_SEND;
         proc_anno_sigs(self);
         M_DB_SELF_SAVE(self);
+        self->init_flag |= M_INIT_ANNOSIG_SENT;
     }
 
     return ret;
@@ -1238,6 +1234,7 @@ bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
     if (ret) {
         self->shutdown_flag |= LN_SHDN_FLAG_SEND;
         M_DB_SELF_SAVE(self);
+        disable_channel_update(self);
     }
 
     LOGD("END\n");
@@ -1289,15 +1286,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
         }
         ln_db_self_save_status(self, pDbParam);
 
-        //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
-        utl_buf_t buf_upd = UTL_BUF_INIT;
-        uint32_t now = (uint32_t)utl_time_time();
-        ln_cnl_update_t upd;
-        ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_CHFLAGS_DISABLE);
-        if (ret) {
-            ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
-            utl_buf_free(&buf_upd);
-        }
+        disable_channel_update(self);
     }
     LOGD("END: type=%d\n", (int)self->status);
 }
@@ -2185,7 +2174,21 @@ const utl_buf_t* ln_revoked_wit(const ln_self_t *self)
 
 bool ln_open_channel_announce(const ln_self_t *self)
 {
-    return (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
+    bool ret = (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
+
+    //コメントアウトすると、announcement_signatures交換済みかどうかにかかわらず、
+    //送信しても良い状況であればannouncement_signaturesを起動時に送信する
+    if (ret) {
+        utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
+        bool havedb = ln_db_annocnl_load(&buf_cnl_anno, self->short_channel_id);
+        if (havedb) {
+            ln_msg_cnl_announce_print(buf_cnl_anno.buf, buf_cnl_anno.len);
+        }
+        utl_buf_free(&buf_cnl_anno);
+        ret = !havedb;
+    }
+    LOGD("announcement_signatures request:%d\n", ret);
+    return ret;
 }
 
 
@@ -2484,7 +2487,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
                     //???
                 }
                 if (buf_bolt.len > 0) {
-                        uint16_t type = utl_int_pack_u16be(buf_bolt.buf);
+                    uint16_t type = utl_int_pack_u16be(buf_bolt.buf);
                     LOGD("send: %s\n", ln_misc_msgname(type));
                     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
                     utl_buf_free(&buf_bolt);
@@ -4202,16 +4205,28 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         return false;
     }
 
-    //0だった場合はfunding_lockedまでの値
-    //0以外だった場合はln_msg_announce_signs_read()で一致していることを確認済み
-    self->short_channel_id = anno_signs.short_channel_id;
-    ret = ln_msg_cnl_announce_update_short_cnl_id(self, self->short_channel_id, sort);
-    if (ret) {
-        self->anno_flag |= M_ANNO_FLAG_RECV;
-        proc_anno_sigs(self);
-        M_DB_SELF_SAVE(self);
-    } else {
-        LOGD("fail: update short_channel_id\n");
+    if ((self->anno_flag & LN_ANNO_FLAG_END) == 0) {
+        self->short_channel_id = anno_signs.short_channel_id;
+        ret = ln_msg_cnl_announce_update_short_cnl_id(self, self->short_channel_id, sort);
+        if (ret) {
+            self->anno_flag |= M_ANNO_FLAG_RECV;
+            proc_anno_sigs(self);
+            M_DB_SELF_SAVE(self);
+        } else {
+            LOGD("fail: update short_channel_id\n");
+        }
+    } else if ((self->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
+        //BOLT07
+        //  MUST respond to the first announcement_signatures message with its own announcement_signatures message.
+        //
+        // LN_ANNO_FLAG_ENDであっても再接続後の初回のみは送信する
+        LOGD("respond announcement_signatures\n");
+        utl_buf_t buf_bolt = UTL_BUF_INIT;
+        bool ret = ln_announce_signs_create(self, &buf_bolt);
+        if (ret) {
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+        }
+        self->init_flag |= M_INIT_ANNOSIG_SENT;
     }
 
     return ret;
@@ -5659,6 +5674,19 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
     }
     utl_buf_init(&pClose->tx_buf);
     LOGD("TX num: %d\n", pClose->num);
+}
+
+
+static void disable_channel_update(ln_self_t *self)
+{
+    utl_buf_t buf_upd = UTL_BUF_INIT;
+    uint32_t now = (uint32_t)utl_time_time();
+    ln_cnl_update_t upd;
+    bool ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_CHFLAGS_DISABLE);
+    if (ret) {
+        ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
+        utl_buf_free(&buf_upd);
+    }
 }
 
 
