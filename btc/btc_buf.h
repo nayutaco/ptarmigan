@@ -69,6 +69,7 @@ bool btc_buf_r_read_u16le(btc_buf_r_t *pBufR, uint16_t *U16);
 bool btc_buf_r_read_u32le(btc_buf_r_t *pBufR, uint32_t *U32);
 bool btc_buf_r_read_u64le(btc_buf_r_t *pBufR, uint64_t *U64);
 bool btc_buf_r_seek(btc_buf_r_t *pBufR, int32_t offset);
+bool btc_buf_r_get_pos_and_seek(btc_buf_r_t *pBufR, const uint8_t **pPos, int32_t offset);
 uint32_t btc_buf_r_remains(btc_buf_r_t *pBufR);
 
 
