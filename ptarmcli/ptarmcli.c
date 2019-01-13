@@ -891,7 +891,7 @@ static void optfunc_initroutesync(int *pOption, bool *pConn)
 
     M_CHK_CONN
 
-    strcpy(mInitRouteSync, ",1");
+    snprintf(mInitRouteSync, sizeof(mInitRouteSync), ",%d", PTARMD_ROUTESYNC_INIT);
 }
 
 
@@ -901,7 +901,7 @@ static void optfunc_noinitroutesync(int *pOption, bool *pConn)
 
     M_CHK_CONN
 
-    strcpy(mInitRouteSync, ",0");
+    snprintf(mInitRouteSync, sizeof(mInitRouteSync), ",%d", PTARMD_ROUTESYNC_NONE);
 }
 
 

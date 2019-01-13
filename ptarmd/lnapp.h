@@ -80,7 +80,7 @@ typedef struct lnapp_conf_t {
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocol handshakeのinitiator
     uint8_t         node_id[BTC_SZ_PUBKEY];     ///< 接続先(initiator==true時)
-    uint8_t         routesync;                  ///< initial_routing_sync
+    ptarmd_routesync_t  routesync;              ///< initial_routing_sync
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
