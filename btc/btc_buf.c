@@ -212,7 +212,7 @@ bool btc_buf_w_write_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
     if (remains < 0) {
         if (!btc_buf_w_expand(pBufW, -(remains))) return false;
     }
-    memcpy(&pBufW->_buf[pBufW->_pos], pData, Len);
+    memcpy(pBufW->_buf + pBufW->_pos, pData, Len);
     pBufW->_pos += Len;
     return true;
 }
@@ -278,6 +278,18 @@ bool btc_buf_w_write_hash256(btc_buf_w_t *pBufW, const void *pData, uint32_t Len
 
     btc_md_hash256(buf, (uint8_t *)pData, Len);
     return btc_buf_w_write_data(pBufW, buf, BTC_SZ_HASH256);
+}
+
+
+bool btc_buf_w_write_zeros(btc_buf_w_t *pBufW, uint32_t Len)
+{
+    int remains = pBufW->_buf_len - pBufW->_pos - Len;
+    if (remains < 0) {
+        if (!btc_buf_w_expand(pBufW, -(remains))) return false;
+    }
+    memset(pBufW->_buf + pBufW->_pos, 0x00, Len);
+    pBufW->_pos += Len;
+    return true;
 }
 
 
