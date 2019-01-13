@@ -33,6 +33,8 @@
 #include "utl_dbg.h"
 #include "utl_int.h"
 
+#include "btc_buf.h"
+
 #include "ln_msg_setupctl.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -53,120 +55,76 @@
  * prototypes
  **************************************************************************/
 
-static void init_print(const ln_init_t *pMsg);
-static void error_print(const ln_error_t *pMsg);
-// static void ping_print(const ln_ping_t *pMsg);
-// static void pong_print(const ln_pong_t *pMsg);
+static void init_print(const ln_msg_init_t *pMsg);
+static void error_print(const ln_msg_error_t *pMsg);
+// static void ping_print(const ln_msg_ping_t *pMsg);
+// static void pong_print(const ln_msg_pong_t *pMsg);
 
 
 /********************************************************************
  * init
  ********************************************************************/
 
-bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_init_t *pMsg)
+bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_msg_init_t *pMsg)
 {
-    //    type: 16 (init)
-    //    data:
-    //        [2:gflen]
-    //        [gflen:globalfeatures]
-    //        [2:lflen]
-    //        [lflen:localfeatures]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     init_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    //gflen=0, lflen=0
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len);
-
-    //    type: 16 (init)
-    ln_misc_push16be(&proto, MSGTYPE_INIT);
-
-    //        [2:gflen]
-    ln_misc_push16be(&proto, pMsg->globalfeatures.len);
-
-    //        [gflen:globalfeatures]
-    if (pMsg->globalfeatures.len > 0) {
-        utl_push_data(&proto, pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
-    }
-
-    //        [2:lflen]
-    ln_misc_push16be(&proto, pMsg->localfeatures.len);
-
-    //        [lflen:localfeatures]
-    if (pMsg->localfeatures.len > 0) {
-        utl_push_data(&proto, pMsg->localfeatures.buf, pMsg->localfeatures.len);
-    }
-
-    assert(sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_INIT)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->gflen)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_globalfeatures, pMsg->gflen)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->lflen)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_localfeatures, pMsg->lflen)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    //gflen=0, lflen=0
-    if (Len < sizeof(uint16_t) + 4) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->gflen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_globalfeatures, (int32_t)pMsg->gflen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->lflen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_localfeatures, (int32_t)pMsg->lflen)) goto LABEL_ERROR_SYNTAX;
 
-    uint16_t type = utl_int_pack_u16be(pData);
+    //XXX:
     if (type != MSGTYPE_INIT) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-    int pos = sizeof(uint16_t);
-
-    //        [2:gflen]
-    uint16_t gflen = utl_int_pack_u16be(pData + pos);
-    if (Len < sizeof(uint16_t) + 4 + gflen) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-    pos += sizeof(uint16_t);
-
-    //        [gflen:globalfeatures]
-    utl_buf_alloccopy(&pMsg->globalfeatures, pData + pos, gflen);
-    pos += gflen;
-
-    //        [2:lflen]
-    uint16_t lflen = utl_int_pack_u16be(pData + pos);
-    if (Len < sizeof(uint16_t) + 4 + gflen + lflen) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-    pos += sizeof(uint16_t);
-
-    //        [lflen:localfeatures]
-    utl_buf_alloccopy(&pMsg->localfeatures, pData + pos, lflen);
-    pos += lflen;
-
-    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     init_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void init_print(const ln_init_t *pMsg)
+static void init_print(const ln_msg_init_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[init]-------------------------------\n");
-    LOGD("globalfeatures(%d)= ", pMsg->globalfeatures.len);
-    DUMPD(pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
-    LOGD("localfeatures(%d)= ", pMsg->localfeatures.len);
-    DUMPD(pMsg->localfeatures.buf, pMsg->localfeatures.len);
+    LOGD("globalfeatures(%u)= ", pMsg->gflen);
+    DUMPD(pMsg->p_globalfeatures, pMsg->gflen);
+    LOGD("localfeatures(%u)= ", pMsg->lflen);
+    DUMPD(pMsg->p_localfeatures, pMsg->lflen);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
@@ -176,87 +134,64 @@ static void init_print(const ln_init_t *pMsg)
  * error
  ********************************************************************/
 
-bool HIDDEN ln_msg_error_write(utl_buf_t *pBuf, const ln_error_t *pMsg)
+bool HIDDEN ln_msg_error_write(utl_buf_t *pBuf, const ln_msg_error_t *pMsg)
 {
-    //    type: 17 (error)
-    //    data:
-    //        [32:channel_id]
-    //        [2:len]
-    //        [len:data]
-
-    utl_push_t    proto;
-
+#ifdef DBG_PRINT_WRITE
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     error_print(pMsg);
+#endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len);
-
-    //    type: 17 (error)
-    ln_misc_push16be(&proto, MSGTYPE_ERROR);
-
-    //        [32:channel_id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [2:len]
-    ln_misc_push16be(&proto, pMsg->len);
-
-    //        [len:data]
-    if (pMsg->len > 0) {
-        utl_push_data(&proto, pMsg->p_data, pMsg->len);
-    }
-
-    assert(sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_ERROR)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->len)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_data, pMsg->len)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_error_read(ln_msg_error_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 4) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->len)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_data, (int32_t)pMsg->len)) goto LABEL_ERROR_SYNTAX;
 
-    uint16_t type = utl_int_pack_u16be(pData);
+    //XXX:
     if (type != MSGTYPE_ERROR) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [2:len]
-    uint16_t len = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(uint16_t);
-
-    //        [len:data]
-    pMsg->len = len;
-    pMsg->p_data = (char *)UTL_DBG_MALLOC(len + 1);
-    memcpy(pMsg->p_data, pData + pos, len);
-    pMsg->p_data[len] = '\0';
-
-    //pos += len;
-
+// #ifdef DBG_PRINT_READ
+//     LOGD("@@@@@ %s @@@@@\n", __func__);
     error_print(pMsg);
-
+// #endif  //DBG_PRINT_READ
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void error_print(const ln_error_t *pMsg)
+static void error_print(const ln_msg_error_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[error]-------------------------------\n");
-    LOGD("channel-id: ");
+    LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("data: ");
-    DUMPD((const uint8_t *)pMsg->p_data, pMsg->len);
+    DUMPD(pMsg->p_data, pMsg->len);
     LOGD("      ");
     for (uint16_t lp = 0; lp < pMsg->len; lp++) {
         char c = (char)pMsg->p_data[lp];
@@ -276,102 +211,86 @@ static void error_print(const ln_error_t *pMsg)
  * ping
  ********************************************************************/
 
-bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_ping_t *pMsg)
+bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_msg_ping_t *pMsg)
 {
-    //        type: 18 (ping)
-    //        data:
-    //            [2:num_pong_bytes]
-    //            [2:byteslen]
-    //            [byteslen:ignored]
-
-    utl_push_t    proto;
-
-    if (pMsg->num_pong_bytes >= 65532) {
-        LOGD("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
-        return false;
-    }
-
 #ifdef DBG_PRINT_WRITE
     //LOGD("@@@@@ %s @@@@@\n", __func__);
     //ping_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->byteslen);
-
-    //        type: 18 (ping)
-    ln_misc_push16be(&proto, MSGTYPE_PING);
-
-    //            [2:num_pong_bytes]
-    ln_misc_push16be(&proto, pMsg->num_pong_bytes);
-
-    //            [2:byteslen]
-    ln_misc_push16be(&proto, pMsg->byteslen);
-
-    //            [byteslen:ignored]
-    memset(pBuf->buf + proto.pos, 0, pMsg->byteslen);
-    proto.pos += pMsg->byteslen;
-
-    assert(sizeof(uint16_t) + 4 + pMsg->byteslen == pBuf->len);
-
-    utl_push_trim(&proto);
-
-    return true;
-}
-
-
-bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len)
-{
-    if (Len < sizeof(uint16_t) + 4) {
-        LOGD("fail: invalid length: %d\n", Len);
+    //XXX:
+    if (pMsg->num_pong_bytes >= 65532) {
+        LOGD("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
         return false;
     }
 
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_PING)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->num_pong_bytes)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->byteslen)) goto LABEL_ERROR;
+    if (pMsg->p_ignored) {
+        if (!btc_buf_w_write_data(&buf_w, pMsg->p_ignored, pMsg->byteslen)) goto LABEL_ERROR;
+    } else {
+        if (!btc_buf_w_write_zeros(&buf_w, pMsg->byteslen)) goto LABEL_ERROR;
+    }
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_ping_read(ln_msg_ping_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->num_pong_bytes)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->byteslen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_ignored, (int32_t)pMsg->byteslen)) goto LABEL_ERROR_SYNTAX;
+
+    //XXX:
     if (type != MSGTYPE_PING) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
-    pMsg->num_pong_bytes = utl_int_pack_u16be(pData + sizeof(uint16_t));
     if (pMsg->num_pong_bytes > 65531) {
-        LOGD("fail: num_pong_bytes too large %04x\n", pMsg->num_pong_bytes);
+        LOGD("fail: num_pong_bytes %04x\n", pMsg->num_pong_bytes);
         return false;
     }
-
-    pMsg->byteslen = utl_int_pack_u16be(pData + sizeof(uint16_t) + 2);
-    if (Len < sizeof(uint16_t) + 4 + pMsg->byteslen) {
-        LOGD("fail: invalid length2: %d, bytelen=%d\n", Len, pMsg->byteslen);
-        return false;
-    }
-
-#ifdef DBG_PRINT_READ
-    //LOGD("@@@@@ %s @@@@@\n", __func__);
-    //ping_print(pMsg);
-#endif  //DBG_PRINT_READ
-
 #ifdef M_PING_NONZERO_CHK
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
-        if (*(pData + sizeof(uint16_t) + 4 + lp) != 0x00) {
-            LOGD("fail: contain not ZERO\n");
+        if (*(pMsg->p_ignored + lp)) {
+            LOGD("fail: contain not zero\n");
             return false;
         }
     }
 #endif  //M_PING_NONZERO_CHK
 
-    assert(Len >= sizeof(uint16_t) + 4 + pMsg->byteslen);
-
+#ifdef DBG_PRINT_READ
+    //LOGD("@@@@@ %s @@@@@\n", __func__);
+    //ping_print(pMsg);
+#endif  //DBG_PRINT_READ
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
 #if 0
-static void ping_print(const ln_ping_t *pMsg)
+static void ping_print(const ln_msg_ping_t *pMsg)
 {
 #ifdef PTARM_DEBUG
-    LOGD2("-[ping]-------------------------------\n");
-    LOGD2("num_pong_bytes: %" PRIu16 "\n", pMsg->num_pong_bytes);
-    LOGD2("byteslen: %" PRIu16 "\n", pMsg->byteslen);
-    LOGD2("--------------------------------\n");
+    LOGD("-[ping]-------------------------------\n");
+    LOGD("num_pong_bytes: %u\n", pMsg->num_pong_bytes);
+    LOGD("byteslen: %u\n", pMsg->byteslen);
+    LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
 #endif
@@ -381,95 +300,83 @@ static void ping_print(const ln_ping_t *pMsg)
  * pong
  ********************************************************************/
 
-bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_pong_t *pMsg)
+bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_msg_pong_t *pMsg)
 {
-    //        type: 19 (pong)
-    //        data:
-    //            [2:byteslen]
-    //            [byteslen:ignored]
-
-    utl_push_t    proto;
-
-    if (pMsg->byteslen >= 65532) {
-        LOGD("fail: byteslen: %d\n", pMsg->byteslen);
-        return false;
-    }
-
 #ifdef DBG_PRINT_WRITE
     //LOGD("@@@@@ %s @@@@@\n", __func__);
     //pong_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 2 + pMsg->byteslen);
-
-    //        type: 19 (pong)
-    ln_misc_push16be(&proto, MSGTYPE_PONG);
-
-    //            [2:byteslen]
-    ln_misc_push16be(&proto, pMsg->byteslen);
-
-    //            [byteslen:ignored]
-    memset(pBuf->buf + proto.pos, 0, pMsg->byteslen);
-    proto.pos += pMsg->byteslen;
-
-    assert(sizeof(uint16_t) + 2 + pMsg->byteslen == pBuf->len);
-
-    utl_push_trim(&proto);
-
-    return true;
-}
-
-
-bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len)
-{
-    if (Len < sizeof(uint16_t) + 2) {
-        LOGD("fail: invalid length: %d\n", Len);
+    //XXX:
+    if (pMsg->byteslen >= 65532) {
+        LOGD("fail: byteslen: %d\n", pMsg->byteslen);
         return false;
     }
 
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_PONG)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->byteslen)) goto LABEL_ERROR;
+    if (pMsg->p_ignored) {
+        if (!btc_buf_w_write_data(&buf_w, pMsg->p_ignored, pMsg->byteslen)) goto LABEL_ERROR;
+    } else {
+        if (!btc_buf_w_write_zeros(&buf_w, pMsg->byteslen)) goto LABEL_ERROR;
+    }
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_pong_read(ln_msg_pong_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->byteslen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_ignored, (int32_t)pMsg->byteslen)) goto LABEL_ERROR_SYNTAX;
+
+    //XXX:
     if (type != MSGTYPE_PONG) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
-    pMsg->byteslen = utl_int_pack_u16be(pData + sizeof(uint16_t));
     if (pMsg->byteslen > 65531) {
-        LOGD("fail: byteslen too large %04x\n", pMsg->byteslen);
+        LOGD("fail: byteslen %04x\n", pMsg->byteslen);
         return false;
     }
-    if (Len < sizeof(uint16_t) + 2 + pMsg->byteslen) {
-        LOGD("fail: invalid length2: %d, %d\n", Len, pMsg->byteslen);
-        return false;
-    }
-
-#ifdef DBG_PRINT_READ
-    //LOGD("@@@@@ %s @@@@@\n", __func__);
-    //pong_print(pMsg);
-#endif  //DBG_PRINT_READ
-
 #ifdef M_PONG_NONZERO_CHK
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
-        if (*(pData + sizeof(uint16_t) + 2 + lp) != 0x00) {
-            LOGD("fail: contain not ZERO\n");
+        if (*(pMsg->p_ignored + lp)) {
+            LOGD("fail: contain not zero\n");
             return false;
         }
     }
 #endif  //M_PONG_NONZERO_CHK
 
-    assert(Len >= sizeof(uint16_t) + 2 + pMsg->byteslen);
-
+#ifdef DBG_PRINT_READ
+    //LOGD("@@@@@ %s @@@@@\n", __func__);
+    //pong_print(pMsg);
+#endif  //DBG_PRINT_READ
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
 #if 0
-static void pong_print(const ln_pong_t *pMsg)
+static void pong_print(const ln_msg_pong_t *pMsg)
 {
 #ifdef PTARM_DEBUG
-    LOGD2("-[pong]-------------------------------\n");
-    LOGD2("byteslen: %" PRIu16 "\n", pMsg->byteslen);
-    LOGD2("--------------------------------\n");
+    LOGD("-[pong]-------------------------------\n");
+    LOGD("byteslen: %u\n", pMsg->byteslen);
+    LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
 #endif

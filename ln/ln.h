@@ -653,55 +653,6 @@ typedef struct {
 
 
 /**************************************************************************
- * typedefs : Setup/Control
- **************************************************************************/
-
-/// @addtogroup setup_control
-/// @{
-
-/** @struct     ln_init_t
- *  @brief      init
- */
-typedef struct {
-    utl_buf_t globalfeatures;                     ///< gflen: globalfeatures
-    utl_buf_t localfeatures;                      ///< lflen: localfeatures
-} ln_init_t;
-
-
-/** @struct     ln_ping_t
- *  @brief      ping
- */
-typedef struct {
-    uint16_t    num_pong_bytes;                     ///< 2: num_pong_bytes
-    uint16_t    byteslen;                           ///< 2: byteslen
-} ln_ping_t;
-
-
-/** @struct     ln_pong_t
- *  @brief      pong
- *  @note
- *      - byteslenはpingのnum_pong_bytesと同じにする
- */
-typedef struct {
-    uint16_t    byteslen;                           ///< 2: byteslen
-} ln_pong_t;
-
-
-/** @struct     ln_error_t
- *  @brief      error
- *  @note
- *      - p_dataはMALLOC()で確保するため、呼び出し元がMFREE()で解放すること
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint16_t    len;                                ///< 2: byteslen
-    char        *p_data;                            ///< エラー文字列(\0あり)
-} ln_error_t;
-
-/// @}
-
-
-/**************************************************************************
  * typedefs : Announcement
  **************************************************************************/
 

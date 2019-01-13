@@ -31,6 +31,74 @@
 
 
 /********************************************************************
+ * typedefs
+ ********************************************************************/
+
+/** @struct     ln_msg_init_t
+ *  @brief      init
+ */
+typedef struct {
+    //type: 16 (init)
+    //data:
+    //  [2:gflen]
+    //  [gflen:globalfeatures]
+    //  [2:lflen]
+    //  [lflen:localfeatures]
+
+    uint16_t        gflen;
+    const uint8_t   *p_globalfeatures;
+    uint16_t        lflen;
+    const uint8_t   *p_localfeatures;
+} ln_msg_init_t;
+
+
+/** @struct     ln_msg_error_t
+ *  @brief      error
+ */
+typedef struct {
+    //type: 17 (error)
+    //data:
+    //  [32:channel_id]
+    //  [2:len]
+    //  [len:data]
+
+    const uint8_t   *p_channel_id;
+    uint16_t        len;
+    const uint8_t   *p_data;
+} ln_msg_error_t;
+
+
+/** @struct     ln_msg_ping_t
+ *  @brief      ping
+ */
+typedef struct {
+    //type: 18 (ping)
+    //data:
+    //  [2:num_pong_bytes]
+    //  [2:byteslen]
+    //  [byteslen:ignored]
+
+    uint16_t        num_pong_bytes;
+    uint16_t        byteslen;
+    const uint8_t   *p_ignored;
+} ln_msg_ping_t;
+
+
+/** @struct     ln_msg_pong_t
+ *  @brief      pong
+ */
+typedef struct {
+    //type: 19 (pong)
+    //data:
+    //  [2:byteslen]
+    //  [byteslen:ignored]
+
+    uint16_t        byteslen;
+    const uint8_t   *p_ignored;
+} ln_msg_pong_t;
+
+
+/********************************************************************
  * prototypes
  ********************************************************************/
 
@@ -40,7 +108,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_init_t *pMsg);
+bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_msg_init_t *pMsg);
 
 
 /** init読込み
@@ -50,7 +118,7 @@ bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_init_t *pMsg);
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** error生成
@@ -59,7 +127,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_error_write(utl_buf_t *pBuf, const ln_error_t *pMsg);
+bool HIDDEN ln_msg_error_write(utl_buf_t *pBuf, const ln_msg_error_t *pMsg);
 
 
 /** error読込み
@@ -69,7 +137,7 @@ bool HIDDEN ln_msg_error_write(utl_buf_t *pBuf, const ln_error_t *pMsg);
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_error_read(ln_msg_error_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** ping生成
@@ -78,7 +146,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_ping_t *pMsg);
+bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_msg_ping_t *pMsg);
 
 
 /** ping読込み
@@ -88,7 +156,7 @@ bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_ping_t *pMsg);
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_ping_read(ln_msg_ping_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** pong生成
@@ -97,7 +165,7 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_pong_t *pMsg);
+bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_msg_pong_t *pMsg);
 
 
 /** pong読込み
@@ -107,6 +175,7 @@ bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_pong_t *pMsg);
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_pong_read(ln_msg_pong_t *pMsg, const uint8_t *pData, uint16_t Len);
+
 
 #endif /* LN_MSG_SETUPCTL_H__ */

@@ -179,11 +179,11 @@
 #define M_SEND_ERR(self,err,fmt,...)    {\
         set_error(self,err,fmt,##__VA_ARGS__);\
         \
-        ln_error_t err;\
-        err.p_channel_id = self->channel_id;\
-        err.p_data = self->err_msg;\
-        err.len = strlen(err.p_data);\
-        send_error(self, &err);\
+        ln_msg_error_t msg;\
+        msg.p_channel_id = self->channel_id;\
+        msg.p_data = (const uint8_t *)self->err_msg;\
+        msg.len = strlen(self->err_msg);\
+        send_error(self, &msg);\
         LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
 
@@ -236,7 +236,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-static void send_error(ln_self_t *self, const ln_error_t *pError);
+static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
 static bool create_funding_tx(ln_self_t *self, bool bSign);
 static bool create_basetx(btc_tx_t *pTx,
@@ -754,19 +754,19 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
         return false;
     }
 
-    ln_init_t msg;
+    ln_msg_init_t msg;
 
-    utl_buf_init(&msg.globalfeatures);
+    msg.gflen = 0;
+    msg.p_globalfeatures = NULL;
     self->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
-    utl_buf_alloccopy(&msg.localfeatures, &self->lfeature_local, sizeof(self->lfeature_local));
+    msg.lflen = sizeof(self->lfeature_local);
+    msg.p_localfeatures = &self->lfeature_local;
     LOGD("localfeatures: ");
-    DUMPD(msg.localfeatures.buf, msg.localfeatures.len);
+    DUMPD(msg.p_localfeatures, msg.lflen);
     bool ret = ln_msg_init_write(pInit, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_SEND;
     }
-    utl_buf_free(&msg.localfeatures);
-    utl_buf_free(&msg.globalfeatures);
 
     M_DB_SELF_SAVE(self);
 
@@ -1707,7 +1707,7 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
 
 bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing)
 {
-    ln_ping_t ping;
+    ln_msg_ping_t msg;
 
     // if (self->last_num_pong_bytes != 0) {
     //     LOGD("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
@@ -1721,13 +1721,14 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing)
     btc_rng_rand(&r, 1);
     self->last_num_pong_bytes = r;
     btc_rng_rand(&r, 1);
-    ping.byteslen = r;
+    msg.byteslen = r;
 #else
     btc_rng_rand((uint8_t *)&self->last_num_pong_bytes, 2);
-    btc_rng_rand((uint8_t *)&ping.byteslen, 2);
+    btc_rng_rand((uint8_t *)&msg.byteslen, 2);
 #endif
-    ping.num_pong_bytes = self->last_num_pong_bytes;
-    bool ret = ln_msg_ping_write(pPing, &ping);
+    msg.num_pong_bytes = self->last_num_pong_bytes;
+    msg.p_ignored = NULL;
+    bool ret = ln_msg_ping_write(pPing, &msg);
     if (ret) {
         self->missing_pong_cnt++;
         if (self->missing_pong_cnt > 1) {
@@ -1747,10 +1748,11 @@ bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
 {
     (void)self;
 
-    ln_pong_t pong;
+    ln_msg_pong_t msg;
 
-    pong.byteslen = NumPongBytes;
-    bool ret = ln_msg_pong_write(pPong, &pong);
+    msg.byteslen = NumPongBytes;
+    msg.p_ignored = NULL;
+    bool ret = ln_msg_pong_write(pPong, &msg);
 
     return ret;
 }
@@ -2558,9 +2560,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    ln_init_t msg;
-    utl_buf_init(&msg.globalfeatures);
-    utl_buf_init(&msg.localfeatures);
+    ln_msg_init_t msg;
     ret = ln_msg_init_read(&msg, pData, Len);
     if (!ret) {
         LOGD("fail: read\n");
@@ -2570,8 +2570,8 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
     //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-globalfeatures-flags
     //  globalfeatures not assigned
-    for (uint32_t lp = 0; lp < msg.globalfeatures.len; lp++) {
-        if (msg.globalfeatures.buf[lp] & 0x55) {
+    for (uint32_t lp = 0; lp < msg.gflen; lp++) {
+        if (msg.p_globalfeatures[lp] & 0x55) {
             //even bit: 未対応のため、エラーにする
             LOGD("fail: unknown bit(globalfeatures)\n");
             ret = false;
@@ -2581,7 +2581,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         }
     }
 
-    if (msg.localfeatures.len == 0) {
+    if (msg.lflen == 0) {
         self->lfeature_remote = 0x00;
     } else {
         //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
@@ -2590,7 +2590,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         //  bit3   : initial_routing_sync
         //  bit4/5 : option_upfront_shutdown_script
         //  bit6/7 : gossip_queries
-        uint8_t flag = (msg.localfeatures.buf[0] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
+        uint8_t flag = (msg.p_localfeatures[0] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
         if (flag & 0x55) {
             //even bit: 未対応のため、エラーにする
             LOGD("fail: unknown bit(localfeatures)\n");
@@ -2600,11 +2600,11 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             //odd bit: 未知でもスルー
         }
 
-        initial_routing_sync = (msg.localfeatures.buf[0] & LN_INIT_LF_ROUTE_SYNC);
+        initial_routing_sync = (msg.p_localfeatures[0] & LN_INIT_LF_ROUTE_SYNC);
 
-        if (msg.localfeatures.len > 1) {
-            for (uint32_t lp = 1; lp < msg.localfeatures.len; lp++) {
-                if (msg.globalfeatures.buf[lp] & 0x55) {
+        if (msg.lflen > 1) {
+            for (uint32_t lp = 1; lp < msg.lflen; lp++) {
+                if (msg.p_localfeatures[lp] & 0x55) {
                     //even bit: 未対応のため、エラーにする
                     LOGD("fail: unknown bit(localfeatures)\n");
                     ret = false;
@@ -2614,7 +2614,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
                 }
             }
         }
-        self->lfeature_remote = msg.localfeatures.buf[0];
+        self->lfeature_remote = msg.p_localfeatures[0];
     }
 
     self->init_flag |= M_INIT_FLAG_RECV;
@@ -2623,9 +2623,6 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     callback(self, LN_CB_INIT_RECV, &initial_routing_sync);
 
 LABEL_EXIT:
-    utl_buf_free(&msg.localfeatures);
-    utl_buf_free(&msg.globalfeatures);
-
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_FEATURE, "init error");
     }
@@ -2641,12 +2638,9 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         free_establish(self, false);    //切断せずに継続する場合もあるため、残す
     }
 
-    ln_error_t err;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    err.p_channel_id = channel_id;
-    ln_msg_error_read(&err, pData, Len);
-    callback(self, LN_CB_ERROR, &err);
-    UTL_DBG_FREE(err.p_data);
+    ln_msg_error_t msg;
+    ln_msg_error_read(&msg, pData, Len);
+    callback(self, LN_CB_ERROR, &msg);
 
     return true;
 }
@@ -2658,8 +2652,8 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     bool ret;
 
-    ln_ping_t ping;
-    ret = ln_msg_ping_read(&ping, pData, Len);
+    ln_msg_ping_t msg;
+    ret = ln_msg_ping_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
@@ -2667,7 +2661,7 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     //脊髄反射的にpongを返す
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ret = ln_pong_create(self, &buf_bolt, ping.num_pong_bytes);
+    ret = ln_pong_create(self, &buf_bolt, msg.num_pong_bytes);
     callback(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 
@@ -2682,21 +2676,21 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     bool ret;
 
-    ln_pong_t pong;
-    ret = ln_msg_pong_read(&pong, pData, Len);
+    ln_msg_pong_t msg;
+    ret = ln_msg_pong_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
 
     //pongのbyteslenはpingのnum_pong_bytesであること
-    ret = (pong.byteslen == self->last_num_pong_bytes);
+    ret = (msg.byteslen == self->last_num_pong_bytes);
     if (ret) {
         self->missing_pong_cnt--;
         //LOGD("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
         self->last_num_pong_bytes = 0;
     } else {
-        LOGD("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
+        LOGD("fail: msg.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", msg.byteslen, self->last_num_pong_bytes);
     }
 
     //LOGD("END\n");
@@ -4408,7 +4402,7 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
 }
 
 
-static void send_error(ln_self_t *self, const ln_error_t *pError)
+static void send_error(ln_self_t *self, const ln_msg_error_t *pError)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_msg_error_write(&buf_bolt, pError);

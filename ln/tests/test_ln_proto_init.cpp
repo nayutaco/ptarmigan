@@ -52,9 +52,9 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
 
-FAKE_VALUE_FUNC(bool, ln_msg_init_read, ln_init_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_msg_error_write, utl_buf_t *, const ln_error_t *);
-FAKE_VALUE_FUNC(bool, ln_msg_error_read, ln_error_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_init_read, ln_msg_init_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_error_write, utl_buf_t *, const ln_msg_error_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_error_read, ln_msg_error_t *, const uint8_t *, uint16_t );
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -169,9 +169,11 @@ TEST_F(ln, recv_init_ok)
     static bool b_initial_routing_sync;
     class dummy {
     public:
-        // static bool ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
-        //     return false;
-        // }
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->gflen = 0;
+            pMsg->lflen = 0;
+            return true;
+        }
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
             (void)self;
             if (type == LN_CB_INIT_RECV) {
@@ -181,6 +183,7 @@ TEST_F(ln, recv_init_ok)
         }
     };
     self.p_callback = dummy::callback;
+    ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
     bool ret = recv_init(&self, NULL, 0);
     ASSERT_TRUE(ret);
@@ -200,7 +203,7 @@ TEST_F(ln, recv_init_fail)
     static bool b_initial_routing_sync;
     class dummy {
     public:
-        // static bool ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+        // static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
         //     return false;
         // }
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
@@ -230,9 +233,10 @@ TEST_F(ln, recv_init_gf1)
     static uint8_t gf;
     class dummy {
     public:
-        static bool ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            utl_buf_alloc(&pMsg->globalfeatures, 1);
-            pMsg->globalfeatures.buf[0] = gf;
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->gflen = 1;          
+            pMsg->p_globalfeatures = &gf;
+            pMsg->lflen = 0;
             return true;
         }
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
@@ -278,9 +282,9 @@ TEST_F(ln, recv_init_gf2)
     static uint8_t gf;
     class dummy {
     public:
-        static bool ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            utl_buf_alloc(&pMsg->globalfeatures, 1);
-            pMsg->globalfeatures.buf[0] = gf;
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->gflen = 1;
+            pMsg->p_globalfeatures = &gf;
             return true;
         }
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
@@ -326,9 +330,10 @@ TEST_F(ln, recv_init_lf1)
     static uint8_t lf;
     class dummy {
     public:
-        static bool ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            utl_buf_alloc(&pMsg->localfeatures, 1);
-            pMsg->localfeatures.buf[0] = lf;
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->gflen = 0;
+            pMsg->lflen = 1;
+            pMsg->p_localfeatures = &lf;
             return true;
         }
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
@@ -375,9 +380,10 @@ TEST_F(ln, recv_init_lf2)
     static uint8_t lf;
     class dummy {
     public:
-        static bool ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            utl_buf_alloc(&pMsg->localfeatures, 1);
-            pMsg->localfeatures.buf[0] = lf;
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->gflen = 0;
+            pMsg->lflen = 1;
+            pMsg->p_localfeatures = &lf;
             return true;
         }
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
