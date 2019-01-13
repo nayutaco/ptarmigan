@@ -39,7 +39,7 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
+#define DBG_PRINT_WRITE
 #define DBG_PRINT_READ
 
 
@@ -65,10 +65,10 @@ bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_shutdown_t *pMsg)
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 34 + pMsg->p_scriptpk->len);
 
@@ -161,10 +161,10 @@ bool HIDDEN ln_msg_closing_signed_write(utl_buf_t *pBuf, const ln_closing_signed
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     closing_signed_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 104);
 

@@ -52,10 +52,10 @@
 #define DBG_PRINT_READ_NOD
 #define DBG_PRINT_READ_UPD
 #endif
-#define DBG_PRINT_CREATE_CNL
-#define DBG_PRINT_CREATE_NOD
-#define DBG_PRINT_CREATE_UPD
-#define DBG_PRINT_CREATE_SIG
+#define DBG_PRINT_WRITE_CNL
+#define DBG_PRINT_WRITE_NOD
+#define DBG_PRINT_WRITE_UPD
+#define DBG_PRINT_WRITE_SIG
 #define DBG_PRINT_READ_SIG
 
 
@@ -77,10 +77,10 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
 
 static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_script_pubkey_order_t Sort);
 
-#if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
+#if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg);
 #endif
-#if defined(DBG_PRINT_CREATE_SIG) || defined(DBG_PRINT_READ_SIG)
+#if defined(DBG_PRINT_WRITE_SIG) || defined(DBG_PRINT_READ_SIG)
 static void announce_signs_print(const ln_announce_signs_t *pMsg);
 #endif
 
@@ -166,10 +166,10 @@ bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, co
         BTC_SCRYPT_PUBKEY_ORDER_ASC : BTC_SCRYPT_PUBKEY_ORDER_OTHER;
     bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, sort);
     if (ret) {
-#ifdef DBG_PRINT_CREATE_CNL
+#ifdef DBG_PRINT_WRITE_CNL
         LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
-#endif  //DBG_PRINT_CREATE_CNL
+#endif  //DBG_PRINT_WRITE_CNL
     } else {
         LOGD("something error\n");
     }
@@ -482,10 +482,10 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE_NOD
+#ifdef DBG_PRINT_WRITE_NOD
    LOGD("@@@@@ %s @@@@@\n", __func__);
    node_announce_print(pMsg);
-#endif  //DBG_PRINT_CREATE_NOD
+#endif  //DBG_PRINT_WRITE_NOD
 
     //flen=0
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
@@ -677,7 +677,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
 }
 
 
-#if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
+#if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg)
 {
 #ifdef PTARM_DEBUG
@@ -729,10 +729,10 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE_UPD
+#ifdef DBG_PRINT_WRITE_UPD
     LOGD("@@@@@ %s @@@@@\n", __func__);
     ln_msg_cnl_update_print(pMsg);
-#endif  //DBG_PRINT_CREATE_UPD
+#endif  //DBG_PRINT_WRITE_UPD
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 128);
 
@@ -947,10 +947,10 @@ bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE_SIG
+#ifdef DBG_PRINT_WRITE_SIG
     LOGD("@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
-#endif  //DBG_PRINT_CREATE_SIG
+#endif  //DBG_PRINT_WRITE_SIG
 
     //len=1
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 168);
@@ -1054,7 +1054,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 }
 
 
-#if defined(DBG_PRINT_CREATE_SIG) || defined(DBG_PRINT_READ_SIG)
+#if defined(DBG_PRINT_WRITE_SIG) || defined(DBG_PRINT_READ_SIG)
 static void announce_signs_print(const ln_announce_signs_t *pMsg)
 {
 #ifdef PTARM_DEBUG

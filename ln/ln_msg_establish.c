@@ -41,7 +41,7 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
+#define DBG_PRINT_WRITE
 #define DBG_PRINT_READ
 
 
@@ -91,10 +91,10 @@ bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_open_channel_t *
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     open_channel_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     if ( (pMsg->funding_sat >= (uint64_t)16777216) ||
          (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) ||
@@ -348,10 +348,10 @@ bool HIDDEN ln_msg_accept_channel_write(utl_buf_t *pBuf, const ln_accept_channel
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     accept_channel_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 270);
 
@@ -536,10 +536,10 @@ bool HIDDEN ln_msg_funding_created_write(utl_buf_t *pBuf, const ln_funding_creat
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_created_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 130);
 
@@ -655,10 +655,10 @@ bool HIDDEN ln_msg_funding_signed_write(utl_buf_t *pBuf, const ln_funding_signed
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_signed_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 96);
 
@@ -739,10 +739,10 @@ bool HIDDEN ln_msg_funding_locked_write(utl_buf_t *pBuf, const ln_funding_locked
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_locked_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 65);
 
@@ -826,10 +826,10 @@ bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_channel_r
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     channel_reestablish_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
     uint32_t len = sizeof(uint16_t) + 48;
     if (pMsg->option_data_loss_protect) {
         len += 65;

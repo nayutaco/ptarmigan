@@ -44,7 +44,7 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
+#define DBG_PRINT_WRITE
 #define DBG_PRINT_READ
 
 
@@ -78,10 +78,10 @@ bool HIDDEN ln_msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_ht
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 1450);
 
@@ -197,10 +197,10 @@ bool HIDDEN ln_msg_update_fulfill_htlc_write(utl_buf_t *pBuf, const ln_update_fu
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fulfill_htlc_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 72);
 
@@ -295,10 +295,10 @@ bool HIDDEN ln_msg_update_fail_htlc_write(utl_buf_t *pBuf, const ln_update_fail_
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fail_htlc_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 42 + pMsg->p_reason->len);
 
@@ -401,10 +401,10 @@ bool HIDDEN ln_msg_commit_signed_write(utl_buf_t *pBuf, const ln_commit_signed_t
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     commit_signed_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 98 + pMsg->num_htlcs * LN_SZ_SIGNATURE);
 
@@ -507,10 +507,10 @@ bool HIDDEN ln_msg_revoke_and_ack_write(utl_buf_t *pBuf, const ln_revoke_and_ack
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 97);
 
@@ -600,10 +600,10 @@ bool HIDDEN ln_msg_update_fee_write(utl_buf_t *pBuf, const ln_update_fee_t *pMsg
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 36);
 
@@ -685,10 +685,10 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_write(utl_buf_t *pBuf, const ln_up
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fail_malformed_htlc_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 74);
 

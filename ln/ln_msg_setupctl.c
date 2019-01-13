@@ -42,7 +42,7 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
+#define DBG_PRINT_WRITE
 #define DBG_PRINT_READ
 
 // #define M_PING_NONZERO_CHK
@@ -74,10 +74,10 @@ bool HIDDEN ln_msg_init_write(utl_buf_t *pBuf, const ln_init_t *pMsg)
 
     utl_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     init_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     //gflen=0, lflen=0
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len);
@@ -291,10 +291,10 @@ bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_ping_t *pMsg)
         return false;
     }
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     //LOGD("@@@@@ %s @@@@@\n", __func__);
     //ping_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->byteslen);
 
@@ -395,10 +395,10 @@ bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_pong_t *pMsg)
         return false;
     }
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_WRITE
     //LOGD("@@@@@ %s @@@@@\n", __func__);
     //pong_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_WRITE
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 2 + pMsg->byteslen);
 
