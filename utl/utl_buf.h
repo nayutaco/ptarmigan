@@ -67,6 +67,15 @@ typedef struct {
 void utl_buf_init(utl_buf_t *pBuf);
 
 
+/** #utl_buf_t 初期化
+ *
+ * @param[in,out]   pBuf    処理対象
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ */
+void utl_buf_init_2(utl_buf_t *pBuf, uint8_t *pData, uint32_t Len);
+
+
 /** #utl_buf_t のメモリ解放
  *
  * @param[in,out]   pBuf    処理対象
