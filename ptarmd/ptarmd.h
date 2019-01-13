@@ -155,7 +155,9 @@ typedef enum {
     PTARMD_ROUTESYNC_NONE,
     PTARMD_ROUTESYNC_INIT,      ///< initial_routing_sync
     //
-    PTARMD_ROUTESYNC_MAX = PTARMD_ROUTESYNC_INIT
+    PTARMD_ROUTESYNC_MAX = PTARMD_ROUTESYNC_INIT,
+    //
+    PTARMD_ROUTESYNC_DEFAULT = PTARMD_ROUTESYNC_NONE,   //default
 } ptarmd_routesync_t;
 
 

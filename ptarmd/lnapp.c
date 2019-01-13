@@ -1302,6 +1302,7 @@ static bool exchange_init(lnapp_conf_t *p_conf)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
+    LOGD("$$$ initial_routing_sync=%s\n", ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"));
     bool ret = ln_init_create(p_conf->p_self, &buf_bolt, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true);     //channel announceあり
     if (!ret) {
         LOGD("fail: create\n");
