@@ -83,8 +83,10 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
             ln_node_announce_t msg;
             uint8_t node_pub[BTC_SZ_PUBKEY];
             char node_alias[LN_SZ_ALIAS + 1];
+            uint8_t rgbcolor[LN_SZ_RGBCOLOR];
             msg.p_node_id = node_pub;
             msg.p_alias = node_alias;
+            msg.p_rgbcolor = rgbcolor;
             ln_msg_node_announce_read(&msg, pData, Len);
         }
         break;
@@ -107,8 +109,10 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
         ln_node_announce_t msg;
         uint8_t node_pub[BTC_SZ_PUBKEY];
         char node_alias[LN_SZ_ALIAS + 1];
+        uint8_t rgbcolor[LN_SZ_RGBCOLOR];
         msg.p_node_id = node_pub;
         msg.p_alias = node_alias;
+        msg.p_rgbcolor = rgbcolor;
         bool ret = ln_msg_node_announce_read(&msg, pData, Len);
         if (ret) {
             if (msg.addr.type == LN_NODEDESC_IPV4) {

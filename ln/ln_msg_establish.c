@@ -851,9 +851,9 @@ bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_channel_r
 
     if (pMsg->option_data_loss_protect) {
         //        [32:your_last_per_commitment_secret]
-        utl_push_data(&proto, pMsg->your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
+        utl_push_data(&proto, pMsg->p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
         //        [33:my_current_per_commitment_point]
-        utl_push_data(&proto, pMsg->my_current_per_commitment_point, BTC_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->p_my_current_per_commitment_point, BTC_SZ_PUBKEY);
     }
 
     assert(len == pBuf->len);
@@ -895,13 +895,13 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
     if (pMsg->option_data_loss_protect) {
         //[32:your_last_per_commitment_secret] (option_data_loss_protect)
         if (Len >= pos + BTC_SZ_PRIVKEY) {
-            memcpy(pMsg->your_last_per_commitment_secret, pData + pos, BTC_SZ_PRIVKEY);
+            memcpy(pMsg->p_your_last_per_commitment_secret, pData + pos, BTC_SZ_PRIVKEY);
             pos += BTC_SZ_PRIVKEY;
         }
 
         //[33:my_current_per_commitment_point] (option_data_loss_protect)
         if (Len >= pos + BTC_SZ_PUBKEY) {
-            memcpy(pMsg->my_current_per_commitment_point, pData + pos, BTC_SZ_PUBKEY);
+            memcpy(pMsg->p_my_current_per_commitment_point, pData + pos, BTC_SZ_PUBKEY);
             pos += BTC_SZ_PUBKEY;
         }
     }
@@ -927,9 +927,9 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
     LOGD("next_remote_revocation_number: %" PRIu64 "\n", pMsg->next_remote_revocation_number);
     if (pMsg->option_data_loss_protect) {
         LOGD("your_last_per_commitment_secret: ");
-        DUMPD(pMsg->your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
+        DUMPD(pMsg->p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
         LOGD("my_current_per_commitment_point: ");
-        DUMPD(pMsg->my_current_per_commitment_point, BTC_SZ_PUBKEY);
+        DUMPD(pMsg->p_my_current_per_commitment_point, BTC_SZ_PUBKEY);
     }
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG

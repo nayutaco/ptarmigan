@@ -777,7 +777,11 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
 bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
 {
     ln_channel_reestablish_t msg;
+    uint8_t your_last_per_commitment_secret[BTC_SZ_PRIVKEY] = {0};
+    uint8_t my_current_per_commitment_point[BTC_SZ_PUBKEY] = {0};
     msg.p_channel_id = self->channel_id;
+    msg.p_your_last_per_commitment_secret = your_last_per_commitment_secret;
+    msg.p_my_current_per_commitment_point = my_current_per_commitment_point;
 
     M_DBG_COMMITNUM(self);
 
@@ -792,20 +796,18 @@ bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
     if (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS) {
         msg.option_data_loss_protect = true;
 
-        if (self->commit_remote.commit_num == 0) {
-            memset(msg.your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
-        } else {
-            bool ret = ln_derkey_storage_get_secret(msg.your_last_per_commitment_secret,
+        if (self->commit_remote.commit_num) {
+            bool ret = ln_derkey_storage_get_secret(msg.p_your_last_per_commitment_secret,
                             &self->peer_storage,
                             (uint64_t)(LN_SECINDEX_INIT - (self->commit_remote.commit_num - 1)));
             if (!ret) {
                 LOGD("no last secret\n");
-                memset(msg.your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
+                memset(msg.p_your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
             }
         }
 
         uint8_t secret[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_percommitsec(self, secret, msg.my_current_per_commitment_point);
+        ln_signer_create_prev_percommitsec(self, secret, msg.p_my_current_per_commitment_point);
     } else {
         msg.option_data_loss_protect = false;
     }
@@ -3997,8 +3999,10 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
 
     ln_update_fail_malformed_htlc_t mal_htlc;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint8_t sha256_onion[BTC_SZ_HASH256];
 
     mal_htlc.p_channel_id = channel_id;
+    mal_htlc.p_sha256_onion = sha256_onion;
     bool ret = ln_msg_update_fail_malformed_htlc_read(&mal_htlc, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
@@ -4036,7 +4040,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
             utl_push_t push_rsn;
             utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_HASH256);
             ln_misc_push16be(&push_rsn, mal_htlc.failure_code);
-            utl_push_data(&push_rsn, mal_htlc.sha256_onion, BTC_SZ_HASH256);
+            utl_push_data(&push_rsn, mal_htlc.p_sha256_onion, BTC_SZ_HASH256);
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = p_htlc->prev_short_channel_id;
@@ -4067,8 +4071,12 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 
     ln_channel_reestablish_t reest;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint8_t your_last_per_commitment_secret[BTC_SZ_PRIVKEY];
+    uint8_t my_current_per_commitment_point[BTC_SZ_PUBKEY];
 
     reest.p_channel_id = channel_id;
+    reest.p_your_last_per_commitment_secret = your_last_per_commitment_secret;
+    reest.p_my_current_per_commitment_point = my_current_per_commitment_point;
     ret = ln_msg_channel_reestablish_read(&reest, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
@@ -4139,7 +4147,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
             ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 4);
             LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 4);
             DUMPD(secret, BTC_SZ_PRIVKEY);
-            if (memcmp(secret, reest.your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
+            if (memcmp(secret, reest.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
                 //MUST NOT broadcast its commitment transaction.
                 //SHOULD fail the channel.
                 //SHOULD store my_current_per_commitment_point to retrieve funds should the sending node broadcast its commitment transaction on-chain.
@@ -4369,9 +4377,11 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
     ln_node_announce_t anno;
     uint8_t node_id[BTC_SZ_PUBKEY];
     char node_alias[LN_SZ_ALIAS + 1];
+    uint8_t rgbcolor[LN_SZ_RGBCOLOR];
 
     anno.p_node_id = node_id;
     anno.p_alias = node_alias;
+    anno.p_rgbcolor = rgbcolor;
     ret = ln_msg_node_announce_read(&anno, pData, Len);
     if (!ret) {
         LOGD("fail: read message\n");
@@ -5603,7 +5613,7 @@ static void fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16
     uint16_t failure_code = utl_int_pack_u16be(p_htlc->buf_onion_reason.buf);
     mal_htlc.p_channel_id = self->channel_id;
     mal_htlc.id = p_htlc->id;
-    memcpy(mal_htlc.sha256_onion, p_htlc->buf_onion_reason.buf + sizeof(uint16_t), BTC_SZ_HASH256);
+    mal_htlc.p_sha256_onion = p_htlc->buf_onion_reason.buf + sizeof(uint16_t);
     mal_htlc.failure_code = failure_code;
     bool ret = ln_msg_update_fail_malformed_htlc_write(pFail, &mal_htlc);
     if (ret) {

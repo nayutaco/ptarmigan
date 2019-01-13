@@ -58,7 +58,7 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uin
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len); //XXX: not used
 
 
 /** [デバッグ]channel_announcementデバッグ出力
