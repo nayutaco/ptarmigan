@@ -66,6 +66,8 @@
 #include "btc_crypto.h"
 #include "btc_script.h"
 
+#include "ln_msg_setupctl.h"
+
 #include "ptarmd.h"
 #include "cmd_json.h"
 #include "lnapp.h"
@@ -2209,23 +2211,23 @@ static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ERROR: error受信
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    const ln_error_t *p_err = (const ln_error_t *)p_param;
+    const ln_msg_error_t *p_msg = (const ln_msg_error_t *)p_param;
 
     bool b_alloc = false;
-    char *p_msg = p_err->p_data;
-    for (uint16_t lp = 0; lp < p_err->len; lp++) {
-        if (!isprint(p_err->p_data[lp])) {
+    char *p_data = (char *)p_msg->p_data;
+    for (uint16_t lp = 0; lp < p_msg->len; lp++) {
+        if (!isprint(p_msg->p_data[lp])) {
             //表示できない文字が入っている場合はダンプ出力
             b_alloc = true;
-            p_msg = (char *)UTL_DBG_MALLOC(p_err->len * 2 + 1);
-            utl_str_bin2str(p_msg, (const uint8_t *)p_err->p_data, p_err->len);
+            p_data = (char *)UTL_DBG_MALLOC(p_msg->len * 2 + 1);
+            utl_str_bin2str(p_data, (const uint8_t *)p_msg->p_data, p_msg->len);
             break;
         }
     }
-    set_lasterror(p_conf, RPCERR_PEER_ERROR, p_msg);
-    ptarmd_eventlog(p_err->p_channel_id, "error message: %s", p_msg);
+    set_lasterror(p_conf, RPCERR_PEER_ERROR, p_data);
+    ptarmd_eventlog(p_msg->p_channel_id, "error message: %s", p_data);
     if (b_alloc) {
-        UTL_DBG_FREE(p_msg);
+        UTL_DBG_FREE(p_data);
     }
 
     if (p_conf->funding_waiting) {
