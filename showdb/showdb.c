@@ -153,7 +153,7 @@ static void ln_print_wallet(const ln_self_t *self)
         printf("\",\n");
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, self->short_channel_id);
-        printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+        printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->short_channel_id);
         printf(INDENT3 M_QQ("funding_tx") ": \"");
         btc_dbg_dump_txid(stdout, self->funding_local.txid);
         printf(":%d\",\n", self->funding_local.txindex);
@@ -438,10 +438,10 @@ static void ln_print_self(const ln_self_t *self)
             }
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
             ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].next_short_channel_id);
-            printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+            printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->cnl_add_htlc[lp].next_short_channel_id);
             printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].next_idx);
             ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].prev_short_channel_id);
-            printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+            printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->cnl_add_htlc[lp].prev_short_channel_id);
             printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].prev_idx);
             printf(INDENT5 M_QQ("onion_reason") ": \"");
             if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
@@ -475,7 +475,11 @@ static void ln_print_self(const ln_self_t *self)
     printf("\",\n");
     printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_local.commit_num);
-    printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_local.revoke_num);
+    if (self->commit_local.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_local.revoke_num);
+    } else {
+        printf(INDENT4 M_QQ("revoke_num") ": null\n");
+    }
 
     printf(INDENT3 "},\n");
 
@@ -491,7 +495,11 @@ static void ln_print_self(const ln_self_t *self)
     printf("\",\n");
     printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_remote.htlc_num);
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_remote.commit_num);
-    printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_remote.revoke_num);
+    if (self->commit_remote.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_remote.revoke_num);
+    } else {
+        printf(INDENT4 M_QQ("revoke_num") ": null\n");
+    }
     printf(INDENT3 "},\n");
 
     //addr
@@ -537,7 +545,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 printf(INDENT3 M_QQ("type") ": " M_QQ("channel_announcement") ",\n");
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
                 ln_short_channel_id_string(str_sci, anno.short_channel_id);
-                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, anno.short_channel_id);
                 printf(INDENT3 M_QQ("node1") ": \"");
                 utl_dbg_dump(stdout, anno.p_node_id1, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
@@ -591,7 +599,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
 
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
                 ln_short_channel_id_string(str_sci, anno.short_channel_id);
-                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, anno.short_channel_id);
                 //printf(INDENT3 M_QQ("node_sort") ": " M_QQ("%s") ",\n", (anno.flags & 1) ? "second" : "first");
                 printf(INDENT3 M_QQ("message_flags") ": " M_QQ("%02x") ",\n", anno.message_flags);
                 printf(INDENT3 M_QQ("channel_flags") ": " M_QQ("%02x") ",\n", anno.channel_flags);
@@ -905,7 +913,7 @@ static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
             memcpy(&short_channel_id, key.mv_data, sizeof(short_channel_id));
             ln_short_channel_id_string(str_sci, short_channel_id);
-            printf(INDENT2 "[" M_QQ("%s") ",", str_sci);
+            printf(INDENT2 "[" M_QQ("%s (%016" PRIx64 ")") ",", str_sci, short_channel_id);
             if (data.mv_size == 0) {
                 printf(M_QQ("perm") "]");
             } else if (data.mv_size == 1) {
