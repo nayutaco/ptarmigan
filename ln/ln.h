@@ -1487,14 +1487,6 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
 
 
-
-/** open_channelのchannel_flags.announce_channelのクリア
- *
- * @param[in,out]       self            channel info
- */
-void ln_open_channel_clr_announce(ln_self_t *self);
-
-
 /** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
  *
  * @param[in,out]       self            channel info
