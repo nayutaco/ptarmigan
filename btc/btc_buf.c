@@ -158,6 +158,13 @@ uint32_t btc_buf_r_remains(btc_buf_r_t *pBufR)
 }
 
 
+bool btc_buf_r_get_pos_and_seek(btc_buf_r_t *pBufR, const uint8_t **pPos, int32_t offset)
+{
+    *pPos = pBufR->_data + pBufR->_pos;
+    return btc_buf_r_seek(pBufR, offset);
+}
+
+
 bool btc_buf_w_init(btc_buf_w_t *pBufW, uint32_t Size)
 {
     pBufW->_pos = 0;
