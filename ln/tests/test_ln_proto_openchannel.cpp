@@ -63,8 +63,8 @@ FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_htlct
 FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 
-FAKE_VALUE_FUNC(bool, ln_msg_open_channel_write, utl_buf_t *, const ln_open_channel_t *);
-FAKE_VALUE_FUNC(bool, ln_msg_open_channel_read, ln_open_channel_t*, const uint8_t*, uint16_t);
+FAKE_VALUE_FUNC(bool, ln_msg_open_channel_write, utl_buf_t *, const ln_msg_open_channel_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_open_channel_read, ln_msg_open_channel_t*, const uint8_t*, uint16_t);
 FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_write, utl_buf_t *, const ln_accept_channel_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_read, ln_accept_channel_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_funding_created_t *);
@@ -233,6 +233,9 @@ namespace LN_DUMMY {
         0x40, 0xfd, 0xde, 0x21, 0x7b, 0xb2, 0xd6, 0xbc, 0x4c, 0x9e, 0x20, 0xc5, 0xe5, 0x31, 0x93, 0xd0,
         0x71, 0xeb, 0xef, 0x7c, 0x13, 0x81, 0x04, 0x19, 0x82, 0x6a, 0xf8, 0x86, 0x2a, 0xf1, 0x22, 0xad,
     };
+    const uint8_t CHANNEL_FLAGS[] = {
+        0x00,
+    };
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -244,7 +247,7 @@ TEST_F(ln, recv_open_channel_ok)
     LnInit(&self);
 
     static int callback_called = 0;
-    static uint8_t pubkey[BTC_SZ_PUBKEY];
+    static uint8_t pubkey[BTC_SZ_PUBKEY] = {0};
     class dummy {
     public:
         static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
@@ -254,20 +257,26 @@ TEST_F(ln, recv_open_channel_ok)
                 callback_called++;
             }
         }
-        static bool ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->funding_sat = 100000ULL;
+        static bool ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->funding_satoshis = 100000ULL;
             pMsg->push_msat = 0;
-            pMsg->dust_limit_sat = 800;
+            pMsg->dust_limit_satoshis = 800;
             pMsg->max_htlc_value_in_flight_msat = 1000000ULL;
-            pMsg->channel_reserve_sat = 10000;
+            pMsg->channel_reserve_satoshis = 10000;
             pMsg->htlc_minimum_msat = 20000;
             pMsg->feerate_per_kw = 700;
             pMsg->to_self_delay = 100;
             pMsg->max_accepted_htlcs = 10;
-            memcpy(pMsg->p_temp_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-                pMsg->p_pubkeys[lp] = pubkey;
-            }
+            pMsg->p_temporary_channel_id = LN_DUMMY::CHANNEL_ID;
+            pMsg->p_funding_pubkey = pubkey;
+            pMsg->p_revocation_basepoint = pubkey;
+            pMsg->p_payment_basepoint = pubkey;
+            pMsg->p_delayed_payment_basepoint = pubkey;
+            pMsg->p_htlc_basepoint = pubkey;
+            pMsg->p_first_per_commitment_point = pubkey;
+            pMsg->p_channel_flags = LN_DUMMY::CHANNEL_FLAGS;
+            pMsg->shutdown_len = 0;
+            pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
         }
     };
@@ -308,20 +317,26 @@ TEST_F(ln, recv_open_channel_sender1)
                 callback_called++;
             }
         }
-        static bool ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->funding_sat = 100000ULL;
+        static bool ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->funding_satoshis = 100000ULL;
             pMsg->push_msat = 0;
-            pMsg->dust_limit_sat = 800;     //★
+            pMsg->dust_limit_satoshis = 800;     //★
             pMsg->max_htlc_value_in_flight_msat = 1000000ULL;
-            pMsg->channel_reserve_sat = 10000;
+            pMsg->channel_reserve_satoshis = 10000;
             pMsg->htlc_minimum_msat = 20000;
             pMsg->feerate_per_kw = 700;
             pMsg->to_self_delay = 100;
             pMsg->max_accepted_htlcs = 10;
-            memcpy(pMsg->p_temp_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-                pMsg->p_pubkeys[lp] = pubkey;
-            }
+            pMsg->p_temporary_channel_id = LN_DUMMY::CHANNEL_ID;
+            pMsg->p_funding_pubkey = pubkey;
+            pMsg->p_revocation_basepoint = pubkey;
+            pMsg->p_payment_basepoint = pubkey;
+            pMsg->p_delayed_payment_basepoint = pubkey;
+            pMsg->p_htlc_basepoint = pubkey;
+            pMsg->p_first_per_commitment_point = pubkey;
+            pMsg->p_channel_flags = LN_DUMMY::CHANNEL_FLAGS;
+            pMsg->shutdown_len = 0;
+            pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
         }
     };
@@ -363,20 +378,26 @@ TEST_F(ln, recv_open_channel_sender2)
                 callback_called++;
             }
         }
-        static bool ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->funding_sat = 100000ULL;
+        static bool ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->funding_satoshis = 100000ULL;
             pMsg->push_msat = 0;
-            pMsg->dust_limit_sat = 800;
+            pMsg->dust_limit_satoshis = 800;
             pMsg->max_htlc_value_in_flight_msat = 1000000ULL;
-            pMsg->channel_reserve_sat = 10000;     //★
+            pMsg->channel_reserve_satoshis = 10000;     //★
             pMsg->htlc_minimum_msat = 20000;
             pMsg->feerate_per_kw = 700;
             pMsg->to_self_delay = 100;
             pMsg->max_accepted_htlcs = 10;
-            memcpy(pMsg->p_temp_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-                pMsg->p_pubkeys[lp] = pubkey;
-            }
+            pMsg->p_temporary_channel_id = LN_DUMMY::CHANNEL_ID;
+            pMsg->p_funding_pubkey = pubkey;
+            pMsg->p_revocation_basepoint = pubkey;
+            pMsg->p_payment_basepoint = pubkey;
+            pMsg->p_delayed_payment_basepoint = pubkey;
+            pMsg->p_htlc_basepoint = pubkey;
+            pMsg->p_first_per_commitment_point = pubkey;
+            pMsg->p_channel_flags = LN_DUMMY::CHANNEL_FLAGS;
+            pMsg->shutdown_len = 0;
+            pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
         }
     };
