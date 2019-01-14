@@ -37,6 +37,7 @@
 #include "btc_script.h"
 
 #include "ln_err.h"
+#include "ln_msg_establish.h"
 
 
 #ifdef __cplusplus
@@ -366,88 +367,6 @@ typedef struct {
 } ln_derkey_storage_t;
 
 
-/**************************************************************************
- * typedefs : Establish channel
- **************************************************************************/
-
-/// @addtogroup channel_establish
-/// @{
-
-/** @struct ln_open_channel_t
- *  @brief  [Establish]open_channel
- */
-typedef struct {
-    uint64_t    funding_sat;                        ///< 8 : funding-satoshis
-    uint64_t    push_msat;                          ///< 8 : push-msat
-    uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
-    uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
-    uint64_t    channel_reserve_sat;                ///< 8 : channel-reserve-satoshis
-    uint64_t    htlc_minimum_msat;                  ///< 8 : htlc-minimum-msat
-    uint32_t    feerate_per_kw;                     ///< 4 : feerate-per-kw
-    uint16_t    to_self_delay;                      ///< 2 : to-self-delay
-    uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
-
-    uint8_t     *p_temp_channel_id;                 ///< 32: temporary-channel-id
-    uint8_t     *p_pubkeys[LN_FUNDIDX_MAX];         ///< 33: [0]funding-pubkey
-                                                    ///< 33: [1]revocation-basepoint
-                                                    ///< 33: [2]payment-basepoint
-                                                    ///< 33: [3]delayed-payment-basepoint
-                                                    ///< 33: [4]first-per-commitment-point
-    uint8_t     channel_flags;                      ///< 1 : [1]channel_flags
-} ln_open_channel_t;
-
-
-/** @struct ln_accept_channel_t
- *  @brief  [Establish]accept_channel
- */
-typedef struct {
-    uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
-    uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
-    uint64_t    channel_reserve_sat;                ///< 8 : channel-reserve-satoshis
-    uint64_t    htlc_minimum_msat;                  ///< 8 : htlc-minimum-msat
-    uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-    uint16_t    to_self_delay;                      ///< 2 : to-self-delay
-    uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
-
-    uint8_t     *p_temp_channel_id;                 ///< 32: temporary-channel-id
-    uint8_t     *p_pubkeys[LN_FUNDIDX_MAX];         ///< 33: [0]funding-pubkey
-                                                    ///< 33: [1]revocation-basepoint
-                                                    ///< 33: [2]payment-basepoint
-                                                    ///< 33: [3]delayed-payment-basepoint
-                                                    ///< 33: [4]first-per-commitment-point
-} ln_accept_channel_t;
-
-
-/** @struct ln_funding_created_t
- *  @brief  [Establish]funding_created
- */
-typedef struct {
-    uint16_t    funding_output_idx;                 ///< 2:  funding-output-index
-
-    uint8_t     *p_temp_channel_id;                 ///< 32: temporary-channel-id
-    uint8_t     *p_funding_txid;                    ///< 32: funding-txid
-    uint8_t     *p_signature;                       ///< 64: signature
-} ln_funding_created_t;
-
-
-/** @struct ln_funding_signed_t
- *  @brief  [Establish]funding_signed
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_signature;                       ///< 64: signature
-} ln_funding_signed_t;
-
-
-/** @struct ln_funding_locked_t
- *  @brief  [Establish]funding_locked
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_per_commitpt;                    ///< 33: next-per-commitment-point
-} ln_funding_locked_t;
-
-
 /** @struct ln_fundin_t
  *  @brief  open_channelでのfund_in情報
  *  @note
@@ -481,7 +400,7 @@ typedef struct {
  *  @brief  [Establish]ワーク領域
  */
 typedef struct {
-    ln_open_channel_t           cnl_open;                       ///< 送信 or 受信したopen_channel
+    ln_msg_open_channel_t       cnl_open;                       ///< 送信 or 受信したopen_channel
     ln_accept_channel_t         cnl_accept;                     ///< 送信 or 受信したaccept_channel
     ln_funding_created_t        cnl_funding_created;            ///< 送信 or 受信したfunding_created
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
@@ -641,19 +560,6 @@ typedef struct {
     uint8_t     *p_sha256_onion;                    ///< 32: sha256-of-onion
     uint16_t    failure_code;                       ///< 2:  failure-code
 } ln_update_fail_malformed_htlc_t;
-
-
-/** @struct     ln_channel_reestablish_t
- *  @brief      channel_reestablish
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    next_local_commitment_number;       ///< 8:  next_local_commitment_number
-    uint64_t    next_remote_revocation_number;      ///< 8:  next_remote_revocation_number
-    bool        option_data_loss_protect;           ///< true:your_last_per_commitment_secretとmy_current_per_commitment_pointが有効
-    uint8_t     *p_your_last_per_commitment_secret; ///< 32: your_last_per_commitment_secret
-    uint8_t     *p_my_current_per_commitment_point; ///< 33: my_current_per_commitment_point
-} ln_channel_reestablish_t;
 
 /// @}
 

@@ -32,6 +32,8 @@
 
 #include "utl_int.h"
 
+#include "btc_buf.h"
+
 #include "ln_msg_establish.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -54,7 +56,8 @@
  * prototypes
  **************************************************************************/
 
-static void open_channel_print(const ln_open_channel_t *pMsg);
+static bool open_channel_check(const ln_msg_open_channel_t *pMsg);
+static void open_channel_print(const ln_msg_open_channel_t *pMsg);
 static void accept_channel_print(const ln_accept_channel_t *pMsg);
 static void funding_created_print(const ln_funding_created_t *pMsg);
 static void funding_signed_print(const ln_funding_signed_t *pMsg);
@@ -66,258 +69,170 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg);
  * open_channel
  ********************************************************************/
 
-bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_open_channel_t *pMsg)
+bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_msg_open_channel_t *pMsg)
 {
-    //    type: 32 (open_channel)
-    //    data:
-    //        [32:chain_hash]
-    //        [32:temporary_channel_id]
-    //        [8:funding_satoshis]
-    //        [8:push_msat]
-    //        [8:dust_limit_satoshis]
-    //        [8:max_htlc_value_in_flight_msat]
-    //        [8:channel_reserve_satoshis]
-    //        [8:htlc_minimum_msat]
-    //        [4:feerate_per_kw]
-    //        [2:to_self_delay]
-    //        [2:max_accepted_htlcs]
-    //        [33:funding_pubkey]
-    //        [33:revocation_basepoint]
-    //        [33:payment_basepoint]
-    //        [33:delayed_payment_basepoint]
-    //        [33:htlc_basepoint]
-    //        [33:first_per_commitment_point]
-    //        [1:channel_flags]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     open_channel_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    if ( (pMsg->funding_sat >= (uint64_t)16777216) ||
-         (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) ||
-         (pMsg->max_accepted_htlcs > 483) ) {
-        LOGD("fail: invalid parameter(%" PRIu64 ", %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat), pMsg->push_msat);
-        return false;
+    if (!open_channel_check(pMsg)) goto LABEL_ERROR;
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_OPEN_CHANNEL)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_temporary_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->funding_satoshis)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->push_msat)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->dust_limit_satoshis)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->max_htlc_value_in_flight_msat)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->channel_reserve_satoshis)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->htlc_minimum_msat)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->feerate_per_kw)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->to_self_delay)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->max_accepted_htlcs)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_funding_pubkey, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_revocation_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_payment_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_delayed_payment_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_htlc_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_first_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_flags, LN_SZ_CHANNEL_FLAGS)) goto LABEL_ERROR;
+    if (pMsg->shutdown_len) {
+        if (!btc_buf_w_write_u16be(&buf_w, pMsg->shutdown_len)) goto LABEL_ERROR;
+        if (!btc_buf_w_write_data(&buf_w, pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len)) goto LABEL_ERROR;
     }
-
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 319);
-
-    //type: 0x20 (open_channel)
-    ln_misc_push16be(&proto, MSGTYPE_OPEN_CHANNEL);
-
-    //        [32:chain_hash]
-    utl_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
-
-    //        [32:temporary_channel_id]
-    utl_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [8:funding_satoshis]
-    ln_misc_push64be(&proto, pMsg->funding_sat);
-
-    //        [8:push_msat]
-    ln_misc_push64be(&proto, pMsg->push_msat);
-
-    //        [8:push_msat]
-    ln_misc_push64be(&proto, pMsg->dust_limit_sat);
-
-    //        [8:max_htlc_value_in_flight_msat]
-    ln_misc_push64be(&proto, pMsg->max_htlc_value_in_flight_msat);
-
-    //        [8:channel_reserve_satoshis]
-    ln_misc_push64be(&proto, pMsg->channel_reserve_sat);
-
-    //        [8:htlc_minimum_msat]
-    ln_misc_push64be(&proto, pMsg->htlc_minimum_msat);
-
-    //        [4:feerate_per_kw]
-    ln_misc_push32be(&proto, pMsg->feerate_per_kw);
-
-    //        [2:to_self_delay]
-    ln_misc_push16be(&proto, pMsg->to_self_delay);
-
-    //        [2:max_accepted_htlcs]
-    ln_misc_push16be(&proto, pMsg->max_accepted_htlcs);
-
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        //        [33:funding_pubkey]
-        //        [33:revocation_basepoint]
-        //        [33:payment_basepoint]
-        //        [33:delayed_payment_basepoint]
-        //        [33:htlc_basepoint]
-        //        [33:first_per_commitment_point]
-        if (!btc_keys_check_pub(pMsg->p_pubkeys[lp])) {
-            LOGD("fail: check pubkey\n");
-            return false;
-        }
-        utl_push_data(&proto, pMsg->p_pubkeys[lp], BTC_SZ_PUBKEY);
-    }
-
-    //        [1:channel_flags]
-    ln_misc_push8(&proto, pMsg->channel_flags);
-
-    assert(sizeof(uint16_t) + 319 == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 319) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_OPEN_CHANNEL) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
-    int pos = sizeof(uint16_t);
-
-    //        [32:chain_hash]
-    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
-    if (cmp != 0) {
-        LOGD("fail: chain-hash mismatch\n");
-        return false;
-    }
-    pos += sizeof(gGenesisChainHash);
-
-    //        [32:temporary_channel_id]
-    memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [8:funding_satoshis]
-    pMsg->funding_sat = utl_int_pack_u64be(pData + pos);
-    if (pMsg->funding_sat >= (uint64_t)16777216) {
-        LOGD("fail: large funding-satoshis (%" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat));
-        return false;
-    }
-    pos += sizeof(uint64_t);
-
-    //        [8:push_msat]
-    pMsg->push_msat = utl_int_pack_u64be(pData + pos);
-    if (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) {
-        LOGD("fail: invalid funding-satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat), pMsg->push_msat);
-        return false;
-    }
-    pos += sizeof(uint64_t);
-
-    //        [8:dust_limit_satoshis]
-    pMsg->dust_limit_sat = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [8:max_htlc_value_in_flight_msat]
-    pMsg->max_htlc_value_in_flight_msat = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [8:channel_reserve_satoshis]
-    pMsg->channel_reserve_sat = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [8:htlc_minimum_msat]
-    pMsg->htlc_minimum_msat = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [4:feerate_per_kw]
-    pMsg->feerate_per_kw = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
-
-    //        [2:to_self_delay]
-    pMsg->to_self_delay = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(uint16_t);
-
-    //        [2:max_accepted_htlcs]
-    pMsg->max_accepted_htlcs = utl_int_pack_u16be(pData + pos);
-    if (pMsg->max_accepted_htlcs > 483) {
-        LOGD("fail: invalid max-accepted-htlcs\n");
-        return false;
-    }
-    pos += sizeof(uint16_t);
-
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        //        [33:funding_pubkey]
-        //        [33:revocation_basepoint]
-        //        [33:payment_basepoint]
-        //        [33:delayed_payment_basepoint]
-        //        [33:htlc_basepoint]
-        //        [33:first_per_commitment_point]
-        if (!btc_keys_check_pub(pData + pos)) {
-            LOGD("fail: check pubkey: %d\n", lp);
-            DUMPD(pData + pos, BTC_SZ_PUBKEY);
-            return false;
-        }
-        memcpy(pMsg->p_pubkeys[lp], pData + pos, BTC_SZ_PUBKEY);
-        pos += BTC_SZ_PUBKEY;
-    }
-
-    //        [1:channel_flags]
-    pMsg->channel_flags = *(pData + pos);
-    if ((pMsg->channel_flags & ~CHANNEL_FLAGS_MASK) != 0) {
-        LOGD("fail: unknown channel_flags: %02x\n", pMsg->channel_flags);
-        return false;
-    }
-    pos++;
-
-    //        [2:shutdown_len] (option_upfront_shutdown_script)
-    uint16_t shutdown_len = 0;
-    if (Len - pos >= (int)sizeof(uint16_t)) {
-        shutdown_len = utl_int_pack_u16be(pData + pos);
-        pos += sizeof(uint16_t);
-        LOGD("shutdown_len= %" PRIu16 "\n", shutdown_len);
-    }
-    //        [shutdown_len: shutdown_scriptpubkey] (option_upfront_shutdown_script)
-    if (Len - pos >= shutdown_len) {
-        LOGD("shutdown_scriptpubkey= ");
-        DUMPD(pData, shutdown_len);
-        pos += shutdown_len;
-    }
-
-    assert(Len >= pos);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, (int32_t)BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_temporary_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->funding_satoshis)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->push_msat)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->dust_limit_satoshis)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->max_htlc_value_in_flight_msat)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->channel_reserve_satoshis)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->htlc_minimum_msat)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->feerate_per_kw)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->to_self_delay)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->max_accepted_htlcs)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_funding_pubkey, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_revocation_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_payment_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_delayed_payment_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_htlc_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_first_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_flags, LN_SZ_CHANNEL_FLAGS)) goto LABEL_ERROR_SYNTAX;
+    //XXX: check `option_upfront_shutdown_script`
+    pMsg->shutdown_len = 0; //XXX:
+    // if (!btc_buf_r_read_u16be(&buf_r, &pMsg->shutdown_len)) goto LABEL_ERROR_SYNTAX;
+    // if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len)) goto LABEL_ERROR_SYNTAX;
+    if (!open_channel_check(pMsg)) goto LABEL_ERROR;
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     open_channel_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
+
+LABEL_ERROR:
+    return false;
 }
 
 
-static void open_channel_print(const ln_open_channel_t *pMsg)
+//XXX:
+static bool open_channel_check(const ln_msg_open_channel_t *pMsg)
+{
+    if (memcmp(gGenesisChainHash, pMsg->p_chain_hash, sizeof(gGenesisChainHash))) {
+        LOGD("fail: chain_hash mismatch\n");
+        return false;
+    }
+    if (pMsg->funding_satoshis > (uint64_t)LN_FUNDING_SATOSHIS_MAX) {
+        LOGD("fail: large funding_satoshis (%" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_satoshis));
+        return false;
+    }
+    if (LN_SATOSHI2MSAT(pMsg->funding_satoshis) < pMsg->push_msat) {
+        LOGD("fail: invalid funding_satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_satoshis), pMsg->push_msat);
+        return false;
+    }
+    if (pMsg->max_accepted_htlcs > LN_MAX_ACCEPTED_HTLCS_MAX) {
+        LOGD("fail: invalid max_accepted_htlcs\n");
+        return false;
+    }
+    if (!btc_keys_check_pub(pMsg->p_funding_pubkey)) goto LABEL_ERROR_INVALID_PUBKEY;
+    if (!btc_keys_check_pub(pMsg->p_revocation_basepoint)) goto LABEL_ERROR_INVALID_PUBKEY;
+    if (!btc_keys_check_pub(pMsg->p_payment_basepoint)) goto LABEL_ERROR_INVALID_PUBKEY;
+    if (!btc_keys_check_pub(pMsg->p_delayed_payment_basepoint)) goto LABEL_ERROR_INVALID_PUBKEY;
+    if (!btc_keys_check_pub(pMsg->p_htlc_basepoint)) goto LABEL_ERROR_INVALID_PUBKEY;
+    if (!btc_keys_check_pub(pMsg->p_first_per_commitment_point)) goto LABEL_ERROR_INVALID_PUBKEY;
+    //XXX: ignore undefined bits
+    //if ((pMsg->p_channel_flags[0] & ~CHANNEL_FLAGS_MASK) != 0) {
+    //    LOGD("fail: unknown channel_flags: %02x\n", pMsg->p_cahannel_flags[0]);
+    //    return false;
+    //}
+    return true;
+
+LABEL_ERROR_INVALID_PUBKEY:
+    LOGD("fail: invalid pubkey\n");
+    return false;
+}
+
+
+static void open_channel_print(const ln_msg_open_channel_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[open_channel]-------------------------------\n");
+    LOGD("chain_hash: ");
+    DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
     LOGD("temporary_channel_id: ");
-    DUMPD(pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("funding_sat= %" PRIu64 "\n", pMsg->funding_sat);
+    DUMPD(pMsg->p_temporary_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("funding_satoshis= %" PRIu64 "\n", pMsg->funding_satoshis);
     LOGD("push_msat= %" PRIu64 "\n", pMsg->push_msat);
-    LOGD("dust_limit_sat= %" PRIu64 "\n", pMsg->dust_limit_sat);
+    LOGD("dust_limit_satoshis= %" PRIu64 "\n", pMsg->dust_limit_satoshis);
     LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pMsg->max_htlc_value_in_flight_msat);
-    LOGD("channel_reserve_sat= %" PRIu64 "\n", pMsg->channel_reserve_sat);
+    LOGD("channel_reserve_satoshis= %" PRIu64 "\n", pMsg->channel_reserve_satoshis);
     LOGD("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
     LOGD("feerate_per_kw= %" PRIu32 "\n", pMsg->feerate_per_kw);
-    LOGD("to_self_delay= %u\n", pMsg->to_self_delay);
-    LOGD("max_accepted_htlcs= %u\n", pMsg->max_accepted_htlcs);
-    LOGD("p_funding_pubkey        : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_FUNDING], BTC_SZ_PUBKEY);
-    LOGD("p_revocation_basept     : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_REVOCATION], BTC_SZ_PUBKEY);
-    LOGD("p_payment_basept        : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], BTC_SZ_PUBKEY);
-    LOGD("p_delayed_payment_basept: ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], BTC_SZ_PUBKEY);
-    LOGD("p_htlc_basept           : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], BTC_SZ_PUBKEY);
-    LOGD("p_first_per_commitpt    : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
-    LOGD("channel_flags           : %02x\n", pMsg->channel_flags);
+    LOGD("to_self_delay= %" PRIu16 "\n", pMsg->to_self_delay);
+    LOGD("max_accepted_htlcs= %" PRIu16 "\n", pMsg->max_accepted_htlcs);
+    LOGD("funding_pubkey: ");
+    DUMPD(pMsg->p_funding_pubkey, BTC_SZ_PUBKEY);
+    LOGD("revocation_basepoint: ");
+    DUMPD(pMsg->p_revocation_basepoint, BTC_SZ_PUBKEY);
+    LOGD("payment_basepoint: ");
+    DUMPD(pMsg->p_payment_basepoint, BTC_SZ_PUBKEY);
+    LOGD("delayed_payment_basepoint: ");
+    DUMPD(pMsg->p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
+    LOGD("htlc_basepoint: ");
+    DUMPD(pMsg->p_htlc_basepoint, BTC_SZ_PUBKEY);
+    LOGD("first_per_commitment_point: ");
+    DUMPD(pMsg->p_first_per_commitment_point, BTC_SZ_PUBKEY);
+    LOGD("shutdown_scriptpubkey: ");
+    DUMPD(pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len);
+    LOGD("channel_flags: ");
+    DUMPD(pMsg->p_channel_flags, LN_SZ_CHANNEL_FLAGS);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
