@@ -219,7 +219,7 @@ bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_msg_ping_t *pMsg)
 #endif  //DBG_PRINT_WRITE
 
     //XXX:
-    if (pMsg->num_pong_bytes >= 65532) {
+    if (pMsg->num_pong_bytes > LN_NUM_PONG_BYTES_MAX) {
         LOGD("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
         return false;
     }
@@ -258,7 +258,7 @@ bool HIDDEN ln_msg_ping_read(ln_msg_ping_t *pMsg, const uint8_t *pData, uint16_t
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-    if (pMsg->num_pong_bytes > 65531) {
+    if (pMsg->num_pong_bytes > LN_NUM_PONG_BYTES_MAX) {
         LOGD("fail: num_pong_bytes %04x\n", pMsg->num_pong_bytes);
         return false;
     }
@@ -308,7 +308,7 @@ bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_msg_pong_t *pMsg)
 #endif  //DBG_PRINT_WRITE
 
     //XXX:
-    if (pMsg->byteslen >= 65532) {
+    if (pMsg->byteslen > LN_NUM_PONG_BYTES_MAX) {
         LOGD("fail: byteslen: %d\n", pMsg->byteslen);
         return false;
     }
@@ -345,7 +345,7 @@ bool HIDDEN ln_msg_pong_read(ln_msg_pong_t *pMsg, const uint8_t *pData, uint16_t
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-    if (pMsg->byteslen > 65531) {
+    if (pMsg->byteslen > LN_NUM_PONG_BYTES_MAX) {
         LOGD("fail: byteslen %04x\n", pMsg->byteslen);
         return false;
     }
