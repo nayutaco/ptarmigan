@@ -3,10 +3,10 @@
 killall ptarmd
 for i in 3333 4444 5555 6666
 do
-    ./ptarmd -d ./node_$i -c ../regtest.conf &
+    ./ptarmd -d ./node_$i -c ../regtest.conf -p $i &
 done
 
-sleep 1
+sleep 3
 
 # ノード接続
 #

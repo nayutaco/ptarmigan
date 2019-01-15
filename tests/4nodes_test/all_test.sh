@@ -40,6 +40,42 @@ echo st4f start
 sleep 5 # XXX: TODO
 echo st4f end
 
+echo disconnect start
+./example_st_quit.sh
+sleep 5
+echo disconnect end
+
+echo clear skip route
+for i in 3333 4444 5555 6666
+do
+    ./routing -d ./node_$i -c
+done
+
+echo reconnect start
+./example_st_conn.sh
+sleep 5
+echo reconnect end
+
+echo st4c start
+./example_st4c.sh
+sleep 5 # XXX: TODO
+echo st4c end
+
+echo st4d start
+./example_st4d.sh
+sleep 5 # XXX: TODO
+echo st4d end
+
+echo st4e start
+./example_st4e.sh
+sleep 5 # XXX: TODO
+echo st4e end
+
+echo st4f start
+./example_st4f.sh
+sleep 5 # XXX: TODO
+echo st4f end
+
 echo st5 start
 ./example_st5.sh
 sleep 5 # XXX: TODO
