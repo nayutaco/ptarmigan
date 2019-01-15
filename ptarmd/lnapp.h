@@ -67,6 +67,17 @@ typedef struct routelist_t {
 LIST_HEAD(routelisthead_t, routelist_t);
 
 
+/** @struct     pinglist_t
+ *  @brief      ping.num_pong_bytes list
+ */
+typedef struct ponglist_t {
+    LIST_ENTRY(ponglist_t) list;
+    uint16_t                num_pong_bytes;
+} ponglist_t;
+
+LIST_HEAD(ponglisthead_t, ponglist_t);
+
+
 /** @struct lnapp_conf_t
  *  @brief  アプリ側のチャネル管理情報
  */
@@ -87,7 +98,8 @@ typedef struct lnapp_conf_t {
     ln_self_t       *p_self;                ///< channelのコンテキスト
 
     bool            initial_routing_sync;   ///< init.localfeaturesのinitial_routing_sync
-    uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
+    int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
+
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
 
@@ -107,6 +119,7 @@ typedef struct lnapp_conf_t {
 
     struct rcvidlelisthead_t    rcvidle_head;   //受信アイドル時キュー
     struct routelisthead_t      payroute_head;  //payment
+    struct ponglisthead_t       pong_head;      //pong.num_pong_bytes
 
     //send announcement
     uint64_t        last_anno_cnl;                      ///< [#send_channel_anno()]最後にannouncementしたchannel

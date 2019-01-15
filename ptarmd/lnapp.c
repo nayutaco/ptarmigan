@@ -94,8 +94,11 @@
 #define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
 #define M_WAIT_CHANREEST_MSEC   (3600000)   //channel_reestablish受信待ち[msec]
 
-#define M_ANNO_UNIT             (50)       ///< 1回のsend_announcement()での処理単位
+#define M_ANNO_UNIT             (50)        ///< 1回のsend_announcement()での処理単位
 #define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
+
+#define M_PING_CNT              (M_WAIT_PING_SEC / M_WAIT_POLL_SEC)
+#define M_MISSING_PONG          (60)        ///< not ping reply
 
 #define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
 #define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
@@ -192,6 +195,7 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param);
 static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
+static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
 static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
@@ -805,7 +809,7 @@ static void *thread_main_start(void *pArg)
     ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = p_self;
-    p_conf->ping_counter = 0;
+    p_conf->ping_counter = M_PING_CNT;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
     p_conf->flag_recv = 0;
@@ -818,6 +822,7 @@ static void *thread_main_start(void *pArg)
     utl_buf_init(&p_conf->buf_sendque);
     LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
+    LIST_INIT(&p_conf->pong_head);
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -1100,11 +1105,17 @@ LABEL_SHUTDOWN:
     pthread_mutex_destroy(&p_conf->mux);
     pthread_cond_destroy(&p_conf->cond);
 
+    while (p_conf->pong_head.lh_first != NULL) {
+        LIST_REMOVE(p_conf->pong_head.lh_first, list);
+        UTL_DBG_FREE(p_conf->pong_head.lh_first);
+    }
     while (p_conf->payroute_head.lh_first != NULL) {
         LIST_REMOVE(p_conf->payroute_head.lh_first, list);
+        UTL_DBG_FREE(p_conf->payroute_head.lh_first);
     }
     while (p_conf->rcvidle_head.lh_first != NULL) {
         LIST_REMOVE(p_conf->rcvidle_head.lh_first, list);
+        UTL_DBG_FREE(p_conf->rcvidle_head.lh_first);
     }
     utl_buf_free(&p_conf->buf_sendque);
 
@@ -1533,9 +1544,6 @@ static void *thread_recv_start(void *pArg)
                 LOGD("DECODE: loop end\n");
                 stop_threads(p_conf);
             }
-
-            //ping送信待ちカウンタ
-            //p_conf->ping_counter = 0;
         } else {
             break;
         }
@@ -1722,16 +1730,48 @@ static void poll_ping(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    //未送受信の状態が続いたらping送信する
-    p_conf->ping_counter++;
-    //LOGD("ping_counter=%d\n", p_conf->ping_counter);
-    if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
-        utl_buf_t buf_ping = UTL_BUF_INIT;
+    bool sendping = false;
+    int pongcnt = 0;
 
-        bool ret = ln_ping_create(p_conf->p_self, &buf_ping);
+    //未送受信の状態が続いたらping送信する
+    p_conf->ping_counter--;
+    if (p_conf->ping_counter == 0) {
+        //check missing pong
+        ponglist_t *p = LIST_FIRST(&p_conf->pong_head);
+        while (p != NULL) {
+            pongcnt++;
+            //LOGD("  [%d]%" PRIu16 "\n", pongcnt, p->num_pong_bytes);
+            p = LIST_NEXT(p, list);
+        }
+        if (pongcnt > 0) {
+            LOGD("ping: missing pong=%d\n", pongcnt);
+        }
+        if (pongcnt < M_MISSING_PONG) {
+            sendping = true;
+        } else {
+            LOGE("fail: too many missing pong\n");
+            stop_threads(p_conf);
+        }
+    }
+    if (sendping) {
+        utl_buf_t buf_ping = UTL_BUF_INIT;
+        uint8_t pinglen;
+        uint8_t ponglen;
+
+        // https://github.com/lightningnetwork/lightning-rfc/issues/373
+        btc_rng_rand(&ponglen, sizeof(ponglen));
+        btc_rng_rand(&pinglen, sizeof(pinglen));
+        bool ret = ln_ping_create(p_conf->p_self, &buf_ping, pinglen, ponglen);
         if (ret) {
             send_peer_noise(p_conf, &buf_ping);
             utl_buf_free(&buf_ping);
+
+            //add head num_pong_bytes
+            ponglist_t *pl = (ponglist_t *)UTL_DBG_MALLOC(sizeof(ponglist_t));
+            pl->num_pong_bytes = ponglen;
+            //LOGD("   add pong bytes=%" PRIu16 "\n", ponglen);
+            LIST_INSERT_HEAD(&p_conf->pong_head, pl, list);
+            p_conf->ping_counter = M_PING_CNT;
         } else {
             LOGD("pong not respond\n");
             stop_threads(p_conf);
@@ -2184,6 +2224,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_SEND_QUEUE: add send queue", cb_send_queue },
         { "  LN_CB_GET_LATEST_FEERATE: get feerate_per_kw", cb_get_latest_feerate },
         { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
+        { "  LN_CB_PONG_RECV: pong receive", cb_pong_recv },
     };
 
     if (reason < LN_CB_MAX) {
@@ -3007,6 +3048,38 @@ static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
+//LN_CB_PONG_RECV
+static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param)
+{
+    ln_cb_pong_recv_t *p_pongrecv = (ln_cb_pong_recv_t *)p_param;
+
+    //compare oldest num_pong_bytes
+    ponglist_t *p_tail = NULL;
+    ponglist_t *p = LIST_FIRST(&p_conf->pong_head);
+    while (p != NULL) {
+        p_tail = p;
+        p = LIST_NEXT(p, list);
+    }
+    if (p_tail != NULL) {
+        if (p_tail->num_pong_bytes == p_pongrecv->byteslen) {
+            //OK
+            LOGD("pong OK\n");
+            p_pongrecv->result = true;
+        } else {
+            //num_pong_bytes mismatch
+            LOGE("fail: num_pong_bytes mismatch\n");
+            stop_threads(p_conf);
+        }
+        LIST_REMOVE(p_tail, list);
+        UTL_DBG_FREE(p_tail);
+    } else {
+        //unknown pong
+        LOGE("fail: I don't send ping\n");
+        stop_threads(p_conf);
+    }
+}
+
+
 /********************************************************************
  * スレッド共通処理
  ********************************************************************/
@@ -3092,9 +3165,6 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
         }
     }
     utl_buf_free(&buf_enc);
-
-    //ping送信待ちカウンタ
-    p_conf->ping_counter = 0;
 
 LABEL_EXIT:
     pthread_mutex_unlock(&p_conf->mux_send);

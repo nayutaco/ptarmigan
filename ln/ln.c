@@ -139,8 +139,6 @@
 #define M_HTLCFLAG_BITS_MALFORMEDHTLC   (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_MALFORMED) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
 
 
-#define M_PONG_MISSING                      (3)             ///< pongが返ってこないエラー上限
-
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
 #define M_HYSTE_CLTV_EXPIRY_MIN             (7)             ///< BOLT4 check:cltv_expiryのhysteresis
@@ -1089,6 +1087,8 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     //funding_tx作成用に保持
     self->p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
     memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
+#else
+    (void)pFundin;
 #endif
 
     //open_channel
@@ -1711,41 +1711,16 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
  * ping/pong
  ********************************************************************/
 
-bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing)
+bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_t PongLen)
 {
+    (void)self;
+
     ln_msg_ping_t msg;
 
-    // if (self->last_num_pong_bytes != 0) {
-    //     LOGD("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
-    //     return false;
-    // }
-
-#if 1
-    // https://github.com/lightningnetwork/lightning-rfc/issues/373
-    //  num_pong_bytesが大きすぎると無視される？
-    uint8_t r;
-    btc_rng_rand(&r, 1);
-    self->last_num_pong_bytes = r;
-    btc_rng_rand(&r, 1);
-    msg.byteslen = r;
-#else
-    btc_rng_rand((uint8_t *)&self->last_num_pong_bytes, 2);
-    btc_rng_rand((uint8_t *)&msg.byteslen, 2);
-#endif
-    msg.num_pong_bytes = self->last_num_pong_bytes;
+    msg.byteslen = PingLen;
+    msg.num_pong_bytes = PongLen;
     msg.p_ignored = NULL;
     bool ret = ln_msg_ping_write(pPing, &msg);
-    if (ret) {
-        self->missing_pong_cnt++;
-        if (self->missing_pong_cnt > 1) {
-            LOGD("missing pong: %d\n", self->missing_pong_cnt);
-            if (self->missing_pong_cnt > M_PONG_MISSING) {
-                M_SET_ERR(self, LNERR_PINGPONG, "many pong missing...(%d)\n", self->missing_pong_cnt);
-                ret = false;
-            }
-        }
-    }
-
     return ret;
 }
 
@@ -2689,18 +2664,14 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    //pongのbyteslenはpingのnum_pong_bytesであること
-    ret = (msg.byteslen == self->last_num_pong_bytes);
-    if (ret) {
-        self->missing_pong_cnt--;
-        //LOGD("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
-        self->last_num_pong_bytes = 0;
-    } else {
-        LOGD("fail: msg.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", msg.byteslen, self->last_num_pong_bytes);
-    }
+    ln_cb_pong_recv_t pongrecv;
+    pongrecv.result = false;
+    pongrecv.byteslen = msg.byteslen;
+    pongrecv.p_ignored = msg.p_ignored;
+    callback(self, LN_CB_PONG_RECV, &pongrecv);
 
     //LOGD("END\n");
-    return true;
+    return pongrecv.result;
 }
 
 
