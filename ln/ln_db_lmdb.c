@@ -322,8 +322,6 @@ static const backup_param_t DBSELF_VALUES[] = {
     M_ITEM(ln_self_t, peer_node_id),    //[CONN01]
     M_ITEM(ln_self_t, last_connected_addr),     //[CONN02]
     M_ITEM(ln_self_t, status),      //[CONN03]
-    //[CONN04]missing_pong_cnt
-    //[CONN05]last_num_pong_bytes
 
     //
     //keys

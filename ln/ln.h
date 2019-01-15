@@ -289,6 +289,7 @@ typedef enum {
     LN_CB_SEND_QUEUE,           ///< 送信キュー保存(廃止予定)
     LN_CB_GET_LATEST_FEERATE,   ///< feerate_per_kw取得要求
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
+    LN_CB_PONG_RECV,            ///< pong received
     LN_CB_MAX,
 } ln_cb_t;
 
@@ -866,6 +867,16 @@ typedef struct {
 } ln_cb_update_annodb_t;
 
 
+/** @struct ln_cb_pong_recv_t
+ *  @brief  pong received(#LN_CB_PONG_RECV)
+ */
+typedef struct {
+    bool                            result;         //true: lnapp check OK
+    uint16_t                        byteslen;       //pong.byteslen
+    const uint8_t                   *p_ignored;     //pong.ignored
+} ln_cb_pong_recv_t;
+
+
 /**************************************************************************
  * typedefs : 管理データ
  **************************************************************************/
@@ -978,8 +989,6 @@ struct ln_self_t {
     uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< [CONN_01]接続先ノード
     ln_nodeaddr_t               last_connected_addr;            ///< [CONN_02]最後に接続したIP address
     ln_status_t                 status;                         ///< [CONN_03]状態
-    uint16_t                    missing_pong_cnt;               ///< [CONN_04]ping送信に対してpongを受信しなかった回数
-    uint16_t                    last_num_pong_bytes;            ///< [CONN_05]最後にping送信したlast_num_pong_bytes
 
     //key storage
     ln_derkey_storage_t         peer_storage;                   ///< [KEYS_01]key storage(peer)
@@ -1556,9 +1565,11 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
  *
  * @param[in]           self            channel info
  * @param[out]          pPing           生成したpingメッセージ
+ * @param[in]           PingLen         ping byteslen
+ * @param[in]           PongLen         num_pong_bytes
  * @retval      true    成功
  */
-bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing);
+bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_t PongLen);
 
 
 /** pong作成
