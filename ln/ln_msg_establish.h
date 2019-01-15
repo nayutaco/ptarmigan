@@ -96,29 +96,6 @@ typedef struct {
 /** @struct ln_msg_accept_channel_t
  *  @brief  accept_channel
  */
-/*
-typedef struct {
-    uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
-    uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
-    uint64_t    channel_reserve_sat;                ///< 8 : channel-reserve-satoshis
-    uint64_t    htlc_minimum_msat;                  ///< 8 : htlc-minimum-msat
-    uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-    uint16_t    to_self_delay;                      ///< 2 : to-self-delay
-    uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
-
-    uint8_t     *p_temp_channel_id;                 ///< 32: temporary-channel-id
-    uint8_t     *p_pubkeys[LN_FUNDIDX_MAX];         ///< 33: [0]funding-pubkey
-                                                    ///< 33: [1]revocation-basepoint
-                                                    ///< 33: [2]payment-basepoint
-                                                    ///< 33: [3]delayed-payment-basepoint
-                                                    ///< 33: [4]first-per-commitment-point
-} ln_msg_accept_channel_t;
-*/
-
-
-/** @struct ln_msg_accept_channel_t
- *  @brief  accept_channel
- */
 typedef struct {
     //type: 33 (accept_channel)
     //data:
