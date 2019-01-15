@@ -611,7 +611,7 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_msg_channel_reestablish_t *pMsg, 
     btc_buf_r_init(&buf_r, pData, Len);
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
-    if (type != MSGTYPE_FUNDING_LOCKED) {
+    if (type != MSGTYPE_CHANNEL_REESTABLISH) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
