@@ -314,19 +314,7 @@ TEST_F(ln, recv_accept_channel_ok)
     self.commit_local.dust_limit_sat = 10000;
     self.commit_local.channel_reserve_sat = 800;
     memcpy(self.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    self.p_establish->cnl_open.funding_satoshis = 100000;
-    self.p_establish->cnl_open.p_funding_pubkey = pubkey;
-    self.p_establish->cnl_open.p_revocation_basepoint = pubkey;
-    self.p_establish->cnl_open.p_payment_basepoint = pubkey;
-    self.p_establish->cnl_open.p_delayed_payment_basepoint = pubkey;
-    self.p_establish->cnl_open.p_htlc_basepoint = pubkey;
-    self.p_establish->cnl_open.p_first_per_commitment_point = pubkey;
-    self.p_establish->cnl_accept.p_funding_pubkey = pubkey;
-    self.p_establish->cnl_accept.p_revocation_basepoint = pubkey;
-    self.p_establish->cnl_accept.p_payment_basepoint = pubkey;
-    self.p_establish->cnl_accept.p_delayed_payment_basepoint = pubkey;
-    self.p_establish->cnl_accept.p_htlc_basepoint = pubkey;
-    self.p_establish->cnl_accept.p_first_per_commitment_point = pubkey;
+    self.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
@@ -407,7 +395,7 @@ TEST_F(ln, recv_accept_channel_receiver1)
     self.commit_local.dust_limit_sat = 10000;    //★
     self.commit_local.channel_reserve_sat = 800;
     memcpy(self.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    self.p_establish->cnl_open.funding_satoshis = 100000;
+    self.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
@@ -488,7 +476,7 @@ TEST_F(ln, recv_accept_channel_receiver2)
     self.commit_local.dust_limit_sat = 10000;
     self.commit_local.channel_reserve_sat = 800;    //★
     memcpy(self.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    self.p_establish->cnl_open.funding_satoshis = 100000;
+    self.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
