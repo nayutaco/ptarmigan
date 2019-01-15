@@ -93,10 +93,10 @@ typedef struct {
 } ln_msg_open_channel_t;
 
 
-
-/** @struct ln_accept_channel_t
- *  @brief  [Establish]accept_channel
+/** @struct ln_msg_accept_channel_t
+ *  @brief  accept_channel
  */
+/*
 typedef struct {
     uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
     uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
@@ -112,11 +112,54 @@ typedef struct {
                                                     ///< 33: [2]payment-basepoint
                                                     ///< 33: [3]delayed-payment-basepoint
                                                     ///< 33: [4]first-per-commitment-point
-} ln_accept_channel_t;
+} ln_msg_accept_channel_t;
+*/
+
+
+/** @struct ln_msg_accept_channel_t
+ *  @brief  accept_channel
+ */
+typedef struct {
+    //type: 33 (accept_channel)
+    //data:
+    //  [32:temporary_channel_id]
+    //  [8:dust_limit_satoshis]
+    //  [8:max_htlc_value_in_flight_msat]
+    //  [8:channel_reserve_satoshis]
+    //  [8:htlc_minimum_msat]
+    //  [4:minimum_depth]
+    //  [2:to_self_delay]
+    //  [2:max_accepted_htlcs]
+    //  [33:funding_pubkey]
+    //  [33:revocation_basepoint]
+    //  [33:payment_basepoint]
+    //  [33:delayed_payment_basepoint]
+    //  [33:htlc_basepoint]
+    //  [33:first_per_commitment_point]
+    //  [2:shutdown_len] (option_upfront_shutdown_script)
+    //  [shutdown_len:shutdown_scriptpubkey] (option_upfront_shutdown_script)
+
+    const uint8_t   *p_temporary_channel_id;
+    uint64_t        dust_limit_satoshis;
+    uint64_t        max_htlc_value_in_flight_msat;
+    uint64_t        channel_reserve_satoshis;
+    uint64_t        htlc_minimum_msat;
+    uint32_t        minimum_depth;
+    uint16_t        to_self_delay;
+    uint16_t        max_accepted_htlcs;
+    const uint8_t   *p_funding_pubkey;
+    const uint8_t   *p_revocation_basepoint;
+    const uint8_t   *p_payment_basepoint;
+    const uint8_t   *p_delayed_payment_basepoint;
+    const uint8_t   *p_htlc_basepoint;
+    const uint8_t   *p_first_per_commitment_point;
+    uint16_t        shutdown_len;
+    const uint8_t   *p_shutdown_scriptpubkey;
+} ln_msg_accept_channel_t;
 
 
 /** @struct ln_funding_created_t
- *  @brief  [Establish]funding_created
+ *  @brief  funding_created
  */
 typedef struct {
     uint16_t    funding_output_idx;                 ///< 2:  funding-output-index
@@ -128,7 +171,7 @@ typedef struct {
 
 
 /** @struct ln_funding_signed_t
- *  @brief  [Establish]funding_signed
+ *  @brief  funding_signed
  */
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
@@ -137,7 +180,7 @@ typedef struct {
 
 
 /** @struct ln_funding_locked_t
- *  @brief  [Establish]funding_locked
+ *  @brief  funding_locked
  */
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
@@ -168,7 +211,6 @@ typedef struct {
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-//bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_open_channel_t *pMsg);
 bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_msg_open_channel_t *pMsg);
 
 
@@ -179,7 +221,6 @@ bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_msg_open_channel
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-//bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
@@ -189,7 +230,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_accept_channel_write(utl_buf_t *pBuf, const ln_accept_channel_t *pMsg);
+bool HIDDEN ln_msg_accept_channel_write(utl_buf_t *pBuf, const ln_msg_accept_channel_t *pMsg);
 
 
 /** accept_channel読込み
@@ -199,7 +240,7 @@ bool HIDDEN ln_msg_accept_channel_write(utl_buf_t *pBuf, const ln_accept_channel
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** funding_created生成
