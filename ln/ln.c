@@ -2940,10 +2940,10 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
                 0);
     if (ret) {
         //funding_created
-        ln_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
-        fundc->p_temp_channel_id = self->channel_id;
-        fundc->funding_output_idx = self->funding_local.txindex;
+        ln_msg_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
+        fundc->p_temporary_channel_id = self->channel_id;
         fundc->p_funding_txid = self->funding_local.txid;
+        fundc->funding_output_index = self->funding_local.txindex;
         fundc->p_signature = self->commit_remote.signature;
 
         utl_buf_t buf_bolt = UTL_BUF_INIT;
@@ -2969,25 +2969,23 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         return false;
     }
 
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    ln_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
-    fundc->p_temp_channel_id = channel_id;
-    fundc->p_funding_txid = self->funding_local.txid;
-    fundc->p_signature = self->commit_local.signature;
+    ln_msg_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
     ret = ln_msg_funding_created_read(&self->p_establish->cnl_funding_created, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
+    memcpy(self->funding_local.txid, fundc->p_funding_txid, BTC_SZ_TXID);
+    memcpy(self->commit_local.signature, fundc->p_signature, LN_SZ_SIGNATURE);
 
     //temporary-channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(fundc->p_temporary_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
-    self->funding_local.txindex = fundc->funding_output_idx;
+    self->funding_local.txindex = fundc->funding_output_index;
 
     //署名チェック用
     btc_tx_free(&self->tx_funding);
