@@ -62,7 +62,7 @@ static bool accept_channel_check(const ln_msg_accept_channel_t *pMsg);
 static void accept_channel_print(const ln_msg_accept_channel_t *pMsg);
 static void funding_created_print(const ln_msg_funding_created_t *pMsg);
 static void funding_signed_print(const ln_msg_funding_signed_t *pMsg);
-static void funding_locked_print(const ln_funding_locked_t *pMsg);
+static void funding_locked_print(const ln_msg_funding_locked_t *pMsg);
 static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg);
 
 
@@ -520,81 +520,61 @@ static void funding_signed_print(const ln_msg_funding_signed_t *pMsg)
  * funding_locked
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_locked_write(utl_buf_t *pBuf, const ln_funding_locked_t *pMsg)
+bool HIDDEN ln_msg_funding_locked_write(utl_buf_t *pBuf, const ln_msg_funding_locked_t *pMsg)
 {
-    //    type: 36 (funding_locked)
-    //    data:
-    //        [32:channel_id]
-    //        [33:next_per_commitment_point]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_locked_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 65);
-
-    //    type: 0x24 (funding_locked)
-    ln_misc_push16be(&proto, MSGTYPE_FUNDING_LOCKED);
-
-    //        [32:channel_id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [33:next_per_commitment_point]
-    utl_push_data(&proto, pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
-
-    assert(sizeof(uint16_t) + 65 == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_FUNDING_LOCKED)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_funding_locked_read(ln_msg_funding_locked_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 65) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_FUNDING_LOCKED) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel_id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [33:next_per_commitment_point]
-    memcpy(pMsg->p_per_commitpt, pData + pos, BTC_SZ_PUBKEY);
-    pos += BTC_SZ_PUBKEY;
-
-    assert(Len >= pos);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_locked_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void funding_locked_print(const ln_funding_locked_t *pMsg)
+static void funding_locked_print(const ln_msg_funding_locked_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[funding_locked]-------------------------------\n");
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("p_per_commitpt: ");
-    DUMPD(pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
+    LOGD("next_per_commitment_point: ");
+    DUMPD(pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
