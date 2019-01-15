@@ -3057,20 +3057,18 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    self->p_establish->cnl_funding_signed.p_channel_id = channel_id;
-    self->p_establish->cnl_funding_signed.p_signature = self->commit_local.signature;
     ret = ln_msg_funding_signed_read(&self->p_establish->cnl_funding_signed, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
+    memcpy(self->commit_local.signature, self->p_establish->cnl_funding_signed.p_signature, LN_SZ_SIGNATURE);
 
     //channel-id生成
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(self->p_establish->cnl_funding_signed.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;

@@ -69,8 +69,8 @@ extern "C" {
 // FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_read, ln_msg_accept_channel_t *, const uint8_t *, uint16_t );
 // FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_funding_writed_t *);
 // FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, const uint8_t *, uint16_t );
-// FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_funding_signed_t *);
-// FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_funding_signed_t *, const uint8_t *, uint16_t );
+// FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
+// FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_data_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
 
