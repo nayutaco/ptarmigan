@@ -960,10 +960,10 @@ bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked)
     LOGD("\n");
 
     //funding_locked
-    ln_funding_locked_t cnl_funding_locked;
-    cnl_funding_locked.p_channel_id = self->channel_id;
-    cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    bool ret = ln_msg_funding_locked_write(pLocked, &cnl_funding_locked);
+    ln_msg_funding_locked_t msg;
+    msg.p_channel_id = self->channel_id;
+    msg.p_next_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    bool ret = ln_msg_funding_locked_write(pLocked, &msg);
     if (ret) {
         //channel_reestablishと同じ扱いにする
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
@@ -3108,20 +3108,15 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     LOGD("BEGIN\n");
 
     bool ret;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t per_commitpt[BTC_SZ_PUBKEY];
-    ln_funding_locked_t cnl_funding_locked;
-
-    cnl_funding_locked.p_channel_id = channel_id;
-    cnl_funding_locked.p_per_commitpt = per_commitpt;
-    ret = ln_msg_funding_locked_read(&cnl_funding_locked, pData, Len);
+    ln_msg_funding_locked_t msg;
+    ret = ln_msg_funding_locked_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
@@ -3130,10 +3125,10 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     LOGV("prev: ");
     DUMPV(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
     LOGV("next: ");
-    DUMPV(per_commitpt, BTC_SZ_PUBKEY);
+    DUMPV(msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
 
     //prev_percommitはrevoke_and_ackでのみ更新する
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
 
     //funding中終了
     free_establish(self, true);
