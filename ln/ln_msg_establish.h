@@ -153,13 +153,18 @@ typedef struct {
 } ln_msg_funding_created_t;
 
 
-/** @struct ln_funding_signed_t
+/** @struct ln_msg_funding_signed_t
  *  @brief  funding_signed
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_signature;                       ///< 64: signature
-} ln_funding_signed_t;
+    //type: 35 (funding_signed)
+    //data:
+    //  [32:channel_id]
+    //  [64:signature]
+
+    const uint8_t   *p_channel_id;
+    const uint8_t   *p_signature;
+} ln_msg_funding_signed_t;
 
 
 /** @struct ln_funding_locked_t
@@ -251,7 +256,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_msg_funding_created_t *pMsg, const ui
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_signed_write(utl_buf_t *pBuf, const ln_funding_signed_t *pMsg);
+bool HIDDEN ln_msg_funding_signed_write(utl_buf_t *pBuf, const ln_msg_funding_signed_t *pMsg);
 
 
 /** funding_signed読込み
@@ -261,7 +266,7 @@ bool HIDDEN ln_msg_funding_signed_write(utl_buf_t *pBuf, const ln_funding_signed
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_funding_signed_read(ln_msg_funding_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** funding_locked生成
