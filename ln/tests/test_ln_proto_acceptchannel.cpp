@@ -65,8 +65,8 @@ FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 
 FAKE_VALUE_FUNC(bool, ln_msg_open_channel_write, utl_buf_t *, const ln_msg_open_channel_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_open_channel_read, ln_msg_open_channel_t*, const uint8_t*, uint16_t);
-FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_write, utl_buf_t *, const ln_accept_channel_t *);
-FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_read, ln_accept_channel_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_write, utl_buf_t *, const ln_msg_accept_channel_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_accept_channel_read, ln_msg_accept_channel_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_funding_created_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_funding_created_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_funding_signed_t *);
@@ -288,18 +288,21 @@ TEST_F(ln, recv_accept_channel_ok)
                 break;
             }
         }
-        static bool ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->dust_limit_sat = 800;
+        static bool ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->dust_limit_satoshis = 800;
             pMsg->max_htlc_value_in_flight_msat = 1000000ULL;
-            pMsg->channel_reserve_sat = 10000;
+            pMsg->channel_reserve_satoshis = 10000;
             pMsg->htlc_minimum_msat = 20000;
-            pMsg->min_depth = 4;
+            pMsg->minimum_depth = 4;
             pMsg->to_self_delay = 100;
             pMsg->max_accepted_htlcs = 10;
-            memcpy(pMsg->p_temp_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-                pMsg->p_pubkeys[lp] = pubkey;
-            }
+            pMsg->p_temporary_channel_id = LN_DUMMY::CHANNEL_ID;
+            pMsg->p_funding_pubkey = pubkey;
+            pMsg->p_revocation_basepoint = pubkey;
+            pMsg->p_payment_basepoint = pubkey;
+            pMsg->p_delayed_payment_basepoint = pubkey;
+            pMsg->p_htlc_basepoint = pubkey;
+            pMsg->p_first_per_commitment_point = pubkey;
             return true;
         }
     };
@@ -318,9 +321,12 @@ TEST_F(ln, recv_accept_channel_ok)
     self.p_establish->cnl_open.p_delayed_payment_basepoint = pubkey;
     self.p_establish->cnl_open.p_htlc_basepoint = pubkey;
     self.p_establish->cnl_open.p_first_per_commitment_point = pubkey;
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        self.p_establish->cnl_accept.p_pubkeys[lp] = pubkey;
-    }
+    self.p_establish->cnl_accept.p_funding_pubkey = pubkey;
+    self.p_establish->cnl_accept.p_revocation_basepoint = pubkey;
+    self.p_establish->cnl_accept.p_payment_basepoint = pubkey;
+    self.p_establish->cnl_accept.p_delayed_payment_basepoint = pubkey;
+    self.p_establish->cnl_accept.p_htlc_basepoint = pubkey;
+    self.p_establish->cnl_accept.p_first_per_commitment_point = pubkey;
 
 #ifdef USE_BITCOIND
     self.p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
@@ -375,18 +381,21 @@ TEST_F(ln, recv_accept_channel_receiver1)
                 break;
             }
         }
-        static bool ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->dust_limit_sat = 800;
+        static bool ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->dust_limit_satoshis = 800;
             pMsg->max_htlc_value_in_flight_msat = 1000000ULL;
-            pMsg->channel_reserve_sat = 10000 - 1;    //★
+            pMsg->channel_reserve_satoshis = 10000 - 1;    //★
             pMsg->htlc_minimum_msat = 20000;
-            pMsg->min_depth = 4;
+            pMsg->minimum_depth = 4;
             pMsg->to_self_delay = 100;
             pMsg->max_accepted_htlcs = 10;
-            memcpy(pMsg->p_temp_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-                pMsg->p_pubkeys[lp] = pubkey;
-            }
+            pMsg->p_temporary_channel_id = LN_DUMMY::CHANNEL_ID;
+            pMsg->p_funding_pubkey = pubkey;
+            pMsg->p_revocation_basepoint = pubkey;
+            pMsg->p_payment_basepoint = pubkey;
+            pMsg->p_delayed_payment_basepoint = pubkey;
+            pMsg->p_htlc_basepoint = pubkey;
+            pMsg->p_first_per_commitment_point = pubkey;
             return true;
         }
     };
@@ -453,18 +462,21 @@ TEST_F(ln, recv_accept_channel_receiver2)
                 break;
             }
         }
-        static bool ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->dust_limit_sat = 800 + 1;    //★
+        static bool ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->dust_limit_satoshis = 800 + 1;    //★
             pMsg->max_htlc_value_in_flight_msat = 1000000ULL;
-            pMsg->channel_reserve_sat = 10000;
+            pMsg->channel_reserve_satoshis = 10000;
             pMsg->htlc_minimum_msat = 20000;
-            pMsg->min_depth = 4;
+            pMsg->minimum_depth = 4;
             pMsg->to_self_delay = 100;
             pMsg->max_accepted_htlcs = 10;
-            memcpy(pMsg->p_temp_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-                pMsg->p_pubkeys[lp] = pubkey;
-            }
+            pMsg->p_temporary_channel_id = LN_DUMMY::CHANNEL_ID;
+            pMsg->p_funding_pubkey = pubkey;
+            pMsg->p_revocation_basepoint = pubkey;
+            pMsg->p_payment_basepoint = pubkey;
+            pMsg->p_delayed_payment_basepoint = pubkey;
+            pMsg->p_htlc_basepoint = pubkey;
+            pMsg->p_first_per_commitment_point = pubkey;
             return true;
         }
     };

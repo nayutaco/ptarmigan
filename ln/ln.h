@@ -401,7 +401,7 @@ typedef struct {
  */
 typedef struct {
     ln_msg_open_channel_t       cnl_open;                       ///< 送信 or 受信したopen_channel
-    ln_accept_channel_t         cnl_accept;                     ///< 送信 or 受信したaccept_channel
+    ln_msg_accept_channel_t     cnl_accept;                     ///< 送信 or 受信したaccept_channel
     ln_funding_created_t        cnl_funding_created;            ///< 送信 or 受信したfunding_created
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
