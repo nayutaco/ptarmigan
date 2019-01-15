@@ -63,7 +63,7 @@ static void accept_channel_print(const ln_msg_accept_channel_t *pMsg);
 static void funding_created_print(const ln_msg_funding_created_t *pMsg);
 static void funding_signed_print(const ln_msg_funding_signed_t *pMsg);
 static void funding_locked_print(const ln_msg_funding_locked_t *pMsg);
-static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg);
+static void channel_reestablish_print(const ln_msg_channel_reestablish_t *pMsg, bool bOptionDataLossProtect);
 
 
 /********************************************************************
@@ -123,7 +123,6 @@ bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t 
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, (int32_t)BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_temporary_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_read_u64be(&buf_r, &pMsg->funding_satoshis)) goto LABEL_ERROR_SYNTAX;
@@ -292,7 +291,6 @@ bool HIDDEN ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_temporary_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_read_u64be(&buf_r, &pMsg->dust_limit_satoshis)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_read_u64be(&buf_r, &pMsg->max_htlc_value_in_flight_msat)) goto LABEL_ERROR_SYNTAX;
@@ -418,7 +416,6 @@ bool HIDDEN ln_msg_funding_created_read(ln_msg_funding_created_t *pMsg, const ui
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_temporary_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_funding_txid, BTC_SZ_TXID)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_read_u16be(&buf_r, &pMsg->funding_output_index)) goto LABEL_ERROR_SYNTAX;
@@ -487,7 +484,6 @@ bool HIDDEN ln_msg_funding_signed_read(ln_msg_funding_signed_t *pMsg, const uint
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR_SYNTAX;
 
@@ -551,7 +547,6 @@ bool HIDDEN ln_msg_funding_locked_read(ln_msg_funding_locked_t *pMsg, const uint
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
 
@@ -584,110 +579,68 @@ static void funding_locked_print(const ln_msg_funding_locked_t *pMsg)
  * channel_reestablish
  ********************************************************************/
 
-bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg)
+bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_msg_channel_reestablish_t *pMsg, bool bOptionDataLossProtect)
 {
-    //    type: 136 (channel_reestablish)
-    //    data:
-    //        [32:channel_id]
-    //        [8:next_local_commitment_number]
-    //        [8:next_remote_revocation_number]
-    //        [32:your_last_per_commitment_secret] (option_data_loss_protect)
-    //        [33:my_current_per_commitment_point] (option_data_loss_protect)
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    channel_reestablish_print(pMsg);
+    channel_reestablish_print(pMsg, bOptionDataLossProtect);
 #endif  //DBG_PRINT_WRITE
-    uint32_t len = sizeof(uint16_t) + 48;
-    if (pMsg->option_data_loss_protect) {
-        len += 65;
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_CHANNEL_REESTABLISH)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->next_local_commitment_number)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->next_remote_revocation_number)) goto LABEL_ERROR;
+    if (bOptionDataLossProtect && pMsg->p_your_last_per_commitment_secret && pMsg->p_my_current_per_commitment_point) {
+        if (!btc_buf_w_write_data(&buf_w, pMsg->p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY)) goto LABEL_ERROR;
+        if (!btc_buf_w_write_data(&buf_w, pMsg->p_my_current_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
     }
-
-    utl_push_init(&proto, pBuf, len);
-
-    //    type: 136 (channel_reestablish)
-    ln_misc_push16be(&proto, MSGTYPE_CHANNEL_REESTABLISH);
-
-    //        [32:channel_id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [8:next_local_commitment_number]
-    ln_misc_push64be(&proto, pMsg->next_local_commitment_number);
-
-    //        [8:next_remote_revocation_number]
-    ln_misc_push64be(&proto, pMsg->next_remote_revocation_number);
-
-    if (pMsg->option_data_loss_protect) {
-        //        [32:your_last_per_commitment_secret]
-        utl_push_data(&proto, pMsg->p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
-        //        [33:my_current_per_commitment_point]
-        utl_push_data(&proto, pMsg->p_my_current_per_commitment_point, BTC_SZ_PUBKEY);
-    }
-
-    assert(len == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_channel_reestablish_read(ln_msg_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len, bool bOptionDataLossProtect)
 {
-    if (Len < sizeof(uint16_t) + 48) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-    pMsg->option_data_loss_protect = (Len >= sizeof(uint16_t) + 113);
-
-    uint16_t type = utl_int_pack_u16be(pData);
-    if (type != MSGTYPE_CHANNEL_REESTABLISH) {
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (type != MSGTYPE_FUNDING_LOCKED) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->next_local_commitment_number)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->next_remote_revocation_number)) goto LABEL_ERROR_SYNTAX;
+    if (bOptionDataLossProtect && btc_buf_r_remains(&buf_r) >= BTC_SZ_PRIVKEY + BTC_SZ_PUBKEY) {
+        if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_your_last_per_commitment_secret, (int32_t)BTC_SZ_PRIVKEY)) goto LABEL_ERROR_SYNTAX;
+        if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_my_current_per_commitment_point, (int32_t)BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
 
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel_id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [8:next_local_commitment_number]
-    pMsg->next_local_commitment_number = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [8:next_remote_revocation_number]
-    pMsg->next_remote_revocation_number = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    if (pMsg->option_data_loss_protect) {
-        //[32:your_last_per_commitment_secret] (option_data_loss_protect)
-        if (Len >= pos + BTC_SZ_PRIVKEY) {
-            memcpy(pMsg->p_your_last_per_commitment_secret, pData + pos, BTC_SZ_PRIVKEY);
-            pos += BTC_SZ_PRIVKEY;
-        }
-
-        //[33:my_current_per_commitment_point] (option_data_loss_protect)
-        if (Len >= pos + BTC_SZ_PUBKEY) {
-            memcpy(pMsg->p_my_current_per_commitment_point, pData + pos, BTC_SZ_PUBKEY);
-            pos += BTC_SZ_PUBKEY;
-        }
+    } else {
+        pMsg->p_your_last_per_commitment_secret = NULL;
+        pMsg->p_my_current_per_commitment_point = NULL;
     }
 
-    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    channel_reestablish_print(pMsg);
+    channel_reestablish_print(pMsg, bOptionDataLossProtect);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
+static void channel_reestablish_print(const ln_msg_channel_reestablish_t *pMsg, bool bOptionDataLossProtect)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[channel_reestablish]-------------------------------\n");
@@ -695,7 +648,7 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("next_local_commitment_number: %" PRIu64 "\n", pMsg->next_local_commitment_number);
     LOGD("next_remote_revocation_number: %" PRIu64 "\n", pMsg->next_remote_revocation_number);
-    if (pMsg->option_data_loss_protect) {
+    if (bOptionDataLossProtect && pMsg->p_your_last_per_commitment_secret && pMsg->p_my_current_per_commitment_point) {
         LOGD("your_last_per_commitment_secret: ");
         DUMPD(pMsg->p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
         LOGD("my_current_per_commitment_point: ");

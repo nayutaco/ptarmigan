@@ -181,17 +181,24 @@ typedef struct {
 } ln_msg_funding_locked_t;
 
 
-/** @struct     ln_channel_reestablish_t
+/** @struct     ln_msg_channel_reestablish_t
  *  @brief      channel_reestablish
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    next_local_commitment_number;       ///< 8:  next_local_commitment_number
-    uint64_t    next_remote_revocation_number;      ///< 8:  next_remote_revocation_number
-    bool        option_data_loss_protect;           ///< true:your_last_per_commitment_secretとmy_current_per_commitment_pointが有効
-    uint8_t     *p_your_last_per_commitment_secret; ///< 32: your_last_per_commitment_secret
-    uint8_t     *p_my_current_per_commitment_point; ///< 33: my_current_per_commitment_point
-} ln_channel_reestablish_t;
+    //type: 136 (channel_reestablish)
+    //data:
+    //  [32:channel_id]
+    //  [8:next_local_commitment_number]
+    //  [8:next_remote_revocation_number]
+    //  [32:your_last_per_commitment_secret] (option_data_loss_protect)
+    //  [33:my_current_per_commitment_point] (option_data_loss_protect)
+
+    const uint8_t   *p_channel_id;
+    uint64_t        next_local_commitment_number;
+    uint64_t        next_remote_revocation_number;
+    const uint8_t   *p_your_last_per_commitment_secret;
+    const uint8_t   *p_my_current_per_commitment_point;
+} ln_msg_channel_reestablish_t;
 
 
 /********************************************************************
@@ -295,21 +302,23 @@ bool HIDDEN ln_msg_funding_locked_read(ln_msg_funding_locked_t *pMsg, const uint
 
 /** channel_reestablish生成
  *
- * @param[out]      pBuf    生成データ
- * @param[in]       pMsg    元データ
+ * @param[out]      pBuf                    生成データ
+ * @param[in]       pMsg                    元データ
+ * @param[in]       bOptionDataLossProtect  option_data_loss_protect
  * retval   true    成功
  */
-bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg);
+bool HIDDEN ln_msg_channel_reestablish_write(utl_buf_t *pBuf, const ln_msg_channel_reestablish_t *pMsg, bool bOptionDataLossProtect);
 
 
 /** channel_reestablish読込み
  *
- * @param[out]      pMsg    読込み結果
- * @param[in]       pData   対象データ
- * @param[in]       Len     pData長
+ * @param[out]      pMsg                    読込み結果
+ * @param[in]       pData                   対象データ
+ * @param[in]       Len                     pData長
+ * @param[in]       bOptionDataLossProtect  option_data_loss_protect
  * retval   true    成功
  */
-bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_channel_reestablish_read(ln_msg_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len, bool bOptionDataLossProtect);
 
 
 #endif /* LN_MSG_ESTABLISH_H__ */

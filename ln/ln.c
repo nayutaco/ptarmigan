@@ -776,7 +776,7 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
 
 bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
 {
-    ln_channel_reestablish_t msg;
+    ln_msg_channel_reestablish_t msg;
     uint8_t your_last_per_commitment_secret[BTC_SZ_PRIVKEY] = {0};
     uint8_t my_current_per_commitment_point[BTC_SZ_PUBKEY] = {0};
     msg.p_channel_id = self->channel_id;
@@ -793,26 +793,25 @@ bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
     msg.next_remote_revocation_number = self->commit_remote.revoke_num + 1;
 
     //option_data_loss_protect
+    bool option_data_loss_protect = false;
     if (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS) {
-        msg.option_data_loss_protect = true;
+        option_data_loss_protect = true;
 
         if (self->commit_remote.commit_num) {
-            bool ret = ln_derkey_storage_get_secret(msg.p_your_last_per_commitment_secret,
+            bool ret = ln_derkey_storage_get_secret(your_last_per_commitment_secret,
                             &self->peer_storage,
                             (uint64_t)(LN_SECINDEX_INIT - (self->commit_remote.commit_num - 1)));
             if (!ret) {
                 LOGD("no last secret\n");
-                memset(msg.p_your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
+                memset(your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
             }
         }
 
         uint8_t secret[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_percommitsec(self, secret, msg.p_my_current_per_commitment_point);
-    } else {
-        msg.option_data_loss_protect = false;
+        ln_signer_create_prev_percommitsec(self, secret, my_current_per_commitment_point);
     }
 
-    bool ret = ln_msg_channel_reestablish_write(pReEst, &msg);
+    bool ret = ln_msg_channel_reestablish_write(pReEst, &msg, option_data_loss_protect);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
     }
@@ -4069,30 +4068,28 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 
     LOGD("BEGIN\n");
 
-    ln_channel_reestablish_t reest;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t your_last_per_commitment_secret[BTC_SZ_PRIVKEY];
-    uint8_t my_current_per_commitment_point[BTC_SZ_PUBKEY];
-
-    reest.p_channel_id = channel_id;
-    reest.p_your_last_per_commitment_secret = your_last_per_commitment_secret;
-    reest.p_my_current_per_commitment_point = my_current_per_commitment_point;
-    ret = ln_msg_channel_reestablish_read(&reest, pData, Len);
+    ln_msg_channel_reestablish_t msg;
+    bool option_data_loss_protect = (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS);
+    ret = ln_msg_channel_reestablish_read(&msg, pData, Len, option_data_loss_protect);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
+    option_data_loss_protect =
+        option_data_loss_protect &&
+        msg.p_your_last_per_commitment_secret &&
+        msg.p_my_current_per_commitment_point;
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     M_DBG_COMMITNUM(self);
-    self->reest_commit_num = reest.next_local_commitment_number;
-    self->reest_revoke_num = reest.next_remote_revocation_number;
+    self->reest_commit_num = msg.next_local_commitment_number;
+    self->reest_revoke_num = msg.next_remote_revocation_number;
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -4100,40 +4097,38 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 
     //  next_local_commitment_number
     bool chk_commit_num = true;
-    if (self->commit_remote.commit_num + 1 == reest.next_local_commitment_number) {
+    if (self->commit_remote.commit_num + 1 == msg.next_local_commitment_number) {
         LOGD("next_local_commitment_number: OK\n");
-    } else if (self->commit_remote.commit_num == reest.next_local_commitment_number) {
+    } else if (self->commit_remote.commit_num == msg.next_local_commitment_number) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         LOGD("next_local_commitment_number == remote commit_num: reuse\n");
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
         //      * SHOULD fail the channel.
-        LOGD("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_remote.commit_num + 1, reest.next_local_commitment_number);
+        LOGD("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_remote.commit_num + 1, msg.next_local_commitment_number);
         chk_commit_num = false;
     }
 
     //BOLT#02
     //  next_remote_revocation_number
     bool chk_revoke_num = true;
-    if (self->commit_local.revoke_num + 1 == reest.next_remote_revocation_number) {
+    if (self->commit_local.revoke_num + 1 == msg.next_remote_revocation_number) {
         LOGD("next_remote_revocation_number: OK\n");
-    } else if (self->commit_local.revoke_num == reest.next_remote_revocation_number) {
+    } else if (self->commit_local.revoke_num == msg.next_remote_revocation_number) {
         // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
         //      * MUST re-send the revoke_and_ack.
         LOGD("next_remote_revocation_number == local commit_num: resend\n");
     } else {
-        LOGD("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_local.revoke_num + 1, reest.next_remote_revocation_number);
+        LOGD("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_local.revoke_num + 1, msg.next_remote_revocation_number);
         chk_revoke_num = false;
     }
 
     //BOLT#2
     //  if it supports option_data_loss_protect, AND the option_data_loss_protect fields are present:
-    if ( !(chk_commit_num && chk_revoke_num) &&
-         (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS) &&
-         reest.option_data_loss_protect ) {
+    if ( !(chk_commit_num && chk_revoke_num) && option_data_loss_protect ) {
         //if next_remote_revocation_number is greater than expected above,
-        if (reest.next_remote_revocation_number > self->commit_local.commit_num) {
+        if (msg.next_remote_revocation_number > self->commit_local.commit_num) {
             //  AND your_last_per_commitment_secret is correct for that next_remote_revocation_number minus 1:
             //
             //      [実装]
@@ -4147,7 +4142,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
             ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 4);
             LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 4);
             DUMPD(secret, BTC_SZ_PRIVKEY);
-            if (memcmp(secret, reest.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
+            if (memcmp(secret, msg.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
                 //MUST NOT broadcast its commitment transaction.
                 //SHOULD fail the channel.
                 //SHOULD store my_current_per_commitment_point to retrieve funds should the sending node broadcast its commitment transaction on-chain.
