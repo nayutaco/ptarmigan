@@ -1092,42 +1092,42 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
 #endif
 
     //open_channel
-    ln_msg_open_channel_t *open_ch = &self->p_establish->cnl_open;
+    ln_msg_open_channel_t open_ch;
     uint8_t channel_flags = CHANNEL_FLAGS_VALUE;
-    open_ch->p_chain_hash = gGenesisChainHash;
-    open_ch->p_temporary_channel_id = self->channel_id;
-    open_ch->funding_satoshis = FundingSat;
-    open_ch->push_msat = LN_SATOSHI2MSAT(PushSat);
-    open_ch->dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
-    open_ch->max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
-    open_ch->channel_reserve_satoshis = self->p_establish->estprm.channel_reserve_sat;
-    open_ch->htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
-    open_ch->feerate_per_kw = FeeRate;
-    open_ch->to_self_delay = self->p_establish->estprm.to_self_delay;
-    open_ch->max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
-    open_ch->p_funding_pubkey = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-    open_ch->p_revocation_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION];
-    open_ch->p_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT];
-    open_ch->p_delayed_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_DELAYED];
-    open_ch->p_htlc_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_HTLC];
-    open_ch->p_first_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    open_ch->p_channel_flags = &channel_flags;
-    open_ch->shutdown_len = 0;
-    open_ch->p_shutdown_scriptpubkey = NULL;
-    ln_msg_open_channel_write(pOpen, open_ch);
+    open_ch.p_chain_hash = gGenesisChainHash;
+    open_ch.p_temporary_channel_id = self->channel_id;
+    open_ch.funding_satoshis = FundingSat;
+    open_ch.push_msat = LN_SATOSHI2MSAT(PushSat);
+    open_ch.dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
+    open_ch.max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
+    open_ch.channel_reserve_satoshis = self->p_establish->estprm.channel_reserve_sat;
+    open_ch.htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
+    open_ch.feerate_per_kw = FeeRate;
+    open_ch.to_self_delay = self->p_establish->estprm.to_self_delay;
+    open_ch.max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
+    open_ch.p_funding_pubkey = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+    open_ch.p_revocation_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION];
+    open_ch.p_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT];
+    open_ch.p_delayed_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_DELAYED];
+    open_ch.p_htlc_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_HTLC];
+    open_ch.p_first_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    open_ch.p_channel_flags = &channel_flags;
+    open_ch.shutdown_len = 0;
+    open_ch.p_shutdown_scriptpubkey = NULL;
+    ln_msg_open_channel_write(pOpen, &open_ch);
 
-    self->commit_local.dust_limit_sat = open_ch->dust_limit_satoshis;
-    self->commit_local.max_htlc_value_in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
-    self->commit_local.channel_reserve_sat = open_ch->channel_reserve_satoshis;
-    self->commit_local.htlc_minimum_msat = open_ch->htlc_minimum_msat;
-    self->commit_local.to_self_delay = open_ch->to_self_delay;
-    self->commit_local.max_accepted_htlcs = open_ch->max_accepted_htlcs;
-    self->our_msat = LN_SATOSHI2MSAT(open_ch->funding_satoshis) - open_ch->push_msat;
-    self->their_msat = open_ch->push_msat;
-    self->funding_sat = open_ch->funding_satoshis;
-    self->feerate_per_kw = open_ch->feerate_per_kw;
+    self->commit_local.dust_limit_sat = open_ch.dust_limit_satoshis;
+    self->commit_local.max_htlc_value_in_flight_msat = open_ch.max_htlc_value_in_flight_msat;
+    self->commit_local.channel_reserve_sat = open_ch.channel_reserve_satoshis;
+    self->commit_local.htlc_minimum_msat = open_ch.htlc_minimum_msat;
+    self->commit_local.to_self_delay = open_ch.to_self_delay;
+    self->commit_local.max_accepted_htlcs = open_ch.max_accepted_htlcs;
+    self->our_msat = LN_SATOSHI2MSAT(open_ch.funding_satoshis) - open_ch.push_msat;
+    self->their_msat = open_ch.push_msat;
+    self->funding_sat = open_ch.funding_satoshis;
+    self->feerate_per_kw = open_ch.feerate_per_kw;
 
-    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((open_ch->p_channel_flags[0] & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((open_ch.p_channel_flags[0] & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     return true;
 }
@@ -2697,29 +2697,29 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    ln_msg_open_channel_t *open_ch = &self->p_establish->cnl_open;
-    ret = ln_msg_open_channel_read(open_ch, pData, Len);
+    ln_msg_open_channel_t open_ch;
+    ret = ln_msg_open_channel_read(&open_ch, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->channel_id, open_ch->p_temporary_channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], open_ch->p_funding_pubkey, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION], open_ch->p_revocation_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT], open_ch->p_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED], open_ch->p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_HTLC], open_ch->p_htlc_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], open_ch->p_first_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->channel_id, open_ch.p_temporary_channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], open_ch.p_funding_pubkey, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION], open_ch.p_revocation_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT], open_ch.p_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED], open_ch.p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_HTLC], open_ch.p_htlc_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], open_ch.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
     //feerate_per_kw更新
     callback(self, LN_CB_GET_LATEST_FEERATE, &self->feerate_per_kw);
 
     //feerate_per_kwの許容チェック
     const char *p_err = NULL;
-    if ( (open_ch->feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
-         !M_FEERATE_CHK_MIN_OK(self->feerate_per_kw, open_ch->feerate_per_kw) ) {
+    if ( (open_ch.feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
+         !M_FEERATE_CHK_MIN_OK(self->feerate_per_kw, open_ch.feerate_per_kw) ) {
         p_err = "fail: feerate_per_kw is too low";
-    } else if (!M_FEERATE_CHK_MAX_OK(self->feerate_per_kw, open_ch->feerate_per_kw)) {
+    } else if (!M_FEERATE_CHK_MAX_OK(self->feerate_per_kw, open_ch.feerate_per_kw)) {
         p_err = "fail: feerate_per_kw is too large";
     }
     if (p_err != NULL) {
@@ -2727,11 +2727,11 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    uint64_t fee = ln_estimate_initcommittx_fee(open_ch->feerate_per_kw);
-    if (open_ch->funding_satoshis < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {
+    uint64_t fee = ln_estimate_initcommittx_fee(open_ch.feerate_per_kw);
+    if (open_ch.funding_satoshis < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {
         char str[256];
         sprintf(str, "funding_satoshis too low(%" PRIu64 " < %" PRIu64 ")",
-                open_ch->funding_satoshis, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN);
+                open_ch.funding_satoshis, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN);
         M_SEND_ERR(self, LNERR_INV_VALUE, "%s", str);
         return false;
     }
@@ -2740,64 +2740,64 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //  The sender:
     //      - MUST set channel_reserve_satoshis greater than or equal to dust_limit_satoshis from the open_channel message.
     //      - MUST set dust_limit_satoshis less than or equal to channel_reserve_satoshis from the open_channel message.
-    if (self->p_establish->estprm.channel_reserve_sat < open_ch->dust_limit_satoshis) {
+    if (self->p_establish->estprm.channel_reserve_sat < open_ch.dust_limit_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our channel_reserve_satoshis is lower than their dust_limit_satoshis");
         return false;
     }
-    if (self->p_establish->estprm.dust_limit_sat > open_ch->channel_reserve_satoshis) {
+    if (self->p_establish->estprm.dust_limit_sat > open_ch.channel_reserve_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our dust_limit_satoshis is greater than their channel_reserve_satoshis");
         return false;
     }
 
-    self->commit_remote.dust_limit_sat = open_ch->dust_limit_satoshis;
-    self->commit_remote.max_htlc_value_in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
-    self->commit_remote.channel_reserve_sat = open_ch->channel_reserve_satoshis;
-    self->commit_remote.htlc_minimum_msat = open_ch->htlc_minimum_msat;
-    self->commit_remote.to_self_delay = open_ch->to_self_delay;
-    self->commit_remote.max_accepted_htlcs = open_ch->max_accepted_htlcs;
+    self->commit_remote.dust_limit_sat = open_ch.dust_limit_satoshis;
+    self->commit_remote.max_htlc_value_in_flight_msat = open_ch.max_htlc_value_in_flight_msat;
+    self->commit_remote.channel_reserve_sat = open_ch.channel_reserve_satoshis;
+    self->commit_remote.htlc_minimum_msat = open_ch.htlc_minimum_msat;
+    self->commit_remote.to_self_delay = open_ch.to_self_delay;
+    self->commit_remote.max_accepted_htlcs = open_ch.max_accepted_htlcs;
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
 
-    self->funding_sat = open_ch->funding_satoshis;
-    self->feerate_per_kw = open_ch->feerate_per_kw;
-    self->our_msat = open_ch->push_msat;
-    self->their_msat = LN_SATOSHI2MSAT(open_ch->funding_satoshis) - open_ch->push_msat;
+    self->funding_sat = open_ch.funding_satoshis;
+    self->feerate_per_kw = open_ch.feerate_per_kw;
+    self->our_msat = open_ch.push_msat;
+    self->their_msat = LN_SATOSHI2MSAT(open_ch.funding_satoshis) - open_ch.push_msat;
 
     //鍵生成 && スクリプト用鍵生成
     ln_signer_create_channelkeys(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_print_keys(&self->funding_local, &self->funding_remote);
 
-    ln_msg_accept_channel_t *acc_ch = &self->p_establish->cnl_accept;
-    acc_ch->p_temporary_channel_id = self->channel_id;
-    acc_ch->dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
-    acc_ch->max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
-    acc_ch->channel_reserve_satoshis = self->p_establish->estprm.channel_reserve_sat;
-    acc_ch->htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
-    acc_ch->minimum_depth = self->p_establish->estprm.min_depth;
-    acc_ch->to_self_delay = self->p_establish->estprm.to_self_delay;
-    acc_ch->max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
-    acc_ch->p_funding_pubkey = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-    acc_ch->p_revocation_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION];
-    acc_ch->p_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT];
-    acc_ch->p_delayed_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_DELAYED];
-    acc_ch->p_htlc_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_HTLC];
-    acc_ch->p_first_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    acc_ch->shutdown_len = 0;
-    acc_ch->p_shutdown_scriptpubkey = NULL;
+    ln_msg_accept_channel_t acc_ch;
+    acc_ch.p_temporary_channel_id = self->channel_id;
+    acc_ch.dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
+    acc_ch.max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
+    acc_ch.channel_reserve_satoshis = self->p_establish->estprm.channel_reserve_sat;
+    acc_ch.htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
+    acc_ch.minimum_depth = self->p_establish->estprm.min_depth;
+    acc_ch.to_self_delay = self->p_establish->estprm.to_self_delay;
+    acc_ch.max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
+    acc_ch.p_funding_pubkey = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+    acc_ch.p_revocation_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION];
+    acc_ch.p_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT];
+    acc_ch.p_delayed_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_DELAYED];
+    acc_ch.p_htlc_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_HTLC];
+    acc_ch.p_first_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    acc_ch.shutdown_len = 0;
+    acc_ch.p_shutdown_scriptpubkey = NULL;
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_msg_accept_channel_write(&buf_bolt, acc_ch);
+    ln_msg_accept_channel_write(&buf_bolt, &acc_ch);
     callback(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 
-    self->min_depth = acc_ch->minimum_depth;
-    self->commit_local.dust_limit_sat = acc_ch->dust_limit_satoshis;
-    self->commit_local.max_htlc_value_in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
-    self->commit_local.channel_reserve_sat = acc_ch->channel_reserve_satoshis;
-    self->commit_local.htlc_minimum_msat = acc_ch->htlc_minimum_msat;
-    self->commit_local.to_self_delay = acc_ch->to_self_delay;
-    self->commit_local.max_accepted_htlcs = acc_ch->max_accepted_htlcs;
+    self->min_depth = acc_ch.minimum_depth;
+    self->commit_local.dust_limit_sat = acc_ch.dust_limit_satoshis;
+    self->commit_local.max_htlc_value_in_flight_msat = acc_ch.max_htlc_value_in_flight_msat;
+    self->commit_local.channel_reserve_sat = acc_ch.channel_reserve_satoshis;
+    self->commit_local.htlc_minimum_msat = acc_ch.htlc_minimum_msat;
+    self->commit_local.to_self_delay = acc_ch.to_self_delay;
+    self->commit_local.max_accepted_htlcs = acc_ch.max_accepted_htlcs;
 
     //obscured commitment tx numberは共通
     //  1番目:open_channelのpayment-basepoint
@@ -2811,7 +2811,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     ret = btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
-        self->fund_flag = (ln_fundflag_t)(((open_ch->p_channel_flags[0] & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+        self->fund_flag = (ln_fundflag_t)(((open_ch.p_channel_flags[0] & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     } else {
         M_SET_ERR(self, LNERR_CREATE_2OF2, "create 2-of-2");
     }
@@ -2833,21 +2833,21 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    ln_msg_accept_channel_t *acc_ch = &self->p_establish->cnl_accept;
-    ret = ln_msg_accept_channel_read(acc_ch, pData, Len);
+    ln_msg_accept_channel_t acc_ch;
+    ret = ln_msg_accept_channel_read(&acc_ch, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], acc_ch->p_funding_pubkey, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION], acc_ch->p_revocation_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT], acc_ch->p_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED], acc_ch->p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_HTLC], acc_ch->p_htlc_basepoint, BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], acc_ch->p_first_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], acc_ch.p_funding_pubkey, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION], acc_ch.p_revocation_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT], acc_ch.p_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED], acc_ch.p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_HTLC], acc_ch.p_htlc_basepoint, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], acc_ch.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
     //temporary-channel-idチェック
-    ret = chk_channelid(acc_ch->p_temporary_channel_id, self->channel_id);
+    ret = chk_channelid(acc_ch.p_temporary_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
@@ -2859,22 +2859,22 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      - MUST reject the channel.
     //    - if channel_reserve_satoshis from the open_channel message is less than dust_limit_satoshis:
     //      - MUST reject the channel. Other fields have the same requirements as their counterparts in open_channel.
-    if (self->commit_local.dust_limit_sat > acc_ch->channel_reserve_satoshis) {
+    if (self->commit_local.dust_limit_sat > acc_ch.channel_reserve_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our dust_limit_satoshis is greater than their channel_reserve_satoshis");
         return false;
     }
-    if (self->commit_local.channel_reserve_sat < acc_ch->dust_limit_satoshis) {
+    if (self->commit_local.channel_reserve_sat < acc_ch.dust_limit_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our channel_reserve_satoshis is lower than their dust_limit_satoshis");
         return false;
     }
 
-    self->min_depth = acc_ch->minimum_depth;
-    self->commit_remote.dust_limit_sat = acc_ch->dust_limit_satoshis;
-    self->commit_remote.max_htlc_value_in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
-    self->commit_remote.channel_reserve_sat = acc_ch->channel_reserve_satoshis;
-    self->commit_remote.htlc_minimum_msat = acc_ch->htlc_minimum_msat;
-    self->commit_remote.to_self_delay = acc_ch->to_self_delay;
-    self->commit_remote.max_accepted_htlcs = acc_ch->max_accepted_htlcs;
+    self->min_depth = acc_ch.minimum_depth;
+    self->commit_remote.dust_limit_sat = acc_ch.dust_limit_satoshis;
+    self->commit_remote.max_htlc_value_in_flight_msat = acc_ch.max_htlc_value_in_flight_msat;
+    self->commit_remote.channel_reserve_sat = acc_ch.channel_reserve_satoshis;
+    self->commit_remote.htlc_minimum_msat = acc_ch.htlc_minimum_msat;
+    self->commit_remote.to_self_delay = acc_ch.to_self_delay;
+    self->commit_remote.max_accepted_htlcs = acc_ch.max_accepted_htlcs;
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
@@ -2902,22 +2902,20 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    self->commit_local.to_self_delay = self->p_establish->cnl_open.to_self_delay;
-    self->commit_remote.dust_limit_sat = acc_ch->dust_limit_satoshis;
     ret = ln_comtx_create_to_remote(self,
                 &self->commit_remote,
                 NULL, NULL,     //close無し、署名作成無し
                 0);
     if (ret) {
         //funding_created
-        ln_msg_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
-        fundc->p_temporary_channel_id = self->channel_id;
-        fundc->p_funding_txid = self->funding_local.txid;
-        fundc->funding_output_index = self->funding_local.txindex;
-        fundc->p_signature = self->commit_remote.signature;
+        ln_msg_funding_created_t fundc;
+        fundc.p_temporary_channel_id = self->channel_id;
+        fundc.p_funding_txid = self->funding_local.txid;
+        fundc.funding_output_index = self->funding_local.txindex;
+        fundc.p_signature = self->commit_remote.signature;
 
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ln_msg_funding_created_write(&buf_bolt, fundc);
+        ln_msg_funding_created_write(&buf_bolt, &fundc);
         callback(self, LN_CB_SEND_REQ, &buf_bolt);
         utl_buf_free(&buf_bolt);
     }
@@ -2939,23 +2937,23 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         return false;
     }
 
-    ln_msg_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
-    ret = ln_msg_funding_created_read(&self->p_establish->cnl_funding_created, pData, Len);
+    ln_msg_funding_created_t fundc;
+    ret = ln_msg_funding_created_read(&fundc, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->funding_local.txid, fundc->p_funding_txid, BTC_SZ_TXID);
-    memcpy(self->commit_local.signature, fundc->p_signature, LN_SZ_SIGNATURE);
+    memcpy(self->funding_local.txid, fundc.p_funding_txid, BTC_SZ_TXID);
+    memcpy(self->commit_local.signature, fundc.p_signature, LN_SZ_SIGNATURE);
 
     //temporary-channel-idチェック
-    ret = chk_channelid(fundc->p_temporary_channel_id, self->channel_id);
+    ret = chk_channelid(fundc.p_temporary_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
-    self->funding_local.txindex = fundc->funding_output_index;
+    self->funding_local.txindex = fundc.funding_output_index;
 
     //署名チェック用
     btc_tx_free(&self->tx_funding);
@@ -2963,7 +2961,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         //処理の都合上、voutの位置を調整している
         btc_tx_add_vout(&self->tx_funding, 0);
     }
-    btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_satoshis, &self->redeem_fund);
+    btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
     btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 
@@ -2974,8 +2972,8 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ret = ln_comtx_create_to_local(self,
             NULL, NULL, 0,      //closeもHTLC署名も無し
             0,
-            self->p_establish->cnl_open.to_self_delay,
-            self->p_establish->cnl_accept.dust_limit_satoshis);
+            self->commit_remote.to_self_delay,
+            self->commit_local.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         return false;
@@ -2984,8 +2982,6 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    self->commit_local.to_self_delay = self->p_establish->cnl_accept.to_self_delay;
-    self->commit_remote.dust_limit_sat = self->p_establish->cnl_open.dust_limit_satoshis;
     ret = ln_comtx_create_to_remote(self,
                 &self->commit_remote,
                 NULL, NULL,     //close無し、署名作成無し
@@ -2999,11 +2995,12 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //funding_signed
-    self->p_establish->cnl_funding_signed.p_channel_id = self->channel_id;
-    self->p_establish->cnl_funding_signed.p_signature = self->commit_remote.signature;
+    ln_msg_funding_signed_t funds;
+    funds.p_channel_id = self->channel_id;
+    funds.p_signature = self->commit_remote.signature;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_msg_funding_signed_write(&buf_bolt, &self->p_establish->cnl_funding_signed);
+    ln_msg_funding_signed_write(&buf_bolt, &funds);
     callback(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 
@@ -3027,18 +3024,19 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    ret = ln_msg_funding_signed_read(&self->p_establish->cnl_funding_signed, pData, Len);
+    ln_msg_funding_signed_t msg;
+    ret = ln_msg_funding_signed_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->commit_local.signature, self->p_establish->cnl_funding_signed.p_signature, LN_SZ_SIGNATURE);
+    memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel-id生成
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //channel-idチェック
-    ret = chk_channelid(self->p_establish->cnl_funding_signed.p_channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
@@ -3051,8 +3049,8 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ret = ln_comtx_create_to_local(self,
             NULL, NULL, 0,      //closeもHTLC署名も無し
             0,
-            self->p_establish->cnl_accept.to_self_delay,
-            self->p_establish->cnl_open.dust_limit_satoshis);
+            self->commit_remote.to_self_delay,
+            self->commit_local.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         return false;
@@ -4472,7 +4470,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         //output
         self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
         //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-        btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_satoshis, &self->redeem_fund);
+        btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
 
         //vout#1:P2WPKH - change(amountは後で代入)
         btc_tx_add_vout_spk(&self->tx_funding, (uint64_t)-1, &self->p_establish->p_fundin->change_spk);
@@ -4503,21 +4501,21 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         //          pub: 1+33
         //      locktime: 4
     #warning issue #344: nested in BIP16 size
-        uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, self->p_establish->cnl_open.feerate_per_kw);
+        uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, self->feerate_per_kw);
         LOGD("fee=%" PRIu64 "\n", fee);
-        if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_satoshis + fee) {
-            self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_satoshis - fee;
+        if (self->p_establish->p_fundin->amount >= self->funding_sat + fee) {
+            self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->funding_sat - fee;
         } else {
             LOGD("fail: amount too short:\n");
             LOGD("    amount=%" PRIu64 "\n", self->p_establish->p_fundin->amount);
-            LOGD("    funding_satoshis=%" PRIu64 "\n", self->p_establish->cnl_open.funding_satoshis);
+            LOGD("    funding_satoshis=%" PRIu64 "\n", self->funding_sat);
             LOGD("    fee=%" PRIu64 "\n", fee);
             return false;
         }
     } else {
         //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
         //その代わり、self->funding_local.txindexは固定値にならない。
-        btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->p_establish->cnl_open.funding_satoshis, &self->redeem_fund);
+        btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
         //INPUTもダミーで入れておく
         btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
     }
