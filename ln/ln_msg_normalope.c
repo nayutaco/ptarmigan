@@ -58,7 +58,7 @@ static void update_fulfill_htlc_print(const ln_msg_update_fulfill_htlc_t *pMsg);
 static void update_fail_htlc_print(const ln_msg_update_fail_htlc_t *pMsg);
 static void update_fail_malformed_htlc_print(const ln_msg_update_fail_malformed_htlc_t *pMsg);
 static void commitment_signed_print(const ln_msg_commitment_signed_t *pMsg);
-static void revoke_and_ack_print(const ln_revoke_and_ack_t *pMsg);
+static void revoke_and_ack_print(const ln_msg_revoke_and_ack_t *pMsg);
 static void update_fee_print(const ln_update_fee_t *pMsg);
 
 
@@ -417,91 +417,64 @@ static void commitment_signed_print(const ln_msg_commitment_signed_t *pMsg)
  * revoke_and_ack
  ********************************************************************/
 
-bool HIDDEN ln_msg_revoke_and_ack_write(utl_buf_t *pBuf, const ln_revoke_and_ack_t *pMsg)
+bool HIDDEN ln_msg_revoke_and_ack_write(utl_buf_t *pBuf, const ln_msg_revoke_and_ack_t *pMsg)
 {
-    //    type: 133 (revoke_and_ack)
-    //    data:
-    //        [32:channel-id]
-    //        [32:per-commitment-secret]
-    //        [33:next-per-commitment-point]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 97);
-
-    //    type: 133 (revoke_and_ack)
-    ln_misc_push16be(&proto, MSGTYPE_REVOKE_AND_ACK);
-
-    //        [32:channel-id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [32:per-commitment-secret]
-    utl_push_data(&proto, pMsg->p_per_commit_secret, BTC_SZ_PRIVKEY);
-
-    //        [33:next-per-commitment-point]
-    utl_push_data(&proto, pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
-
-    assert(sizeof(uint16_t) + 97 == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_REVOKE_AND_ACK)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_per_commitment_secret, BTC_SZ_PRIVKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_revoke_and_ack_read(ln_msg_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 97) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_REVOKE_AND_ACK) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [32:per-commitment-secret]
-    memcpy(pMsg->p_per_commit_secret, pData + pos, BTC_SZ_PRIVKEY);
-    pos += BTC_SZ_PRIVKEY;
-
-    //        [33:next-per-commitment-point]
-    memcpy(pMsg->p_per_commitpt, pData + pos, BTC_SZ_PUBKEY);
-    pos += BTC_SZ_PUBKEY;
-
-    assert(Len >= pos);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_per_commitment_secret, BTC_SZ_PRIVKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void revoke_and_ack_print(const ln_revoke_and_ack_t *pMsg)
+static void revoke_and_ack_print(const ln_msg_revoke_and_ack_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[revoke_and_ack]-------------------------------\n");
-    LOGD("channel-id: ");
+    LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("per-commitment-secret: ");
-    DUMPD(pMsg->p_per_commit_secret, BTC_SZ_PRIVKEY);
-    LOGD("next-per-commitment-point: ");
-    DUMPD(pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
+    LOGD("per_commitment_secret: ");
+    DUMPD(pMsg->p_per_commitment_secret, BTC_SZ_PRIVKEY);
+    LOGD("next_per_commitment_point: ");
+    DUMPD(pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
