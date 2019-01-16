@@ -176,7 +176,7 @@ static void closing_signed_print(const ln_msg_closing_signed_t *pMsg)
     LOGD("-[closing_signed]-------------------------------\n");
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("fee_satoshis= %" PRIu64 "\n", pMsg->fee_satoshis);
+    LOGD("fee_satoshis: %" PRIu64 "\n", pMsg->fee_satoshis);
     LOGD("signature: ");
     DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
     LOGD("--------------------------------\n");
