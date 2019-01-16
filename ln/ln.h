@@ -478,65 +478,6 @@ typedef struct {
 } ln_update_add_htlc_t;
 
 
-/** @struct     ln_update_fulfill_htlc_t
- *  @brief      update_fulfill_htlc
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    id;                                 ///< 8:  id
-    uint8_t     *p_payment_preimage;                ///< 32: payment-preimage
-} ln_update_fulfill_htlc_t;
-
-
-/** @struct     ln_update_fail_htlc_t
- *  @brief      update_fail_htlc
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    id;                                 ///< 8:  id
-    utl_buf_t   *p_reason;                          ///< onion failure packet
-} ln_update_fail_htlc_t;
-
-
-/** @struct     ln_commit_signed_t
- *  @brief      commitment_signed
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_signature;                       ///< 64: signature
-    uint16_t    num_htlcs;                          ///< 2:  num-htlcs
-    uint8_t     *p_htlc_signature;                  ///< num-htlcs*64: htlc-signature
-} ln_commit_signed_t;
-
-
-/** @struct     ln_revoke_and_ack_t
- *  @brief      revoke_and_ack
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_per_commit_secret;               ///< 32: 古いper-commiment-secret
-    uint8_t     *p_per_commitpt;                    ///< 33: 新しいper-commtment-point
-} ln_revoke_and_ack_t;
-
-
-/** @struct     ln_update_fee_t
- *  @brief      update_fee
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint32_t    feerate_per_kw;                     ///< 4:  feerate-per-kw
-} ln_update_fee_t;
-
-
-/** @struct     ln_update_fail_malformed_htlc_t
- *  @brief      update_fail_malformed_htlc
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    id;                                 ///< 8:  id
-    uint8_t     *p_sha256_onion;                    ///< 32: sha256-of-onion
-    uint16_t    failure_code;                       ///< 2:  failure-code
-} ln_update_fail_malformed_htlc_t;
 
 /// @}
 
