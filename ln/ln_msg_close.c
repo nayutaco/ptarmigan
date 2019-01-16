@@ -30,6 +30,8 @@
 
 #include "utl_int.h"
 
+#include "btc_buf.h"
+
 #include "ln_msg_close.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -47,7 +49,7 @@
  * prototypes
  **************************************************************************/
 
-static void shutdown_print(const ln_shutdown_t *pMsg);
+static void shutdown_print(const ln_msg_shutdown_t *pMsg);
 static void closing_signed_print(const ln_closing_signed_t *pMsg);
 
 
@@ -55,93 +57,62 @@ static void closing_signed_print(const ln_closing_signed_t *pMsg);
  * shutdown
  ********************************************************************/
 
-bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_shutdown_t *pMsg)
+bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_msg_shutdown_t *pMsg)
 {
-    //    type: 38 (shutdown)
-    //    data:
-    //        [32:channel-id]
-    //        [2:len]
-    //        [len:scriptpubkey]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 34 + pMsg->p_scriptpk->len);
-
-    //    type: 38 (shutdown)
-    ln_misc_push16be(&proto, MSGTYPE_SHUTDOWN);
-
-    //        [32:channel-id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [2:len]
-    ln_misc_push16be(&proto, pMsg->p_scriptpk->len);
-
-    //        [len:scriptpubkey]
-    utl_push_data(&proto, pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
-
-    assert(sizeof(uint16_t) + 34 + pMsg->p_scriptpk->len == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_SHUTDOWN)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->len)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_scriptpubkey, pMsg->len)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_shutdown_read(ln_msg_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 34) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_SHUTDOWN) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [2:len]
-    uint16_t len = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(uint16_t);
-    if (Len - pos < len) {
-        LOGD("fail: invalid scriptpubkey length: %d\n", Len);
-        return false;
-    }
-
-    //        [len:scriptpubkey]
-    utl_buf_alloccopy(pMsg->p_scriptpk, pData + pos, len);
-    pos += len;
-
-    assert(Len >= pos);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->len)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_scriptpubkey, pMsg->len)) goto LABEL_ERROR_SYNTAX;
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void shutdown_print(const ln_shutdown_t *pMsg)
+static void shutdown_print(const ln_msg_shutdown_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[shutdown]-------------------------------\n");
-    LOGD("channel-id: ");
+    LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("p_scriptpk: ");
-    DUMPD(pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
+    LOGD("scriptpubkey: ");
+    DUMPD(pMsg->p_scriptpubkey, pMsg->len);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }

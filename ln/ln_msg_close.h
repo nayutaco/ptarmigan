@@ -29,6 +29,35 @@
 
 #include "ln.h"
 
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+/** @struct ln_msg_shutdown_t
+ *  @brief  shutdown
+ */
+typedef struct {
+    //type: 38 (shutdown)
+    //data:
+    //  [32:channel_id]
+    //  [2:len]
+    //  [len:scriptpubkey]
+
+    const uint8_t   *p_channel_id;
+    uint16_t        len;
+    const uint8_t   *p_scriptpubkey;
+} ln_msg_shutdown_t;
+
+
+/** @struct ln_closing_signed_t
+ *  @brief  closing_signed
+ */
+typedef struct {
+    uint8_t     *p_channel_id;                      ///< 32: channel-id
+    uint64_t    fee_sat;                            ///< 8:  fee-satoshis
+    uint8_t     *p_signature;                       ///< 64: signature
+} ln_closing_signed_t;
+
 
 /********************************************************************
  * prototypes
@@ -40,7 +69,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_shutdown_t *pMsg);
+bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_msg_shutdown_t *pMsg);
 
 
 /** shutdown読込み
@@ -50,7 +79,7 @@ bool HIDDEN ln_msg_shutdown_write(utl_buf_t *pBuf, const ln_shutdown_t *pMsg);
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_shutdown_read(ln_msg_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** closing_signed生成
