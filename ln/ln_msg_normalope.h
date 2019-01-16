@@ -92,15 +92,22 @@ typedef struct {
 } ln_msg_update_fail_htlc_t;
 
 
-/** @struct     ln_update_fail_malformed_htlc_t
+/** @struct     ln_msg_update_fail_malformed_htlc_t
  *  @brief      update_fail_malformed_htlc
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    id;                                 ///< 8:  id
-    uint8_t     *p_sha256_onion;                    ///< 32: sha256-of-onion
-    uint16_t    failure_code;                       ///< 2:  failure-code
-} ln_update_fail_malformed_htlc_t;
+    //type: 135 (update_fail_malformed_htlc)
+    //data:
+    //  [32:channel_id]
+    //  [8:id]
+    //  [32:sha256_of_onion]
+    //  [2:failure_code]
+
+    const uint8_t   *p_channel_id;
+    uint64_t        id;
+    const uint8_t   *p_sha256_of_onion;
+    uint16_t        failure_code;
+} ln_msg_update_fail_malformed_htlc_t;
 
 
 /** @struct     ln_commit_signed_t
@@ -200,7 +207,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_msg_update_fail_htlc_t *pMsg, const 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fail_malformed_htlc_write(utl_buf_t *pBuf, const ln_update_fail_malformed_htlc_t *pMsg);
+bool HIDDEN ln_msg_update_fail_malformed_htlc_write(utl_buf_t *pBuf, const ln_msg_update_fail_malformed_htlc_t *pMsg);
 
 
 /** update_fail_malformed_htlc読込み
@@ -210,7 +217,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_write(utl_buf_t *pBuf, const ln_up
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_msg_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** commit_signed生成

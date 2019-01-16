@@ -3954,27 +3954,22 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
 
     LOGD("BEGIN\n");
 
-    ln_update_fail_malformed_htlc_t mal_htlc;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t sha256_onion[BTC_SZ_HASH256];
-
-    mal_htlc.p_channel_id = channel_id;
-    mal_htlc.p_sha256_onion = sha256_onion;
-    bool ret = ln_msg_update_fail_malformed_htlc_read(&mal_htlc, pData, Len);
+    ln_msg_update_fail_malformed_htlc_t msg;
+    bool ret = ln_msg_update_fail_malformed_htlc_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     //failure_code check
-    if ((mal_htlc.failure_code & LNERR_ONION_BADONION) == 0) {
+    if ((msg.failure_code & LNERR_ONION_BADONION) == 0) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "no BADONION bit");
         return false;
     }
@@ -3989,15 +3984,15 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
         //  if the sha256_of_onion in update_fail_malformed_htlc doesn't match the onion it sent:
         //      MAY retry or choose an alternate error response.
         if ( (p_htlc->stat.flag.addhtlc == LN_ADDHTLC_OFFER) &&
-             (p_htlc->id == mal_htlc.id)) {
+             (p_htlc->id == msg.id)) {
             //id一致
             clear_htlc_comrevflag(p_htlc, LN_DELHTLC_MALFORMED);
 
             utl_buf_t reason = UTL_BUF_INIT;
             utl_push_t push_rsn;
             utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_HASH256);
-            ln_misc_push16be(&push_rsn, mal_htlc.failure_code);
-            utl_push_data(&push_rsn, mal_htlc.p_sha256_onion, BTC_SZ_HASH256);
+            ln_misc_push16be(&push_rsn, msg.failure_code);
+            utl_push_data(&push_rsn, msg.p_sha256_of_onion, BTC_SZ_HASH256);
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = p_htlc->prev_short_channel_id;
@@ -4006,7 +4001,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = p_htlc->id;     //元のHTLC id
             fail_recv.p_payment_hash = p_htlc->payment_sha256;
-            fail_recv.malformed_failure = mal_htlc.failure_code;
+            fail_recv.malformed_failure = msg.failure_code;
             callback(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
             utl_buf_free(&reason);
 
@@ -5587,15 +5582,13 @@ static void fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
 
-    ln_update_fail_malformed_htlc_t mal_htlc;
+    ln_msg_update_fail_malformed_htlc_t msg;
     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
-
-    uint16_t failure_code = utl_int_pack_u16be(p_htlc->buf_onion_reason.buf);
-    mal_htlc.p_channel_id = self->channel_id;
-    mal_htlc.id = p_htlc->id;
-    mal_htlc.p_sha256_onion = p_htlc->buf_onion_reason.buf + sizeof(uint16_t);
-    mal_htlc.failure_code = failure_code;
-    bool ret = ln_msg_update_fail_malformed_htlc_write(pFail, &mal_htlc);
+    msg.p_channel_id = self->channel_id;
+    msg.id = p_htlc->id;
+    msg.p_sha256_of_onion = p_htlc->buf_onion_reason.buf + sizeof(uint16_t);
+    msg.failure_code = utl_int_pack_u16be(p_htlc->buf_onion_reason.buf);
+    bool ret = ln_msg_update_fail_malformed_htlc_write(pFail, &msg);
     if (ret) {
         p_htlc->stat.flag.updsend = 1;
     } else {
