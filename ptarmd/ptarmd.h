@@ -75,6 +75,7 @@ extern "C" {
 #define RPCERR_PARSE                (-10004)
 #define RPCERR_NOINIT               (-10005)
 #define RPCERR_BLOCKCHAIN           (-10006)
+#define RPCERR_BUSY                 (-10007)
 
 #define RPCERR_NODEID               (-20000)
 #define RPCERR_NOOPEN               (-20001)
