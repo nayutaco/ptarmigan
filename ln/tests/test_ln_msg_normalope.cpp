@@ -56,6 +56,7 @@ namespace LN_DUMMY {
     uint8_t htlc_signature[LN_SZ_SIGNATURE * 32];
     uint8_t per_commitment_secret[BTC_SZ_PRIVKEY];
     uint8_t next_per_commitment_point[BTC_SZ_PUBKEY];
+    uint32_t feerate_per_kw;
 }
 
 
@@ -81,6 +82,7 @@ protected:
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::per_commitment_secret, sizeof(LN_DUMMY::per_commitment_secret)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::next_per_commitment_point, sizeof(LN_DUMMY::next_per_commitment_point)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::feerate_per_kw, sizeof(LN_DUMMY::feerate_per_kw)));
         btc_rng_free();
     }
 
@@ -245,5 +247,24 @@ TEST_F(ln, revoke_and_ack)
     ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
     ASSERT_EQ(0, memcmp(msg.p_per_commitment_secret, LN_DUMMY::per_commitment_secret, sizeof(LN_DUMMY::per_commitment_secret)));
     ASSERT_EQ(0, memcmp(msg.p_next_per_commitment_point, LN_DUMMY::next_per_commitment_point, sizeof(LN_DUMMY::next_per_commitment_point)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, update_fee)
+{
+    ln_msg_update_fee_t msg;
+    utl_buf_t buf;
+
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.feerate_per_kw = LN_DUMMY::feerate_per_kw;
+    bool ret = ln_msg_update_fee_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_update_fee_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(msg.feerate_per_kw, LN_DUMMY::feerate_per_kw);
     utl_buf_free(&buf);
 }
