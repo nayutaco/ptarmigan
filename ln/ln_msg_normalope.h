@@ -128,14 +128,20 @@ typedef struct {
 } ln_msg_commitment_signed_t;
 
 
-/** @struct     ln_revoke_and_ack_t
+/** @struct     ln_msg_revoke_and_ack_t
  *  @brief      revoke_and_ack
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_per_commit_secret;               ///< 32: 古いper-commiment-secret
-    uint8_t     *p_per_commitpt;                    ///< 33: 新しいper-commtment-point
-} ln_revoke_and_ack_t;
+    //type: 133 (revoke_and_ack)
+    //data:
+    //  [32:channel_id]
+    //  [32:per_commitment_secret]
+    //  [33:next_per_commitment_point]
+
+    const uint8_t   *p_channel_id;
+    const uint8_t   *p_per_commitment_secret;
+    const uint8_t   *p_next_per_commitment_point;
+} ln_msg_revoke_and_ack_t;
 
 
 /** @struct     ln_update_fee_t
@@ -252,7 +258,7 @@ bool HIDDEN ln_msg_commitment_signed_read(ln_msg_commitment_signed_t *pMsg, cons
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_revoke_and_ack_write(utl_buf_t *pBuf, const ln_revoke_and_ack_t *pMsg);
+bool HIDDEN ln_msg_revoke_and_ack_write(utl_buf_t *pBuf, const ln_msg_revoke_and_ack_t *pMsg);
 
 
 /** revoke_and_ack読込み
@@ -262,7 +268,7 @@ bool HIDDEN ln_msg_revoke_and_ack_write(utl_buf_t *pBuf, const ln_revoke_and_ack
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_revoke_and_ack_read(ln_msg_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** update_fee生成

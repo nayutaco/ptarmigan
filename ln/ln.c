@@ -897,10 +897,10 @@ void ln_channel_reestablish_after(ln_self_t *self)
         ln_signer_create_prev_percommitsec(self, prev_secret, NULL);
 
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ln_revoke_and_ack_t revack;
+        ln_msg_revoke_and_ack_t revack;
         revack.p_channel_id = self->channel_id;
-        revack.p_per_commit_secret = prev_secret;
-        revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+        revack.p_per_commitment_secret = prev_secret;
+        revack.p_next_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
         LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
         bool ret = ln_msg_revoke_and_ack_write(&buf_bolt, &revack);
         if (ret) {
@@ -3652,7 +3652,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     bool ret;
     ln_msg_commitment_signed_t commsig;
-    ln_revoke_and_ack_t revack;
+    ln_msg_revoke_and_ack_t revack;
     uint8_t bak_sig[LN_SZ_SIGNATURE];
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
@@ -3726,8 +3726,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     // }
 
     revack.p_channel_id = commsig.p_channel_id;
-    revack.p_per_commit_secret = prev_secret;
-    revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    revack.p_per_commitment_secret = prev_secret;
+    revack.p_next_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
     ret = ln_msg_revoke_and_ack_write(&buf_bolt, &revack);
     if (ret) {
@@ -3773,23 +3773,15 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     LOGD("BEGIN\n");
 
     bool ret;
-    ln_revoke_and_ack_t revack;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t prev_secret[BTC_SZ_PRIVKEY];
-    uint8_t new_commitpt[BTC_SZ_PUBKEY];
-    uint8_t prev_commitpt[BTC_SZ_PUBKEY];
-
-    revack.p_channel_id = channel_id;
-    revack.p_per_commit_secret = prev_secret;
-    revack.p_per_commitpt = new_commitpt;
-    ret = ln_msg_revoke_and_ack_read(&revack, pData, Len);
+    ln_msg_revoke_and_ack_t msg;
+    ret = ln_msg_revoke_and_ack_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         goto LABEL_EXIT;
     }
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         goto LABEL_EXIT;
@@ -3797,7 +3789,9 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //prev_secretチェック
     //  受信したper_commitment_secretが、前回受信したper_commitment_pointと等しいこと
-    ret = btc_keys_priv2pub(prev_commitpt, prev_secret);
+    //XXX: not check?
+    uint8_t prev_commitpt[BTC_SZ_PUBKEY];
+    ret = btc_keys_priv2pub(prev_commitpt, msg.p_per_commitment_secret);
     if (!ret) {
         LOGD("fail: prev_secret convert\n");
         goto LABEL_EXIT;
@@ -3842,7 +3836,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     // }
 
     //prev_secret保存
-    ret = store_peer_percommit_secret(self, prev_secret);
+    ret = store_peer_percommit_secret(self, msg.p_per_commitment_secret);
     if (!ret) {
         LOGD("fail: store prev secret\n");
         goto LABEL_EXIT;
@@ -3850,7 +3844,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //per_commitment_point更新
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], new_commitpt, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 

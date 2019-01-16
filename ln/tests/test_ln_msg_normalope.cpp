@@ -42,32 +42,20 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////
 
 namespace LN_DUMMY {
-    const uint8_t CHANNEL_ID[] = {
-        0x40, 0xfd, 0xde, 0x21, 0x7b, 0xb2, 0xd6, 0xbc, 0x4c, 0x9e, 0x20, 0xc5, 0xe5, 0x31, 0x93, 0xd0,
-        0x71, 0xeb, 0xef, 0x7c, 0x13, 0x81, 0x04, 0x19, 0x82, 0x6a, 0xf8, 0x86, 0x2a, 0xf1, 0x22, 0xad,
-    };
-    const uint64_t ID = UINT64_C(0x2a9739910d80ed97);
-    const uint64_t AMOUNT_MSAT = UINT64_C(0x8386d9618134434b);
-    const uint8_t PAYMENT_HASH[] = {
-        0x44, 0x5e, 0x17, 0xaf, 0x29, 0x7e, 0xd3, 0x02, 0x98, 0xb9, 0xa0, 0x77, 0x3d, 0x60, 0xec, 0x84,
-        0xc5, 0x07, 0xbe, 0x5b, 0xfa, 0xd1, 0xc6, 0xbb, 0xe1, 0xa2, 0x8d, 0xeb, 0x8b, 0xba, 0x10, 0x4f,
-    };
-    const uint32_t CLTV_EXPIRY = 0xe94ea886;
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint64_t id;
+    uint64_t amount_msat;
+    uint8_t payment_hash[BTC_SZ_HASH256];
+    uint32_t cltv_expiry;
     uint8_t onion_routing_packet[LN_SZ_ONION_ROUTE];
-    const uint8_t PAYMENT_PREIMAGE[] = {
-        0x55, 0x5b, 0xbf, 0xba, 0x85, 0x1c, 0x7f, 0x22, 0xac, 0x4d, 0xab, 0x64, 0x79, 0x8f, 0xf3, 0x39,
-        0x25, 0xc5, 0x94, 0x3e, 0x04, 0xf6, 0xf2, 0x94, 0xe2, 0x21, 0x9c, 0x70, 0x4c, 0xa0, 0x3b, 0x86,
-    };
+    uint8_t payment_preimage[BTC_SZ_PRIVKEY];
     uint8_t reason[256];
     uint8_t sha256_of_onion[BTC_SZ_HASH256];
-    const uint16_t FAILURE_CODE = 0xb93b;
-    const uint8_t SIGNATURE[] = {
-        0x75, 0x5d, 0x2a, 0x97, 0x39, 0x91, 0x0d, 0x80, 0xed, 0x97, 0x78, 0x36, 0xdc, 0x24, 0xa0, 0xc6,
-        0xa2, 0x64, 0xaa, 0x0f, 0x5a, 0xf3, 0x65, 0xd8, 0x13, 0x6f, 0x4f, 0x2e, 0x46, 0xc2, 0x47, 0x38,
-        0xcd, 0x4a, 0x49, 0x37, 0xab, 0xc6, 0xb7, 0x75, 0x53, 0x21, 0x9c, 0xb0, 0x05, 0xd6, 0xef, 0x77,
-        0xb0, 0x78, 0x77, 0xa2, 0xaa, 0x00, 0x23, 0x46, 0x33, 0x98, 0x07, 0x69, 0xea, 0x4c, 0x52, 0x2d,
-    };
+    uint16_t failure_code;
+    uint8_t signature[LN_SZ_SIGNATURE];
     uint8_t htlc_signature[LN_SZ_SIGNATURE * 32];
+    uint8_t per_commitment_secret[BTC_SZ_PRIVKEY];
+    uint8_t next_per_commitment_point[BTC_SZ_PUBKEY];
 }
 
 
@@ -79,10 +67,20 @@ protected:
         //utl_log_init_stderr();
         utl_dbg_malloc_cnt_reset();
         ASSERT_TRUE(btc_rng_init());
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::id, sizeof(LN_DUMMY::id)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::amount_msat, sizeof(LN_DUMMY::amount_msat)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::cltv_expiry, sizeof(LN_DUMMY::cltv_expiry)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::payment_hash, sizeof(LN_DUMMY::payment_hash)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::payment_preimage, sizeof(LN_DUMMY::payment_preimage)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::failure_code, sizeof(LN_DUMMY::failure_code)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::signature, sizeof(LN_DUMMY::signature)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::per_commitment_secret, sizeof(LN_DUMMY::per_commitment_secret)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::next_per_commitment_point, sizeof(LN_DUMMY::next_per_commitment_point)));
         btc_rng_free();
     }
 
@@ -119,11 +117,11 @@ TEST_F(ln, update_add_htlc)
     ln_msg_update_add_htlc_t msg;
     utl_buf_t buf;
 
-    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
-    msg.id = LN_DUMMY::ID;
-    msg.amount_msat = LN_DUMMY::AMOUNT_MSAT;
-    msg.p_payment_hash = LN_DUMMY::PAYMENT_HASH;
-    msg.cltv_expiry = LN_DUMMY::CLTV_EXPIRY;
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.id = LN_DUMMY::id;
+    msg.amount_msat = LN_DUMMY::amount_msat;
+    msg.p_payment_hash = LN_DUMMY::payment_hash;
+    msg.cltv_expiry = LN_DUMMY::cltv_expiry;
     msg.p_onion_routing_packet = LN_DUMMY::onion_routing_packet;
     bool ret = ln_msg_update_add_htlc_write(&buf, &msg);
     ASSERT_TRUE(ret);
@@ -131,11 +129,11 @@ TEST_F(ln, update_add_htlc)
     memset(&msg, 0x00, sizeof(msg)); //clear
     ret = ln_msg_update_add_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
-    ASSERT_EQ(msg.id, LN_DUMMY::ID);
-    ASSERT_EQ(msg.amount_msat, LN_DUMMY::AMOUNT_MSAT);
-    ASSERT_EQ(0, memcmp(msg.p_payment_hash, LN_DUMMY::PAYMENT_HASH, sizeof(LN_DUMMY::PAYMENT_HASH)));
-    ASSERT_EQ(msg.cltv_expiry, LN_DUMMY::CLTV_EXPIRY);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(msg.id, LN_DUMMY::id);
+    ASSERT_EQ(msg.amount_msat, LN_DUMMY::amount_msat);
+    ASSERT_EQ(0, memcmp(msg.p_payment_hash, LN_DUMMY::payment_hash, sizeof(LN_DUMMY::payment_hash)));
+    ASSERT_EQ(msg.cltv_expiry, LN_DUMMY::cltv_expiry);
     ASSERT_EQ(0, memcmp(msg.p_onion_routing_packet, LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
     utl_buf_free(&buf);
 }
@@ -146,18 +144,18 @@ TEST_F(ln, update_fulfill_htlc)
     ln_msg_update_fulfill_htlc_t msg;
     utl_buf_t buf;
 
-    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
-    msg.id = LN_DUMMY::ID;
-    msg.p_payment_preimage = LN_DUMMY::PAYMENT_PREIMAGE;
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.id = LN_DUMMY::id;
+    msg.p_payment_preimage = LN_DUMMY::payment_preimage;
     bool ret = ln_msg_update_fulfill_htlc_write(&buf, &msg);
     ASSERT_TRUE(ret);
 
     memset(&msg, 0x00, sizeof(msg)); //clear
     ret = ln_msg_update_fulfill_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
-    ASSERT_EQ(msg.id, LN_DUMMY::ID);
-    ASSERT_EQ(0, memcmp(msg.p_payment_preimage, LN_DUMMY::PAYMENT_PREIMAGE, sizeof(LN_DUMMY::PAYMENT_PREIMAGE)));
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(msg.id, LN_DUMMY::id);
+    ASSERT_EQ(0, memcmp(msg.p_payment_preimage, LN_DUMMY::payment_preimage, sizeof(LN_DUMMY::payment_preimage)));
     utl_buf_free(&buf);
 }
 
@@ -167,8 +165,8 @@ TEST_F(ln, update_fail_htlc)
     ln_msg_update_fail_htlc_t msg;
     utl_buf_t buf;
 
-    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
-    msg.id = LN_DUMMY::ID;
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.id = LN_DUMMY::id;
     msg.len = sizeof(LN_DUMMY::reason);
     msg.p_reason = LN_DUMMY::reason;
     bool ret = ln_msg_update_fail_htlc_write(&buf, &msg);
@@ -177,8 +175,8 @@ TEST_F(ln, update_fail_htlc)
     memset(&msg, 0x00, sizeof(msg)); //clear
     ret = ln_msg_update_fail_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
-    ASSERT_EQ(msg.id, LN_DUMMY::ID);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(msg.id, LN_DUMMY::id);
     ASSERT_EQ(msg.len, sizeof(LN_DUMMY::reason));
     ASSERT_EQ(0, memcmp(msg.p_reason, LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
     utl_buf_free(&buf);
@@ -190,20 +188,20 @@ TEST_F(ln, update_fail_malformed_htlc)
     ln_msg_update_fail_malformed_htlc_t msg;
     utl_buf_t buf;
 
-    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
-    msg.id = LN_DUMMY::ID;
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.id = LN_DUMMY::id;
     msg.p_sha256_of_onion = LN_DUMMY::sha256_of_onion;
-    msg.failure_code = LN_DUMMY::FAILURE_CODE;
+    msg.failure_code = LN_DUMMY::failure_code;
     bool ret = ln_msg_update_fail_malformed_htlc_write(&buf, &msg);
     ASSERT_TRUE(ret);
 
     memset(&msg, 0x00, sizeof(msg)); //clear
     ret = ln_msg_update_fail_malformed_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
-    ASSERT_EQ(msg.id, LN_DUMMY::ID);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(msg.id, LN_DUMMY::id);
     ASSERT_EQ(0, memcmp(msg.p_sha256_of_onion, LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
-    ASSERT_EQ(msg.failure_code, LN_DUMMY::FAILURE_CODE);
+    ASSERT_EQ(msg.failure_code, LN_DUMMY::failure_code);
     utl_buf_free(&buf);
 }
 
@@ -213,8 +211,8 @@ TEST_F(ln, commitment_signed)
     ln_msg_commitment_signed_t msg;
     utl_buf_t buf;
 
-    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
-    msg.p_signature = LN_DUMMY::SIGNATURE;
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.p_signature = LN_DUMMY::signature;
     msg.num_htlcs = sizeof(LN_DUMMY::htlc_signature) / LN_SZ_SIGNATURE;
     msg.p_htlc_signature = LN_DUMMY::htlc_signature;
     bool ret = ln_msg_commitment_signed_write(&buf, &msg);
@@ -223,8 +221,29 @@ TEST_F(ln, commitment_signed)
     memset(&msg, 0x00, sizeof(msg)); //clear
     ret = ln_msg_commitment_signed_read(&msg, buf.buf, (uint16_t)buf.len);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
-    ASSERT_EQ(0, memcmp(msg.p_signature, LN_DUMMY::SIGNATURE, sizeof(LN_DUMMY::SIGNATURE)));
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(0, memcmp(msg.p_signature, LN_DUMMY::signature, sizeof(LN_DUMMY::signature)));
     ASSERT_EQ(0, memcmp(msg.p_htlc_signature, LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, revoke_and_ack)
+{
+    ln_msg_revoke_and_ack_t msg;
+    utl_buf_t buf;
+
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.p_per_commitment_secret = LN_DUMMY::per_commitment_secret;
+    msg.p_next_per_commitment_point = LN_DUMMY::next_per_commitment_point;
+    bool ret = ln_msg_revoke_and_ack_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_revoke_and_ack_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(0, memcmp(msg.p_per_commitment_secret, LN_DUMMY::per_commitment_secret, sizeof(LN_DUMMY::per_commitment_secret)));
+    ASSERT_EQ(0, memcmp(msg.p_next_per_commitment_point, LN_DUMMY::next_per_commitment_point, sizeof(LN_DUMMY::next_per_commitment_point)));
     utl_buf_free(&buf);
 }
