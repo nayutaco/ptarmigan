@@ -162,6 +162,12 @@ bool btc_rng_rand(uint8_t *pData, uint16_t Len);
 void btc_rng_free(void);
 
 
+/** print error string
+ *
+ */
+void btc_crypto_error_print(int ErrNum);
+
+
 /**************************************************************************
  * package functions (btc_ecc)
  **************************************************************************/
