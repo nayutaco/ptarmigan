@@ -286,6 +286,8 @@ static bool set_add_htlc(ln_self_t *self,
             uint16_t PrevIdx,
             const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx);
+static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pInfo);
+static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len);
 static void add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
 static void fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
 static void fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
@@ -847,7 +849,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
                     //update_add_htlc送信
                     LOGD("resend: update_add_htlc\n");
                     p_htlc->p_channel_id = self->channel_id;
-                    (void)ln_msg_update_add_htlc_write(&buf_bolt, p_htlc);
+                    (void)msg_update_add_htlc_write(&buf_bolt, p_htlc);
                     break;
                 case M_HTLCFLAG_BITS_FULFILLHTLC:
                     //update_fulfill_htlc送信
@@ -3339,11 +3341,11 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         M_SET_ERR(self, LNERR_HTLC_FULL, "no free add_htlc");
         return false;
     }
-    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
 
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     p_htlc->p_channel_id = channel_id;
-    ret = ln_msg_update_add_htlc_read(p_htlc, pData, Len);
+    ret = msg_update_add_htlc_read(p_htlc, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
@@ -5479,6 +5481,32 @@ static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx)
 }
 
 
+static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pInfo)
+{
+    ln_msg_update_add_htlc_t msg;
+    msg.p_channel_id = pInfo->p_channel_id;
+    msg.id = pInfo->id;
+    msg.amount_msat = pInfo->amount_msat;
+    msg.p_payment_hash = pInfo->payment_sha256;
+    msg.cltv_expiry = pInfo->cltv_expiry;
+    msg.p_onion_routing_packet = pInfo->buf_onion_reason.buf;
+    return ln_msg_update_add_htlc_write(pBuf, &msg);
+}
+
+
+static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len)
+{
+    ln_msg_update_add_htlc_t msg;
+    if (!ln_msg_update_add_htlc_read(&msg, pData, Len)) return false;
+    memcpy(pInfo->p_channel_id, msg.p_channel_id, LN_SZ_CHANNEL_ID);
+    pInfo->id = msg.id;
+    pInfo->amount_msat = msg.amount_msat;
+    memcpy(pInfo->payment_sha256, msg.p_payment_hash, BTC_SZ_HASH256);
+    pInfo->cltv_expiry = msg.cltv_expiry;
+    return utl_buf_alloccopy(&pInfo->buf_onion_reason, msg.p_onion_routing_packet, LN_SZ_ONION_ROUTE);
+}
+
+
 /** update_add_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
@@ -5490,7 +5518,7 @@ static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx)
 static void add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
-    bool ret = ln_msg_update_add_htlc_write(pAdd, &self->cnl_add_htlc[Idx]);
+    bool ret = msg_update_add_htlc_write(pAdd, &self->cnl_add_htlc[Idx]);
     if (ret) {
         self->cnl_add_htlc[Idx].stat.flag.updsend = 1;
     } else {
