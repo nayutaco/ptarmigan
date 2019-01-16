@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "mbedtls/error.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/md.h"
 #include "mbedtls/sha256.h"
@@ -45,6 +46,7 @@
 #include "btc_sig.h"
 #include "btc_sw.h"
 #include "btc_tx_buf.h"
+#include "btc_dbg.h"
 #include "btc_crypto.h"
 
 
@@ -328,7 +330,13 @@ bool btc_rng_init(void)
 bool btc_rng_rand(uint8_t *pData, uint16_t Len)
 {
 #ifndef PTARM_NO_USE_RNG
-    if (mbedtls_ctr_drbg_random(&mRng, pData, Len)) return false;
+    int ret = mbedtls_ctr_drbg_random(&mRng, pData, Len);
+    if (ret) {
+        LOGD("fail: random=%d\n", ret);
+        btc_crypto_error_print(ret);
+        LOGD("\n");
+        return false;
+    }
 #else
     for (uint16_t lp = 0; lp < Len; lp++) {
         pData[lp] = (uint8_t)(rand() % 256);
@@ -337,12 +345,21 @@ bool btc_rng_rand(uint8_t *pData, uint16_t Len)
     return true;
 }
 
+
 void btc_rng_free(void)
 {
 #ifndef PTARM_NO_USE_RNG
     mbedtls_entropy_free(&mEntropy);
     mbedtls_ctr_drbg_free(&mRng);
 #endif
+}
+
+
+void btc_crypto_error_print(int ErrNum)
+{
+    char buffer[1024];
+    mbedtls_strerror(ErrNum, buffer, sizeof(buffer));
+    LOGD("%s\n", buffer);
 }
 
 
