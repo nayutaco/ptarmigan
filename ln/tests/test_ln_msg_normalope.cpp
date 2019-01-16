@@ -59,6 +59,8 @@ namespace LN_DUMMY {
         0x25, 0xc5, 0x94, 0x3e, 0x04, 0xf6, 0xf2, 0x94, 0xe2, 0x21, 0x9c, 0x70, 0x4c, 0xa0, 0x3b, 0x86,
     };
     uint8_t reason[256];
+    uint8_t sha256_of_onion[BTC_SZ_HASH256];
+    const uint16_t FAILURE_CODE = 0xb93b;
 }
 
 
@@ -72,6 +74,7 @@ protected:
         ASSERT_TRUE(btc_rng_init());
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
         btc_rng_free();
     }
 
@@ -170,5 +173,28 @@ TEST_F(ln, update_fail_htlc)
     ASSERT_EQ(msg.id, LN_DUMMY::ID);
     ASSERT_EQ(msg.len, sizeof(LN_DUMMY::reason));
     ASSERT_EQ(0, memcmp(msg.p_reason, LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, update_fail_malformed_htlc)
+{
+    ln_msg_update_fail_malformed_htlc_t msg;
+    utl_buf_t buf;
+
+    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
+    msg.id = LN_DUMMY::ID;
+    msg.p_sha256_of_onion = LN_DUMMY::sha256_of_onion;
+    msg.failure_code = LN_DUMMY::FAILURE_CODE;
+    bool ret = ln_msg_update_fail_malformed_htlc_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_update_fail_malformed_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
+    ASSERT_EQ(msg.id, LN_DUMMY::ID);
+    ASSERT_EQ(0, memcmp(msg.p_sha256_of_onion, LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
+    ASSERT_EQ(msg.failure_code, LN_DUMMY::FAILURE_CODE);
     utl_buf_free(&buf);
 }
