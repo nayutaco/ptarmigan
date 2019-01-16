@@ -121,9 +121,9 @@ static void init_print(const ln_msg_init_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[init]-------------------------------\n");
-    LOGD("globalfeatures(%u)= ", pMsg->gflen);
+    LOGD("globalfeatures: ");
     DUMPD(pMsg->p_globalfeatures, pMsg->gflen);
-    LOGD("localfeatures(%u)= ", pMsg->lflen);
+    LOGD("localfeatures: ");
     DUMPD(pMsg->p_localfeatures, pMsg->lflen);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
