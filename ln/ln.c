@@ -3182,9 +3182,9 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) && ln_is_funder(self)) {
         //shutdown交換完了 && funder --> 最初のclosing_signed送信
         LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
-        ln_closing_signed_t cnl_close;
+        ln_msg_closing_signed_t cnl_close;
         cnl_close.p_channel_id = self->channel_id;
-        cnl_close.fee_sat = self->close_fee_sat;
+        cnl_close.fee_satoshis = self->close_fee_sat;
         cnl_close.p_signature = self->commit_remote.signature;
 
         //remoteの署名はないので、verifyしない
@@ -3222,18 +3222,16 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     bool ret;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    ln_closing_signed_t cnl_close;
-    cnl_close.p_channel_id = channel_id;
-    cnl_close.p_signature = self->commit_local.signature;
+    ln_msg_closing_signed_t cnl_close;
     ret = ln_msg_closing_signed_read(&cnl_close, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
+    memcpy(self->commit_local.signature, cnl_close.p_signature, LN_SZ_SIGNATURE);
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(cnl_close.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
@@ -3243,14 +3241,14 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
     uint64_t feemax = ln_closing_signed_initfee(self);
-    if (cnl_close.fee_sat > feemax) {
-        LOGD("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_sat, feemax);
+    if (cnl_close.fee_satoshis > feemax) {
+        LOGD("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_satoshis, feemax);
         return false;
     }
 
     //相手が要求するFEEでverify
     btc_tx_free(&self->tx_closing);
-    ret = create_closing_tx(self, &self->tx_closing, cnl_close.fee_sat, true);
+    ret = create_closing_tx(self, &self->tx_closing, cnl_close.fee_satoshis, true);
     if (!ret) {
         LOGD("fail: create close_t\n");
         assert(false);
@@ -3258,12 +3256,12 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     cnl_close.p_channel_id = self->channel_id;
     cnl_close.p_signature = self->commit_remote.signature;
-    bool need_closetx = (self->close_last_fee_sat == cnl_close.fee_sat);
+    bool need_closetx = (self->close_last_fee_sat == cnl_close.fee_satoshis);
 
     if (!need_closetx) {
         //送信feeと受信feeが不一致なので、上位層にfeeを設定してもらう
         ln_cb_closed_fee_t closed_fee;
-        closed_fee.fee_sat = cnl_close.fee_sat;
+        closed_fee.fee_sat = cnl_close.fee_satoshis;
         callback(self, LN_CB_CLOSED_FEE, &closed_fee);
         //self->close_fee_satが更新される
     }
