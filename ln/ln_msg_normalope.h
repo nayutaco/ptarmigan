@@ -32,6 +32,32 @@
 #include "ln.h"
 
 
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+/** @struct     ln_msg_update_add_htlc_t
+ *  @brief      update_add_htlc
+ */
+typedef struct {
+    //type: 128 (update_add_htlc)
+    //data:
+    //  [32:channel_id]
+    //  [8:id]
+    //  [8:amount_msat]
+    //  [32:payment_hash]
+    //  [4:cltv_expiry]
+    //  [1366:onion_routing_packet]
+
+    const uint8_t   *p_channel_id;
+    uint64_t        id;
+    uint64_t        amount_msat;
+    const uint8_t   *p_payment_hash;
+    uint32_t        cltv_expiry;
+    const uint8_t   *p_onion_routing_packet;
+} ln_msg_update_add_htlc_t;
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -42,7 +68,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pMsg);
+bool HIDDEN ln_msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_msg_update_add_htlc_t *pMsg);
 
 
 /** update_add_htlc読込み
@@ -52,7 +78,7 @@ bool HIDDEN ln_msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_ht
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_update_add_htlc_read(ln_msg_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** update_fulfill_htlc生成
