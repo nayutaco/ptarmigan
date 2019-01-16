@@ -98,4 +98,4 @@ test_clean:
 	$(MAKE) -C btc/examples clean
 
 test-integration:
-	cd tests/4nodes_test; timeout 180 ./all_test.sh
+	cd tests/4nodes_test; timeout 200 ./all_test.sh
