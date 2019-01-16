@@ -58,6 +58,7 @@ namespace LN_DUMMY {
         0x55, 0x5b, 0xbf, 0xba, 0x85, 0x1c, 0x7f, 0x22, 0xac, 0x4d, 0xab, 0x64, 0x79, 0x8f, 0xf3, 0x39,
         0x25, 0xc5, 0x94, 0x3e, 0x04, 0xf6, 0xf2, 0x94, 0xe2, 0x21, 0x9c, 0x70, 0x4c, 0xa0, 0x3b, 0x86,
     };
+    uint8_t reason[256];
 }
 
 
@@ -70,6 +71,7 @@ protected:
         utl_dbg_malloc_cnt_reset();
         ASSERT_TRUE(btc_rng_init());
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
         btc_rng_free();
     }
 
@@ -145,5 +147,28 @@ TEST_F(ln, update_fulfill_htlc)
     ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
     ASSERT_EQ(msg.id, LN_DUMMY::ID);
     ASSERT_EQ(0, memcmp(msg.p_payment_preimage, LN_DUMMY::PAYMENT_PREIMAGE, sizeof(LN_DUMMY::PAYMENT_PREIMAGE)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, update_fail_htlc)
+{
+    ln_msg_update_fail_htlc_t msg;
+    utl_buf_t buf;
+
+    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
+    msg.id = LN_DUMMY::ID;
+    msg.len = sizeof(LN_DUMMY::reason);
+    msg.p_reason = LN_DUMMY::reason;
+    bool ret = ln_msg_update_fail_htlc_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_update_fail_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
+    ASSERT_EQ(msg.id, LN_DUMMY::ID);
+    ASSERT_EQ(msg.len, sizeof(LN_DUMMY::reason));
+    ASSERT_EQ(0, memcmp(msg.p_reason, LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
     utl_buf_free(&buf);
 }

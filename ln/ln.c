@@ -3602,24 +3602,17 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     LOGD("BEGIN\n");
 
     bool ret;
-    ln_update_fail_htlc_t    fail_htlc;
-
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    utl_buf_t reason = UTL_BUF_INIT;
-
-    fail_htlc.p_channel_id = channel_id;
-    fail_htlc.p_reason = &reason;
-    ret = ln_msg_update_fail_htlc_read(&fail_htlc, pData, Len);
+    ln_msg_update_fail_htlc_t msg;
+    ret = ln_msg_update_fail_htlc_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
-        utl_buf_free(&reason);
         return false;
     }
 
@@ -3628,12 +3621,14 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
         //受信したfail_htlcは、Offered HTLCについてチェックする
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if ( (p_htlc->stat.flag.addhtlc == LN_ADDHTLC_OFFER) &&
-             (p_htlc->id == fail_htlc.id)) {
+             (p_htlc->id == msg.id)) {
             //id一致
             clear_htlc_comrevflag(p_htlc, LN_DELHTLC_FAIL);
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = p_htlc->prev_short_channel_id;
+            utl_buf_t reason;
+            utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
             fail_recv.p_reason = &reason;
             fail_recv.p_shared_secret = &p_htlc->buf_shared_secret;
             fail_recv.prev_idx = idx;
@@ -3646,8 +3641,6 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             break;
         }
     }
-
-    utl_buf_free(&reason);
 
     return ret;
 }
@@ -5565,12 +5558,13 @@ static void fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
 
-    ln_update_fail_htlc_t fail_htlc;
+    ln_msg_update_fail_htlc_t fail_htlc;
     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
 
     fail_htlc.p_channel_id = self->channel_id;
     fail_htlc.id = p_htlc->id;
-    fail_htlc.p_reason = &p_htlc->buf_onion_reason;
+    fail_htlc.len = p_htlc->buf_onion_reason.len;
+    fail_htlc.p_reason = p_htlc->buf_onion_reason.buf;
     bool ret = ln_msg_update_fail_htlc_write(pFail, &fail_htlc);
     if (ret) {
         p_htlc->stat.flag.updsend = 1;
