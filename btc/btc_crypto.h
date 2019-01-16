@@ -156,6 +156,15 @@ bool btc_rng_init(void);
 bool btc_rng_rand(uint8_t *pData, uint16_t Len);
 
 
+/** generate big random data
+ *
+ * @param[out]      pData       random data
+ * @param[in]       Len         data length
+ * @return          true        success
+ */
+bool btc_rng_big_rand(uint8_t *pData, uint16_t Len);
+
+
 /** free random generator
  *
  */
