@@ -54,6 +54,10 @@ namespace LN_DUMMY {
     };
     const uint32_t CLTV_EXPIRY = 0xe94ea886;
     uint8_t onion_routing_packet[LN_SZ_ONION_ROUTE];
+    const uint8_t PAYMENT_PREIMAGE[] = {
+        0x55, 0x5b, 0xbf, 0xba, 0x85, 0x1c, 0x7f, 0x22, 0xac, 0x4d, 0xab, 0x64, 0x79, 0x8f, 0xf3, 0x39,
+        0x25, 0xc5, 0x94, 0x3e, 0x04, 0xf6, 0xf2, 0x94, 0xe2, 0x21, 0x9c, 0x70, 0x4c, 0xa0, 0x3b, 0x86,
+    };
 }
 
 
@@ -120,5 +124,26 @@ TEST_F(ln, update_add_htlc)
     ASSERT_EQ(0, memcmp(msg.p_payment_hash, LN_DUMMY::PAYMENT_HASH, sizeof(LN_DUMMY::PAYMENT_HASH)));
     ASSERT_EQ(msg.cltv_expiry, LN_DUMMY::CLTV_EXPIRY);
     ASSERT_EQ(0, memcmp(msg.p_onion_routing_packet, LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, update_fulfill_htlc)
+{
+    ln_msg_update_fulfill_htlc_t msg;
+    utl_buf_t buf;
+
+    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
+    msg.id = LN_DUMMY::ID;
+    msg.p_payment_preimage = LN_DUMMY::PAYMENT_PREIMAGE;
+    bool ret = ln_msg_update_fulfill_htlc_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_update_fulfill_htlc_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
+    ASSERT_EQ(msg.id, LN_DUMMY::ID);
+    ASSERT_EQ(0, memcmp(msg.p_payment_preimage, LN_DUMMY::PAYMENT_PREIMAGE, sizeof(LN_DUMMY::PAYMENT_PREIMAGE)));
     utl_buf_free(&buf);
 }

@@ -3541,34 +3541,31 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     LOGD("BEGIN\n");
 
     bool ret;
-    ln_update_fulfill_htlc_t    fulfill_htlc;
-
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t preimage[LN_SZ_PREIMAGE];
-    fulfill_htlc.p_channel_id = channel_id;
-    fulfill_htlc.p_payment_preimage = preimage;
-    ret = ln_msg_update_fulfill_htlc_read(&fulfill_htlc, pData, Len);
+    ln_msg_update_fulfill_htlc_t msg;
+    ret = ln_msg_update_fulfill_htlc_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     uint8_t sha256[BTC_SZ_HASH256];
-    btc_md_sha256(sha256, preimage, sizeof(preimage));
+    btc_md_sha256(sha256, msg.p_payment_preimage, BTC_SZ_PRIVKEY);
+    LOGD("hash: ");
+    DUMPD(sha256, sizeof(sha256));
 
     ln_update_add_htlc_t *p_htlc = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfulfillは、Offered HTLCについてチェックする
         LOGD("HTLC%d: id=%" PRIu64 ", flag=%04x: ", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].stat.bits);
         DUMPD(self->cnl_add_htlc[idx].payment_sha256, BTC_SZ_HASH256);
-        if ( (self->cnl_add_htlc[idx].id == fulfill_htlc.id) &&
+        if ( (self->cnl_add_htlc[idx].id == msg.id) &&
              (self->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_OFFER) ) {
             if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, BTC_SZ_HASH256) == 0) {
                 p_htlc = &self->cnl_add_htlc[idx];
@@ -3587,7 +3584,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         ln_cb_fulfill_htlc_recv_t fulfill;
         fulfill.prev_short_channel_id = p_htlc->prev_short_channel_id;
         fulfill.prev_idx = p_htlc->prev_idx;
-        fulfill.p_preimage = preimage;
+        fulfill.p_preimage = msg.p_payment_preimage;
         fulfill.id = p_htlc->id;
         fulfill.amount_msat = p_htlc->amount_msat;
         callback(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
@@ -5540,13 +5537,13 @@ static void fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t I
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
 
-    ln_update_fulfill_htlc_t fulfill_htlc;
+    ln_msg_update_fulfill_htlc_t msg;
     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
 
-    fulfill_htlc.p_channel_id = self->channel_id;
-    fulfill_htlc.id = p_htlc->id;
-    fulfill_htlc.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
-    bool ret = ln_msg_update_fulfill_htlc_write(pFulfill, &fulfill_htlc);
+    msg.p_channel_id = self->channel_id;
+    msg.id = p_htlc->id;
+    msg.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
+    bool ret = ln_msg_update_fulfill_htlc_write(pFulfill, &msg);
     if (ret) {
         p_htlc->stat.flag.updsend = 1;
     } else {
