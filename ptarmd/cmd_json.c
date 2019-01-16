@@ -139,6 +139,7 @@ static int cmd_routepay_proc1(
                 uint64_t AddAmountMsat,
                 int32_t BlockCnt);
 static int cmd_routepay_proc2(
+                lnapp_conf_t *pAppConf,
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
                 const char *pInvoiceStr,
@@ -858,7 +859,8 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
         bool inited = lnapp_is_inited(p_appconf);
         if (inited) {
             bool ret;
-            ret = lnapp_payment(p_appconf, &payconf);
+            const char *p_result = NULL;
+            ret = lnapp_payment(p_appconf, &payconf, &p_result);
             if (ret) {
                 result = cJSON_CreateString("Progressing");
             } else {
@@ -962,22 +964,35 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    lnapp_conf_t *p_appconf = ptarmd_search_transferable_nodeid(rt_ret.hop_datain[1].pubkey);
+    if (p_appconf != NULL) {
+        bool ret = lnapp_check_ponglist(p_appconf);
+        if (!ret) {
+            err = RPCERR_BUSY;
+            goto LABEL_EXIT;
+        }
+    }
+
     // 送金開始
     //      ここまでで送金ルートは作成済み
     //      これ以降は失敗してもリトライする
     LOGD("routepay: pay1\n");
-    err = cmd_routepay_proc2(p_invoice_data, &rt_ret,
+    err = cmd_routepay_proc2(
+                    p_appconf,
+                    p_invoice_data, &rt_ret,
                     p_invoice, add_amount_msat);
     retry = (err == RPCERR_PAY_RETRY);
 
 LABEL_EXIT:
     if (err == 0) {
-        result = cJSON_CreateString("start payment");
+        result = cJSON_CreateString("start payment...");
     } else {
+        //paymentはretryを行うが、JSON-RPCのreplyは初回のみ有効
         if (retry) {
             LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
             ln_db_routeskip_save(rt_ret.hop_datain[0].short_channel_id, true);
             cmd_json_pay(p_invoice, add_amount_msat);
+            result = cJSON_CreateString("searching payment route...");
         } else {
             //送金失敗
             ctx->error_code = err;
@@ -1517,7 +1532,7 @@ static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
     int retry = M_RETRY_CONN_CHK;
     while (retry--) {
         lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pConn->node_id);
-        if ((p_appconf != NULL) && lnapp_is_looping(p_appconf) && lnapp_is_inited(p_appconf)) {
+        if ((p_appconf != NULL) && lnapp_is_looping(p_appconf) && lnapp_is_connected(p_appconf)) {
             break;
         }
         sleep(1);
@@ -1598,6 +1613,11 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
     if (!inited) {
         //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
         return RPCERR_NOINIT;
+    }
+
+    bool nopong = lnapp_check_ponglist(p_appconf);
+    if (!nopong) {
+        return RPCERR_BUSY;
     }
 
     uint32_t feerate_per_kw = pFund->feerate_per_kw;
@@ -1748,6 +1768,7 @@ static int cmd_routepay_proc1(
  * @retval  エラーコード
  */
 static int cmd_routepay_proc2(
+                lnapp_conf_t *pAppConf,
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
                 const char *pInvoiceStr,
@@ -1761,22 +1782,26 @@ static int cmd_routepay_proc2(
     //save routing information
 
     const char *p_result = NULL;
-    lnapp_conf_t *p_appconf = ptarmd_search_transferable_nodeid(pRouteResult->hop_datain[1].pubkey);
-    if (p_appconf != NULL) {
+    if (pAppConf != NULL) {
         payment_conf_t payconf;
 
         memcpy(payconf.payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
         payconf.hop_num = pRouteResult->hop_num;
         memcpy(payconf.hop_datain, pRouteResult->hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
 
-        bool ret = lnapp_payment(p_appconf, &payconf);
+        bool ret = lnapp_payment(pAppConf, &payconf, &p_result);
         if (ret) {
             LOGD("start payment\n");
             err = 0;
             p_result = "start payment";
         } else {
             LOGD("fail: lnapp_payment(0x%016" PRIx64 ")\n", pRouteResult->hop_datain[0].short_channel_id);
-            p_result = ln_errmsg(p_appconf->p_self);
+            if (p_result == NULL) {
+                p_result = ln_errmsg(pAppConf->p_self);
+            }
+            if (p_result == NULL) {
+                p_result = "fail payment";
+            }
         }
     } else {
         LOGD("fail: not connect(%016" PRIx64 "): \n", pRouteResult->hop_datain[0].short_channel_id);
@@ -1891,6 +1916,12 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
     lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
     if (p_appconf != NULL) {
         //接続中
+        bool nopong = lnapp_check_ponglist(p_appconf);
+        if (!nopong) {
+            err = RPCERR_BUSY;
+            goto LABEL_EXIT;
+        }
+
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
             err = 0;
@@ -1906,6 +1937,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
         }
     }
 
+LABEL_EXIT:
     return err;
 }
 

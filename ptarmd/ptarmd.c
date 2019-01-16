@@ -450,6 +450,7 @@ const char *ptarmd_error_cstr(int ErrCode)
         { RPCERR_PARSE,                     "parse param" },
         { RPCERR_NOINIT,                    "no init or init not end" },
         { RPCERR_BLOCKCHAIN,                "fail blockchain access" },
+        { RPCERR_BUSY,                      "node busy" },
 
         { RPCERR_NODEID,                    "invalid node_id" },
         { RPCERR_NOOPEN,                    "channel not open" },

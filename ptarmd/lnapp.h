@@ -163,10 +163,17 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
  * 送金
  *******************************************/
 
+/** [lnapp]check pong list
+ * 
+ *  @retval     true    not receive pong against previous ping sending.
+ */
+bool lnapp_check_ponglist(const lnapp_conf_t *pAppConf);
+
+
 /** [lnapp]送金開始
  *
  */
-bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
+bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const char **ppResult);
 
 
 /** [lnapp]channel間処理転送
@@ -228,12 +235,21 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal);
 
 /** [lnapp]ループ状態取得
  *
+ * @retval  true        channel active
  */
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
 
 
+/** [lnapp]接続済み状態取得
+ *
+ * @retval  true        init message exchanged
+ */
+bool lnapp_is_connected(const lnapp_conf_t *pAppConf);
+
+
 /** [lnapp]初期化済み状態取得
  *
+ * @retval  true        init/channel_reestablish/funding_locked message exchanged
  */
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
 

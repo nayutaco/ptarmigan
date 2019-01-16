@@ -270,15 +270,23 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
  * 送金
  *******************************************/
 
+bool lnapp_check_ponglist(const lnapp_conf_t *pAppConf)
+{
+    return LIST_EMPTY(&pAppConf->pong_head);
+}
+
+
 //初回ONIONパケット作成
-bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
+bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const char **ppResult)
 {
     if (!pAppConf->loop || !lnapp_is_inited(pAppConf)) {
-        //LOGD("This AppConf not working\n");
+        *ppResult = "not working channel";
+        LOGE("%s\n", *ppResult);
         return false;
     }
     if (ln_status_get(pAppConf->p_self) != LN_STATUS_NORMAL) {
-        LOGD("not Normal Operation status\n");
+        *ppResult = "not Normal Operation status";
+        LOGE("%s\n", *ppResult);
         return false;
     }
 
@@ -293,10 +301,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     utl_buf_t secrets = UTL_BUF_INIT;
 
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_self)) {
-        LOGD("short_channel_id mismatch\n");
-        LOGD("fail: short_channel_id mismatch\n");
-        LOGD("    hop  : %016" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
-        LOGD("    mine : %016" PRIx64 "\n", ln_short_channel_id(p_self));
+        LOGE("short_channel_id mismatch\n");
+        LOGE("fail: short_channel_id mismatch\n");
+        LOGE("    hop  : %016" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
+        LOGE("    mine : %016" PRIx64 "\n", ln_short_channel_id(p_self));
         ln_db_routeskip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
         goto LABEL_EXIT;
     }
@@ -304,14 +312,14 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     //amount, CLTVチェック(最後の値はチェックしない)
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
         if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
-            LOGD("[%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")\n",
+            LOGE("[%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")\n",
                     lp,
                     pPay->hop_datain[lp - 1].amt_to_forward,
                     pPay->hop_datain[lp].amt_to_forward);
             goto LABEL_EXIT;
         }
         if (pPay->hop_datain[lp - 1].outgoing_cltv_value <= pPay->hop_datain[lp].outgoing_cltv_value) {
-            LOGD("[%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 ")\n",
+            LOGE("[%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 ")\n",
                     lp,
                     pPay->hop_datain[lp - 1].outgoing_cltv_value,
                     pPay->hop_datain[lp].outgoing_cltv_value);
@@ -381,7 +389,7 @@ LABEL_EXIT:
                     pPay->hop_datain[0].amt_to_forward,
                     pPay->hop_datain[0].outgoing_cltv_value);
     } else {
-        LOGD("fail\n");
+        LOGE("fail\n");
         // char errstr[512];
         // sprintf(errstr, M_ERRSTR_CANNOTSTART,
         //             ln_our_msat(pAppConf->p_self),
@@ -763,6 +771,12 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 }
 
 
+bool lnapp_is_connected(const lnapp_conf_t *pAppConf)
+{
+    return (pAppConf->flag_recv & RECV_MSG_INIT) == RECV_MSG_INIT;
+}
+
+
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
 {
     return (pAppConf->flag_recv & RECV_MSG_END) == RECV_MSG_END;
@@ -809,7 +823,7 @@ static void *thread_main_start(void *pArg)
     ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = p_self;
-    p_conf->ping_counter = M_PING_CNT;
+    p_conf->ping_counter = 1;       //send soon
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
     p_conf->flag_recv = 0;
@@ -977,6 +991,9 @@ static void *thread_main_start(void *pArg)
         LOGD("fail: loop ended: %016" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_JOIN;
     }
+
+    //force send ping
+    poll_ping(p_conf);
 
     if (ln_funding_locked_check_need(p_self)) {
         //funding_locked交換
@@ -1735,7 +1752,7 @@ static void poll_ping(lnapp_conf_t *p_conf)
 
     //未送受信の状態が続いたらping送信する
     p_conf->ping_counter--;
-    if (p_conf->ping_counter == 0) {
+    if (p_conf->ping_counter <= 0) {
         //check missing pong
         ponglist_t *p = LIST_FIRST(&p_conf->pong_head);
         while (p != NULL) {
