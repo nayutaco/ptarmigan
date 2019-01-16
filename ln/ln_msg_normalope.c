@@ -59,7 +59,7 @@ static void update_fail_htlc_print(const ln_msg_update_fail_htlc_t *pMsg);
 static void update_fail_malformed_htlc_print(const ln_msg_update_fail_malformed_htlc_t *pMsg);
 static void commitment_signed_print(const ln_msg_commitment_signed_t *pMsg);
 static void revoke_and_ack_print(const ln_msg_revoke_and_ack_t *pMsg);
-static void update_fee_print(const ln_update_fee_t *pMsg);
+static void update_fee_print(const ln_msg_update_fee_t *pMsg);
 
 
 /********************************************************************
@@ -484,80 +484,59 @@ static void revoke_and_ack_print(const ln_msg_revoke_and_ack_t *pMsg)
  * update_fee
  ********************************************************************/
 
-bool HIDDEN ln_msg_update_fee_write(utl_buf_t *pBuf, const ln_update_fee_t *pMsg)
+bool HIDDEN ln_msg_update_fee_write(utl_buf_t *pBuf, const ln_msg_update_fee_t *pMsg)
 {
-    //    type: 134 (update_fee)
-    //    data:
-    //        [32:channel-id]
-    //        [4:feerate-per-kw]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 36);
-
-    //    type: 134 (update_fee)
-    ln_misc_push16be(&proto, MSGTYPE_UPDATE_FEE);
-
-    //        [32:channel-id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [4:feerate-per-kw]
-    ln_misc_push32be(&proto, pMsg->feerate_per_kw);
-
-    assert(sizeof(uint16_t) + 36 == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_UPDATE_FEE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->feerate_per_kw)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 36) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_FEE) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [4:feerate-per-kw]
-    pMsg->feerate_per_kw = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
-
-    assert(Len >= pos);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->feerate_per_kw)) goto LABEL_ERROR_SYNTAX;
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void update_fee_print(const ln_update_fee_t *pMsg)
+static void update_fee_print(const ln_msg_update_fee_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[update_fee]-------------------------------\n");
-    LOGD("channel-id: ");
+    LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("feerate_per_kw= %lu\n", (unsigned long)pMsg->feerate_per_kw);
+    LOGD("feerate_per_kw: %u\n", pMsg->feerate_per_kw);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }

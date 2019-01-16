@@ -144,13 +144,18 @@ typedef struct {
 } ln_msg_revoke_and_ack_t;
 
 
-/** @struct     ln_update_fee_t
+/** @struct     ln_msg_update_fee_t
  *  @brief      update_fee
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint32_t    feerate_per_kw;                     ///< 4:  feerate-per-kw
-} ln_update_fee_t;
+    //type: 134 (update_fee)
+    //data:
+    //  [32:channel_id]
+    //  [4:feerate_per_kw]
+
+    const uint8_t   *p_channel_id;
+    uint32_t        feerate_per_kw;
+} ln_msg_update_fee_t;
 
 
 /********************************************************************
@@ -277,7 +282,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_msg_revoke_and_ack_t *pMsg, const uint
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fee_write(utl_buf_t *pBuf, const ln_update_fee_t *pMsg);
+bool HIDDEN ln_msg_update_fee_write(utl_buf_t *pBuf, const ln_msg_update_fee_t *pMsg);
 
 
 /** update_fee読込み
@@ -287,7 +292,7 @@ bool HIDDEN ln_msg_update_fee_write(utl_buf_t *pBuf, const ln_update_fee_t *pMsg
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 #endif /* LN_MSG_NORMALOPE_H__ */

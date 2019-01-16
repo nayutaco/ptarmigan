@@ -65,8 +65,8 @@ FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 
 FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_data_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
-FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_update_fee_t *);
-FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_update_fee_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_msg_update_fee_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_msg_update_fee_t *, const uint8_t *, uint16_t );
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -74,6 +74,10 @@ FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_update_fee_t *, const uint8_t *
 namespace LN_DUMMY {
     const uint8_t CHANNEL_ID[] = {
         0x40, 0xfd, 0xde, 0x21, 0x7b, 0xb2, 0xd6, 0xbc, 0x4c, 0x9e, 0x20, 0xc5, 0xe5, 0x31, 0x93, 0xd0,
+        0x71, 0xeb, 0xef, 0x7c, 0x13, 0x81, 0x04, 0x19, 0x82, 0x6a, 0xf8, 0x86, 0x2a, 0xf1, 0x22, 0xad,
+    };
+    const uint8_t CHANNEL_ID_2[] = {
+        0xff, /*!!!*/ 0xfd, 0xde, 0x21, 0x7b, 0xb2, 0xd6, 0xbc, 0x4c, 0x9e, 0x20, 0xc5, 0xe5, 0x31, 0x93, 0xd0,
         0x71, 0xeb, 0xef, 0x7c, 0x13, 0x81, 0x04, 0x19, 0x82, 0x6a, 0xf8, 0x86, 0x2a, 0xf1, 0x22, 0xad,
     };
 }
@@ -392,8 +396,8 @@ TEST_F(ln, recv_updatefee_ok)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             pMsg->feerate_per_kw = 500;
             return true;
         }
@@ -425,8 +429,8 @@ TEST_F(ln, recv_updatefee_decode)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             pMsg->feerate_per_kw = 500;
             return false;   //★
         }
@@ -457,9 +461,8 @@ TEST_F(ln, recv_updatefee_channelid)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-            pMsg->p_channel_id[0] = 0xff;   //★
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID_2;
             pMsg->feerate_per_kw = 500;
             return true;
         }
@@ -489,8 +492,8 @@ TEST_F(ln, recv_updatefee_funder)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             pMsg->feerate_per_kw = 500;
             return true;
         }
@@ -522,8 +525,8 @@ TEST_F(ln, recv_updatefee_min)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             pMsg->feerate_per_kw = 252;     //★
             return true;
         }
@@ -553,8 +556,8 @@ TEST_F(ln, recv_updatefee_low)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             //now: 5000
             //      low: 5000*0.2 = 1000
             //      hi : 5000*5.0 = 25000
@@ -587,8 +590,8 @@ TEST_F(ln, recv_updatefee_hi)
                 callback_called++;
             }
         }
-        static bool ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            memcpy(pMsg->p_channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             //now: 5000
             //      low: 5000*0.2 = 1000
             //      hi : 5000*5.0 = 25000

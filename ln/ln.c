@@ -1695,10 +1695,10 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
         return false;
     }
 
-    ln_update_fee_t updfee;
-    updfee.p_channel_id = self->channel_id;
-    updfee.feerate_per_kw = FeeratePerKw;
-    ret = ln_msg_update_fee_write(pUpdFee, &updfee);
+    ln_msg_update_fee_t msg;
+    msg.p_channel_id = self->channel_id;
+    msg.feerate_per_kw = FeeratePerKw;
+    ret = ln_msg_update_fee_write(pUpdFee, &msg);
     if (ret) {
         self->feerate_per_kw = FeeratePerKw;
     } else {
@@ -3876,20 +3876,18 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     LOGD("BEGIN\n");
 
     bool ret;
-    ln_update_fee_t upfee;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    ln_msg_update_fee_t msg;
     uint32_t rate;
     uint32_t old_fee;
 
-    upfee.p_channel_id = channel_id;
-    ret = ln_msg_update_fee_read(&upfee, pData, Len);
+    ret = ln_msg_update_fee_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         goto LABEL_EXIT;
     }
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         goto LABEL_EXIT;
@@ -3905,19 +3903,19 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    ret = (upfee.feerate_per_kw >= LN_FEERATE_PER_KW_MIN);
+    ret = (msg.feerate_per_kw >= LN_FEERATE_PER_KW_MIN);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw");
         goto LABEL_EXIT;
     }
 
     callback(self, LN_CB_GET_LATEST_FEERATE, &rate);
-    ret = M_UPDATEFEE_CHK_MIN_OK(upfee.feerate_per_kw, rate);
+    ret = M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_VALUE, "too low feerate_per_kw from current");
         goto LABEL_EXIT;
     }
-    ret = M_UPDATEFEE_CHK_MAX_OK(upfee.feerate_per_kw, rate);
+    ret = M_UPDATEFEE_CHK_MAX_OK(msg.feerate_per_kw, rate);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_VALUE, "too large feerate_per_kw from current");
         goto LABEL_EXIT;
@@ -3925,8 +3923,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     //feerate_per_kw更新
     old_fee = self->feerate_per_kw;
-    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
-    self->feerate_per_kw = upfee.feerate_per_kw;
+    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, msg.feerate_per_kw);
+    self->feerate_per_kw = msg.feerate_per_kw;
     //M_DB_SELF_SAVE(self);    //確定するまでDB保存しない
 
     //fee更新通知
