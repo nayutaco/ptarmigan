@@ -3651,24 +3651,21 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     LOGD("BEGIN\n");
 
     bool ret;
-    ln_commit_signed_t commsig;
+    ln_msg_commitment_signed_t commsig;
     ln_revoke_and_ack_t revack;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t bak_sig[LN_SZ_SIGNATURE];
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
     memcpy(bak_sig, self->commit_local.signature, LN_SZ_SIGNATURE);
-    commsig.p_channel_id = channel_id;
-    commsig.p_signature = self->commit_local.signature;
-    commsig.p_htlc_signature = NULL;        //ln_msg_commit_signed_read()でMALLOCする
-    ret = ln_msg_commit_signed_read(&commsig, pData, Len);
+    ret = ln_msg_commitment_signed_read(&commsig, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         goto LABEL_EXIT;
     }
+    memcpy(self->commit_local.signature, commsig.p_signature, LN_SZ_SIGNATURE);
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(commsig.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         goto LABEL_EXIT;
@@ -3680,7 +3677,6 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
             self->commit_local.commit_num + 1,
             self->commit_remote.to_self_delay,
             self->commit_local.dust_limit_sat);
-    UTL_DBG_FREE(commsig.p_htlc_signature);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         goto LABEL_EXIT;
@@ -3729,7 +3725,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //     DUMPD(old_secret, sizeof(old_secret));
     // }
 
-    revack.p_channel_id = channel_id;
+    revack.p_channel_id = commsig.p_channel_id;
     revack.p_per_commit_secret = prev_secret;
     revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
@@ -4576,13 +4572,12 @@ static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig)
     //commitment_signedを受信していないと想定してはいけないようなので、ここでインクリメントする。
     self->commit_remote.commit_num++;
 
-    ln_commit_signed_t commsig;
-
-    commsig.p_channel_id = self->channel_id;
-    commsig.p_signature = self->commit_remote.signature;     //相手commit_txに行った自分の署名
-    commsig.num_htlcs = self->commit_remote.htlc_num;
-    commsig.p_htlc_signature = p_htlc_sigs;
-    ret = ln_msg_commit_signed_write(pCommSig, &commsig);
+    ln_msg_commitment_signed_t msg;
+    msg.p_channel_id = self->channel_id;
+    msg.p_signature = self->commit_remote.signature;     //相手commit_txに行った自分の署名
+    msg.num_htlcs = self->commit_remote.htlc_num;
+    msg.p_htlc_signature = p_htlc_sigs;
+    ret = ln_msg_commitment_signed_write(pCommSig, &msg);
     UTL_DBG_FREE(p_htlc_sigs);
 
     LOGD("END\n");
