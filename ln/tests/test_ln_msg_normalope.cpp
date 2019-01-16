@@ -61,6 +61,13 @@ namespace LN_DUMMY {
     uint8_t reason[256];
     uint8_t sha256_of_onion[BTC_SZ_HASH256];
     const uint16_t FAILURE_CODE = 0xb93b;
+    const uint8_t SIGNATURE[] = {
+        0x75, 0x5d, 0x2a, 0x97, 0x39, 0x91, 0x0d, 0x80, 0xed, 0x97, 0x78, 0x36, 0xdc, 0x24, 0xa0, 0xc6,
+        0xa2, 0x64, 0xaa, 0x0f, 0x5a, 0xf3, 0x65, 0xd8, 0x13, 0x6f, 0x4f, 0x2e, 0x46, 0xc2, 0x47, 0x38,
+        0xcd, 0x4a, 0x49, 0x37, 0xab, 0xc6, 0xb7, 0x75, 0x53, 0x21, 0x9c, 0xb0, 0x05, 0xd6, 0xef, 0x77,
+        0xb0, 0x78, 0x77, 0xa2, 0xaa, 0x00, 0x23, 0x46, 0x33, 0x98, 0x07, 0x69, 0xea, 0x4c, 0x52, 0x2d,
+    };
+    uint8_t htlc_signature[LN_SZ_SIGNATURE * 32];
 }
 
 
@@ -75,6 +82,7 @@ protected:
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
         btc_rng_free();
     }
 
@@ -196,5 +204,27 @@ TEST_F(ln, update_fail_malformed_htlc)
     ASSERT_EQ(msg.id, LN_DUMMY::ID);
     ASSERT_EQ(0, memcmp(msg.p_sha256_of_onion, LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
     ASSERT_EQ(msg.failure_code, LN_DUMMY::FAILURE_CODE);
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, commitment_signed)
+{
+    ln_msg_commitment_signed_t msg;
+    utl_buf_t buf;
+
+    msg.p_channel_id = LN_DUMMY::CHANNEL_ID;
+    msg.p_signature = LN_DUMMY::SIGNATURE;
+    msg.num_htlcs = sizeof(LN_DUMMY::htlc_signature) / LN_SZ_SIGNATURE;
+    msg.p_htlc_signature = LN_DUMMY::htlc_signature;
+    bool ret = ln_msg_commitment_signed_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_commitment_signed_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::CHANNEL_ID, sizeof(LN_DUMMY::CHANNEL_ID)));
+    ASSERT_EQ(0, memcmp(msg.p_signature, LN_DUMMY::SIGNATURE, sizeof(LN_DUMMY::SIGNATURE)));
+    ASSERT_EQ(0, memcmp(msg.p_htlc_signature, LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
     utl_buf_free(&buf);
 }

@@ -110,15 +110,22 @@ typedef struct {
 } ln_msg_update_fail_malformed_htlc_t;
 
 
-/** @struct     ln_commit_signed_t
+/** @struct     ln_msg_commitment_signed_t
  *  @brief      commitment_signed
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint8_t     *p_signature;                       ///< 64: signature
-    uint16_t    num_htlcs;                          ///< 2:  num-htlcs
-    uint8_t     *p_htlc_signature;                  ///< num-htlcs*64: htlc-signature
-} ln_commit_signed_t;
+    //type: 132 (commitment_signed)
+    //data:
+    //  [32:channel_id]
+    //  [64:signature]
+    //  [2:num_htlcs]
+    //  [num_htlcs*64:htlc_signature]
+
+    const uint8_t   *p_channel_id;
+    const uint8_t   *p_signature;
+    uint16_t        num_htlcs;
+    const uint8_t   *p_htlc_signature;
+} ln_msg_commitment_signed_t;
 
 
 /** @struct     ln_revoke_and_ack_t
@@ -226,7 +233,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_msg_update_fail_malformed_
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_commit_signed_write(utl_buf_t *pBuf, const ln_commit_signed_t *pMsg);
+bool HIDDEN ln_msg_commitment_signed_write(utl_buf_t *pBuf, const ln_msg_commitment_signed_t *pMsg);
 
 
 /** commit_signed読込み
@@ -236,7 +243,7 @@ bool HIDDEN ln_msg_commit_signed_write(utl_buf_t *pBuf, const ln_commit_signed_t
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_commitment_signed_read(ln_msg_commitment_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** revoke_and_ack生成
