@@ -346,6 +346,19 @@ bool btc_rng_rand(uint8_t *pData, uint16_t Len)
 }
 
 
+bool btc_rng_big_rand(uint8_t *pData, uint16_t Len)
+{
+    static const uint16_t UNIT = 256;
+    while (Len) {
+        uint16_t l = (Len <= UNIT) ? Len : UNIT;
+        if (!btc_rng_rand(pData, l)) return false;
+        pData += l;
+        Len -= l;
+    }
+    return true;
+}
+
+
 void btc_rng_free(void)
 {
 #ifndef PTARM_NO_USE_RNG
