@@ -415,25 +415,6 @@ typedef struct {
 /// @addtogroup channel_close
 /// @{
 
-/** @struct ln_shutdown_t
- *  @brief  [Close]shutdown
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    utl_buf_t   *p_scriptpk;                        ///< len: scriptpubkey
-} ln_shutdown_t;
-
-
-/** @struct ln_closing_signed_t
- *  @brief  [Close]closing_signed
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    fee_sat;                            ///< 8:  fee-satoshis
-    uint8_t     *p_signature;                       ///< 64: signature
-} ln_closing_signed_t;
-
-
 /** @struct ln_close_force_t
  *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
  *  @note

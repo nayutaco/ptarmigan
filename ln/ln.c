@@ -1236,11 +1236,12 @@ bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
     LOGD("BEGIN\n");
 
     bool ret;
-    ln_shutdown_t shutdown_msg;
+    ln_msg_shutdown_t msg;
 
-    shutdown_msg.p_channel_id = self->channel_id;
-    shutdown_msg.p_scriptpk = &self->shutdown_scriptpk_local;
-    ret = ln_msg_shutdown_write(pShutdown, &shutdown_msg);
+    msg.p_channel_id = self->channel_id;
+    msg.len = self->shutdown_scriptpk_local.len;
+    msg.p_scriptpubkey = self->shutdown_scriptpk_local.buf;
+    ret = ln_msg_shutdown_write(pShutdown, &msg);
     if (ret) {
         self->shutdown_flag |= LN_SHDN_FLAG_SEND;
         M_DB_SELF_SAVE(self);
@@ -3128,18 +3129,16 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    ln_shutdown_t cnl_shutdown;
-    cnl_shutdown.p_channel_id = channel_id;
-    cnl_shutdown.p_scriptpk = &self->shutdown_scriptpk_remote;
-    ret = ln_msg_shutdown_read(&cnl_shutdown, pData, Len);
+    ln_msg_shutdown_t msg;
+    ret = ln_msg_shutdown_read(&msg, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
+    utl_buf_alloccopy(&self->shutdown_scriptpk_remote, msg.p_scriptpubkey, msg.len);
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
