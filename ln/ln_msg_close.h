@@ -49,14 +49,20 @@ typedef struct {
 } ln_msg_shutdown_t;
 
 
-/** @struct ln_closing_signed_t
+/** @struct ln_msg_closing_signed_t
  *  @brief  closing_signed
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    fee_sat;                            ///< 8:  fee-satoshis
-    uint8_t     *p_signature;                       ///< 64: signature
-} ln_closing_signed_t;
+    //type: 39 (closing_signed)
+    //data:
+    //  [32:channel_id]
+    //  [8:fee_satoshis]
+    //  [64:signature]
+
+    const uint8_t   *p_channel_id;
+    uint64_t        fee_satoshis;
+    const uint8_t   *p_signature;
+} ln_msg_closing_signed_t;
 
 
 /********************************************************************
@@ -88,7 +94,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_msg_shutdown_t *pMsg, const uint8_t *pData, 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_closing_signed_write(utl_buf_t *pBuf, const ln_closing_signed_t *pMsg);
+bool HIDDEN ln_msg_closing_signed_write(utl_buf_t *pBuf, const ln_msg_closing_signed_t *pMsg);
 
 
 /** closing_signed読込み
@@ -98,6 +104,6 @@ bool HIDDEN ln_msg_closing_signed_write(utl_buf_t *pBuf, const ln_closing_signed
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_closing_signed_read(ln_msg_closing_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_MSG_CLOSE_H__ */
