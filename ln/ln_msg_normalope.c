@@ -34,6 +34,7 @@
 #include "utl_int.h"
 
 #include "btc_crypto.h"
+#include "btc_buf.h"
 
 #include "ln_msg_normalope.h"
 #include "ln_misc.h"
@@ -52,7 +53,7 @@
  * prototypes
  **************************************************************************/
 
-static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg);
+static void update_add_htlc_print(const ln_msg_update_add_htlc_t *pMsg);
 static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg);
 static void update_fail_htlc_print(const ln_update_fail_htlc_t *pMsg);
 static void update_fail_malformed_htlc_print(const ln_update_fail_malformed_htlc_t *pMsg);
@@ -65,119 +66,73 @@ static void update_fee_print(const ln_update_fee_t *pMsg);
  * update_add_htlc
  ********************************************************************/
 
-bool HIDDEN ln_msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pMsg)
+bool HIDDEN ln_msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_msg_update_add_htlc_t *pMsg)
 {
-    //    type: 128 (update_add_htlc)
-    //    data:
-    //        [32:channel-id]
-    //        [8:id]
-    //        [8:amount-msat]
-    //        [32:payment-hash]
-    //        [4:cltv-expiry]
-    //        [1366:onion-routing-packet]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 1450);
-
-    //    type: 128 (update_add_htlc)
-    ln_misc_push16be(&proto, MSGTYPE_UPDATE_ADD_HTLC);
-
-    //        [32:channel-id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [8:id]
-    ln_misc_push64be(&proto, pMsg->id);
-
-    //        [8:amount-msat]
-    ln_misc_push64be(&proto, pMsg->amount_msat);
-
-    //        [32:payment-hash]
-    utl_push_data(&proto, pMsg->payment_sha256, BTC_SZ_HASH256);
-
-    //        [4:cltv-expiry]
-    ln_misc_push32be(&proto, pMsg->cltv_expiry);
-
-    //        [1366:onion-routing-packet]
-    utl_push_data(&proto, pMsg->buf_onion_reason.buf, LN_SZ_ONION_ROUTE);
-
-    assert(sizeof(uint16_t) + 1450 == pBuf->len);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_UPDATE_ADD_HTLC)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->id)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->amount_msat)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_payment_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->cltv_expiry)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_onion_routing_packet, LN_SZ_ONION_ROUTE)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_update_add_htlc_read(ln_msg_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 1450) {
-        LOGD("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_ADD_HTLC) {
         LOGD("fail: type not match: %04x\n", type);
         return false;
     }
-
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [8:id]
-    pMsg->id = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [8:amount-msat]
-    pMsg->amount_msat = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [32:payment-hash]
-    memcpy(pMsg->payment_sha256, pData + pos, BTC_SZ_HASH256);
-    pos += BTC_SZ_HASH256;
-
-    //        [4:cltv-expiry]
-    pMsg->cltv_expiry = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
-
-    //        [1366:onion-routing-packet]
-    utl_buf_free(&pMsg->buf_onion_reason);
-    utl_buf_alloccopy(&pMsg->buf_onion_reason, pData + pos, LN_SZ_ONION_ROUTE);
-    pos += LN_SZ_ONION_ROUTE;
-
-    assert(Len >= pos);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->id)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->amount_msat)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_payment_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->cltv_expiry)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_onion_routing_packet, LN_SZ_ONION_ROUTE)) goto LABEL_ERROR_SYNTAX;
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGD("fail: invalid syntax\n");
+    return false;
 }
 
 
-static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
+static void update_add_htlc_print(const ln_msg_update_add_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[update_add_htlc]-------------------------------\n");
-    LOGD("channel-id: ");
+    LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
     LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
-    LOGD("payment_sha256: ");
-    DUMPD(pMsg->payment_sha256, BTC_SZ_HASH256);
-    LOGD("onion_route: ");
-    DUMPD(pMsg->buf_onion_reason.buf, 30);
+    LOGD("payment_hash: ");
+    DUMPD(pMsg->p_payment_hash, BTC_SZ_HASH256);
+    LOGD("onion_routing_packet(top 34bytes only): ");
+    DUMPD(pMsg->p_onion_routing_packet, 34);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
