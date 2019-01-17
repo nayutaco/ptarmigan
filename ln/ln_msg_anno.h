@@ -35,11 +35,10 @@
 /** channel_announcement生成
  *
  * @param[out]      pBuf        生成データ
- * @param[out]      pOffset     他署名アドレスへのオフセット
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg);
+bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg);
 
 
 /** channel_announcement読込み(verify無し)
@@ -65,6 +64,12 @@ bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *p
  *
  */
 void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
+
+
+/** sign channel_announcement
+ *
+ */
+bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
 
 
 /** [デバッグ]channel_updateデバッグ出力
@@ -154,12 +159,12 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 /** announcement_signaturesの署名アドレス取得
  *
  */
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort);
+void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort);
 
 
 /** short_channel_id書き換え
  *
  */
-bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_script_pubkey_order_t Sort);
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t ShortChannelId);
 
 #endif /* LN_MSG_ANNO_H__ */

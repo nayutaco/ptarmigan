@@ -1146,7 +1146,7 @@ bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
         create_local_channel_announcement(self);
     }
 
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
+    ln_msg_get_anno_signs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
 
     ln_announce_signs_t anno_signs;
 
@@ -4136,7 +4136,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     //channel_announcementを埋める
     btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, false, sort);
+    ln_msg_get_anno_signs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
 
     ln_announce_signs_t anno_signs;
     anno_signs.p_channel_id = channel_id;
@@ -4158,14 +4158,22 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     if ((self->anno_flag & LN_ANNO_FLAG_END) == 0) {
         self->short_channel_id = anno_signs.short_channel_id;
-        ret = ln_msg_cnl_announce_update_short_cnl_id(self, self->short_channel_id, sort);
-        if (ret) {
-            self->anno_flag |= M_ANNO_FLAG_RECV;
-            proc_anno_sigs(self);
-            M_DB_SELF_SAVE(self);
-        } else {
+        ret = ln_msg_cnl_announce_update_short_cnl_id(self->cnl_anno.buf, self->short_channel_id);
+        if (!ret) {
             LOGE("fail: update short_channel_id\n");
+            return false;
         }
+        ret = ln_msg_cnl_announce_sign(
+            self->cnl_anno.buf, self->cnl_anno.len,
+            self->priv_data.priv[MSG_FUNDIDX_FUNDING],
+            sort);
+        if (!ret) {
+            LOGE("fail: sign\n");
+            return false;
+        }
+        self->anno_flag |= M_ANNO_FLAG_RECV;
+        proc_anno_sigs(self);
+        M_DB_SELF_SAVE(self);
     } else if ((self->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
         //BOLT07
         //  MUST respond to the first announcement_signatures message with its own announcement_signatures message.
@@ -4690,10 +4698,9 @@ static bool create_local_channel_announcement(ln_self_t *self)
     utl_buf_free(&self->cnl_anno);
 
     ln_cnl_announce_t anno;
-
     anno.short_channel_id = self->short_channel_id;
-    if (sort_nodeid(self, NULL) == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        //自ノードが先
+    btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
+    if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         anno.p_node_id1 = ln_node_getid();
         anno.p_node_id2 = self->peer_node_id;
         anno.p_btc_key1 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
@@ -4704,9 +4711,13 @@ static bool create_local_channel_announcement(ln_self_t *self)
         anno.p_btc_key1 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
         anno.p_btc_key2 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
     }
-
-    bool ret = ln_msg_cnl_announce_write(self, &self->cnl_anno, &anno);
-
+    bool ret = ln_msg_cnl_announce_write(&self->cnl_anno, &anno);
+    if (ret) {
+        ret = ln_msg_cnl_announce_sign(
+            self->cnl_anno.buf, self->cnl_anno.len,
+            self->priv_data.priv[MSG_FUNDIDX_FUNDING],
+            sort);
+    }
     return ret;
 }
 
