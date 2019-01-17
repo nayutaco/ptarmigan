@@ -78,7 +78,7 @@ void conf_peer_init(peer_conf_t *pPeerConf)
 bool conf_peer_load(const char *pConfFile, peer_conf_t *pPeerConf)
 {
     if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) != 0) {
-        //LOGD("fail peer parse[%s]", pConfFile);
+        //LOGE("fail peer parse[%s]", pConfFile);
         return false;
     }
 
@@ -116,7 +116,7 @@ void conf_funding_init(funding_conf_t *pFundConf)
 bool conf_funding_load(const char *pConfFile, funding_conf_t *pFundConf)
 {
     if (ini_parse(pConfFile, handler_fund_conf, pFundConf) != 0) {
-        //LOGD("fail fund parse[%s]", pConfFile);
+        //LOGE("fail fund parse[%s]", pConfFile);
         return false;
     }
 
@@ -156,7 +156,7 @@ void conf_payment_init(payment_conf_t *pPayConf)
 bool conf_payment_load(const char *pConfFile, payment_conf_t *pPayConf)
 {
     if (ini_parse(pConfFile, handler_pay_conf, pPayConf) != 0) {
-        LOGD("fail pay parse[%s]", pConfFile);
+        LOGE("fail pay parse[%s]", pConfFile);
         return false;
     }
 
@@ -285,7 +285,7 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
         return 0;  /* unknown section/name, error */
     }
     if (!ret) {
-        LOGD("fail: %s\n", name);
+        LOGE("fail: %s\n", name);
     }
     return (ret) ? 1 : 0;
 }
