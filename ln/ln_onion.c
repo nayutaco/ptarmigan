@@ -108,7 +108,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen)
 {
     if (NumHops > LN_HOP_MAX) {
-        LOGD("hops over\n");
+        LOGE("hops over\n");
         return false;
     }
 
@@ -255,7 +255,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     bool ret;
 
     if (*pPacket != M_VERSION) {
-        LOGD("fail: invalid version : %02x\n", *pPacket);
+        LOGE("fail: invalid version : %02x\n", *pPacket);
 
         //B1. if the onion version byte is unknown:
         //      invalid_onion_version
@@ -269,7 +269,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
 
     ret = btc_keys_check_pub(p_dhkey);
     if (!ret) {
-        LOGD("fail: invalid pubkey\n");
+        LOGE("fail: invalid pubkey\n");
 
         //B3. if the ephemeral key in the onion is unparsable:
         //      invalid_onion_key
@@ -299,7 +299,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     }
     ln_misc_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
-        LOGD("fail: hmac not match\n");
+        LOGE("fail: hmac not match\n");
         UTL_DBG_FREE(p_msg);
 
         //B2. if the onion HMAC is incorrect:
@@ -316,7 +316,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     xor_bytes(stream_bytes, p_msg, stream_bytes, M_SZ_ROUTING_INFO);
 
     if (*stream_bytes != M_REALM_VAL) {
-        LOGD("fail: invalid realm\n");
+        LOGE("fail: invalid realm\n");
         UTL_DBG_FREE(stream_bytes);
         UTL_DBG_FREE(p_msg);
 
@@ -511,10 +511,10 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
                         }
                         utl_buf_alloccopy(pReason, reason.buf, reason.len);
                     } else {
-                        LOGD("fail: HMAC not match!\n");
+                        LOGE("fail: HMAC not match!\n");
 #ifdef M_DBG_FAIL
-                        DUMPD(p_out->buf, M_SZ_HMAC);
-                        DUMPD(hmac, M_SZ_HMAC);
+                        DUMPE(p_out->buf, M_SZ_HMAC);
+                        DUMPE(hmac, M_SZ_HMAC);
 #endif //M_DBG_FAIL
                     }
                     break;
@@ -532,7 +532,7 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
     }
 
     if (!bend) {
-        LOGD("fail reason\n");
+        LOGE("fail reason\n");
     }
 
     utl_buf_free(&buf1);
@@ -714,7 +714,7 @@ static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Le
     uint8_t *dummy = (uint8_t *)UTL_DBG_CALLOC(1, Len);
     int ret = mbedtls_chacha20_crypt(pKey, nonce, 0, Len, dummy, pResult);
     if (ret != 0) {
-        LOGD("FATAL: mbedtls_chacha20_crypt\n");
+        LOGE("FATAL: mbedtls_chacha20_crypt\n");
         abort();
     }
     UTL_DBG_FREE(dummy);

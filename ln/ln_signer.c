@@ -209,7 +209,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
                     const utl_buf_t *pWitScript, bool bRevoked)
 {
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        LOGD("fail: invalid vin/vout\n");
+        LOGE("fail: invalid vin/vout\n");
         return false;
     }
 

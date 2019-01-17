@@ -98,7 +98,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_msg_update_add_htlc_t *pMsg, const ui
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_ADD_HTLC) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -115,7 +115,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_msg_update_add_htlc_t *pMsg, const ui
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -171,7 +171,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_msg_update_fulfill_htlc_t *pMsg, 
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_FULFILL_HTLC) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -185,7 +185,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_msg_update_fulfill_htlc_t *pMsg, 
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -238,7 +238,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_msg_update_fail_htlc_t *pMsg, const 
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_FAIL_HTLC) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -253,7 +253,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_msg_update_fail_htlc_t *pMsg, const 
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -306,7 +306,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_msg_update_fail_malformed_
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -321,7 +321,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_msg_update_fail_malformed_
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -375,7 +375,7 @@ bool HIDDEN ln_msg_commitment_signed_read(ln_msg_commitment_signed_t *pMsg, cons
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_COMMITMENT_SIGNED) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -390,7 +390,7 @@ bool HIDDEN ln_msg_commitment_signed_read(ln_msg_commitment_signed_t *pMsg, cons
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -446,7 +446,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_msg_revoke_and_ack_t *pMsg, const uint
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_REVOKE_AND_ACK) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -460,7 +460,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_msg_revoke_and_ack_t *pMsg, const uint
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -512,7 +512,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pDa
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_UPDATE_FEE) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -525,7 +525,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pDa
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 

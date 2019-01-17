@@ -171,7 +171,7 @@ bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, co
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
 #endif  //DBG_PRINT_WRITE_CNL
     } else {
-        LOGD("something error\n");
+        LOGE("something error\n");
     }
 
     return ret;
@@ -182,13 +182,13 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uin
 {
     //len=0
     if (Len < sizeof(uint16_t) + 430) {
-        LOGD("fail: invalid length: %d\n", Len);
+        LOGE("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -223,11 +223,11 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uin
     //    [32:chain_hash]
     int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
     if (cmp != 0) {
-        LOGD("fail: chain_hash mismatch\n");
-        LOGD("node: ");
-        DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
-        LOGD("msg:  ");
-        DUMPD(pData + pos, BTC_SZ_HASH256);
+        LOGE("fail: chain_hash mismatch\n");
+        LOGE("node: ");
+        DUMPE(gGenesisChainHash, BTC_SZ_HASH256);
+        LOGE("msg:  ");
+        DUMPE(pData + pos, BTC_SZ_HASH256);
         return false;
     }
     pos += sizeof(gGenesisChainHash);
@@ -235,7 +235,7 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uin
     //        [8:short_channel_id]
     pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
     if (pMsg->short_channel_id == 0) {
-        LOGD("fail: short_channel_id == 0\n");
+        LOGE("fail: short_channel_id == 0\n");
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
@@ -304,7 +304,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 
     uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         DUMPD(pData, Len);
         return;
     }
@@ -445,7 +445,7 @@ static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Le
 
     ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash);
     if (!ret) {
-        LOGD("fail: sign node\n");
+        LOGE("fail: sign node\n");
         goto LABEL_EXIT;
     }
 
@@ -453,7 +453,7 @@ static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Le
     ret = ln_signer_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
                     hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
-        LOGD("fail: sign btc\n");
+        LOGE("fail: sign btc\n");
         //goto LABEL_EXIT;
     }
 
@@ -565,13 +565,13 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
 {
     //flen=0, addrlen=0
     if (Len < sizeof(uint16_t) + 140) {
-        LOGD("fail: invalid length: %d\n", Len);
+        LOGE("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_NODE_ANNOUNCEMENT) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -623,12 +623,12 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
         //addr type
         pMsg->addr.type = (ln_nodedesc_t)*(pData + pos);
         if (pMsg->addr.type > LN_NODEDESC_MAX) {
-            LOGD("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
+            LOGE("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
             return false;
         }
         addrlen--;
         if (addrlen < M_ADDRLEN2[pMsg->addr.type]) {
-            LOGD("fail: less addrlen(%02x:%d)\n", pMsg->addr.type, addrlen);
+            LOGE("fail: less addrlen(%02x:%d)\n", pMsg->addr.type, addrlen);
             return false;
         }
         pos++;
@@ -669,7 +669,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
 
         ret = btc_sig_verify_rs(p_signature, hash, pMsg->p_node_id);
         if (!ret) {
-            LOGD("fail: verify\n");
+            LOGE("fail: verify\n");
         }
     }
 
@@ -788,7 +788,7 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
     if (ret) {
         utl_push_trim(&proto);
     } else {
-        LOGD("fail: sign\n");
+        LOGE("fail: sign\n");
     }
 
     return ret;
@@ -798,13 +798,13 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
 bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 128) {
-        LOGD("fail: invalid length: %d\n", Len);
+        LOGE("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_CHANNEL_UPDATE) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -817,18 +817,18 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     //    [32:chain_hash]
     result = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
     if (!result) {
-        LOGD("fail: chain_hash mismatch\n");
-        LOGD("node: ");
-        DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
-        LOGD("msg:  ");
-        DUMPD(pData + pos, BTC_SZ_HASH256);
+        LOGE("fail: chain_hash mismatch\n");
+        LOGE("node: ");
+        DUMPE(gGenesisChainHash, BTC_SZ_HASH256);
+        LOGE("msg:  ");
+        DUMPE(pData + pos, BTC_SZ_HASH256);
     }
     pos += sizeof(gGenesisChainHash);
 
     //        [8:short_channel_id]
     pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
     if (pMsg->short_channel_id == 0) {
-        LOGD("fail: short_channel_id == 0\n");
+        LOGE("fail: short_channel_id == 0\n");
         return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
@@ -980,13 +980,13 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
 {
     //len=1
     if (Len < sizeof(uint16_t) + 168) {
-        LOGD("fail: invalid length: %d\n", Len);
+        LOGE("fail: invalid length: %d\n", Len);
         return 0;
     }
 
     uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return 0;
     }
     int pos = sizeof(uint16_t);
@@ -994,7 +994,7 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
     //        [32:channel-id]
     int cmp = memcmp(pChannelId, pData + pos, LN_SZ_CHANNEL_ID);
     if (cmp != 0) {
-        LOGD("fail: channel_id mismatch\n");
+        LOGE("fail: channel_id mismatch\n");
         return 0;
     }
     pos += LN_SZ_CHANNEL_ID;
@@ -1007,13 +1007,13 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 {
     //len=1
     if (Len < sizeof(uint16_t) + 168) {
-        LOGD("fail: invalid length: %d\n", Len);
+        LOGE("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = utl_int_pack_u16be(pData);
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -1027,7 +1027,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     if (pMsg->short_channel_id == 0) {
         pMsg->short_channel_id = short_channel_id;
     } else if (pMsg->short_channel_id != short_channel_id) {
-        LOGD("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
+        LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
         return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;

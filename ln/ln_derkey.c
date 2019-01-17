@@ -343,7 +343,7 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
         derive_secret(output, pSecret, bit-1, pStorage->storage[lp].index);
         if (memcmp(output, pStorage->storage[lp].secret, BTC_SZ_PRIVKEY) != 0) {
             //error
-            LOGD("fail: secret mismatch(I=%016" PRIx64 "), bit=%d\n", Index, bit);
+            LOGE("fail: secret mismatch(I=%016" PRIx64 "), bit=%d\n", Index, bit);
             assert(0);
             return false;
         }

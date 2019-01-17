@@ -360,7 +360,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     ret = ln_db_anno_transaction();
     if (!ret) {
         //channel_announcementを1回も受信せずにDBが存在しない場合もあるため、trueで返す
-        LOGD("fail: no announce DB\n");
+        LOGE("fail: no announce DB\n");
         return true;
     }
 
