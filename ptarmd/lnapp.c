@@ -2682,17 +2682,16 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv
 {
     (void)p_conf;
 
-    if (!LN_DBG_FULFILL()) {
-        LOGD("DBG: no fulfill mode\n");
-        return;
-    }
-
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fulfill->prev_short_channel_id);
     if (p_prevconf != NULL) {
         pthread_mutex_lock(&p_prevconf->mux_self);
         ret = ln_fulfill_htlc_set(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
         pthread_mutex_unlock(&p_prevconf->mux_self);
+    }
+    if (!LN_DBG_FULFILL_BWD()) {
+        LOGD("no fulfill backwind\n");
+        ret = false;
     }
     if (ret) {
         show_self_param(p_conf->p_self, stderr, "fulfill_htlc send", __LINE__);
@@ -2792,11 +2791,6 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail)
 {
     (void)p_conf;
-
-    if (!LN_DBG_FULFILL()) {
-        LOGD("DBG: no fulfill mode\n");
-        return;
-    }
 
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fail->prev_short_channel_id);

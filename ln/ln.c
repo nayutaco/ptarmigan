@@ -1626,11 +1626,6 @@ bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage
 {
     LOGD("BEGIN\n");
 
-    if (!LN_DBG_FULFILL()) {
-        LOGD("no fulfill mode\n");
-        return true;
-    }
-
     //self->cnl_add_htlc[Idx]にupdate_fulfill_htlcが作成出来るだけの情報を設定
     //  final nodeにふさわしいかのチェックはupdate_add_htlc受信時に行われている
     //  update_fulfill_htlc未送信状態にしておきたいが、このタイミングではadd_htlcのcommitは済んでいない
@@ -2340,7 +2335,6 @@ static void recv_idle_proc_final(ln_self_t *self)
                 //ADD_HTLC後: update_add_htlc受信側
                 //self->their_msat -= p_htlc->amount_msat;
 
-                if (LN_DBG_FULFILL()) {
                     //ADD_HTLC転送
                     if (p_htlc->next_short_channel_id != 0) {
                         LOGD("forward: %d\n", p_htlc->next_idx);
@@ -2352,6 +2346,7 @@ static void recv_idle_proc_final(ln_self_t *self)
                         db_upd = true;
                     }
 
+                if (LN_DBG_FULFILL()) {
                     //DEL_HTLC開始
                     if (p_flag->fin_delhtlc != LN_DELHTLC_NONE) {
                         LOGD("del htlc: %d\n", p_flag->fin_delhtlc);
@@ -2449,7 +2444,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
                     //update_add_htlc送信
                     add_htlc_create(self, &buf_bolt, idx);
                 } else if (LN_HTLC_WILL_DELHTLC(p_htlc)) {
-                    if (!LN_DBG_FULFILL()) {
+                    if (!LN_DBG_FULFILL() || !LN_DBG_FULFILL_BWD()) {
                         LOGD("DBG: no fulfill mode\n");
                     } else {
                         //update_fulfill/fail/fail_malformed_htlc送信

@@ -1,4 +1,6 @@
 #!/bin/sh
+#	onion error "invalid realm"(4444)
+
 PAY_BEGIN=4444
 PAY_END=6666
 AMOUNT=100000

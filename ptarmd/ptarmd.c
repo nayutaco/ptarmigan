@@ -297,18 +297,23 @@ lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id)
     lnapp_conf_t *p_return = NULL;
     lnapp_conf_t *p_appconf = ptarmd_search_connected_cnl(short_channel_id);
     if (p_appconf == NULL) {
+        LOGE("fail: not connected\n");
         goto LABEL_EXIT;
     }
-    if (!lnapp_is_looping(p_appconf->p_self)) {
+    if (!lnapp_is_looping(p_appconf)) {
+        LOGE("fail: not working\n");
         goto LABEL_EXIT;
     }
-    if (!lnapp_is_inited(p_appconf->p_self)) {
+    if (!lnapp_is_inited(p_appconf)) {
+        LOGE("fail: not initialized\n");
         goto LABEL_EXIT;
     }
-    if (!lnapp_check_ponglist(p_appconf->p_self)) {
+    if (!lnapp_check_ponglist(p_appconf)) {
+        LOGE("fail: not pingpong\n");
         goto LABEL_EXIT;
     }
     if (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL) {
+        LOGE("fail: bad status\n");
         goto LABEL_EXIT;
     }
     p_return = p_appconf;

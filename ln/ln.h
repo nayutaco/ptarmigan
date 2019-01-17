@@ -200,18 +200,20 @@ extern "C" {
 // [ptarmcli --debug]true:通常動作(false:デバッグ動作)
 //
 
-// 1: update_fulfill_htlcを返さない
-#define LN_DBG_FULFILL()        ((ln_debug_get() & 0x01) == 0)
-// 2: closeでclosing_txを展開しない
-#define LN_DBG_CLOSING_TX()     ((ln_debug_get() & 0x02) == 0)
-// 4: HTLC scriptでpreimageが一致しても不一致とみなす
+// 0x01: update_fulfill_htlcを返さない
+#define LN_DBG_FULFILL() ((ln_debug_get() & 0x01) == 0)
+// 0x02: closeでclosing_txを展開しない
+#define LN_DBG_CLOSING_TX() ((ln_debug_get() & 0x02) == 0)
+// 0x04: HTLC scriptでpreimageが一致しても不一致とみなす
 #define LN_DBG_MATCH_PREIMAGE() ((ln_debug_get() & 0x04) == 0)
-// 8: monitoringで未接続ノードに接続しに行かない
+// 0x08: monitoringで未接続ノードに接続しに行かない
 #define LN_DBG_NODE_AUTO_CONNECT() ((ln_debug_get() & 0x08) == 0)
-// 16: onionのrealmを不正な値にする
+// 0x10: onionのrealmを不正な値にする
 #define LN_DBG_ONION_CREATE_NORMAL_REALM() ((ln_debug_get() & 0x10) == 0)
-// 32: onionのversionを不正な値にする
+// 0x20: onionのversionを不正な値にする
 #define LN_DBG_ONION_CREATE_NORMAL_VERSION() ((ln_debug_get() & 0x20) == 0)
+// 0x40: update_fulfill_htlcを戻すときに相手が見つからない
+#define LN_DBG_FULFILL_BWD() ((ln_debug_get() & 0x40) == 0)
 
 
 /********************************************************************
