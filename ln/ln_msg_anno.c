@@ -259,6 +259,43 @@ bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t 
 }
 
 
+bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort)
+{
+    int offset_sig;
+    if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
+        //自ノードが先
+        offset_sig = 0;
+    } else {
+        offset_sig = LN_SZ_SIGNATURE;
+    }
+
+    //署名-node
+    uint8_t hash[BTC_SZ_HASH256];
+    bool ret;
+
+    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
+                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
+    //LOGD("hash=");
+    //DUMPD(hash, BTC_SZ_HASH256);
+
+    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash);
+    if (!ret) {
+        LOGE("fail: sign node\n");
+        goto LABEL_EXIT;
+    }
+
+    //署名-btc
+    ret = btc_sig_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2, hash, pBtcPrivKey);
+    if (!ret) {
+        LOGE("fail: sign btc\n");
+        //goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return ret;
+}
+
+
 bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
@@ -393,43 +430,6 @@ bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t Sho
         ShortChannelId >>= 8;
     }
     return true;
-}
-
-
-bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort)
-{
-    int offset_sig;
-    if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        //自ノードが先
-        offset_sig = 0;
-    } else {
-        offset_sig = LN_SZ_SIGNATURE;
-    }
-
-    //署名-node
-    uint8_t hash[BTC_SZ_HASH256];
-    bool ret;
-
-    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
-                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-    //LOGD("hash=");
-    //DUMPD(hash, BTC_SZ_HASH256);
-
-    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash);
-    if (!ret) {
-        LOGE("fail: sign node\n");
-        goto LABEL_EXIT;
-    }
-
-    //署名-btc
-    ret = btc_sig_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2, hash, pBtcPrivKey);
-    if (!ret) {
-        LOGE("fail: sign btc\n");
-        //goto LABEL_EXIT;
-    }
-
-LABEL_EXIT:
-    return ret;
 }
 
 
