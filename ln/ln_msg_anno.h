@@ -97,7 +97,7 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
 bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
-/** sign channel_announcement
+/** sign node_announcement
  *
  */
 bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len);
@@ -120,6 +120,12 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
  * retval   true    成功
  */
 bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** sign channel_update
+ *
+ */
+bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len);
 
 
 /** channel_update署名verify
