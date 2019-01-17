@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -ue
 
 # チャネルをクローズする。
 # 今のところ、Mutual Closeのみ実装している。

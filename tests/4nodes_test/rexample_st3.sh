@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -ue
 # SPV用
 
 mkdir -p conf

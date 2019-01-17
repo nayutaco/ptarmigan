@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ue
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
 	echo invalid parameter [$1] [$2] [$3]

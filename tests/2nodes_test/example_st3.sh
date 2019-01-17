@@ -34,13 +34,13 @@ sleep 10
 
 while :
 do
-    ./showdb -c -d node_3333 | jq '.' > n3.txt
-    ./showdb -c -d node_4444 | jq '.' > n4.txt
+    ./showdb -c -d node_3333 | jq '.[][].short_channel_id' > n3.txt
+    ./showdb -c -d node_4444 | jq '.[][].short_channel_id' > n4.txt
     cmp n3.txt n4.txt
     RES1=$?
 
-    LEN3=`cat n3.txt | jq length`
-    LEN4=`cat n4.txt | jq length`
+    LEN3=`cat n3.txt | wc -c`
+    LEN4=`cat n4.txt | wc -c`
 
     if [ "$LEN3" -ne 0 ] && [ "$LEN4" -ne 0 ] && [ $RES1 -eq 0 ]; then
         break

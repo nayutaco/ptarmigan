@@ -94,10 +94,10 @@ sleep 10
 
 while :
 do
-    ./showdb -c -d node_3333 | jq '.' > n3.txt
-    ./showdb -c -d node_4444 | jq '.' > n4.txt
-    ./showdb -c -d node_5555 | jq '.' > n5.txt
-    ./showdb -c -d node_6666 | jq '.' > n6.txt
+    ./showdb -c -d node_3333 | jq '.[][].short_channel_id' > n3.txt
+    ./showdb -c -d node_4444 | jq '.[][].short_channel_id' > n4.txt
+    ./showdb -c -d node_5555 | jq '.[][].short_channel_id' > n5.txt
+    ./showdb -c -d node_6666 | jq '.[][].short_channel_id' > n6.txt
     cmp n3.txt n4.txt
     RES1=$?
     cmp n3.txt n5.txt
@@ -105,10 +105,10 @@ do
     cmp n3.txt n6.txt
     RES3=$?
 
-    LEN3=`cat n3.txt | jq length`
-    LEN4=`cat n4.txt | jq length`
-    LEN5=`cat n5.txt | jq length`
-    LEN6=`cat n6.txt | jq length`
+    LEN3=`cat n3.txt | wc -c`
+    LEN4=`cat n4.txt | wc -c`
+    LEN5=`cat n5.txt | wc -c`
+    LEN6=`cat n6.txt | wc -c`
 
     if [ -n "$LEN3" ] && [ -n "$LEN4" ] && [ -n "$LEN5" ] && [ -n "$LEN6" ] && [ "$LEN3" -ne 0 ] && [ "$LEN4" -ne 0 ] && [ "$LEN5" -ne 0 ] && [ "$LEN6" -ne 0 ] && [ "$RES1" -eq 0 ] && [ "$RES2" -eq 0 ] && [ "$RES3" -eq 0 ]; then
         break
