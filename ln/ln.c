@@ -2710,7 +2710,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], open_ch.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
     if (memcmp(gGenesisChainHash, open_ch.p_chain_hash, sizeof(gGenesisChainHash))) {
-        LOGD("fail: chain_hash mismatch\n");
+        LOGE("fail: chain_hash mismatch\n");
         return false;
     }
 
