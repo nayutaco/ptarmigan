@@ -60,7 +60,7 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uin
 bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len); //XXX: not used
 
 
-/** [デバッグ]channel_announcementデバッグ出力
+/** channel_announcementデバッグ出力
  *
  */
 void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
@@ -72,10 +72,10 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
 
 
-/** [デバッグ]channel_updateデバッグ出力
+/** channel_updateデバッグ出力
  *
  */
- void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg);
+void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg);
 
 
 /** node_announcement生成
@@ -94,7 +94,13 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** sign channel_announcement
+ *
+ */
+bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len);
 
 
 /** channel_update生成
@@ -113,7 +119,7 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** channel_update署名verify

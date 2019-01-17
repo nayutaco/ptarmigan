@@ -531,19 +531,7 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
 
     utl_push_trim(&proto);
 
-    //署名
-    uint8_t hash[BTC_SZ_HASH256];
-
-    btc_md_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
-                                pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //LOGD("data=");
-    //DUMPD(pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE, pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //LOGD("hash=");
-    //DUMPD(hash, BTC_SZ_HASH256);
-
-    bool ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
-
-    return ret;
+    return true;
 }
 
 
@@ -660,6 +648,14 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
     }
 
     return ret;
+}
+
+
+bool ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len)
+{
+    uint8_t hash[BTC_SZ_HASH256];
+    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - sizeof(uint16_t) - LN_SZ_SIGNATURE);
+    return ln_node_sign_nodekey(pData + sizeof(uint16_t), hash);
 }
 
 
