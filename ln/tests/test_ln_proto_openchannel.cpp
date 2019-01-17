@@ -258,6 +258,7 @@ TEST_F(ln, recv_open_channel_ok)
             }
         }
         static bool ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->funding_satoshis = 100000ULL;
             pMsg->push_msat = 0;
             pMsg->dust_limit_satoshis = 800;

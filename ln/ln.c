@@ -2709,6 +2709,11 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_HTLC], open_ch.p_htlc_basepoint, BTC_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], open_ch.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
+    if (memcmp(gGenesisChainHash, open_ch.p_chain_hash, sizeof(gGenesisChainHash))) {
+        LOGD("fail: chain_hash mismatch\n");
+        return false;
+    }
+
     //feerate_per_kw更新
     callback(self, LN_CB_GET_LATEST_FEERATE, &self->feerate_per_kw);
 
