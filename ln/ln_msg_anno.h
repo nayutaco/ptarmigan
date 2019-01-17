@@ -136,12 +136,12 @@ bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len);
 
 /** verify channel_update
  *
- * @param[in]       pPubkey 公開鍵(node_id)
+ * @param[in]       pNodePubKey 公開鍵(node_id)
  * @param[in]       pData   対象データ
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len);
 
 
 /** write announcement_signatures

@@ -253,47 +253,29 @@ bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t 
 
 bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort)
 {
-    int offset_sig;
-    if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        //自ノードが先
-        offset_sig = 0;
-    } else {
-        offset_sig = LN_SZ_SIGNATURE;
-    }
+    uint16_t offset_preimg = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+    uint16_t offset_sig = (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? 0 : LN_SZ_SIGNATURE;
 
-    //署名-node
     uint8_t hash[BTC_SZ_HASH256];
-    bool ret;
-
-    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
-                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-    //LOGD("hash=");
-    //DUMPD(hash, BTC_SZ_HASH256);
-
-    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash);
-    if (!ret) {
+    btc_md_hash256(hash, pData + offset_preimg, Len - offset_preimg);
+    if (!ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash)) {
         LOGE("fail: sign node\n");
-        goto LABEL_EXIT;
+        return false;
     }
 
-    //署名-btc
-    ret = btc_sig_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2, hash, pBtcPrivKey);
-    if (!ret) {
+    if (!btc_sig_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2, hash, pBtcPrivKey)) {
         LOGE("fail: sign btc\n");
-        //goto LABEL_EXIT;
+        return false;
     }
-
-LABEL_EXIT:
-    return ret;
+    return true;
 }
 
 
 bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_hash256(hash,
-        pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
-        Len - sizeof(uint16_t) - LN_SZ_SIGNATURE * 4);
+    uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+    btc_md_hash256(hash, pData + offset, Len - offset);
     if (!btc_sig_verify_rs(pMsg->p_node_signature1, hash, pMsg->p_node_id1)) return false;
     if (!btc_sig_verify_rs(pMsg->p_node_signature2, hash, pMsg->p_node_id2)) return false;
     if (!btc_sig_verify_rs(pMsg->p_btc_signature1, hash, pMsg->p_btc_key1)) return false;
@@ -611,7 +593,8 @@ bool /*HIDDEN*/ ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_
 bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - sizeof(uint16_t) - LN_SZ_SIGNATURE);
+    uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
+    btc_md_hash256(hash, pData + offset, Len - offset);
     return ln_node_sign_nodekey(pData + sizeof(uint16_t), hash);
 }
 
@@ -619,7 +602,8 @@ bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len)
 bool HIDDEN ln_msg_node_announce_verify(const ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - sizeof(uint16_t) - LN_SZ_SIGNATURE);
+    uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
+    btc_md_hash256(hash, pData + offset, Len - offset);
     return btc_sig_verify_rs(pData + sizeof(uint16_t), hash, pMsg->p_node_id);
 }
 
@@ -816,26 +800,18 @@ bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pDa
 bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - sizeof(uint16_t) - LN_SZ_SIGNATURE);
+    uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
+    btc_md_hash256(hash, pData + offset, Len - offset);
     return ln_node_sign_nodekey(pData + sizeof(uint16_t), hash);
 }
 
 
-bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len)
 {
-    //署名verify
-    bool ret;
     uint8_t hash[BTC_SZ_HASH256];
-
-    // channel_updateからsignatureを除いたサイズ
-    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
-                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //LOGD("hash=");
-    //DUMPD(hash, BTC_SZ_HASH256);
-
-    ret = btc_sig_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
-
-    return ret;
+    uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
+    btc_md_hash256(hash, pData + offset, Len - offset);
+    return btc_sig_verify_rs(pData + sizeof(uint16_t), hash, pNodePubKey);
 }
 
 
