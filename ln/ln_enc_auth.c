@@ -123,7 +123,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     //ephemeral key
     ret = btc_keys_create(&pBolt->e);
     if (!ret) {
-        LOGD("fail: ephemeral key\n");
+        LOGE("fail: ephemeral key\n");
         UTL_DBG_FREE(self->p_handshake);
         return false;
     }
@@ -157,7 +157,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const 
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
 
     if ((pBolt == NULL) || (pBolt->state != START_INITIATOR)) {
-        LOGD("fail: not initiator\n");
+        LOGE("fail: not initiator\n");
         return false;
     }
 
@@ -179,7 +179,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
     bool ret;
 
     if (pBolt == NULL) {
-        LOGD("fail: handshake ended\n");
+        LOGE("fail: handshake ended\n");
         return false;
     }
 
@@ -257,7 +257,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
                     NULL,                       //combined modeではNULL
                     nonce, self->noise_send.key);     //nonce, key
     if ((rc != 0) || (cllen != sizeof(l) + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -265,7 +265,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, self->noise_send.key);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
@@ -277,7 +277,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
                     cl + sizeof(l));    //MAC
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -289,7 +289,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
 
     self->noise_send.nonce++;
     if (self->noise_send.nonce == 1000) {
-        LOGD("???: This root shall not in.\n");
+        LOGE("???: This root shall not in.\n");
         goto LABEL_EXIT;
     }
     memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
@@ -302,14 +302,14 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
                     NULL,                       //combined modeではNULL
                     nonce, self->noise_send.key);     //nonce, key
     if ((rc != 0) || (cmlen != pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, self->noise_send.key);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
@@ -321,7 +321,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
                     cm + pBufIn->len);  //MAC
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -370,7 +370,7 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
                     NULL, 0,  //additional data
                     nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pllen != sizeof(uint16_t))) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         LOGD("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise_send.nonce, self->noise_recv.nonce);
         goto LABEL_EXIT;
     }
@@ -379,7 +379,7 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, self->noise_recv.key);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
@@ -391,7 +391,7 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
                     pl);                    //output
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -404,7 +404,7 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
     if (self->noise_recv.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        LOGD("???: This root shall not in.\n");
+        LOGE("???: This root shall not in.\n");
         goto LABEL_EXIT;
     }
 
@@ -435,7 +435,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
                     NULL, 0,  //additional data
                     nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pmlen != l)) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -443,7 +443,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, self->noise_recv.key);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
@@ -455,7 +455,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
                     pm);                //output
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -512,7 +512,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     uint8_t ikm_len = (pIkm) ? BTC_SZ_HASH256 : 0;
     ret = ln_misc_calc_mac(prk, pSalt, BTC_SZ_HASH256, pIkm, ikm_len);
     if (!ret) {
-        LOGD("fail: calc_mac\n");
+        LOGE("fail: calc_mac\n");
         return false;
     }
 
@@ -564,7 +564,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -572,7 +572,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
@@ -584,7 +584,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
                     c);                             //MAC
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -618,7 +618,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
-        LOGD("fail: invalid length=%d\n", pBuf->len);
+        LOGE("fail: invalid length=%d\n", pBuf->len);
         DUMPD(pBuf->buf, pBuf->len);
         goto LABEL_EXIT;
     }
@@ -645,7 +645,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -653,7 +653,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
@@ -665,7 +665,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     p);                 //output
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -709,7 +709,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -717,7 +717,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
@@ -729,7 +729,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
                     c);                             //MAC
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -762,7 +762,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
-        LOGD("fail: invalid length : len=%d, ver=%02x\n", pBuf->len, pBuf->buf[0]);
+        LOGE("fail: invalid length : len=%d, ver=%02x\n", pBuf->len, pBuf->buf[0]);
         goto LABEL_EXIT;
     }
     memcpy(re, pBuf->buf + 1, sizeof(re));
@@ -788,7 +788,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -796,7 +796,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     memset(p, 0, sizeof(p));
@@ -809,7 +809,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     p);                         //output
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -847,7 +847,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -855,7 +855,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
@@ -867,7 +867,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
                     c + BTC_SZ_PUBKEY);           //MAC
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -891,14 +891,14 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (tlen != sizeof(t))) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
@@ -910,7 +910,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
                     t);                             //MAC
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -944,7 +944,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 66) || (pBuf->buf[0] != 0x00)) {
-        LOGD("fail: invalid length\n");
+        LOGE("fail: invalid length\n");
         goto LABEL_EXIT;
     }
     memcpy(c, pBuf->buf + 1, sizeof(c));
@@ -963,7 +963,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (rslen != sizeof(rs))) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
@@ -971,7 +971,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
@@ -983,7 +983,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     rs);                        //output
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -1010,14 +1010,14 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
-        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
     mbedtls_chachapoly_init(&ctx);
     rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
@@ -1029,7 +1029,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     p);                         //output
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
-        LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        LOGE("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
 #endif
@@ -1058,7 +1058,7 @@ static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[
 
     FILE *dstFile = fopen(dstPath, "a");
     if (!dstFile) {
-        LOGD("fail: $LIGHTNINGKEYLOGFILE refers to non-existent dir\n");
+        LOGE("fail: $LIGHTNINGKEYLOGFILE refers to non-existent dir\n");
         return;
     }
 

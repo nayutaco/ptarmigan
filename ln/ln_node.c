@@ -120,7 +120,7 @@ bool ln_node_init(uint8_t Features)
             goto LABEL_EXIT;
         }
     } else {
-        LOGD("fail: db init\n");
+        LOGE("fail: db init\n");
         goto LABEL_EXIT;
     }
 
@@ -160,7 +160,7 @@ bool ln_node_init(uint8_t Features)
                     if ((mNode.addr.type == LN_NODEDESC_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addrinfo.ipv4.addr)) {
                         memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
                     } else {
-                        LOGD("fail: not announsable ipv4\n");
+                        LOGE("fail: not announsable ipv4\n");
                         anno.addr.type = LN_NODEDESC_NONE;
                     }
                     update = true;
@@ -174,7 +174,7 @@ bool ln_node_init(uint8_t Features)
                     anno.timestamp = (uint32_t)utl_time_time();
                     ret = ln_msg_node_announce_write(&buf_node, &anno);
                     if (!ret) {
-                        LOGD("fail: create node_announcement\n");
+                        LOGE("fail: create node_announcement\n");
                         goto LABEL_EXIT;
                     }
                     (void)ln_db_annonod_save(&buf_node, &anno, NULL);
@@ -246,7 +246,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
         pNodeAnno->p_rgbcolor = rgbcolor;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
         if (!ret) {
-            LOGD("fail: read node_announcement\n");
+            LOGE("fail: read node_announcement\n");
         }
     }
     utl_buf_free(&buf_anno);
@@ -400,16 +400,16 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     };
 
     if (pAddr1->type != pAddr2->type) {
-        LOGD("not match: type %d != %d\n", pAddr1->type, pAddr2->type);
+        LOGE("not match: type %d != %d\n", pAddr1->type, pAddr2->type);
         return false;
     }
     if (pAddr1->type <= LN_NODEDESC_ONIONV3) {
         if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, SZ[pAddr1->type]) != 0) {
-            LOGD("not match: addr\n");
+            LOGE("not match: addr\n");
             return false;
         }
     } else {
-        LOGD("invalid: type\n");
+        LOGE("invalid: type\n");
         return false;
     }
     return true;

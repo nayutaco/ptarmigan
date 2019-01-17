@@ -404,7 +404,7 @@ bool HIDDEN ln_script_committx_create(
     if (ret) {
         ret = ln_signer_p2wsh(pSig, txhash, pPrivData, MSG_FUNDIDX_FUNDING);
     } else {
-        LOGD("fail: calc sighash\n");
+        LOGE("fail: calc sighash\n");
     }
 
     return ret;
@@ -435,7 +435,7 @@ void HIDDEN ln_script_htlctx_create(
         pTx->locktime = CltvExpiry;
         break;
     default:
-        LOGD("fail: opt not set\n");
+        LOGE("fail: opt not set\n");
         assert(0);
         break;
     }
@@ -455,7 +455,7 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
 
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        LOGD("fail: invalid vin/vout\n");
+        LOGE("fail: invalid vin/vout\n");
         return false;
     }
 
@@ -465,7 +465,7 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
     if (ret) {
         ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
     } else {
-        LOGD("fail: calc sighash\n");
+        LOGE("fail: calc sighash\n");
     }
     return ret;
 }
@@ -585,11 +585,11 @@ bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
                     const utl_buf_t *pWitScript)
 {
     if (!pLocalPubKey && !pLocalSig && !pRemotePubKey && !pRemoteSig) {
-        LOGD("fail: invalid arguments\n");
+        LOGE("fail: invalid arguments\n");
         return false;
     }
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        LOGD("fail: invalid vin/vout\n");
+        LOGE("fail: invalid vin/vout\n");
         return false;
     }
 

@@ -120,7 +120,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t 
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_OPEN_CHANNEL) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, (int32_t)BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
@@ -154,7 +154,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t 
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 
 LABEL_ERROR:
@@ -166,19 +166,19 @@ LABEL_ERROR:
 static bool open_channel_check(const ln_msg_open_channel_t *pMsg)
 {
     if (memcmp(gGenesisChainHash, pMsg->p_chain_hash, sizeof(gGenesisChainHash))) {
-        LOGD("fail: chain_hash mismatch\n");
+        LOGE("fail: chain_hash mismatch\n");
         return false;
     }
     if (pMsg->funding_satoshis > (uint64_t)LN_FUNDING_SATOSHIS_MAX) {
-        LOGD("fail: large funding_satoshis (%" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_satoshis));
+        LOGE("fail: large funding_satoshis (%" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_satoshis));
         return false;
     }
     if (LN_SATOSHI2MSAT(pMsg->funding_satoshis) < pMsg->push_msat) {
-        LOGD("fail: invalid funding_satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_satoshis), pMsg->push_msat);
+        LOGE("fail: invalid funding_satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_satoshis), pMsg->push_msat);
         return false;
     }
     if (pMsg->max_accepted_htlcs > LN_MAX_ACCEPTED_HTLCS_MAX) {
-        LOGD("fail: invalid max_accepted_htlcs\n");
+        LOGE("fail: invalid max_accepted_htlcs\n");
         return false;
     }
     if (!btc_keys_check_pub(pMsg->p_funding_pubkey)) goto LABEL_ERROR_INVALID_PUBKEY;
@@ -189,13 +189,13 @@ static bool open_channel_check(const ln_msg_open_channel_t *pMsg)
     if (!btc_keys_check_pub(pMsg->p_first_per_commitment_point)) goto LABEL_ERROR_INVALID_PUBKEY;
     //XXX: ignore undefined bits
     //if ((pMsg->p_channel_flags[0] & ~CHANNEL_FLAGS_MASK) != 0) {
-    //    LOGD("fail: unknown channel_flags: %02x\n", pMsg->p_cahannel_flags[0]);
+    //    LOGE("fail: unknown channel_flags: %02x\n", pMsg->p_cahannel_flags[0]);
     //    return false;
     //}
     return true;
 
 LABEL_ERROR_INVALID_PUBKEY:
-    LOGD("fail: invalid pubkey\n");
+    LOGE("fail: invalid pubkey\n");
     return false;
 }
 
@@ -288,7 +288,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_ACCEPT_CHANNEL) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_temporary_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -318,7 +318,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_msg_accept_channel_t *pMsg, const uint
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 
 LABEL_ERROR:
@@ -330,7 +330,7 @@ LABEL_ERROR:
 static bool accept_channel_check(const ln_msg_accept_channel_t *pMsg)
 {
     if (pMsg->max_accepted_htlcs > LN_MAX_ACCEPTED_HTLCS_MAX) {
-        LOGD("fail: invalid max_accepted_htlcs\n");
+        LOGE("fail: invalid max_accepted_htlcs\n");
         return false;
     }
     if (!btc_keys_check_pub(pMsg->p_funding_pubkey)) goto LABEL_ERROR_INVALID_PUBKEY;
@@ -342,7 +342,7 @@ static bool accept_channel_check(const ln_msg_accept_channel_t *pMsg)
     return true;
 
 LABEL_ERROR_INVALID_PUBKEY:
-    LOGD("fail: invalid pubkey\n");
+    LOGE("fail: invalid pubkey\n");
     return false;
 }
 
@@ -413,7 +413,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_msg_funding_created_t *pMsg, const ui
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_FUNDING_CREATED) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_temporary_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -428,7 +428,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_msg_funding_created_t *pMsg, const ui
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -481,7 +481,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_msg_funding_signed_t *pMsg, const uint
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_FUNDING_SIGNED) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -494,7 +494,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_msg_funding_signed_t *pMsg, const uint
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -544,7 +544,7 @@ bool HIDDEN ln_msg_funding_locked_read(ln_msg_funding_locked_t *pMsg, const uint
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_FUNDING_LOCKED) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -557,7 +557,7 @@ bool HIDDEN ln_msg_funding_locked_read(ln_msg_funding_locked_t *pMsg, const uint
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -612,7 +612,7 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_msg_channel_reestablish_t *pMsg, 
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_CHANNEL_REESTABLISH) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
@@ -635,7 +635,7 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_msg_channel_reestablish_t *pMsg, 
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 

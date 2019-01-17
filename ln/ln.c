@@ -489,7 +489,7 @@ void ln_genesishash_set(const uint8_t *pHash)
     LOGD("genesis(%d)=", (int)gen);
     DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
     if (gen == BTC_BLOCK_CHAIN_UNKNOWN) {
-        LOGD("fail: unknown genesis block hash\n");
+        LOGE("fail: unknown genesis block hash\n");
     }
 }
 
@@ -699,7 +699,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             //LOGD("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
             if (!ret) {
-                LOGD("fail: type=%04x\n", type);
+                LOGE("fail: type=%04x\n", type);
             }
             break;
         }
@@ -882,7 +882,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
             }
         }
         if (idx >= LN_HTLC_MAX) {
-            LOGD("fail: cannot find HTLC to process\n");
+            LOGE("fail: cannot find HTLC to process\n");
         }
     }
 
@@ -907,7 +907,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
             callback(self, LN_CB_SEND_REQ, &buf_bolt);
             LOGD("OK: re-send revoke_and_ack\n");
         } else {
-            LOGD("fail: re-send revoke_and_ack\n");
+            LOGE("fail: re-send revoke_and_ack\n");
         }
         utl_buf_free(&buf_bolt);
     }
@@ -933,11 +933,11 @@ void ln_channel_reestablish_after(ln_self_t *self)
             LOGD("OK!\n");
         } else {
             //
-            LOGD("NG...\n");
-            LOGD("secret: ");
-            DUMPD(secret, BTC_SZ_PRIVKEY);
-            LOGD("prevpt: ");
-            DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+            LOGE("NG...\n");
+            LOGE("secret: ");
+            DUMPE(secret, BTC_SZ_PRIVKEY);
+            LOGE("prevpt: ");
+            DUMPE(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
         }
 
 #endif
@@ -1041,7 +1041,7 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
         dummy->tx_funding.vin[0].wit_item_cnt = 0;
         dummy->tx_funding.vin[0].witness = NULL;
     } else {
-        LOGD("fail: create_funding_tx()\n");
+        LOGE("fail: create_funding_tx()\n");
     }
 
     fundin.change_spk.buf = NULL;
@@ -1184,7 +1184,7 @@ bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd)
             callback(self, LN_CB_UPDATE_ANNODB, &annodb);
         }
     } else {
-        LOGD("fail: create channel_update\n");
+        LOGE("fail: create channel_update\n");
     }
 
     return ret;
@@ -1267,7 +1267,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
         uint8_t txid[BTC_SZ_TXID];
         bool ret = btc_tx_txid(pCloseTx, txid);
         if (!ret) {
-            LOGD("fail: txid\n");
+            LOGE("fail: txid\n");
             return;
         }
 
@@ -1347,7 +1347,7 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
                 self->commit_remote.to_self_delay,
                 self->commit_local.dust_limit_sat);
     if (!ret) {
-        LOGD("fail: create_to_local\n");
+        LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
     }
 
@@ -1403,7 +1403,7 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
                 pClose, NULL,
                 self->commit_remote.commit_num);
     if (!ret) {
-        LOGD("fail: create_to_remote\n");
+        LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
     }
 
@@ -1476,7 +1476,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
     utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
     bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
     if (!ret) {
-        LOGD("FATAL: ln_derkey_storage_get_secret()\n");
+        LOGE("fail: ln_derkey_storage_get_secret()\n");
         abort();
     }
     btc_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
@@ -1855,7 +1855,7 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
         memcpy(pNodeId1, anno.p_node_id1, BTC_SZ_PUBKEY);
         memcpy(pNodeId2, anno.p_node_id2, BTC_SZ_PUBKEY);
     } else {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
 
     return ret;
@@ -2520,7 +2520,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
             M_DB_SELF_SAVE(self);
         } else {
             //commit_txの作成に失敗したので、commitment_signedは送信できない
-            LOGD("fail: create commit_tx(0x%" PRIx64 ")\n", ln_short_channel_id(self));
+            LOGE("fail: create commit_tx(0x%" PRIx64 ")\n", ln_short_channel_id(self));
             callback(self, LN_CB_QUIT, NULL);
         }
         utl_buf_free(&buf_bolt);
@@ -2542,7 +2542,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ln_msg_init_t msg;
     ret = ln_msg_init_read(&msg, pData, Len);
     if (!ret) {
-        LOGD("fail: read\n");
+        LOGE("fail: read\n");
         goto LABEL_EXIT;
     }
 
@@ -2552,7 +2552,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     for (uint32_t lp = 0; lp < msg.gflen; lp++) {
         if (msg.p_globalfeatures[lp] & 0x55) {
             //even bit: 未対応のため、エラーにする
-            LOGD("fail: unknown bit(globalfeatures)\n");
+            LOGE("fail: unknown bit(globalfeatures)\n");
             ret = false;
             goto LABEL_EXIT;
         } else {
@@ -2572,7 +2572,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         uint8_t flag = (msg.p_localfeatures[0] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
         if (flag & 0x55) {
             //even bit: 未対応のため、エラーにする
-            LOGD("fail: unknown bit(localfeatures)\n");
+            LOGE("fail: unknown bit(localfeatures)\n");
             ret = false;
             goto LABEL_EXIT;
         } else {
@@ -2585,7 +2585,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             for (uint32_t lp = 1; lp < msg.lflen; lp++) {
                 if (msg.p_localfeatures[lp] & 0x55) {
                     //even bit: 未対応のため、エラーにする
-                    LOGD("fail: unknown bit(localfeatures)\n");
+                    LOGE("fail: unknown bit(localfeatures)\n");
                     ret = false;
                     goto LABEL_EXIT;
                 } else {
@@ -2973,7 +2973,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
             self->commit_remote.to_self_delay,
             self->commit_local.dust_limit_sat);
     if (!ret) {
-        LOGD("fail: create_to_local\n");
+        LOGE("fail: create_to_local\n");
         return false;
     }
 
@@ -2985,7 +2985,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
                 NULL, NULL,     //close無し、署名作成無し
                 0);
     if (!ret) {
-        LOGD("fail: create_to_remote\n");
+        LOGE("fail: create_to_remote\n");
         return false;
     }
 
@@ -3050,7 +3050,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             self->commit_remote.to_self_delay,
             self->commit_local.dust_limit_sat);
     if (!ret) {
-        LOGD("fail: create_to_local\n");
+        LOGE("fail: create_to_local\n");
         return false;
     }
 
@@ -3190,7 +3190,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         if (ret) {
             ret = ln_msg_closing_signed_write(&buf_bolt, &cnl_close);
         } else {
-            LOGD("fail: create close_t\n");
+            LOGE("fail: create close_t\n");
         }
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
@@ -3200,7 +3200,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             //署名送信により相手がbroadcastできるようになるので、一度保存する
             M_DB_SELF_SAVE(self);
         } else {
-            LOGD("fail\n");
+            LOGE("fail\n");
         }
     }
 
@@ -3239,7 +3239,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      of the final commitment transaction as calculated in BOLT #3.
     uint64_t feemax = ln_closing_signed_initfee(self);
     if (cnl_close.fee_satoshis > feemax) {
-        LOGD("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_satoshis, feemax);
+        LOGE("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_satoshis, feemax);
         return false;
     }
 
@@ -3247,7 +3247,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     btc_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, cnl_close.fee_satoshis, true);
     if (!ret) {
-        LOGD("fail: create close_t\n");
+        LOGE("fail: create close_t\n");
         assert(false);
     }
 
@@ -3267,7 +3267,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     btc_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, self->close_fee_sat, need_closetx);
     if (!ret) {
-        LOGD("fail: create close_t\n");
+        LOGE("fail: create close_t\n");
         return false;
     }
 
@@ -3291,10 +3291,10 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
                 //clearはDB削除に任せる
                 //channel_clear(self);
             } else {
-                LOGD("fail: send closing_tx\n");
+                LOGE("fail: send closing_tx\n");
             }
         } else {
-            LOGD("fail: create closeing_tx\n");
+            LOGE("fail: create closeing_tx\n");
             assert(0);
         }
         utl_buf_free(&txbuf);
@@ -3307,7 +3307,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             self->close_last_fee_sat = self->close_fee_sat;
             callback(self, LN_CB_SEND_REQ, &buf_bolt);
         } else {
-            LOGD("fail: create closeing_signed\n");
+            LOGE("fail: create closeing_signed\n");
             assert(0);
         }
         utl_buf_free(&buf_bolt);
@@ -3363,7 +3363,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //
     ret = check_recv_add_htlc_bolt2(self, p_htlc);
     if (!ret) {
-        LOGD("fail: BOLT2 check\n");
+        LOGE("fail: BOLT2 check\n");
         return false;
     }
 
@@ -3438,7 +3438,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     if (!ret && (result == LN_CB_ADD_HTLC_RESULT_OK)) {
         //ここまでで、ret=falseだったら、resultはFAILになる
         //すなわち、ret=falseでresultがOKになることはない
-        LOGD("fail\n");
+        LOGE("fail\n");
         result = LN_CB_ADD_HTLC_RESULT_FAIL;
     }
 
@@ -3492,13 +3492,13 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
             utl_buf_t buf_bolt = UTL_BUF_INIT;
             bool retval = ln_channel_update_get_peer(self, &buf_bolt, NULL);
             if (retval) {
-                LOGD("fail: --> temporary channel failure\n");
+                LOGE("fail: --> temporary channel failure\n");
                 ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
                 ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
                 utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
                 utl_buf_free(&buf_bolt);
             } else {
-                LOGD("fail: --> unknown next peer\n");
+                LOGE("fail: --> unknown next peer\n");
                 ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
             }
         }
@@ -3507,20 +3507,20 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     case LN_CB_ADD_HTLC_RESULT_OK:
         break;
     case LN_CB_ADD_HTLC_RESULT_FAIL:
-        LOGD("fail: will backwind fail_htlc\n");
+        LOGE("fail: will backwind fail_htlc\n");
         p_htlc->stat.flag.fin_delhtlc = LN_DELHTLC_FAIL;
         utl_buf_free(&p_htlc->buf_onion_reason);
         //折り返しだけAPIが異なる
         ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
         break;
     case LN_CB_ADD_HTLC_RESULT_MALFORMED:
-        LOGD("fail: will backwind malformed_htlc\n");
+        LOGE("fail: will backwind malformed_htlc\n");
         p_htlc->stat.flag.fin_delhtlc = LN_DELHTLC_MALFORMED;
         utl_buf_free(&p_htlc->buf_onion_reason);
         utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
         break;
     default:
-        LOGD("fail: unknown fail: %d\n", result);
+        LOGE("fail: unknown fail: %d\n", result);
         ret = false;
         break;
     }
@@ -3565,7 +3565,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
             if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, BTC_SZ_HASH256) == 0) {
                 p_htlc = &self->cnl_add_htlc[idx];
             } else {
-                LOGD("fail: match id, but fail payment_hash\n");
+                LOGE("fail: match id, but fail payment_hash\n");
             }
             break;
         }
@@ -3678,7 +3678,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
             self->commit_remote.to_self_delay,
             self->commit_local.dust_limit_sat);
     if (!ret) {
-        LOGD("fail: create_to_local\n");
+        LOGE("fail: create_to_local\n");
         goto LABEL_EXIT;
     }
 
@@ -3687,7 +3687,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //     static int count;
     //     count++;
     //     if (count >= 2) {
-    //         LOGD("**************ABORT*************\n");
+    //         LOGE("**************ABORT*************\n");
     //         printf("**************ABORT*************\n");
     //         exit(-1);
     //     }
@@ -3746,7 +3746,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         callback(self, LN_CB_SEND_REQ, &buf_bolt);
         utl_buf_free(&buf_bolt);
     } else {
-        LOGD("fail: ln_msg_revoke_and_ack_create\n");
+        LOGE("fail: ln_msg_revoke_and_ack_create\n");
     }
 
 LABEL_EXIT:
@@ -3759,7 +3759,7 @@ LABEL_EXIT:
         M_DB_SELF_SAVE(self);
     } else {
         //戻す
-        LOGD("fail: restore signature\n");
+        LOGE("fail: restore signature\n");
         memcpy(self->commit_local.signature, bak_sig, LN_SZ_SIGNATURE);
     }
 
@@ -3793,7 +3793,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     uint8_t prev_commitpt[BTC_SZ_PUBKEY];
     ret = btc_keys_priv2pub(prev_commitpt, msg.p_per_commitment_secret);
     if (!ret) {
-        LOGD("fail: prev_secret convert\n");
+        LOGE("fail: prev_secret convert\n");
         goto LABEL_EXIT;
     }
 
@@ -3818,7 +3818,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     // }
 
     // if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) != 0) {
-    //     LOGD("fail: prev_secret mismatch\n");
+    //     LOGE("fail: prev_secret mismatch\n");
 
     //     //check re-send
     //     if (memcmp(new_commitpt, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY) == 0) {
@@ -3838,7 +3838,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     //prev_secret保存
     ret = store_peer_percommit_secret(self, msg.p_per_commitment_secret);
     if (!ret) {
-        LOGD("fail: store prev secret\n");
+        LOGE("fail: store prev secret\n");
         goto LABEL_EXIT;
     }
 
@@ -4047,7 +4047,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
         //      * SHOULD fail the channel.
-        LOGD("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_remote.commit_num + 1, msg.next_local_commitment_number);
+        LOGE("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_remote.commit_num + 1, msg.next_local_commitment_number);
         chk_commit_num = false;
     }
 
@@ -4061,7 +4061,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         //      * MUST re-send the revoke_and_ack.
         LOGD("next_remote_revocation_number == local commit_num: resend\n");
     } else {
-        LOGD("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_local.revoke_num + 1, msg.next_remote_revocation_number);
+        LOGE("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_local.revoke_num + 1, msg.next_remote_revocation_number);
         chk_revoke_num = false;
     }
 
@@ -4087,16 +4087,16 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
                 //MUST NOT broadcast its commitment transaction.
                 //SHOULD fail the channel.
                 //SHOULD store my_current_per_commitment_point to retrieve funds should the sending node broadcast its commitment transaction on-chain.
-                LOGD("MUST NOT broadcast its commitment transaction\n");
+                LOGE("MUST NOT broadcast its commitment transaction\n");
             } else {
                 //SHOULD fail the channel.
-                LOGD("SHOULD fail the channel\n");
+                LOGE("SHOULD fail the channel\n");
                 ret = false;
                 goto LABEL_EXIT;
             }
         } else {
             //SHOULD fail the channel.
-            LOGD("SHOULD fail the channel\n");
+            LOGE("SHOULD fail the channel\n");
             ret = false;
             goto LABEL_EXIT;
         }
@@ -4121,7 +4121,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     uint8_t *p_sig_btc;
 
     if (self->fund_flag == 0) {
-        LOGD("fail: not open peer\n");
+        LOGE("fail: not open peer\n");
         return false;
     }
 
@@ -4159,7 +4159,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
             proc_anno_sigs(self);
             M_DB_SELF_SAVE(self);
         } else {
-            LOGD("fail: update short_channel_id\n");
+            LOGE("fail: update short_channel_id\n");
         }
     } else if ((self->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
         //BOLT07
@@ -4193,7 +4193,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
     bool ret = ln_msg_cnl_announce_read(&anno, pData, Len);
     if (!ret || (anno.short_channel_id == 0)) {
-        LOGD("fail: do nothing\n");
+        LOGE("fail: do nothing\n");
         return true;
     }
 
@@ -4242,7 +4242,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             return true;
         }
     } else {
-        LOGD("fail: decode\n");
+        LOGE("fail: decode\n");
         return true;
     }
 
@@ -4255,7 +4255,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     if (ret && btc_keys_check_pub(node_id)) {
         ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         if (!ret) {
-            LOGD("fail: verify\n");
+            LOGE("fail: verify\n");
         }
     } else {
         //該当するchannel_announcementが見つからない
@@ -4287,7 +4287,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             LOGD("save channel_update: %016" PRIx64 ":%d\n", upd.short_channel_id, upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
             annodb.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
         } else {
-            LOGD("fail: db save\n");
+            LOGE("fail: db save\n");
         }
         ret = true;
     } else {
@@ -4320,7 +4320,7 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
     anno.p_rgbcolor = rgbcolor;
     ret = ln_msg_node_announce_read(&anno, pData, Len);
     if (!ret) {
-        LOGD("fail: read message\n");
+        LOGE("fail: read message\n");
         return false;
     }
 
@@ -4478,7 +4478,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         if (self->p_establish->p_fundin->amount >= self->funding_sat + fee) {
             self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->funding_sat - fee;
         } else {
-            LOGD("fail: amount too short:\n");
+            LOGE("fail: amount too short:\n");
             LOGD("    amount=%" PRIu64 "\n", self->p_establish->p_fundin->amount);
             LOGD("    funding_satoshis=%" PRIu64 "\n", self->funding_sat);
             LOGD("    fee=%" PRIu64 "\n", fee);
@@ -4523,7 +4523,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
             }
             utl_buf_free(&two_of_two);
         } else {
-            LOGD("fail: signature\n");
+            LOGE("fail: signature\n");
             btc_tx_free(&self->tx_funding);
         }
     } else {
@@ -4642,7 +4642,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
         ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     }
     if (!ret) {
-        LOGD("fail: sign p2wsh\n");
+        LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
     }
@@ -4833,7 +4833,7 @@ LABEL_EXIT:
                     //B13. if the channel is disabled:
                     //      channel_disabled
                     //      (report the current channel setting for the outgoing channel.)
-                    LOGD("fail: channel_disabled\n");
+                    LOGE("fail: channel_disabled\n");
 
                     utl_push_t push_htlc;
                     utl_push_init(&push_htlc, pReason,
@@ -4852,7 +4852,7 @@ LABEL_EXIT:
             if (retval) {
                 //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
                 //      temporary_channel_failure
-                LOGD("fail: temporary_channel_failure\n");
+                LOGE("fail: temporary_channel_failure\n");
 
                 utl_push_t push_htlc;
                 utl_push_init(&push_htlc, pReason,
@@ -4863,7 +4863,7 @@ LABEL_EXIT:
             } else {
                 //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
                 //      permanent_channel_failure
-                LOGD("fail: permanent_channel_failure\n");
+                LOGE("fail: permanent_channel_failure\n");
 
                 utl_push_t push_htlc;
                 utl_push_init(&push_htlc, pReason, sizeof(uint16_t));
@@ -5128,15 +5128,15 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
         uint8_t dir = ln_sort_to_dir(sort_nodeid(self, peer_id));
         ret = ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir);
         if (!ret) {
-            LOGD("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
+            LOGE("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
         }
     } else {
-        LOGD("fail: ln_node_search_nodeid\n");
+        LOGE("fail: ln_node_search_nodeid\n");
     }
     if (ret) {
         ret = ln_msg_cnl_update_read(&cnlupd, cnlupd_buf.buf, cnlupd_buf.len);
         if (!ret) {
-            LOGD("fail: ln_msg_cnl_update_read\n");
+            LOGE("fail: ln_msg_cnl_update_read\n");
         }
     }
     if (!ret) {
@@ -5307,7 +5307,7 @@ static void proc_anno_sigs(ln_self_t *self)
         if (ret1) {
             utl_buf_free(&self->cnl_anno);
         } else {
-            LOGD("fail\n");
+            LOGE("fail\n");
         }
 
         //channel_update
@@ -5318,7 +5318,7 @@ static void proc_anno_sigs(ln_self_t *self)
         if (ret2) {
             ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
         } else {
-            LOGD("fail\n");
+            LOGE("fail\n");
         }
         utl_buf_free(&buf_upd);
 
@@ -5351,7 +5351,7 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
         if (ret) {
             memcpy(pNodeId, Dir ? anno.p_node_id2 : anno.p_node_id1, BTC_SZ_PUBKEY);
         } else {
-            LOGD("fail\n");
+            LOGE("fail\n");
         }
     } else {
         if (short_channel_id == self->short_channel_id) {
@@ -5425,7 +5425,7 @@ static bool set_add_htlc(ln_self_t *self,
             clear_htlc(&self->cnl_add_htlc[idx]);
         }
     } else {
-        LOGD("fail: create update_add_htlc\n");
+        LOGE("fail: create update_add_htlc\n");
     }
 
     return ret;

@@ -223,7 +223,7 @@ bool ln_comtx_create_to_local(ln_self_t *self,
         //2-of-2 verify
         ret = create_to_local_sign_verify(self, &tx_commit, &buf_sig);
     } else {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     if (ret) {
         ret = btc_tx_txid(&tx_commit, self->commit_local.txid);
@@ -650,7 +650,7 @@ static bool create_to_local_spent(ln_self_t *self,
                 if (ret) {
                     pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
                 } else {
-                    LOGD("fail: sign vout[%d]\n", vout_idx);
+                    LOGE("fail: sign vout[%d]\n", vout_idx);
                     break;
                 }
             } else {
@@ -665,7 +665,7 @@ static bool create_to_local_spent(ln_self_t *self,
     }
 
     if ((pHtlcSigs != NULL) && (htlc_num != HtlcSigsNum)) {
-        LOGD("署名数不一致: %d, %d\n", htlc_num, HtlcSigsNum);
+        LOGE("署名数不一致: %d, %d\n", htlc_num, HtlcSigsNum);
         ret = false;
     }
 
@@ -729,7 +729,7 @@ static bool create_to_local_htlcverify(const ln_self_t *self,
     if (ret) {
         M_DBG_PRINT_TX2(pTx);
     } else {
-        LOGD("fail: verify vout\n");
+        LOGE("fail: verify vout\n");
         btc_tx_free(pTx);
     }
 
@@ -817,7 +817,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
     utl_buf_free(&buf_remote_sig);
     utl_buf_free(&buf_local_sig);
     if (!ret) {
-        LOGD("fail: sign_htlc_tx: vout\n");
+        LOGE("fail: sign_htlc_tx: vout\n");
         goto LABEL_EXIT;
     }
     M_DBG_PRINT_TX2(pTxHtlc);
@@ -1009,7 +1009,7 @@ static bool create_to_remote_spent(const ln_self_t *self,
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
                     }
                 } else {
-                    LOGD("fail: sign vout[%d]\n", vout_idx);
+                    LOGE("fail: sign vout[%d]\n", vout_idx);
                     break;
                 }
 
@@ -1164,7 +1164,7 @@ static bool create_to_remote_spenthtlc(
         }
         utl_buf_free(&buf_localsig);
         if (!ret) {
-            LOGD("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
+            LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
             goto LABEL_EXIT;
         }
     }
@@ -1201,7 +1201,7 @@ LABEL_EXIT:
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing)
 {
     if (!LN_DBG_MATCH_PREIMAGE()) {
-        LOGD("DBG: HTLC preimage mismatch\n");
+        LOGE("DBG: HTLC preimage mismatch\n");
         return false;
     }
     // LOGD("pPayHash(%d)=", bClosing);

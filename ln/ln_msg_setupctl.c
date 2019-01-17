@@ -101,7 +101,7 @@ bool HIDDEN ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t
 
     //XXX:
     if (type != MSGTYPE_INIT) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -112,7 +112,7 @@ bool HIDDEN ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -168,7 +168,7 @@ bool HIDDEN ln_msg_error_read(ln_msg_error_t *pMsg, const uint8_t *pData, uint16
 
     //XXX:
     if (type != MSGTYPE_ERROR) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -179,7 +179,7 @@ bool HIDDEN ln_msg_error_read(ln_msg_error_t *pMsg, const uint8_t *pData, uint16
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -220,7 +220,7 @@ bool HIDDEN ln_msg_ping_write(utl_buf_t *pBuf, const ln_msg_ping_t *pMsg)
 
     //XXX:
     if (pMsg->num_pong_bytes > LN_NUM_PONG_BYTES_MAX) {
-        LOGD("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
+        LOGE("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
         return false;
     }
 
@@ -255,17 +255,17 @@ bool HIDDEN ln_msg_ping_read(ln_msg_ping_t *pMsg, const uint8_t *pData, uint16_t
 
     //XXX:
     if (type != MSGTYPE_PING) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (pMsg->num_pong_bytes > LN_NUM_PONG_BYTES_MAX) {
-        LOGD("fail: num_pong_bytes %04x\n", pMsg->num_pong_bytes);
+        LOGE("fail: num_pong_bytes %04x\n", pMsg->num_pong_bytes);
         return false;
     }
 #ifdef M_PING_NONZERO_CHK
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
         if (*(pMsg->p_ignored + lp)) {
-            LOGD("fail: contain not zero\n");
+            LOGE("fail: contain not zero\n");
             return false;
         }
     }
@@ -278,7 +278,7 @@ bool HIDDEN ln_msg_ping_read(ln_msg_ping_t *pMsg, const uint8_t *pData, uint16_t
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
@@ -309,7 +309,7 @@ bool HIDDEN ln_msg_pong_write(utl_buf_t *pBuf, const ln_msg_pong_t *pMsg)
 
     //XXX:
     if (pMsg->byteslen > LN_NUM_PONG_BYTES_MAX) {
-        LOGD("fail: byteslen: %d\n", pMsg->byteslen);
+        LOGE("fail: byteslen: %d\n", pMsg->byteslen);
         return false;
     }
 
@@ -342,17 +342,17 @@ bool HIDDEN ln_msg_pong_read(ln_msg_pong_t *pMsg, const uint8_t *pData, uint16_t
 
     //XXX:
     if (type != MSGTYPE_PONG) {
-        LOGD("fail: type not match: %04x\n", type);
+        LOGE("fail: type not match: %04x\n", type);
         return false;
     }
     if (pMsg->byteslen > LN_NUM_PONG_BYTES_MAX) {
-        LOGD("fail: byteslen %04x\n", pMsg->byteslen);
+        LOGE("fail: byteslen %04x\n", pMsg->byteslen);
         return false;
     }
 #ifdef M_PONG_NONZERO_CHK
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
         if (*(pMsg->p_ignored + lp)) {
-            LOGD("fail: contain not zero\n");
+            LOGE("fail: contain not zero\n");
             return false;
         }
     }
@@ -365,7 +365,7 @@ bool HIDDEN ln_msg_pong_read(ln_msg_pong_t *pMsg, const uint8_t *pData, uint16_t
     return true;
 
 LABEL_ERROR_SYNTAX:
-    LOGD("fail: invalid syntax\n");
+    LOGE("fail: invalid syntax\n");
     return false;
 }
 
