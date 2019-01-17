@@ -296,7 +296,8 @@ void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr)
     sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
     fp = fopen(fname, "a");
     if (fp != NULL) {
-        fprintf(fp, "  result=%s\n", pResultStr);
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        fprintf(fp, "  result(%s)=%s\n", utl_time_str_time(time), pResultStr);
         fclose(fp);
     }
 }
@@ -1900,7 +1901,8 @@ static void cmd_routepay_save_route(
             }
         }
         fprintf(fp, "----------- end of route -----------\n");
-        fprintf(fp, "  result=%s\n", pResultStr);
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        fprintf(fp, "  result(%s)=%s\n", utl_time_str_time(time), pResultStr);
         fclose(fp);
     }
 }
