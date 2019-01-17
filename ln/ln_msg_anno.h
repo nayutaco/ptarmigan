@@ -51,6 +51,12 @@ bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *
 bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
+/** sign channel_announcement
+ *
+ */
+bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
+
+
 /** channel_announcement署名verify
  *
  * @param[in]       pData   対象データ
@@ -64,12 +70,6 @@ bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *p
  *
  */
 void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
-
-
-/** sign channel_announcement
- *
- */
-bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
 
 
 /** channel_updateデバッグ出力
