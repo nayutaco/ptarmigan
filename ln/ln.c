@@ -4748,7 +4748,9 @@ static bool create_channel_update(
     pUpd->channel_flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
     pUpd->htlc_maximum_msat = 0;
     bool ret = ln_msg_cnl_update_write(pCnlUpd, pUpd);
-
+    if (ret) {
+        ret = ln_msg_cnl_update_sign(pCnlUpd->buf, pCnlUpd->len);
+    }
     return ret;
 }
 
