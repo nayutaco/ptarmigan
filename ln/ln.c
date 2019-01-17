@@ -4140,7 +4140,6 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     ln_announce_signs_t anno_signs;
     anno_signs.p_channel_id = channel_id;
-    anno_signs.short_channel_id = self->short_channel_id;
     anno_signs.p_node_signature = p_sig_node;
     anno_signs.p_btc_signature = p_sig_btc;
     ret = ln_msg_announce_signs_read(&anno_signs, pData, Len);
@@ -4154,6 +4153,14 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
+    }
+
+    if (self->short_channel_id) {
+        if (anno_signs.short_channel_id != self->short_channel_id) {
+            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", self->short_channel_id, anno_signs.short_channel_id);
+            M_SET_ERR(self, LNERR_MSG_READ, "read message"); //XXX:
+            return false;
+        }
     }
 
     if ((self->anno_flag & LN_ANNO_FLAG_END) == 0) {

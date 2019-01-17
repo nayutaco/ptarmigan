@@ -970,13 +970,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:short_channel_id]
-    uint64_t short_channel_id = utl_int_pack_u64be(pData + pos);
-    if (pMsg->short_channel_id == 0) {
-        pMsg->short_channel_id = short_channel_id;
-    } else if (pMsg->short_channel_id != short_channel_id) {
-        LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
-        return false;
-    }
+    pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
     //        [64:node_signature]
