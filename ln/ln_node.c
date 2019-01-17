@@ -177,6 +177,11 @@ bool ln_node_init(uint8_t Features)
                         LOGE("fail: create node_announcement\n");
                         goto LABEL_EXIT;
                     }
+                    ret = ln_msg_node_announce_sign(buf_node.buf, buf_node.len);
+                    if (!ret) {
+                        LOGD("fail: sign\n");
+                        goto LABEL_EXIT;
+                    }
                     (void)ln_db_annonod_save(&buf_node, &anno, NULL);
                 }
                 memcpy(&mNode.addr, &anno.addr, sizeof(anno.addr));
@@ -193,6 +198,10 @@ bool ln_node_init(uint8_t Features)
         anno.p_rgbcolor = rgbcolor;
         memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
         ret = ln_msg_node_announce_write(&buf_node, &anno);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+        ret = ln_msg_node_announce_sign(buf_node.buf, buf_node.len);
         if (!ret) {
             goto LABEL_EXIT;
         }
