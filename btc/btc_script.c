@@ -296,7 +296,7 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
     //  pushデータ長
     //  redeemScript
     if (*p != OP_0) {
-        LOGD("top isnot OP_0\n");
+        LOGE("top isnot OP_0\n");
         return false;
     }
 
@@ -316,7 +316,7 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
         pos += 1 + len;
     }
     if (pos >= pScriptSig->len) {
-        LOGD("no OP_PUSHDATAx(sign)\n");
+        LOGE("no OP_PUSHDATAx(sign)\n");
         return false;
     }
     uint16_t redm_len;  //OP_PUSHDATAxの引数
@@ -327,15 +327,15 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
         redm_len = (uint16_t)(*(p + pos) | (*(p + pos + 1) << 8));
         pos += 2;
     } else {
-        LOGD("no OP_PUSHDATA-1or2\n");
+        LOGE("no OP_PUSHDATA-1or2\n");
         return false;
     }
     if (pScriptSig->len != pos + redm_len) {
-        LOGD("invalid len\n");
+        LOGE("invalid len\n");
         return false;
     }
     if (signum != (*(p + pos) - OP_X)) {
-        LOGD("OP_X mismatch(sign): signum=%d, OP_X=%d\n", signum, *(p + pos) - OP_X);
+        LOGE("OP_X mismatch(sign): signum=%d, OP_X=%d\n", signum, *(p + pos) - OP_X);
         return false;
     }
     pos++;
@@ -348,28 +348,28 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
             break;
         }
         if (len != BTC_SZ_PUBKEY) {
-            LOGD("invalid pubkey len(%d)\n", len);
+            LOGE("invalid pubkey len(%d)\n", len);
             return false;
         }
         pubnum++;
         pos += 1 + len;
     }
     if (pos >= pScriptSig->len) {
-        LOGD("no OP_PUSHDATAx(pubkey)\n");
+        LOGE("no OP_PUSHDATAx(pubkey)\n");
         return false;
     }
     if (pubnum != (*(p + pos) - OP_X)) {
-        LOGD("OP_X mismatch(pubkey): signum=%d, OP_X=%d\n", pubnum, *(p + pos) - OP_X);
+        LOGE("OP_X mismatch(pubkey): signum=%d, OP_X=%d\n", pubnum, *(p + pos) - OP_X);
         return false;
     }
     pos++;
     if (*(p + pos) != OP_CHECKMULTISIG) {
-        LOGD("not OP_CHECKMULTISIG\n");
+        LOGE("not OP_CHECKMULTISIG\n");
         return false;
     }
     pos++;
     if (pos != pScriptSig->len) {
-        LOGD("invalid data length\n");
+        LOGE("invalid data length\n");
         return false;
     }
 
@@ -378,7 +378,7 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
     btc_md_hash160(sh, pScriptSig->buf + pubpos - 1, pScriptSig->len - pubpos + 1);
     bool ret = (memcmp(sh, pScriptHash, BTC_SZ_HASH160) == 0);
     if (!ret) {
-        LOGD("scripthash mismatch.\n");
+        LOGE("scripthash mismatch.\n");
         return false;
     }
 
@@ -389,7 +389,7 @@ bool btc_script_p2sh_multisig_verify_scriptsig(utl_buf_t *pScriptSig, const uint
             const uint8_t *p2 = pScriptSig->buf + pubpos + (1 + BTC_SZ_PUBKEY) * lp2;
             ret = (memcmp(p1, p2, 1 + BTC_SZ_PUBKEY) == 0);
             if (ret) {
-                LOGD("same pubkey(%d, %d)\n", lp, lp2);
+                LOGE("same pubkey(%d, %d)\n", lp, lp2);
                 return false;
             }
         }
@@ -594,7 +594,7 @@ bool btc_script_p2wsh_create_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCn
 bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemCnt, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     if (WitItemCnt != 4) {
-        LOGD("items not 4.n");
+        LOGE("items not 4.n");
         return false;
     }
 
@@ -615,49 +615,49 @@ bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemC
     // scriptPk (P2WSH-witnessPorg)
     //      OP_0 <witnessScriptHash>
     if (pScriptPk->len != 1 + 1 + BTC_SZ_HASH256) {
-        LOGD("invalid P2WSH-witnessProg\n");
+        LOGE("invalid P2WSH-witnessProg\n");
         return false;
     }
     if (pScriptPk->buf[0] != OP_0) {
-        LOGD("invalid P2WSH-witnessProg\n");
+        LOGE("invalid P2WSH-witnessProg\n");
         return false;
     }
     if (pScriptPk->buf[1] != BTC_SZ_HASH256) {
-        LOGD("invalid P2WSH-witnessProg\n");
+        LOGE("invalid P2WSH-witnessProg\n");
         return false;
     }
     uint8_t sh[BTC_SZ_HASH256];
     wit_item = &pWitness[3];
     btc_md_sha256(sh, wit_item->buf, wit_item->len);
     if (memcmp(sh, &pScriptPk->buf[2], BTC_SZ_HASH256)) {
-        LOGD("pubkeyhash mismatch.\n");
+        LOGE("pubkeyhash mismatch.\n");
         return false;
     }
 
     //NULL
     wit_item = &pWitness[0];
     if (wit_item->len != 0) {
-        LOGD("witness[0] is not NULL\n");
+        LOGE("witness[0] is not NULL\n");
         return false;
     }
 
     //sigs
     const utl_buf_t *sig1 = &pWitness[1];
     if (sig1->len == 0) {
-        LOGD("sig1: invalid\n");
+        LOGE("sig1: invalid\n");
         return false;
     }
     if (sig1->buf[sig1->len - 1] != SIGHASH_ALL) {
-        LOGD("sig1: not SIGHASH_ALL\n");
+        LOGE("sig1: not SIGHASH_ALL\n");
         return false;
     }
     const utl_buf_t *sig2 = &pWitness[2];
     if (sig2->len == 0) {
-        LOGD("sig2: invalid\n");
+        LOGE("sig2: invalid\n");
         return false;
     }
     if (sig2->buf[sig2->len - 1] != SIGHASH_ALL) {
-        LOGD("sig2: not SIGHASH_ALL\n");
+        LOGE("sig2: not SIGHASH_ALL\n");
         return false;
     }
 
@@ -665,7 +665,7 @@ bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemC
     wit_item = &pWitness[3];
     if (wit_item->len != 71) {
         // Note: we support `MinimalPush` only.
-        LOGD("witnessScript: invalid length: %u\n", wit_item->len);
+        LOGE("witnessScript: invalid length: %u\n", wit_item->len);
         return false;
     }
     const uint8_t *p = wit_item->buf;
@@ -674,12 +674,12 @@ bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemC
          (*(p + 35) != BTC_SZ_PUBKEY) ||
          (*(p + 69) != OP_2) ||
          (*(p + 70) != OP_CHECKMULTISIG) ) {
-        LOGD("witnessScript: non-standard 2-of-2\n");
-        LOGD("1: %d\n", (*p != OP_2));
-        LOGD("2: %d\n", (*(p + 1) != BTC_SZ_PUBKEY));
-        LOGD("3: %d\n", (*(p + 35) != BTC_SZ_PUBKEY));
-        LOGD("4: %d\n", (*(p + 69) != OP_2));
-        LOGD("5: %d\n", (*(p + 70) != OP_CHECKMULTISIG));
+        LOGE("witnessScript: non-standard 2-of-2\n");
+        LOGE("1: %d\n", (*p != OP_2));
+        LOGE("2: %d\n", (*(p + 1) != BTC_SZ_PUBKEY));
+        LOGE("3: %d\n", (*(p + 35) != BTC_SZ_PUBKEY));
+        LOGE("4: %d\n", (*(p + 69) != OP_2));
+        LOGE("5: %d\n", (*(p + 70) != OP_CHECKMULTISIG));
         return false;
     }
     const uint8_t *pub1 = p + 2;
@@ -688,11 +688,11 @@ bool btc_script_p2wsh_2of2_verify_witness(utl_buf_t *pWitness, uint32_t WitItemC
     //verify sigs
 #if 1
     if (!btc_sig_verify(sig1, pTxHash, pub1)) {
-        LOGD("fail: btc_sig_verify(sig1)\n");
+        LOGE("fail: btc_sig_verify(sig1)\n");
         return false;
     }
     if (!btc_sig_verify(sig2, pTxHash, pub2)) {
-        LOGD("fail: btc_sig_verify(sig2)\n");
+        LOGE("fail: btc_sig_verify(sig2)\n");
         return false;
     }
 #else
@@ -894,13 +894,13 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
                 LOGD("%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
             } else {
                 //unknown
-                LOGD("%s%02x [??]\n", INDENT, *pData);
+                LOGE("%s%02x [??]\n", INDENT, *pData);
             }
             pData++;
         }
     }
     if (!ret) {
-        LOGD("%sinvalid script length\n", INDENT);
+        LOGE("%sinvalid script length\n", INDENT);
     }
 }
 #endif  //PTARM_USE_PRINTFUNC

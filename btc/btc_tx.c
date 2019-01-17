@@ -99,38 +99,38 @@ void btc_tx_free(btc_tx_t *pTx)
 btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
 {
     if (pTx == NULL) {
-        LOGD("fail: null\n");
+        LOGE("fail: null\n");
         return BTC_TXVALID_ARG_NULL;
     }
     if (pTx->version != 1 && pTx->version != 2) {
-        LOGD("fail: version\n");
+        LOGE("fail: version\n");
         return BTC_TXVALID_VERSION_BAD;
     }
     if (pTx->vin_cnt == 0) {
-        LOGD("fail: vin_cnt\n");
+        LOGE("fail: vin_cnt\n");
         return BTC_TXVALID_VIN_NONE;
     }
     if (pTx->vin == NULL) {
-        LOGD("fail: NULL vin\n");
+        LOGE("fail: NULL vin\n");
         return BTC_TXVALID_VIN_NULL;
     }
     if (pTx->vout_cnt == 0) {
-        LOGD("fail: vout_cnt\n");
+        LOGE("fail: vout_cnt\n");
         btc_tx_print(pTx);
         return BTC_TXVALID_VOUT_NONE;
     }
     if (pTx->vout == NULL) {
-        LOGD("fail: NULL vout\n");
+        LOGE("fail: NULL vout\n");
         return BTC_TXVALID_VOUT_NULL;
     }
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         const btc_vin_t *vin = &pTx->vin[lp];
 
         if ((vin->wit_item_cnt > 0) && (vin->witness == NULL)) {
-            LOGD("fail: NULL witness[%u]\n", lp);
+            LOGE("fail: NULL witness[%u]\n", lp);
             return BTC_TXVALID_VIN_WIT_NULL;
         } else if ((vin->wit_item_cnt == 0) && (vin->witness != NULL)) {
-            LOGD("fail: bad witness[%u]\n", lp);
+            LOGE("fail: bad witness[%u]\n", lp);
             return BTC_TXVALID_VIN_WIT_BAD;
         } else {
             //OK
@@ -138,7 +138,7 @@ btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
         for (uint32_t wit = 0; wit < vin->wit_item_cnt; wit++) {
             const utl_buf_t *buf = &vin->witness[wit];
             if (buf == NULL) {
-                LOGD("fail: NULL witness[%u][%u]", lp, wit);
+                LOGE("fail: NULL witness[%u][%u]", lp, wit);
                 return BTC_TXVALID_VIN_WIT_NULL;
             }
             //OP_0はlen=0になるので、buf=NULLはあり得る
@@ -148,11 +148,11 @@ btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
         const btc_vout_t *vout = &pTx->vout[lp];
 
         if (vout->script.len == 0) {
-            LOGD("fail: no scriptPubKeyHash[%u]\n", lp);
+            LOGE("fail: no scriptPubKeyHash[%u]\n", lp);
             return BTC_TXVALID_VOUT_SPKH_NONE;
         }
         if ((vout->value == 0) && !btc_script_scriptpk_is_op_return(&vout->script)) {
-            LOGD("fail: no value[%u]\n", lp);
+            LOGE("fail: no value[%u]\n", lp);
             return BTC_TXVALID_VOUT_VALUE_BAD;
         }
     }
@@ -477,12 +477,12 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
 
     btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
-        LOGD("fail: invalid tx\n");
+        LOGE("fail: invalid tx\n");
         return false;
     }
 
     if (pTx->vin_cnt != Num) {
-        LOGD("fail: invalid vin_cnt\n");
+        LOGE("fail: invalid vin_cnt\n");
         return false;
     }
 
@@ -653,13 +653,13 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
         utl_buf_t txbuf_old = UTL_BUF_INIT;
 
         if (!btc_tx_read(&txold, pData, Len)) {
-            LOGD("fail: vbyte\n");
+            LOGE("fail: vbyte\n");
             len = 0;
             goto LABEL_EXIT;
         }
 
         if (!btc_tx_write_2(&txbuf_old, &txold, false)) {
-            LOGD("fail: vbyte\n");
+            LOGE("fail: vbyte\n");
             len = 0;
             goto LABEL_EXIT;
         }

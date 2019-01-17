@@ -332,9 +332,9 @@ bool btc_rng_rand(uint8_t *pData, uint16_t Len)
 #ifndef PTARM_NO_USE_RNG
     int ret = mbedtls_ctr_drbg_random(&mRng, pData, Len);
     if (ret) {
-        LOGD("fail: random=%d\n", ret);
+        LOGE("fail: random=%d\n", ret);
         btc_crypto_error_print(ret);
-        LOGD("\n");
+        LOGE("\n");
         return false;
     }
 #else
@@ -372,7 +372,7 @@ void btc_crypto_error_print(int ErrNum)
 {
     char buffer[1024];
     mbedtls_strerror(ErrNum, buffer, sizeof(buffer));
-    LOGD("%s\n", buffer);
+    LOGE("%s\n", buffer);
 }
 
 

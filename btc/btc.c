@@ -64,7 +64,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
     bool ret = false;
 
     if (mPref[BTC_PREF_WIF]) {
-        LOGD("multiple init\n");
+        LOGE("multiple init\n");
         assert(0);
         return false;
     }
@@ -90,7 +90,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
         ret = true;
         break;
     default:
-        LOGD("unknown chain\n");
+        LOGE("unknown chain\n");
         assert(0);
     }
 

@@ -79,7 +79,7 @@ bool btc_test_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *p
 
 LABEL_EXIT:
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     utl_buf_free(&spk);
     return ret;
@@ -121,7 +121,7 @@ bool btc_test_util_verify_p2pkh_addr(btc_tx_t *pTx, uint32_t Index, const char *
 
 LABEL_EXIT:
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     utl_buf_free(&spk);
     return ret;
@@ -143,16 +143,16 @@ bool btc_test_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, co
 
     if (!btc_sw_sighash(pTx, txhash, Index, Value, &script_code)) goto LABEL_EXIT;
     if (!btc_sig_sign(&sig, txhash, pKeys->priv)) goto LABEL_EXIT;
-    
+
     //if mNativeSegwit == true, then set witness
     //if mNativeSegwit == fase, then set scriptsig and witness
     if (!btc_sw_set_vin_p2wpkh(pTx, Index, &sig, pKeys->pub)) goto LABEL_EXIT;
 
     ret = true;
-    
+
 LABEL_EXIT:
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     utl_buf_free(&sig);
     utl_buf_free(&script_code);
