@@ -776,6 +776,7 @@ typedef struct {
  *  @brief  update_fulfill_htlc受信通知(#LN_CB_FULFILL_HTLC_RECV)
  */
 typedef struct {
+    bool                    ret;                    ///< callback処理結果
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)

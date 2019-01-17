@@ -172,7 +172,7 @@
 
 #define M_SET_ERR(self,err,fmt,...)     {\
         set_error(self,err,fmt,##__VA_ARGS__);\
-        LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
 #define M_SEND_ERR(self,err,fmt,...)    {\
         set_error(self,err,fmt,##__VA_ARGS__);\
@@ -182,7 +182,7 @@
         msg.p_data = (const uint8_t *)self->err_msg;\
         msg.len = strlen(self->err_msg);\
         send_error(self, &msg);\
-        LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
 
 #define M_DBG_COMMITHTLC
@@ -3583,12 +3583,17 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
 
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
+        fulfill.ret = false;
         fulfill.prev_short_channel_id = p_htlc->prev_short_channel_id;
         fulfill.prev_idx = p_htlc->prev_idx;
         fulfill.p_preimage = preimage;
         fulfill.id = p_htlc->id;
         fulfill.amount_msat = p_htlc->amount_msat;
         callback(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
+
+        if (!fulfill.ret) {
+            LOGE("fail: backwind\n");
+        }
     } else {
         M_SET_ERR(self, LNERR_INV_ID, "fulfill");
     }
