@@ -91,7 +91,7 @@ btc_block_chain_t btc_block_get_chain(const uint8_t *pGenesisHash)
         LOGD("  bitcoin regtest\n");
         return BTC_BLOCK_CHAIN_BTCREGTEST;
     }
-    LOGD("  unknown genesis hash\n");
+    LOGE("  unknown genesis hash\n");
     return BTC_BLOCK_CHAIN_UNKNOWN;
 }
 
@@ -106,7 +106,7 @@ const uint8_t *btc_block_get_genesis_hash(btc_block_chain_t chain)
     case BTC_BLOCK_CHAIN_BTCREGTEST:
         return M_GENESIS_HASH_BTCREGTEST;
     default:
-        LOGD("unknown chain: %02x\n", chain);
+        LOGE("unknown chain: %02x\n", chain);
     }
     return NULL;
 }

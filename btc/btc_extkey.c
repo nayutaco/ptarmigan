@@ -138,7 +138,7 @@ bool btc_extkey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPa
                     M_ITER_COUNT,
                     BTC_SZ_EXTKEY_SEED, pSeed);
     if (ret != 0) {
-        LOGD("fail: %x\n", -ret);
+        LOGE("fail: %x\n", -ret);
     }
     UTL_DBG_FREE(salt);
 
@@ -206,7 +206,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         if (pKey == NULL) return false;
 
         if (pExtKey->child_number & BTC_EXTKEY_HARDENED) {
-            LOGD("fail: hardened child number\n");
+            LOGE("fail: hardened child number\n");
             return false;
         }
         p_key = pExtKey->chain_code;
@@ -224,7 +224,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         btc_md_hash160(h160, pKey, BTC_SZ_PUBKEY);
         pExtKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else {
-        LOGD("fail: invalid type\n");
+        LOGE("fail: invalid type\n");
         return false;
     }
 
@@ -234,7 +234,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
     mbedtls_mpi_init(&l_L);
     bool b = extkey_hmac512(&n, &l_L, pExtKey->chain_code, p_key, key_len, p_input, input_len);
     if (!b) {
-        LOGD("fail : extkey_hmac512\n");
+        LOGE("fail : extkey_hmac512\n");
         goto LABEL_EXIT;
     }
 
@@ -276,7 +276,7 @@ LABEL_EXIT:
 
     //TODO: check (l_L >=n or k_i == 0)
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     return ret;
 }
@@ -556,7 +556,7 @@ static bool extkey_bip_init(btc_extkey_t *pExtKey, uint32_t Bip, const uint8_t *
     //depth=0は、master node(Chain m)
     b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 0, 0, NULL, pSeed, BTC_SZ_EXTKEY_SEED);
     if (!b) {
-        LOGD("fail: extkey depth 0\n");
+        LOGE("fail: extkey depth 0\n");
         return false;
     }
 
@@ -571,7 +571,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Acc
     //depth=1は、purpose(Chain m/4x')
     b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 1, BTC_EXTKEY_HARDENED | Bip, pExtKey->key, NULL, 0);
     if (!b) {
-        LOGD("fail: extkey depth 1\n");
+        LOGE("fail: extkey depth 1\n");
         return false;
     }
 
@@ -589,7 +589,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Acc
     }
     b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 2, BTC_EXTKEY_HARDENED | child_num, pExtKey->key, NULL, 0);
     if (!b) {
-        LOGD("fail: extkey depth 2\n");
+        LOGE("fail: extkey depth 2\n");
         return false;
     }
 
@@ -601,7 +601,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Acc
     //depth=3は、account(Chain m/4x'/coin_type'/account')
     b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 3,  BTC_EXTKEY_HARDENED | Account, pExtKey->key, NULL, 0);
     if (!b) {
-        LOGD("fail: extkey depth 3\n");
+        LOGE("fail: extkey depth 3\n");
         return false;
     }
 
@@ -612,12 +612,12 @@ static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Acc
 
     //depth=4は、change(Chain m/4x'/coin_type'/account'/change)
     if ((Change != BTC_EXTKEY_BIP_EXTERNAL) && (Change != BTC_EXTKEY_BIP_INTERNAL)) {
-        LOGD("fail: invali change\n");
+        LOGE("fail: invali change\n");
         return false;
     }
     b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 4, Change, pExtKey->key, NULL, 0);
     if (!b) {
-        LOGD("fail: extkey depth 4\n");
+        LOGE("fail: extkey depth 4\n");
         return false;
     }
 

@@ -91,7 +91,7 @@ LABEL_EXIT:
     mbedtls_mpi_free(&s);
 
     if (ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     return ret == 0;
 }
@@ -124,7 +124,7 @@ LABEL_EXIT:
     mbedtls_mpi_free(&s);
 
     if (ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     return ret == 0;
 }
@@ -144,28 +144,28 @@ bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash,
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
     if (pSig[Len - 1] != SIGHASH_ALL) {
-        LOGD("fail: not SIGHASH_ALL\n");
+        LOGE("fail: not SIGHASH_ALL\n");
         ret = -1;
         goto LABEL_EXIT;
     }
 
     bret = is_valid_signature_encoding(pSig, Len);
     if (!bret) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         ret = -1;
         goto LABEL_EXIT;
     }
 
     ret = btc_ecc_set_keypair(&keypair, pPubKey);
     if (ret) {
-        LOGD("fail keypair\n");
+        LOGE("fail keypair\n");
         goto LABEL_EXIT;
     }
 
     ret = mbedtls_ecdsa_read_signature((mbedtls_ecdsa_context *)&keypair,
                 pTxHash, BTC_SZ_HASH256, pSig, Len - 1);
     if (ret) {
-        LOGD("fail vefiry sig\n");
+        LOGE("fail vefiry sig\n");
         goto LABEL_EXIT;
     }
 
@@ -176,13 +176,13 @@ LABEL_EXIT:
     if (ret == 0) {
         LOGD("ok: verify\n");
     } else {
-        LOGD("fail ret=%d\n", ret);
-        LOGD("pSig: ");
-        DUMPD(pSig, Len);
-        LOGD("txhash: ");
-        DUMPD(pTxHash, BTC_SZ_HASH256);
-        LOGD("pub: ");
-        DUMPD(pPubKey, BTC_SZ_PUBKEY);
+        LOGE("fail ret=%d\n", ret);
+        LOGE("pSig: ");
+        DUMPE(pSig, Len);
+        LOGE("txhash: ");
+        DUMPE(pTxHash, BTC_SZ_HASH256);
+        LOGE("pub: ");
+        DUMPE(pPubKey, BTC_SZ_PUBKEY);
     }
     return ret == 0;
 }
@@ -212,13 +212,13 @@ bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t
 
     ret = btc_ecc_set_keypair(&keypair, pPubKey);
     if (ret) {
-        LOGD("fail keypair\n");
+        LOGE("fail keypair\n");
         goto LABEL_EXIT;
     }
 
     ret = mbedtls_ecdsa_verify(&keypair.grp, pTxHash, BTC_SZ_HASH256, &keypair.Q, &r, &s);
     if (ret) {
-        LOGD("fail verify\n");
+        LOGE("fail verify\n");
         goto LABEL_EXIT;
     }
 
@@ -230,11 +230,11 @@ LABEL_EXIT:
     if (ret == 0) {
         //LOGD("ok: verify\n");
     } else {
-        LOGD("fail ret=%d\n", ret);
-        LOGD("txhash: ");
-        DUMPD(pTxHash, BTC_SZ_HASH256);
-        LOGD("pub: ");
-        DUMPD(pPubKey, BTC_SZ_PUBKEY);
+        LOGE("fail ret=%d\n", ret);
+        LOGE("txhash: ");
+        DUMPE(pTxHash, BTC_SZ_HASH256);
+        LOGE("pub: ");
+        DUMPE(pPubKey, BTC_SZ_PUBKEY);
     }
     return ret == 0;
 }
@@ -243,7 +243,7 @@ LABEL_EXIT:
 bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash) //XXX: mbed
 {
     if ((RecId < 0) || (3 < RecId)) {
-        LOGD("fail: invalid recid\n");
+        LOGE("fail: invalid recid\n");
         return false;
     }
 
@@ -259,7 +259,7 @@ bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_
     *pRecId = -1;       //負の数にすると自動で求める
     ret = recover_pubkey(pub, pRecId, pRS, pTxHash, pPubKey);
     if (!ret) {
-        LOGD("not pubkey\n");
+        LOGE("not pubkey\n");
     }
 
     return ret;
@@ -295,23 +295,23 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
 
     // Minimum and maximum size constraints.
     if (size < 9) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
     if (size > 73) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // A signature is of type 0x30 (compound).
     if (sig[0] != 0x30) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Make sure the length covers the entire signature.
     if (sig[1] != size - 3) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
@@ -320,7 +320,7 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
 
     // Make sure the length of the S element is still inside the signature.
     if (5 + lenR >= size) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
@@ -330,57 +330,57 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
     // Verify that the length of the signature matches the sum of the length
     // of the elements.
     if ((size_t)(lenR + lenS + 7) != size) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Check whether the R element is an integer.
     if (sig[2] != 0x02) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Zero-length integers are not allowed for R.
     if (lenR == 0) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Negative numbers are not allowed for R.
     if (sig[4] & 0x80) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Null bytes at the start of R are not allowed, unless R would
     // otherwise be interpreted as a negative number.
     if (lenR > 1 && (sig[4] == 0x00) && !(sig[5] & 0x80)) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Check whether the S element is an integer.
     if (sig[lenR + 4] != 0x02) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Zero-length integers are not allowed for S.
     if (lenS == 0) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Negative numbers are not allowed for S.
     if (sig[lenR + 6] & 0x80) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
     // Null bytes at the start of S are not allowed, unless S would otherwise be
     // interpreted as a negative number.
     if (lenS > 1 && (sig[lenR + 6] == 0x00) && !(sig[lenR + 7] & 0x80)) {
-        LOGD("fail: invalid sig\n");
+        LOGE("fail: invalid sig\n");
         return false;
     }
 
@@ -402,7 +402,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
     ret = mbedtls_mpi_read_binary(&keypair.d, pPrivKey, BTC_SZ_PRIVKEY);
     if (ret) {
-        LOGD("FAIL: ecdsa_sign: %d\n", ret);
+        LOGE("FAIL: ecdsa_sign: %d\n", ret);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -410,7 +410,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     ret = mbedtls_ecdsa_sign_det(&keypair.grp, p_r, p_s, &keypair.d,
                     pTxHash, BTC_SZ_HASH256, MBEDTLS_MD_SHA256);
     if (ret) {
-        LOGD("FAIL: ecdsa_sign: %d\n", ret);
+        LOGE("FAIL: ecdsa_sign: %d\n", ret);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -424,7 +424,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     if (mbedtls_mpi_cmp_mpi(p_s, &half_n) == 1) {
         ret = mbedtls_mpi_sub_mpi(p_s, &keypair.grp.N, p_s);
         if (ret) {
-            LOGD("FAIL: ecdsa_sign: %d\n", ret);
+            LOGE("FAIL: ecdsa_sign: %d\n", ret);
             assert(0);
             goto LABEL_EXIT;
         }
@@ -614,7 +614,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
                     //LOGD("not match\n");
                 }
             } else {
-                LOGD("fail\n");
+                LOGE("fail\n");
             }
             if (*pRecId >= 0) {
                 break;

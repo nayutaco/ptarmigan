@@ -121,7 +121,7 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
 
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) {
-        LOGD("fail: invalid tx\n");
+        LOGE("fail: invalid tx\n");
         return false;
     }
 
@@ -201,7 +201,7 @@ bool btc_sw_sighash_p2wsh_wit(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t In
 
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         return false;
     }
 
