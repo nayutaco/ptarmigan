@@ -123,7 +123,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
     }
     lnapp_conf_t *p_conf = ptarmd_search_connected_nodeid(pConn->node_id);
     if (p_conf != NULL) {
-        LOGD("fail: already connected.\n");
+        LOGE("fail: already connected.\n");
         *pErrCode = RPCERR_ALCONN;
         goto LABEL_EXIT;
     }
@@ -203,7 +203,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
 
     //store for reconnection
     if (!p2p_cli_store_peer_conn(pConn)) {
-        LOGD("fail: store peer conn");
+        LOGE("fail: store peer conn");
     }
 
     lnapp_start(&mAppConf[idx]);

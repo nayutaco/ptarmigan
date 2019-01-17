@@ -85,7 +85,7 @@ void conf_btcrpc_init(rpc_conf_t *pRpcConf)
 bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
-        LOGD("fail bitcoin.conf parse[%s]", pConfFile);
+        LOGE("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
 #if defined(USE_BITCOIND)
@@ -97,11 +97,11 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
     }
 
     if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
-        LOGD("fail: no rpcuser or rpcpassword[%s]", pConfFile);
+        LOGE("fail: no rpcuser or rpcpassword[%s]", pConfFile);
         return false;
     }
 #else
-    LOGD("fail: not bitcoind\n");
+    LOGE("fail: not bitcoind\n");
     return false;
 #endif
 
@@ -138,7 +138,7 @@ void conf_anno_init(anno_conf_t *pAnnoConf)
 bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf)
 {
     if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) != 0) {
-        //LOGD("fail anno parse[%s]", pConfFile);
+        //LOGE("fail anno parse[%s]", pConfFile);
         return false;
     }
 
@@ -164,7 +164,7 @@ void conf_channel_init(channel_conf_t *pChannConf)
 bool conf_channel_load(const char *pConfFile, channel_conf_t *pChannConf)
 {
     if (ini_parse(pConfFile, handler_channel_conf, pChannConf) != 0) {
-        //LOGD("fail channel parse[%s]", pConfFile);
+        //LOGE("fail channel parse[%s]", pConfFile);
         return false;
     }
 
@@ -234,7 +234,7 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
         return 0;  /* unknown section/name, error */
     }
     if (!ret) {
-        LOGD("fail: %s\n", name);
+        LOGE("fail: %s\n", name);
     }
     if (errno) {
         LOGD("errno=%s\n", strerror(errno));

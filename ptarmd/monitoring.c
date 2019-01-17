@@ -175,7 +175,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
     ln_close_force_t close_dat;
     bool ret = ln_close_create_unilateral_tx(self, &close_dat);
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         return false;
     }
 
@@ -231,7 +231,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                             &unspent, NULL,
                             p_tx->vin[0].txid, p_tx->vin[0].index);
         if (!ret) {
-            LOGD("fail: check unspent\n");
+            LOGE("fail: check unspent\n");
             del = false;
             continue;
         }
@@ -315,7 +315,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         if (ret) {
             ptarmd_eventlog(ln_channel_id(self), "close: finish");
         } else {
-            LOGD("fail: del channel: ");
+            LOGE("fail: del channel: ");
             DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
         }
         btcrpc_del_channel(ln_their_node_id(self));
@@ -350,7 +350,7 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
             LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(self));
             bool ret = monitor_close_unilateral_local(self, p_db_param);
             if (!ret) {
-                LOGD("fail: unilateral close\n");
+                LOGE("fail: unilateral close\n");
             }
             break;
         }
@@ -433,7 +433,7 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
                     del = true;
                 }
             } else {
-                LOGD("fail: ln_close_remoterevoked\n");
+                LOGE("fail: ln_close_remoterevoked\n");
             }
             break;
         default:
@@ -590,7 +590,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                 }
                 btc_tx_free(&tx);
             } else {
-                LOGD("fail: get confirmation\n");
+                LOGE("fail: get confirmation\n");
             }
         }
     } else {
@@ -777,7 +777,7 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
             }
             btc_tx_free(&tx);
         } else {
-            LOGD("fail: get confirmation\n");
+            LOGE("fail: get confirmation\n");
         }
     }
 }
