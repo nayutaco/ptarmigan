@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -ue
 #	onion error "invalid realm"(4444)
 
 PAY_BEGIN=4444
