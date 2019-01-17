@@ -128,7 +128,7 @@ void utl_str_free(utl_str_t *x)
 bool utl_str_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {
-        LOGD("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
+        LOGE("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
         return false;
     }
 
@@ -141,7 +141,7 @@ bool utl_str_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
         str[0] = *(pStr + 2 * lp);
         str[1] = *(pStr + 2 * lp + 1);
         if (!isxdigit(str[0]) || !isxdigit(str[1])) {
-            LOGD("fail: str=%s\n", str);
+            LOGE("fail: str=%s\n", str);
             ret = false;
             break;
         }
