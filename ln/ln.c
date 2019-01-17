@@ -172,7 +172,7 @@
 
 #define M_SET_ERR(self,err,fmt,...)     {\
         set_error(self,err,fmt,##__VA_ARGS__);\
-        LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
 #define M_SEND_ERR(self,err,fmt,...)    {\
         set_error(self,err,fmt,##__VA_ARGS__);\
@@ -182,7 +182,7 @@
         msg.p_data = (const uint8_t *)self->err_msg;\
         msg.len = strlen(self->err_msg);\
         send_error(self, &msg);\
-        LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
 
 #define M_DBG_COMMITHTLC
@@ -1626,11 +1626,6 @@ bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage
 {
     LOGD("BEGIN\n");
 
-    if (!LN_DBG_FULFILL()) {
-        LOGD("no fulfill mode\n");
-        return true;
-    }
-
     //self->cnl_add_htlc[Idx]にupdate_fulfill_htlcが作成出来るだけの情報を設定
     //  final nodeにふさわしいかのチェックはupdate_add_htlc受信時に行われている
     //  update_fulfill_htlc未送信状態にしておきたいが、このタイミングではadd_htlcのcommitは済んでいない
@@ -2340,7 +2335,6 @@ static void recv_idle_proc_final(ln_self_t *self)
                 //ADD_HTLC後: update_add_htlc受信側
                 //self->their_msat -= p_htlc->amount_msat;
 
-                if (LN_DBG_FULFILL()) {
                     //ADD_HTLC転送
                     if (p_htlc->next_short_channel_id != 0) {
                         LOGD("forward: %d\n", p_htlc->next_idx);
@@ -2352,6 +2346,7 @@ static void recv_idle_proc_final(ln_self_t *self)
                         db_upd = true;
                     }
 
+                if (LN_DBG_FULFILL()) {
                     //DEL_HTLC開始
                     if (p_flag->fin_delhtlc != LN_DELHTLC_NONE) {
                         LOGD("del htlc: %d\n", p_flag->fin_delhtlc);
@@ -2449,7 +2444,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
                     //update_add_htlc送信
                     add_htlc_create(self, &buf_bolt, idx);
                 } else if (LN_HTLC_WILL_DELHTLC(p_htlc)) {
-                    if (!LN_DBG_FULFILL()) {
+                    if (!LN_DBG_FULFILL() || !LN_DBG_FULFILL_BWD()) {
                         LOGD("DBG: no fulfill mode\n");
                     } else {
                         //update_fulfill/fail/fail_malformed_htlc送信
@@ -3583,12 +3578,17 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
 
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
+        fulfill.ret = false;
         fulfill.prev_short_channel_id = p_htlc->prev_short_channel_id;
         fulfill.prev_idx = p_htlc->prev_idx;
         fulfill.p_preimage = preimage;
         fulfill.id = p_htlc->id;
         fulfill.amount_msat = p_htlc->amount_msat;
         callback(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
+
+        if (!fulfill.ret) {
+            LOGE("fail: backwind\n");
+        }
     } else {
         M_SET_ERR(self, LNERR_INV_ID, "fulfill");
     }

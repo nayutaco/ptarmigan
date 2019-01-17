@@ -297,7 +297,7 @@ void ptarmd_stop(void);
 /** ノード内転送
  *
  */
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf_t *pBuf);
+// bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf_t *pBuf);
 
 
 /** preimage操作排他開始
@@ -326,6 +326,12 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id);
  * @param[in]   short_channel_id    検索するshort_channel_id
  * @retval  非NULL      検索成功
  * @retval  NULL        検索失敗
+ * @note
+ *  - 以下の条件を満たす
+ *      - short_channel_idに対応するlnapp_conf_tが存在する
+ *      - 初期メッセージ交換済み(init/channel_reestablish/etc...)
+ *      - ping/pongが止まっていない
+ *      - channel statusがNormal Operationである
  */
 lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id);
 

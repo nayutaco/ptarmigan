@@ -1152,6 +1152,9 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         if (!LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
             cJSON_AddItemToArray(js_mode, cJSON_CreateString("create invalid version onion"));
         }
+        if (!LN_DBG_FULFILL_BWD()) {
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("fulfill not found"));
+        }
         cJSON_AddItemToObject(result, "new", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "mode", js_mode);
     } else {

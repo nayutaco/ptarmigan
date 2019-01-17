@@ -175,13 +175,13 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param);
 static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
-static bool cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
-static bool cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
+static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
+static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
 static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param);
 static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param);
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill);
-static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill);
+static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv_t *p_fulfill);
+static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv_t *p_fulfill);
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail);
 static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail);
@@ -2493,7 +2493,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //final node
         p_stat = "final node";
         LOGD("final node\n");
-        p_addhtlc->ret = cbsub_add_htlc_finalnode(p_conf, p_addhtlc);
+        cbsub_add_htlc_finalnode(p_conf, p_addhtlc);
     } else {
         //別channelにupdate_add_htlcを転送する(メッセージ送信は受信アイドル処理で行う)
         snprintf(str_stat, sizeof(str_stat), "-->[fwd]0x%016" PRIx64 ", cltv=%d",
@@ -2501,7 +2501,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 p_addhtlc->p_hop->outgoing_cltv_value);
         p_stat = str_stat;
         LOGD("forward\n");
-        p_addhtlc->ret = cbsub_add_htlc_forward(p_conf, p_addhtlc);
+        cbsub_add_htlc_forward(p_conf, p_addhtlc);
     }
     ptarmd_preimage_unlock();
 
@@ -2517,8 +2517,10 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
 
 //cb_add_htlc_recv(): final node
-static bool cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
+static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
 {
+    p_addhtlc->ret = true;
+
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];
     utl_str_bin2str(str_payhash, p_addhtlc->p_payment, BTC_SZ_HASH256);
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
@@ -2527,12 +2529,11 @@ static bool cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t
     ptarmd_eventlog(NULL,
             "payment final node: payment_hash=%s, short_channel_id=%s",
             str_payhash, str_sci);
-    return true;
 }
 
 
 //cb_add_htlc_recv(): forward
-static bool cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
+static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
 {
     bool ret = false;
     utl_buf_t reason = UTL_BUF_INIT;
@@ -2600,7 +2601,7 @@ static bool cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
     }
     utl_buf_free(&reason);
 
-    return ret;
+    p_addhtlc->ret = ret;
 }
 
 
@@ -2649,7 +2650,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
 
-    const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
+    ln_cb_fulfill_htlc_recv_t *p_fulfill = (ln_cb_fulfill_htlc_recv_t *)p_param;
     const char *p_stat;
     char str_stat[256];
 
@@ -2667,23 +2668,19 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     }
 
     ptarmd_eventlog(ln_channel_id(p_conf->p_self),
-        "[RECV]fulfill_htlc: %s(HTLC id=%" PRIu64 ")",
-                p_stat,
-                p_fulfill->id);
+        "[RECV]fulfill_htlc: %s(HTLC id=%" PRIu64 "): %s",
+            p_stat,
+            p_fulfill->id,
+            ((p_fulfill->ret) ? "success" : "fail"));
 
     DBGTRACE_END
 }
 
 
 //cb_fulfill_htlc_recv(): 巻き戻し
-static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill)
+static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv_t *p_fulfill)
 {
     (void)p_conf;
-
-    if (!LN_DBG_FULFILL()) {
-        LOGD("DBG: no fulfill mode\n");
-        return;
-    }
 
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fulfill->prev_short_channel_id);
@@ -2691,6 +2688,10 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         pthread_mutex_lock(&p_prevconf->mux_self);
         ret = ln_fulfill_htlc_set(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
         pthread_mutex_unlock(&p_prevconf->mux_self);
+    }
+    if (!LN_DBG_FULFILL_BWD()) {
+        LOGD("no fulfill backwind\n");
+        ret = false;
     }
     if (ret) {
         show_self_param(p_conf->p_self, stderr, "fulfill_htlc send", __LINE__);
@@ -2722,15 +2723,22 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         ptarmd_eventlog(ln_channel_id(p_prevconf->p_self),
             "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
                     p_fulfill->id);
+
+        p_fulfill->ret = true;
     } else {
-        //TODO:戻す先がない場合の処理(#366)
-        LOGD("fail backward\n");
+        //fail channel if fail backwind channel
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_prevconf->p_self));
+
+        LOGD("close: bad way(local): fail backward(%s)\n", str_sci);
+        ptarmd_eventlog(ln_channel_id(p_prevconf->p_self), "close: bad way(local)");
+        (void)monitor_close_unilateral_local(p_prevconf->p_self, NULL);
     }
 }
 
 
 //cb_fulfill_htlc_recv(): origin node
-static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill)
+static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv_t *p_fulfill)
 {
     payroute_del(p_conf, p_fulfill->id);
 
@@ -2739,6 +2747,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
     cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
     ln_db_routeskip_work(false);
+    p_fulfill->ret = true;
 
     //log
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];
@@ -2782,11 +2791,6 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail)
 {
     (void)p_conf;
-
-    if (!LN_DBG_FULFILL()) {
-        LOGD("DBG: no fulfill mode\n");
-        return;
-    }
 
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fail->prev_short_channel_id);

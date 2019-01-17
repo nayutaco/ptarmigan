@@ -249,23 +249,23 @@ void ptarmd_stop(void)
 }
 
 
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf_t *pBuf)
-{
-    lnapp_conf_t *p_appconf = NULL;
+// bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf_t *pBuf)
+// {
+//     lnapp_conf_t *p_appconf = NULL;
 
-    LOGD("  search short_channel_id : %016" PRIx64 "\n", ShortChannelId);
+//     LOGD("  search short_channel_id : %016" PRIx64 "\n", ShortChannelId);
 
-    //socketが開いているか検索
-    p_appconf = ptarmd_search_transferable_cnl(ShortChannelId);
-    if (p_appconf != NULL) {
-        LOGD("AppConf found\n");
-        lnapp_transfer_channel(p_appconf, Cmd, pBuf);
-    } else {
-        LOGD("AppConf not found...\n");
-    }
+//     //socketが開いているか検索
+//     p_appconf = ptarmd_search_transferable_cnl(ShortChannelId);
+//     if (p_appconf != NULL) {
+//         LOGD("AppConf found\n");
+//         lnapp_transfer_channel(p_appconf, Cmd, pBuf);
+//     } else {
+//         LOGD("AppConf not found...\n");
+//     }
 
-    return p_appconf != NULL;
-}
+//     return p_appconf != NULL;
+// }
 
 
 void ptarmd_preimage_lock(void)
@@ -294,11 +294,32 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 
 lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id)
 {
+    lnapp_conf_t *p_return = NULL;
     lnapp_conf_t *p_appconf = ptarmd_search_connected_cnl(short_channel_id);
-    if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL)) {
-        p_appconf = NULL;
+    if (p_appconf == NULL) {
+        LOGE("fail: not connected\n");
+        goto LABEL_EXIT;
     }
-    return p_appconf;
+    if (!lnapp_is_looping(p_appconf)) {
+        LOGE("fail: not working\n");
+        goto LABEL_EXIT;
+    }
+    if (!lnapp_is_inited(p_appconf)) {
+        LOGE("fail: not initialized\n");
+        goto LABEL_EXIT;
+    }
+    if (!lnapp_check_ponglist(p_appconf)) {
+        LOGE("fail: not pingpong\n");
+        goto LABEL_EXIT;
+    }
+    if (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL) {
+        LOGE("fail: bad status\n");
+        goto LABEL_EXIT;
+    }
+    p_return = p_appconf;
+
+LABEL_EXIT:
+    return p_return;
 }
 
 
