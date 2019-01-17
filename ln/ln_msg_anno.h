@@ -48,7 +48,7 @@ bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** channel_announcement署名verify
@@ -94,13 +94,19 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** sign node_announcement
  *
  */
 bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len);
+
+
+/** vefiry node_announcement
+ *
+ */
+bool HIDDEN ln_msg_node_announce_verify(const ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** channel_update生成
@@ -119,7 +125,7 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** sign channel_update

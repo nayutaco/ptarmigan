@@ -168,7 +168,7 @@ bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *
 }
 
 
-bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     //len=0
     if (Len < sizeof(uint16_t) + 430) {
@@ -262,28 +262,14 @@ bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pDa
 bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
-    bool ret;
-
     btc_md_hash256(hash,
         pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
-        Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-
-    // LOGD("hash=");
-    // DUMPD(hash, BTC_SZ_HASH256);
-
-    ret = btc_sig_verify_rs(pMsg->p_node_signature1, hash, pMsg->p_node_id1);
-
-    if (ret) {
-        ret = btc_sig_verify_rs(pMsg->p_node_signature2, hash, pMsg->p_node_id2);
-    }
-    if (ret) {
-        ret = btc_sig_verify_rs(pMsg->p_btc_signature1, hash, pMsg->p_btc_key1);
-    }
-    if (ret) {
-        ret = btc_sig_verify_rs(pMsg->p_btc_signature2, hash, pMsg->p_btc_key2);
-    }
-
-    return ret;
+        Len - sizeof(uint16_t) - LN_SZ_SIGNATURE * 4);
+    if (!btc_sig_verify_rs(pMsg->p_node_signature1, hash, pMsg->p_node_id1)) return false;
+    if (!btc_sig_verify_rs(pMsg->p_node_signature2, hash, pMsg->p_node_id2)) return false;
+    if (!btc_sig_verify_rs(pMsg->p_btc_signature1, hash, pMsg->p_btc_key1)) return false;
+    if (!btc_sig_verify_rs(pMsg->p_btc_signature2, hash, pMsg->p_btc_key2)) return false;
+    return true;
 }
 
 
@@ -534,7 +520,7 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
 }
 
 
-bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool /*HIDDEN*/ ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     //flen=0, addrlen=0
     if (Len < sizeof(uint16_t) + 140) {
@@ -550,7 +536,6 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     int pos = sizeof(uint16_t);
 
     //        [64:signature]
-    const uint8_t *p_signature = pData + pos;
     pos += LN_SZ_SIGNATURE;
 
     //        [2:flen]
@@ -624,29 +609,10 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     }
 
 #ifdef DBG_PRINT_READ_NOD
-  LOGD("@@@@@ %s @@@@@\n", __func__);
-  node_announce_print(pMsg);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    node_announce_print(pMsg);
 #endif  //DBG_PRINT_READ_NOD
-
-    bool ret = true;
-    if (pMsg->p_node_id != NULL) {
-        //署名verify
-        uint8_t hash[BTC_SZ_HASH256];
-
-        btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
-                                    pos - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-        //LOGD("data=");
-        //DUMPD(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-        //LOGD("hash=");
-        //DUMPD(hash, BTC_SZ_HASH256);
-
-        ret = btc_sig_verify_rs(p_signature, hash, pMsg->p_node_id);
-        if (!ret) {
-            LOGE("fail: verify\n");
-        }
-    }
-
-    return ret;
+    return true;
 }
 
 
@@ -655,6 +621,14 @@ bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len)
     uint8_t hash[BTC_SZ_HASH256];
     btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - sizeof(uint16_t) - LN_SZ_SIGNATURE);
     return ln_node_sign_nodekey(pData + sizeof(uint16_t), hash);
+}
+
+
+bool HIDDEN ln_msg_node_announce_verify(const ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    uint8_t hash[BTC_SZ_HASH256];
+    btc_md_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - sizeof(uint16_t) - LN_SZ_SIGNATURE);
+    return btc_sig_verify_rs(pData + sizeof(uint16_t), hash, pMsg->p_node_id);
 }
 
 
@@ -760,7 +734,7 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
 }
 
 
-bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 128) {
         LOGE("fail: invalid length: %d\n", Len);
