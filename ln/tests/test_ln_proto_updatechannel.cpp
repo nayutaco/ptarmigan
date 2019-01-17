@@ -235,6 +235,7 @@ TEST_F(ln, recv_updatechannel_ok)
             }
         }
         static bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->timestamp = 100;
             return true;
         }
@@ -269,6 +270,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
             }
         }
         static bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->timestamp = 100 + 3600;
             return true;
         }
@@ -303,6 +305,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
             }
         }
         static bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->timestamp = 100 + 3600 + 1;   //***
             return true;
         }

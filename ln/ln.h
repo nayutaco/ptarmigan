@@ -495,6 +495,8 @@ typedef struct {
  *  @brief      channel_announcement
  */
 typedef struct {
+    const uint8_t   *p_chain_hash;
+
     const uint8_t   *p_node_signature1;                 ///< 64: node_signature_1
     const uint8_t   *p_node_signature2;                 ///< 64: node_signature_2
     const uint8_t   *p_btc_signature1;                  ///< 64: bitcoin_signature_1
@@ -557,6 +559,7 @@ typedef struct {
  *  @brief      channel_update
  */
 typedef struct {
+    const uint8_t   *p_chain_hash;
     uint64_t    short_channel_id;                   ///< 8:  short_channel_id
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
     uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)

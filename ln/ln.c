@@ -4217,6 +4217,14 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         return true;
     }
 
+    if (memcmp(gGenesisChainHash, anno.p_chain_hash, sizeof(gGenesisChainHash))) {
+        LOGE("fail: chain_hash mismatch\n");
+        return false;
+    }
+
+    //XXX: check sign
+    //ln_msg_cnl_announce_verify
+
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
@@ -4263,6 +4271,11 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         }
     } else {
         LOGE("fail: decode\n");
+        return true;
+    }
+
+    if (memcmp(gGenesisChainHash, upd.p_chain_hash, sizeof(gGenesisChainHash))) {
+        LOGE("fail: chain_hash mismatch\n");
         return true;
     }
 

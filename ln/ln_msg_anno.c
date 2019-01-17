@@ -211,16 +211,8 @@ bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t 
     }
 
     //    [32:chain_hash]
-    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
-    if (cmp != 0) {
-        LOGE("fail: chain_hash mismatch\n");
-        LOGE("node: ");
-        DUMPE(gGenesisChainHash, BTC_SZ_HASH256);
-        LOGE("msg:  ");
-        DUMPE(pData + pos, BTC_SZ_HASH256);
-        return false;
-    }
-    pos += sizeof(gGenesisChainHash);
+    pMsg->p_chain_hash = pData + pos;
+    pos += BTC_SZ_HASH256;
 
     //        [8:short_channel_id]
     pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
@@ -747,22 +739,14 @@ bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pDa
         return false;
     }
     int pos = sizeof(uint16_t);
-    bool result;
 
     //        [64:signature]
     //memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
     //    [32:chain_hash]
-    result = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
-    if (!result) {
-        LOGE("fail: chain_hash mismatch\n");
-        LOGE("node: ");
-        DUMPE(gGenesisChainHash, BTC_SZ_HASH256);
-        LOGE("msg:  ");
-        DUMPE(pData + pos, BTC_SZ_HASH256);
-    }
-    pos += sizeof(gGenesisChainHash);
+    pMsg->p_chain_hash = pData + pos;
+    pos += BTC_SZ_HASH256;
 
     //        [8:short_channel_id]
     pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
@@ -799,6 +783,8 @@ bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pDa
     //        [4:fee_proportional_millionths]
     pMsg->fee_prop_millionths = utl_int_pack_u32be(pData + pos);
     pos += sizeof(uint32_t);
+
+    bool result = true;
 
     //        [8:htlc_maximum_msat] (option_channel_htlc_max)
     if (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX) {
