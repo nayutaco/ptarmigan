@@ -75,8 +75,6 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  * prototypes
  **************************************************************************/
 
-static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_script_pubkey_order_t Sort);
-
 #if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg);
 #endif
@@ -89,7 +87,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg);
  * channel_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg)
+bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg)
 {
     //    type: 256 (channel_announcement)
     //    data:
@@ -162,19 +160,11 @@ bool HIDDEN ln_msg_cnl_announce_write(const ln_self_t *self, utl_buf_t *pBuf, co
 
     utl_push_trim(&proto);
 
-    btc_script_pubkey_order_t sort = (pMsg->p_node_id1 == ln_node_getid()) ?
-        BTC_SCRYPT_PUBKEY_ORDER_ASC : BTC_SCRYPT_PUBKEY_ORDER_OTHER;
-    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, sort);
-    if (ret) {
 #ifdef DBG_PRINT_WRITE_CNL
-        LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
-        ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
+    LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
+    ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
 #endif  //DBG_PRINT_WRITE_CNL
-    } else {
-        LOGE("something error\n");
-    }
-
-    return ret;
+    return true;
 }
 
 
@@ -391,25 +381,22 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 }
 
 
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort)
+void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort)
 {
     if ( ((Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) && bLocal) ||
          ((Sort != BTC_SCRYPT_PUBKEY_ORDER_ASC) && !bLocal) ) {
         LOGD("addr: 1\n");
-        *pp_sig_node = self->cnl_anno.buf + sizeof(uint16_t);
+        *pp_sig_node = pData + sizeof(uint16_t);
     } else {
         LOGD("addr: 2\n");
-        *pp_sig_node = self->cnl_anno.buf + sizeof(uint16_t) + LN_SZ_SIGNATURE;
+        *pp_sig_node = pData + sizeof(uint16_t) + LN_SZ_SIGNATURE;
     }
     *pp_sig_btc = *pp_sig_node + LN_SZ_SIGNATURE * 2;
-
-    // ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 }
 
 
-bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_script_pubkey_order_t Sort)
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t ShortChannelId)
 {
-    uint8_t *pData = self->cnl_anno.buf;
     int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
     //        [2:len]
     uint16_t len = utl_int_pack_u16be(pData + pos);
@@ -419,12 +406,11 @@ bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
         *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
         ShortChannelId >>= 8;
     }
-
-    return cnl_announce_sign(self, self->cnl_anno.buf, self->cnl_anno.len, Sort);
+    return true;
 }
 
 
-static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, btc_script_pubkey_order_t Sort)
+bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort)
 {
     int offset_sig;
     if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
@@ -450,8 +436,8 @@ static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Le
     }
 
     //署名-btc
-    ret = ln_signer_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
-                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
+    ret = btc_sig_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
+                    hash, pBtcPrivKey);
     if (!ret) {
         LOGE("fail: sign btc\n");
         //goto LABEL_EXIT;
@@ -483,8 +469,8 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
     utl_push_t    proto;
 
 #ifdef DBG_PRINT_WRITE_NOD
-   LOGD("@@@@@ %s @@@@@\n", __func__);
-   node_announce_print(pMsg);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    node_announce_print(pMsg);
 #endif  //DBG_PRINT_WRITE_NOD
 
     //flen=0
