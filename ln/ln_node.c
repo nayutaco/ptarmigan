@@ -140,6 +140,17 @@ bool ln_node_init(uint8_t Features)
         anno.p_alias = node_alias;
         anno.p_rgbcolor = rgbcolor;
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
+        if (!ret) {
+            LOGD("fail: read node_anno\n");
+            ret = false;
+            goto LABEL_EXIT;
+        }
+        ret = ln_msg_node_announce_verify(&anno, buf_node.buf, buf_node.len);
+        if (!ret) {
+            LOGD("fail: verify\n");
+            ret = false;
+            goto LABEL_EXIT;
+        }
         if (ret) {
             if (memcmp(anno.p_node_id, mNode.keys.pub, BTC_SZ_PUBKEY) != 0) {
                 fprintf(stderr, "fail: node_id not match(DB)\n");

@@ -4336,6 +4336,11 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
         LOGE("fail: read message\n");
         return false;
     }
+    ret = ln_msg_node_announce_verify(&anno, pData, Len);
+    if (!ret) {
+        LOGD("fail: verify\n");
+        return false;
+    }
 
     LOGV("node_id:");
     DUMPV(node_id, sizeof(node_id));
