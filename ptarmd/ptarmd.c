@@ -536,7 +536,7 @@ uint32_t ptarmd_get_latest_feerate_kw(void)
         LOGD("regtest\n");
         feerate_kw = LN_FEERATE_PER_KW;
     } else {
-        LOGD("fail: estimatefee\n");
+        LOGE("fail: estimatefee\n");
         feerate_kw = 0;
     }
 

@@ -317,7 +317,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
         count--;
     }
     if ((mLoopJni == JNILOOP_STOP) || (count <= 0)) {
-        LOGD("fail: JNI thread\n");
+        LOGE("fail: JNI thread\n");
         fprintf(stderr, "JNI thread cannot start.\n");
         return false;
     }
@@ -501,15 +501,15 @@ bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
     //P2WSH
     const uint8_t *p_witprog = pTx->vout[0].script.buf;
     if (pTx->vout[0].script.len != BTC_SZ_WITPROG_P2WSH) {
-        LOGD("fail: invalid length\n");
+        LOGE("fail: invalid length\n");
         return false;
     }
     if (p_witprog[0] != 0) {
-        LOGD("fail: not P2WSH\n");
+        LOGE("fail: not P2WSH\n");
         return false;
     }
     if (p_witprog[1] != BTC_SZ_HASH256) {
-        LOGD("fail: not P2WSH len\n");
+        LOGE("fail: not P2WSH len\n");
         return false;
     }
 
@@ -738,7 +738,7 @@ static void *thread_jni_start(void *pArg)
 
     bool ret = btcj_init(p_rpcconf->gen);
     if (!ret) {
-        LOGD("fail: jvm init\n");
+        LOGE("fail: jvm init\n");
         mLoopJni = JNILOOP_STOP;
         return NULL;
     }
@@ -758,7 +758,7 @@ static void *thread_jni_start(void *pArg)
         if (mMethodParam.method < ARRAY_SIZE(kJniFuncs)) {
             (*kJniFuncs[mMethodParam.method].p_func)(mMethodParam.p_arg);
         } else {
-            LOGD("fail: invalid method(%d)\n", mMethodParam.method);
+            LOGE("fail: invalid method(%d)\n", mMethodParam.method);
         }
         pthread_mutex_lock(&mMuxApi);
         LOGD_PTHREAD("JNI: send signal\n");

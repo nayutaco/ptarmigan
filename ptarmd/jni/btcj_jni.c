@@ -149,7 +149,7 @@ bool btcj_init(btc_block_chain_t Gen)
     // クラス検索
     cls = (*env)->FindClass(env, "co/nayuta/lightning/Ptarmigan");
     if(cls == NULL) {
-        LOGD("fail: FindClass()\n");
+        LOGE("fail: FindClass()\n");
         return false;
     }
 
@@ -158,7 +158,7 @@ bool btcj_init(btc_block_chain_t Gen)
     jmethodID method = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/lang/String;)V");
     check_exception(env);
     if(method == NULL) {
-        LOGD("fail: get method id\n");
+        LOGE("fail: get method id\n");
         return false;
     }
     const char *p_chain;
@@ -190,7 +190,7 @@ bool btcj_init(btc_block_chain_t Gen)
     for(size_t lp = 0; lp < ARRAY_SIZE(kMethod); lp++) {
         ptarm_method[lp] = (*env)->GetMethodID(env, cls, kMethod[lp].name, kMethod[lp].sig);
         if(ptarm_method[lp] == NULL) {
-            LOGD("fail: get method id(%s)\n", kMethod[lp].name);
+            LOGE("fail: get method id(%s)\n", kMethod[lp].name);
             return false;
         }
     }
@@ -199,7 +199,7 @@ bool btcj_init(btc_block_chain_t Gen)
 
     cls = (*env)->FindClass(env, "co/nayuta/lightning/Ptarmigan$ShortChannelParam");
     if(cls == NULL) {
-        LOGD("fail: FindClass()\n");
+        LOGE("fail: FindClass()\n");
         return false;
     }
     //field
@@ -208,68 +208,68 @@ bool btcj_init(btc_block_chain_t Gen)
     for(size_t lp = 0; lp < ARRAY_SIZE(kField); lp++) {
         ptarmcls_field[lp] = (*env)->GetFieldID(env, cls, kField[lp].name, kField[lp].sig);
         if(ptarmcls_field[lp] == NULL) {
-            LOGD("fail: get field id(%s)\n", kField[lp].name);
+            LOGE("fail: get field id(%s)\n", kField[lp].name);
             return false;
         }
     }
 
     // jclass addr_cls = (*env)->FindClass(env, "org/bitcoinj/core/SegwitAddress");
     // if(addr_cls == NULL) {
-    //     LOGD("fail: FindClass()\n");
+    //     LOGE("fail: FindClass()\n");
     //     return false;
     // }
     // tobech32_method = (*env)->GetMethodID(env, addr_cls, "toBech32", "()Ljava/lang/String;");
     // if(tobech32_method == NULL) {
-    //     LOGD("fail: GetMethodID()\n");
+    //     LOGE("fail: GetMethodID()\n");
     //     return false;
     // }
 
     cls = (*env)->FindClass(env, "org/bitcoinj/core/Sha256Hash");
     if(cls == NULL) {
-        LOGD("fail: FindClass()\n");
+        LOGE("fail: FindClass()\n");
         return false;
     }
     hash_cls = (jclass)(*env)->NewGlobalRef(env, cls);
     (*env)->DeleteLocalRef(env, cls);
     sha256_getrevbytes_method = (*env)->GetMethodID(env, hash_cls, "getReversedBytes", "()[B");
     if(sha256_getrevbytes_method == NULL) {
-        LOGD("fail: GetMethodID()\n");
+        LOGE("fail: GetMethodID()\n");
         return false;
     }
 
     //ArrayList
     cls = (*env)->FindClass(env, "Ljava/util/ArrayList;");
     if(cls == NULL) {
-        LOGD("fail: FindClass()\n");
+        LOGE("fail: FindClass()\n");
         return false;
     }
     arraylist_cls = (jclass)(*env)->NewGlobalRef(env, cls);
     (*env)->DeleteLocalRef(env, cls);
     arraylist_ctor_method = (*env)->GetMethodID(env, arraylist_cls, "<init>", "()V");
     if(arraylist_ctor_method == NULL) {
-        LOGD("fail: GetMethodID()\n");
+        LOGE("fail: GetMethodID()\n");
         return false;
     }
     arraylist_add_method = (*env)->GetMethodID(env, arraylist_cls, "add", "(Ljava/lang/Object;)Z");
     if(arraylist_add_method == NULL) {
-        LOGD("fail: GetMethodID()\n");
+        LOGE("fail: GetMethodID()\n");
         return false;
     }
 
     //List
     cls = (*env)->FindClass(env, "Ljava/util/List;");
     if(cls == NULL) {
-        LOGD("fail: FindClass()\n");
+        LOGE("fail: FindClass()\n");
         return false;
     }
     list_get_method = (*env)->GetMethodID(env, cls, "get", "(I)Ljava/lang/Object;");
     if(list_get_method == NULL) {
-        LOGD("fail: GetMethodID()\n");
+        LOGE("fail: GetMethodID()\n");
         return false;
     }
     list_size_method = (*env)->GetMethodID(env, cls, "size", "()I");
     if(list_size_method == NULL) {
-        LOGD("fail: GetMethodID()\n");
+        LOGE("fail: GetMethodID()\n");
         return false;
     }
     (*env)->DeleteLocalRef(env, cls);
@@ -368,7 +368,7 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
             LOGD("minedHash: ");
             TXIDD(pMinedHash);
         } else {
-            LOGD("fail: blockHash field\n");
+            LOGE("fail: blockHash field\n");
         }
 
         if (hash_obj != NULL) {
@@ -387,7 +387,7 @@ bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid)
         *ppTxid = hash2bytes(hash_obj);
         LOGD("success\n");
     } else {
-        LOGD("fail: txid\n");
+        LOGE("fail: txid\n");
     }
     return hash_obj != NULL;
 }
@@ -406,7 +406,7 @@ bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t Blks, const uint8_t *pTxid
         LOGD("success\n");
     } else {
         ret = false;
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, txHash);
@@ -427,7 +427,7 @@ bool btcj_search_vout(btcj_buf_t **ppTxBuf, uint32_t Blks, const btcj_buf_t *pVo
         *ppTxBuf = list2bufs(list);
         LOGD("success\n");
     } else {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, vout);
@@ -449,7 +449,7 @@ bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_
         *ppTxData = jbarray2buf(ret);
         LOGD("success\n");
     } else {
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, pubKey);
@@ -476,7 +476,7 @@ bool btcj_sendraw_tx(uint8_t *pTxid, int *pCode, const btcj_buf_t *pTxData)
         LOGD("success\n");
     } else {
         ret = false;
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, array);
@@ -708,7 +708,7 @@ static btcj_buf_t* list2bufs(jobject list)
 static inline void _check_exception(JNIEnv *env)
 {
     if ((*env)->ExceptionCheck(env)) {
-        LOGD("fail: exception!!\n");
+        LOGE("fail: exception!!\n");
         abort();
         (*env)->ExceptionClear(env);
     }

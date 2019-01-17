@@ -119,19 +119,19 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
                                                 &p_vin->witness[p_vin->wit_item_cnt-1]);
             break;
         default:
-            LOGD("fail: invalid type=%d\n", type);
+            LOGE("fail: invalid type=%d\n", type);
         }
         if (ret) {
             ret = btc_sig_sign(&sigbuf, txhash, p_secret);
         } else {
-            LOGD("fail: btc_sw_sighash_p2wsh_wit()\n");
+            LOGE("fail: btc_sw_sighash_p2wsh_wit()\n");
         }
         if (ret) {
             //wit[0]: signature
             utl_buf_free(&p_vin->witness[0]);
             utl_buf_alloccopy(&p_vin->witness[0], sigbuf.buf, sigbuf.len);
         } else {
-            LOGD("fail: btc_sig_sign()\n");
+            LOGE("fail: btc_sig_sign()\n");
         }
         utl_buf_free(&sigbuf);
         utl_buf_free(&script_code);
@@ -231,12 +231,12 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         if (ret) {
             if (pWallet->sequence != BTC_TX_SEQUENCE) {
                 if (conf < pWallet->sequence) {
-                    LOGD("fail: less sequence\n");
+                    LOGE("fail: less sequence\n");
                     ret = false;
                 }
             } else {
                 if (conf < p_wlt->tx.locktime) {
-                    LOGD("fail: less locktime\n");
+                    LOGE("fail: less locktime\n");
                     ret = false;
                 }
             }

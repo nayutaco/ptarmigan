@@ -445,7 +445,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     ln_self_t *p_self = pAppConf->p_self;
 
     if (ln_status_is_closing(p_self)) {
-        LOGD("fail: already closing\n");
+        LOGE("fail: already closing\n");
         goto LABEL_EXIT;
     }
 
@@ -488,7 +488,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
     if (ln_status_is_closing(p_self)) {
-        LOGD("fail: already closing\n");
+        LOGE("fail: already closing\n");
         UTL_DBG_FREE(p_self);
         return false;
     }
@@ -918,7 +918,7 @@ static void *thread_main_start(void *pArg)
     if (ret) {
         LOGD("exchange: init\n");
     } else {
-        LOGD("fail: exchange init\n");
+        LOGE("fail: exchange init\n");
         goto LABEL_JOIN;
     }
 
@@ -934,7 +934,7 @@ static void *thread_main_start(void *pArg)
         utl_buf_t buf = UTL_BUF_INIT;
         ret = getnewaddress(&buf);
         if (!ret) {
-            LOGD("fail: create address\n");
+            LOGE("fail: create address\n");
             goto LABEL_JOIN;
         }
         ln_shutdown_set_vout_addr(p_self, &buf);
@@ -974,7 +974,7 @@ static void *thread_main_start(void *pArg)
             if (b_channelreestablished) {
                 LOGD("exchange: channel_reestablish\n");
             } else {
-                LOGD("fail: exchange channel_reestablish\n");
+                LOGE("fail: exchange channel_reestablish\n");
                 goto LABEL_JOIN;
             }
         } else {
@@ -988,7 +988,7 @@ static void *thread_main_start(void *pArg)
     }
 
     if (!p_conf->loop) {
-        LOGD("fail: loop ended: %016" PRIx64 "\n", ln_short_channel_id(p_self));
+        LOGE("fail: loop ended: %016" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_JOIN;
     }
 
@@ -999,7 +999,7 @@ static void *thread_main_start(void *pArg)
         //funding_locked交換
         ret = exchange_funding_locked(p_conf);
         if (!ret) {
-            LOGD("fail: exchange funding_locked\n");
+            LOGE("fail: exchange funding_locked\n");
             goto LABEL_JOIN;
         }
     }
@@ -1020,7 +1020,7 @@ static void *thread_main_start(void *pArg)
         if (ret) {
             send_peer_noise(p_conf, &buf_sdn);
         } else {
-            LOGD("fail: shutdown\n");
+            LOGE("fail: shutdown\n");
         }
         utl_buf_free(&buf_sdn);
     }
@@ -1153,7 +1153,7 @@ static bool wait_peer_connected(lnapp_conf_t *p_conf)
     fds.events = POLLOUT;
     int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
     if (polr <= 0) {
-        LOGD("fail poll: %s\n", strerror(errno));
+        LOGE("fail poll: %s\n", strerror(errno));
         return false;
     }
 
@@ -1161,11 +1161,11 @@ static bool wait_peer_connected(lnapp_conf_t *p_conf)
     socklen_t optlen = sizeof(optval);
     int retval = getsockopt(p_conf->sock, SOL_SOCKET, SO_ERROR, &optval, &optlen);
     if (retval != 0) {
-        LOGD("fail getsockopt: %s\n", strerror(errno));
+        LOGE("fail getsockopt: %s\n", strerror(errno));
         return false;
     }
     if (optval) {
-        LOGD("fail getsockopt: optval: %s\n", strerror(optval));
+        LOGE("fail getsockopt: optval: %s\n", strerror(optval));
         return false;
     }
 
@@ -1191,13 +1191,13 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         //send: act one
         ret = ln_handshake_start(p_conf->p_self, &buf, p_conf->node_id);
         if (!ret) {
-            LOGD("fail: ln_handshake_start\n");
+            LOGE("fail: ln_handshake_start\n");
             goto LABEL_EXIT;
         }
         LOGD("** SEND act one **\n");
         ret = send_peer_raw(p_conf, &buf);
         if (!ret) {
-            LOGD("fail: socket write\n");
+            LOGE("fail: socket write\n");
             goto LABEL_EXIT;
         }
 
@@ -1215,14 +1215,14 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         utl_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || b_cont) {
-            LOGD("fail: ln_handshake_recv1\n");
+            LOGE("fail: ln_handshake_recv1\n");
             goto LABEL_EXIT;
         }
         //send: act three
         LOGD("** SEND act three **\n");
         ret = send_peer_raw(p_conf, &buf);
         if (!ret) {
-            LOGD("fail: socket write\n");
+            LOGE("fail: socket write\n");
             goto LABEL_EXIT;
         }
 
@@ -1233,7 +1233,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         //recv: act one
         ret = ln_handshake_start(p_conf->p_self, &buf, NULL);
         if (!ret) {
-            LOGD("fail: ln_handshake_start\n");
+            LOGE("fail: ln_handshake_start\n");
             goto LABEL_EXIT;
         }
         LOGD("** RECV act one... **\n");
@@ -1248,14 +1248,14 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         utl_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || !b_cont) {
-            LOGD("fail: ln_handshake_recv1\n");
+            LOGE("fail: ln_handshake_recv1\n");
             goto LABEL_EXIT;
         }
         //send: act two
         LOGD("** SEND act two **\n");
         ret = send_peer_raw(p_conf, &buf);
         if (!ret) {
-            LOGD("fail: socket write\n");
+            LOGE("fail: socket write\n");
             goto LABEL_EXIT;
         }
 
@@ -1273,7 +1273,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         utl_buf_alloccopy(&buf, rbuf, 66);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || b_cont) {
-            LOGD("fail: ln_handshake_recv2\n");
+            LOGE("fail: ln_handshake_recv2\n");
             goto LABEL_EXIT;
         }
 
@@ -1335,7 +1335,7 @@ static bool exchange_init(lnapp_conf_t *p_conf)
     LOGD("$$$ initial_routing_sync=%s\n", ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"));
     bool ret = ln_init_create(p_conf->p_self, &buf_bolt, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true);     //channel announceあり
     if (!ret) {
-        LOGD("fail: create\n");
+        LOGE("fail: create\n");
         return false;
     }
     send_peer_noise(p_conf, &buf_bolt);
@@ -1363,7 +1363,7 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
 
     bool ret = ln_channel_reestablish_create(p_conf->p_self, &buf_bolt);
     if (!ret) {
-        LOGD("fail: create\n");
+        LOGE("fail: create\n");
         return false;
     }
     send_peer_noise(p_conf, &buf_bolt);
@@ -1391,7 +1391,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 
     bool ret = ln_funding_locked_create(p_conf->p_self, &buf_bolt);
     if (!ret) {
-        LOGD("fail: create\n");
+        LOGE("fail: create\n");
         return false;
     }
     send_peer_noise(p_conf, &buf_bolt);
@@ -1447,7 +1447,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
     bool ret = getnewaddress(&fundin.change_spk);
     if (!ret) {
-        LOGD("fail: getnewaddress\n");
+        LOGE("fail: getnewaddress\n");
         return false;
     }
 
@@ -1477,7 +1477,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
         if (fundin.amount < pFunding->funding_sat + estfee) {
             //amountが足りないと思われる
-            LOGD("fail: amount too short\n");
+            LOGE("fail: amount too short\n");
             LOGD("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin.amount, pFunding->funding_sat, estfee);
             return false;
         }
@@ -1501,7 +1501,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         utl_buf_free(&buf_bolt);
     } else {
-        LOGD("fail through: check_unspent: ");
+        LOGE("fail through: check_unspent: ");
         TXIDD(pFunding->txid);
     }
 
@@ -1632,10 +1632,10 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
                     len += n;
                     pBuf += n;
                 } else if (n == 0) {
-                    LOGD("fail: timeout(len=%d, reqLen=%d)\n", len, Len);
+                    LOGE("fail: timeout(len=%d, reqLen=%d)\n", len, Len);
                     break;
                 } else {
-                    LOGD("fail: %s(%016" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
+                    LOGE("fail: %s(%016" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
                     len = 0;
                     break;
                 }
@@ -1831,7 +1831,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 
             p_conf->funding_waiting = false;
         } else {
-            LOGD("fail: set_short_channel_id()\n");
+            LOGE("fail: set_short_channel_id()\n");
         }
     } else {
         LOGD("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_self));
@@ -1965,28 +1965,28 @@ static bool send_announcement(lnapp_conf_t *p_conf)
 
     ret = ln_db_anno_transaction();
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         goto LABEL_EXIT;
     }
 
     ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNL);
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         goto LABEL_EXIT;
     }
     ret = ln_db_anno_cur_open(&p_cur_node, LN_DB_CUR_NODE);
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         goto LABEL_EXIT;
     }
     ret = ln_db_anno_cur_open(&p_cur_infocnl, LN_DB_CUR_INFOCNL);
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         goto LABEL_EXIT;
     }
     ret = ln_db_anno_cur_open(&p_cur_infonode, LN_DB_CUR_INFONODE);
     if (!ret) {
-        LOGD("fail\n");
+        LOGE("fail\n");
         goto LABEL_EXIT;
     }
 
@@ -2250,7 +2250,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         }
         (*MAP[reason].func)(p_conf, p_param);
     } else {
-        LOGD("fail: invalid reason: %d\n", reason);
+        LOGE("fail: invalid reason: %d\n", reason);
     }
 
     //DBGTRACE_END
@@ -2463,7 +2463,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
         LOGD("get forwarding lnapp\n");
         p_prev->p_next_self = p_appconf->p_self;
     } else {
-        LOGD("fail: no forwarding\n");
+        LOGE("fail: no forwarding\n");
         p_prev->p_next_self = NULL;
     }
 
@@ -2557,7 +2557,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         if (ret) {
             p_addhtlc->idx = next_idx;
         } else {
-            LOGD("fail forward\n");
+            LOGE("fail forward\n");
         }
         pthread_mutex_unlock(&p_nextconf->mux_self);
     }
@@ -2592,12 +2592,12 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
                     p_addhtlc->p_hop->outgoing_cltv_value);
     } else if (reason.len == 0) {
         //エラーだがreasonが未設定
-        LOGD("fail: temporary_node_failure\n");
+        LOGE("fail: temporary_node_failure\n");
         ln_onion_create_reason_temp_node(&reason);
         ln_fail_htlc_set(p_conf->p_self, p_addhtlc->idx, &reason);
     } else {
         //none
-        LOGD("fail\n");
+        LOGE("fail\n");
     }
     utl_buf_free(&reason);
 
@@ -2799,7 +2799,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
         ret = ln_fail_htlc_set(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
-            LOGD("fail backward\n");
+            LOGE("fail backward\n");
         }
         pthread_mutex_unlock(&p_prevconf->mux_self);
     }
@@ -3129,12 +3129,12 @@ static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
         fds.events = POLLOUT;
         int polr = poll(&fds, 1, M_WAIT_SEND_TO_MSEC);
         if (polr <= 0) {
-            LOGD("fail poll: %s\n", strerror(errno));
+            LOGE("fail poll: %s\n", strerror(errno));
             break;
         }
         ssize_t sz = write(p_conf->sock, pBuf->buf, len);
         if (sz < 0) {
-            LOGD("fail write: %s\n", strerror(errno));
+            LOGE("fail write: %s\n", strerror(errno));
             break;
         }
         len -= sz;
@@ -3161,7 +3161,7 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 
     bool ret = ln_noise_enc(p_conf->p_self, &buf_enc, pBuf);
     if (!ret) {
-        LOGD("fail: noise encode\n");
+        LOGE("fail: noise encode\n");
         goto LABEL_EXIT;
     }
 
@@ -3171,12 +3171,12 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
         fds.events = POLLOUT;
         int polr = poll(&fds, 1, M_WAIT_SEND_TO_MSEC);
         if (polr <= 0) {
-            LOGD("fail poll: %s\n", strerror(errno));
+            LOGE("fail poll: %s\n", strerror(errno));
             break;
         }
         ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
         if (sz < 0) {
-            LOGD("fail write: %s\n", strerror(errno));
+            LOGE("fail write: %s\n", strerror(errno));
             stop_threads(p_conf);
             break;
         }
@@ -3205,7 +3205,7 @@ static void load_channel_settings(lnapp_conf_t *p_conf)
 {
     bool ret = ln_establish_alloc(p_conf->p_self, ptarmd_get_establishprm());
     if (!ret) {
-        LOGD("fail: set establish\n");
+        LOGE("fail: set establish\n");
         assert(ret);
     }
 }
@@ -3364,7 +3364,7 @@ static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
         send_peer_noise(p_conf, &buf_bolt);
         utl_buf_free(&buf_bolt);
     } else {
-        LOGD("fail: create announcement_signatures\n");
+        LOGE("fail: create announcement_signatures\n");
         stop_threads(p_conf);
     }
     pthread_mutex_unlock(&p_conf->mux_self);

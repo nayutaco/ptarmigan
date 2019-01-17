@@ -203,7 +203,7 @@ bool btcrpc_getblockcount(int32_t *pBlkCnt)
         *pBlkCnt = (int32_t)json_integer_value(p_result);
         retval = true;
     } else {
-        LOGD("fail: getblockcount_rpc\n");
+        LOGE("fail: getblockcount_rpc\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -225,7 +225,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
     if (ret && json_is_string(p_result)) {
         ret = utl_str_str2bin(pHash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
     } else {
-        LOGD("fail: getblockhash_rpc\n");
+        LOGE("fail: getblockhash_rpc\n");
     }
     if (ret) {
         // https://github.com/lightningnetwork/lightning-rfc/issues/237
@@ -265,7 +265,7 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
             }
         }
     } else {
-        LOGD("fail: getrawtransaction_rpc\n");
+        LOGE("fail: getrawtransaction_rpc\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -302,7 +302,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
             }
         }
     } else {
-        LOGD("fail: getrawtransaction_rpc\n");
+        LOGE("fail: getrawtransaction_rpc\n");
         goto LABEL_EXIT;
     }
     if (p_root != NULL) {
@@ -334,7 +334,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
             }
         }
     } else {
-        LOGD("fail: getblock_rpc\n");
+        LOGE("fail: getblock_rpc\n");
     }
 
 LABEL_EXIT:
@@ -374,7 +374,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
             }
         }
     } else {
-        LOGD("fail: getblocktx\n");
+        LOGE("fail: getblocktx\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -462,7 +462,7 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
             }
         }
     } else {
-        LOGD("fail: sendrawtransaction_rpc()\n");
+        LOGE("fail: sendrawtransaction_rpc()\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -519,7 +519,7 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_STR_MAX + 1])
             }
         }
     } else {
-        LOGD("fail: getnewaddress_rpc()\n");
+        LOGE("fail: getnewaddress_rpc()\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -539,7 +539,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     json_t *p_result;
 
     if (nBlocks < 2) {
-        LOGD("fail: nBlock < 2\n");
+        LOGE("fail: nBlock < 2\n");
         return false;
     }
 
@@ -553,13 +553,13 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
             //-1のときは失敗と見なす
             result = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
             if (!result) {
-                LOGD("fail: Unable to estimate fee\n");
+                LOGE("fail: Unable to estimate fee\n");
             }
         } else {
-            LOGD("fail: not real value\n");
+            LOGE("fail: not real value\n");
         }
     } else {
-        LOGD("fail: estimatefee_rpc()\n");
+        LOGE("fail: estimatefee_rpc()\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -634,7 +634,7 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
     //ブロック高→ブロックハッシュ
     ret = getblockhash_rpc(&p_root, &p_result, &p_json, BHeight);
     if (!ret) {
-        LOGD("fail: getblockhash_rpc\n");
+        LOGE("fail: getblockhash_rpc\n");
         return false;
     }
     if (json_is_string(p_result)) {
@@ -653,7 +653,7 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
     //ブロックハッシュ→TXIDs
     ret = getblock_rpc(ppRoot, &p_result, ppBufJson, blockhash);
     if (!ret) {
-        LOGD("fail: getblock_rpc\n");
+        LOGE("fail: getblock_rpc\n");
         return false;
     }
     p_height = json_object_get(p_result, M_HEIGHT);
@@ -770,7 +770,7 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
             *pCode = code;
         }
     } else {
-        LOGD("fail: signrawtransaction_rpc()\n");
+        LOGE("fail: signrawtransaction_rpc()\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -814,7 +814,7 @@ static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t L
             LOGD("err code=%d\n", code);
         }
     } else {
-        LOGD("fail: signrawtransactionwithwallet_rpc()\n");
+        LOGE("fail: signrawtransactionwithwallet_rpc()\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -841,7 +841,7 @@ static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint3
     //まずtxの存在確認を行う
     ret = getraw_txstr(NULL, txid);
     if (!ret) {
-        //LOGD("fail: maybe not broadcasted\n");
+        //LOGE("fail: maybe not broadcasted\n");
         goto LABEL_EXIT;
     }
 
@@ -857,7 +857,7 @@ static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint3
             *pUnspent = false;
         }
     } else {
-        LOGD("fail: gettxout_rpc()\n");
+        LOGE("fail: gettxout_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -915,7 +915,7 @@ static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, ui
             btc_tx_free(&tx);
         }
     } else {
-        LOGD("fail: getblock_rpc\n");
+        LOGE("fail: getblock_rpc\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -979,7 +979,7 @@ static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *p
             }
         }
     } else {
-        LOGD("fail: getblock_rpc\n");
+        LOGE("fail: getblock_rpc\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -1012,7 +1012,7 @@ static bool getversion(int64_t *pVersion)
             ret = false;
         }
     } else {
-        LOGD("fail: getnetworkinfo_rpc\n");
+        LOGE("fail: getnetworkinfo_rpc\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
@@ -1411,7 +1411,7 @@ static int error_result(json_t *p_root)
         LOGD("code=%d\n", err);
     }
     if (!p_msg && !p_code) {
-        LOGD("fail: json_is_string\n");
+        LOGE("fail: json_is_string\n");
     }
 
     return err;
