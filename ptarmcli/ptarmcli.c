@@ -445,7 +445,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
         fundconf.funding_sat = (uint64_t)strtoul(param, &endp, 10);
         if ((endp != NULL) && (*endp != 0x00)) {
             //変換失敗
-            LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
+            LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
         } else {
             bret = true;
         }
@@ -454,7 +454,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
             fundconf.push_sat = (uint64_t)strtoul(param, &endp, 10);
             if ((endp != NULL) && (*endp != 0x00)) {
                 //変換失敗(push_msatはエラーになっても気にしない)
-                LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
+                LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
             }
         }
     }
