@@ -1172,7 +1172,7 @@ bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
         create_local_channel_announcement(self);
     }
 
-    ln_msg_get_anno_signs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
+    ln_msg_channel_announcement_get_sigs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
 
     ln_msg_announcement_signatures_t msg;
     msg.p_channel_id = self->channel_id;
@@ -4204,7 +4204,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     //channel_announcementを埋める
     btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
-    ln_msg_get_anno_signs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
+    ln_msg_channel_announcement_get_sigs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
 
     ln_msg_announcement_signatures_t msg;
     ret = ln_msg_announcement_signatures_read(&msg, pData, Len);

@@ -150,7 +150,7 @@ bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len
 /** get the addrs of sigs from channel_announcement
  *
  */
-void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **ppSigNode, uint8_t **ppSigBtc, bool bLocal, btc_script_pubkey_order_t Order);
+void HIDDEN ln_msg_channel_announcement_get_sigs(uint8_t *pData, uint8_t **ppSigNode, uint8_t **ppSigBtc, bool bLocal, btc_script_pubkey_order_t Order);
 
 
 /** print channel_update
