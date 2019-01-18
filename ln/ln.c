@@ -1174,20 +1174,18 @@ bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
 
     ln_msg_get_anno_signs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
 
-    ln_announce_signs_t anno_signs;
-
-    anno_signs.p_channel_id = self->channel_id;
-    anno_signs.short_channel_id = self->short_channel_id;
-    anno_signs.p_node_signature = p_sig_node;
-    anno_signs.p_btc_signature = p_sig_btc;
-    ret = ln_msg_announce_signs_write(pBufAnnoSigns, &anno_signs);
+    ln_msg_announcement_signatures_t msg;
+    msg.p_channel_id = self->channel_id;
+    msg.short_channel_id = self->short_channel_id;
+    msg.p_node_signature = p_sig_node;
+    msg.p_bitcoin_signature = p_sig_btc;
+    ret = ln_msg_announcement_signatures_write(pBufAnnoSigns, &msg);
     if (ret) {
         self->anno_flag |= M_ANNO_FLAG_SEND;
         proc_anno_sigs(self);
         M_DB_SELF_SAVE(self);
         self->init_flag |= M_INIT_ANNOSIG_SENT;
     }
-
     return ret;
 }
 
@@ -4194,7 +4192,6 @@ LABEL_EXIT:
 static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
 
@@ -4211,33 +4208,32 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
     ln_msg_get_anno_signs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
 
-    ln_announce_signs_t anno_signs;
-    anno_signs.p_channel_id = channel_id;
-    anno_signs.p_node_signature = p_sig_node;
-    anno_signs.p_btc_signature = p_sig_btc;
-    ret = ln_msg_announce_signs_read(&anno_signs, pData, Len);
-    if (!ret || (anno_signs.short_channel_id == 0)) {
+    ln_msg_announcement_signatures_t msg;
+    ret = ln_msg_announcement_signatures_read(&msg, pData, Len);
+    if (!ret || (msg.short_channel_id == 0)) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
+    memcpy(&p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
+    memcpy(&p_sig_btc, msg.p_bitcoin_signature, LN_SZ_SIGNATURE);
 
     //channel-idチェック
-    ret = chk_channelid(channel_id, self->channel_id);
+    ret = chk_channelid(msg.p_channel_id, self->channel_id);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     if (self->short_channel_id) {
-        if (anno_signs.short_channel_id != self->short_channel_id) {
-            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", self->short_channel_id, anno_signs.short_channel_id);
+        if (msg.short_channel_id != self->short_channel_id) {
+            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", self->short_channel_id, msg.short_channel_id);
             M_SET_ERR(self, LNERR_MSG_READ, "read message"); //XXX:
             return false;
         }
     }
 
     if ((self->anno_flag & LN_ANNO_FLAG_END) == 0) {
-        self->short_channel_id = anno_signs.short_channel_id;
+        self->short_channel_id = msg.short_channel_id;
         ret = ln_msg_cnl_announce_update_short_cnl_id(self->cnl_anno.buf, self->short_channel_id);
         if (!ret) {
             LOGE("fail: update short_channel_id\n");
