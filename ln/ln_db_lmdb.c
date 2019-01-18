@@ -255,7 +255,7 @@ typedef struct {
 typedef struct {
     uint8_t     genesis[BTC_SZ_HASH256];
     char        wif[BTC_SZ_WIF_STR_MAX + 1];
-    char        name[LN_SZ_ALIAS + 1];
+    char        name[LN_SZ_ALIAS_STR + 1];
     uint16_t    port;
     uint8_t     create_bhash[BTC_SZ_HASH256];
 } nodeinfo_t;
@@ -734,13 +734,13 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     if (retval != 0) {
         //新規の場合は作成/保存する
         //      node_id : 生成
-        //      aliase : 指定が無ければ生成
+        //      alias : 指定が無ければ生成
         //      port : 指定された値
         LOGD("create node DB\n");
         uint8_t pub[BTC_SZ_PUBKEY];
         ln_node_create_key(pWif, pub);
 
-        char nodename[LN_SZ_ALIAS + 1];
+        char nodename[LN_SZ_ALIAS_STR + 1];
         if (pNodeName == NULL) {
             pNodeName = nodename;
             nodename[0] = '\0';
@@ -753,7 +753,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
             *pPort = LN_PORT_DEFAULT;
         }
         //LOGD("wif=%s\n", pWif);
-        LOGD("aliase=%s\n", pNodeName);
+        LOGD("alias=%s\n", pNodeName);
         LOGD("port=%d\n", *pPort);
         retval = ver_write(&db, pWif, pNodeName, *pPort);
         if (retval != 0) {
@@ -1728,7 +1728,7 @@ LABEL_EXIT:
 
 // dbi: "node_anno"
 // dbi: "node_annoinfo"
-bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId)
+bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announcement_t *pAnno, const uint8_t *pSendId)
 {
     int             retval;
     ln_lmdb_db_t    db, db_info, db_aichan;
@@ -1770,7 +1770,7 @@ bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pA
         }
         if (retval == 0) {
             key.mv_size = BTC_SZ_PUBKEY;
-            key.mv_data = pAnno->p_node_id;
+            key.mv_data = (CONST_CAST uint8_t *)pAnno->p_node_id;
             retval = mdb_get(mTxnAnno, db_aichan.dbi, &key, &data);
             if (retval != 0) {
                 LOGD("skip: not have channel_announcement node_id\n");
@@ -3616,7 +3616,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType)
 
     int32_t ver;
     char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
-    char alias[LN_SZ_ALIAS + 1] = "";
+    char alias[LN_SZ_ALIAS_STR + 1] = "";
     uint16_t port = 0;
     uint8_t genesis[BTC_SZ_HASH256];
     retval = ver_check(&db, &ver, wif, alias, &port, genesis);
@@ -4751,9 +4751,9 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         nodeinfo_t nodeinfo;
         memcpy(nodeinfo.genesis, gGenesisChainHash, BTC_SZ_HASH256);
         strncpy(nodeinfo.wif, pWif, BTC_SZ_WIF_STR_MAX);
-        strncpy(nodeinfo.name, pNodeName, LN_SZ_ALIAS);
+        strncpy(nodeinfo.name, pNodeName, LN_SZ_ALIAS_STR);
         nodeinfo.wif[BTC_SZ_WIF_STR_MAX] = '\0';
-        nodeinfo.name[LN_SZ_ALIAS] = '\0';
+        nodeinfo.name[LN_SZ_ALIAS_STR] = '\0';
         nodeinfo.port = Port;
         memcpy(nodeinfo.create_bhash, gCreationBlockHash, BTC_SZ_HASH256);
         data.mv_size = sizeof(nodeinfo);

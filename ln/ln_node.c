@@ -76,7 +76,7 @@ static ln_node_t    mNode;
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_param);
-static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
+//static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
 static void print_node(void);
 
 
@@ -104,129 +104,77 @@ char *ln_node_alias(void)
 
 bool ln_node_init(uint8_t Features)
 {
-    bool ret;
+    bool ret = false;
     char wif[BTC_SZ_WIF_STR_MAX + 1];
     btc_chain_t chain;
-    utl_buf_t buf_node = UTL_BUF_INIT;
-    ln_node_announce_t anno;
+    utl_buf_t buf_node_old = UTL_BUF_INIT;
+    utl_buf_t buf_node_new = UTL_BUF_INIT;
+    utl_buf_t buf_addrs = UTL_BUF_INIT;
+    ln_msg_node_announcement_t msg;
+    ln_msg_node_announcement_addresses_t addrs;
 
     mNode.features = Features;
 
-    ret = ln_db_init(wif, mNode.alias, &mNode.addr.port, true);
-    if (ret) {
-        //新規設定 or DBから読み込み
-        ret = btc_keys_wif2keys(&mNode.keys, &chain, wif);
-        if (!ret) {
-            goto LABEL_EXIT;
-        }
-    } else {
+    if (!ln_db_init(wif, mNode.alias, &mNode.addr.port, true)) {
         LOGE("fail: db init\n");
         goto LABEL_EXIT;
     }
 
+    if (!btc_keys_wif2keys(&mNode.keys, &chain, wif)) goto LABEL_EXIT;
     print_node();
 
-    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub);
-    if (ret) {
-        //ノード設定が変更されていないかチェック
-        //  少なくともnode_idは変更されていない
-        uint8_t node_id[BTC_SZ_PUBKEY];
-        char node_alias[LN_SZ_ALIAS + 1];
-        uint8_t rgbcolor[LN_SZ_RGBCOLOR];
+    //create new
+    {
+        uint8_t dummy_signature[LN_SZ_SIGNATURE];
+        uint8_t alias[LN_SZ_ALIAS_STR] = {0};
+        uint8_t rgb_color[LN_SZ_RGB_COLOR] = {0};
+        memset(dummy_signature, 0xcc, sizeof(dummy_signature));
+        strncpy((char *)alias, mNode.alias, LN_SZ_ALIAS_STR);
 
-        //mNode.addr: 引数(引数無しの場合、desc=NONE、port=最後の状態(新規は9735))
-        //anno.addr : node_announcement(desc==NONEの場合、port情報無し)
-        anno.p_node_id = node_id;
-        anno.p_alias = node_alias;
-        anno.p_rgbcolor = rgbcolor;
-        ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
-        if (!ret) {
-            LOGD("fail: read node_anno\n");
-            ret = false;
-            goto LABEL_EXIT;
+        if ((mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addrinfo.ipv4.addr)) {
+            addrs.addresses[0].type = mNode.addr.type;
+            addrs.addresses[0].p_addr = mNode.addr.addrinfo.ipv4.addr;
+            addrs.addresses[0].port = mNode.addr.port;
+            addrs.num = 1;
+        } else {
+            addrs.num = 0;
         }
-        ret = ln_msg_node_announce_verify(&anno, buf_node.buf, buf_node.len);
-        if (!ret) {
-            LOGD("fail: verify\n");
-            ret = false;
-            goto LABEL_EXIT;
-        }
-        if (ret) {
-            if (memcmp(anno.p_node_id, mNode.keys.pub, BTC_SZ_PUBKEY) != 0) {
-                fprintf(stderr, "fail: node_id not match(DB)\n");
-                ret = false;
-                goto LABEL_EXIT;
-            } else {
-                //保持している情報と不一致の場合、`node_announcement`を作り直す
-                bool update = false;
-                if (strcmp(anno.p_alias, mNode.alias) != 0) {
-                    memcpy(anno.p_alias, mNode.alias, LN_SZ_ALIAS);
-                    update = true;
-                }
-                if ((anno.p_rgbcolor[0] != 0) || (anno.p_rgbcolor[1] != 0) || (anno.p_rgbcolor[2] != 0)) {
-                    memset(anno.p_rgbcolor, 0, 3);
-                    update = true;
-                }
-                if (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) {
-                    if ((mNode.addr.type == LN_NODEDESC_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addrinfo.ipv4.addr)) {
-                        memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
-                    } else {
-                        LOGE("fail: not announsable ipv4\n");
-                        anno.addr.type = LN_NODEDESC_NONE;
-                    }
-                    update = true;
-                }
-                if (anno.addr.port != mNode.addr.port) {
-                    anno.addr.port = mNode.addr.port;
-                    update = true;
-                }
-                if (update) {
-                    LOGD("$$$ change node_announcement\n");
-                    anno.timestamp = (uint32_t)utl_time_time();
-                    ret = ln_msg_node_announce_write(&buf_node, &anno);
-                    if (!ret) {
-                        LOGE("fail: create node_announcement\n");
-                        goto LABEL_EXIT;
-                    }
-                    ret = ln_msg_node_announce_sign(buf_node.buf, buf_node.len);
-                    if (!ret) {
-                        LOGD("fail: sign\n");
-                        goto LABEL_EXIT;
-                    }
-                    (void)ln_db_annonod_save(&buf_node, &anno, NULL);
-                }
-                memcpy(&mNode.addr, &anno.addr, sizeof(anno.addr));
-            }
+        if (!ln_msg_node_announcement_addresses_write(&buf_addrs, &addrs)) goto LABEL_EXIT;
+
+        msg.p_signature = dummy_signature;
+        msg.flen = 0;
+        msg.p_features = NULL;
+        msg.timestamp = (uint32_t)utl_time_time();
+        msg.p_node_id = mNode.keys.pub;
+        msg.p_rgb_color = rgb_color;
+        msg.p_alias = alias;
+        msg.addrlen = buf_addrs.len;
+        msg.p_addresses = buf_addrs.buf;
+        if (!ln_msg_node_announcement_write(&buf_node_new, &msg) )goto LABEL_EXIT;
+        if (!ln_msg_node_announcement_sign(buf_node_new.buf, buf_node_new.len)) goto LABEL_EXIT;
+    }
+
+    //compare current
+    if (ln_db_annonod_load(&buf_node_old, NULL, mNode.keys.pub)) {
+        if (!utl_buf_cmp(&buf_node_old, &buf_node_new)) {
+            LOGD("$$$ change node_announcement\n");
+            (void)ln_db_annonod_save(&buf_node_new, &msg, NULL); //XXX:
         }
     } else {
-        //自node_announcement無し
         LOGD("new\n");
-        uint8_t rgbcolor[LN_SZ_RGBCOLOR] = {0};
-
-        anno.timestamp = (uint32_t)utl_time_time();
-        anno.p_node_id = mNode.keys.pub;
-        anno.p_alias = mNode.alias;
-        anno.p_rgbcolor = rgbcolor;
-        memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
-        ret = ln_msg_node_announce_write(&buf_node, &anno);
-        if (!ret) {
-            goto LABEL_EXIT;
-        }
-        ret = ln_msg_node_announce_sign(buf_node.buf, buf_node.len);
-        if (!ret) {
-            goto LABEL_EXIT;
-        }
-        ret = ln_db_annonod_save(&buf_node, &anno, NULL);
+        if (!ln_db_annonod_save(&buf_node_new, &msg, NULL)) goto LABEL_EXIT;
     }
-    if (ret) {
-        LOGD("my node_id: ");
-        DUMPD(mNode.keys.pub, BTC_SZ_PUBKEY);
 
-        print_node();
-    }
+    LOGD("my node_id: ");
+    DUMPD(mNode.keys.pub, BTC_SZ_PUBKEY);
+    print_node();
+
+    ret = true;
 
 LABEL_EXIT:
-    utl_buf_free(&buf_node);
+    utl_buf_free(&buf_node_old);
+    utl_buf_free(&buf_node_new);
+    utl_buf_free(&buf_addrs);
     return ret;
 }
 
@@ -254,24 +202,15 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
 }
 
 
-bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId)
+bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *pNodeAnnoBuf, const uint8_t *pNodeId)
 {
-    utl_buf_t buf_anno = UTL_BUF_INIT;
-
-    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
-    if (ret) {
-        uint8_t rgbcolor[LN_SZ_RGBCOLOR];
-        pNodeAnno->p_node_id = NULL;
-        pNodeAnno->p_alias = NULL;
-        pNodeAnno->p_rgbcolor = rgbcolor;
-        ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
-        if (!ret) {
-            LOGE("fail: read node_announcement\n");
-        }
+    if (!ln_db_annonod_load(pNodeAnnoBuf, NULL, pNodeId)) return false;
+    if (!ln_msg_node_announcement_read(pNodeAnno, pNodeAnnoBuf->buf, pNodeAnnoBuf->len)) {
+        LOGE("fail: read node_announcement\n");
+        utl_buf_free(pNodeAnnoBuf);
+        return false;
     }
-    utl_buf_free(&buf_anno);
-
-    return ret;
+    return true;
 }
 
 
@@ -403,6 +342,7 @@ static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_par
 }
 
 
+#if 0
 /** ln_nodeaddr_t比較
  *
  * @param[in]   pAddr1      比較対象1
@@ -412,18 +352,18 @@ static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_par
 static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2)
 {
     const size_t SZ[] = {
-        0,          //LN_NODEDESC_NONE
-        4,          //LN_NODEDESC_IPV4
-        16,         //LN_NODEDESC_IPV6
-        10,         //LN_NODEDESC_ONIONV2
-        35          //LN_NODEDESC_ONIONV3
+        0,          //LN_ADDR_DESC_TYPE_NONE
+        4,          //LN_ADDR_DESC_TYPE_IPV4
+        16,         //LN_ADDR_DESC_TYPE_IPV6
+        10,         //LN_ADDR_DESC_TYPE_TORV2
+        35          //LN_ADDR_DESC_TYPE_TORV3
     };
 
     if (pAddr1->type != pAddr2->type) {
         LOGE("not match: type %d != %d\n", pAddr1->type, pAddr2->type);
         return false;
     }
-    if (pAddr1->type <= LN_NODEDESC_ONIONV3) {
+    if (pAddr1->type <= LN_ADDR_DESC_TYPE_TORV3) {
         if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, SZ[pAddr1->type]) != 0) {
             LOGE("not match: addr\n");
             return false;
@@ -434,6 +374,7 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     }
     return true;
 }
+#endif
 
 
 static void print_node(void)
@@ -446,7 +387,7 @@ static void print_node(void)
     printf("features= %02x\n", mNode.features);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);
-    if (mNode.addr.type == LN_NODEDESC_IPV4) {
+    if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {
         printf("ipv4=%d.%d.%d.%d:%d\n",
                 mNode.addr.addrinfo.ipv4.addr[0],
                 mNode.addr.addrinfo.ipv4.addr[1],

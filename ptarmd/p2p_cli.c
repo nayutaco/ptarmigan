@@ -182,7 +182,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
         }
 
         //ノード接続失敗リストに追加(自動接続回避用)
-        ptarmd_nodefail_add(pConn->node_id, pConn->ipaddr, pConn->port, LN_NODEDESC_IPV4);
+        ptarmd_nodefail_add(pConn->node_id, pConn->ipaddr, pConn->port, LN_ADDR_DESC_TYPE_IPV4);
 
         goto LABEL_EXIT;
     }

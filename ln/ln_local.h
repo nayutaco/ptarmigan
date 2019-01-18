@@ -41,6 +41,7 @@
 #include "mbedtls/ripemd160.h"
 #include "mbedtls/ecp.h"
 
+#include "ln.h"
 #define LOG_TAG "LN"
 #include "utl_log.h"
 

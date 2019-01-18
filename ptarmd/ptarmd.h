@@ -359,7 +359,7 @@ lnapp_conf_t *ptarmd_search_transferable_nodeid(const uint8_t *p_node_id);
  */
 void ptarmd_nodefail_add(
             const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
-            ln_nodedesc_t NodeDesc);
+            ln_msg_address_descriptor_type_t NodeDesc);
 
 
 /** ノード接続失敗リスト検索
@@ -368,7 +368,7 @@ void ptarmd_nodefail_add(
  */
 bool ptarmd_nodefail_get(
             const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
-            ln_nodedesc_t NodeDesc, bool bRemove);
+            ln_msg_address_descriptor_type_t NodeDesc, bool bRemove);
 
 
 /** Establish Parameter取得

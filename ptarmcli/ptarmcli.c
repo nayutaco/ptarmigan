@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
     if (optind == argc) {
         if (ln_db_have_dbdir()) {
             char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
-            char alias[LN_SZ_ALIAS + 1] = "";
+            char alias[LN_SZ_ALIAS_STR + 1] = "";
 
             (void)ln_db_init(wif, alias, &port, false);
             if (port != 0) {

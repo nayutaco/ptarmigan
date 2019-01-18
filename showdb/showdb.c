@@ -103,7 +103,6 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len);
 #else
 #define ln_print_announce(...)          //nothing
 #endif  //PTARM_USE_PRINTFUNC
-void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_walt);
 
 
@@ -500,7 +499,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 
     //addr
-    if (self->last_connected_addr.type == LN_NODEDESC_IPV4) {
+    if (self->last_connected_addr.type == LN_ADDR_DESC_TYPE_IPV4) {
         printf(INDENT3 M_QQ("last_connected IPv4") ": \"%d.%d.%d.%d:%d\",\n",
                     self->last_connected_addr.addrinfo.ipv4.addr[0],
                     self->last_connected_addr.addrinfo.ipv4.addr[1],
@@ -553,36 +552,37 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
         break;
     case MSGTYPE_NODE_ANNOUNCEMENT:
         {
-            ln_node_announce_t msg;
-            uint8_t node_pub[BTC_SZ_PUBKEY];
-            char node_alias[LN_SZ_ALIAS + 1];
-            uint8_t rgb_color[LN_SZ_RGBCOLOR];
-            msg.p_node_id = node_pub;
-            msg.p_alias = node_alias;
-            msg.p_rgbcolor = rgb_color;
-            bool ret = ln_msg_node_announce_read(&msg, pData, Len);
-            if (ret) {
+            ln_msg_node_announcement_t msg;
+            ln_msg_node_announcement_addresses_t addrs;
+            if (ln_msg_node_announcement_read(&msg, pData, Len)) {
                 printf(INDENT3 M_QQ("node") ": \"");
-                utl_dbg_dump(stdout, node_pub, BTC_SZ_PUBKEY, false);
+                utl_dbg_dump(stdout, msg.p_node_id, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
-                char esc_alias[LN_SZ_ALIAS * 2 + 1];
-                escape_json_string(esc_alias, node_alias);
+                char alias[LN_SZ_ALIAS_STR + 1] = {0};
+                strncpy(alias, (char *)msg.p_alias, LN_SZ_ALIAS_STR);
+                char esc_alias[LN_SZ_ALIAS_STR * 2 + 1];
+                escape_json_string(esc_alias, alias);
                 printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", esc_alias);
-                printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.p_rgbcolor[0], msg.p_rgbcolor[1], msg.p_rgbcolor[2]);
-                if (msg.addr.type == LN_NODEDESC_IPV4) {
-                    char addr[50];
-                    sprintf(addr, "%d.%d.%d.%d:%d",
-                            msg.addr.addrinfo.ipv4.addr[0],
-                            msg.addr.addrinfo.ipv4.addr[1],
-                            msg.addr.addrinfo.ipv4.addr[2],
-                            msg.addr.addrinfo.ipv4.addr[3],
-                            msg.addr.port);
-                    printf(INDENT3 M_QQ("addr") ": " M_QQ("%s") ",\n", addr);
-                    printf(INDENT3 M_QQ("connect") ": \"");
-                    utl_dbg_dump(stdout, node_pub, BTC_SZ_PUBKEY, false);
-                    printf("@%s\",\n", addr);
-                } else {
-                    printf(INDENT3 M_QQ("addrtype") ": %d,\n", msg.addr.type);
+                printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.p_rgb_color[0], msg.p_rgb_color[1], msg.p_rgb_color[2]);
+
+                if (ln_msg_node_announcement_addresses_read(&addrs, msg.p_addresses, msg.addrlen) &&
+                    addrs.num) {
+                    ln_msg_node_announcement_address_descriptor_t *addr_desc = &addrs.addresses[0];
+                    if (addr_desc->type == LN_ADDR_DESC_TYPE_IPV4) {
+                        char addr[50];
+                        sprintf(addr, "%d.%d.%d.%d:%d",
+                                addr_desc->p_addr[0],
+                                addr_desc->p_addr[1],
+                                addr_desc->p_addr[2],
+                                addr_desc->p_addr[3],
+                                addr_desc->port);
+                        printf(INDENT3 M_QQ("addr") ": " M_QQ("%s") ",\n", addr);
+                        printf(INDENT3 M_QQ("connect") ": \"");
+                        utl_dbg_dump(stdout, msg.p_node_id, BTC_SZ_PUBKEY, false);
+                        printf("@%s\",\n", addr);
+                    } else {
+                        printf(INDENT3 M_QQ("addrtype") ": %d,\n", addr_desc->type);
+                    }
                 }
                 printf(INDENT3 M_QQ("timestamp") ": %" PRIu32 "\n", msg.timestamp);
             }
@@ -1015,7 +1015,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         int retval;
         int32_t version;
         char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
-        char alias[LN_SZ_ALIAS + 1] = "";
+        char alias[LN_SZ_ALIAS_STR + 1] = "";
         uint16_t port = 0;
         uint8_t genesis[BTC_SZ_HASH256];
 

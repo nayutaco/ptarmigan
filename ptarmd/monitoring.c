@@ -33,6 +33,8 @@
 #define LOG_TAG     "monitoring"
 #include "utl_log.h"
 
+#include "ln_msg_anno.h"
+
 #include "ptarmd.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
@@ -473,7 +475,7 @@ static bool channel_reconnect(ln_self_t *self)
     //conn_addr[1]
     //self->last_connected_addrがあれば、それを使う
     switch (ln_last_connected_addr(self)->type) {
-    case LN_NODEDESC_IPV4:
+    case LN_ADDR_DESC_TYPE_IPV4:
         sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
             ln_last_connected_addr(self)->addrinfo.ipv4.addr[0],
             ln_last_connected_addr(self)->addrinfo.ipv4.addr[1],
@@ -489,17 +491,21 @@ static bool channel_reconnect(ln_self_t *self)
 
     //conn_addr[2]
     //node_announcementで通知されたアドレスに接続する
-    ln_node_announce_t anno;
-    bool ret = ln_node_search_nodeanno(&anno, p_node_id);
-    if (ret) {
-        switch (anno.addr.type) {
-        case LN_NODEDESC_IPV4:
+    ln_msg_node_announcement_t anno;
+    ln_msg_node_announcement_addresses_t addrs;
+    utl_buf_t anno_buf = UTL_BUF_INIT;
+    if (ln_node_search_nodeanno(&anno, &anno_buf, p_node_id) &&
+        ln_msg_node_announcement_addresses_read(&addrs, anno.p_addresses, anno.addrlen) &&
+        addrs.num) {
+        ln_msg_node_announcement_address_descriptor_t *addr_desc = &addrs.addresses[0];
+        switch (addr_desc->type) {
+        case LN_ADDR_DESC_TYPE_IPV4:
             sprintf(conn_addr[2].ipaddr, "%d.%d.%d.%d",
-                anno.addr.addrinfo.ipv4.addr[0],
-                anno.addr.addrinfo.ipv4.addr[1],
-                anno.addr.addrinfo.ipv4.addr[2],
-                anno.addr.addrinfo.ipv4.addr[3]);
-            conn_addr[2].port = anno.addr.port;
+                addr_desc->p_addr[0],
+                addr_desc->p_addr[1],
+                addr_desc->p_addr[2],
+                addr_desc->p_addr[3]);
+            conn_addr[2].port = addr_desc->port;
             LOGD("conn_addr[2]: %s:%d\n", conn_addr[2].ipaddr, conn_addr[2].port);
             break;
         default:
@@ -507,20 +513,19 @@ static bool channel_reconnect(ln_self_t *self)
             break;
         }
     }
+    utl_buf_free(&anno_buf);
 
     for (size_t lp = 0; lp < ARRAY_SIZE(conn_addr); lp++) {
-        if (conn_addr[lp].port != 0) {
-            ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port);
-            if (ret) {
-                break;
-            }
-            if (conn_addr[lp].port != LN_PORT_DEFAULT) {
-                //だめだったらLNのdefault portで試す
-                ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, LN_PORT_DEFAULT);
-                if (ret) {
-                    break;
-                }
-            }
+        if (!conn_addr[lp].port) continue;
+        if (channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port)) {
+            //success
+            break;
+        }
+        //if not default port, try default port
+        if (conn_addr[lp].port == LN_PORT_DEFAULT) continue;
+        if (channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, LN_PORT_DEFAULT)) {
+            //success
+            break;
         }
     }
 
@@ -533,7 +538,7 @@ static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, 
     int retval = -1;
     bool ret = ptarmd_nodefail_get(
                     pNodeId, pIpAddr, LN_PORT_DEFAULT,
-                    LN_NODEDESC_IPV4, false);
+                    LN_ADDR_DESC_TYPE_IPV4, false);
     if (!ret) {
         //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
         LOGD("try connect: %s:%d\n", pIpAddr, Port);
