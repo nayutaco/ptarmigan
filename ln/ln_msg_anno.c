@@ -259,10 +259,10 @@ static void channel_announcement_print(const ln_msg_channel_announcement_t *pMsg
 }
 
 
-bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort)
+bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Order)
 {
     uint16_t offset_preimg = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
-    uint16_t offset_sig = (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? 0 : LN_SZ_SIGNATURE;
+    uint16_t offset_sig = (Order == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? 0 : LN_SZ_SIGNATURE;
 
     uint8_t hash[BTC_SZ_HASH256];
     btc_md_hash256(hash, pData + offset_preimg, Len - offset_preimg);
@@ -303,31 +303,31 @@ bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len
 }
 
 
-void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort)
+void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **ppSigNode, uint8_t **ppSigBtc, bool bLocal, btc_script_pubkey_order_t Order)
 {
-    if ( ((Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) && bLocal) ||
-         ((Sort != BTC_SCRYPT_PUBKEY_ORDER_ASC) && !bLocal) ) {
+    uint16_t offset;
+    if ( ((Order == BTC_SCRYPT_PUBKEY_ORDER_ASC) && bLocal) ||
+         ((Order != BTC_SCRYPT_PUBKEY_ORDER_ASC) && !bLocal) ) {
         LOGD("addr: 1\n");
-        *pp_sig_node = pData + sizeof(uint16_t);
+        offset = 0;
     } else {
         LOGD("addr: 2\n");
-        *pp_sig_node = pData + sizeof(uint16_t) + LN_SZ_SIGNATURE;
+        offset = LN_SZ_SIGNATURE;
     }
-    *pp_sig_btc = *pp_sig_node + LN_SZ_SIGNATURE * 2;
+    *ppSigNode = pData + sizeof(uint16_t) + offset;
+    *ppSigBtc = *ppSigNode + LN_SZ_SIGNATURE * 2;
 }
 
 
 bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, uint64_t ShortChannelId)
 {
-    int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
-    //        [2:len]
+    uint16_t pos = sizeof(uint16_t); //type
+    pos += LN_SZ_SIGNATURE * 4; //sigs
     uint16_t len = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(len) + len + BTC_SZ_HASH256;
-    //        [8:short_channel_id]
-    for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
-        *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
-        ShortChannelId >>= 8;
-    }
+    pos += 2; //len
+    pos += len; //features
+    pos += BTC_SZ_HASH256; //channel_hash
+    utl_int_unpack_u64be(pData + pos, ShortChannelId);
     return true;
 }
 
