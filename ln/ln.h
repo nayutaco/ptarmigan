@@ -711,6 +711,8 @@ typedef struct {
 
 
 typedef struct {
+    uint64_t                    short_channel_id;
+    uint16_t                    idx;
     uint8_t                     fin_delhtlc;
 } ln_cb_bwd_del_htlc_t;
 
@@ -1466,6 +1468,16 @@ bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage
  *      - onion_routing_packetと共用のため、onion_routingは消える
  */
 bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
+
+
+bool ln_fail_htlc_set_bwd(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
+
+
+/** update_fail_htlc転送
+ *
+ *
+ */
+void ln_del_htlc_start_bwd(ln_self_t *self, uint16_t Idx);
 
 
 /** update_feeメッセージ作成

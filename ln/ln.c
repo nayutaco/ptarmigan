@@ -1689,6 +1689,33 @@ bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
 }
 
 
+bool ln_fail_htlc_set_bwd(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
+{
+    LOGD("BEGIN\n");
+
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
+
+    clear_htlc_comrevflag(p_htlc, p_htlc->stat.flag.delhtlc);
+    p_htlc->stat.flag.fin_delhtlc = LN_DELHTLC_FAIL;
+    utl_buf_free(&p_htlc->buf_onion_reason);
+    ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
+
+    LOGD("END: self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, p_htlc->stat.bits);
+    LOGD("   reason: ");
+    DUMPD(pReason->buf, pReason->len);
+    dbg_htlcflag(&p_htlc->stat.flag);
+    return true;
+}
+
+
+void ln_del_htlc_start_bwd(ln_self_t *self, uint16_t Idx)
+{
+    LOGD("backward HTLC\n");
+    self->cnl_add_htlc[Idx].stat.flag.delhtlc = self->cnl_add_htlc[Idx].stat.flag.fin_delhtlc;
+    dbg_htlcflag(&self->cnl_add_htlc[Idx].stat.flag);
+}
+
+
 bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
     LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
@@ -2369,26 +2396,23 @@ static void recv_idle_proc_final(ln_self_t *self)
                 //ADD_HTLC後: update_add_htlc受信側
                 //self->their_msat -= p_htlc->amount_msat;
 
-                    //ADD_HTLC転送
-                    if (p_htlc->next_short_channel_id != 0) {
-                        LOGD("forward: %d\n", p_htlc->next_idx);
+                //ADD_HTLC転送
+                if (p_htlc->next_short_channel_id != 0) {
+                    LOGD("forward: %d\n", p_htlc->next_idx);
 
-                        ln_cb_fwd_add_htlc_t fwd;
-                        fwd.short_channel_id = p_htlc->next_short_channel_id;
-                        fwd.idx = p_htlc->next_idx;
-                        callback(self, LN_CB_FWD_ADDHTLC_START, &fwd);
-                        p_htlc->next_short_channel_id = 0;
-                        db_upd = true;
-                    }
+                    ln_cb_fwd_add_htlc_t fwd;
+                    fwd.short_channel_id = p_htlc->next_short_channel_id;
+                    fwd.idx = p_htlc->next_idx;
+                    callback(self, LN_CB_FWD_ADDHTLC_START, &fwd);
+                    p_htlc->next_short_channel_id = 0;
+                    db_upd = true;
+                }
 
                 if (LN_DBG_FULFILL()) {
                     //DEL_HTLC開始
                     if (p_flag->fin_delhtlc != LN_DELHTLC_NONE) {
                         LOGD("del htlc: %d\n", p_flag->fin_delhtlc);
-
-                        ln_cb_bwd_del_htlc_t bwd;
-                        bwd.fin_delhtlc = p_flag->fin_delhtlc;
-                        callback(self, LN_CB_BWD_DELHTLC_START, &bwd);
+                        ln_del_htlc_start_bwd(self, idx);
                         clear_htlc_comrevflag(p_htlc, p_flag->fin_delhtlc);
                         db_upd = true;
                     }
@@ -2401,6 +2425,15 @@ static void recv_idle_proc_final(ln_self_t *self)
                     if (p_flag->delhtlc == LN_DELHTLC_FULFILL) {
                         self->our_msat -= p_htlc->amount_msat;
                         self->their_msat += p_htlc->amount_msat;
+                    } else if ((p_flag->delhtlc != LN_DELHTLC_NONE) && (p_htlc->prev_short_channel_id != 0)) {
+                        LOGD("backward fail_htlc!\n");
+
+                        ln_cb_bwd_del_htlc_t bwd;
+                        bwd.short_channel_id = p_htlc->prev_short_channel_id;
+                        bwd.fin_delhtlc = p_flag->delhtlc;
+                        bwd.idx = p_htlc->prev_idx;
+                        callback(self, LN_CB_BWD_DELHTLC_START, &bwd);
+                        clear_htlc_comrevflag(p_htlc, p_flag->delhtlc);
                     }
 
                     if (p_htlc->prev_short_channel_id == 0) {

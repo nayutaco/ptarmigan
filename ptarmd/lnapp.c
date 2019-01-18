@@ -2621,6 +2621,8 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
         pthread_mutex_lock(&p_nextconf->mux_self);
         ln_add_htlc_start_fwd(p_nextconf->p_self, p_fwd->idx);
         pthread_mutex_unlock(&p_nextconf->mux_self);
+    } else {
+        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_fwd->short_channel_id);
     }
 
     DBGTRACE_END
@@ -2635,11 +2637,19 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     ln_cb_bwd_del_htlc_t *p_bwd = (ln_cb_bwd_del_htlc_t *)p_param;
-    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-    ptarmd_eventlog(NULL,
-            "delte HTLC: short_channel_id=%s, fin_delhtlc=%d",
-            str_sci, p_bwd->fin_delhtlc);
+
+    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_bwd->short_channel_id);
+    if (p_prevconf != NULL) {
+        ln_del_htlc_start_bwd(p_prevconf->p_self, p_bwd->idx);
+
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
+        ptarmd_eventlog(NULL,
+                "delte HTLC: short_channel_id=%s, fin_delhtlc=%d",
+                str_sci, p_bwd->fin_delhtlc);
+    } else {
+        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_bwd->short_channel_id);
+    }
 
     DBGTRACE_END
 }
@@ -2796,7 +2806,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fail->prev_short_channel_id);
     if (p_prevconf != NULL) {
         pthread_mutex_lock(&p_prevconf->mux_self);
-        ret = ln_fail_htlc_set(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);
+        ret = ln_fail_htlc_set_bwd(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
             LOGE("fail backward\n");
