@@ -16,7 +16,7 @@ extern "C" {
 
 #undef LOG_TAG
 #include "../../btc/btc.c"
-// #include "../../btc/btc_buf.c"
+#include "../../btc/btc_buf.c"
 // #include "../../btc/btc_extkey.c"
 // #include "../../btc/btc_keys.c"
 // #include "../../btc/btc_sw.c"
@@ -39,19 +39,29 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
 
-FAKE_VALUE_FUNC(bool, ln_node_search_nodeid, uint8_t *, uint64_t );
-FAKE_VALUE_FUNC(bool, ln_node_sign_nodekey, uint8_t *, const uint8_t *);
-FAKE_VOID_FUNC(ln_node_term);
+////////////////////////////////////////////////////////////////////////
 
+namespace LN_DUMMY {
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint64_t short_channel_id;
+    uint8_t node_signature[LN_SZ_SIGNATURE];
+    uint8_t bitcoin_signature[LN_SZ_SIGNATURE];
+/*    uint64_t id;
+    uint64_t amount_msat;
+    uint8_t payment_hash[BTC_SZ_HASH256];
+    uint32_t cltv_expiry;
+    uint8_t onion_routing_packet[LN_SZ_ONION_ROUTE];
+    uint8_t payment_preimage[BTC_SZ_PRIVKEY];
+    uint8_t reason[256];
+    uint8_t sha256_of_onion[BTC_SZ_HASH256];
+    uint16_t failure_code;
+    uint8_t signature[LN_SZ_SIGNATURE];
+    uint8_t htlc_signature[LN_SZ_SIGNATURE * 32];
+    uint8_t per_commitment_secret[BTC_SZ_PRIVKEY];
+    uint8_t next_per_commitment_point[BTC_SZ_PUBKEY];
+    uint32_t feerate_per_kw;*/
+}
 
-//< 32: chain-hash
-static const uint8_t GENESIS_TESTNET[] = {
-    // bitcoin testnet
-    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-};
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -60,14 +70,29 @@ protected:
     virtual void SetUp() {
         //utl_log_init_stderr();
         utl_dbg_malloc_cnt_reset();
-        btc_init(BTC_TESTNET, true);
-        memcpy(gGenesisChainHash, GENESIS_TESTNET, sizeof(GENESIS_TESTNET));
-        ln_node_sign_nodekey_fake.return_val = true;
+        ASSERT_TRUE(btc_rng_init());
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::short_channel_id, sizeof(LN_DUMMY::short_channel_id)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_signature, sizeof(LN_DUMMY::node_signature)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_signature, sizeof(LN_DUMMY::bitcoin_signature)));
+/*        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::id, sizeof(LN_DUMMY::id)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::amount_msat, sizeof(LN_DUMMY::amount_msat)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::cltv_expiry, sizeof(LN_DUMMY::cltv_expiry)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::payment_hash, sizeof(LN_DUMMY::payment_hash)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::payment_preimage, sizeof(LN_DUMMY::payment_preimage)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::failure_code, sizeof(LN_DUMMY::failure_code)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::signature, sizeof(LN_DUMMY::signature)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::per_commitment_secret, sizeof(LN_DUMMY::per_commitment_secret)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::next_per_commitment_point, sizeof(LN_DUMMY::next_per_commitment_point)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::feerate_per_kw, sizeof(LN_DUMMY::feerate_per_kw)));
+*/        btc_rng_free();
     }
 
     virtual void TearDown() {
-        ln_node_term();
-        btc_term();
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
     }
 
@@ -95,244 +120,24 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
-// no option_channel_htlc_max
-TEST_F(ln, cnl_update_create_1)
+TEST_F(ln, announcement_signatures)
 {
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    ln_msg_announcement_signatures_t msg;
+    utl_buf_t buf;
 
-    const uint8_t PROTO[] = {
-        // channel_update
-        0x01, 0x02,
-
-        // signature
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        // bitcoin testnet
-        0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-        0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-        0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-        0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-        //        [8:short_channel_id]
-        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-        //        [4:timestamp]
-        0x23, 0x45, 0x67, 0x89,
-        //        [1:message_flags]
-        0x00,
-        //        [1:channel_flags]
-        0x00,
-        //        [2:cltv_expiry_delta]
-        0x45, 0x67,
-        //        [8:htlc_minimum_msat]
-        0x0f, 0xed, 0xcb, 0xa9, 0x87, 0x65, 0x43, 0x21,
-        //        [4:fee_base_msat]
-        0x39, 0x13, 0xd3, 0x2a,
-        //        [4:fee_proportional_millionths]
-        0x94, 0x32, 0xbb, 0x33,
-        //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-    };
-
-    ln_cnl_update_t upd;
-    memset(&upd, 0xcc, sizeof(upd));
-    upd.short_channel_id = (uint64_t)0x123456789abcdef0;
-    upd.htlc_minimum_msat = (uint64_t)0x0fedcba987654321;
-    upd.htlc_maximum_msat = (uint64_t)0x6af6234af91b5a3c;
-    upd.timestamp = 0x23456789;
-    upd.fee_base_msat = 0x3913d32a;
-    upd.fee_prop_millionths = 0x9432bb33;
-    upd.cltv_expiry_delta = 0x4567;
-    upd.message_flags = 0x00;
-    upd.channel_flags = 0x00;
-
-    bool ret = ln_msg_cnl_update_write(&buf_bolt, &upd);
+    msg.p_channel_id = LN_DUMMY::channel_id;
+    msg.short_channel_id = LN_DUMMY::short_channel_id;
+    msg.p_node_signature = LN_DUMMY::node_signature;
+    msg.p_bitcoin_signature = LN_DUMMY::bitcoin_signature;
+    bool ret = ln_msg_announcement_signatures_write(&buf, &msg);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(sizeof(PROTO), buf_bolt.len);
-    ASSERT_EQ(0, memcmp(PROTO, buf_bolt.buf, 2));
-    ASSERT_EQ(0, memcmp(PROTO + 2 + 64, buf_bolt.buf + 2 + 64, sizeof(PROTO) - (2 + 64)));
 
-    utl_buf_free(&buf_bolt);
-}
-
-
-// option_channel_htlc_max
-TEST_F(ln, cnl_update_create_2)
-{
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-
-    const uint8_t PROTO[] = {
-        // channel_update
-        0x01, 0x02,
-
-        // signature
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        // bitcoin testnet
-        0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-        0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-        0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-        0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-        //        [8:short_channel_id]
-        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-        //        [4:timestamp]
-        0x23, 0x45, 0x67, 0x89,
-        //        [1:message_flags]
-        0x01,
-        //        [1:channel_flags]
-        0x00,
-        //        [2:cltv_expiry_delta]
-        0x45, 0x67,
-        //        [8:htlc_minimum_msat]
-        0x0f, 0xed, 0xcb, 0xa9, 0x87, 0x65, 0x43, 0x21,
-        //        [4:fee_base_msat]
-        0x39, 0x13, 0xd3, 0x2a,
-        //        [4:fee_proportional_millionths]
-        0x94, 0x32, 0xbb, 0x33,
-        //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-        0x6a, 0xf6, 0x23, 0x4a, 0xf9, 0x1b, 0x5a, 0x3c,
-    };
-
-    ln_cnl_update_t upd;
-    memset(&upd, 0xcc, sizeof(upd));
-    upd.short_channel_id = (uint64_t)0x123456789abcdef0;
-    upd.htlc_minimum_msat = (uint64_t)0x0fedcba987654321;
-    upd.htlc_maximum_msat = (uint64_t)0x6af6234af91b5a3c;
-    upd.timestamp = 0x23456789;
-    upd.fee_base_msat = 0x3913d32a;
-    upd.fee_prop_millionths = 0x9432bb33;
-    upd.cltv_expiry_delta = 0x4567;
-    upd.message_flags = 0x01;
-    upd.channel_flags = 0x00;
-
-    bool ret = ln_msg_cnl_update_write(&buf_bolt, &upd);
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_announcement_signatures_read(&msg, buf.buf, (uint16_t)buf.len);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(sizeof(PROTO), buf_bolt.len);
-    ASSERT_EQ(0, memcmp(PROTO, buf_bolt.buf, 2));
-    ASSERT_EQ(0, memcmp(PROTO + 2 + 64, buf_bolt.buf + 2 + 64, sizeof(PROTO) - (2 + 64)));
-
-    utl_buf_free(&buf_bolt);
-}
-
-////////////////////////////////////////////////////////////////////////
-
-// no option_channel_htlc_max
-TEST_F(ln, recv_cnl_update_1)
-{
-    const uint8_t PROTO[] = {
-        // channel_update
-        0x01, 0x02,
-
-        // signature
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        // bitcoin testnet
-        0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-        0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-        0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-        0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-        //        [8:short_channel_id]
-        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-        //        [4:timestamp]
-        0x23, 0x45, 0x67, 0x89,
-        //        [1:message_flags]
-        0x00,
-        //        [1:channel_flags]
-        0x00,
-        //        [2:cltv_expiry_delta]
-        0x45, 0x67,
-        //        [8:htlc_minimum_msat]
-        0x0f, 0xed, 0xcb, 0xa9, 0x87, 0x65, 0x43, 0x21,
-        //        [4:fee_base_msat]
-        0x39, 0x13, 0xd3, 0x2a,
-        //        [4:fee_proportional_millionths]
-        0x94, 0x32, 0xbb, 0x33,
-        //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-    };
-
-    ln_cnl_update_t upd;
-    memset(&upd, 0xcc, sizeof(upd));
-    bool ret = ln_msg_cnl_update_read(&upd, PROTO, sizeof(PROTO));
-    ASSERT_TRUE(ret);
-    ASSERT_EQ((uint64_t)0x123456789abcdef0, upd.short_channel_id);
-    ASSERT_EQ((uint64_t)0x0fedcba987654321, upd.htlc_minimum_msat);
-    ASSERT_EQ((uint64_t)0, upd.htlc_maximum_msat);
-    ASSERT_EQ(0x23456789, upd.timestamp);
-    ASSERT_EQ(0x3913d32a, upd.fee_base_msat);
-    ASSERT_EQ(0x9432bb33, upd.fee_prop_millionths);
-    ASSERT_EQ(0x4567, upd.cltv_expiry_delta);
-    ASSERT_EQ(0x00, upd.message_flags);
-    ASSERT_EQ(0x00, upd.channel_flags);
-}
-
-
-// option_channel_htlc_max
-TEST_F(ln, recv_cnl_update_2)
-{
-    const uint8_t PROTO[] = {
-        // channel_update
-        0x01, 0x02,
-
-        // signature
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        // bitcoin testnet
-        0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-        0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-        0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-        0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-        //        [8:short_channel_id]
-        0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-        //        [4:timestamp]
-        0x23, 0x45, 0x67, 0x89,
-        //        [1:message_flags]
-        0x01,
-        //        [1:channel_flags]
-        0x00,
-        //        [2:cltv_expiry_delta]
-        0x45, 0x67,
-        //        [8:htlc_minimum_msat]
-        0x0f, 0xed, 0xcb, 0xa9, 0x87, 0x65, 0x43, 0x21,
-        //        [4:fee_base_msat]
-        0x39, 0x13, 0xd3, 0x2a,
-        //        [4:fee_proportional_millionths]
-        0x94, 0x32, 0xbb, 0x33,
-        //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-        0x6a, 0xf6, 0x23, 0x4a, 0xf9, 0x1b, 0x5a, 0x3c,
-    };
-
-    ln_cnl_update_t upd;
-    memset(&upd, 0xcc, sizeof(upd));
-    bool ret = ln_msg_cnl_update_read(&upd, PROTO, sizeof(PROTO));
-    ASSERT_TRUE(ret);
-    ASSERT_EQ((uint64_t)0x123456789abcdef0, upd.short_channel_id);
-    ASSERT_EQ((uint64_t)0x0fedcba987654321, upd.htlc_minimum_msat);
-    ASSERT_EQ((uint64_t)0x6af6234af91b5a3c, upd.htlc_maximum_msat);
-    ASSERT_EQ(0x23456789, upd.timestamp);
-    ASSERT_EQ(0x3913d32a, upd.fee_base_msat);
-    ASSERT_EQ(0x9432bb33, upd.fee_prop_millionths);
-    ASSERT_EQ(0x4567, upd.cltv_expiry_delta);
-    ASSERT_EQ(0x01, upd.message_flags);
-    ASSERT_EQ(0x00, upd.channel_flags);
+    ASSERT_EQ(0, memcmp(msg.p_channel_id, LN_DUMMY::channel_id, sizeof(LN_DUMMY::channel_id)));
+    ASSERT_EQ(msg.short_channel_id, LN_DUMMY::short_channel_id);
+    ASSERT_EQ(0, memcmp(msg.p_node_signature, LN_DUMMY::node_signature, sizeof(LN_DUMMY::node_signature)));
+    ASSERT_EQ(0, memcmp(msg.p_bitcoin_signature, LN_DUMMY::bitcoin_signature, sizeof(LN_DUMMY::bitcoin_signature)));
+    utl_buf_free(&buf);
 }

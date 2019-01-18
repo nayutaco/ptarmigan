@@ -572,17 +572,6 @@ typedef struct {
 } ln_cnl_update_t;
 
 
-/** @struct     ln_announce_signs_t
- *  @brief      announcement_signatures
- */
-typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
-    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-    uint8_t     *p_node_signature;                  ///< 64: node_signature
-    uint8_t     *p_btc_signature;                   ///< 64: bitcoin_signature
-} ln_announce_signs_t;
-
-
 /** @struct     ln_anno_prm_t
  *  @brief      announce関連のパラメータ
  */

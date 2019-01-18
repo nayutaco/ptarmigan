@@ -35,6 +35,7 @@
 
 #include "btc_crypto.h"
 #include "btc_sig.h"
+#include "btc_buf.h"
 
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
@@ -76,7 +77,7 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  **************************************************************************/
 
 #if defined(DBG_PRINT_WRITE_SIG) || defined(DBG_PRINT_READ_SIG)
-static void announce_signs_print(const ln_announce_signs_t *pMsg);
+static void announcement_signatures_print(const ln_msg_announcement_signatures_t *pMsg);
 #endif
 #if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg);
@@ -87,130 +88,68 @@ static void node_announce_print(const ln_node_announce_t *pMsg);
  * announcement_signatures
  ********************************************************************/
 
-bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg)
+bool HIDDEN ln_msg_announcement_signatures_write(utl_buf_t *pBuf, const ln_msg_announcement_signatures_t *pMsg)
 {
-    //    type: 259 (announcement_signatures)
-    //    data:
-    //        [32:channel_id]
-    //        [8:short_channel_id]
-    //        [64:node_signature]
-    //        [64:bitcoin_signature]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE_SIG
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    announce_signs_print(pMsg);
+    announcement_signatures_print(pMsg);
 #endif  //DBG_PRINT_WRITE_SIG
 
-    //len=1
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 168);
-
-    //    type: 259 (announcement_signatures)
-    ln_misc_push16be(&proto, MSGTYPE_ANNOUNCEMENT_SIGNATURES);
-
-    //        [32:channel-id]
-    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-
-    //        [8:short_channel_id]
-    ln_misc_push64be(&proto, pMsg->short_channel_id);
-
-    //        [64:node_signature]
-    utl_push_data(&proto, pMsg->p_node_signature, LN_SZ_SIGNATURE);
-
-    //        [64:bitcoin_signature]
-    utl_push_data(&proto, pMsg->p_btc_signature, LN_SZ_SIGNATURE);
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_ANNOUNCEMENT_SIGNATURES)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_id, LN_SZ_CHANNEL_ID)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->short_channel_id)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_node_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_bitcoin_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, uint16_t Len, const uint8_t *pChannelId)
+bool HIDDEN ln_msg_announcement_signatures_read(ln_msg_announcement_signatures_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    //len=1
-    if (Len < sizeof(uint16_t) + 168) {
-        LOGE("fail: invalid length: %d\n", Len);
-        return 0;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
-    if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
-        LOGE("fail: type not match: %04x\n", type);
-        return 0;
-    }
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    int cmp = memcmp(pChannelId, pData + pos, LN_SZ_CHANNEL_ID);
-    if (cmp != 0) {
-        LOGE("fail: channel_id mismatch\n");
-        return 0;
-    }
-    pos += LN_SZ_CHANNEL_ID;
-
-    return utl_int_pack_u64be(pData + pos);
-}
-
-
-bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len)
-{
-    //len=1
-    if (Len < sizeof(uint16_t) + 168) {
-        LOGE("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
         LOGE("fail: type not match: %04x\n", type);
         return false;
     }
-    int pos = sizeof(uint16_t);
-
-    //        [32:channel-id]
-    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    pos += LN_SZ_CHANNEL_ID;
-
-    //        [8:short_channel_id]
-    pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
-    pos += LN_SZ_SHORT_CHANNEL_ID;
-
-    //        [64:node_signature]
-    memcpy(pMsg->p_node_signature, pData + pos, LN_SZ_SIGNATURE);
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:bitcoin_signature]
-    memcpy(pMsg->p_btc_signature, pData + pos, LN_SZ_SIGNATURE);
-    pos += LN_SZ_SIGNATURE;
-
-    if (Len < pos) {
-        LOGE("fail: length\n");
-        return false;
-    }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_id, (int32_t)LN_SZ_CHANNEL_ID)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->short_channel_id)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_node_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_bitcoin_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR_SYNTAX;
 
 #ifdef DBG_PRINT_READ_SIG
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    announce_signs_print(pMsg);
+    announcement_signatures_print(pMsg);
 #endif  //DBG_PRINT_READ_SIG
-
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
 }
 
 
 #if defined(DBG_PRINT_WRITE_SIG) || defined(DBG_PRINT_READ_SIG)
-static void announce_signs_print(const ln_announce_signs_t *pMsg)
+static void announcement_signatures_print(const ln_msg_announcement_signatures_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[announcement_signatures]-------------------------------\n");
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
-    LOGD("p_node_signature: ");
+    LOGD("node_signature: ");
     DUMPD(pMsg->p_node_signature, LN_SZ_SIGNATURE);
-    LOGD("p_btc_signature: ");
-    DUMPD(pMsg->p_btc_signature, LN_SZ_SIGNATURE);
+    LOGD("bitcoin_signature: ");
+    DUMPD(pMsg->p_bitcoin_signature, LN_SZ_SIGNATURE);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }

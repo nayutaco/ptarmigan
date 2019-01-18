@@ -28,6 +28,28 @@
 #include "ln.h"
 
 
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+/** @struct     ln_msg_announcement_signatures_t
+ *  @brief      announcement_signatures
+ */
+typedef struct {
+    //type: 259 (announcement_signatures)
+    //data:
+    //  [32:channel_id]
+    //  [8:short_channel_id]
+    //  [64:node_signature]
+    //  [64:bitcoin_signature]
+
+    const uint8_t   *p_channel_id;
+    uint64_t        short_channel_id;
+    const uint8_t   *p_node_signature;
+    const uint8_t   *p_bitcoin_signature;
+} ln_msg_announcement_signatures_t;
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -38,16 +60,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg);
-
-
-/** announcement_signaturesのshort_channel_idのみ取得 //XXX:
- *
- * @param[in]       pData   対象データ
- * @param[in]       Len     pData長
- * @return      short_channel_id
- */
-uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, uint16_t Len, const uint8_t *pChannelId);
+bool HIDDEN ln_msg_announcement_signatures_write(utl_buf_t *pBuf, const ln_msg_announcement_signatures_t *pMsg);
 
 
 /** read announcement_signatures
@@ -57,7 +70,7 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
  * @param[in]       Len     pData長
  * @retval  true    成功
  */
-bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_announcement_signatures_read(ln_msg_announcement_signatures_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** write channel_announcement
