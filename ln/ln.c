@@ -4214,8 +4214,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(&p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
-    memcpy(&p_sig_btc, msg.p_bitcoin_signature, LN_SZ_SIGNATURE);
+    memcpy(p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
+    memcpy(p_sig_btc, msg.p_bitcoin_signature, LN_SZ_SIGNATURE);
 
     //channel-idチェック
     ret = chk_channelid(msg.p_channel_id, self->channel_id);
