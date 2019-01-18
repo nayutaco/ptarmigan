@@ -252,3 +252,26 @@ TEST_F(str, invalid_itoa)
     memset(str, 0xff, sizeof(str));
     ASSERT_FALSE(utl_str_itoa(str, M_UINT64_MAX_DIGIT, UINT64_MAX));
 }
+
+
+TEST_F(str, copy_and_fill_zeros)
+{
+    const char      *str = "abcdefgh";
+    const uint8_t   answer[16] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
+    uint8_t         buf[16] = {0};
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_FALSE(utl_str_copy_and_fill_zeros(buf, 7, str));
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_TRUE(utl_str_copy_and_fill_zeros(buf, 8, str));
+    ASSERT_EQ(0, memcmp(buf, answer, 8));
+    ASSERT_EQ(buf[8], 0xcc); //check that do not overrun
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_TRUE(utl_str_copy_and_fill_zeros(buf, 9, str));
+    ASSERT_EQ(0, memcmp(buf, answer, 9));
+    ASSERT_EQ(buf[9], 0xcc); //check that do not overrun
+}
+
+bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr);

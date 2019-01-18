@@ -202,3 +202,11 @@ bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value)
     }
     return true;
 }
+
+
+bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr)
+{
+    if (Size < strlen(pStr)) return false;
+    strncpy((char *)pBuf, pStr, Size); //`strncpy` fills zeros
+    return true;
+}

@@ -137,7 +137,7 @@ void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 /** value -> string in base 10
  *
  * @param[out]      pStr        string
- * @param[in]       pSize       size of pSize
+ * @param[in]       pSize       size of the stirng
  * @param[in]       Value       value
  * @return      true        success
  *
@@ -145,6 +145,16 @@ void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  *      - if Value==0, then return "0"
  */
 bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value);
+
+
+/** copy null-terminated string to the buffer and fill zeros
+ *
+ * @param[out]      pBuf        buffer
+ * @param[in]       Size        size of the buffer
+ * @param[in]       pStr        null-terminated string
+ * @return      true        success
+ */
+bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr);
 
 
 #ifdef __cplusplus
