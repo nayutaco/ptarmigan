@@ -28,6 +28,7 @@
 #include "btc_block.h"
 
 #include "ln.h"
+#include "ln_msg_anno.h"
 
 
 #ifdef __cplusplus
@@ -379,7 +380,7 @@ bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_
  * @note
  *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
-bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
+bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announcement_t *pAnno, const uint8_t *pSendId);
 
 
 /********************************************************************

@@ -56,21 +56,20 @@ namespace LN_DUMMY {
     uint8_t node_id_2[BTC_SZ_PUBKEY];
     uint8_t bitcoin_key_1[BTC_SZ_PUBKEY];
     uint8_t bitcoin_key_2[BTC_SZ_PUBKEY];
-
-/*    uint64_t id;
-    uint64_t amount_msat;
-    uint8_t payment_hash[BTC_SZ_HASH256];
-    uint32_t cltv_expiry;
-    uint8_t onion_routing_packet[LN_SZ_ONION_ROUTE];
-    uint8_t payment_preimage[BTC_SZ_PRIVKEY];
-    uint8_t reason[256];
-    uint8_t sha256_of_onion[BTC_SZ_HASH256];
-    uint16_t failure_code;
     uint8_t signature[LN_SZ_SIGNATURE];
-    uint8_t htlc_signature[LN_SZ_SIGNATURE * 32];
-    uint8_t per_commitment_secret[BTC_SZ_PRIVKEY];
-    uint8_t next_per_commitment_point[BTC_SZ_PUBKEY];
-    uint32_t feerate_per_kw;*/
+    uint32_t timestamp;
+    uint8_t node_id[BTC_SZ_PUBKEY];
+    uint8_t rgb_color[LN_SZ_RGB_COLOR];
+    uint8_t alias[LN_SZ_ALIAS_STR];
+    uint8_t addresses[256];
+    uint8_t ipv4_addr[LN_ADDR_DESC_ADDR_LEN_IPV4];
+    uint16_t ipv4_port;
+    uint8_t ipv6_addr[LN_ADDR_DESC_ADDR_LEN_IPV6];
+    uint16_t ipv6_port;
+    uint8_t torv2_addr[LN_ADDR_DESC_ADDR_LEN_TORV2];
+    uint16_t torv2_port;
+    uint8_t torv3_addr[LN_ADDR_DESC_ADDR_LEN_TORV3];
+    uint16_t torv3_port;
 }
 
 
@@ -96,21 +95,21 @@ protected:
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_id_2, sizeof(LN_DUMMY::node_id_2)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_key_1, sizeof(LN_DUMMY::bitcoin_key_1)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_key_2, sizeof(LN_DUMMY::bitcoin_key_2)));
-/*        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::id, sizeof(LN_DUMMY::id)));
-        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::amount_msat, sizeof(LN_DUMMY::amount_msat)));
-        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::cltv_expiry, sizeof(LN_DUMMY::cltv_expiry)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::payment_hash, sizeof(LN_DUMMY::payment_hash)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::onion_routing_packet, sizeof(LN_DUMMY::onion_routing_packet)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::payment_preimage, sizeof(LN_DUMMY::payment_preimage)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::reason, sizeof(LN_DUMMY::reason)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::sha256_of_onion, sizeof(LN_DUMMY::sha256_of_onion)));
-        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::failure_code, sizeof(LN_DUMMY::failure_code)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::signature, sizeof(LN_DUMMY::signature)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::htlc_signature, sizeof(LN_DUMMY::htlc_signature)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::per_commitment_secret, sizeof(LN_DUMMY::per_commitment_secret)));
-        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::next_per_commitment_point, sizeof(LN_DUMMY::next_per_commitment_point)));
-        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::feerate_per_kw, sizeof(LN_DUMMY::feerate_per_kw)));
-*/        btc_rng_free();
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::timestamp, sizeof(LN_DUMMY::timestamp)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_id, sizeof(LN_DUMMY::node_id)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::rgb_color, sizeof(LN_DUMMY::rgb_color)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::alias, sizeof(LN_DUMMY::alias)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::addresses, sizeof(LN_DUMMY::addresses)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::ipv4_addr, sizeof(LN_DUMMY::ipv4_addr)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::ipv4_port, sizeof(LN_DUMMY::ipv4_port)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::ipv6_addr, sizeof(LN_DUMMY::ipv6_addr)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::ipv6_port, sizeof(LN_DUMMY::ipv6_port)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::torv2_addr, sizeof(LN_DUMMY::torv2_addr)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::torv2_port, sizeof(LN_DUMMY::torv2_port)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::torv3_addr, sizeof(LN_DUMMY::torv3_addr)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::torv3_port, sizeof(LN_DUMMY::torv3_port)));
+        btc_rng_free();
     }
 
     virtual void TearDown() {
@@ -144,7 +143,7 @@ public:
 TEST_F(ln, announcement_signatures)
 {
     ln_msg_announcement_signatures_t msg;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     msg.p_channel_id = LN_DUMMY::channel_id;
     msg.short_channel_id = LN_DUMMY::short_channel_id;
@@ -167,7 +166,7 @@ TEST_F(ln, announcement_signatures)
 TEST_F(ln, channel_announcement)
 {
     ln_msg_channel_announcement_t msg;
-    utl_buf_t buf;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     msg.p_node_signature_1 = LN_DUMMY::node_signature_1;
     msg.p_node_signature_2 = LN_DUMMY::node_signature_2;
@@ -199,5 +198,88 @@ TEST_F(ln, channel_announcement)
     ASSERT_EQ(0, memcmp(msg.p_node_id_2, LN_DUMMY::node_id_2, sizeof(LN_DUMMY::node_id_2)));
     ASSERT_EQ(0, memcmp(msg.p_bitcoin_key_1, LN_DUMMY::bitcoin_key_1, sizeof(LN_DUMMY::bitcoin_key_1)));
     ASSERT_EQ(0, memcmp(msg.p_bitcoin_key_2, LN_DUMMY::bitcoin_key_2, sizeof(LN_DUMMY::bitcoin_key_2)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, node_announcement)
+{
+    ln_msg_node_announcement_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_signature = LN_DUMMY::signature;
+    msg.flen = (uint16_t)sizeof(LN_DUMMY::features);
+    msg.p_features = LN_DUMMY::features;
+    msg.timestamp = LN_DUMMY::timestamp;
+    msg.p_node_id = LN_DUMMY::node_id;
+    msg.p_rgb_color = LN_DUMMY::rgb_color;
+    msg.p_alias = LN_DUMMY::alias;
+    msg.addrlen = (uint16_t)sizeof(LN_DUMMY::addresses);
+    msg.p_addresses = LN_DUMMY::addresses;
+    bool ret = ln_msg_node_announcement_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_node_announcement_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_signature, LN_DUMMY::signature, sizeof(LN_DUMMY::signature)));
+    ASSERT_EQ(msg.flen, (uint16_t)sizeof(LN_DUMMY::features));
+    ASSERT_EQ(0, memcmp(msg.p_features, LN_DUMMY::features, sizeof(LN_DUMMY::features)));
+    ASSERT_EQ(msg.timestamp, LN_DUMMY::timestamp);
+    ASSERT_EQ(0, memcmp(msg.p_node_id, LN_DUMMY::node_id, sizeof(LN_DUMMY::node_id)));
+    ASSERT_EQ(0, memcmp(msg.p_rgb_color, LN_DUMMY::rgb_color, sizeof(LN_DUMMY::rgb_color)));
+    ASSERT_EQ(0, memcmp(msg.p_alias, LN_DUMMY::alias, sizeof(LN_DUMMY::alias)));
+    ASSERT_EQ(msg.addrlen, (uint16_t)sizeof(LN_DUMMY::addresses));
+    ASSERT_EQ(0, memcmp(msg.p_addresses, LN_DUMMY::addresses, sizeof(LN_DUMMY::addresses)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, node_announcement_addresses)
+{
+    ln_msg_node_announcement_addresses_t addrs;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    addrs.num = 0;
+    addrs.addresses[addrs.num].type = LN_ADDR_DESC_TYPE_IPV4;
+    addrs.addresses[addrs.num].p_addr = LN_DUMMY::ipv4_addr;
+    addrs.addresses[addrs.num].port = LN_DUMMY::ipv4_port;
+    addrs.num++;
+    addrs.addresses[addrs.num].type = LN_ADDR_DESC_TYPE_IPV6;
+    addrs.addresses[addrs.num].p_addr = LN_DUMMY::ipv6_addr;
+    addrs.addresses[addrs.num].port = LN_DUMMY::ipv6_port;
+    addrs.num++;
+    addrs.addresses[addrs.num].type = LN_ADDR_DESC_TYPE_TORV2;
+    addrs.addresses[addrs.num].p_addr = LN_DUMMY::torv2_addr;
+    addrs.addresses[addrs.num].port = LN_DUMMY::torv2_port;
+    addrs.num++;
+    addrs.addresses[addrs.num].type = LN_ADDR_DESC_TYPE_TORV3;
+    addrs.addresses[addrs.num].p_addr = LN_DUMMY::torv3_addr;
+    addrs.addresses[addrs.num].port = LN_DUMMY::torv3_port;
+    addrs.num++;
+    bool ret = ln_msg_node_announcement_addresses_write(&buf, &addrs);
+    ASSERT_TRUE(ret);
+
+    memset(&addrs, 0x00, sizeof(addrs)); //clear
+    ret = ln_msg_node_announcement_addresses_read(&addrs, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(addrs.num, 4);
+    addrs.num = 0;
+    ASSERT_EQ(addrs.addresses[addrs.num].type, LN_ADDR_DESC_TYPE_IPV4);
+    ASSERT_EQ(0, memcmp(addrs.addresses[addrs.num].p_addr, LN_DUMMY::ipv4_addr, sizeof(LN_DUMMY::ipv4_addr)));
+    ASSERT_EQ(addrs.addresses[addrs.num].port, LN_DUMMY::ipv4_port);
+    addrs.num++;
+    ASSERT_EQ(addrs.addresses[addrs.num].type, LN_ADDR_DESC_TYPE_IPV6);
+    ASSERT_EQ(0, memcmp(addrs.addresses[addrs.num].p_addr, LN_DUMMY::ipv6_addr, sizeof(LN_DUMMY::ipv6_addr)));
+    ASSERT_EQ(addrs.addresses[addrs.num].port, LN_DUMMY::ipv6_port);
+    addrs.num++;
+    ASSERT_EQ(addrs.addresses[addrs.num].type, LN_ADDR_DESC_TYPE_TORV2);
+    ASSERT_EQ(0, memcmp(addrs.addresses[addrs.num].p_addr, LN_DUMMY::torv2_addr, sizeof(LN_DUMMY::torv2_addr)));
+    ASSERT_EQ(addrs.addresses[addrs.num].port, LN_DUMMY::torv2_port);
+    addrs.num++;
+    ASSERT_EQ(addrs.addresses[addrs.num].type, LN_ADDR_DESC_TYPE_TORV3);
+    ASSERT_EQ(0, memcmp(addrs.addresses[addrs.num].p_addr, LN_DUMMY::torv3_addr, sizeof(LN_DUMMY::torv3_addr)));
+    ASSERT_EQ(addrs.addresses[addrs.num].port, LN_DUMMY::torv3_port);
+    addrs.num++;
     utl_buf_free(&buf);
 }

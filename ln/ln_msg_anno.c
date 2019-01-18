@@ -68,8 +68,13 @@
  * const variables
  **************************************************************************/
 
-static const uint8_t M_ADDRLEN[] = { 0, 4, 16, 10, 35 };
-static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
+const ln_msg_address_descriptor_addr_len_t M_ADDR_LEN[LN_ADDR_DESC_TYPE_MAX + 1] = {
+    (ln_msg_address_descriptor_addr_len_t)0,
+    LN_ADDR_DESC_ADDR_LEN_IPV4,
+    LN_ADDR_DESC_ADDR_LEN_IPV6,
+    LN_ADDR_DESC_ADDR_LEN_TORV2,
+    LN_ADDR_DESC_ADDR_LEN_TORV3,
+};
 
 
 /**************************************************************************
@@ -83,7 +88,8 @@ static void announcement_signatures_print(const ln_msg_announcement_signatures_t
 static void channel_announcement_print(const ln_msg_channel_announcement_t *pMsg);
 #endif
 #if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
-static void node_announce_print(const ln_node_announce_t *pMsg);
+static void node_announcement_print(const ln_msg_node_announcement_t *pMsg);
+static void node_announcement_addresses_print(const ln_msg_node_announcement_addresses_t *pAddrs);
 #endif
 
 
@@ -336,186 +342,159 @@ bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, 
  * node_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t *pMsg)
+bool HIDDEN ln_msg_node_announcement_write(utl_buf_t *pBuf, const ln_msg_node_announcement_t *pMsg)
 {
-    //    type: 257 (node_announcement)
-    //    data:
-    //        [64:signature]
-    //        [4:timestamp]
-    //        [33:node_id]
-    //        [3:rgb_color]
-    //        [32:alias]
-    //        [2:flen]
-    //        [flen:features]
-    //        [2:addrlen]
-    //        [addrlen:addresses]
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE_NOD
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    node_announce_print(pMsg);
+    node_announcement_print(pMsg);
 #endif  //DBG_PRINT_WRITE_NOD
 
-    //flen=0
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
-
-    //    type: 257 (node_announcement)
-    ln_misc_push16be(&proto, MSGTYPE_NODE_ANNOUNCEMENT);
-
-    //        [64:signature]
-    //utl_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
-    proto.pos += LN_SZ_SIGNATURE;
-
-    //        [2:flen]
-    ln_misc_push16be(&proto, 0);
-
-//    //        [len:features]
-//    ln_misc_push8(&proto, pMsg->features);
-
-    //        [4:timestamp]
-    ln_misc_push32be(&proto, pMsg->timestamp);
-
-    //        [33:node_id]
-    utl_push_data(&proto, pMsg->p_node_id, BTC_SZ_PUBKEY);
-
-    //        [3:rgb_color]
-    utl_push_data(&proto, pMsg->p_rgbcolor, LN_SZ_RGBCOLOR);
-
-    //        [32:alias]
-    char alias[LN_SZ_ALIAS + 1];
-    size_t len_alias = strlen(pMsg->p_alias);
-    if (len_alias >= LN_SZ_ALIAS) {
-        memcpy(alias, pMsg->p_alias, LN_SZ_ALIAS);
-    } else {
-        memcpy(alias, pMsg->p_alias, len_alias);
-        memset(alias + len_alias, 0, LN_SZ_ALIAS - len_alias);
-    }
-    utl_push_data(&proto, pMsg->p_alias, LN_SZ_ALIAS);
-
-    //        [2:addrlen]
-    //        [addrlen:addresses]
-    switch (pMsg->addr.type) {
-    case LN_NODEDESC_NONE:
-        //noneは登録しない
-        ln_misc_push16be(&proto, 0);
-        break;
-    case LN_NODEDESC_IPV4:
-    case LN_NODEDESC_IPV6:
-    case LN_NODEDESC_ONIONV2:
-    case LN_NODEDESC_ONIONV3:
-        ln_misc_push16be(&proto, 1 + M_ADDRLEN2[pMsg->addr.type]);
-        ln_misc_push8(&proto, pMsg->addr.type);
-        utl_push_data(&proto, pMsg->addr.addrinfo.addr, M_ADDRLEN[pMsg->addr.type]);
-        ln_misc_push16be(&proto, pMsg->addr.port);
-        break;
-    default:
-        return false;
-    }
-
-    utl_push_trim(&proto);
-
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_NODE_ANNOUNCEMENT)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->flen)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_features, pMsg->flen)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->timestamp)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_node_id, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_rgb_color, LN_SZ_RGB_COLOR)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_alias, LN_SZ_ALIAS_STR)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->addrlen)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_addresses, pMsg->addrlen)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool /*HIDDEN*/ ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool /*HIDDEN*/ ln_msg_node_announcement_read(ln_msg_node_announcement_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    //flen=0, addrlen=0
-    if (Len < sizeof(uint16_t) + 140) {
-        LOGE("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_NODE_ANNOUNCEMENT) {
         LOGE("fail: type not match: %04x\n", type);
         return false;
     }
-    int pos = sizeof(uint16_t);
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->flen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_features, pMsg->flen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->timestamp)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_node_id, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_rgb_color, LN_SZ_RGB_COLOR)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_alias, LN_SZ_ALIAS_STR)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->addrlen)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_addresses, pMsg->addrlen)) goto LABEL_ERROR_SYNTAX;
 
-    //        [64:signature]
-    pos += LN_SZ_SIGNATURE;
+#ifdef DBG_PRINT_READ_NOD
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    node_announcement_print(pMsg);
+#endif  //DBG_PRINT_READ_NOD
+    return true;
 
-    //        [2:flen]
-    uint16_t flen = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(uint16_t);
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
+}
 
-    //        [flen:features]
-    if (flen > 0) {
-        LOGD("features(%d)=", flen);
-        DUMPD(pData + pos, flen);
 
-        //pMsg->features = *(pData + pos);
-        pos += flen;
+#if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
+static void node_announcement_print(const ln_msg_node_announcement_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[node_announcement]-------------------------------\n");
+    LOGD("signature: ");
+    DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
+    LOGD("features: ");
+    DUMPD(pMsg->p_features, pMsg->flen);
+    LOGD("timestamp: %u\n", pMsg->timestamp);
+    char time[UTL_SZ_TIME_FMT_STR + 1];
+    LOGD("timestamp(fmt): %s\n", utl_time_fmt(time, pMsg->timestamp));
+    LOGD("node_id: ");
+    DUMPD(pMsg->p_node_id, BTC_SZ_PUBKEY);
+    LOGD("rgb_color: ");
+    DUMPD(pMsg->p_rgb_color, LN_SZ_RGB_COLOR);
+    LOGD("alias: ");
+    DUMPD(pMsg->p_alias, LN_SZ_ALIAS_STR);
+    LOGD("alias(str): %.*s\n", LN_SZ_ALIAS_STR, pMsg->p_alias);
+    LOGD("addresses: ");
+    DUMPD(pMsg->p_addresses, pMsg->addrlen);
+    LOGD("--------------------------------\n");
+#endif
+}
+#endif
+
+
+bool HIDDEN ln_msg_node_announcement_addresses_write(utl_buf_t *pBuf, const ln_msg_node_announcement_addresses_t *pAddrs) {
+#ifdef DBG_PRINT_WRITE_NOD
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    node_announcement_addresses_print(pAddrs);
+#endif  //DBG_PRINT_WRITE_NOD
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    for (uint32_t i = 0; i < pAddrs->num; i++) {
+        if (!btc_buf_w_write_byte(&buf_w, pAddrs->addresses[i].type)) goto LABEL_ERROR;
+        if (!btc_buf_w_write_data(&buf_w, pAddrs->addresses[i].p_addr, M_ADDR_LEN[pAddrs->addresses[i].type])) goto LABEL_ERROR;
+        if (!btc_buf_w_write_u16be(&buf_w, pAddrs->addresses[i].port)) goto LABEL_ERROR;
     }
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
 
-    //        [4:timestamp]
-    pMsg->timestamp = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
 
-    //        [33:node_id]
-    if (pMsg->p_node_id != NULL) {
-        memcpy(pMsg->p_node_id, pData + pos, BTC_SZ_PUBKEY);
-    }
-    pos += BTC_SZ_PUBKEY;
 
-    //        [3:rgb_color]
-    memcpy(pMsg->p_rgbcolor, pData + pos, 3);
-    pos += 3;
-
-    //        [32:alias]
-    if (pMsg->p_alias != NULL) {
-        memcpy(pMsg->p_alias, pData + pos, LN_SZ_ALIAS);
-        pMsg->p_alias[LN_SZ_ALIAS] = '\0';
-    }
-    pos += LN_SZ_ALIAS;
-
-    //        [2:addrlen]
-    uint16_t addrlen = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(uint16_t);
-
-    //        [addrlen:addresses]
-    if (addrlen > 0) {
-        //addr type
-        pMsg->addr.type = (ln_nodedesc_t)*(pData + pos);
-        if (pMsg->addr.type > LN_NODEDESC_MAX) {
-            LOGE("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
-            return false;
-        }
-        addrlen--;
-        if (addrlen < M_ADDRLEN2[pMsg->addr.type]) {
-            LOGE("fail: less addrlen(%02x:%d)\n", pMsg->addr.type, addrlen);
-            return false;
-        }
-        pos++;
-
-        //addr data
-        if (pMsg->addr.type != LN_NODEDESC_NONE) {
-            int addrpos = pos;
-            memcpy(pMsg->addr.addrinfo.addr, pData + addrpos, M_ADDRLEN[pMsg->addr.type]);
-            addrpos += M_ADDRLEN[pMsg->addr.type];
-            pMsg->addr.port = utl_int_pack_u16be(pData + addrpos);
-        }
-    } else {
-        pMsg->addr.type = LN_NODEDESC_NONE;
-    }
-    pos += addrlen;
-
-    if (Len < pos) {
-        LOGE("fail: length\n");
-        return false;
+bool /*HIDDEN*/ ln_msg_node_announcement_addresses_read(ln_msg_node_announcement_addresses_t *pAddrs, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    for (pAddrs->num = 0; pAddrs->num < LN_ADDR_DESC_TYPE_NUM; pAddrs->num++) {
+        ln_msg_node_announcement_address_descriptor_t *addr_desc = &pAddrs->addresses[pAddrs->num];
+        if (!btc_buf_r_remains(&buf_r)) break;
+        if (!btc_buf_r_read_byte(&buf_r, &addr_desc->type)) goto LABEL_ERROR_SYNTAX;
+        if (addr_desc->type == LN_ADDR_DESC_TYPE_NONE) break; //now removed the type, ignore the remains
+        if (addr_desc->type > LN_ADDR_DESC_TYPE_MAX) break; //ignore the remains
+        if (!btc_buf_r_get_pos_and_seek(&buf_r, &addr_desc->p_addr, M_ADDR_LEN[addr_desc->type])) goto LABEL_ERROR_SYNTAX;
+        if (!btc_buf_r_read_u16be(&buf_r, &addr_desc->port)) goto LABEL_ERROR_SYNTAX;
     }
 
 #ifdef DBG_PRINT_READ_NOD
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    node_announce_print(pMsg);
+    node_announcement_addresses_print(pAddrs);
 #endif  //DBG_PRINT_READ_NOD
     return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
 }
 
 
-bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len)
+#if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
+static void node_announcement_addresses_print(const ln_msg_node_announcement_addresses_t *pAddrs)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[node_announcement addresses]-------------------------------\n");
+    for (uint32_t i = 0; i < pAddrs->num; i++) {
+        const ln_msg_node_announcement_address_descriptor_t *addr_desc = &pAddrs->addresses[i];
+        LOGD("type: %u\n", addr_desc->type);
+        DUMPD(addr_desc->p_addr, M_ADDR_LEN[addr_desc->type]);
+        LOGD("port: %u\n", addr_desc->port);
+    }
+    LOGD("--------------------------------\n");
+#endif
+}
+#endif
+
+
+bool HIDDEN ln_msg_node_announcement_sign(uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
     uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
@@ -524,43 +503,13 @@ bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len)
 }
 
 
-bool HIDDEN ln_msg_node_announce_verify(const ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_node_announcement_verify(const ln_msg_node_announcement_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
     uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
     btc_md_hash256(hash, pData + offset, Len - offset);
     return btc_sig_verify_rs(pData + sizeof(uint16_t), hash, pMsg->p_node_id);
 }
-
-
-#if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
-static void node_announce_print(const ln_node_announce_t *pMsg)
-{
-#ifdef PTARM_DEBUG
-    LOGD("-[node_announcement]-------------------------------\n");
-    char time[UTL_SZ_TIME_FMT_STR + 1];
-    LOGD("timestamp: %lu : %s\n", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
-    if (pMsg->p_node_id != NULL) {
-        LOGD("p_node_id: ");
-        DUMPD(pMsg->p_node_id, BTC_SZ_PUBKEY);
-    }
-    if (pMsg->p_alias != NULL) {
-        char alias[LN_SZ_ALIAS + 1];
-        memset(alias, 0, sizeof(alias));
-        memcpy(alias, pMsg->p_alias, LN_SZ_ALIAS);
-        LOGD("alias=%s\n", alias);
-    }
-//    LOGD("features= %u\n", pMsg->features);
-    LOGD("addr desc: %02x\n", pMsg->addr.type);
-    if (pMsg->addr.type != LN_NODEDESC_NONE) {
-        LOGD("port=%d\n", pMsg->addr.port);
-        LOGD("addr=");
-        DUMPD(pMsg->addr.addrinfo.addr, M_ADDRLEN[pMsg->addr.type]);
-    }
-    LOGD("--------------------------------\n");
-#endif  //PTARM_DEBUG
-}
-#endif
 
 
 /********************************************************************

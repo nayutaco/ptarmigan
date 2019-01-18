@@ -25,7 +25,15 @@
 #ifndef LN_MSG_ANNO_H__
 #define LN_MSG_ANNO_H__
 
-#include "ln.h"
+#include "btc_script.h"
+
+
+/**************************************************************************
+ * macros
+ **************************************************************************/
+
+#define LN_SZ_ALIAS_STR                 (32)        ///< (size) node alias //XXX:
+#define LN_SZ_RGB_COLOR                 (3)         ///< (size) rgb color
 
 
 /**************************************************************************
@@ -82,6 +90,102 @@ typedef struct {
     const uint8_t   *p_bitcoin_key_1;
     const uint8_t   *p_bitcoin_key_2;
 } ln_msg_channel_announcement_t;
+
+
+/** @struct     ln_msg_node_announcement_t
+ *  @brief      node_announcement
+ */
+typedef struct {
+    //type: 257 (node_announcement)
+    //data:
+    //  [64:signature]
+    //  [2:flen]
+    //  [flen:features]
+    //  [4:timestamp]
+    //  [33:node_id]
+    //  [3:rgb_color]
+    //  [32:alias]
+    //  [2:addrlen]
+    //  [addrlen:addresses]
+
+    const uint8_t   *p_signature;
+    uint16_t        flen;
+    const uint8_t   *p_features;
+    uint32_t        timestamp;
+    const uint8_t   *p_node_id;
+    const uint8_t   *p_rgb_color;
+    const uint8_t   *p_alias;
+    uint16_t        addrlen;
+    const uint8_t   *p_addresses;
+} ln_msg_node_announcement_t;
+
+
+/** @enum   ln_msg_address_descriptor_type_t
+  * @brief  node_announcement address descriptor
+  */
+typedef enum {
+    LN_ADDR_DESC_TYPE_NONE = 0,     ///< 0: //removed
+    LN_ADDR_DESC_TYPE_IPV4 = 1,     ///< 1: ipv4. data = [4:ipv4_addr][2:port] (length 6)
+    LN_ADDR_DESC_TYPE_IPV6 = 2,     ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
+    LN_ADDR_DESC_TYPE_TORV2 = 3,    ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
+    LN_ADDR_DESC_TYPE_TORV3 = 4,    ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+    LN_ADDR_DESC_TYPE_MAX = LN_ADDR_DESC_TYPE_TORV3,
+    LN_ADDR_DESC_TYPE_NUM = 4,      //1,2,3,4
+} ln_msg_address_descriptor_type_t;
+
+
+/** @enum   ln_msg_address_descriptor_addr_len_t
+  * @brief  node_announcement address descriptor
+  */
+typedef enum {
+    LN_ADDR_DESC_ADDR_LEN_IPV4 = 4,     ///< 1: ipv4. data = [4:ipv4_addr][2:port] (length 6)
+    LN_ADDR_DESC_ADDR_LEN_IPV6 = 16,    ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
+    LN_ADDR_DESC_ADDR_LEN_TORV2 = 10,   ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
+    LN_ADDR_DESC_ADDR_LEN_TORV3 = 35,   ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+} ln_msg_address_descriptor_addr_len_t;
+
+
+/** @struct     ln_msg_node_announcement_address_descriptor_t
+ *  @brief      node_announcement address descriptor
+ */
+typedef struct {
+    uint8_t         type;
+    const uint8_t   *p_addr;
+    uint16_t        port;
+} ln_msg_node_announcement_address_descriptor_t;
+
+
+/** @struct     ln_msg_node_announcement_addresses_t
+ *  @brief      node_announcement addresses
+ */
+typedef struct {
+    uint32_t                                        num;
+    ln_msg_node_announcement_address_descriptor_t   addresses[LN_ADDR_DESC_TYPE_NUM];
+} ln_msg_node_announcement_addresses_t;
+
+
+/** @struct     ln_cnl_update_t
+ *  @brief      channel_update
+ */
+typedef struct {
+    const uint8_t   *p_chain_hash;
+    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
+    uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
+    uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)
+    uint32_t    timestamp;                          ///< 4:  timestamp
+    uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
+    uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
+    uint16_t    cltv_expiry_delta;                  ///< 2:  cltv_expiry_delta
+    uint8_t     message_flags;                      ///< 1:  message_flags
+    uint8_t     channel_flags;                      ///< 1:  channel_flags
+} ln_cnl_update_t;
+
+
+/**************************************************************************
+ * const variables
+ **************************************************************************/
+
+extern const ln_msg_address_descriptor_addr_len_t M_ADDR_LEN[LN_ADDR_DESC_TYPE_MAX + 1];
 
 
 /********************************************************************
@@ -165,7 +269,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg);
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t *pMsg);
+bool HIDDEN ln_msg_node_announcement_write(utl_buf_t *pBuf, const ln_msg_node_announcement_t *pMsg);
 
 
 /** read node_announcement
@@ -175,19 +279,27 @@ bool HIDDEN ln_msg_node_announce_write(utl_buf_t *pBuf, const ln_node_announce_t
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool /*HIDDEN*/ ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_msg_node_announcement_read(ln_msg_node_announcement_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+//XXX:
+bool HIDDEN ln_msg_node_announcement_addresses_write(utl_buf_t *pBuf, const ln_msg_node_announcement_addresses_t *pAddrs); 
+
+
+//XXX:
+bool /*HIDDEN*/ ln_msg_node_announcement_addresses_read(ln_msg_node_announcement_addresses_t *pAddrs, const uint8_t *pData, uint16_t Len); 
 
 
 /** sign node_announcement
  *
  */
-bool HIDDEN ln_msg_node_announce_sign(uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_node_announcement_sign(uint8_t *pData, uint16_t Len);
 
 
 /** vefiry node_announcement
  *
  */
-bool HIDDEN ln_msg_node_announce_verify(const ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_node_announcement_verify(const ln_msg_node_announcement_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** write channel_update

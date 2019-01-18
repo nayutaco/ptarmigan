@@ -163,7 +163,7 @@ int ptarmd_start(uint16_t RpcPort)
     FILE *fp = fopen(fname, "w");
     if (fp) {
 
-        if (p_addr->type == LN_NODEDESC_IPV4) {
+        if (p_addr->type == LN_ADDR_DESC_TYPE_IPV4) {
             fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
                         p_addr->addrinfo.ipv4.addr[0],
                         p_addr->addrinfo.ipv4.addr[1],
@@ -350,19 +350,19 @@ lnapp_conf_t *ptarmd_search_transferable_nodeid(const uint8_t *p_node_id)
 // 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
 void ptarmd_nodefail_add(
             const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
-            ln_nodedesc_t NodeDesc)
+            ln_msg_address_descriptor_type_t NodeDesc)
 {
     LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
     if ( utl_mem_is_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
-         ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4, false) ) {
+         ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_ADDR_DESC_TYPE_IPV4, false) ) {
         //登録の必要なし
         LOGD("no save\n");
         return;
     }
 
-    if (NodeDesc == LN_NODEDESC_IPV4) {
+    if (NodeDesc == LN_ADDR_DESC_TYPE_IPV4) {
         char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
         LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
@@ -378,11 +378,11 @@ void ptarmd_nodefail_add(
 
 bool ptarmd_nodefail_get(
             const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
-            ln_nodedesc_t NodeDesc, bool bRemove)
+            ln_msg_address_descriptor_type_t NodeDesc, bool bRemove)
 {
     bool detect = false;
 
-    if (NodeDesc == LN_NODEDESC_IPV4) {
+    if (NodeDesc == LN_ADDR_DESC_TYPE_IPV4) {
         char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
 

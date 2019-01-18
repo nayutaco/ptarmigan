@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
     }
 
     conf_btcrpc_init(&rpc_conf);
-    p_addr->type = LN_NODEDESC_NONE;
+    p_addr->type = LN_ADDR_DESC_TYPE_NONE;
     p_addr->port = 0;
 
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
@@ -130,8 +130,8 @@ int main(int argc, char *argv[])
             break;
         case 'n':
             //node name(alias)
-            strncpy(p_alias, optarg, LN_SZ_ALIAS);
-            p_alias[LN_SZ_ALIAS] = '\0';
+            strncpy(p_alias, optarg, LN_SZ_ALIAS_STR);
+            p_alias[LN_SZ_ALIAS_STR] = '\0';
             break;
         case 'a':
             //ip address
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
                 uint8_t ipbin[4];
                 bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
                 if (addrret) {
-                    p_addr->type = LN_NODEDESC_IPV4;
+                    p_addr->type = LN_ADDR_DESC_TYPE_IPV4;
                     memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
                     LOGD("ipv4=");
                     DUMPD(p_addr->addrinfo.addr, sizeof(p_addr->addrinfo.ipv4.addr));

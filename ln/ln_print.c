@@ -80,14 +80,8 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
         break;
     case MSGTYPE_NODE_ANNOUNCEMENT:
         {
-            ln_node_announce_t msg;
-            uint8_t node_pub[BTC_SZ_PUBKEY];
-            char node_alias[LN_SZ_ALIAS + 1];
-            uint8_t rgbcolor[LN_SZ_RGBCOLOR];
-            msg.p_node_id = node_pub;
-            msg.p_alias = node_alias;
-            msg.p_rgbcolor = rgbcolor;
-            ln_msg_node_announce_read(&msg, pData, Len);
+            ln_msg_node_announcement_t msg;
+            ln_msg_node_announcement_read(&msg, pData, Len);
         }
         break;
     case MSGTYPE_CHANNEL_UPDATE:
@@ -98,38 +92,6 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
         }
         break;
     }
-}
-
-
-void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
-{
-    uint16_t type = utl_int_pack_u16be(pData);
-
-    if (type == MSGTYPE_NODE_ANNOUNCEMENT) {
-        ln_node_announce_t msg;
-        uint8_t node_pub[BTC_SZ_PUBKEY];
-        char node_alias[LN_SZ_ALIAS + 1];
-        uint8_t rgbcolor[LN_SZ_RGBCOLOR];
-        msg.p_node_id = node_pub;
-        msg.p_alias = node_alias;
-        msg.p_rgbcolor = rgbcolor;
-        bool ret = ln_msg_node_announce_read(&msg, pData, Len);
-        if (ret) {
-            if (msg.addr.type == LN_NODEDESC_IPV4) {
-                fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
-                        msg.addr.addrinfo.ipv4.addr[0],
-                        msg.addr.addrinfo.ipv4.addr[1],
-                        msg.addr.addrinfo.ipv4.addr[2],
-                        msg.addr.addrinfo.ipv4.addr[3]);
-            } else {
-                fprintf(fp, "ipaddr=127.0.0.1\n");
-            }
-            fprintf(fp, "port=%d\n", msg.addr.port);
-            fprintf(fp, "node_id=");
-            utl_dbg_dump(fp, node_pub, BTC_SZ_PUBKEY, true);
-        }
-    }
-
 }
 
 

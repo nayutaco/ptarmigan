@@ -38,6 +38,7 @@
 
 #include "ln_err.h"
 #include "ln_msg_establish.h"
+#include "ln_msg_anno.h"
 
 
 #ifdef __cplusplus
@@ -54,14 +55,13 @@ extern "C" {
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< (size) short_channel_id
 #define LN_SZ_SHORTCHANNELID_STR        (127)       ///< (size) short_channel_id string
 #define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< (size) signature
+#define LN_SZ_ALIAS_STR                 (32)        ///< (size) node alias //XXX:
 #define LN_SZ_PREIMAGE                  (32)        ///< (size) preimage
 #define LN_SZ_SEED                      (32)        ///< (size) seed
 #define LN_SZ_ONION_ROUTE               (1366)      ///< (size) onion-routing-packet
-#define LN_SZ_ALIAS                     (32)        ///< (size) node alias
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< (size) noise packet header
 #define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< (size) funding_txのvsize(nested in BIP16 P2SH format)
 #define LN_SZ_ERRMSG                    (256)       ///< (size) last error string
-#define LN_SZ_RGBCOLOR                  (3)         ///< (size) rgb color
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
@@ -241,19 +241,6 @@ typedef enum {
     LN_STATUS_CLOSE_UNI_REMOTE = 7, ///< unilateral close(from remote)
     LN_STATUS_CLOSE_REVOKED = 8     ///< revoked transaction close(from remote)
 } ln_status_t;
-
-
-/** @enum   ln_nodedesc_t
-  * @brief  node_announcement address descriptor
-  */
-typedef enum {
-    LN_NODEDESC_NONE = 0,       ///< 0: padding. data = none (length 0)
-    LN_NODEDESC_IPV4 = 1,       ///< 1: ipv4. data = [4:ipv4_addr][2:port] (length 6)
-    LN_NODEDESC_IPV6 = 2,       ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
-    LN_NODEDESC_ONIONV2 = 3,    ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
-    LN_NODEDESC_ONIONV3 = 4,    ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
-    LN_NODEDESC_MAX = LN_NODEDESC_ONIONV3
-} ln_nodedesc_t;
 
 
 /** @enum   ln_fundflag_t
@@ -495,7 +482,8 @@ typedef struct {
  *  @brief      node_announcementのアドレス情報
  */
 typedef struct {
-    ln_nodedesc_t   type;                       ///< 1:address descriptor(LN_NODEDESC_xxx)
+    //XXX: ln_msg_address_descriptor_type_t   type;
+    uint8_t         type;
     uint16_t        port;
     union {
         uint8_t     addr[1];
@@ -517,39 +505,6 @@ typedef struct {
         } onionv3;
     }               addrinfo;
 } ln_nodeaddr_t;
-
-
-/** @struct     ln_node_announce_t
- *  @brief      node_announcement
- */
-typedef struct {
-    uint32_t            timestamp;                  ///< 4:  timestamp
-    uint8_t             *p_node_id;                 ///< 33: node_id
-    char                *p_alias;                   ///< 32: alias
-    uint8_t             *p_rgbcolor;                ///< 3:  rgbcolor
-//    uint8_t     features;                           ///< 1:  features
-    ln_nodeaddr_t       addr;
-
-    //受信したデータ用
-    btc_script_pubkey_order_t   sort;                       ///< 自ノードとのソート結果(ASC=自ノードが先)
-} ln_node_announce_t;
-
-
-/** @struct     ln_cnl_update_t
- *  @brief      channel_update
- */
-typedef struct {
-    const uint8_t   *p_chain_hash;
-    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-    uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
-    uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)
-    uint32_t    timestamp;                          ///< 4:  timestamp
-    uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
-    uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
-    uint16_t    cltv_expiry_delta;                  ///< 2:  cltv_expiry_delta
-    uint8_t     message_flags;                      ///< 1:  message_flags
-    uint8_t     channel_flags;                      ///< 1:  channel_flags
-} ln_cnl_update_t;
 
 
 /** @struct     ln_anno_prm_t
@@ -784,23 +739,12 @@ typedef struct {
  *      - channel_announcementに耐えられるようにすべきだが、まだ至っていない
  */
 typedef struct {
-    uint8_t             node_id[BTC_SZ_PUBKEY];         ///< ノードID
-    char                alias[LN_SZ_ALIAS + 1];         ///< 名前
-    btc_script_pubkey_order_t     sort;                           ///< 自ノードの順番
+    uint8_t                     node_id[BTC_SZ_PUBKEY];         ///< ノードID
+    char                        alias[LN_SZ_ALIAS_STR + 1];     ///< 名前
+    btc_script_pubkey_order_t   sort;                           ///< ノードの順番
                                                             // #BTC_SCRYPT_PUBKEY_ORDER_ASC : 自ノードが先
                                                             // #BTC_SCRYPT_PUBKEY_ORDER_OTHER : 他ノードが先
 } ln_node_info_t;
-
-
-/** @struct ln_node_t
- *  @brief  ノード情報
- */
-typedef struct {
-    btc_keys_t          keys;                           ///< node鍵
-    uint8_t             features;                       ///< localfeatures
-    char                alias[LN_SZ_ALIAS + 1];         ///< ノード名(\0 terminate)
-    ln_nodeaddr_t       addr;                           ///< ノードアドレス
-} ln_node_t;
 
 
 /** @struct ln_funding_local_data_t
@@ -2056,10 +2000,11 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId);
 /** node_announcement検索(node_idから)
  *
  * @param[out]      pNodeAnno           取得したnode_announcement
+ * @param[out]      pNodeAnnoBuf        取得したnode_announcement
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId);
+bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *pNodeAnnoBuf, const uint8_t *pNodeId);
 
 
 /** nodeが所有しているour_msatの合計

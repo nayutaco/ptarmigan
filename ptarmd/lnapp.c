@@ -860,12 +860,12 @@ static void *thread_main_start(void *pArg)
     ret = noise_handshake(p_conf);
     if (!ret) {
         //ノード接続失敗リストに追加
-        ptarmd_nodefail_add(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4);
+        ptarmd_nodefail_add(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_ADDR_DESC_TYPE_IPV4);
         goto LABEL_SHUTDOWN;
     }
 
     //失敗リストに乗っている可能性があるため、削除
-    (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4, true);
+    (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_ADDR_DESC_TYPE_IPV4, true);
 
     LOGD("connected peer(sock=%d): ", p_conf->sock);
     DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
@@ -965,7 +965,7 @@ static void *thread_main_start(void *pArg)
             ln_nodeaddr_t conn_addr;
             ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
             if (ret) {
-                conn_addr.type = LN_NODEDESC_IPV4;
+                conn_addr.type = LN_ADDR_DESC_TYPE_IPV4;
                 conn_addr.port = p_conf->conn_port;
                 ln_last_connected_addr_set(p_self, &conn_addr);
             }
@@ -2394,7 +2394,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     ln_nodeaddr_t conn_addr;
     bool ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
     if (ret) {
-        conn_addr.type = LN_NODEDESC_IPV4;
+        conn_addr.type = LN_ADDR_DESC_TYPE_IPV4;
         conn_addr.port = p_conf->conn_port;
         ln_last_connected_addr_set(p_conf->p_self, &conn_addr);
     }

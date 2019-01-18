@@ -82,18 +82,18 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
         return -1;
     }
 
-    p_addr->type = LN_NODEDESC_NONE;
+    p_addr->type = LN_ADDR_DESC_TYPE_NONE;
     p_addr->port = Port;
 
     //node name(alias)
-    strncpy(p_alias, pAlias, LN_SZ_ALIAS);
-    p_alias[LN_SZ_ALIAS] = '\0';
+    strncpy(p_alias, pAlias, LN_SZ_ALIAS_STR);
+    p_alias[LN_SZ_ALIAS_STR] = '\0';
 
     //ip address
     uint8_t ipbin[4];
     bool addrret = utl_addr_ipv4_str2bin(ipbin, pIpAddr);
     if (addrret) {
-        p_addr->type = LN_NODEDESC_IPV4;
+        p_addr->type = LN_ADDR_DESC_TYPE_IPV4;
         memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
     }
 

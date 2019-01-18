@@ -4409,39 +4409,32 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
-    ln_node_announce_t anno;
-    uint8_t node_id[BTC_SZ_PUBKEY];
-    char node_alias[LN_SZ_ALIAS + 1];
-    uint8_t rgbcolor[LN_SZ_RGBCOLOR];
-
-    anno.p_node_id = node_id;
-    anno.p_alias = node_alias;
-    anno.p_rgbcolor = rgbcolor;
-    ret = ln_msg_node_announce_read(&anno, pData, Len);
+    ln_msg_node_announcement_t msg;
+    ret = ln_msg_node_announcement_read(&msg, pData, Len);
     if (!ret) {
         LOGE("fail: read message\n");
         return false;
     }
-    ret = ln_msg_node_announce_verify(&anno, pData, Len);
+    ret = ln_msg_node_announcement_verify(&msg, pData, Len);
     if (!ret) {
         LOGD("fail: verify\n");
         return false;
     }
 
     LOGV("node_id:");
-    DUMPV(node_id, sizeof(node_id));
+    DUMPV(msg.p_node_id, BTC_SZ_PUBKEY);
 
     utl_buf_t buf_ann = UTL_BUF_INIT;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;
     buf_ann.len = Len;
-    ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
+    ret = ln_db_annonod_save(&buf_ann, &msg, ln_their_node_id(self));
     if (ret) {
         LOGD("save node_announcement: ");
-        DUMPD(anno.p_node_id, BTC_SZ_PUBKEY);
+        DUMPD(msg.p_node_id, BTC_SZ_PUBKEY);
 
-        ln_cb_update_annodb_t anno;
-        anno.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
-        callback(self, LN_CB_UPDATE_ANNODB, &anno);
+        ln_cb_update_annodb_t db;
+        db.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
+        callback(self, LN_CB_UPDATE_ANNODB, &db);
     }
 
     return true;
