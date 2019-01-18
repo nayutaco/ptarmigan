@@ -147,7 +147,7 @@
 
 
 /** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)
- *  @brief  
+ *  @brief
  *    - commitment_signed受信時、local commit_tx作成に含む
  */
 #define LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)    \
@@ -225,27 +225,6 @@
             ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
             ((htlc)->stat.flag.updsend == 0) && \
             ((htlc)->stat.flag.updwait == 0))
-
-
-/** @def    LN_HTLC_IS_FULFILL(htlc)
- *  @brief  update_fulfill_htlc送信予定
- *  @note   #LN_HTLC_WILL_DELHTLC()がtrueの場合に有効
- */
-#define LN_HTLC_IS_FULFILL(htlc)    ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL)
-
-
-/** @def    LN_HTLC_IS_FAIL(htlc)
- *  @brief  update_fail_htlc送信予定
- *  @note   #LN_HTLC_WILL_DELHTLC()がtrueの場合に有効
- */
-#define LN_HTLC_IS_FAIL(htlc)    ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FAIL)
-
-
-/** @def    LN_HTLC_IS_MALFORMED(htlc)
- *  @brief  update_fail_malformed_htlc送信予定
- *  @note   #LN_HTLC_WILL_DELHTLC()がtrueの場合に有効
- */
-#define LN_HTLC_IS_MALFORMED(htlc)  ((htlc)->stat.flag.delhtlc == LN_DELHTLC_MALFORMED)
 
 
 /** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc)
