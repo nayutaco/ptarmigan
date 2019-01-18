@@ -32,6 +32,34 @@
  * prototypes
  ********************************************************************/
 
+/** write announcement_signatures
+ *
+ * @param[out]      pBuf    生成データ
+ * @param[in]       pMsg    元データ
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg);
+
+
+/** announcement_signaturesのshort_channel_idのみ取得 //XXX:
+ *
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * @return      short_channel_id
+ */
+uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, uint16_t Len, const uint8_t *pChannelId);
+
+
+/** read announcement_signatures
+ *
+ * @param[out]      pMsg    読込み結果
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * @retval  true    成功
+ */
+bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
 /** write channel_announcement
  *
  * @param[out]      pBuf        生成データ
@@ -142,34 +170,6 @@ bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len);
  * retval   true    成功
  */
 bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len);
-
-
-/** write announcement_signatures
- *
- * @param[out]      pBuf    生成データ
- * @param[in]       pMsg    元データ
- * retval   true    成功
- */
-bool HIDDEN ln_msg_announce_signs_write(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg);
-
-
-/** announcement_signaturesのshort_channel_idのみ取得 //XXX:
- *
- * @param[in]       pData   対象データ
- * @param[in]       Len     pData長
- * @return      short_channel_id
- */
-uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, uint16_t Len, const uint8_t *pChannelId);
-
-
-/** read announcement_signatures
- *
- * @param[out]      pMsg    読込み結果
- * @param[in]       pData   対象データ
- * @param[in]       Len     pData長
- * @retval  true    成功
- */
-bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** announcement_signaturesの署名アドレス取得 //XXX:
