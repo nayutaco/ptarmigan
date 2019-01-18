@@ -14,7 +14,7 @@ echo "--------------------------------------------"
 # create invalid realm onion
 ./ptarmcli --debug 16 $PAYER_PORT
 
-./example_st4pay_r.sh $PAY_BEGIN $PAY_END $AMOUNT $1
+./example_st4pay_r.sh $PAY_BEGIN $PAY_END $AMOUNT
 
 read -p "Hit ENTER Key!" key
 
