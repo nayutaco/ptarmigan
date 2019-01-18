@@ -129,7 +129,7 @@ bool /*HIDDEN*/ ln_msg_channel_announcement_read(ln_msg_channel_announcement_t *
 /** sign channel_announcement
  *
  */
-bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
+bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Order);
 
 
 /** verify channel_announcement
@@ -145,6 +145,12 @@ bool HIDDEN ln_msg_channel_announcement_verify(ln_msg_channel_announcement_t *pM
  *
  */
 bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len);
+
+
+/** get the addrs of sigs from channel_announcement
+ *
+ */
+void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **ppSigNode, uint8_t **ppSigBtc, bool bLocal, btc_script_pubkey_order_t Order);
 
 
 /** print channel_update
@@ -217,12 +223,6 @@ bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len);
  * retval   true    成功
  */
 bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len);
-
-
-/** announcement_signaturesの署名アドレス取得 //XXX:
- *
- */
-void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_script_pubkey_order_t Sort);
 
 
 /** short_channel_id書き換え //XXX:
