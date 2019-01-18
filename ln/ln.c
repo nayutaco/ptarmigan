@@ -1901,17 +1901,15 @@ void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
  */
 bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len)
 {
-    ln_cnl_announce_t anno;
-
-    bool ret = ln_msg_cnl_announce_read(&anno, pData, Len);
-    if (ret && (anno.short_channel_id != 0)) {
-        *p_short_channel_id = anno.short_channel_id;
-        memcpy(pNodeId1, anno.p_node_id1, BTC_SZ_PUBKEY);
-        memcpy(pNodeId2, anno.p_node_id2, BTC_SZ_PUBKEY);
+    ln_msg_channel_announcement_t msg;
+    bool ret = ln_msg_channel_announcement_read(&msg, pData, Len);
+    if (ret && (msg.short_channel_id != 0)) {
+        *p_short_channel_id = msg.short_channel_id;
+        memcpy(pNodeId1, msg.p_node_id_1, BTC_SZ_PUBKEY);
+        memcpy(pNodeId2, msg.p_node_id_2, BTC_SZ_PUBKEY);
     } else {
         LOGE("fail\n");
     }
-
     return ret;
 }
 
@@ -2221,7 +2219,7 @@ bool ln_open_channel_announce(const ln_self_t *self)
         utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
         bool havedb = ln_db_annocnl_load(&buf_cnl_anno, self->short_channel_id);
         if (havedb) {
-            ln_msg_cnl_announce_print(buf_cnl_anno.buf, buf_cnl_anno.len);
+            ln_msg_channel_announcement_print(buf_cnl_anno.buf, buf_cnl_anno.len);
         }
         utl_buf_free(&buf_cnl_anno);
         ret = !havedb;
@@ -4234,12 +4232,12 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     if ((self->anno_flag & LN_ANNO_FLAG_END) == 0) {
         self->short_channel_id = msg.short_channel_id;
-        ret = ln_msg_cnl_announce_update_short_cnl_id(self->cnl_anno.buf, self->short_channel_id);
+        ret = ln_msg_channel_announcement_update_short_channel_id(self->cnl_anno.buf, self->short_channel_id);
         if (!ret) {
             LOGE("fail: update short_channel_id\n");
             return false;
         }
-        ret = ln_msg_cnl_announce_sign(
+        ret = ln_msg_channel_announcement_sign(
             self->cnl_anno.buf, self->cnl_anno.len,
             self->priv_data.priv[MSG_FUNDIDX_FUNDING],
             sort);
@@ -4277,37 +4275,36 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
  */
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    ln_cnl_announce_t anno;
-    ln_cb_update_annodb_t annodb;
+    ln_msg_channel_announcement_t msg;
+    ln_cb_update_annodb_t db;
 
-    bool ret = ln_msg_cnl_announce_read(&anno, pData, Len);
-    if (!ret || (anno.short_channel_id == 0)) {
+    bool ret = ln_msg_channel_announcement_read(&msg, pData, Len);
+    if (!ret || (msg.short_channel_id == 0)) {
         LOGE("fail: do nothing\n");
         return true;
     }
 
-    if (memcmp(gGenesisChainHash, anno.p_chain_hash, sizeof(gGenesisChainHash))) {
+    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
         LOGE("fail: chain_hash mismatch\n");
         return false;
     }
 
     //XXX: check sign
-    //ln_msg_cnl_announce_verify
+    //ln_msg_channel_announcement_verify
 
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
 
     //DB保存
-    ret = ln_db_annocnl_save(&buf, anno.short_channel_id, ln_their_node_id(self),
-                                anno.p_node_id1, anno.p_node_id2);
+    ret = ln_db_annocnl_save(&buf, msg.short_channel_id, ln_their_node_id(self), msg.p_node_id_1, msg.p_node_id_2);
     if (ret) {
-        LOGD("save channel_announcement: %016" PRIx64 "\n", anno.short_channel_id);
-        annodb.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
+        LOGD("save channel_announcement: %016" PRIx64 "\n", msg.short_channel_id);
+        db.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
     } else {
-        annodb.anno = LN_CB_UPDATE_ANNODB_NONE;
+        db.anno = LN_CB_UPDATE_ANNODB_NONE;
     }
-    callback(self, LN_CB_UPDATE_ANNODB, &annodb);
+    callback(self, LN_CB_UPDATE_ANNODB, &db);
 
     return true;
 }
@@ -4791,23 +4788,32 @@ static bool create_local_channel_announcement(ln_self_t *self)
     LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
     utl_buf_free(&self->cnl_anno);
 
-    ln_cnl_announce_t anno;
-    anno.short_channel_id = self->short_channel_id;
+    uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
+    memset(dummy_signature, 0xcc, sizeof(dummy_signature));
+    ln_msg_channel_announcement_t msg;
+    msg.p_node_signature_1 = dummy_signature;
+    msg.p_node_signature_2 = dummy_signature;
+    msg.p_bitcoin_signature_1 = dummy_signature;
+    msg.p_bitcoin_signature_2 = dummy_signature;
+    msg.len = 0;
+    msg.p_features = NULL;
+    msg.p_chain_hash = gGenesisChainHash;
+    msg.short_channel_id = self->short_channel_id;
     btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
     if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        anno.p_node_id1 = ln_node_getid();
-        anno.p_node_id2 = self->peer_node_id;
-        anno.p_btc_key1 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-        anno.p_btc_key2 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+        msg.p_node_id_1 = ln_node_getid();
+        msg.p_node_id_2 = self->peer_node_id;
+        msg.p_bitcoin_key_1 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+        msg.p_bitcoin_key_2 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
     } else {
-        anno.p_node_id1 = self->peer_node_id;
-        anno.p_node_id2 = ln_node_getid();
-        anno.p_btc_key1 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-        anno.p_btc_key2 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+        msg.p_node_id_1 = self->peer_node_id;
+        msg.p_node_id_2 = ln_node_getid();
+        msg.p_bitcoin_key_1 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+        msg.p_bitcoin_key_2 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
     }
-    bool ret = ln_msg_cnl_announce_write(&self->cnl_anno, &anno);
+    bool ret = ln_msg_channel_announcement_write(&self->cnl_anno, &msg);
     if (ret) {
-        ret = ln_msg_cnl_announce_sign(
+        ret = ln_msg_channel_announcement_sign(
             self->cnl_anno.buf, self->cnl_anno.len,
             self->priv_data.priv[MSG_FUNDIDX_FUNDING],
             sort);
@@ -5457,11 +5463,10 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
     utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
     ret = ln_db_annocnl_load(&buf_cnl_anno, short_channel_id);
     if (ret) {
-        ln_cnl_announce_t anno;
-
-        ret = ln_msg_cnl_announce_read(&anno, buf_cnl_anno.buf, buf_cnl_anno.len);
+        ln_msg_channel_announcement_t msg;
+        ret = ln_msg_channel_announcement_read(&msg, buf_cnl_anno.buf, buf_cnl_anno.len);
         if (ret) {
-            memcpy(pNodeId, Dir ? anno.p_node_id2 : anno.p_node_id1, BTC_SZ_PUBKEY);
+            memcpy(pNodeId, Dir ? msg.p_node_id_2 : msg.p_node_id_1, BTC_SZ_PUBKEY);
         } else {
             LOGE("fail\n");
         }

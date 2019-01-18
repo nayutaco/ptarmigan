@@ -75,7 +75,7 @@ FAKE_VALUE_FUNC(const char *, utl_time_fmt, char *, time_t );
 //FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_write, utl_buf_t *, const ln_cnl_update_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_read, ln_cnl_update_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_verify, const uint8_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_msg_cnl_announce_read, ln_cnl_announce_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_channel_announcement_read, ln_msg_channel_announcement_t *, const uint8_t *, uint16_t );
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -246,14 +246,14 @@ protected:
 
         RESET_FAKE(ln_msg_cnl_update_read)
         RESET_FAKE(ln_msg_cnl_update_verify)
-        RESET_FAKE(ln_msg_cnl_announce_read)
+        RESET_FAKE(ln_msg_channel_announcement_read)
 
         ln_db_annocnlupd_is_prune_fake.return_val = false;
         ln_db_annocnlupd_save_fake.return_val = true;
         ln_db_annocnl_load_fake.return_val = true;
         ln_msg_cnl_update_read_fake.return_val = true;
         ln_msg_cnl_update_verify_fake.return_val = true;
-        ln_msg_cnl_announce_read_fake.return_val = true;
+        ln_msg_channel_announcement_read_fake.return_val = true;
         btc_keys_check_pub_fake.return_val = true;
 
         utl_dbg_malloc_cnt_reset();
@@ -388,23 +388,23 @@ TEST_F(ln, recv_updatechannel_ok)
             utl_buf_alloccopy(pBuf, CHANANNO::CHANNEL_ANNO, sizeof(CHANANNO::CHANNEL_ANNO));
             return true;
         }
-        static bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->p_node_signature1 = CHANANNO::NODE_SIG1;
-            pMsg->p_node_signature2 = CHANANNO::NODE_SIG2;
-            pMsg->p_btc_signature1 = CHANANNO::BTC_SIG1;
-            pMsg->p_btc_signature2 = CHANANNO::BTC_SIG2;
+        static bool ln_msg_channel_announcement_read(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_node_signature_1 = CHANANNO::NODE_SIG1;
+            pMsg->p_node_signature_2 = CHANANNO::NODE_SIG2;
+            pMsg->p_bitcoin_signature_1 = CHANANNO::BTC_SIG1;
+            pMsg->p_bitcoin_signature_2 = CHANANNO::BTC_SIG2;
             pMsg->short_channel_id = CHANANNO::SHORT_CHANNEL_ID;
-            pMsg->p_node_id1 = CHANANNO::NODEID1;
-            pMsg->p_node_id2 = CHANANNO::NODEID2;
-            pMsg->p_btc_key1 = CHANANNO::BTCKEY1;
-            pMsg->p_btc_key2 = CHANANNO::BTCKEY2;
+            pMsg->p_node_id_1 = CHANANNO::NODEID1;
+            pMsg->p_node_id_2 = CHANANNO::NODEID2;
+            pMsg->p_bitcoin_key_1 = CHANANNO::BTCKEY1;
+            pMsg->p_bitcoin_key_2 = CHANANNO::BTCKEY2;
             return true;
         }
     };
     self.p_callback = dummy::callback;
     ln_msg_cnl_update_read_fake.custom_fake = dummy::ln_msg_cnl_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
-    ln_msg_cnl_announce_read_fake.custom_fake = dummy::ln_msg_cnl_announce_read;
+    ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
@@ -449,23 +449,23 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
             utl_buf_alloccopy(pBuf, CHANANNO::CHANNEL_ANNO, sizeof(CHANANNO::CHANNEL_ANNO));
             return true;
         }
-        static bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->p_node_signature1 = CHANANNO::NODE_SIG1;
-            pMsg->p_node_signature2 = CHANANNO::NODE_SIG2;
-            pMsg->p_btc_signature1 = CHANANNO::BTC_SIG1;
-            pMsg->p_btc_signature2 = CHANANNO::BTC_SIG2;
+        static bool ln_msg_channel_announcement_read(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_node_signature_1 = CHANANNO::NODE_SIG1;
+            pMsg->p_node_signature_2 = CHANANNO::NODE_SIG2;
+            pMsg->p_bitcoin_signature_1 = CHANANNO::BTC_SIG1;
+            pMsg->p_bitcoin_signature_2 = CHANANNO::BTC_SIG2;
             pMsg->short_channel_id = CHANANNO::SHORT_CHANNEL_ID;
-            pMsg->p_node_id1 = CHANANNO::NODEID1;
-            pMsg->p_node_id2 = CHANANNO::NODEID2;
-            pMsg->p_btc_key1 = CHANANNO::BTCKEY1;
-            pMsg->p_btc_key2 = CHANANNO::BTCKEY2;
+            pMsg->p_node_id_1 = CHANANNO::NODEID1;
+            pMsg->p_node_id_2 = CHANANNO::NODEID2;
+            pMsg->p_bitcoin_key_1 = CHANANNO::BTCKEY1;
+            pMsg->p_bitcoin_key_2 = CHANANNO::BTCKEY2;
             return true;
         }
     };
     self.p_callback = dummy::callback;
     ln_msg_cnl_update_read_fake.custom_fake = dummy::ln_msg_cnl_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
-    ln_msg_cnl_announce_read_fake.custom_fake = dummy::ln_msg_cnl_announce_read;
+    ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
@@ -510,16 +510,16 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
             utl_buf_alloccopy(pBuf, CHANANNO::CHANNEL_ANNO, sizeof(CHANANNO::CHANNEL_ANNO));
             return true;
         }
-        static bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->p_node_signature1 = CHANANNO::NODE_SIG1;
-            pMsg->p_node_signature2 = CHANANNO::NODE_SIG2;
-            pMsg->p_btc_signature1 = CHANANNO::BTC_SIG1;
-            pMsg->p_btc_signature2 = CHANANNO::BTC_SIG2;
+        static bool ln_msg_channel_announcement_read(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_node_signature_1 = CHANANNO::NODE_SIG1;
+            pMsg->p_node_signature_2 = CHANANNO::NODE_SIG2;
+            pMsg->p_bitcoin_signature_1 = CHANANNO::BTC_SIG1;
+            pMsg->p_bitcoin_signature_2 = CHANANNO::BTC_SIG2;
             pMsg->short_channel_id = CHANANNO::SHORT_CHANNEL_ID;
-            pMsg->p_node_id1 = CHANANNO::NODEID1;
-            pMsg->p_node_id2 = CHANANNO::NODEID2;
-            pMsg->p_btc_key1 = CHANANNO::BTCKEY1;
-            pMsg->p_btc_key2 = CHANANNO::BTCKEY2;
+            pMsg->p_node_id_1 = CHANANNO::NODEID1;
+            pMsg->p_node_id_2 = CHANANNO::NODEID2;
+            pMsg->p_bitcoin_key_1 = CHANANNO::BTCKEY1;
+            pMsg->p_bitcoin_key_2 = CHANANNO::BTCKEY2;
             return true;
         }
     };
@@ -527,7 +527,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
     self.p_callback = dummy::callback;
     ln_msg_cnl_update_read_fake.custom_fake = dummy::ln_msg_cnl_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
-    ln_msg_cnl_announce_read_fake.custom_fake = dummy::ln_msg_cnl_announce_read;
+    ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 

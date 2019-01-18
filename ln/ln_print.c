@@ -76,7 +76,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 
     switch (type) {
     case MSGTYPE_CHANNEL_ANNOUNCEMENT:
-        ln_msg_cnl_announce_print(pData, Len);
+        ln_msg_channel_announcement_print(pData, Len);
         break;
     case MSGTYPE_NODE_ANNOUNCEMENT:
         {

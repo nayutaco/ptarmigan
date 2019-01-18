@@ -45,6 +45,7 @@
 #include "btc_dbg.h"
 
 #include "ln_db_lmdb.h"
+#include "ln_msg_anno.h"
 
 #include "ptarmd.h"
 
@@ -104,10 +105,6 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len);
 #endif  //PTARM_USE_PRINTFUNC
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_walt);
-
-bool ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
-bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
-bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /********************************************************************
@@ -538,19 +535,18 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
     switch (type) {
     case MSGTYPE_CHANNEL_ANNOUNCEMENT:
         {
-            ln_cnl_announce_t anno;
-
-            bool ret = ln_msg_cnl_announce_read(&anno, pData, Len);
+            ln_msg_channel_announcement_t msg;
+            bool ret = ln_msg_channel_announcement_read(&msg, pData, Len);
             if (ret) {
                 printf(INDENT3 M_QQ("type") ": " M_QQ("channel_announcement") ",\n");
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-                ln_short_channel_id_string(str_sci, anno.short_channel_id);
-                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, anno.short_channel_id);
+                ln_short_channel_id_string(str_sci, msg.short_channel_id);
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, msg.short_channel_id);
                 printf(INDENT3 M_QQ("node1") ": \"");
-                utl_dbg_dump(stdout, anno.p_node_id1, BTC_SZ_PUBKEY, false);
+                utl_dbg_dump(stdout, msg.p_node_id_1, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
                 printf(INDENT3 M_QQ("node2") ": \"");
-                utl_dbg_dump(stdout, anno.p_node_id2, BTC_SZ_PUBKEY, false);
+                utl_dbg_dump(stdout, msg.p_node_id_2, BTC_SZ_PUBKEY, false);
                 printf("\"\n");
             }
         }
