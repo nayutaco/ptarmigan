@@ -46,6 +46,17 @@ namespace LN_DUMMY {
     uint64_t short_channel_id;
     uint8_t node_signature[LN_SZ_SIGNATURE];
     uint8_t bitcoin_signature[LN_SZ_SIGNATURE];
+    uint8_t node_signature_1[LN_SZ_SIGNATURE];
+    uint8_t node_signature_2[LN_SZ_SIGNATURE];
+    uint8_t bitcoin_signature_1[LN_SZ_SIGNATURE];
+    uint8_t bitcoin_signature_2[LN_SZ_SIGNATURE];
+    uint8_t features[256];
+    uint8_t chain_hash[BTC_SZ_HASH256];
+    uint8_t node_id_1[BTC_SZ_PUBKEY];
+    uint8_t node_id_2[BTC_SZ_PUBKEY];
+    uint8_t bitcoin_key_1[BTC_SZ_PUBKEY];
+    uint8_t bitcoin_key_2[BTC_SZ_PUBKEY];
+
 /*    uint64_t id;
     uint64_t amount_msat;
     uint8_t payment_hash[BTC_SZ_HASH256];
@@ -75,6 +86,16 @@ protected:
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::short_channel_id, sizeof(LN_DUMMY::short_channel_id)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_signature, sizeof(LN_DUMMY::node_signature)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_signature, sizeof(LN_DUMMY::bitcoin_signature)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_signature_1, sizeof(LN_DUMMY::node_signature_1)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_signature_2, sizeof(LN_DUMMY::node_signature_2)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_signature_1, sizeof(LN_DUMMY::bitcoin_signature_1)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_signature_2, sizeof(LN_DUMMY::bitcoin_signature_2)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::features, sizeof(LN_DUMMY::features)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_id_1, sizeof(LN_DUMMY::node_id_1)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::node_id_2, sizeof(LN_DUMMY::node_id_2)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_key_1, sizeof(LN_DUMMY::bitcoin_key_1)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::bitcoin_key_2, sizeof(LN_DUMMY::bitcoin_key_2)));
 /*        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::id, sizeof(LN_DUMMY::id)));
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::amount_msat, sizeof(LN_DUMMY::amount_msat)));
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::cltv_expiry, sizeof(LN_DUMMY::cltv_expiry)));
@@ -139,5 +160,44 @@ TEST_F(ln, announcement_signatures)
     ASSERT_EQ(msg.short_channel_id, LN_DUMMY::short_channel_id);
     ASSERT_EQ(0, memcmp(msg.p_node_signature, LN_DUMMY::node_signature, sizeof(LN_DUMMY::node_signature)));
     ASSERT_EQ(0, memcmp(msg.p_bitcoin_signature, LN_DUMMY::bitcoin_signature, sizeof(LN_DUMMY::bitcoin_signature)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, channel_announcement)
+{
+    ln_msg_channel_announcement_t msg;
+    utl_buf_t buf;
+
+    msg.p_node_signature_1 = LN_DUMMY::node_signature_1;
+    msg.p_node_signature_2 = LN_DUMMY::node_signature_2;
+    msg.p_bitcoin_signature_1 = LN_DUMMY::bitcoin_signature_1;
+    msg.p_bitcoin_signature_2 = LN_DUMMY::bitcoin_signature_2;
+    msg.len = sizeof(LN_DUMMY::features);
+    msg.p_features = LN_DUMMY::features;
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.short_channel_id = LN_DUMMY::short_channel_id;
+    msg.p_node_id_1 = LN_DUMMY::node_id_1;
+    msg.p_node_id_2 = LN_DUMMY::node_id_2;
+    msg.p_bitcoin_key_1 = LN_DUMMY::bitcoin_key_1;
+    msg.p_bitcoin_key_2 = LN_DUMMY::bitcoin_key_2;
+    bool ret = ln_msg_channel_announcement_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_channel_announcement_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(msg.p_node_signature_1, LN_DUMMY::node_signature_1, sizeof(LN_DUMMY::node_signature_1)));
+    ASSERT_EQ(0, memcmp(msg.p_node_signature_2, LN_DUMMY::node_signature_2, sizeof(LN_DUMMY::node_signature_2)));
+    ASSERT_EQ(0, memcmp(msg.p_bitcoin_signature_1, LN_DUMMY::bitcoin_signature_1, sizeof(LN_DUMMY::bitcoin_signature_1)));
+    ASSERT_EQ(0, memcmp(msg.p_bitcoin_signature_2, LN_DUMMY::bitcoin_signature_2, sizeof(LN_DUMMY::bitcoin_signature_2)));
+    ASSERT_EQ(msg.len, sizeof(LN_DUMMY::features));
+    ASSERT_EQ(0, memcmp(msg.p_features, LN_DUMMY::features, sizeof(LN_DUMMY::features)));
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(msg.short_channel_id, LN_DUMMY::short_channel_id);
+    ASSERT_EQ(0, memcmp(msg.p_node_id_1, LN_DUMMY::node_id_1, sizeof(LN_DUMMY::node_id_1)));
+    ASSERT_EQ(0, memcmp(msg.p_node_id_2, LN_DUMMY::node_id_2, sizeof(LN_DUMMY::node_id_2)));
+    ASSERT_EQ(0, memcmp(msg.p_bitcoin_key_1, LN_DUMMY::bitcoin_key_1, sizeof(LN_DUMMY::bitcoin_key_1)));
+    ASSERT_EQ(0, memcmp(msg.p_bitcoin_key_2, LN_DUMMY::bitcoin_key_2, sizeof(LN_DUMMY::bitcoin_key_2)));
     utl_buf_free(&buf);
 }

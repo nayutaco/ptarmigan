@@ -50,6 +50,40 @@ typedef struct {
 } ln_msg_announcement_signatures_t;
 
 
+/** @struct     ln_msg_channel_announcement_t
+ *  @brief      channel_announcement
+ */
+typedef struct {
+    //type: 256 (channel_announcement)
+    //data:
+    //  [64:node_signature_1]
+    //  [64:node_signature_2]
+    //  [64:bitcoin_signature_1]
+    //  [64:bitcoin_signature_2]
+    //  [2:len]
+    //  [len:features]
+    //  [32:chain_hash]
+    //  [8:short_channel_id]
+    //  [33:node_id_1]
+    //  [33:node_id_2]
+    //  [33:bitcoin_key_1]
+    //  [33:bitcoin_key_2]
+
+    const uint8_t   *p_node_signature_1;
+    const uint8_t   *p_node_signature_2;
+    const uint8_t   *p_bitcoin_signature_1;
+    const uint8_t   *p_bitcoin_signature_2;
+    uint16_t        len;
+    const uint8_t   *p_features;
+    const uint8_t   *p_chain_hash;
+    uint64_t        short_channel_id;
+    const uint8_t   *p_node_id_1;
+    const uint8_t   *p_node_id_2;
+    const uint8_t   *p_bitcoin_key_1;
+    const uint8_t   *p_bitcoin_key_2;
+} ln_msg_channel_announcement_t;
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -79,7 +113,7 @@ bool HIDDEN ln_msg_announcement_signatures_read(ln_msg_announcement_signatures_t
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *pMsg);
+bool HIDDEN ln_msg_channel_announcement_write(utl_buf_t *pBuf, const ln_msg_channel_announcement_t *pMsg);
 
 
 /** read channel_announcement
@@ -89,13 +123,13 @@ bool HIDDEN ln_msg_cnl_announce_write(utl_buf_t *pBuf, const ln_cnl_announce_t *
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool /*HIDDEN*/ ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_msg_channel_announcement_read(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** sign channel_announcement
  *
  */
-bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
+bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Sort);
 
 
 /** verify channel_announcement
@@ -104,13 +138,13 @@ bool HIDDEN ln_msg_cnl_announce_sign(uint8_t *pData, uint16_t Len, const uint8_t
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_verify(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len); //XXX: not used
+bool HIDDEN ln_msg_channel_announcement_verify(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len); //XXX: not used
 
 
 /** print channel_announcement
  *
  */
-void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len);
 
 
 /** print channel_update
@@ -194,6 +228,6 @@ void HIDDEN ln_msg_get_anno_signs(uint8_t *pData, uint8_t **pp_sig_node, uint8_t
 /** short_channel_id書き換え //XXX:
  *
  */
-bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t ShortChannelId);
+bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, uint64_t ShortChannelId);
 
 #endif /* LN_MSG_ANNO_H__ */

@@ -491,26 +491,6 @@ typedef struct {
 /// @addtogroup announcement
 /// @{
 
-/** @struct     ln_cnl_announce_t
- *  @brief      channel_announcement
- */
-typedef struct {
-    const uint8_t   *p_chain_hash;
-
-    const uint8_t   *p_node_signature1;                 ///< 64: node_signature_1
-    const uint8_t   *p_node_signature2;                 ///< 64: node_signature_2
-    const uint8_t   *p_btc_signature1;                  ///< 64: bitcoin_signature_1
-    const uint8_t   *p_btc_signature2;                  ///< 64: bitcoin_signature_2
-
-    uint64_t        short_channel_id;                   ///< 8:  short_channel_id
-
-    const uint8_t   *p_node_id1;                        ///< 33: node_id_1
-    const uint8_t   *p_node_id2;                        ///< 33: node_id_2
-    const uint8_t   *p_btc_key1;                        ///< 33: bitcoin_key_1
-    const uint8_t   *p_btc_key2;                        ///< 33: bitcoin_key_2
-} ln_cnl_announce_t;
-
-
 /** @struct     ln_nodeaddr_t
  *  @brief      node_announcementのアドレス情報
  */
