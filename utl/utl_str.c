@@ -210,3 +210,12 @@ bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr)
     strncpy((char *)pBuf, pStr, Size); //`strncpy` fills zeros
     return true;
 }
+
+
+bool utl_str_copy_and_append_zero(char *pBuf, uint32_t BufSize, const uint8_t *pData, uint32_t DataSize)
+{
+    if (BufSize <= DataSize) return false;
+    strncpy(pBuf, (const char *)pData, DataSize); //`strncpy` fills zeros
+    pBuf[DataSize] = 0;
+    return true;
+}
