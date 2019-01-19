@@ -37,9 +37,8 @@ btconly:
 	mkdir -p $(INSTALL_DIR)/ptarmbtc/lib
 	cp utl/libutl.a $(INSTALL_DIR)/ptarmbtc/lib/
 	cp btc/libbtc.a $(INSTALL_DIR)/ptarmbtc/lib/
-	cp -ra utl/utl_buf.h $(INSTALL_DIR)/ptarmbtc/include/
-	cp -ra utl/utl_log.h $(INSTALL_DIR)/ptarmbtc/include/
-	cp -ra btc/btc.h $(INSTALL_DIR)/ptarmbtc/include/
+	cp -ra utl/*.h $(INSTALL_DIR)/ptarmbtc/include/
+	cp -ra btc/*.h $(INSTALL_DIR)/ptarmbtc/include/
 	cp libs/install/lib/libbase58.a $(INSTALL_DIR)/ptarmbtc/lib/
 	cp libs/install/lib/libmbedcrypto.a $(INSTALL_DIR)/ptarmbtc/lib/
 
