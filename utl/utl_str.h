@@ -157,6 +157,17 @@ bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value);
 bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr);
 
 
+/** make null-terminated string from non-null-terminated string
+ *
+ * @param[out]      pBuf        buffer of the null-terminated string
+ * @param[in]       pBufSize    size of the buffer
+ * @param[in]       pData       non-null-terminated string data
+ * @param[in]       pDataSize   size of the non-null-terminated string data
+ * @return      true        success
+ */
+bool utl_str_copy_and_append_zero(char *pBuf, uint32_t BufSize, const uint8_t *pData, uint32_t DataSize);
+
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

@@ -274,4 +274,27 @@ TEST_F(str, copy_and_fill_zeros)
     ASSERT_EQ(buf[9], 0xcc); //check that do not overrun
 }
 
-bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr);
+
+TEST_F(str, copy_and_append_zero)
+{
+    const uint8_t   data[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
+    char            buf[16] = {0};
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_FALSE(utl_str_copy_and_append_zero(buf, 7, data, sizeof(data)));
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_FALSE(utl_str_copy_and_append_zero(buf, 8, data, sizeof(data)));
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_TRUE(utl_str_copy_and_append_zero(buf, 9, data, sizeof(data)));
+    ASSERT_EQ(0, strncmp(buf, (const char *)data, sizeof(data)));
+    ASSERT_EQ(buf[8], 0x00); //check zero
+    ASSERT_EQ((uint8_t)buf[9], 0xcc); //check that do not overrun
+
+    memset(buf, 0xcc, sizeof(buf)); //clear
+    ASSERT_TRUE(utl_str_copy_and_append_zero(buf, 10, data, sizeof(data)));
+    ASSERT_EQ(0, strncmp(buf, (const char *)data, sizeof(data)));
+    ASSERT_EQ(buf[8], 0x00); //check zero
+    ASSERT_EQ((uint8_t)buf[9], 0xcc); //check that do not overrun
+}
