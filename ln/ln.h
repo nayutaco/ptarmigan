@@ -706,6 +706,8 @@ typedef struct {
  *  @brief  update_fail_htlc受信通知(#LN_CB_FAIL_HTLC_RECV)
  */
 typedef struct {
+    bool                    result;
+
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
     const utl_buf_t         *p_shared_secret;       ///< shared secret

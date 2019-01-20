@@ -3700,6 +3700,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             clear_htlc_comrevflag(p_htlc, LN_DELHTLC_FAIL);
 
             ln_cb_fail_htlc_recv_t fail_recv;
+            fail_recv.result = false;
             fail_recv.prev_short_channel_id = p_htlc->prev_short_channel_id;
             utl_buf_t reason;
             utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
@@ -3711,7 +3712,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             fail_recv.malformed_failure = 0;
             callback(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
-            ret = true;
+            ret = fail_recv.result;
             break;
         }
     }
@@ -4057,6 +4058,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
             utl_push_data(&push_rsn, msg.p_sha256_of_onion, BTC_SZ_HASH256);
 
             ln_cb_fail_htlc_recv_t fail_recv;
+            fail_recv.result = false;
             fail_recv.prev_short_channel_id = p_htlc->prev_short_channel_id;
             fail_recv.p_reason = &reason;
             fail_recv.p_shared_secret = &p_htlc->buf_shared_secret;
@@ -4067,7 +4069,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
             callback(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
             utl_buf_free(&reason);
 
-            ret = true;
+            ret = fail_recv.result;
             break;
         }
     }
