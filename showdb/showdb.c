@@ -590,22 +590,22 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
         break;
     case MSGTYPE_CHANNEL_UPDATE:
         {
-            ln_cnl_update_t anno;
-            bool ret = ln_msg_cnl_update_read(&anno, pData, Len);
+            ln_msg_channel_update_t msg;
+            bool ret = ln_msg_channel_update_read(&msg, pData, Len);
             if (ret) {
-                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (anno.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? "2" : "1");
+                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? "2" : "1");
 
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-                ln_short_channel_id_string(str_sci, anno.short_channel_id);
-                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, anno.short_channel_id);
-                //printf(INDENT3 M_QQ("node_sort") ": " M_QQ("%s") ",\n", (anno.flags & 1) ? "second" : "first");
-                printf(INDENT3 M_QQ("message_flags") ": " M_QQ("%02x") ",\n", anno.message_flags);
-                printf(INDENT3 M_QQ("channel_flags") ": " M_QQ("%02x") ",\n", anno.channel_flags);
-                printf(INDENT3 M_QQ("cltv_expiry_delta") ": %d,\n", anno.cltv_expiry_delta);
-                printf(INDENT3 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", anno.htlc_minimum_msat);
-                printf(INDENT3 M_QQ("fee_base_msat") ": %" PRIu32 ",\n", anno.fee_base_msat);
-                printf(INDENT3 M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", anno.fee_prop_millionths);
-                printf(INDENT3 M_QQ("timestamp") ": %" PRIu32 "\n", anno.timestamp);
+                ln_short_channel_id_string(str_sci, msg.short_channel_id);
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, msg.short_channel_id);
+                //printf(INDENT3 M_QQ("node_sort") ": " M_QQ("%s") ",\n", (msg.flags & 1) ? "second" : "first");
+                printf(INDENT3 M_QQ("message_flags") ": " M_QQ("%02x") ",\n", msg.message_flags);
+                printf(INDENT3 M_QQ("channel_flags") ": " M_QQ("%02x") ",\n", msg.channel_flags);
+                printf(INDENT3 M_QQ("cltv_expiry_delta") ": %d,\n", msg.cltv_expiry_delta);
+                printf(INDENT3 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", msg.htlc_minimum_msat);
+                printf(INDENT3 M_QQ("fee_base_msat") ": %" PRIu32 ",\n", msg.fee_base_msat);
+                printf(INDENT3 M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", msg.fee_proportional_millionths);
+                printf(INDENT3 M_QQ("timestamp") ": %" PRIu32 "\n", msg.timestamp);
             }
         }
         break;

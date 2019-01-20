@@ -70,6 +70,13 @@ namespace LN_DUMMY {
     uint16_t torv2_port;
     uint8_t torv3_addr[LN_ADDR_DESC_ADDR_LEN_TORV3];
     uint16_t torv3_port;
+    uint8_t message_flags;
+    uint8_t channel_flags;
+    uint16_t cltv_expiry_delta;
+    uint64_t htlc_minimum_msat;
+    uint32_t fee_base_msat;
+    uint32_t fee_proportional_millionths;
+    uint64_t htlc_maximum_msat;
 }
 
 
@@ -109,6 +116,13 @@ protected:
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::torv2_port, sizeof(LN_DUMMY::torv2_port)));
         ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::torv3_addr, sizeof(LN_DUMMY::torv3_addr)));
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::torv3_port, sizeof(LN_DUMMY::torv3_port)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::message_flags, sizeof(LN_DUMMY::message_flags)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::channel_flags, sizeof(LN_DUMMY::channel_flags)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::cltv_expiry_delta, sizeof(LN_DUMMY::cltv_expiry_delta)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::htlc_minimum_msat, sizeof(LN_DUMMY::htlc_minimum_msat)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::fee_base_msat, sizeof(LN_DUMMY::fee_base_msat)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::fee_proportional_millionths, sizeof(LN_DUMMY::fee_proportional_millionths)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::htlc_maximum_msat, sizeof(LN_DUMMY::htlc_maximum_msat)));
         btc_rng_free();
     }
 
@@ -281,5 +295,43 @@ TEST_F(ln, node_announcement_addresses)
     ASSERT_EQ(0, memcmp(addrs.addresses[addrs.num].p_addr, LN_DUMMY::torv3_addr, sizeof(LN_DUMMY::torv3_addr)));
     ASSERT_EQ(addrs.addresses[addrs.num].port, LN_DUMMY::torv3_port);
     addrs.num++;
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, channel_update)
+{
+    ln_msg_channel_update_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_signature = LN_DUMMY::signature;
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.short_channel_id = LN_DUMMY::short_channel_id;
+    msg.timestamp = LN_DUMMY::timestamp;
+    msg.message_flags = LN_DUMMY::message_flags | LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX;
+    msg.channel_flags = LN_DUMMY::channel_flags;
+    msg.cltv_expiry_delta = LN_DUMMY::cltv_expiry_delta;
+    msg.htlc_minimum_msat = LN_DUMMY::htlc_minimum_msat;
+    msg.fee_base_msat = LN_DUMMY::fee_base_msat;
+    msg.fee_proportional_millionths = LN_DUMMY::fee_proportional_millionths;
+    msg.htlc_maximum_msat = LN_DUMMY::htlc_maximum_msat;
+    bool ret = ln_msg_channel_update_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_channel_update_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(0, memcmp(msg.p_signature, LN_DUMMY::signature, sizeof(LN_DUMMY::signature)));
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(msg.short_channel_id, LN_DUMMY::short_channel_id);
+    ASSERT_EQ(msg.timestamp, LN_DUMMY::timestamp);
+    ASSERT_EQ(msg.message_flags, LN_DUMMY::message_flags | LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX);
+    ASSERT_EQ(msg.channel_flags, LN_DUMMY::channel_flags);
+    ASSERT_EQ(msg.cltv_expiry_delta, LN_DUMMY::cltv_expiry_delta);
+    ASSERT_EQ(msg.htlc_minimum_msat, LN_DUMMY::htlc_minimum_msat);
+    ASSERT_EQ(msg.fee_base_msat, LN_DUMMY::fee_base_msat);
+    ASSERT_EQ(msg.fee_proportional_millionths, LN_DUMMY::fee_proportional_millionths);
+    ASSERT_EQ(msg.htlc_maximum_msat, LN_DUMMY::htlc_maximum_msat);
     utl_buf_free(&buf);
 }

@@ -85,11 +85,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
         }
         break;
     case MSGTYPE_CHANNEL_UPDATE:
-        {
-            ln_cnl_update_t msg;
-            ln_msg_cnl_update_read(&msg, pData, Len);
-            ln_msg_cnl_update_print(&msg);
-        }
+        ln_msg_channel_update_print(pData, Len);
         break;
     }
 }

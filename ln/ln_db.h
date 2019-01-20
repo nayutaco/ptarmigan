@@ -335,7 +335,7 @@ bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t Sh
  * @param[in]       pSendId             channel_updateの送信元/先ノード
  * @retval      true    成功
  */
-bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId);
+bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update_t *pUpd, const uint8_t *pSendId);
 
 
 /** channel pruning判定

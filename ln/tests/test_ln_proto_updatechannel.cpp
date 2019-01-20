@@ -63,7 +63,7 @@ FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_htlct
 FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_is_prune, uint64_t , uint32_t );
-FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_save, const utl_buf_t *, const ln_cnl_update_t *, const uint8_t *);
+FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_save, const utl_buf_t *, const ln_msg_channel_update_t *, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_annocnl_load, utl_buf_t *, uint64_t );
 
 FAKE_VALUE_FUNC(bool, btc_keys_check_pub, const uint8_t *);
@@ -72,9 +72,9 @@ FAKE_VALUE_FUNC(const char *, utl_time_str_time, char *);
 FAKE_VALUE_FUNC(const char *, utl_time_fmt, char *, time_t );
 
 
-//FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_write, utl_buf_t *, const ln_cnl_update_t *);
-FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_read, ln_cnl_update_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_msg_cnl_update_verify, const uint8_t *, const uint8_t *, uint16_t );
+//FAKE_VALUE_FUNC(bool, ln_msg_channel_update_write, utl_buf_t *, const ln_msg_channel_update_t *);
+FAKE_VALUE_FUNC(bool, ln_msg_channel_update_read, ln_msg_channel_update_t *, const uint8_t *, uint16_t );
+FAKE_VALUE_FUNC(bool, ln_msg_channel_update_verify, const uint8_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_channel_announcement_read, ln_msg_channel_announcement_t *, const uint8_t *, uint16_t );
 
 
@@ -244,15 +244,15 @@ protected:
         RESET_FAKE(ln_db_annocnlupd_save)
         RESET_FAKE(ln_db_annocnl_load)
 
-        RESET_FAKE(ln_msg_cnl_update_read)
-        RESET_FAKE(ln_msg_cnl_update_verify)
+        RESET_FAKE(ln_msg_channel_update_read)
+        RESET_FAKE(ln_msg_channel_update_verify)
         RESET_FAKE(ln_msg_channel_announcement_read)
 
         ln_db_annocnlupd_is_prune_fake.return_val = false;
         ln_db_annocnlupd_save_fake.return_val = true;
         ln_db_annocnl_load_fake.return_val = true;
-        ln_msg_cnl_update_read_fake.return_val = true;
-        ln_msg_cnl_update_verify_fake.return_val = true;
+        ln_msg_channel_update_read_fake.return_val = true;
+        ln_msg_channel_update_verify_fake.return_val = true;
         ln_msg_channel_announcement_read_fake.return_val = true;
         btc_keys_check_pub_fake.return_val = true;
 
@@ -371,14 +371,14 @@ TEST_F(ln, recv_updatechannel_ok)
                 callback_called++;
             }
         }
-        static bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
+        static bool ln_msg_channel_update_read(ln_msg_channel_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
             pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->short_channel_id = CHANUPD::SHORT_CHANNEL_ID;
             pMsg->htlc_minimum_msat = CHANUPD::HTLC_MINIMUM_MSAT;
             pMsg->htlc_maximum_msat = 0;
             pMsg->timestamp = CHANUPD::TIMESTAMP;
             pMsg->fee_base_msat = CHANUPD::FEE_BASE_MSAT;
-            pMsg->fee_prop_millionths = CHANUPD::FEE_PROP_MILLIONTHS;
+            pMsg->fee_proportional_millionths = CHANUPD::FEE_PROP_MILLIONTHS;
             pMsg->cltv_expiry_delta = CHANUPD::CLTV_EXPIRY_DELTA;
             pMsg->message_flags = CHANUPD::MSG_FLAG;
             pMsg->channel_flags = CHANUPD::CHAN_FLAG;
@@ -402,7 +402,7 @@ TEST_F(ln, recv_updatechannel_ok)
         }
     };
     self.p_callback = dummy::callback;
-    ln_msg_cnl_update_read_fake.custom_fake = dummy::ln_msg_cnl_update_read;
+    ln_msg_channel_update_read_fake.custom_fake = dummy::ln_msg_channel_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
     ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
@@ -411,7 +411,7 @@ TEST_F(ln, recv_updatechannel_ok)
     bool ret = recv_channel_update(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
-    ASSERT_EQ(1, ln_msg_cnl_update_verify_fake.call_count);
+    ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(1, ln_db_annocnlupd_save_fake.call_count);
     ASSERT_EQ(1, callback_called);
 
@@ -432,14 +432,14 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
                 callback_called++;
             }
         }
-        static bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
+        static bool ln_msg_channel_update_read(ln_msg_channel_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
             pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->short_channel_id = CHANUPD::SHORT_CHANNEL_ID;
             pMsg->htlc_minimum_msat = CHANUPD::HTLC_MINIMUM_MSAT;
             pMsg->htlc_maximum_msat = 0;
             pMsg->timestamp = CHANUPD::TIMESTAMP + 3600;
             pMsg->fee_base_msat = CHANUPD::FEE_BASE_MSAT;
-            pMsg->fee_prop_millionths = CHANUPD::FEE_PROP_MILLIONTHS;
+            pMsg->fee_proportional_millionths = CHANUPD::FEE_PROP_MILLIONTHS;
             pMsg->cltv_expiry_delta = CHANUPD::CLTV_EXPIRY_DELTA;
             pMsg->message_flags = CHANUPD::MSG_FLAG;
             pMsg->channel_flags = CHANUPD::CHAN_FLAG;
@@ -463,7 +463,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
         }
     };
     self.p_callback = dummy::callback;
-    ln_msg_cnl_update_read_fake.custom_fake = dummy::ln_msg_cnl_update_read;
+    ln_msg_channel_update_read_fake.custom_fake = dummy::ln_msg_channel_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
     ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
@@ -472,7 +472,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
     bool ret = recv_channel_update(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
-    ASSERT_EQ(1, ln_msg_cnl_update_verify_fake.call_count);
+    ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(1, ln_db_annocnlupd_save_fake.call_count);
     ASSERT_EQ(1, callback_called);
 
@@ -493,14 +493,14 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
                 callback_called++;
             }
         }
-        static bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
+        static bool ln_msg_channel_update_read(ln_msg_channel_update_t *pMsg, const uint8_t *pData, uint16_t Len) {
             pMsg->p_chain_hash = ln_genesishash_get();
             pMsg->short_channel_id = CHANUPD::SHORT_CHANNEL_ID;
             pMsg->htlc_minimum_msat = CHANUPD::HTLC_MINIMUM_MSAT;
             pMsg->htlc_maximum_msat = 0;
             pMsg->timestamp = CHANUPD::TIMESTAMP + 3600 + 1;    //***
             pMsg->fee_base_msat = CHANUPD::FEE_BASE_MSAT;
-            pMsg->fee_prop_millionths = CHANUPD::FEE_PROP_MILLIONTHS;
+            pMsg->fee_proportional_millionths = CHANUPD::FEE_PROP_MILLIONTHS;
             pMsg->cltv_expiry_delta = CHANUPD::CLTV_EXPIRY_DELTA;
             pMsg->message_flags = CHANUPD::MSG_FLAG;
             pMsg->channel_flags = CHANUPD::CHAN_FLAG;
@@ -525,7 +525,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
     };
     
     self.p_callback = dummy::callback;
-    ln_msg_cnl_update_read_fake.custom_fake = dummy::ln_msg_cnl_update_read;
+    ln_msg_channel_update_read_fake.custom_fake = dummy::ln_msg_channel_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
     ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
@@ -534,7 +534,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
     bool ret = recv_channel_update(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
-    ASSERT_EQ(1, ln_msg_cnl_update_verify_fake.call_count);
+    ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(0, ln_db_annocnlupd_save_fake.call_count);
     ASSERT_EQ(1, callback_called);
 

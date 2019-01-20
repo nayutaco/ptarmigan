@@ -37,11 +37,11 @@
 #include "btc_sig.h"
 #include "btc_buf.h"
 
-#include "ln_msg_anno.h"
 #include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
 #include "ln_local.h"
+#include "ln_msg_anno.h"
 
 
 /********************************************************************
@@ -91,7 +91,9 @@ static void channel_announcement_print(const ln_msg_channel_announcement_t *pMsg
 static void node_announcement_print(const ln_msg_node_announcement_t *pMsg);
 static void node_announcement_addresses_print(const ln_msg_node_announcement_addresses_t *pAddrs);
 #endif
-
+#if defined(DBG_PRINT_WRITE_UPD) || defined(DBG_PRINT_READ_UPD)
+static void channel_update_print(const ln_msg_channel_update_t *pMsg);
+#endif
 
 /********************************************************************
  * announcement_signatures
@@ -516,162 +518,106 @@ bool HIDDEN ln_msg_node_announcement_verify(const ln_msg_node_announcement_t *pM
  * channel_update
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg)
+bool HIDDEN ln_msg_channel_update_write(utl_buf_t *pBuf, const ln_msg_channel_update_t *pMsg)
 {
-    //    type: 258 (channel_update)
-    //    data:
-    //        [64:signature]
-    //        [32:chain_hash]
-    //        [8:short_channel_id]
-    //        [4:timestamp]
-    //        [1:message_flags]
-    //        [1:channel_flags]
-    //        [2:cltv_expiry_delta]
-    //        [8:htlc_minimum_msat]
-    //        [4:fee_base_msat]
-    //        [4:fee_proportional_millionths]
-    //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-
-    utl_push_t    proto;
-
 #ifdef DBG_PRINT_WRITE_UPD
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    ln_msg_cnl_update_print(pMsg);
+    channel_update_print(pMsg);
 #endif  //DBG_PRINT_WRITE_UPD
 
-    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 128);
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
 
-    //    type: 258 (channel_update)
-    ln_misc_push16be(&proto, MSGTYPE_CHANNEL_UPDATE);
-
-    //        [64:signature]
-    //utl_push_data(&proto, pMsg->signature, LN_SZ_SIGNATURE);
-    proto.pos += LN_SZ_SIGNATURE;
-
-    //        [32:chain_hash]
-    utl_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
-
-    //        [8:short_channel_id]
-    ln_misc_push64be(&proto, pMsg->short_channel_id);
-
-    //        [4:timestamp]
-    ln_misc_push32be(&proto, pMsg->timestamp);
-
-    //        [1:message_flags]
-    ln_misc_push8(&proto, pMsg->message_flags);
-
-    //        [1:channel_flags]
-    ln_misc_push8(&proto, pMsg->channel_flags);
-
-    //        [2:cltv_expiry_delta]
-    ln_misc_push16be(&proto, pMsg->cltv_expiry_delta);
-
-    //        [8:htlc_minimum_msat]
-    ln_misc_push64be(&proto, pMsg->htlc_minimum_msat);
-
-    //        [4:fee_base_msat]
-    ln_misc_push32be(&proto, pMsg->fee_base_msat);
-
-    //        [4:fee_proportional_millionths]
-    ln_misc_push32be(&proto, pMsg->fee_prop_millionths);
-
-    if (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX) {
-        //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-        ln_misc_push64be(&proto, pMsg->htlc_maximum_msat);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_CHANNEL_UPDATE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->short_channel_id)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->timestamp)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, pMsg->message_flags)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, pMsg->channel_flags)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->cltv_expiry_delta)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u64be(&buf_w, pMsg->htlc_minimum_msat)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->fee_base_msat)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->fee_proportional_millionths)) goto LABEL_ERROR;
+    if (pMsg->message_flags & LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX) {
+        if (!btc_buf_w_write_u64be(&buf_w, pMsg->htlc_maximum_msat)) goto LABEL_ERROR;
     }
-    utl_push_trim(&proto);
+    btc_buf_w_move(&buf_w, pBuf);
     return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
-bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool /*HIDDEN*/ ln_msg_channel_update_read(ln_msg_channel_update_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 128) {
-        LOGE("fail: invalid length: %d\n", Len);
-        return false;
-    }
-
-    uint16_t type = utl_int_pack_u16be(pData);
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
     if (type != MSGTYPE_CHANNEL_UPDATE) {
         LOGE("fail: type not match: %04x\n", type);
         return false;
     }
-    int pos = sizeof(uint16_t);
-
-    //        [64:signature]
-    //memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
-    pos += LN_SZ_SIGNATURE;
-
-    //    [32:chain_hash]
-    pMsg->p_chain_hash = pData + pos;
-    pos += BTC_SZ_HASH256;
-
-    //        [8:short_channel_id]
-    pMsg->short_channel_id = utl_int_pack_u64be(pData + pos);
-    if (pMsg->short_channel_id == 0) {
-        LOGE("fail: short_channel_id == 0\n");
-        return false;
-    }
-    pos += LN_SZ_SHORT_CHANNEL_ID;
-
-    //        [4:timestamp]
-    pMsg->timestamp = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
-
-    //        [1:message_flags]
-    pMsg->message_flags = *(pData + pos);
-    pos += sizeof(uint8_t);
-
-    //        [1:channel_flags]
-    pMsg->channel_flags = *(pData + pos);
-    pos += sizeof(uint8_t);
-
-    //        [2:cltv_expiry_delta]
-    pMsg->cltv_expiry_delta = utl_int_pack_u16be(pData + pos);
-    pos += sizeof(uint16_t);
-
-    //        [8:htlc_minimum_msat]
-    pMsg->htlc_minimum_msat = utl_int_pack_u64be(pData + pos);
-    pos += sizeof(uint64_t);
-
-    //        [4:fee_base_msat]
-    pMsg->fee_base_msat = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
-
-    //        [4:fee_proportional_millionths]
-    pMsg->fee_prop_millionths = utl_int_pack_u32be(pData + pos);
-    pos += sizeof(uint32_t);
-
-    bool result = true;
-
-    //        [8:htlc_maximum_msat] (option_channel_htlc_max)
-    if (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX) {
-        if (Len >= pos + sizeof(uint64_t)) {
-            pMsg->htlc_maximum_msat = utl_int_pack_u64be(pData + pos);
-            pos += sizeof(uint64_t);
-        } else {
-            result = false;
-            LOGE("fail: NO option_channel_htlc_max field\n");
-        }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_signature, LN_SZ_SIGNATURE)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->short_channel_id)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->timestamp)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_byte(&buf_r, &pMsg->message_flags)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_byte(&buf_r, &pMsg->channel_flags)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->cltv_expiry_delta)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u64be(&buf_r, &pMsg->htlc_minimum_msat)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->fee_base_msat)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->fee_proportional_millionths)) goto LABEL_ERROR_SYNTAX;
+    if (pMsg->message_flags & LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX) {
+        if (!btc_buf_r_read_u64be(&buf_r, &pMsg->htlc_maximum_msat)) goto LABEL_ERROR_SYNTAX; //XXX: black list
     } else {
-        pMsg->htlc_maximum_msat = 0;
-    }
-
-    if (Len < pos) {
-        LOGE("fail: length\n");
-        return false;
+        pMsg->htlc_maximum_msat = 0; //XXX:
     }
 
 #ifdef DBG_PRINT_READ_UPD
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    ln_msg_cnl_update_print(pMsg);
+    channel_update_print(pMsg);
 #endif  //DBG_PRINT_READ_UPD
+    return true;
 
-    return result;
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
 }
 
 
-bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len)
+static void channel_update_print(const ln_msg_channel_update_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[channel_update]-------------------------------\n");
+    //LOGD("signature: ");
+    //DUMPD(pMsg->signature, LN_SZ_SIGNATURE);
+    //LOGD("chain_hash: ");
+    //DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("timestamp: %u\n", pMsg->timestamp);
+    char time[UTL_SZ_TIME_FMT_STR + 1];
+    LOGD("timestamp(fmt): %s\n", utl_time_fmt(time, pMsg->timestamp));
+    LOGD("message_flags: 0x%02x\n", pMsg->message_flags);
+    LOGD("channel_flags: 0x%02x\n", pMsg->channel_flags);
+    LOGD("  direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1"); //XXX:
+    LOGD("  %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable"); //XXX:
+    LOGD("cltv_expiry_delta: %u\n", pMsg->cltv_expiry_delta);
+    LOGD("htlc_minimum_msat: %" PRIu64 "\n", pMsg->htlc_minimum_msat);
+    LOGD("fee_base_msat: %u\n", pMsg->fee_base_msat);
+    LOGD("fee_proportional_millionths: %u\n", pMsg->fee_proportional_millionths);
+    if (pMsg->message_flags & LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX) {
+        LOGD("htlc_maximum_msat: %" PRIu64 "\n", pMsg->htlc_maximum_msat);
+    }
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
+}
+
+
+bool HIDDEN ln_msg_channel_update_sign(uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
     uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
@@ -680,7 +626,7 @@ bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len)
 }
 
 
-bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_channel_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
     uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE;
@@ -689,29 +635,13 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *
 }
 
 
-void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
+bool HIDDEN ln_msg_channel_update_print(const uint8_t *pData, uint16_t Len)
 {
-#ifdef PTARM_DEBUG
-    LOGD("-[channel_update]-------------------------------\n");
-    //LOGD("p_node_signature: ");
-    //DUMPD(pMsg->signature, LN_SZ_SIGNATURE);
-    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
-    char time[UTL_SZ_TIME_FMT_STR + 1];
-    LOGD("timestamp: %lu : %s\n", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
-    LOGD("message_flags= 0x%02x\n", pMsg->message_flags);
-    LOGD("   option_channel_htlc_max=%d\n", (pMsg->message_flags & LN_CNLUPD_MSGFLAGS_HTLCMAX));
-    LOGD("channel_flags= 0x%02x\n", pMsg->channel_flags);
-    LOGD("    direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1");
-    LOGD("    %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable");
-    LOGD("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
-    LOGD("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
-    LOGD("fee_base_msat= %u\n", pMsg->fee_base_msat);
-    LOGD("fee_prop_millionths= %u\n", pMsg->fee_prop_millionths);
-    if (pMsg->htlc_maximum_msat > 0) {
-        LOGD("htlc_maximum_msat= %" PRIu64 "\n", pMsg->htlc_maximum_msat);
-    }
-    LOGD("--------------------------------\n");
-#endif  //PTARM_DEBUG
+    ln_msg_channel_update_t msg;
+    if (!ln_msg_channel_update_read(&msg, pData, Len)) return false;
+#ifndef DBG_PRINT_READ_UPD //ln_msg_channel_update_read don't print
+    channel_update_print(&msg);
+#endif
+    return true;
 }
-
 
