@@ -183,8 +183,8 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv_t *p_fulfill);
 static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv_t *p_fulfill);
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail);
-static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail);
+static void cbsub_fail_backwind(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *p_fail);
+static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *p_fail);
 static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param);
 static void cb_payment_retry(lnapp_conf_t *p_conf, void *p_param);
 static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -2771,7 +2771,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
 
-    const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
+    ln_cb_fail_htlc_recv_t *p_fail = (ln_cb_fail_htlc_recv_t *)p_param;
     const char *p_stat;
     char str_stat[256];
 
@@ -2798,7 +2798,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
 
 //cb_fail_htlc_recv(): 巻き戻し
-static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail)
+static void cbsub_fail_backwind(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *p_fail)
 {
     (void)p_conf;
 
@@ -2813,6 +2813,8 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
         }
         pthread_mutex_unlock(&p_prevconf->mux_self);
     }
+    p_fail->result = ret;
+
     if (ret) {
         show_self_param(p_conf->p_self, stderr, "fail_htlc send", __LINE__);
 
@@ -2832,7 +2834,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
 
 
 //cb_fail_htlc_recv(): final node
-static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail)
+static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *p_fail)
 {
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;
@@ -2847,6 +2849,8 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         utl_buf_alloccopy(&reason, p_fail->p_reason->buf, p_fail->p_reason->len);
         hop = 0;
     }
+    p_fail->result = ret;
+
     if (ret) {
         LOGD("  failure reason= ");
         DUMPD(reason.buf, reason.len);
@@ -2875,20 +2879,14 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         char suggest[LN_SZ_SHORTCHANNELID_STR + 1];
         const payment_conf_t *p_payconf = payroute_get(p_conf, p_fail->orig_id);
         if (p_payconf != NULL) {
-            if (hop == p_payconf->hop_num - 2) {
-                //送金先がエラーを返した
-                strcpy(suggest, "final node");
-            } else if (hop < p_payconf->hop_num - 2) {
-                //途中がエラーを返した
-                // LOGD2("hop=%d\n", hop);
-                // for (int lp = 0; lp < p_payconf.hop_num; lp++) {
-                //     LOGD2("[%d]%" PRIu64 "\n", lp, p_payconf->hop_datain[lp].short_channel_id);
-                // }
-
-                uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
-                ln_short_channel_id_string(suggest, short_channel_id);
+            uint64_t short_channel_id = 0;
+            if (hop <= p_payconf->hop_num - 2) {
+                short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
                 ln_db_routeskip_save(short_channel_id, btemp);
+                ln_short_channel_id_string(suggest, short_channel_id);
+                p_fail->result = true;
             } else {
+                LOGE("fail: invalid result\n");
                 strcpy(suggest, "invalid");
             }
         } else {
