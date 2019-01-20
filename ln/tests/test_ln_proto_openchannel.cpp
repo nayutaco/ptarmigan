@@ -233,9 +233,6 @@ namespace LN_DUMMY {
         0x40, 0xfd, 0xde, 0x21, 0x7b, 0xb2, 0xd6, 0xbc, 0x4c, 0x9e, 0x20, 0xc5, 0xe5, 0x31, 0x93, 0xd0,
         0x71, 0xeb, 0xef, 0x7c, 0x13, 0x81, 0x04, 0x19, 0x82, 0x6a, 0xf8, 0x86, 0x2a, 0xf1, 0x22, 0xad,
     };
-    const uint8_t CHANNEL_FLAGS[] = {
-        0x00,
-    };
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -275,7 +272,7 @@ TEST_F(ln, recv_open_channel_ok)
             pMsg->p_delayed_payment_basepoint = pubkey;
             pMsg->p_htlc_basepoint = pubkey;
             pMsg->p_first_per_commitment_point = pubkey;
-            pMsg->p_channel_flags = LN_DUMMY::CHANNEL_FLAGS;
+            pMsg->channel_flags = CHANNEL_FLAGS_VALUE;
             pMsg->shutdown_len = 0;
             pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
@@ -335,7 +332,7 @@ TEST_F(ln, recv_open_channel_sender1)
             pMsg->p_delayed_payment_basepoint = pubkey;
             pMsg->p_htlc_basepoint = pubkey;
             pMsg->p_first_per_commitment_point = pubkey;
-            pMsg->p_channel_flags = LN_DUMMY::CHANNEL_FLAGS;
+            pMsg->channel_flags = CHANNEL_FLAGS_VALUE;
             pMsg->shutdown_len = 0;
             pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
@@ -396,7 +393,7 @@ TEST_F(ln, recv_open_channel_sender2)
             pMsg->p_delayed_payment_basepoint = pubkey;
             pMsg->p_htlc_basepoint = pubkey;
             pMsg->p_first_per_commitment_point = pubkey;
-            pMsg->p_channel_flags = LN_DUMMY::CHANNEL_FLAGS;
+            pMsg->channel_flags = CHANNEL_FLAGS_VALUE;
             pMsg->shutdown_len = 0;
             pMsg->p_shutdown_scriptpubkey = NULL;
             return true;

@@ -138,7 +138,6 @@ extern "C" {
 #define LN_INIT_LF_OPT_GSP_QUERY        (1 << 7)    ///< gossip_queries
 
 //XXX:
-#define LN_SZ_CHANNEL_FLAGS             (1)
 #define LN_MAX_ACCEPTED_HTLCS_MAX       (483)
 #define LN_NUM_PONG_BYTES_MAX           (65532 - 1)
 #define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
