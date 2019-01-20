@@ -245,7 +245,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(
                 ln_self_t *self,
-                ln_cnl_update_t *pUpd,
+                ln_msg_channel_update_t *pUpd,
                 utl_buf_t *pCnlUpd,
                 uint32_t TimeStamp,
                 uint8_t Flag);
@@ -1195,7 +1195,7 @@ bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd)
     bool ret;
 
     uint32_t now = (uint32_t)utl_time_time();
-    ln_cnl_update_t upd;
+    ln_msg_channel_update_t upd;
     ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
     if (ret) {
         LOGD("create: channel_update\n");
@@ -1215,7 +1215,7 @@ bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd)
 }
 
 
-bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cnl_update_t *pMsg)
+bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg)
 {
     bool ret;
 
@@ -1223,16 +1223,16 @@ bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cn
     uint8_t dir = (sort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
     ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
-        ret = ln_msg_cnl_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
+        ret = ln_msg_channel_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
 
     return ret;
 }
 
 
-bool ln_channel_update_get_params(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len)
+bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *pData, uint16_t Len)
 {
-    bool ret = ln_msg_cnl_update_read(pUpd, pData, Len);
+    bool ret = ln_msg_channel_update_read(pUpd, pData, Len);
     return ret;
 }
 
@@ -2266,13 +2266,13 @@ const char *ln_errmsg(const ln_self_t *self)
 }
 
 
-int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd)
+int ln_cnlupd_direction(const ln_msg_channel_update_t *pCnlUpd)
 {
     return (pCnlUpd->channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? 1 : 0;
 }
 
 
-bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd)
+bool ln_cnlupd_enable(const ln_msg_channel_update_t *pCnlUpd)
 {
     return !(pCnlUpd->channel_flags & LN_CNLUPD_CHFLAGS_DISABLE);
 }
@@ -4322,17 +4322,17 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     (void)self;
 
     bool ret;
-    ln_cnl_update_t upd;
-    memset(&upd, 0, sizeof(upd));
+    ln_msg_channel_update_t msg;
+    memset(&msg, 0, sizeof(msg));
 
-    ret = ln_msg_cnl_update_read(&upd, pData, Len);
+    ret = ln_msg_channel_update_read(&msg, pData, Len);
     if (ret) {
         //timestamp check
         uint64_t now = (uint64_t)utl_time_time();
-        if (ln_db_annocnlupd_is_prune(now, upd.timestamp)) {
+        if (ln_db_annocnlupd_is_prune(now, msg.timestamp)) {
             //ret = false;
             char time[UTL_SZ_TIME_FMT_STR + 1];
-            LOGD("older channel: not save(%016" PRIx64 "): %s\n", upd.short_channel_id, utl_time_fmt(time, upd.timestamp));
+            LOGD("older channel: not save(%016" PRIx64 "): %s\n", msg.short_channel_id, utl_time_fmt(time, msg.timestamp));
             return true;
         }
     } else {
@@ -4340,19 +4340,19 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         return true;
     }
 
-    if (memcmp(gGenesisChainHash, upd.p_chain_hash, sizeof(gGenesisChainHash))) {
+    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
         LOGE("fail: chain_hash mismatch\n");
         return true;
     }
 
-    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), upd.short_channel_id);
+    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), msg.short_channel_id);
 
     //short_channel_id と dir から node_id を取得する
     uint8_t node_id[BTC_SZ_PUBKEY];
 
-    ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
+    ret = get_nodeid_from_annocnl(self, node_id, msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
     if (ret && btc_keys_check_pub(node_id)) {
-        ret = ln_msg_cnl_update_verify(node_id, pData, Len);
+        ret = ln_msg_channel_update_verify(node_id, pData, Len);
         if (!ret) {
             LOGE("fail: verify\n");
         }
@@ -4369,22 +4369,22 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     //  if the timestamp is unreasonably far in the future:
     //    MAY discard the channel_update.
     time_t now = utl_time_time();
-    if (upd.timestamp > now + M_UPDCNL_TIMERANGE) {
+    if (msg.timestamp > now + M_UPDCNL_TIMERANGE) {
         LOGD("through: timestamp is unreasonably far\n");
         ret = false;
     }
 
-    ln_cb_update_annodb_t annodb;
-    annodb.anno = LN_CB_UPDATE_ANNODB_NONE;
+    ln_cb_update_annodb_t db;
+    db.anno = LN_CB_UPDATE_ANNODB_NONE;
     if (ret) {
         //DB保存
         utl_buf_t buf = UTL_BUF_INIT;
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
-        ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
+        ret = ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(self));
         if (ret) {
-            LOGD("save channel_update: %016" PRIx64 ":%d\n", upd.short_channel_id, upd.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
-            annodb.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
+            LOGD("save channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
+            db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
         } else {
             LOGE("fail: db save\n");
         }
@@ -4393,7 +4393,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //スルーするだけにとどめる
         ret = true;
     }
-    callback(self, LN_CB_UPDATE_ANNODB, &annodb);
+    callback(self, LN_CB_UPDATE_ANNODB, &db);
 
     return ret;
 }
@@ -4826,25 +4826,26 @@ static bool create_local_channel_announcement(ln_self_t *self)
  */
 static bool create_channel_update(
                 ln_self_t *self,
-                ln_cnl_update_t *pUpd,
+                ln_msg_channel_update_t *pUpd,
                 utl_buf_t *pCnlUpd,
                 uint32_t TimeStamp,
                 uint8_t Flag)
 {
+    uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
+    memset(dummy_signature, 0xcc, sizeof(dummy_signature));
+    pUpd->p_signature = dummy_signature;
+    pUpd->p_chain_hash = gGenesisChainHash;
     pUpd->short_channel_id = self->short_channel_id;
     pUpd->timestamp = TimeStamp;
+    pUpd->message_flags = 0;
+    pUpd->channel_flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
     pUpd->cltv_expiry_delta = self->anno_prm.cltv_expiry_delta;
     pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
-    pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
-    pUpd->message_flags = 0;
-    pUpd->channel_flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
+    pUpd->fee_proportional_millionths = self->anno_prm.fee_prop_millionths;
     pUpd->htlc_maximum_msat = 0;
-    bool ret = ln_msg_cnl_update_write(pCnlUpd, pUpd);
-    if (ret) {
-        ret = ln_msg_cnl_update_sign(pCnlUpd->buf, pCnlUpd->len);
-    }
-    return ret;
+    if (!ln_msg_channel_update_write(pCnlUpd, pUpd)) return false;
+    return ln_msg_channel_update_sign(pCnlUpd->buf, pCnlUpd->len);
 }
 
 
@@ -4931,12 +4932,12 @@ static bool check_create_add_htlc(
 LABEL_EXIT:
     if (pReason != NULL) {
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ln_cnl_update_t upd;
+        ln_msg_channel_update_t upd;
 
         bool retval = ln_channel_update_get_peer(self, &buf_bolt, NULL);
         if (retval) {
             memset(&upd, 0, sizeof(upd));
-            retval = ln_msg_cnl_update_read(&upd, buf_bolt.buf, buf_bolt.len);
+            retval = ln_msg_channel_update_read(&upd, buf_bolt.buf, buf_bolt.len);
         }
         if (ret) {
             if (retval) {
@@ -5231,7 +5232,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     }
 
     //channel_update読み込み
-    ln_cnl_update_t cnlupd;
+    ln_msg_channel_update_t cnlupd;
     utl_buf_t cnlupd_buf = UTL_BUF_INIT;
     uint8_t peer_id[BTC_SZ_PUBKEY];
     bool ret = ln_node_search_nodeid(peer_id, pDataOut->short_channel_id);
@@ -5245,9 +5246,9 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
         LOGE("fail: ln_node_search_nodeid\n");
     }
     if (ret) {
-        ret = ln_msg_cnl_update_read(&cnlupd, cnlupd_buf.buf, cnlupd_buf.len);
+        ret = ln_msg_channel_update_read(&cnlupd, cnlupd_buf.buf, cnlupd_buf.len);
         if (!ret) {
-            LOGE("fail: ln_msg_cnl_update_read\n");
+            LOGE("fail: ln_msg_channel_update_read\n");
         }
     }
     if (!ret) {
@@ -5424,7 +5425,7 @@ static void proc_anno_sigs(ln_self_t *self)
         //channel_update
         utl_buf_t buf_upd = UTL_BUF_INIT;
         uint32_t now = (uint32_t)utl_time_time();
-        ln_cnl_update_t upd;
+        ln_msg_channel_update_t upd;
         bool ret2 = create_channel_update(self, &upd, &buf_upd, now, 0);
         if (ret2) {
             ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
@@ -5768,7 +5769,7 @@ static void disable_channel_update(ln_self_t *self)
 {
     utl_buf_t buf_upd = UTL_BUF_INIT;
     uint32_t now = (uint32_t)utl_time_time();
-    ln_cnl_update_t upd;
+    ln_msg_channel_update_t upd;
     bool ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_CHFLAGS_DISABLE);
     if (ret) {
         ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));

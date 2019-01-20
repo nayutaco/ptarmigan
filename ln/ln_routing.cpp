@@ -79,7 +79,7 @@ using namespace boost;
 
 extern "C" {
     bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
-    bool ln_channel_update_get_params(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
+    bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
 struct Node {
@@ -203,7 +203,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
         if (p_result->node_num > 0) {
             p_nodes = &p_result->p_nodes[p_result->node_num - 1];
 
-            ln_cnl_update_t upd;
+            ln_msg_channel_update_t upd;
             int idx = type - LN_DB_CNLANNO_UPD1;
             bool bret = ln_channel_update_get_params(&upd, p_buf->buf, p_buf->len);
             if (bret && ((upd.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) == 0)) {
@@ -212,7 +212,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                     p_nodes->ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
                     p_nodes->ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
                     p_nodes->ninfo[idx].fee_base_msat = upd.fee_base_msat;
-                    p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+                    p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_proportional_millionths;
 
                     M_DBGLOGV("[upd]nodenum=%d\n", p_result->node_num);
                     M_DBGLOGV("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);

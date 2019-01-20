@@ -35,6 +35,9 @@
 #define LN_SZ_ALIAS_STR                 (32)        ///< (size) node alias //XXX:
 #define LN_SZ_RGB_COLOR                 (3)         ///< (size) rgb color
 
+// channel_update.message_flags
+#define LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX      (0x01)      ///< b0: option_channel_htlc_max
+
 
 /**************************************************************************
  * typedefs
@@ -164,21 +167,36 @@ typedef struct {
 } ln_msg_node_announcement_addresses_t;
 
 
-/** @struct     ln_cnl_update_t
+/** @struct     ln_msg_channel_update_t
  *  @brief      channel_update
  */
 typedef struct {
-    const uint8_t   *p_chain_hash;
-    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
-    uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
-    uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)
-    uint32_t    timestamp;                          ///< 4:  timestamp
-    uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
-    uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
-    uint16_t    cltv_expiry_delta;                  ///< 2:  cltv_expiry_delta
-    uint8_t     message_flags;                      ///< 1:  message_flags
-    uint8_t     channel_flags;                      ///< 1:  channel_flags
-} ln_cnl_update_t;
+    //type: 258 (channel_update)
+    //data:
+    //  [64:signature]
+    //  [32:chain_hash]
+    //  [8:short_channel_id]
+    //  [4:timestamp]
+    //  [1:message_flags]
+    //  [1:channel_flags]
+    //  [2:cltv_expiry_delta]
+    //  [8:htlc_minimum_msat]
+    //  [4:fee_base_msat]
+    //  [4:fee_proportional_millionths]
+    //  [8:htlc_maximum_msat] (option_channel_htlc_max)
+
+    const uint8_t *p_signature;
+    const uint8_t *p_chain_hash;
+    uint64_t short_channel_id;
+    uint32_t timestamp;
+    uint8_t message_flags;
+    uint8_t channel_flags;
+    uint16_t cltv_expiry_delta;
+    uint64_t htlc_minimum_msat;
+    uint32_t fee_base_msat;
+    uint32_t fee_proportional_millionths;
+    uint64_t htlc_maximum_msat;
+} ln_msg_channel_update_t;
 
 
 /**************************************************************************
@@ -257,10 +275,10 @@ bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len
 void HIDDEN ln_msg_channel_announcement_get_sigs(uint8_t *pData, uint8_t **ppSigNode, uint8_t **ppSigBtc, bool bLocal, btc_script_pubkey_order_t Order);
 
 
-/** print channel_update
+/** short_channel_id書き換え //XXX:
  *
  */
-void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg);
+bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, uint64_t ShortChannelId);
 
 
 /** write node_announcement
@@ -308,7 +326,7 @@ bool HIDDEN ln_msg_node_announcement_verify(const ln_msg_node_announcement_t *pM
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg);
+bool HIDDEN ln_msg_channel_update_write(utl_buf_t *pBuf, const ln_msg_channel_update_t *pMsg);
 
 
 /** read channel_update
@@ -318,13 +336,13 @@ bool HIDDEN ln_msg_cnl_update_write(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool /*HIDDEN*/ ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_msg_channel_update_read(ln_msg_channel_update_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** sign channel_update
  *
  */
-bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_channel_update_sign(uint8_t *pData, uint16_t Len);
 
 
 /** verify channel_update
@@ -334,12 +352,13 @@ bool HIDDEN ln_msg_cnl_update_sign(uint8_t *pData, uint16_t Len);
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_channel_update_verify(const uint8_t *pNodePubKey, const uint8_t *pData, uint16_t Len);
 
 
-/** short_channel_id書き換え //XXX:
+/** print channel_update
  *
  */
-bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, uint64_t ShortChannelId);
+bool HIDDEN ln_msg_channel_update_print(const uint8_t *pData, uint16_t Len);
+
 
 #endif /* LN_MSG_ANNO_H__ */

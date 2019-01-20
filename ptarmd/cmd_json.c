@@ -2075,7 +2075,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     rfield_prm_t *prm = (rfield_prm_t *)p_param;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_cnl_update_t msg;
+    ln_msg_channel_update_t msg;
     ret = ln_channel_update_get_peer(self, &buf_bolt, &msg);
     if (ret && !ln_is_announced(self)) {
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
@@ -2085,7 +2085,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
         memcpy(pfield->node_id, ln_their_node_id(self), BTC_SZ_PUBKEY);
         pfield->short_channel_id = ln_short_channel_id(self);
         pfield->fee_base_msat = msg.fee_base_msat;
-        pfield->fee_prop_millionths = msg.fee_prop_millionths;
+        pfield->fee_prop_millionths = msg.fee_proportional_millionths;
         pfield->cltv_expiry_delta = msg.cltv_expiry_delta;
 
         (*prm->p_fieldnum)++;

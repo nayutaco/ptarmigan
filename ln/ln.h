@@ -96,9 +96,6 @@ extern "C" {
 #define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
 #define LN_DELHTLC_MALFORMED            (0x03)      ///< update_fail_malformed_htlc
 
-// channel_update.message_flags
-#define LN_CNLUPD_MSGFLAGS_HTLCMAX      (0x01)      ///< b0: option_channel_htlc_max
-
 // channel_update.channel_flags
 #define LN_CNLUPD_CHFLAGS_DIRECTION     (0x01)      ///< b0: direction
 #define LN_CNLUPD_CHFLAGS_DISABLE       (0x02)      ///< b1: disable
@@ -1232,7 +1229,7 @@ bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd);
  * @param[out]          pMsg        (非NULL)pCnlUpdデコード結果
  * @retval      ture    成功
  */
-bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cnl_update_t *pMsg);
+bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg);
 
 
 /** [routing用]channel_updateデータ解析
@@ -1242,7 +1239,7 @@ bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cn
  * @param[in]           Len
  * @retval      true    解析成功
  */
-bool ln_channel_update_get_params(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
+bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 
 
 /********************************************************************
@@ -1947,14 +1944,14 @@ const char *ln_errmsg(const ln_self_t *self);
  * @retval      0   node_1
  * @retval      1   node_2
  */
-int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd);
+int ln_cnlupd_direction(const ln_msg_channel_update_t *pCnlUpd);
 
 
 /** [channel_update]disableフラグ取得
  *
  * @retval      true    disableフラグが立っていない
  */
-bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd);
+bool ln_cnlupd_enable(const ln_msg_channel_update_t *pCnlUpd);
 
 
 /********************************************************************
