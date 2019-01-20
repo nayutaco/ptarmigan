@@ -300,7 +300,16 @@ bool HIDDEN ln_msg_node_announcement_write(utl_buf_t *pBuf, const ln_msg_node_an
 bool /*HIDDEN*/ ln_msg_node_announcement_read(ln_msg_node_announcement_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
+//XXX:
+bool /*HIDDEN*/ ln_msg_node_announcement_read_2(
+    ln_msg_node_announcement_t *pMsg, ln_msg_node_announcement_addresses_t *pAddrs, const uint8_t *pData, uint16_t Len);
+
+
 bool HIDDEN ln_msg_node_announcement_print(const uint8_t *pData, uint16_t Len);
+
+
+//XXX:
+bool HIDDEN ln_msg_node_announcement_print_2(const uint8_t *pData, uint16_t Len);
 
 
 //XXX:

@@ -79,7 +79,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
         ln_msg_channel_announcement_print(pData, Len);
         break;
     case MSGTYPE_NODE_ANNOUNCEMENT:
-        ln_msg_node_announcement_print(pData, Len);
+        ln_msg_node_announcement_print_2(pData, Len);
         break;
     case MSGTYPE_CHANNEL_UPDATE:
         ln_msg_channel_update_print(pData, Len);

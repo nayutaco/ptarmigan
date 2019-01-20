@@ -404,6 +404,14 @@ LABEL_ERROR_SYNTAX:
 }
 
 
+bool /*HIDDEN*/ ln_msg_node_announcement_read_2(
+    ln_msg_node_announcement_t *pMsg, ln_msg_node_announcement_addresses_t *pAddrs, const uint8_t *pData, uint16_t Len)
+{
+    if (!ln_msg_node_announcement_read(pMsg, pData, Len)) return false;
+    return ln_msg_node_announcement_addresses_read(pAddrs, pMsg->p_addresses, pMsg->addrlen);
+}
+
+
 #if defined(DBG_PRINT_WRITE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announcement_print(const ln_msg_node_announcement_t *pMsg)
 {
@@ -437,6 +445,19 @@ bool HIDDEN ln_msg_node_announcement_print(const uint8_t *pData, uint16_t Len)
     if (!ln_msg_node_announcement_read(&msg, pData, Len)) return false;
 #ifndef DBG_PRINT_READ_NOD //ln_msg_node_announcement_read don't print
     node_announcement_print(&msg);
+#endif
+    return true;
+}
+
+
+bool HIDDEN ln_msg_node_announcement_print_2(const uint8_t *pData, uint16_t Len)
+{
+    ln_msg_node_announcement_t msg;
+    ln_msg_node_announcement_addresses_t addrs;
+    if (!ln_msg_node_announcement_read_2(&msg, &addrs, pData, Len)) return false;
+#ifndef DBG_PRINT_READ_NOD //ln_msg_node_announcement_read_2 don't print
+    node_announcement_print(&msg);
+    node_announcement_addresses_print(&addrs);
 #endif
     return true;
 }
