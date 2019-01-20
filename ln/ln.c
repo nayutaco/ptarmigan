@@ -1120,42 +1120,41 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
 #endif
 
     //open_channel
-    ln_msg_open_channel_t open_ch;
-    uint8_t channel_flags = CHANNEL_FLAGS_VALUE;
-    open_ch.p_chain_hash = gGenesisChainHash;
-    open_ch.p_temporary_channel_id = self->channel_id;
-    open_ch.funding_satoshis = FundingSat;
-    open_ch.push_msat = LN_SATOSHI2MSAT(PushSat);
-    open_ch.dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
-    open_ch.max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
-    open_ch.channel_reserve_satoshis = self->p_establish->estprm.channel_reserve_sat;
-    open_ch.htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
-    open_ch.feerate_per_kw = FeeRate;
-    open_ch.to_self_delay = self->p_establish->estprm.to_self_delay;
-    open_ch.max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
-    open_ch.p_funding_pubkey = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-    open_ch.p_revocation_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION];
-    open_ch.p_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT];
-    open_ch.p_delayed_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_DELAYED];
-    open_ch.p_htlc_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_HTLC];
-    open_ch.p_first_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    open_ch.p_channel_flags = &channel_flags;
-    open_ch.shutdown_len = 0;
-    open_ch.p_shutdown_scriptpubkey = NULL;
-    ln_msg_open_channel_write(pOpen, &open_ch);
+    ln_msg_open_channel_t msg;
+    msg.p_chain_hash = gGenesisChainHash;
+    msg.p_temporary_channel_id = self->channel_id;
+    msg.funding_satoshis = FundingSat;
+    msg.push_msat = LN_SATOSHI2MSAT(PushSat);
+    msg.dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
+    msg.max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
+    msg.channel_reserve_satoshis = self->p_establish->estprm.channel_reserve_sat;
+    msg.htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
+    msg.feerate_per_kw = FeeRate;
+    msg.to_self_delay = self->p_establish->estprm.to_self_delay;
+    msg.max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
+    msg.p_funding_pubkey = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
+    msg.p_revocation_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION];
+    msg.p_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT];
+    msg.p_delayed_payment_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_DELAYED];
+    msg.p_htlc_basepoint = self->funding_local.pubkeys[MSG_FUNDIDX_HTLC];
+    msg.p_first_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    msg.channel_flags = CHANNEL_FLAGS_VALUE;
+    msg.shutdown_len = 0;
+    msg.p_shutdown_scriptpubkey = NULL;
+    ln_msg_open_channel_write(pOpen, &msg);
 
-    self->commit_local.dust_limit_sat = open_ch.dust_limit_satoshis;
-    self->commit_local.max_htlc_value_in_flight_msat = open_ch.max_htlc_value_in_flight_msat;
-    self->commit_local.channel_reserve_sat = open_ch.channel_reserve_satoshis;
-    self->commit_local.htlc_minimum_msat = open_ch.htlc_minimum_msat;
-    self->commit_local.to_self_delay = open_ch.to_self_delay;
-    self->commit_local.max_accepted_htlcs = open_ch.max_accepted_htlcs;
-    self->our_msat = LN_SATOSHI2MSAT(open_ch.funding_satoshis) - open_ch.push_msat;
-    self->their_msat = open_ch.push_msat;
-    self->funding_sat = open_ch.funding_satoshis;
-    self->feerate_per_kw = open_ch.feerate_per_kw;
+    self->commit_local.dust_limit_sat = msg.dust_limit_satoshis;
+    self->commit_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
+    self->commit_local.channel_reserve_sat = msg.channel_reserve_satoshis;
+    self->commit_local.htlc_minimum_msat = msg.htlc_minimum_msat;
+    self->commit_local.to_self_delay = msg.to_self_delay;
+    self->commit_local.max_accepted_htlcs = msg.max_accepted_htlcs;
+    self->our_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
+    self->their_msat = msg.push_msat;
+    self->funding_sat = msg.funding_satoshis;
+    self->feerate_per_kw = msg.feerate_per_kw;
 
-    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((open_ch.p_channel_flags[0] & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     return true;
 }
@@ -2880,7 +2879,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     ret = btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
-        self->fund_flag = (ln_fundflag_t)(((open_ch.p_channel_flags[0] & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+        self->fund_flag = (ln_fundflag_t)(((open_ch.channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     } else {
         M_SET_ERR(self, LNERR_CREATE_2OF2, "create 2-of-2");
     }

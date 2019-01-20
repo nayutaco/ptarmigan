@@ -84,7 +84,7 @@ typedef struct {
     const uint8_t   *p_delayed_payment_basepoint;
     const uint8_t   *p_htlc_basepoint;
     const uint8_t   *p_first_per_commitment_point;
-    const uint8_t   *p_channel_flags;
+    uint8_t         channel_flags;
     uint16_t        shutdown_len;
     const uint8_t   *p_shutdown_scriptpubkey;
 } ln_msg_open_channel_t;

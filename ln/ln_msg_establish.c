@@ -99,7 +99,7 @@ bool HIDDEN ln_msg_open_channel_write(utl_buf_t *pBuf, const ln_msg_open_channel
     if (!btc_buf_w_write_data(&buf_w, pMsg->p_delayed_payment_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
     if (!btc_buf_w_write_data(&buf_w, pMsg->p_htlc_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
     if (!btc_buf_w_write_data(&buf_w, pMsg->p_first_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
-    if (!btc_buf_w_write_data(&buf_w, pMsg->p_channel_flags, LN_SZ_CHANNEL_FLAGS)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, pMsg->channel_flags)) goto LABEL_ERROR;
     if (pMsg->shutdown_len) {
         if (!btc_buf_w_write_u16be(&buf_w, pMsg->shutdown_len)) goto LABEL_ERROR;
         if (!btc_buf_w_write_data(&buf_w, pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len)) goto LABEL_ERROR;
@@ -140,7 +140,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_msg_open_channel_t *pMsg, const uint8_t 
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_delayed_payment_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_htlc_basepoint, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_first_per_commitment_point, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
-    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_channel_flags, LN_SZ_CHANNEL_FLAGS)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_byte(&buf_r, &pMsg->channel_flags)) goto LABEL_ERROR_SYNTAX;
     //XXX: check `option_upfront_shutdown_script`
     pMsg->shutdown_len = 0; //XXX:
     // if (!btc_buf_r_read_u16be(&buf_r, &pMsg->shutdown_len)) goto LABEL_ERROR_SYNTAX;
@@ -188,8 +188,8 @@ static bool open_channel_check(const ln_msg_open_channel_t *pMsg)
     if (!btc_keys_check_pub(pMsg->p_htlc_basepoint)) goto LABEL_ERROR_INVALID_PUBKEY;
     if (!btc_keys_check_pub(pMsg->p_first_per_commitment_point)) goto LABEL_ERROR_INVALID_PUBKEY;
     //XXX: ignore undefined bits
-    //if ((pMsg->p_channel_flags[0] & ~CHANNEL_FLAGS_MASK) != 0) {
-    //    LOGE("fail: unknown channel_flags: %02x\n", pMsg->p_cahannel_flags[0]);
+    //if ((pMsg->channel_flags & ~CHANNEL_FLAGS_MASK) != 0) {
+    //    LOGE("fail: unknown channel_flags: %02x\n", pMsg->cahannel_flags);
     //    return false;
     //}
     return true;
@@ -229,8 +229,7 @@ static void open_channel_print(const ln_msg_open_channel_t *pMsg)
     DUMPD(pMsg->p_htlc_basepoint, BTC_SZ_PUBKEY);
     LOGD("first_per_commitment_point: ");
     DUMPD(pMsg->p_first_per_commitment_point, BTC_SZ_PUBKEY);
-    LOGD("channel_flags: ");
-    DUMPD(pMsg->p_channel_flags, LN_SZ_CHANNEL_FLAGS);
+    LOGD("channel_flags: 0x%02x\n", pMsg->channel_flags);
     LOGD("shutdown_scriptpubkey: ");
     DUMPD(pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len);
     LOGD("--------------------------------\n");
