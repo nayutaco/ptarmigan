@@ -554,7 +554,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
         {
             ln_msg_node_announcement_t msg;
             ln_msg_node_announcement_addresses_t addrs;
-            if (ln_msg_node_announcement_read(&msg, pData, Len)) {
+            if (ln_msg_node_announcement_read_2(&msg, &addrs, pData, Len)) {
                 printf(INDENT3 M_QQ("node") ": \"");
                 utl_dbg_dump(stdout, msg.p_node_id, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
@@ -564,9 +564,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 escape_json_string(esc_alias, alias);
                 printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", esc_alias);
                 printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.p_rgb_color[0], msg.p_rgb_color[1], msg.p_rgb_color[2]);
-
-                if (ln_msg_node_announcement_addresses_read(&addrs, msg.p_addresses, msg.addrlen) &&
-                    addrs.num) {
+                if (addrs.num) {
                     ln_msg_node_announcement_address_descriptor_t *addr_desc = &addrs.addresses[0];
                     if (addr_desc->type == LN_ADDR_DESC_TYPE_IPV4) {
                         char addr[50];
