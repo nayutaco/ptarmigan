@@ -20,6 +20,7 @@ ls \
     btc/examples/*.[ch] \
  \
     ln/*.[ch] \
+    ln/*.cpp \
     ln/tests/*.[ch]pp \
  \
     ptarmd/*.[ch] \
