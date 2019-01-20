@@ -431,6 +431,17 @@ static void node_announcement_print(const ln_msg_node_announcement_t *pMsg)
 #endif
 
 
+bool HIDDEN ln_msg_node_announcement_print(const uint8_t *pData, uint16_t Len)
+{
+    ln_msg_node_announcement_t msg;
+    if (!ln_msg_node_announcement_read(&msg, pData, Len)) return false;
+#ifndef DBG_PRINT_READ_NOD //ln_msg_node_announcement_read don't print
+    node_announcement_print(&msg);
+#endif
+    return true;
+}
+
+
 bool HIDDEN ln_msg_node_announcement_addresses_write(utl_buf_t *pBuf, const ln_msg_node_announcement_addresses_t *pAddrs) {
 #ifdef DBG_PRINT_WRITE_NOD
     LOGD("@@@@@ %s @@@@@\n", __func__);
