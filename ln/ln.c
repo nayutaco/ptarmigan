@@ -3060,42 +3060,31 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 {
     LOGD("BEGIN\n");
 
-    bool ret;
-
     if (!ln_is_funder(self)) {
-        //open_channel送信側ではない
         M_SET_ERR(self, LNERR_INV_SIDE, "not funder");
         return false;
     }
 
     ln_msg_funding_signed_t msg;
-    ret = ln_msg_funding_signed_read(&msg, pData, Len);
-    if (!ret) {
+    if (!ln_msg_funding_signed_read(&msg, pData, Len)) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
     memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
-    //channel-id生成
+    //channel_id
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
-
-    //channel-idチェック
-    ret = chk_channelid(msg.p_channel_id, self->channel_id);
-    if (!ret) {
+    if (!chk_channelid(msg.p_channel_id, self->channel_id)) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
-    //
-    // initial commit tx(自分が持つTo-Local)
-    //      to-self-delayは相手の値(accept_channel)を使う
-    //      HTLCは存在しない
-    ret = ln_comtx_create_to_local(self,
-            NULL, NULL, 0,      //closeもHTLC署名も無し
-            0,
-            self->commit_remote.to_self_delay,
-            self->commit_local.dust_limit_sat);
-    if (!ret) {
+    //initial commit tx(自分が持つTo-Local)
+    //  to-self-delayは相手の値(accept_channel)を使う
+    //  HTLCは存在しない
+    if (!ln_comtx_create_to_local(self,
+        NULL, NULL, 0,      //closeもHTLC署名も無し
+        0, self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -3104,7 +3093,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     start_funding_wait(self, true);
 
     LOGD("END\n");
-    return ret;
+    return true;
 }
 
 
