@@ -63,7 +63,7 @@
  * macros
  **************************************************************************/
 
-#define M_SZ_TO_LOCAL_TX(len)                   (213+len)   ///< to_local transaction長[byte]
+#define M_SZ_TO_LOCAL_TX(len)                   (213 + len) ///< to_local transaction長[byte]
                                                             // <version> 4
                                                             // <flag><marker> 2
                                                             // vin_cnt 1
@@ -79,7 +79,7 @@
                                                             //      scriptpk 1+len
                                                             // locktime 4
 
-#define M_SZ_TO_REMOTE_TX(len)                  (169+len)   ///< to_remote transaction長[byte]
+#define M_SZ_TO_REMOTE_TX(len)                  (169 + len) ///< to_remote transaction長[byte]
                                                             // <version> 4
                                                             // <flag><marker> 2
                                                             // vin_cnt 1
@@ -95,14 +95,14 @@
                                                             //      scriptpk 1+len
                                                             // locktime 4
 
-#define M_SZ_TO_LOCAL_PENALTY                   (324)
-#define M_SZ_OFFERED_PENALTY                    (407)
-#define M_SZ_RECEIVED_PENALTY                   (413)
+#define M_SZ_TO_LOCAL_PENALTY               (324)
+#define M_SZ_OFFERED_PENALTY                (407)
+#define M_SZ_RECEIVED_PENALTY               (413)
 
+#define M_HTLCCHG_NONE                      (0)
+#define M_HTLCCHG_FF_SEND                   (1)
+#define M_HTLCCHG_FF_RECV                   (2)
 
-#define M_HTLCCHG_NONE                          (0)
-#define M_HTLCCHG_FF_SEND                       (1)
-#define M_HTLCCHG_FF_RECV                       (2)
 
 // ln_self_t.init_flag
 #define M_INIT_FLAG_SEND                    (0x01)
@@ -123,7 +123,7 @@
 //#define LN_ANNO_FLAG_END
 
 // ln_self_t.shutdown_flag
-#define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV)) == (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV))
+#define M_SHDN_FLAG_EXCHANGED(flag)     (((flag) & (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV)) == (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV))
 
 
 /// update_add_htlc+commitment_signed送信直後
@@ -266,8 +266,10 @@ static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static bool set_add_htlc(ln_self_t *self, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx);
+
 static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pInfo);
 static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len);
+
 static void add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
 static void fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
 static void fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
@@ -639,28 +641,20 @@ void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk)
 
 bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    bool ret;
-
-    ret = ln_enc_auth_handshake_init(self, pNodeId);
-    if (ret && (pNodeId != NULL)) {
-        ret = ln_enc_auth_handshake_start(self, pBuf, pNodeId);
+    if (!ln_enc_auth_handshake_init(self, pNodeId)) return false;
+    if (pNodeId != NULL) {
+        if (!ln_enc_auth_handshake_start(self, pBuf, pNodeId)) return false;
     }
-
-    return ret;
+    return true;
 }
 
 
 bool ln_handshake_recv(ln_self_t *self, bool *pCont, utl_buf_t *pBuf)
 {
-    bool ret;
-
-    ret = ln_enc_auth_handshake_recv(self, pBuf);
-    if (ret) {
-        //次も受信を続けるかどうか
-        *pCont = ln_enc_auth_handshake_state(self);
-    }
-
-    return ret;
+    if (!ln_enc_auth_handshake_recv(self, pBuf)) return false;
+    //continue?
+    *pCont = ln_enc_auth_handshake_state(self);
+    return true;
 }
 
 
@@ -690,32 +684,27 @@ bool ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
 
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    bool ret = false;
     uint16_t type = utl_int_pack_u16be(pData);
 
-    //LOGD("short_channel_id= %016" PRIx64 "\n", self->short_channel_id);
-    if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_EXCHNAGED(self->init_flag))) {
+    if (type != MSGTYPE_INIT && !M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init received : %04x", type);
         return false;
     }
 
     size_t lp;
     for (lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
-        if (type == RECV_FUNC[lp].type) {
-            //LOGD("type=%04x: Len=%d\n", type, Len);
-            ret = (*RECV_FUNC[lp].func)(self, pData, Len);
-            if (!ret) {
-                LOGE("fail: type=%04x\n", type);
-            }
-            break;
+        if (type != RECV_FUNC[lp].type) continue;
+        if (!(*RECV_FUNC[lp].func)(self, pData, Len)) {
+            LOGE("fail: type=%04x\n", type);
+            return false;
         }
+        break;
     }
     if (lp == ARRAY_SIZE(RECV_FUNC)) {
         LOGD("not match: type=%04x\n", type);
-        ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
+        return (type & 1);     //ok to be odd rule --> 奇数ならエラーにしない
     }
-
-    return ret;
+    return true;
 }
 
 
