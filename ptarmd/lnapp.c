@@ -2863,14 +2863,14 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *
 
         ln_onion_err_t onionerr;
         ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_data = UTL_DBG_MALLOC()
-        bool btemp = false;
+        bool btemp = true;
         if (ret) {
             switch (onionerr.reason) {
-            case LNONION_TMP_NODE_FAIL:
-            case LNONION_TMP_CHAN_FAIL:
-            case LNONION_AMT_BELOW_MIN:
-                LOGD("add skip route: temporary\n");
-                btemp = true;
+            case LNONION_PERM_NODE_FAIL:
+            case LNONION_PERM_CHAN_FAIL:
+            case LNONION_CHAN_DISABLE:
+                LOGD("add skip route: permanently\n");
+                btemp = false;
                 break;
             default:
                 break;
@@ -2878,20 +2878,36 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *
         }
 
         //失敗したと思われるshort_channel_idをrouting除外登録
-        //      route.hop_datain[0]は自分、[1]が相手
-        //      hopの0は相手
+        //  route.hop_datain
+        //      [0]自分(update_add_htlcのパラメータ)
+        //      [1]最初のONIONデータ
+        //      ...
+        //      [hop_num - 2]payeeへの最終OINONデータ
+        //      [hop_num - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
         char suggest[LN_SZ_SHORTCHANNELID_STR + 1];
         const payment_conf_t *p_payconf = payroute_get(p_conf, p_fail->orig_id);
         if (p_payconf != NULL) {
+            // for (int lp = 0; lp < p_payconf->hop_num; lp++) {
+            //     LOGD("@@@[%d]%016" PRIx64 ", %" PRIu64 ", %" PRIu32 "\n",
+            //             lp,
+            //             p_payconf->hop_datain[lp].short_channel_id,
+            //             p_payconf->hop_datain[lp].amt_to_forward,
+            //             p_payconf->hop_datain[lp].outgoing_cltv_value);
+            // }
             uint64_t short_channel_id = 0;
-            if (hop <= p_payconf->hop_num - 2) {
+            if (hop == p_payconf->hop_num - 2) {
+                //payeeは自分がINとなるchannelを失敗したとみなす
+                short_channel_id = p_payconf->hop_datain[p_payconf->hop_num - 2].short_channel_id;
+            } else if (hop < p_payconf->hop_num - 2) {
                 short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
-                ln_db_routeskip_save(short_channel_id, btemp);
-                ln_short_channel_id_string(suggest, short_channel_id);
-                p_fail->result = true;
             } else {
                 LOGE("fail: invalid result\n");
                 strcpy(suggest, "invalid");
+            }
+            if (short_channel_id != 0) {
+                ln_db_routeskip_save(short_channel_id, btemp);
+                ln_short_channel_id_string(suggest, short_channel_id);
+                p_fail->result = true;
             }
         } else {
             strcpy(suggest, "?");
