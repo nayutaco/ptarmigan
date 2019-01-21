@@ -21,15 +21,13 @@ all: lib
 
 lib: mk_install mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl
 
-apt: git_update mk_install mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls
-	sudo apt install libboost-dev libjansson-dev libz-dev libcurl4-openssl-dev
+apt: git_update mk_install mk_jsonrpc_c mk_inih mk_base58 mk_mbedtls
+	sudo apt install libboost-dev libjansson-dev libz-dev libcurl4-openssl-dev libev-dev liblmdb-dev
 
 git_update:
 	git submodule update --init inih
 	git submodule update --init jsonrpc-c
 	git submodule update --init libbase58
-	git submodule update --init libev
-	git submodule update --init lmdb
 	git submodule update --init mbedtls
 
 mk_install:
