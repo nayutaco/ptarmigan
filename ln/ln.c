@@ -244,7 +244,7 @@ static bool send_accept_channel(ln_self_t *self);
 static bool send_funding_created(ln_self_t *self);
 static bool send_funding_signed(ln_self_t *self);
 static bool send_closing_signed(ln_self_t *self, ln_msg_closing_signed_t *pClosingSignedMsg);
-static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
+static void send_error(ln_self_t *self, const ln_msg_error_t *pErrorMsg);
 
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
 static bool create_funding_tx(ln_self_t *self, bool bSign);
@@ -4392,10 +4392,10 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
 }
 
 
-static void send_error(ln_self_t *self, const ln_msg_error_t *pError)
+static void send_error(ln_self_t *self, const ln_msg_error_t *pErrorMsg)
 {
     utl_buf_t buf = UTL_BUF_INIT;
-    ln_msg_error_write(&buf, pError);
+    ln_msg_error_write(&buf, pErrorMsg);
     callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 }
