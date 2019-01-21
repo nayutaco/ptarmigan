@@ -3321,7 +3321,10 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             //clearはDB削除に任せる
             //channel_clear(self);
         } else {
+            //XXX: retry to send closing_tx
             LOGE("fail: send closing_tx\n");
+            utl_buf_free(&txbuf);
+            return false;
         }
         utl_buf_free(&txbuf);
     } else {
