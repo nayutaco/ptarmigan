@@ -240,6 +240,7 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
 
 //send
 static bool send_pong(ln_self_t *self, ln_msg_ping_t *pPingMsg);
+static bool send_accept_channel(ln_self_t *self);
 static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
 
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
@@ -2772,10 +2773,8 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    //feerate_per_kw更新
+    //check feerate_per_kw
     callback(self, LN_CB_GET_LATEST_FEERATE, &self->feerate_per_kw);
-
-    //feerate_per_kwの許容チェック
     const char *p_err = NULL;
     if ( (open_ch.feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
          !M_FEERATE_CHK_MIN_OK(self->feerate_per_kw, open_ch.feerate_per_kw) ) {
@@ -2824,12 +2823,24 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->feerate_per_kw = open_ch.feerate_per_kw;
     self->our_msat = open_ch.push_msat;
     self->their_msat = LN_SATOSHI2MSAT(open_ch.funding_satoshis) - open_ch.push_msat;
+    self->fund_flag = (ln_fundflag_t)(((open_ch.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     //鍵生成 && スクリプト用鍵生成
     ln_signer_create_channelkeys(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_print_keys(&self->funding_local, &self->funding_remote);
 
+    if (!send_accept_channel(self)) {
+        LOGE("fail: send accept_channel\n");
+    }
+
+    LOGD("END\n");
+    return ret;
+}
+
+
+static bool send_accept_channel(ln_self_t *self)
+{
     ln_msg_accept_channel_t acc_ch;
     acc_ch.p_temporary_channel_id = self->channel_id;
     acc_ch.dust_limit_satoshis = self->p_establish->estprm.dust_limit_sat;
@@ -2864,20 +2875,16 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //  1番目:open_channelのpayment-basepoint
     //  2番目:accept_channelのpayment-basepoint
     self->obscured = ln_script_calc_obscured_txnum(
-                                self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT],
-                                self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT]);
+        self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT], self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
-    ret = btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
+    bool ret = btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
         self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
-        self->fund_flag = (ln_fundflag_t)(((open_ch.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     } else {
         M_SET_ERR(self, LNERR_CREATE_2OF2, "create 2-of-2");
     }
-
-    LOGD("END\n");
     return ret;
 }
 
@@ -4186,7 +4193,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
 
-    if (self->fund_flag == 0) {
+    if (self->fund_flag == 0) { //XXX: after `funding_locked`
         LOGE("fail: not open peer\n");
         return false;
     }
