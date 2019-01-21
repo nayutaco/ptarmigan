@@ -449,9 +449,6 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
         goto LABEL_EXIT;
     }
 
-    //feeと送金先
-    cb_shutdown_recv(pAppConf, NULL);
-
     show_self_param(p_self, stderr, "close channel", __LINE__);
 
     const char *p_str;
@@ -2973,11 +2970,6 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
     DBGTRACE_BEGIN
-
-    //fee and addr
-    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
-    uint64_t commit_fee = ln_closing_signed_initfee(p_conf->p_self);
-    ln_shutdown_update_fee(p_conf->p_self, commit_fee);
 
     ptarmd_eventlog(ln_channel_id(p_conf->p_self), "close: recv shutdown");
 }

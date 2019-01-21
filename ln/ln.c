@@ -243,7 +243,7 @@ static bool send_pong(ln_self_t *self, ln_msg_ping_t *pPingMsg);
 static bool send_accept_channel(ln_self_t *self);
 static bool send_funding_created(ln_self_t *self);
 static bool send_funding_signed(ln_self_t *self);
-static bool send_closing_signed(ln_self_t *self);
+static bool send_closing_signed(ln_self_t *self, ln_msg_closing_signed_t *pClosingSignedMsg);
 static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
 
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
@@ -3152,9 +3152,11 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     LOGD("BEGIN\n");
 
+    self->close_last_fee_sat = 0; //XXX:
     if (self->shutdown_flag & LN_SHDN_FLAG_RECV) {
         //既にshutdownを受信済みなら、何もしない
-        return false;
+        //XXX: return false;
+        return true;
     }
 
     ln_msg_shutdown_t msg;
@@ -3176,17 +3178,13 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    //shutdown受信済み
     self->shutdown_flag |= LN_SHDN_FLAG_RECV;
     M_DB_SELF_SAVE(self);
 
-    self->close_last_fee_sat = 0;
+    callback(self, LN_CB_SHUTDOWN_RECV, NULL);
 
     if (!(self->shutdown_flag & LN_SHDN_FLAG_SEND)) {
-        //shutdown未送信の場合 == shutdownを要求された方
-
-        //feeと送金先を設定してもらう
-        callback(self, LN_CB_SHUTDOWN_RECV, NULL);
+        //shutdown has not been sent
 
         utl_buf_t buf = UTL_BUF_INIT;
         if (!ln_shutdown_create(self, &buf)) {
@@ -3198,28 +3196,15 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
-        //shutdown交換完了
         self->status = LN_STATUS_CLOSE_WAIT;
         M_DB_SELF_SAVE(self);
-    }
 
-    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) && ln_is_funder(self)) {
-        //shutdown交換完了 && funder --> 最初のclosing_signed送信
-
-        //remoteの署名はないので、verifyしない
-        btc_tx_free(&self->tx_closing);
-        if (!create_closing_tx(self, &self->tx_closing, self->close_fee_sat, false)) {
-            LOGE("fail: create close_t\n");
-            return false;
+        if (ln_is_funder(self)) {
+            if (!send_closing_signed(self, NULL)) {
+                LOGE("fail\n");
+                return false;
+            }
         }
-
-        if (!send_closing_signed(self)) {
-            LOGE("fail\n");
-            return false;
-        }
-
-        //署名送信により相手がbroadcastできるようになるので、一度保存する
-        M_DB_SELF_SAVE(self);
     }
 
     LOGD("END\n");
@@ -3227,9 +3212,27 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 }
 
 
-static bool send_closing_signed(ln_self_t *self)
+static bool send_closing_signed(ln_self_t *self, ln_msg_closing_signed_t *pClosingSignedMsg)
 {
     LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
+
+    if (pClosingSignedMsg) {
+        ln_cb_closed_fee_t closed_fee;
+        closed_fee.fee_sat = pClosingSignedMsg->fee_satoshis;
+        callback(self, LN_CB_CLOSED_FEE, &closed_fee);
+        //self->close_fee_sat updated
+    } else {
+        self->close_fee_sat = ln_closing_signed_initfee(self);
+    }
+
+    //we don't have remote sig
+    //  don't verify sig
+    btc_tx_free(&self->tx_closing);
+    if (!create_closing_tx(self, &self->tx_closing, self->close_fee_sat, false)) {
+        LOGE("fail: create close_t\n");
+        return false;
+    }
+
     ln_msg_closing_signed_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
     msg.p_channel_id = self->channel_id;
@@ -3242,6 +3245,8 @@ static bool send_closing_signed(ln_self_t *self)
     self->close_last_fee_sat = self->close_fee_sat;
     callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
+
+    M_DB_SELF_SAVE(self);
     return true;
 }
 
@@ -3277,31 +3282,24 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    //相手が要求するFEEでverify
+    //XXX: check lower limit for the inclusion in a block
+
+    //verify
     btc_tx_free(&self->tx_closing);
     if (!create_closing_tx(self, &self->tx_closing, msg.fee_satoshis, true)) {
-        LOGE("fail: create close_t\n");
+        LOGE("fail: create close_tx\n");
         return false;
     }
 
-    bool need_closetx = (self->close_last_fee_sat == msg.fee_satoshis);
-    if (!need_closetx) {
-        //送信feeと受信feeが不一致なので、上位層にfeeを設定してもらう
-        ln_cb_closed_fee_t closed_fee;
-        closed_fee.fee_sat = msg.fee_satoshis;
-        callback(self, LN_CB_CLOSED_FEE, &closed_fee);
-        //self->close_fee_satが更新される
-    }
+    if (self->close_last_fee_sat == msg.fee_satoshis) {
+        //create closing_tx
+        btc_tx_free(&self->tx_closing);
+        if (!create_closing_tx(self, &self->tx_closing, self->close_fee_sat, true)) {
+            LOGE("fail: create close_tx\n");
+            return false;
+        }
 
-    //closing_tx作成
-    btc_tx_free(&self->tx_closing);
-    if (!create_closing_tx(self, &self->tx_closing, self->close_fee_sat, need_closetx)) {
-        LOGE("fail: create close_t\n");
-        return false;
-    }
-
-    if (need_closetx) {
-        //closing_txを展開する
+        //bloadcast closing_tx
         LOGD("same fee!\n");
         utl_buf_t txbuf = UTL_BUF_INIT;
         if (!btc_tx_write(&self->tx_closing, &txbuf)) {
@@ -3312,29 +3310,29 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         closed.result = false;
         closed.p_tx_closing = &txbuf;
         callback(self, LN_CB_CLOSED, &closed);
-
-        //funding_txがspentになった
-        if (closed.result) {
-            LOGD("$$$ close waiting\n");
-            self->status = LN_STATUS_CLOSE_SPENT;
-
-            //clearはDB削除に任せる
-            //channel_clear(self);
-        } else {
+        if (!closed.result) {
             //XXX: retry to send closing_tx
             LOGE("fail: send closing_tx\n");
             utl_buf_free(&txbuf);
             return false;
         }
         utl_buf_free(&txbuf);
+
+        //funding_txがspentになった
+        LOGD("$$$ close waiting\n");
+        self->status = LN_STATUS_CLOSE_SPENT;
+
+        //clearはDB削除に任せる
+        //channel_clear(self);
+
+        M_DB_SELF_SAVE(self);
     } else {
-        //closing_singnedを送信する
         LOGD("different fee!\n");
-        if (!send_closing_signed(self)) {
+
+        if (!send_closing_signed(self, &msg)) {
             return false;
         }
     }
-    M_DB_SELF_SAVE(self);
 
     LOGD("END\n");
     return true;
