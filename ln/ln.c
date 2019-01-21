@@ -211,6 +211,7 @@ typedef bool (*pRecvFunc_t)(ln_self_t *self,const uint8_t *pData, uint16_t Len);
 static void channel_clear(ln_self_t *self);
 static void recv_idle_proc_final(ln_self_t *self);
 static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw);
+
 static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len);
@@ -234,6 +235,9 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+
+//send
+static bool send_pong(ln_self_t *self, ln_msg_ping_t *pPingMsg);
 static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
 static bool create_funding_tx(ln_self_t *self, bool bSign);
@@ -2703,13 +2707,28 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    //脊髄反射的にpongを返す
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ret = ln_pong_create(self, &buf_bolt, msg.num_pong_bytes);
-    callback(self, LN_CB_SEND_REQ, &buf_bolt);
-    utl_buf_free(&buf_bolt);
+    ret = send_pong(self, &msg);
 
     //LOGD("END\n");
+    return ret;
+}
+
+
+static bool send_pong(ln_self_t *self, ln_msg_ping_t *pPingMsg)
+{
+    bool ret = false;
+    utl_buf_t buf = UTL_BUF_INIT;
+    ln_msg_pong_t msg;
+
+    msg.byteslen = pPingMsg->num_pong_bytes;
+    msg.p_ignored = NULL;
+    if (!ln_msg_pong_write(&buf, &msg)) goto LABEL_EXIT;
+    callback(self, LN_CB_SEND_REQ, &buf);
+
+    ret = true;
+
+LABEL_EXIT:
+    utl_buf_free(&buf);
     return ret;
 }
 
