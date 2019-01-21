@@ -209,6 +209,8 @@ typedef bool (*pRecvFunc_t)(ln_self_t *self,const uint8_t *pData, uint16_t Len);
  **************************************************************************/
 
 static void channel_clear(ln_self_t *self);
+
+//recv
 static void recv_idle_proc_final(ln_self_t *self);
 static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw);
 
@@ -239,56 +241,28 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
 //send
 static bool send_pong(ln_self_t *self, ln_msg_ping_t *pPingMsg);
 static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
+
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
 static bool create_funding_tx(ln_self_t *self, bool bSign);
-static bool create_basetx(btc_tx_t *pTx,
-                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
-                const uint8_t *pTxid, int Index, bool bRevoked);
+static bool create_basetx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime, const uint8_t *pTxid, int Index, bool bRevoked);
 static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig);
 static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
-static bool create_channel_update(
-                ln_self_t *self,
-                ln_msg_channel_update_t *pUpd,
-                utl_buf_t *pCnlUpd,
-                uint32_t TimeStamp,
-                uint8_t Flag);
-static bool check_create_add_htlc(
-                ln_self_t *self,
-                uint16_t *pIdx,
-                utl_buf_t *pReason,
-                uint64_t amount_msat,
-                uint32_t cltv_value);
+static bool create_channel_update(ln_self_t *self, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
+
+static bool check_create_add_htlc(ln_self_t *self, uint16_t *pIdx, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
 static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_t *p_htlc);
-static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
-                    ln_hop_dataout_t *pDataOut,
-                    utl_push_t *pPushReason,
-                    ln_update_add_htlc_t *pAddHtlc,
-                    uint8_t *pPreImage,
-                    int32_t Height);
-static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
-                    ln_hop_dataout_t *pDataOut,
-                    utl_push_t *pPushReason,
-                    ln_update_add_htlc_t *pAddHtlc,
-                    int32_t Height);
+static bool check_recv_add_htlc_bolt4_final(ln_self_t *self, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc, uint8_t *pPreImage, int32_t Height);
+static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc,int32_t Height);
 static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushReason);
+
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
 
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
-static bool set_add_htlc(ln_self_t *self,
-            uint64_t *pHtlcId,
-            utl_buf_t *pReason,
-            uint16_t *pIdx,
-            const uint8_t *pPacket,
-            uint64_t AmountMsat,
-            uint32_t CltvValue,
-            const uint8_t *pPaymentHash,
-            uint64_t PrevShortChannelId,
-            uint16_t PrevIdx,
-            const utl_buf_t *pSharedSecrets);
+static bool set_add_htlc(ln_self_t *self, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx);
 static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pInfo);
 static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len);
@@ -2981,8 +2955,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     //  1番目:open_channelのpayment-basepoint
     //  2番目:accept_channelのpayment-basepoint
     self->obscured = ln_script_calc_obscured_txnum(
-                                self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT],
-                                self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT]);
+        self->funding_local.pubkeys[MSG_FUNDIDX_PAYMENT], self->funding_remote.pubkeys[MSG_FUNDIDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //
