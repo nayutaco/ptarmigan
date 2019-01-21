@@ -2124,12 +2124,19 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
 
 /** channel_update事前チェック
  *
- * @retval  true        none
+ * @param[in]       short_channel_id        target short_channel_id
+ * @param[in]       timestamp               channel_announcement saved time
+ * @param[in]       last_short_channel_id   channel_announcement short_channel_id
+ * @retval  true        nothing to do
  * @retval  false       channel_updateを削除してよい
  */
 static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uint64_t last_short_channel_id)
 {
     bool ret = true;
+
+    if (ln_db_annoown_check(short_channel_id)) {
+        return true;
+    }
 
     //BOLT#7: Pruning the Network View
     uint64_t now = (uint64_t)utl_time_time();
@@ -2140,13 +2147,10 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
         ret = false;
     }
 
-    //
     if (ret && (short_channel_id != last_short_channel_id)) {
-        if (!ln_db_annoown_check(short_channel_id)) {
-            //自ノードではないchannel_announcementを持たないchannel_updateのため、削除する
-            LOGD("orphan channel_update: prune(%016" PRIx64 ")\n", short_channel_id);
-            ret = false;
-        }
+        //channel_announcementを持たないchannel_updateのため、削除する
+        LOGD("orphan channel_update: prune(%016" PRIx64 ")\n", short_channel_id);
+        ret = false;
     }
 
     return ret;
