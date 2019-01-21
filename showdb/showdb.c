@@ -238,7 +238,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("fund_flag") ": {\n");
     printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->fund_flag);
     printf(INDENT4 M_QQ("is_funder") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDER) == LN_FUNDFLAG_FUNDER));
-    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_ANNO_CH) == LN_FUNDFLAG_ANNO_CH));
+    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_NO_ANNO_CH) == LN_FUNDFLAG_NO_ANNO_CH));
     printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
     printf(INDENT4 M_QQ("is_opened") ": %d\n", ((self->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
     printf(INDENT3 "},\n");

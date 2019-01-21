@@ -1132,7 +1132,7 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     self->funding_sat = msg.funding_satoshis;
     self->feerate_per_kw = msg.feerate_per_kw;
 
-    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     return true;
 }
@@ -2188,7 +2188,7 @@ const utl_buf_t* ln_revoked_wit(const ln_self_t *self)
 
 bool ln_open_channel_announce(const ln_self_t *self)
 {
-    bool ret = (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
+    bool ret = (self->fund_flag & LN_FUNDFLAG_NO_ANNO_CH);
 
     //コメントアウトすると、announcement_signatures交換済みかどうかにかかわらず、
     //送信しても良い状況であればannouncement_signaturesを起動時に送信する
@@ -2870,9 +2870,9 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
     //vout 2-of-2
     ret = btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
-                self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
+        self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
-        self->fund_flag = (ln_fundflag_t)(((open_ch.channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+        self->fund_flag = (ln_fundflag_t)(((open_ch.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     } else {
         M_SET_ERR(self, LNERR_CREATE_2OF2, "create 2-of-2");
     }
