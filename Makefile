@@ -71,6 +71,13 @@ lib:
 	$(MAKE) -C btc
 	$(MAKE) -C ln
 
+apt: lib_apt default
+lib_apt:
+	$(MAKE) -C libs apt
+	$(MAKE) -C utl
+	$(MAKE) -C btc
+	$(MAKE) -C ln
+
 lib_clean:
 	$(MAKE) -C libs clean
 	$(MAKE) -C utl clean
