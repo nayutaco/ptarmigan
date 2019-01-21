@@ -242,6 +242,7 @@ static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16
 static bool send_pong(ln_self_t *self, ln_msg_ping_t *pPingMsg);
 static bool send_accept_channel(ln_self_t *self);
 static bool send_funding_created(ln_self_t *self);
+static bool send_funding_signed(ln_self_t *self);
 static void send_error(ln_self_t *self, const ln_msg_error_t *pError);
 
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
@@ -2654,7 +2655,6 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ln_msg_error_t msg;
     ln_msg_error_read(&msg, pData, Len);
     callback(self, LN_CB_ERROR, &msg);
-
     return true;
 }
 
@@ -2702,11 +2702,8 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     //LOGD("BEGIN\n");
 
-    bool ret;
-
     ln_msg_pong_t msg;
-    ret = ln_msg_pong_read(&msg, pData, Len);
-    if (!ret) {
+    if (!ln_msg_pong_read(&msg, pData, Len)) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
@@ -2892,18 +2889,18 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_HTLC], msg.p_htlc_basepoint, BTC_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], msg.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
-    //temporary-channel
+    //temporary_channel_id
     if (!chk_channelid(msg.p_temporary_channel_id, self->channel_id)) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     //BOLT02
-    //  The receiver:
-    //    - if channel_reserve_satoshis is less than dust_limit_satoshis within the open_channel message:
-    //      - MUST reject the channel.
-    //    - if channel_reserve_satoshis from the open_channel message is less than dust_limit_satoshis:
-    //      - MUST reject the channel. Other fields have the same requirements as their counterparts in open_channel.
+    // The receiver:
+    //  - if channel_reserve_satoshis is less than dust_limit_satoshis within the open_channel message:
+    //   - MUST reject the channel.
+    //  - if channel_reserve_satoshis from the open_channel message is less than dust_limit_satoshis:
+    //   - MUST reject the channel. Other fields have the same requirements as their counterparts in open_channel.
     if (self->commit_local.dust_limit_sat > msg.channel_reserve_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our dust_limit_satoshis is greater than their channel_reserve_satoshis");
         return false;
@@ -2978,31 +2975,26 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 {
     LOGD("BEGIN\n");
 
-    bool ret;
-
     if (ln_is_funder(self)) {
-        //open_channel受信側ではない
         M_SET_ERR(self, LNERR_INV_SIDE, "not fundee");
         return false;
     }
 
-    ln_msg_funding_created_t fundc;
-    ret = ln_msg_funding_created_read(&fundc, pData, Len);
-    if (!ret) {
+    ln_msg_funding_created_t msg;
+    if (!ln_msg_funding_created_read(&msg, pData, Len)) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->funding_local.txid, fundc.p_funding_txid, BTC_SZ_TXID);
-    memcpy(self->commit_local.signature, fundc.p_signature, LN_SZ_SIGNATURE);
+    memcpy(self->funding_local.txid, msg.p_funding_txid, BTC_SZ_TXID);
+    memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
-    //temporary-channel-idチェック
-    ret = chk_channelid(fundc.p_temporary_channel_id, self->channel_id);
-    if (!ret) {
+    //temporary_channel_id
+    if (!chk_channelid(msg.p_temporary_channel_id, self->channel_id)) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
-    self->funding_local.txindex = fundc.funding_output_index;
+    self->funding_local.txindex = msg.funding_output_index;
 
     //署名チェック用
     btc_tx_free(&self->tx_funding);
@@ -3015,15 +3007,12 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 
     //署名チェック
-    // initial commit tx(自分が持つTo-Local)
-    //      to-self-delayは自分の値(open_channel)を使う
-    //      HTLCは存在しない
-    ret = ln_comtx_create_to_local(self,
-            NULL, NULL, 0,      //closeもHTLC署名も無し
-            0,
-            self->commit_remote.to_self_delay,
-            self->commit_local.dust_limit_sat);
-    if (!ret) {
+    //  initial commit tx(自分が持つTo-Local)
+    //    to-self-delayは自分の値(open_channel)を使う
+    //    HTLCは存在しない
+    if (!ln_comtx_create_to_local(self,
+        NULL, NULL, 0,  //closeもHTLC署名も無し
+        0, self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -3031,32 +3020,38 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    ret = ln_comtx_create_to_remote(self,
-                &self->commit_remote,
-                NULL, NULL,     //close無し、署名作成無し
-                0);
-    if (!ret) {
+    if (!ln_comtx_create_to_remote(self, &self->commit_remote,
+        NULL, NULL,     //close無し、署名作成無し
+        0)) {
         LOGE("fail: create_to_remote\n");
         return false;
     }
 
-    //正式チャネルID
+    //temporary_channel_id -> channel_id
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
-    //funding_signed
-    ln_msg_funding_signed_t funds;
-    funds.p_channel_id = self->channel_id;
-    funds.p_signature = self->commit_remote.signature;
+    if (!send_funding_signed(self)) {
+        //XXX:
+        return false;
+    }
 
+    LOGD("END\n");
+    return true;
+}
+
+
+static bool send_funding_signed(ln_self_t *self)
+{
+    ln_msg_funding_signed_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
-    ln_msg_funding_signed_write(&buf, &funds);
+    msg.p_channel_id = self->channel_id;
+    msg.p_signature = self->commit_remote.signature;
+    ln_msg_funding_signed_write(&buf, &msg);
     callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
-    //funding_tx安定待ち
+    //wait funding_tx
     start_funding_wait(self, false);
-
-    LOGD("END\n");
     return true;
 }
 
