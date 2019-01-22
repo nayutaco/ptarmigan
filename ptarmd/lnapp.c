@@ -441,7 +441,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     pthread_mutex_lock(&pAppConf->mux_self);
 
     bool ret = false;
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
     if (ln_status_is_closing(p_self)) {
@@ -452,10 +452,10 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     show_self_param(p_self, stderr, "close channel", __LINE__);
 
     const char *p_str;
-    ret = ln_shutdown_create(p_self, &buf_bolt);
+    ret = ln_shutdown_create(p_self, &buf);
     if (ret) {
-        send_peer_noise(pAppConf, &buf_bolt);
-        utl_buf_free(&buf_bolt);
+        send_peer_noise(pAppConf, &buf);
+        utl_buf_free(&buf);
 
         p_str = "close: good way(local) start";
     } else {
@@ -1327,16 +1327,16 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
  */
 static bool exchange_init(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     LOGD("$$$ initial_routing_sync=%s\n", ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"));
-    bool ret = ln_init_create(p_conf->p_self, &buf_bolt, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true);     //channel announceあり
+    bool ret = ln_init_create(p_conf->p_self, &buf, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true);     //channel announceあり
     if (!ret) {
         LOGE("fail: create\n");
         return false;
     }
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
+    send_peer_noise(p_conf, &buf);
+    utl_buf_free(&buf);
 
     //コールバックでのINIT受信通知待ち
     LOGD("wait: init\n");
@@ -1356,15 +1356,15 @@ static bool exchange_init(lnapp_conf_t *p_conf)
  */
 static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
 
-    bool ret = ln_channel_reestablish_create(p_conf->p_self, &buf_bolt);
+    bool ret = ln_channel_reestablish_create(p_conf->p_self, &buf);
     if (!ret) {
         LOGE("fail: create\n");
         return false;
     }
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
+    send_peer_noise(p_conf, &buf);
+    utl_buf_free(&buf);
 
     //コールバックでのchannel_reestablish受信通知待ち
     LOGD("wait: channel_reestablish\n");
@@ -1384,15 +1384,15 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
  */
 static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
 
-    bool ret = ln_funding_locked_create(p_conf->p_self, &buf_bolt);
+    bool ret = ln_funding_locked_create(p_conf->p_self, &buf);
     if (!ret) {
         LOGE("fail: create\n");
         return false;
     }
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
+    send_peer_noise(p_conf, &buf);
+    utl_buf_free(&buf);
 
     //コールバックでのfunding_locked受信通知待ち
     LOGD("wait: funding_locked\n");
@@ -1486,17 +1486,17 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         memset(&fundin, 0, sizeof(fundin));
 #endif
 
-        utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ret = ln_open_channel_create(p_conf->p_self, &buf_bolt,
+        utl_buf_t buf = UTL_BUF_INIT;
+        ret = ln_open_channel_create(p_conf->p_self, &buf,
                         &fundin,
                         pFunding->funding_sat,
                         pFunding->push_sat,
                         feerate_kw);
         if (ret) {
             LOGD("SEND: open_channel\n");
-            send_peer_noise(p_conf, &buf_bolt);
+            send_peer_noise(p_conf, &buf);
         }
-        utl_buf_free(&buf_bolt);
+        utl_buf_free(&buf);
     } else {
         LOGE("fail through: check_unspent: ");
         TXIDD(pFunding->txid);
@@ -1865,11 +1865,11 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
     pthread_mutex_lock(&p_conf->mux_self);
     if ((ln_short_channel_id(p_self) != 0) && !ln_is_announced(p_self)) {
         //チャネル作成済み && announcement未交換
-        utl_buf_t buf_bolt = UTL_BUF_INIT;
-        bool ret = ln_channel_update_create(p_self, &buf_bolt);
+        utl_buf_t buf = UTL_BUF_INIT;
+        bool ret = ln_channel_update_create(p_self, &buf);
         if (ret) {
-            send_peer_noise(p_conf, &buf_bolt);
-            utl_buf_free(&buf_bolt);
+            send_peer_noise(p_conf, &buf);
+            utl_buf_free(&buf);
         }
     }
     pthread_mutex_unlock(&p_conf->mux_self);
@@ -3360,13 +3360,13 @@ static void rcvidle_clear(lnapp_conf_t *p_conf)
 
 static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
 
     pthread_mutex_lock(&p_conf->mux_self);
-    bool ret = ln_announce_signs_create(p_conf->p_self, &buf_bolt);
+    bool ret = ln_announce_signs_create(p_conf->p_self, &buf);
     if (ret) {
-        send_peer_noise(p_conf, &buf_bolt);
-        utl_buf_free(&buf_bolt);
+        send_peer_noise(p_conf, &buf);
+        utl_buf_free(&buf);
     } else {
         LOGE("fail: create announcement_signatures\n");
         stop_threads(p_conf);
