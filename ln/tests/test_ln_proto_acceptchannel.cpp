@@ -39,6 +39,7 @@ extern "C" {
 #include "ln_msg_normalope.c"
 #include "ln_msg_setupctl.c"
 #include "ln_setupctl.c"
+#include "ln_establish.c"
 #include "ln_node.c"
 #include "ln_onion.c"
 #include "ln_script.c"
@@ -266,7 +267,7 @@ TEST_F(ln, init)
 
 
 //OK
-TEST_F(ln, recv_accept_channel_ok)
+TEST_F(ln, ln_accept_channel_recv_ok)
 {
     ln_self_t self;
     LnInit(&self);
@@ -326,7 +327,7 @@ TEST_F(ln, recv_accept_channel_ok)
     memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
-    bool ret = recv_accept_channel(&self, NULL, 0);
+    bool ret = ln_accept_channel_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
 
 #ifdef USE_BITCOIND
@@ -344,7 +345,7 @@ TEST_F(ln, recv_accept_channel_ok)
 //      - MUST reject the channel.
 //
 // 受信したaccept_channel.channel_reserve_satoshisがopen_channel.dust_limit_satoshisより小さい場合
-TEST_F(ln, recv_accept_channel_receiver1)
+TEST_F(ln, ln_accept_channel_recv_receiver1)
 {
     ln_self_t self;
     LnInit(&self);
@@ -403,7 +404,7 @@ TEST_F(ln, recv_accept_channel_receiver1)
     memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
-    bool ret = recv_accept_channel(&self, NULL, 0);
+    bool ret = ln_accept_channel_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
 #ifdef USE_BITCOIND
@@ -422,7 +423,7 @@ TEST_F(ln, recv_accept_channel_receiver1)
 //
 // accept_channelの受信者はopen_channelの送信者である。
 // よってここでは、「受信したaccept_channel.dust_limit_satoshisが、送信したopen_channel.channel_reserve_satoshisより小さい場合」である。
-TEST_F(ln, recv_accept_channel_receiver2)
+TEST_F(ln, ln_accept_channel_recv_receiver2)
 {
     ln_self_t self;
     LnInit(&self);
@@ -481,7 +482,7 @@ TEST_F(ln, recv_accept_channel_receiver2)
     memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
-    bool ret = recv_accept_channel(&self, NULL, 0);
+    bool ret = ln_accept_channel_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
 #ifdef USE_BITCOIND

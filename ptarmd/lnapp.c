@@ -68,6 +68,7 @@
 
 #include "ln_msg_setupctl.h"
 #include "ln_setupctl.h"
+#include "ln_establish.h"
 
 #include "ptarmd.h"
 #include "cmd_json.h"

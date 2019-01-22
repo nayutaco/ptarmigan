@@ -37,25 +37,12 @@
 #include "btc_script.h"
 #include "btc_sw.h"
 
+#include "ln.h"
 #include "ln_db.h"
 #include "ln_misc.h"
 #include "ln_script.h"
 #include "ln_signer.h"
 #include "ln_local.h"
-
-
-/********************************************************************
- * macros
- ********************************************************************/
-
-#if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
-#define M_DBG_PRINT_TX(tx)      //NONE
-//#define M_DBG_PRINT_TX(tx)    LOGD(""); btc_tx_print(tx)
-#define M_DBG_PRINT_TX2(tx)     //NONE
-#else
-#define M_DBG_PRINT_TX(tx)      LOGD("\n"); btc_tx_print(tx)
-#define M_DBG_PRINT_TX2(tx)     LOGD("\n"); btc_tx_print(tx)
-#endif  //M_DBG_VERBOSE
 
 
 /**************************************************************************
