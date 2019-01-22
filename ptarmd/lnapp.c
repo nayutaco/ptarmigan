@@ -1764,24 +1764,19 @@ static void poll_ping(lnapp_conf_t *p_conf)
         }
     }
     if (sendping) {
-        utl_buf_t buf_ping = UTL_BUF_INIT;
         uint8_t pinglen;
         uint8_t ponglen;
 
         // https://github.com/lightningnetwork/lightning-rfc/issues/373
         btc_rng_rand(&ponglen, sizeof(ponglen));
         btc_rng_rand(&pinglen, sizeof(pinglen));
-        bool ret = ln_ping_create(p_conf->p_self, &buf_ping, pinglen, ponglen);
-        if (ret) {
+        if (!ln_ping_send(p_conf->p_self, pinglen, ponglen)) {
             //add head num_pong_bytes
             ponglist_t *pl = (ponglist_t *)UTL_DBG_MALLOC(sizeof(ponglist_t));
             pl->num_pong_bytes = ponglen;
             //LOGD("   add pong bytes=%" PRIu16 "\n", ponglen);
             LIST_INSERT_HEAD(&p_conf->pong_head, pl, list);
             p_conf->ping_counter = M_PING_CNT;
-
-            send_peer_noise(p_conf, &buf_ping);
-            utl_buf_free(&buf_ping);
         } else {
             LOGD("pong not respond\n");
             stop_threads(p_conf);

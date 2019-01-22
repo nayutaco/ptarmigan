@@ -206,7 +206,7 @@ bool HIDDEN ln_error_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 }
 
 
-bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_t PongLen)
+bool /*HIDDEN*/ ln_ping_send(ln_self_t *self, uint16_t PingLen, uint16_t PongLen)
 {
     (void)self;
 
@@ -214,8 +214,11 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_
     msg.byteslen = PingLen;
     msg.num_pong_bytes = PongLen;
     msg.p_ignored = NULL;
-    bool ret = ln_msg_ping_write(pPing, &msg);
-    return ret;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_ping_write(&buf, &msg)) return false;
+    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
