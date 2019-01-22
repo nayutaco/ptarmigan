@@ -82,7 +82,7 @@ void HIDDEN ln_error_set(ln_self_t *self, int Err, const char *pFormat, ...)
 }
 
 
-bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool bHaveCnl)
+bool /*HIDDEN*/ ln_init_send(ln_self_t *self, bool bInitRouteSync, bool bHaveCnl)
 {
     (void)bHaveCnl;
 
@@ -99,14 +99,17 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
     msg.p_localfeatures = &self->lfeature_local;
     LOGD("localfeatures: ");
     DUMPD(msg.p_localfeatures, msg.lflen);
-    bool ret = ln_msg_init_write(pInit, &msg);
-    if (ret) {
-        self->init_flag |= M_INIT_FLAG_SEND;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_init_write(&buf, &msg)) {
+        return false;
     }
+    self->init_flag |= M_INIT_FLAG_SEND;
 
     M_DB_SELF_SAVE(self);
 
-    return ret;
+    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
@@ -135,11 +138,8 @@ bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         }
     }
 
-    if (msg.lflen == 0) {
-        self->lfeature_remote = 0x00;
-    } else {
-        self->lfeature_remote = msg.p_localfeatures[0];
-
+    self->lfeature_remote = 0x00;
+    if (msg.lflen) {
         //check
         for (uint32_t lp = 0; lp < msg.lflen; lp++) {
             if (lp == 0) {
@@ -160,7 +160,7 @@ bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
                 goto LABEL_EXIT;
             }
         }
-
+        self->lfeature_remote = msg.p_localfeatures[0];
     }
 
     self->init_flag |= M_INIT_FLAG_RECV;

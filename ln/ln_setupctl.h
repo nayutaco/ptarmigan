@@ -78,17 +78,7 @@ void ln_init_localfeatures_set(uint8_t lf);
 
 void HIDDEN ln_error_set(ln_self_t *self, int Err, const char *pFormat, ...);
 
-
-/** initメッセージ作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pInit           initメッセージ
- * @param[in]           bHaveCnl        true:チャネル開設済み
- * retval       true    成功
- */
-bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool bHaveCnl); //XXX:
-
-
+bool /*HIDDEN*/ ln_init_send(ln_self_t *self, bool bInitRouteSync, bool bHaveCnl);
 bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_error_send(ln_self_t *self, int Err, const char *pFormat, ...);
 bool HIDDEN ln_error_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
