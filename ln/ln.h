@@ -1418,6 +1418,7 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
 bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_t PongLen);
 
 
+#if 0
 /** pong作成
  *
  * @param[in,out]       self            channel info
@@ -1426,6 +1427,7 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_
  * @retval      true    成功
  */
 bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
+#endif
 
 
 /********************************************************************

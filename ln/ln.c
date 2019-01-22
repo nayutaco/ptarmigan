@@ -1747,6 +1747,7 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_
 }
 
 
+#if 0
 bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
 {
     (void)self;
@@ -1759,6 +1760,7 @@ bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
 
     return ret;
 }
+#endif
 
 
 /********************************************************************
