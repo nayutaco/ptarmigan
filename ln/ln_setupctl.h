@@ -36,7 +36,7 @@
  * macros
  ********************************************************************/
 
-// ln_self_t.init_flag
+// ln_self_t.init_flag //XXX:
 #define M_INIT_FLAG_SEND                    (0x01)
 #define M_INIT_FLAG_RECV                    (0x02)
 #define M_INIT_FLAG_EXCG                    (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)

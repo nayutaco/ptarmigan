@@ -39,6 +39,7 @@ extern "C" {
 #include "ln_msg_normalope.c"
 #include "ln_msg_setupctl.c"
 #include "ln_setupctl.c"
+#include "ln_establish.c"
 #include "ln_node.c"
 #include "ln_onion.c"
 #include "ln_script.c"
@@ -239,7 +240,7 @@ namespace LN_DUMMY {
 ////////////////////////////////////////////////////////////////////////
 
 //OK
-TEST_F(ln, recv_open_channel_ok)
+TEST_F(ln, ln_open_channel_recv_ok)
 {
     ln_self_t self;
     LnInit(&self);
@@ -286,7 +287,7 @@ TEST_F(ln, recv_open_channel_ok)
     self.establish.estprm.dust_limit_sat = 10000;
     self.establish.estprm.channel_reserve_sat = 800;
 
-    bool ret = recv_open_channel(&self, NULL, 0);
+    bool ret = ln_open_channel_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
 
@@ -297,7 +298,7 @@ TEST_F(ln, recv_open_channel_ok)
 //BOLT02
 //  The sender:
 //      - MUST set channel_reserve_satoshis greater than or equal to dust_limit_satoshis from the open_channel message.
-TEST_F(ln, recv_open_channel_sender1)
+TEST_F(ln, ln_open_channel_recv_sender1)
 {
     ln_self_t self;
     LnInit(&self);
@@ -345,7 +346,7 @@ TEST_F(ln, recv_open_channel_sender1)
     //accept_channelで送信するchannel_reserve_satoshis
     self.establish.estprm.channel_reserve_sat = 800 - 1;
 
-    bool ret = recv_open_channel(&self, NULL, 0);
+    bool ret = ln_open_channel_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);
@@ -355,7 +356,7 @@ TEST_F(ln, recv_open_channel_sender1)
 //BOLT02
 //  The sender:
 //      - MUST set dust_limit_satoshis less than or equal to channel_reserve_satoshis from the open_channel message.
-TEST_F(ln, recv_open_channel_sender2)
+TEST_F(ln, ln_open_channel_recv_sender2)
 {
     ln_self_t self;
     LnInit(&self);
@@ -402,7 +403,7 @@ TEST_F(ln, recv_open_channel_sender2)
 
     self.establish.estprm.dust_limit_sat = 10000 + 1;
 
-    bool ret = recv_open_channel(&self, NULL, 0);
+    bool ret = ln_open_channel_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);

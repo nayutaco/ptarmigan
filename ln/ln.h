@@ -116,7 +116,7 @@ extern "C" {
 
 //self.fund_flag
 #define LN_FUNDFLAG_FUNDER              (1 << 0)    ///< 1:funder / 0:fundee
-#define LN_FUNDFLAG_NO_ANNO_CH             (1 << 1)    ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
+#define LN_FUNDFLAG_NO_ANNO_CH          (1 << 1)    ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
 #define LN_FUNDFLAG_FUNDING             (1 << 2)    ///< 1:open_channel～funding_lockedまで
 #define LN_FUNDFLAG_OPENED              (1 << 7)    ///< 1:opened
 
@@ -180,7 +180,6 @@ extern "C" {
             ( ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_NONE) && \
             ((htlc)->amount_msat == 0) )
 
-
 /** @def    LN_HTLC_ENABLE(htlc)
  *  @brief  ln_update_add_htlc_tとして有効
  *  @note
@@ -211,9 +210,28 @@ extern "C" {
 // 0x40: update_fulfill_htlcを戻すときに相手が見つからない
 #define LN_DBG_FULFILL_BWD() ((ln_debug_get() & 0x40) == 0)
 
-
 #define M_DB_SELF_SAVE(self)    { bool ret = ln_db_self_save(self); LOGD("ln_db_self_save()=%d\n", ret); }
 #define M_DB_SECRET_SAVE(self)  { bool ret = ln_db_secret_save(self); LOGD("ln_db_secret_save()=%d\n", ret); }
+
+#if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
+#define M_DBG_PRINT_TX(tx)      //NONE
+//#define M_DBG_PRINT_TX(tx)    LOGD(""); btc_tx_print(tx)
+#define M_DBG_PRINT_TX2(tx)     //NONE
+#else
+#define M_DBG_PRINT_TX(tx)      LOGD("\n"); btc_tx_print(tx)
+#define M_DBG_PRINT_TX2(tx)     LOGD("\n"); btc_tx_print(tx)
+#endif  //M_DBG_VERBOSE
+
+#define M_DBG_COMMITHTLC
+#ifdef M_DBG_COMMITHTLC
+#define M_DBG_COMMITNUM(self) { LOGD("----- debug commit_num -----\n"); ln_dbg_commitnum(self); }
+#define M_DBG_HTLCFLAG(htlc) dbg_htlcflag(htlc)
+#define M_DBG_HTLCFLAGALL(self) dbg_htlcflagall(self)
+#else
+#define M_DBG_COMMITNUM(self)   //none
+#define M_DBG_HTLCFLAG(htlc)    //none
+#define M_DBG_HTLCFLAGALL(self) //none
+#endif
 
 
 /********************************************************************
@@ -1134,15 +1152,6 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw);
 
 
-/** channel_reestablishメッセージ作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pReEst          channel_reestablishメッセージ
- * retval       true    成功
- */
-bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst);
-
-
 /** channel_reestablishメッセージ交換後
  *
  * @param[in,out]       self            channel info
@@ -1158,36 +1167,15 @@ void ln_channel_reestablish_after(ln_self_t *self);
 bool ln_funding_locked_check_need(const ln_self_t *self);
 
 
-/**
- *
- * @param[in,out]       self            channel info
- * @param[out]          pLocked
- * @retval  true    成功
- */
-bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked);
-
-
 //XXX:
 void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam);
+bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
+void ln_dbg_commitnum(const ln_self_t *self);
 
 
 /********************************************************************
  * Establish関係
  ********************************************************************/
-
-/** open_channelメッセージ作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pOpen           生成したopen_channelメッセージ
- * @param[in]           pFundin         fund-in情報
- * @param[in]           FundingSat      fundingするamount[satoshi]
- * @param[in]           PushSat         push_msatするamount[satoshi]
- * @param[in]           FeeRate         feerate_per_kw
- * retval       true    成功
- */
-bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
-            const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
-
 
 /** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
  *
