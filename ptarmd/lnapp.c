@@ -1328,16 +1328,11 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
  */
 static bool exchange_init(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf = UTL_BUF_INIT;
-
     LOGD("$$$ initial_routing_sync=%s\n", ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"));
-    bool ret = ln_init_create(p_conf->p_self, &buf, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true);     //channel announceあり
-    if (!ret) {
+    if (!ln_init_send(p_conf->p_self, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true)) {
         LOGE("fail: create\n");
         return false;
     }
-    send_peer_noise(p_conf, &buf);
-    utl_buf_free(&buf);
 
     //コールバックでのINIT受信通知待ち
     LOGD("wait: init\n");
