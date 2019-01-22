@@ -1771,16 +1771,16 @@ static void poll_ping(lnapp_conf_t *p_conf)
         btc_rng_rand(&ponglen, sizeof(ponglen));
         btc_rng_rand(&pinglen, sizeof(pinglen));
         if (!ln_ping_send(p_conf->p_self, pinglen, ponglen)) {
-            //add head num_pong_bytes
-            ponglist_t *pl = (ponglist_t *)UTL_DBG_MALLOC(sizeof(ponglist_t));
-            pl->num_pong_bytes = ponglen;
-            //LOGD("   add pong bytes=%" PRIu16 "\n", ponglen);
-            LIST_INSERT_HEAD(&p_conf->pong_head, pl, list);
-            p_conf->ping_counter = M_PING_CNT;
-        } else {
-            LOGD("pong not respond\n");
+            LOGE("fail: send ping\n");
             stop_threads(p_conf);
+            return;
         }
+        //add head num_pong_bytes
+        ponglist_t *pl = (ponglist_t *)UTL_DBG_MALLOC(sizeof(ponglist_t));
+        pl->num_pong_bytes = ponglen;
+        //LOGD("   add pong bytes=%" PRIu16 "\n", ponglen);
+        LIST_INSERT_HEAD(&p_conf->pong_head, pl, list);
+        p_conf->ping_counter = M_PING_CNT;
     }
 
     //DBGTRACE_END
