@@ -2074,9 +2074,9 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     bool ret;
     rfield_prm_t *prm = (rfield_prm_t *)p_param;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_channel_update_t msg;
-    ret = ln_channel_update_get_peer(self, &buf_bolt, &msg);
+    ret = ln_channel_update_get_peer(self, &buf, &msg);
     if (ret && !ln_is_announced(self)) {
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
         *prm->pp_field = (ln_fieldr_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
@@ -2091,7 +2091,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
         (*prm->p_fieldnum)++;
         LOGD("r_field num=%d\n", *prm->p_fieldnum);
     }
-    utl_buf_free(&buf_bolt);
+    utl_buf_free(&buf);
 
     return false;
 }
