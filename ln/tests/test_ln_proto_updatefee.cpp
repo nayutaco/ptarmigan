@@ -38,6 +38,7 @@ extern "C" {
 // #include "ln_msg_establish.c"
 //#include "ln_msg_normalope.c"
 // #include "ln_msg_setupctl.c"
+#include "ln_setupctl.c"
 #include "ln_node.c"
 // #include "ln_onion.c"
 // #include "ln_script.c"

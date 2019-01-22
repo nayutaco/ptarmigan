@@ -67,6 +67,7 @@
 #include "btc_script.h"
 
 #include "ln_msg_setupctl.h"
+#include "ln_setupctl.h"
 
 #include "ptarmd.h"
 #include "cmd_json.h"
