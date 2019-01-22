@@ -261,7 +261,6 @@ bool HIDDEN ln_pong_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-
     ln_cb_pong_recv_t param;
     param.result = false;
     param.byteslen = msg.byteslen;
