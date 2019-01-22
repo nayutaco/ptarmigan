@@ -38,6 +38,7 @@ extern "C" {
 //#include "ln_msg_establish.c"
 #include "ln_msg_normalope.c"
 #include "ln_msg_setupctl.c"
+#include "ln_setupctl.c"
 #include "ln_node.c"
 #include "ln_onion.c"
 #include "ln_script.c"
@@ -281,17 +282,14 @@ TEST_F(ln, recv_open_channel_ok)
     self.p_callback = dummy::callback;
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
-    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    self.p_establish->estprm.dust_limit_sat = 10000;
-    self.p_establish->estprm.channel_reserve_sat = 800;
+    self.establish.estprm.dust_limit_sat = 10000;
+    self.establish.estprm.channel_reserve_sat = 800;
 
     bool ret = recv_open_channel(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
 
-    UTL_DBG_FREE(self.p_establish);
-    self.p_establish = NULL;
     ln_term(&self);
 }
 
@@ -341,18 +339,15 @@ TEST_F(ln, recv_open_channel_sender1)
     self.p_callback = dummy::callback;
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
-    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    self.p_establish->estprm.dust_limit_sat = 10000;
+    self.establish.estprm.dust_limit_sat = 10000;
 
     //accept_channelで送信するchannel_reserve_satoshis
-    self.p_establish->estprm.channel_reserve_sat = 800 - 1;
+    self.establish.estprm.channel_reserve_sat = 800 - 1;
 
     bool ret = recv_open_channel(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
-    UTL_DBG_FREE(self.p_establish);
-    self.p_establish = NULL;
     ln_term(&self);
 }
 
@@ -402,16 +397,13 @@ TEST_F(ln, recv_open_channel_sender2)
     self.p_callback = dummy::callback;
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
-    self.p_establish = (ln_establish_t *)UTL_DBG_CALLOC(1, sizeof(ln_establish_t));
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    self.p_establish->estprm.channel_reserve_sat = 800;
+    self.establish.estprm.channel_reserve_sat = 800;
 
-    self.p_establish->estprm.dust_limit_sat = 10000 + 1;
+    self.establish.estprm.dust_limit_sat = 10000 + 1;
 
     bool ret = recv_open_channel(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
-    UTL_DBG_FREE(self.p_establish);
-    self.p_establish = NULL;
     ln_term(&self);
 }

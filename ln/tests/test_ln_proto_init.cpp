@@ -37,7 +37,7 @@ extern "C" {
 #include "ln_msg_close.c"
 //#include "ln_msg_establish.c"
 // #include "ln_msg_normalope.c"
-//#include "ln_msg_setupctl.c"
+#include "ln_setupctl.c"
 #include "ln_node.c"
 // #include "ln_onion.c"
 // #include "ln_script.c"
@@ -160,7 +160,7 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
-TEST_F(ln, recv_init_ok)
+TEST_F(ln, init_recv_ok)
 {
     ln_self_t self;
     LnInit(&self);
@@ -185,7 +185,7 @@ TEST_F(ln, recv_init_ok)
     self.p_callback = dummy::callback;
     ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
-    bool ret = recv_init(&self, NULL, 0);
+    bool ret = ln_init_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0x00, self.lfeature_remote);
     ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
@@ -194,7 +194,7 @@ TEST_F(ln, recv_init_ok)
 }
 
 
-TEST_F(ln, recv_init_fail)
+TEST_F(ln, init_recv_fail)
 {
     ln_self_t self;
     LnInit(&self);
@@ -217,13 +217,13 @@ TEST_F(ln, recv_init_fail)
     ln_msg_init_read_fake.return_val = false;
     self.p_callback = dummy::callback;
 
-    bool ret = recv_init(&self, NULL, 0);
+    bool ret = ln_init_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
     ASSERT_FALSE(b_called);
 }
 
 
-TEST_F(ln, recv_init_gf1)
+TEST_F(ln, init_recv_gf1)
 {
     ln_self_t self;
     LnInit(&self);
@@ -262,7 +262,7 @@ TEST_F(ln, recv_init_gf1)
         //          abcd
         //      a0b0c0d0
         gf = (lp & 0x08) << 4 | (lp & 0x04) << 3 | (lp & 0x02) << 2 | (lp & 0x01) << 1;
-        ret = recv_init(&self, NULL, 0);
+        ret = ln_init_recv(&self, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(0x00, self.lfeature_remote);
         ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
@@ -272,7 +272,7 @@ TEST_F(ln, recv_init_gf1)
 }
 
 
-TEST_F(ln, recv_init_gf2)
+TEST_F(ln, init_recv_gf2)
 {
     ln_self_t self;
     LnInit(&self);
@@ -310,7 +310,7 @@ TEST_F(ln, recv_init_gf2)
         //          abcd
         //      0a0b0c0d
         gf = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
-        ret = recv_init(&self, NULL, 0);
+        ret = ln_init_recv(&self, NULL, 0);
         ASSERT_FALSE(ret);
         ASSERT_EQ(0x00, self.lfeature_remote);
         ASSERT_EQ(0, self.init_flag);
@@ -320,7 +320,7 @@ TEST_F(ln, recv_init_gf2)
 }
 
 
-TEST_F(ln, recv_init_lf1)
+TEST_F(ln, init_recv_lf1)
 {
     ln_self_t self;
     LnInit(&self);
@@ -359,7 +359,7 @@ TEST_F(ln, recv_init_lf1)
         //          abcd
         //      a0b0c0d0
         lf = (lp & 0x08) << 4 | (lp & 0x04) << 3 | (lp & 0x02) << 2 | (lp & 0x01) << 1;
-        ret = recv_init(&self, NULL, 0);
+        ret = ln_init_recv(&self, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(lf, self.lfeature_remote);
         ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
@@ -370,7 +370,7 @@ TEST_F(ln, recv_init_lf1)
 }
 
 
-TEST_F(ln, recv_init_lf2)
+TEST_F(ln, init_recv_lf2)
 {
     ln_self_t self;
     LnInit(&self);
@@ -409,7 +409,7 @@ TEST_F(ln, recv_init_lf2)
         //          abcd
         //      0a0b0c0d
         lf = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
-        ret = recv_init(&self, NULL, 0);
+        ret = ln_init_recv(&self, NULL, 0);
         if (lf == 0x01) {
             //option_data_loss_protect
             ASSERT_TRUE(ret);

@@ -212,6 +212,10 @@ extern "C" {
 #define LN_DBG_FULFILL_BWD() ((ln_debug_get() & 0x40) == 0)
 
 
+#define M_DB_SELF_SAVE(self)    { bool ret = ln_db_self_save(self); LOGD("ln_db_self_save()=%d\n", ret); }
+#define M_DB_SECRET_SAVE(self)  { bool ret = ln_db_secret_save(self); LOGD("ln_db_secret_save()=%d\n", ret); }
+
+
 /********************************************************************
  * typedefs
  ********************************************************************/
@@ -840,7 +844,7 @@ struct ln_self_t {
     utl_buf_t                   redeem_fund;                    ///< [FUND_05]2-of-2のredeemScript
     btc_script_pubkey_order_t             key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
-    ln_establish_t              *p_establish;                   ///< [FUND_08]Establishワーク領域
+    ln_establish_t              establish;                      ///< [FUND_08]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_09]minimum_depth
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
@@ -981,13 +985,6 @@ const uint8_t *ln_creationhash_get(void);
  * @param[in,out]       self            channel info
  */
 void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId);
-
-
-/** init.localfeatures設定
- * 未設定の場合はデフォルト値が使用される。
- *
- */
-void ln_init_localfeatures_set(uint8_t lf);
 
 
 /** Channel Establish設定
@@ -1137,16 +1134,6 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw);
 
 
-/** initメッセージ作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pInit           initメッセージ
- * @param[in]           bHaveCnl        true:チャネル開設済み
- * retval       true    成功
- */
-bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool bHaveCnl);
-
-
 /** channel_reestablishメッセージ作成
  *
  * @param[in,out]       self            channel info
@@ -1178,6 +1165,10 @@ bool ln_funding_locked_check_need(const ln_self_t *self);
  * @retval  true    成功
  */
 bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked);
+
+
+//XXX:
+void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam);
 
 
 /********************************************************************
@@ -1407,15 +1398,6 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
  * ping/pong
  ********************************************************************/
 
-/** ping作成
- *
- * @param[in]           self            channel info
- * @param[out]          pPing           生成したpingメッセージ
- * @param[in]           PingLen         ping byteslen
- * @param[in]           PongLen         num_pong_bytes
- * @retval      true    成功
- */
-bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_t PongLen);
 
 
 #if 0

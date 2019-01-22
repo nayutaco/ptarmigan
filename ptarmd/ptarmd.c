@@ -59,6 +59,8 @@
 
 #include "btc_crypto.h"
 
+#include "ln_setupctl.h"
+
 #include "ptarmd.h"
 #include "btcrpc.h"
 #include "p2p_svr.h"
