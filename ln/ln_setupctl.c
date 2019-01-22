@@ -177,13 +177,18 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_error_send(ln_self_t *self, const ln_msg_error_t *pErrorMsg)
+bool HIDDEN ln_error_send(ln_self_t *self, int Err, const char *pFormat, ...)
 {
+    ln_error_set(self, Err, pFormat);
+    ln_msg_error_t msg;
+    msg.p_channel_id = self->channel_id;
+    msg.p_data = (const uint8_t *)self->err_msg;
+    msg.len = strlen(self->err_msg);
     utl_buf_t buf = UTL_BUF_INIT;
-    ln_msg_error_write(&buf, pErrorMsg);
+    ln_msg_error_write(&buf, &msg);
     ln_callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
-    return false;
+    return true;
 }
 
 
