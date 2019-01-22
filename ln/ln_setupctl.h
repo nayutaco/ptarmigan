@@ -51,19 +51,13 @@
 #define M_INIT_ANNOSIG_SENT                 (0x10)          ///< announcement_signatures送信/再送済み
 
 
-#define M_SET_ERR(self,err,fmt,...)     {\
-        ln_error_set(self,err,fmt,##__VA_ARGS__);\
-        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
+#define M_SET_ERR(self, err, fmt,...) { \
+        ln_error_set(self, err, fmt, ##__VA_ARGS__); \
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg); \
     }
-#define M_SEND_ERR(self,err,fmt,...)    {\
-        ln_error_set(self,err,fmt,##__VA_ARGS__);\
-        \
-        ln_msg_error_t msg;\
-        msg.p_channel_id = self->channel_id;\
-        msg.p_data = (const uint8_t *)self->err_msg;\
-        msg.len = strlen(self->err_msg);\
-        ln_error_send(self, &msg);\
-        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
+#define M_SEND_ERR(self, err, fmt, ...) { \
+        ln_error_send(self, err, fmt, ##__VA_ARGS__); \
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg); \
     }
 
 
@@ -96,7 +90,7 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
 
 
 bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_error_send(ln_self_t *self, const ln_msg_error_t *pErrorMsg);
+bool HIDDEN ln_error_send(ln_self_t *self, int Err, const char *pFormat, ...);
 bool HIDDEN ln_error_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
