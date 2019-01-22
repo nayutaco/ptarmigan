@@ -42,16 +42,7 @@
 
 #include "ln_db.h"
 #include "ln.h"
-//#include "ln_misc.h"
 #include "ln_msg_setupctl.h"
-/*#include "ln_node.h"
-#include "ln_enc_auth.h"
-#include "ln_onion.h"
-#include "ln_script.h"
-#include "ln_comtx.h"
-#include "ln_derkey.h"
-#include "ln_signer.h"
-*/
 #include "ln_local.h"
 #include "ln_setupctl.h"
 
@@ -60,7 +51,7 @@
  * static variables
  **************************************************************************/
 
-/// init.localfeaturesデフォルト値
+/// init.localfeatures defalt value
 static uint8_t mInitLocalFeatures[1];
 
 
@@ -101,7 +92,6 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
     }
 
     ln_msg_init_t msg;
-
     msg.gflen = 0;
     msg.p_globalfeatures = NULL;
     self->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
@@ -122,82 +112,67 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
 
 bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    bool ret;
+    bool ret = false;
     bool initial_routing_sync = false;
 
     if (self->init_flag & M_INIT_FLAG_RECV) {
-        //TODO: 2回init受信した場合はエラーにする
+        //TODO: multiple init error
         M_SEND_ERR(self, LNERR_MSG_INIT, "multiple init receive");
         return false;
     }
 
     ln_msg_init_t msg;
-    ret = ln_msg_init_read(&msg, pData, Len);
-    if (!ret) {
+    if (!ln_msg_init_read(&msg, pData, Len)) {
         LOGE("fail: read\n");
         goto LABEL_EXIT;
     }
 
-    //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
-    //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-globalfeatures-flags
-    //  globalfeatures not assigned
+    //globalfeatures not assigned
     for (uint32_t lp = 0; lp < msg.gflen; lp++) {
-        if (msg.p_globalfeatures[lp] & 0x55) {
-            //even bit: 未対応のため、エラーにする
+        if (msg.p_globalfeatures[lp] & 0x55) { //even bits
             LOGE("fail: unknown bit(globalfeatures)\n");
-            ret = false;
             goto LABEL_EXIT;
-        } else {
-            //odd bit: 未知でもスルー
         }
     }
 
     if (msg.lflen == 0) {
         self->lfeature_remote = 0x00;
     } else {
-        //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
-        //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
-        //  bit0/1 : option_data_loss_protect
-        //  bit3   : initial_routing_sync
-        //  bit4/5 : option_upfront_shutdown_script
-        //  bit6/7 : gossip_queries
-        uint8_t flag = (msg.p_localfeatures[0] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
-        if (flag & 0x55) {
-            //even bit: 未対応のため、エラーにする
-            LOGE("fail: unknown bit(localfeatures)\n");
-            ret = false;
-            goto LABEL_EXIT;
-        } else {
-            //odd bit: 未知でもスルー
-        }
+        self->lfeature_remote = msg.p_localfeatures[0];
 
-        initial_routing_sync = (msg.p_localfeatures[0] & LN_INIT_LF_ROUTE_SYNC);
-
-        if (msg.lflen > 1) {
-            for (uint32_t lp = 1; lp < msg.lflen; lp++) {
-                if (msg.p_localfeatures[lp] & 0x55) {
-                    //even bit: 未対応のため、エラーにする
+        //check
+        for (uint32_t lp = 0; lp < msg.lflen; lp++) {
+            if (lp == 0) {
+                //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
+                //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
+                //  bit0/1 : option_data_loss_protect
+                //  bit3   : initial_routing_sync
+                //  bit4/5 : option_upfront_shutdown_script
+                //  bit6/7 : gossip_queries
+                uint8_t flag = (msg.p_localfeatures[lp] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
+                if (flag & 0x55) { //even bits
                     LOGE("fail: unknown bit(localfeatures)\n");
-                    ret = false;
                     goto LABEL_EXIT;
-                } else {
-                    //odd bit: 未知でもスルー
                 }
+                initial_routing_sync = (msg.p_localfeatures[lp] & LN_INIT_LF_ROUTE_SYNC);
+            } else if (msg.p_localfeatures[lp] & 0x55) { //even bits
+                LOGE("fail: unknown bit(localfeatures)\n");
+                goto LABEL_EXIT;
             }
         }
-        self->lfeature_remote = msg.p_localfeatures[0];
+
     }
 
     self->init_flag |= M_INIT_FLAG_RECV;
 
-    //init受信通知
     ln_callback(self, LN_CB_INIT_RECV, &initial_routing_sync);
+
+    ret = true;
 
 LABEL_EXIT:
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_FEATURE, "init error");
     }
-
     return ret;
 }
 
@@ -231,7 +206,6 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_
     (void)self;
 
     ln_msg_ping_t msg;
-
     msg.byteslen = PingLen;
     msg.num_pong_bytes = PongLen;
     msg.p_ignored = NULL;
@@ -244,19 +218,16 @@ bool HIDDEN ln_ping_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     //LOGD("BEGIN\n");
 
-    bool ret;
-
     ln_msg_ping_t msg;
-    ret = ln_msg_ping_read(&msg, pData, Len);
-    if (!ret) {
+    if (!ln_msg_ping_read(&msg, pData, Len)) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
 
-    ret = ln_pong_send(self, &msg);
+    if (!ln_pong_send(self, &msg)) return false;
 
     //LOGD("END\n");
-    return ret;
+    return true;
 }
 
 
