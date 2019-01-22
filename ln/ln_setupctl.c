@@ -241,20 +241,14 @@ bool HIDDEN ln_ping_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 bool HIDDEN ln_pong_send(ln_self_t *self, ln_msg_ping_t *pPingMsg)
 {
-    bool ret = false;
-    utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_pong_t msg;
-
     msg.byteslen = pPingMsg->num_pong_bytes;
     msg.p_ignored = NULL;
-    if (!ln_msg_pong_write(&buf, &msg)) goto LABEL_EXIT;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_pong_write(&buf, &msg)) return false;
     ln_callback(self, LN_CB_SEND_REQ, &buf);
-
-    ret = true;
-
-LABEL_EXIT:
     utl_buf_free(&buf);
-    return ret;
+    return true;
 }
 
 
@@ -268,14 +262,14 @@ bool HIDDEN ln_pong_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    ln_cb_pong_recv_t pongrecv;
-    pongrecv.result = false;
-    pongrecv.byteslen = msg.byteslen;
-    pongrecv.p_ignored = msg.p_ignored;
-    ln_callback(self, LN_CB_PONG_RECV, &pongrecv);
+    ln_cb_pong_recv_t param;
+    param.result = false;
+    param.byteslen = msg.byteslen;
+    param.p_ignored = msg.p_ignored;
+    ln_callback(self, LN_CB_PONG_RECV, &param);
 
     //LOGD("END\n");
-    return pongrecv.result;
+    return param.result;
 }
 
 
