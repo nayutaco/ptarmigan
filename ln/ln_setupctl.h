@@ -82,19 +82,7 @@ bool /*HIDDEN*/ ln_init_send(ln_self_t *self, bool bInitRouteSync, bool bHaveCnl
 bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_error_send(ln_self_t *self, int Err, const char *pFormat, ...);
 bool HIDDEN ln_error_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-
-
-/** ping作成
- *
- * @param[in]           self            channel info
- * @param[out]          pPing           生成したpingメッセージ
- * @param[in]           PingLen         ping byteslen
- * @param[in]           PongLen         num_pong_bytes
- * @retval      true    成功
- */
-bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing, uint16_t PingLen, uint16_t PongLen); //XXX:
-
-
+bool /*HIDDEN*/ ln_ping_send(ln_self_t *self, uint16_t PingLen, uint16_t PongLen);
 bool HIDDEN ln_ping_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_pong_send(ln_self_t *self, ln_msg_ping_t *pPingMsg);
 bool HIDDEN ln_pong_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
