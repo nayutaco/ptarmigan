@@ -1353,15 +1353,10 @@ static bool exchange_init(lnapp_conf_t *p_conf)
  */
 static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf = UTL_BUF_INIT;
-
-    bool ret = ln_channel_reestablish_create(p_conf->p_self, &buf);
-    if (!ret) {
+    if (!ln_channel_reestablish_send(p_conf->p_self)) {
         LOGE("fail: create\n");
         return false;
     }
-    send_peer_noise(p_conf, &buf);
-    utl_buf_free(&buf);
 
     //コールバックでのchannel_reestablish受信通知待ち
     LOGD("wait: channel_reestablish\n");
@@ -1381,15 +1376,10 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
  */
 static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf = UTL_BUF_INIT;
-
-    bool ret = ln_funding_locked_create(p_conf->p_self, &buf);
-    if (!ret) {
-        LOGE("fail: create\n");
+    if (!ln_funding_locked_send(p_conf->p_self)) {
+        LOGE("fail: send\n");
         return false;
     }
-    send_peer_noise(p_conf, &buf);
-    utl_buf_free(&buf);
 
     //コールバックでのfunding_locked受信通知待ち
     LOGD("wait: funding_locked\n");
@@ -1483,17 +1473,16 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         memset(&fundin, 0, sizeof(fundin));
 #endif
 
-        utl_buf_t buf = UTL_BUF_INIT;
-        ret = ln_open_channel_create(p_conf->p_self, &buf,
+        ret = ln_open_channel_send(p_conf->p_self,
                         &fundin,
                         pFunding->funding_sat,
                         pFunding->push_sat,
                         feerate_kw);
         if (ret) {
             LOGD("SEND: open_channel\n");
-            send_peer_noise(p_conf, &buf);
+        } else {
+            LOGE("fail: open_channel\n");
         }
-        utl_buf_free(&buf);
     } else {
         LOGE("fail through: check_unspent: ");
         TXIDD(pFunding->txid);

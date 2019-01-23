@@ -80,8 +80,8 @@ static bool create_funding_tx(ln_self_t *self, bool bSign);
  * public functions
  **************************************************************************/
 
-bool /*HIDDEN*/ ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
-    const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
+bool /*HIDDEN*/ ln_open_channel_send(
+    ln_self_t *self, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
 {
     if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init finished.");
@@ -137,7 +137,10 @@ bool /*HIDDEN*/ ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     msg.channel_flags = CHANNEL_FLAGS_VALUE;
     msg.shutdown_len = 0;
     msg.p_shutdown_scriptpubkey = NULL;
-    ln_msg_open_channel_write(pOpen, &msg);
+    utl_buf_t buf = UTL_BUF_INIT;
+    ln_msg_open_channel_write(&buf, &msg);
+    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
 
     self->commit_local.dust_limit_sat = msg.dust_limit_satoshis;
     self->commit_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
@@ -151,7 +154,6 @@ bool /*HIDDEN*/ ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     self->feerate_per_kw = msg.feerate_per_kw;
 
     self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
-
     return true;
 }
 
@@ -480,9 +482,9 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
 bool HIDDEN ln_funding_signed_send(ln_self_t *self)
 {
     ln_msg_funding_signed_t msg;
-    utl_buf_t buf = UTL_BUF_INIT;
     msg.p_channel_id = self->channel_id;
     msg.p_signature = self->commit_remote.signature;
+    utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_funding_signed_write(&buf, &msg);
     ln_callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
@@ -534,23 +536,23 @@ bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
 }
 
 
-bool /*HIDDEN*/ ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked)
+bool /*HIDDEN*/ ln_funding_locked_send(ln_self_t *self)
 {
     LOGD("\n");
 
-    //funding_locked
     ln_msg_funding_locked_t msg;
     msg.p_channel_id = self->channel_id;
     msg.p_next_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    bool ret = ln_msg_funding_locked_write(pLocked, &msg);
-    if (ret) {
-        //channel_reestablishと同じ扱いにする
-        self->init_flag |= M_INIT_FLAG_REEST_SEND;
-    }
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_funding_locked_write(&buf, &msg)) return false;
+    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+
+    //channel_reestablishと同じ扱いにする
+    self->init_flag |= M_INIT_FLAG_REEST_SEND;
 
     M_DBG_COMMITNUM(self);
-
-    return ret;
+    return true;
 }
 
 
@@ -604,7 +606,7 @@ bool HIDDEN ln_funding_locked_recv(ln_self_t *self, const uint8_t *pData, uint16
 }
 
 
-bool /*HIDDEN*/ ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
+bool /*HIDDEN*/ ln_channel_reestablish_send(ln_self_t *self)
 {
     ln_msg_channel_reestablish_t msg;
     uint8_t your_last_per_commitment_secret[BTC_SZ_PRIVKEY] = {0};
@@ -628,30 +630,30 @@ bool /*HIDDEN*/ ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst
         option_data_loss_protect = true;
 
         if (self->commit_remote.commit_num) {
-            bool ret = ln_derkey_storage_get_secret(your_last_per_commitment_secret,
-                            &self->peer_storage,
-                            (uint64_t)(LN_SECINDEX_INIT - (self->commit_remote.commit_num - 1)));
-            if (!ret) {
+            if (!ln_derkey_storage_get_secret(
+                your_last_per_commitment_secret, &self->peer_storage,
+                (uint64_t)(LN_SECINDEX_INIT - (self->commit_remote.commit_num - 1)))) {
                 LOGD("no last secret\n");
                 memset(your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
             }
         }
 
-        uint8_t secret[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_percommitsec(self, secret, my_current_per_commitment_point);
+        uint8_t secret_buf[BTC_SZ_PRIVKEY];
+        ln_signer_create_prev_percommitsec(self, secret_buf, my_current_per_commitment_point);
     }
 
-    bool ret = ln_msg_channel_reestablish_write(pReEst, &msg, option_data_loss_protect);
-    if (ret) {
-        self->init_flag |= M_INIT_FLAG_REEST_SEND;
-    }
-    return ret;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_channel_reestablish_write(&buf, &msg, option_data_loss_protect)) return false;
+    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    self->init_flag |= M_INIT_FLAG_REEST_SEND;
+    return true;
 }
 
 
 bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    bool ret;
+    bool ret = false;
 
     LOGD("BEGIN\n");
 
@@ -667,9 +669,8 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
         msg.p_your_last_per_commitment_secret &&
         msg.p_my_current_per_commitment_point;
 
-    //channel-idチェック
-    ret = ln_check_channel_id(msg.p_channel_id, self->channel_id);
-    if (!ret) {
+    //channel_id
+    if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
@@ -748,8 +749,9 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
         }
     }
 
-    //reestablish受信通知
     ln_callback(self, LN_CB_REESTABLISH_RECV, NULL);
+
+    ret = true;
 
 LABEL_EXIT:
     if (ret) {
@@ -765,11 +767,12 @@ LABEL_EXIT:
 
 static bool check_peer_node(ln_self_t *self)
 {
-    return self->peer_node_id[0];       //先頭が0の場合は不正
+    if (self->peer_node_id[0] == 0x00) return false; //invalid value
+    return true;
 }
 
 
-/** funding_tx作成
+/** create funding_tx
  *
  * @param[in,out]       self
  */
@@ -828,53 +831,50 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
             return false;
         }
     } else {
-        //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
+        //for SPV
+        //fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
         //その代わり、self->funding_local.txindexは固定値にならない。
         btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
-        //INPUTもダミーで入れておく
-        btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
+        btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0); //dummy
     }
 
-    //署名
-    bool ret;
-    if (bSign) {
-        ln_cb_funding_sign_t sig;
-        sig.p_tx =  &self->tx_funding;
-        if (self->establish.p_fundin != NULL) {
-            sig.amount = self->establish.p_fundin->amount;
-        } else {
-            sig.amount = 0;
-        }
-        ln_callback(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
-        ret = sig.ret;
-        if (ret) {
-            btc_tx_txid(&self->tx_funding, self->funding_local.txid);
-            LOGD("***** funding_tx *****\n");
-            M_DBG_PRINT_TX(&self->tx_funding);
+    //sign
+    if (!bSign) return true; //not sign
 
-            //search funding vout
-            ret = false;
-            utl_buf_t two_of_two = UTL_BUF_INIT;
-            btc_script_p2wsh_create_scriptsig(&two_of_two, &self->redeem_fund);
-            for (uint32_t lp = 0; lp < self->tx_funding.vout_cnt; lp++) {
-                if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &two_of_two)) {
-                    self->funding_local.txindex = (uint16_t)lp;
-                    ret = true;
-                    LOGD("funding_txindex=%d\n", self->funding_local.txindex);
-                    break;
-                }
-            }
-            utl_buf_free(&two_of_two);
-        } else {
-            LOGE("fail: signature\n");
-            btc_tx_free(&self->tx_funding);
-        }
+    ln_cb_funding_sign_t param;
+    param.p_tx =  &self->tx_funding;
+    if (self->establish.p_fundin != NULL) {
+        param.amount = self->establish.p_fundin->amount;
     } else {
-        //not sign
-        ret = true;
+        param.amount = 0;
+    }
+    ln_callback(self, LN_CB_SIGN_FUNDINGTX_REQ, &param);
+    if (!param.ret) {
+        LOGE("fail: signature\n");
+        btc_tx_free(&self->tx_funding);
+        return false;
     }
 
-    return ret;
+    btc_tx_txid(&self->tx_funding, self->funding_local.txid);
+    LOGD("***** funding_tx *****\n");
+    M_DBG_PRINT_TX(&self->tx_funding);
+
+    //search funding vout
+    utl_buf_t two_of_two = UTL_BUF_INIT;
+    btc_script_p2wsh_create_scriptsig(&two_of_two, &self->redeem_fund);
+    uint32_t lp;
+    for (lp = 0; lp < self->tx_funding.vout_cnt; lp++) {
+        if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &two_of_two)) break;
+    }
+    utl_buf_free(&two_of_two);
+    if (lp == self->tx_funding.vout_cnt) {
+        //not found
+        //XXX: free tx_funding ?
+        return false;
+    }
+    self->funding_local.txindex = (uint16_t)lp;
+    LOGD("funding_txindex=%d\n", self->funding_local.txindex);
+    return true;
 }
 
 
