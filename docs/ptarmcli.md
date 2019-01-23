@@ -19,7 +19,6 @@ ptarmcli [options] [JSON-RPC port number]
   * `-q` : quit ptarmd
 
 * connect peer
-  * `-c PEER_CONFIG_FILE` : new connection or already connected node
   * `-c NODE_ID@IPADDR:PORT` : new connection or already connected node
   * `-c NODE_ID` : already connected node
 
@@ -56,14 +55,6 @@ Control `ptarmd`.
 `ptarmcli` and `ptarmd` are connect with TCP JSON-RPC(not HTTP).
 
 ### Configuration File Format
-
-* peer config file format (`-c`)
-
-```text
-node_id=[node pubkey]
-ipaddr=[IPv4 address]
-port=[port number]
-```
 
 * fund config file format (`-f`)
 
