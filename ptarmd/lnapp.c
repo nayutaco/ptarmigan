@@ -70,6 +70,7 @@
 #include "ln_setupctl.h"
 #include "ln_establish.h"
 #include "ln_close.h"
+#include "ln_anno.h"
 
 #include "ptarmd.h"
 #include "cmd_json.h"
@@ -1840,12 +1841,7 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
     pthread_mutex_lock(&p_conf->mux_self);
     if ((ln_short_channel_id(p_self) != 0) && !ln_is_announced(p_self)) {
         //チャネル作成済み && announcement未交換
-        utl_buf_t buf = UTL_BUF_INIT;
-        bool ret = ln_channel_update_create(p_self, &buf);
-        if (ret) {
-            send_peer_noise(p_conf, &buf);
-            utl_buf_free(&buf);
-        }
+        /*ignore*/ ln_channel_update_send(p_self);
     }
     pthread_mutex_unlock(&p_conf->mux_self);
 }
@@ -3351,19 +3347,13 @@ static void rcvidle_clear(lnapp_conf_t *p_conf)
 
 static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
 {
-    utl_buf_t buf = UTL_BUF_INIT;
-
     pthread_mutex_lock(&p_conf->mux_self);
-    bool ret = ln_announce_signs_create(p_conf->p_self, &buf);
-    if (ret) {
-        send_peer_noise(p_conf, &buf);
-        utl_buf_free(&buf);
-    } else {
+    bool ret = ln_announcement_signatures_send(p_conf->p_self);
+    if (!ret) {
         LOGE("fail: create announcement_signatures\n");
         stop_threads(p_conf);
     }
     pthread_mutex_unlock(&p_conf->mux_self);
-
     return ret;
 }
 

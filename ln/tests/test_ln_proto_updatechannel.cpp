@@ -38,6 +38,7 @@ extern "C" {
 // #include "ln_msg_establish.c"
 //#include "ln_msg_normalope.c"
 // #include "ln_msg_setupctl.c"
+#include "ln_anno.c"
 #include "ln_node.c"
 // #include "ln_onion.c"
 // #include "ln_script.c"
@@ -408,7 +409,7 @@ TEST_F(ln, recv_updatechannel_ok)
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
-    bool ret = recv_channel_update(&self, NULL, 0);
+    bool ret = ln_channel_update_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
     ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
@@ -469,7 +470,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
-    bool ret = recv_channel_update(&self, NULL, 0);
+    bool ret = ln_channel_update_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
     ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
@@ -531,12 +532,12 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
-    bool ret = recv_channel_update(&self, NULL, 0);
+    bool ret = ln_channel_update_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
     ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(0, ln_db_annocnlupd_save_fake.call_count);
-    ASSERT_EQ(1, callback_called);
+    ASSERT_EQ(0, callback_called);
 
     ln_term(&self);
 }

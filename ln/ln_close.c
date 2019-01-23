@@ -50,6 +50,7 @@
 #include "ln_msg_close.h"
 #include "ln_local.h"
 #include "ln_setupctl.h"
+#include "ln_anno.h"
 #include "ln_close.h"
 
 
@@ -90,7 +91,7 @@ bool /*HIDDEN*/ ln_shutdown_send(ln_self_t *self)
 
     self->shutdown_flag |= LN_SHDN_FLAG_SEND;
     M_DB_SELF_SAVE(self);
-    ln_disable_channel_update(self);
+    ln_channel_update_disable(self);
 
     LOGD("END\n");
     return true;
