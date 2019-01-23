@@ -838,7 +838,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
 
         LOGD("vout[%u]=", lp);
         DUMPD(pTx->vout[lp].script.buf, pTx->vout[lp].script.len);
-        if (utl_buf_cmp(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOLOCAL])) {
+        if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             LOGD("[%u]to_local !\n", lp);
 
             ret = close_revoked_tolocal(self, pTx, lp);
@@ -848,7 +848,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
             } else {
                 save = false;
             }
-        } else if (utl_buf_cmp(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOREMOTE])) {
+        } else if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOREMOTE])) {
             LOGD("[%u]to_remote !\n", lp);
             ret = close_revoked_toremote(self, pTx, lp);
             if (ret) {
@@ -858,7 +858,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
             for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(self); lp2++) {
                 // LOGD("p_vout[%u][%d]=", lp, lp2);
                 // DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
-                if (utl_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
+                if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[lp2])) {
                     LOGD("[%u]HTLC vout[%d] !\n", lp, lp2);
 
                     ret = close_revoked_htlc(self, pTx, lp, lp2);

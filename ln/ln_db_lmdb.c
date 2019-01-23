@@ -1486,7 +1486,7 @@ bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, cons
         retval = annocnl_save(&db, pCnlAnno, ShortChannelId);
     } else {
         LOGV("exist channel_announcement: %016" PRIx64 "\n", ShortChannelId);
-        if (!utl_buf_cmp(&buf_ann, pCnlAnno)) {
+        if (!utl_buf_equal(&buf_ann, pCnlAnno)) {
             LOGE("fail: different channel_announcement\n");
             retval = -1;
         }
@@ -1589,7 +1589,7 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update
             //announceし直す必要があるため、クリアする
             clr = true;
         } else {
-            if (utl_buf_cmp(&buf_upd, pCnlUpd)) {
+            if (utl_buf_equal(&buf_upd, pCnlUpd)) {
                 //LOGD("same channel_update: %d\n", ln_cnlupd_direction(pUpd));
             } else {
                 //日時が同じなのにデータが異なる
@@ -1794,7 +1794,7 @@ bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announceme
             //announceし直す必要があるため、クリアする
             clr = true;
         } else {
-            if (utl_buf_cmp(&buf_node, pNodeAnno)) {
+            if (utl_buf_equal(&buf_node, pNodeAnno)) {
                 LOGV("same node_announcement\n");
             } else {
                 //日時が同じなのにデータが異なる
