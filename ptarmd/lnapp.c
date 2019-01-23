@@ -69,6 +69,7 @@
 #include "ln_msg_setupctl.h"
 #include "ln_setupctl.h"
 #include "ln_establish.h"
+#include "ln_close.h"
 
 #include "ptarmd.h"
 #include "cmd_json.h"
@@ -433,6 +434,8 @@ void lnapp_transfer_channel(lnapp_conf_t *pAppConf, rcvidle_cmd_t Cmd, utl_buf_t
 
 bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 {
+    bool ret = false;
+
     if (!pAppConf->loop) {
         //LOGD("This AppConf not working\n");
         return false;
@@ -442,8 +445,6 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     pthread_mutex_lock(&pAppConf->mux_self);
 
-    bool ret = false;
-    utl_buf_t buf = UTL_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
     if (ln_status_is_closing(p_self)) {
@@ -454,16 +455,14 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     show_self_param(p_self, stderr, "close channel", __LINE__);
 
     const char *p_str;
-    ret = ln_shutdown_create(p_self, &buf);
-    if (ret) {
-        send_peer_noise(pAppConf, &buf);
-        utl_buf_free(&buf);
-
+    if (!ln_shutdown_send(p_self)) {
         p_str = "close: good way(local) start";
     } else {
         p_str = "fail close: good way(local) start";
     }
     ptarmd_eventlog(ln_channel_id(p_self), p_str);
+
+    ret = true;
 
 LABEL_EXIT:
     pthread_mutex_unlock(&pAppConf->mux_self);
@@ -1014,14 +1013,9 @@ static void *thread_main_start(void *pArg)
         //  upon reconnection:
         //    if it has sent a previous shutdown:
         //      MUST retransmit shutdown.
-        utl_buf_t buf_sdn = UTL_BUF_INIT;
-        bool ret = ln_shutdown_create(p_self, &buf_sdn);
-        if (ret) {
-            send_peer_noise(p_conf, &buf_sdn);
-        } else {
+        if (!ln_shutdown_send(p_self)) {
             LOGE("fail: shutdown\n");
         }
-        utl_buf_free(&buf_sdn);
     }
 
     // flush buffered BOLT message

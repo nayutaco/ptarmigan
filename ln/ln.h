@@ -1171,6 +1171,7 @@ bool ln_funding_locked_check_need(const ln_self_t *self);
 void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam);
 bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
 void ln_dbg_commitnum(const ln_self_t *self);
+void ln_disable_channel_update(ln_self_t *self);
 
 
 /********************************************************************
@@ -1232,17 +1233,6 @@ bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *
  * @param[in]           Fee             FEE
  */
 void ln_shutdown_update_fee(ln_self_t *self, uint64_t Fee);
-
-
-/** shutdownメッセージ作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pShutdown   生成したshutdownメッセージ
- * @retval      ture    成功
- * @note
- *      - scriptPubKeyは #ln_init()で指定したアドレスを使用する
- */
-bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown);
 
 
 /** close中状態に遷移させる
