@@ -51,6 +51,7 @@
 #include "ln_setupctl.h"
 #include "ln_establish.h"
 #include "ln_close.h"
+#include "ln_anno.h"
 
 #include "ln_node.h"
 #include "ln_enc_auth.h"
@@ -108,12 +109,6 @@
 #define M_HTLCCHG_FF_SEND                   (1)
 #define M_HTLCCHG_FF_RECV                   (2)
 
-
-// ln_self_t.anno_flag
-#define M_ANNO_FLAG_SEND                    (0x01)          ///< announcement_signatures送信済み
-#define M_ANNO_FLAG_RECV                    (0x02)          ///< announcement_signatures受信済み
-//#define LN_ANNO_FLAG_END
-
 /// update_add_htlc+commitment_signed送信直後
 #define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
 
@@ -133,9 +128,6 @@
 //feerate: receive update_fee
 #define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
-
-//channel_update.timestamp
-#define M_UPDCNL_TIMERANGE                  (uint32_t)(60 * 60)     //1hour
 
 
 /**************************************************************************
@@ -162,16 +154,10 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 //send
 static bool create_basetx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime, const uint8_t *pTxid, int Index, bool bRevoked);
 static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig);
-static bool create_local_channel_announcement(ln_self_t *self);
-static bool create_channel_update(ln_self_t *self, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 
 static bool check_create_add_htlc(ln_self_t *self, uint16_t *pIdx, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
 static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_t *p_htlc);
@@ -181,9 +167,6 @@ static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushR
 
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
-static void proc_anno_sigs(ln_self_t *self);
-
-static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static bool set_add_htlc(ln_self_t *self, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_self_t *self, uint16_t Idx);
 
@@ -197,8 +180,6 @@ static void fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16
 static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc);
 static void clear_htlc(ln_update_add_htlc_t *p_htlc);
 static void close_alloc(ln_close_force_t *pClose, int Num);
-static btc_script_pubkey_order_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
-static inline uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
 static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx);
 
 #ifdef M_DBG_COMMITNUM
@@ -234,10 +215,10 @@ static const struct {
     { MSGTYPE_UPDATE_FEE,                   recv_update_fee },
     { MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC,   recv_update_fail_malformed_htlc },
     { MSGTYPE_CHANNEL_REESTABLISH,          ln_channel_reestablish_recv },
-    { MSGTYPE_CHANNEL_ANNOUNCEMENT,         recv_channel_announcement },
-    { MSGTYPE_NODE_ANNOUNCEMENT,            recv_node_announcement },
-    { MSGTYPE_CHANNEL_UPDATE,               recv_channel_update },
-    { MSGTYPE_ANNOUNCEMENT_SIGNATURES,      recv_announcement_signatures }
+    { MSGTYPE_CHANNEL_ANNOUNCEMENT,         ln_channel_announcement_recv },
+    { MSGTYPE_NODE_ANNOUNCEMENT,            ln_node_announcement_recv },
+    { MSGTYPE_CHANNEL_UPDATE,               ln_channel_update_recv },
+    { MSGTYPE_ANNOUNCEMENT_SIGNATURES,      ln_announcement_signatures_recv }
 };
 
 
@@ -860,65 +841,11 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 #endif
 
 
-bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
-{
-    bool ret;
-
-    uint8_t *p_sig_node;
-    uint8_t *p_sig_btc;
-
-    if (self->cnl_anno.buf == NULL) {
-        create_local_channel_announcement(self);
-    }
-
-    ln_msg_channel_announcement_get_sigs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
-
-    ln_msg_announcement_signatures_t msg;
-    msg.p_channel_id = self->channel_id;
-    msg.short_channel_id = self->short_channel_id;
-    msg.p_node_signature = p_sig_node;
-    msg.p_bitcoin_signature = p_sig_btc;
-    ret = ln_msg_announcement_signatures_write(pBufAnnoSigns, &msg);
-    if (ret) {
-        self->anno_flag |= M_ANNO_FLAG_SEND;
-        proc_anno_sigs(self);
-        M_DB_SELF_SAVE(self);
-        self->init_flag |= M_INIT_ANNOSIG_SENT;
-    }
-    return ret;
-}
-
-
-bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd)
-{
-    bool ret;
-
-    uint32_t now = (uint32_t)utl_time_time();
-    ln_msg_channel_update_t upd;
-    ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
-    if (ret) {
-        LOGD("create: channel_update\n");
-        ret = ln_db_annocnlupd_save(pCnlUpd, &upd, NULL);
-        if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
-            //announcement_signatures後であればコールバックする
-            //そうでない場合は、announcement前のprivate channel通知をしている
-            ln_cb_update_annodb_t annodb;
-            annodb.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
-            ln_callback(self, LN_CB_UPDATE_ANNODB, &annodb);
-        }
-    } else {
-        LOGE("fail: create channel_update\n");
-    }
-
-    return ret;
-}
-
-
 bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg)
 {
     bool ret;
 
-    btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
+    btc_script_pubkey_order_t sort = ln_node_id_sort(self, NULL);
     uint8_t dir = (sort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
     ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
@@ -1000,7 +927,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
         }
         ln_db_self_save_status(self, pDbParam);
 
-        ln_disable_channel_update(self);
+        ln_channel_update_disable(self);
     }
     LOGD("END: type=%d\n", (int)self->status);
 }
@@ -1979,13 +1906,48 @@ void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam)
 }
 
 
-void ln_disable_channel_update(ln_self_t *self)
+/**
+ *
+ * @param[in]   self
+ * @param[in]   pNodeId
+ * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     自ノードが先
+ * @retval      BTC_SCRYPT_PUBKEY_ORDER_OTHER   相手ノードが先
+ */
+btc_script_pubkey_order_t ln_node_id_sort(const ln_self_t *self, const uint8_t *pNodeId)
 {
-    ln_msg_channel_update_t msg;
-    utl_buf_t buf = UTL_BUF_INIT;
-    if (!create_channel_update(self, &msg, &buf, (uint32_t)utl_time_time(), LN_CNLUPD_CHFLAGS_DISABLE)) return;
-    ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(self));
-    utl_buf_free(&buf);
+    btc_script_pubkey_order_t sort;
+
+    int lp;
+    const uint8_t *p_nodeid = ln_node_getid();
+    const uint8_t *p_peerid;
+    if (pNodeId == NULL) {
+        p_peerid = self->peer_node_id;
+    } else {
+        p_peerid = pNodeId;
+    }
+    for (lp = 0; lp < BTC_SZ_PUBKEY; lp++) {
+        if (p_nodeid[lp] != p_peerid[lp]) {
+            break;
+        }
+    }
+    if ((lp < BTC_SZ_PUBKEY) && (p_nodeid[lp] < p_peerid[lp])) {
+        LOGD("my node= first\n");
+        sort = BTC_SCRYPT_PUBKEY_ORDER_ASC;
+    } else {
+        LOGD("my node= second\n");
+        sort = BTC_SCRYPT_PUBKEY_ORDER_OTHER;
+    }
+
+    return sort;
+}
+
+
+/** btc_script_pubkey_order_t --> Direction変換
+ *
+ */
+uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
+{
+    return (uint8_t)Sort;
 }
 
 
@@ -2949,260 +2911,6 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
 }
 
 
-static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len)
-{
-    bool ret;
-    uint8_t *p_sig_node;
-    uint8_t *p_sig_btc;
-
-    if (self->fund_flag == 0) { //XXX: after `funding_locked`
-        LOGE("fail: not open peer\n");
-        return false;
-    }
-
-    if (self->cnl_anno.buf == NULL) {
-        create_local_channel_announcement(self);
-    }
-
-    //channel_announcementを埋める
-    btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
-    ln_msg_channel_announcement_get_sigs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
-
-    ln_msg_announcement_signatures_t msg;
-    ret = ln_msg_announcement_signatures_read(&msg, pData, Len);
-    if (!ret || (msg.short_channel_id == 0)) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
-        return false;
-    }
-    memcpy(p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
-    memcpy(p_sig_btc, msg.p_bitcoin_signature, LN_SZ_SIGNATURE);
-
-    //channel-idチェック
-    ret = ln_check_channel_id(msg.p_channel_id, self->channel_id);
-    if (!ret) {
-        M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
-        return false;
-    }
-
-    if (self->short_channel_id) {
-        if (msg.short_channel_id != self->short_channel_id) {
-            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", self->short_channel_id, msg.short_channel_id);
-            M_SET_ERR(self, LNERR_MSG_READ, "read message"); //XXX:
-            return false;
-        }
-    }
-
-    if ((self->anno_flag & LN_ANNO_FLAG_END) == 0) {
-        self->short_channel_id = msg.short_channel_id;
-        ret = ln_msg_channel_announcement_update_short_channel_id(self->cnl_anno.buf, self->short_channel_id);
-        if (!ret) {
-            LOGE("fail: update short_channel_id\n");
-            return false;
-        }
-        ret = ln_msg_channel_announcement_sign(
-            self->cnl_anno.buf, self->cnl_anno.len,
-            self->priv_data.priv[MSG_FUNDIDX_FUNDING],
-            sort);
-        if (!ret) {
-            LOGE("fail: sign\n");
-            return false;
-        }
-        self->anno_flag |= M_ANNO_FLAG_RECV;
-        proc_anno_sigs(self);
-        M_DB_SELF_SAVE(self);
-    } else if ((self->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
-        //BOLT07
-        //  MUST respond to the first announcement_signatures message with its own announcement_signatures message.
-        //
-        // LN_ANNO_FLAG_ENDであっても再接続後の初回のみは送信する
-        LOGD("respond announcement_signatures\n");
-        utl_buf_t buf = UTL_BUF_INIT;
-        bool ret = ln_announce_signs_create(self, &buf);
-        if (ret) {
-            ln_callback(self, LN_CB_SEND_REQ, &buf);
-        }
-        self->init_flag |= M_INIT_ANNOSIG_SENT;
-    }
-
-    return ret;
-}
-
-
-/** channel_announcement受信
- *
- * @param[in,out]       self            channel情報
- * @param[in]           pData           受信データ
- * @param[in]           Len             pData長
- * @retval      true    解析成功
- */
-static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
-{
-    ln_msg_channel_announcement_t msg;
-    ln_cb_update_annodb_t db;
-
-    bool ret = ln_msg_channel_announcement_read(&msg, pData, Len);
-    if (!ret || (msg.short_channel_id == 0)) {
-        LOGE("fail: do nothing\n");
-        return true;
-    }
-
-    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
-        LOGE("fail: chain_hash mismatch\n");
-        return false;
-    }
-
-    //XXX: check sign
-    //ln_msg_channel_announcement_verify
-
-    utl_buf_t buf = UTL_BUF_INIT;
-    buf.buf = (CONST_CAST uint8_t *)pData;
-    buf.len = Len;
-
-    //DB保存
-    ret = ln_db_annocnl_save(&buf, msg.short_channel_id, ln_their_node_id(self), msg.p_node_id_1, msg.p_node_id_2);
-    if (ret) {
-        LOGD("save channel_announcement: %016" PRIx64 "\n", msg.short_channel_id);
-        db.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
-    } else {
-        db.anno = LN_CB_UPDATE_ANNODB_NONE;
-    }
-    ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
-
-    return true;
-}
-
-
-/** channel_update受信
- *
- * @params[in,out]      self            channel情報
- * @param[in]           pData           受信データ
- * @param[in]           Len             pData長
- * @retval      true    解析成功
- */
-static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
-{
-    (void)self;
-
-    bool ret;
-    ln_msg_channel_update_t msg;
-    memset(&msg, 0, sizeof(msg));
-
-    ret = ln_msg_channel_update_read(&msg, pData, Len);
-    if (ret) {
-        //timestamp check
-        uint64_t now = (uint64_t)utl_time_time();
-        if (ln_db_annocnlupd_is_prune(now, msg.timestamp)) {
-            //ret = false;
-            char time[UTL_SZ_TIME_FMT_STR + 1];
-            LOGD("older channel: not save(%016" PRIx64 "): %s\n", msg.short_channel_id, utl_time_fmt(time, msg.timestamp));
-            return true;
-        }
-    } else {
-        LOGE("fail: decode\n");
-        return true;
-    }
-
-    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
-        LOGE("fail: chain_hash mismatch\n");
-        return true;
-    }
-
-    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), msg.short_channel_id);
-
-    //short_channel_id と dir から node_id を取得する
-    uint8_t node_id[BTC_SZ_PUBKEY];
-
-    ret = get_nodeid_from_annocnl(self, node_id, msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
-    if (ret && btc_keys_check_pub(node_id)) {
-        ret = ln_msg_channel_update_verify(node_id, pData, Len);
-        if (!ret) {
-            LOGE("fail: verify\n");
-        }
-    } else {
-        //該当するchannel_announcementが見つからない
-        //  BOLT#11
-        //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
-        //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
-        LOGD("through: not found channel_announcement in DB, but save\n");
-        ret = true;
-    }
-
-    //BOLT07
-    //  if the timestamp is unreasonably far in the future:
-    //    MAY discard the channel_update.
-    time_t now = utl_time_time();
-    if (msg.timestamp > now + M_UPDCNL_TIMERANGE) {
-        LOGD("through: timestamp is unreasonably far\n");
-        ret = false;
-    }
-
-    ln_cb_update_annodb_t db;
-    db.anno = LN_CB_UPDATE_ANNODB_NONE;
-    if (ret) {
-        //DB保存
-        utl_buf_t buf = UTL_BUF_INIT;
-        buf.buf = (CONST_CAST uint8_t *)pData;
-        buf.len = Len;
-        ret = ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(self));
-        if (ret) {
-            LOGD("save channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
-            db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
-        } else {
-            LOGE("fail: db save\n");
-        }
-        ret = true;
-    } else {
-        //スルーするだけにとどめる
-        ret = true;
-    }
-    ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
-
-    return ret;
-}
-
-
-/** node_announcement受信
- *
- * @param[in,out]       self            channel情報
- * @param[in]           pData           受信データ
- * @param[in]           Len             pData長
- * @retval      true    解析成功
- */
-static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
-{
-    bool ret;
-    ln_msg_node_announcement_t msg;
-    ret = ln_msg_node_announcement_read(&msg, pData, Len);
-    if (!ret) {
-        LOGE("fail: read message\n");
-        return false;
-    }
-    ret = ln_msg_node_announcement_verify(&msg, pData, Len);
-    if (!ret) {
-        LOGD("fail: verify\n");
-        return false;
-    }
-
-    LOGV("node_id:");
-    DUMPV(msg.p_node_id, BTC_SZ_PUBKEY);
-
-    utl_buf_t buf_ann = UTL_BUF_INIT;
-    buf_ann.buf = (CONST_CAST uint8_t *)pData;
-    buf_ann.len = Len;
-    ret = ln_db_annonod_save(&buf_ann, &msg, ln_their_node_id(self));
-    if (ret) {
-        LOGD("save node_announcement: ");
-        DUMPD(msg.p_node_id, BTC_SZ_PUBKEY);
-
-        ln_cb_update_annodb_t db;
-        db.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
-        ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
-    }
-
-    return true;
-}
-
-
 /********************************************************************
  * Transaction作成
  ********************************************************************/
@@ -3266,80 +2974,6 @@ static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig)
 
     LOGD("END\n");
     return ret;
-}
-
-
-// channel_announcement用データ(自分の枠)
-static bool create_local_channel_announcement(ln_self_t *self)
-{
-    LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
-    utl_buf_free(&self->cnl_anno);
-
-    uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
-    memset(dummy_signature, 0xcc, sizeof(dummy_signature));
-    ln_msg_channel_announcement_t msg;
-    msg.p_node_signature_1 = dummy_signature;
-    msg.p_node_signature_2 = dummy_signature;
-    msg.p_bitcoin_signature_1 = dummy_signature;
-    msg.p_bitcoin_signature_2 = dummy_signature;
-    msg.len = 0;
-    msg.p_features = NULL;
-    msg.p_chain_hash = gGenesisChainHash;
-    msg.short_channel_id = self->short_channel_id;
-    btc_script_pubkey_order_t sort = sort_nodeid(self, NULL);
-    if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        msg.p_node_id_1 = ln_node_getid();
-        msg.p_node_id_2 = self->peer_node_id;
-        msg.p_bitcoin_key_1 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-        msg.p_bitcoin_key_2 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-    } else {
-        msg.p_node_id_1 = self->peer_node_id;
-        msg.p_node_id_2 = ln_node_getid();
-        msg.p_bitcoin_key_1 = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-        msg.p_bitcoin_key_2 = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
-    }
-    bool ret = ln_msg_channel_announcement_write(&self->cnl_anno, &msg);
-    if (ret) {
-        ret = ln_msg_channel_announcement_sign(
-            self->cnl_anno.buf, self->cnl_anno.len,
-            self->priv_data.priv[MSG_FUNDIDX_FUNDING],
-            sort);
-    }
-    return ret;
-}
-
-
-/** channel_update作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pUpd            生成したchannel_update構造体
- * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
- * @param[in]           TimeStamp       作成時刻とするEPOCH time
- * @param[in]           Flag            flagsにORする値
- * @retval      ture    成功
- */
-static bool create_channel_update(
-                ln_self_t *self,
-                ln_msg_channel_update_t *pUpd,
-                utl_buf_t *pCnlUpd,
-                uint32_t TimeStamp,
-                uint8_t Flag)
-{
-    uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
-    memset(dummy_signature, 0xcc, sizeof(dummy_signature));
-    pUpd->p_signature = dummy_signature;
-    pUpd->p_chain_hash = gGenesisChainHash;
-    pUpd->short_channel_id = self->short_channel_id;
-    pUpd->timestamp = TimeStamp;
-    pUpd->message_flags = 0;
-    pUpd->channel_flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
-    pUpd->cltv_expiry_delta = self->anno_prm.cltv_expiry_delta;
-    pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
-    pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
-    pUpd->fee_proportional_millionths = self->anno_prm.fee_prop_millionths;
-    pUpd->htlc_maximum_msat = 0;
-    if (!ln_msg_channel_update_write(pCnlUpd, pUpd)) return false;
-    return ln_msg_channel_update_sign(pCnlUpd->buf, pCnlUpd->len);
 }
 
 
@@ -3731,7 +3365,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     uint8_t peer_id[BTC_SZ_PUBKEY];
     bool ret = ln_node_search_nodeid(peer_id, pDataOut->short_channel_id);
     if (ret) {
-        uint8_t dir = ln_sort_to_dir(sort_nodeid(self, peer_id));
+        uint8_t dir = ln_sort_to_dir(ln_node_id_sort(self, peer_id));
         ret = ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir);
         if (!ret) {
             LOGE("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
@@ -3896,81 +3530,6 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
     } else {
         assert(0);
     }
-    return ret;
-}
-
-
-static void proc_anno_sigs(ln_self_t *self)
-{
-    if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
-         (self->short_channel_id != 0) ) {
-        //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", self->short_channel_id);
-
-        //channel_announcement
-        bool ret1 = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
-                                ln_their_node_id(self), ln_node_getid());
-        if (ret1) {
-            utl_buf_free(&self->cnl_anno);
-        } else {
-            LOGE("fail\n");
-        }
-
-        //channel_update
-        utl_buf_t buf_upd = UTL_BUF_INIT;
-        uint32_t now = (uint32_t)utl_time_time();
-        ln_msg_channel_update_t upd;
-        bool ret2 = create_channel_update(self, &upd, &buf_upd, now, 0);
-        if (ret2) {
-            ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
-        } else {
-            LOGE("fail\n");
-        }
-        utl_buf_free(&buf_upd);
-
-        self->anno_flag |= LN_ANNO_FLAG_END;
-    } else {
-        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", self->anno_flag, self->short_channel_id);
-    }
-}
-
-
-//channel_announcementからのnode_id取得
-static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
-{
-    bool ret;
-
-    pNodeId[0] = 0x00;
-
-    utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
-    ret = ln_db_annocnl_load(&buf_cnl_anno, short_channel_id);
-    if (ret) {
-        ln_msg_channel_announcement_t msg;
-        ret = ln_msg_channel_announcement_read(&msg, buf_cnl_anno.buf, buf_cnl_anno.len);
-        if (ret) {
-            memcpy(pNodeId, Dir ? msg.p_node_id_2 : msg.p_node_id_1, BTC_SZ_PUBKEY);
-        } else {
-            LOGE("fail\n");
-        }
-    } else {
-        if (short_channel_id == self->short_channel_id) {
-            // DBには無いが、このchannelの情報
-            btc_script_pubkey_order_t mysort = sort_nodeid(self, NULL);
-            if ( ((mysort == BTC_SCRYPT_PUBKEY_ORDER_ASC) && (Dir == 0)) ||
-                 ((mysort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) && (Dir == 1)) ) {
-                //自ノード
-                LOGD("this channel: my node\n");
-                memcpy(pNodeId, ln_node_getid(), BTC_SZ_PUBKEY);
-            } else {
-                //相手ノード
-                LOGD("this channel: peer node\n");
-                memcpy(pNodeId, self->peer_node_id, BTC_SZ_PUBKEY);
-            }
-            ret = true;
-        }
-    }
-    utl_buf_free(&buf_cnl_anno);
-
     return ret;
 }
 
@@ -4250,51 +3809,6 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
     }
     utl_buf_init(&pClose->tx_buf);
     LOGD("TX num: %d\n", pClose->num);
-}
-
-
-/**
- *
- * @param[in]   self
- * @param[in]   pNodeId
- * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     自ノードが先
- * @retval      BTC_SCRYPT_PUBKEY_ORDER_OTHER   相手ノードが先
- */
-static btc_script_pubkey_order_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId)
-{
-    btc_script_pubkey_order_t sort;
-
-    int lp;
-    const uint8_t *p_nodeid = ln_node_getid();
-    const uint8_t *p_peerid;
-    if (pNodeId == NULL) {
-        p_peerid = self->peer_node_id;
-    } else {
-        p_peerid = pNodeId;
-    }
-    for (lp = 0; lp < BTC_SZ_PUBKEY; lp++) {
-        if (p_nodeid[lp] != p_peerid[lp]) {
-            break;
-        }
-    }
-    if ((lp < BTC_SZ_PUBKEY) && (p_nodeid[lp] < p_peerid[lp])) {
-        LOGD("my node= first\n");
-        sort = BTC_SCRYPT_PUBKEY_ORDER_ASC;
-    } else {
-        LOGD("my node= second\n");
-        sort = BTC_SCRYPT_PUBKEY_ORDER_OTHER;
-    }
-
-    return sort;
-}
-
-
-/** btc_script_pubkey_order_t --> Direction変換
- *
- */
-static inline uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
-{
-    return (uint8_t)Sort;
 }
 
 

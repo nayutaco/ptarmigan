@@ -1171,35 +1171,13 @@ bool ln_funding_locked_check_need(const ln_self_t *self);
 void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam);
 bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
 void ln_dbg_commitnum(const ln_self_t *self);
-void ln_disable_channel_update(ln_self_t *self);
+btc_script_pubkey_order_t ln_node_id_sort(const ln_self_t *self, const uint8_t *pNodeId);
+uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
 
 
 /********************************************************************
  * Establish関係
  ********************************************************************/
-
-/** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pBufAnnoSigns   生成したannouncement_signaturesメッセージ
- * @retval      ture    成功
- * @note
- *      - チャネルのどちらかでもinitのlocalfeaturesでchannels_publicを持っていない場合は失敗する。
- *      - Establish完了以降に呼び出すこと。
- */
-bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns);
-
-
-/** channel_update作成
- *
- * 現在時刻でchannel_updateを新規作成し、DB保存する。
- *
- * @param[in,out]       self            channel info
- * @param[out]  pCnlUpd
- * @retval      ture    成功
- */
-bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd);
-
 
 /** 相手のchannel_update取得
  *
@@ -1370,24 +1348,6 @@ void ln_del_htlc_start_bwd(ln_self_t *self, uint16_t Idx);
  * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
  */
 bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
-
-
-/********************************************************************
- * ping/pong
- ********************************************************************/
-
-
-
-#if 0
-/** pong作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pPong           生成したpongメッセージ
- * @param[in]           NumPongBytes    pingのnum_pong_bytes
- * @retval      true    成功
- */
-bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
-#endif
 
 
 /********************************************************************
