@@ -1006,8 +1006,8 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
         if ( (ln_shutdown_scriptpk_local(self)->len > 0) &&
              (ln_shutdown_scriptpk_remote(self)->len > 0) &&
              (pCloseTx->vout_cnt <= 2) &&
-             ( utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(self)) ||
-               utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
+             ( utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(self)) ||
+               utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
             //mutual close
             self->status = LN_STATUS_CLOSE_MUTUAL;
         } else if (memcmp(txid, self->commit_local.txid, BTC_SZ_TXID) == 0) {
@@ -1246,7 +1246,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
             LOGD("[%d]to_remote_output\n", lp);
             utl_buf_init(&self->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
             utl_buf_alloccopy(&self->p_revoked_vout[LN_RCLOSE_IDX_TOREMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
-        } else if (utl_buf_cmp(&pRevokedTx->vout[lp].script, &self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
+        } else if (utl_buf_equal(&pRevokedTx->vout[lp].script, &self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             //to_local output
             LOGD("[%d]to_local_output\n", lp);
         } else {

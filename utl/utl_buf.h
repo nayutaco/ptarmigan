@@ -123,7 +123,7 @@ bool utl_buf_alloccopy(utl_buf_t *pBuf, const uint8_t *pData, uint32_t Len);
  * @param[in]       pBuf2       比較対象2
  * @retval          true        一致
  */
-bool utl_buf_cmp(const utl_buf_t *pBuf1, const utl_buf_t *pBuf2);
+bool utl_buf_equal(const utl_buf_t *pBuf1, const utl_buf_t *pBuf2);
 
 
 /** #utl_buf_t のデータを切り詰める

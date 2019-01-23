@@ -156,7 +156,7 @@ bool ln_node_init(uint8_t Features)
 
     //compare current
     if (ln_db_annonod_load(&buf_node_old, NULL, mNode.keys.pub)) {
-        if (!utl_buf_cmp(&buf_node_old, &buf_node_new)) {
+        if (!utl_buf_equal(&buf_node_old, &buf_node_new)) {
             LOGD("$$$ change node_announcement\n");
             (void)ln_db_annonod_save(&buf_node_new, &msg, NULL); //XXX:
         }

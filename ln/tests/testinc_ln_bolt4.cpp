@@ -243,7 +243,7 @@ TEST_F(onion, testvector)
         0x5a, 0x9a, 0xf3, 0xac,
     };
     const utl_buf_t buffil = { (CONST_CAST uint8_t *)FILLER, sizeof(FILLER) };
-    ASSERT_TRUE(utl_buf_cmp(&buffil, &sOnionBuffer));
+    ASSERT_TRUE(utl_buf_equal(&buffil, &sOnionBuffer));
 
     const uint8_t PACKET[] = {
         0x00, 0x02, 0xee, 0xc7, 0x24, 0x5d, 0x6b, 0x7d,

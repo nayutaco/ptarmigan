@@ -88,7 +88,7 @@ bool utl_buf_alloccopy(utl_buf_t *pBuf, const uint8_t *pData, uint32_t Len)
 }
 
 
-bool utl_buf_cmp(const utl_buf_t *pBuf1, const utl_buf_t *pBuf2)
+bool utl_buf_equal(const utl_buf_t *pBuf1, const utl_buf_t *pBuf2)
 {
     return (pBuf1->len == pBuf2->len) && (memcmp(pBuf1->buf, pBuf2->buf, pBuf1->len) == 0);
 }

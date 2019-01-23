@@ -964,7 +964,7 @@ static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *p
             if (ret) {
                 for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
                     for (int lp2 = 0; lp2 < vout_num; lp2++) {
-                        if (utl_buf_cmp(&tx.vout[0].script, &pVout[lp2])) {
+                        if (utl_buf_equal(&tx.vout[0].script, &pVout[lp2])) {
                             //一致
                             LOGD("match: %s\n", txid);
                             utl_push_data(&push, &tx, sizeof(btc_tx_t));

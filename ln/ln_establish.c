@@ -864,7 +864,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     btc_script_p2wsh_create_scriptsig(&two_of_two, &self->redeem_fund);
     uint32_t lp;
     for (lp = 0; lp < self->tx_funding.vout_cnt; lp++) {
-        if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &two_of_two)) break;
+        if (utl_buf_equal(&self->tx_funding.vout[lp].script, &two_of_two)) break;
     }
     utl_buf_free(&two_of_two);
     if (lp == self->tx_funding.vout_cnt) {

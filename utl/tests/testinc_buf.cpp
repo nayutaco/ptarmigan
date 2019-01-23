@@ -121,9 +121,9 @@ TEST_F(buf, cmp)
     ASSERT_TRUE(utl_buf_alloccopy(&buf2, BUF2, sizeof(BUF2)));
     ASSERT_TRUE(utl_buf_alloccopy(&buf3, BUF2, sizeof(BUF2)));
 
-    ASSERT_TRUE(utl_buf_cmp(&buf, &buf));
-    ASSERT_FALSE(utl_buf_cmp(&buf, &buf2));
-    ASSERT_TRUE(utl_buf_cmp(&buf2, &buf3));
+    ASSERT_TRUE(utl_buf_equal(&buf, &buf));
+    ASSERT_FALSE(utl_buf_equal(&buf, &buf2));
+    ASSERT_TRUE(utl_buf_equal(&buf2, &buf3));
 
     utl_buf_free(&buf);
     utl_buf_free(&buf2);
