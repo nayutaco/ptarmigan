@@ -36,9 +36,9 @@ lncli --no-macaroons getinfo
 ## Connecting
 
 ```bash
-../ptarmcli -c [c-lightning node_id]@[ipaddr]:[port]
-../ptarmcli -c [eclair node_id]@[ipaddr]:[port]
-../ptarmcli -c [lnd node_id]@[ipaddr]:[port]
+../ptarmcli -c [c-lightning NODE_ID]@[IPv4 ADDR]:[PORT]
+../ptarmcli -c [eclair NODE_ID]@[IPv4 ADDR]:[PORT]
+../ptarmcli -c [lnd NODE_ID]@[IPv4 ADDR]:[PORT]
 ```
 
 ## Creating channels
@@ -48,19 +48,19 @@ lncli --no-macaroons getinfo
 
 ```bash
 ../pay_fundin.sh 1000000 800000 300000000
-../ptarmcli -c [c-lightning node_id] -f fund_yyyymmddhhddss.conf
+../ptarmcli -c [c-lightning NODE_ID] -f fund_yyyymmddhhddss.conf
 ../ptarmcli -l
 (wait... status: "wait_minimum_depth")
 rm fund_yyyymmddhhddss.conf
 
 ../pay_fundin.sh 1000000 800000 400000000
-../ptarmcli -c [eclair node_id] -f fund_yyyymmddhhddss.conf
+../ptarmcli -c [eclair NODE_ID] -f fund_yyyymmddhhddss.conf
 ../ptarmcli -l
 (wait... status: "wait_minimum_depth")
 rm fund_yyyymmddhhddss.conf
 
 ../pay_fundin.sh 1000000 800000 500000000
-../ptarmcli -c [lnd node_id] -f fund_yyyymmddhhddss.conf
+../ptarmcli -c [lnd NODE_ID] -f fund_yyyymmddhhddss.conf
 ../ptarmcli -l
 (wait... status: "wait_minimum_depth")
 rm fund_yyyymmddhhddss.conf
@@ -181,7 +181,7 @@ lncli --no-macaroons addinvoice --amt 10000
 ## Closing channels
 
 ```bash
-../ptarmcli -c [lnd node_id] -x
-../ptarmcli -c [eclair node_id] -x
-../ptarmcli -c [c-lightning node_id] -x
+../ptarmcli -c [lnd NODE_ID] -x
+../ptarmcli -c [eclair NODE_ID] -x
+../ptarmcli -c [c-lightning NODE_ID] -x
 ```

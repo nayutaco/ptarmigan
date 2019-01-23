@@ -117,8 +117,8 @@ chmod u+x eclair-cli
   * Add `feerate_per_kw=zzzzz`(zzzzz is an approximate value to an error message `localFeeratePerKw`) in the last line.
 
 ```bash
-../ptarmcli -c [peer node_id]@[ipaddr]:[port]
-../ptarmcli -c [peer node_id] -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c [PEER NODE_ID]@[IPv4 ADDR]:[PORT]
+../ptarmcli -c [PEER NODE_ID] -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc] Waiting for generating a block
