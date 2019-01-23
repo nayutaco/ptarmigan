@@ -869,7 +869,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     utl_buf_free(&two_of_two);
     if (lp == self->tx_funding.vout_cnt) {
         //not found
-        //XXX: free tx_funding ?
+        btc_tx_free(&self->tx_funding);
         return false;
     }
     self->funding_local.txindex = (uint16_t)lp;
