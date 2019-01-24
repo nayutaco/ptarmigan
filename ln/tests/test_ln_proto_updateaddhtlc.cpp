@@ -169,6 +169,7 @@ public:
         ln_anno_prm_t annoprm;
 
         memset(self, 0xcc, sizeof(ln_self_t));
+        self->noise.p_handshake = NULL;
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
@@ -329,6 +330,7 @@ TEST_F(ln, set_add_htlc1)
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
+    self.noise.p_handshake = NULL;
     memset(payhash, 0xdd, BTC_SZ_HASH256);
     ln_signer_create_channelkeys(&self);
 

@@ -33,7 +33,7 @@ public:
 TEST_F(bolt8test, initiator)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -58,11 +58,11 @@ TEST_F(bolt8test, initiator)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, RS_PUB);
+    ret = ln_noise_handshake_init(&noise, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //ephemeralの差し替え
     const uint8_t EPRIV[] = {
@@ -80,16 +80,16 @@ TEST_F(bolt8test, initiator)
     };
     memcpy(pBolt->e.priv, EPRIV, sizeof(EPRIV));
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
-    self.noise_send.nonce = 10;
-    self.noise_recv.nonce = 10;
+    noise.send_ctx.nonce = 10;
+    noise.recv_ctx.nonce = 10;
 
     //Act One send
     utl_buf_t buf = UTL_BUF_INIT;
-    ret = ln_noise_handshake_start(&self, &buf, RS_PUB);
+    ret = ln_noise_handshake_start(&noise, &buf, RS_PUB);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(10, self.noise_send.nonce);
-    ASSERT_EQ(10, self.noise_recv.nonce);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(10, noise.send_ctx.nonce);
+    ASSERT_EQ(10, noise.recv_ctx.nonce);
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     const uint8_t OUTPUT_1S[50] = {
         0x00, 0x03, 0x63, 0x60, 0xe8, 0x56, 0x31, 0x0c,
@@ -118,9 +118,9 @@ TEST_F(bolt8test, initiator)
         0x30, 0xae,
     };
     utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     const uint8_t OUTPUT_2S[66] = {
         0x00, 0xb9, 0xe3, 0xa7, 0x02, 0xe9, 0x3e, 0x3a,
@@ -150,13 +150,13 @@ TEST_F(bolt8test, initiator)
         0x41, 0x89, 0x84, 0xaa, 0xdc, 0x5c, 0xdb, 0x35,
         0x09, 0x6b, 0x9e, 0xa8, 0xfa, 0x5c, 0x34, 0x42,
     };
-    ASSERT_EQ(0, memcmp(SK, self.noise_send.key, sizeof(SK)));
-    ASSERT_EQ(0, memcmp(RK, self.noise_recv.key, sizeof(RK)));
-    ASSERT_EQ(0, self.noise_send.nonce);
-    ASSERT_EQ(0, self.noise_recv.nonce);
-    ASSERT_EQ(0, self.p_handshake);
+    ASSERT_EQ(0, memcmp(SK, noise.send_ctx.key, sizeof(SK)));
+    ASSERT_EQ(0, memcmp(RK, noise.recv_ctx.key, sizeof(RK)));
+    ASSERT_EQ(0, noise.send_ctx.nonce);
+    ASSERT_EQ(0, noise.recv_ctx.nonce);
+    ASSERT_EQ(0, noise.p_handshake);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -165,7 +165,7 @@ TEST_F(bolt8test, initiator)
 TEST_F(bolt8test, initiator_fail_act2_short_read)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -190,9 +190,9 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, RS_PUB);
+    ret = ln_noise_handshake_init(&noise, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -214,7 +214,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
 
     //Act One send
     utl_buf_t buf = UTL_BUF_INIT;
-    ret = ln_noise_handshake_start(&self, &buf, RS_PUB);
+    ret = ln_noise_handshake_start(&noise, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT_1S[50] = {
@@ -244,14 +244,14 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
         0x30,
     };
     utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -260,7 +260,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
 TEST_F(bolt8test, initiator_fail_act2_bad_version)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -285,9 +285,9 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, RS_PUB);
+    ret = ln_noise_handshake_init(&noise, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -309,7 +309,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
 
     //Act One send
     utl_buf_t buf = UTL_BUF_INIT;
-    ret = ln_noise_handshake_start(&self, &buf, RS_PUB);
+    ret = ln_noise_handshake_start(&noise, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT_1S[50] = {
@@ -339,14 +339,14 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
         0x30, 0xae,
     };
     utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -355,7 +355,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
 TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -380,9 +380,9 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, RS_PUB);
+    ret = ln_noise_handshake_init(&noise, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -404,7 +404,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
 
     //Act One send
     utl_buf_t buf = UTL_BUF_INIT;
-    ret = ln_noise_handshake_start(&self, &buf, RS_PUB);
+    ret = ln_noise_handshake_start(&noise, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT_1S[50] = {
@@ -434,14 +434,14 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
         0x30, 0xae,
     };
     utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -450,7 +450,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
 TEST_F(bolt8test, initiator_fail_act2_bad_mac)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -475,9 +475,9 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, RS_PUB);
+    ret = ln_noise_handshake_init(&noise, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -499,7 +499,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
 
     //Act One send
     utl_buf_t buf = UTL_BUF_INIT;
-    ret = ln_noise_handshake_start(&self, &buf, RS_PUB);
+    ret = ln_noise_handshake_start(&noise, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT_1S[50] = {
@@ -529,14 +529,14 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
         0x30, 0xaf,
     };
     utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -544,7 +544,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
 TEST_F(bolt8test, responder)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -556,11 +556,11 @@ TEST_F(bolt8test, responder)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //ephemeralの差し替え
     const uint8_t EPRIV[] = {
@@ -578,8 +578,8 @@ TEST_F(bolt8test, responder)
     };
     memcpy(pBolt->e.priv, EPRIV, sizeof(EPRIV));
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
-    self.noise_send.nonce = 10;
-    self.noise_recv.nonce = 10;
+    noise.send_ctx.nonce = 10;
+    noise.recv_ctx.nonce = 10;
 
     //Act One Receive and Act Two Send
     //input: 0x00036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f70df6086551151f58b8afe6c195782c6a
@@ -594,12 +594,12 @@ TEST_F(bolt8test, responder)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
-    ASSERT_EQ(10, self.noise_send.nonce);
-    ASSERT_EQ(10, self.noise_recv.nonce);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(10, noise.send_ctx.nonce);
+    ASSERT_EQ(10, noise.recv_ctx.nonce);
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
     const uint8_t OUTPUT_1R[50] = {
@@ -630,9 +630,9 @@ TEST_F(bolt8test, responder)
         0x39, 0xba,
     };
     utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     const uint8_t RK[] = {
         0x96, 0x9a, 0xb3, 0x1b, 0x4d, 0x28, 0x8c, 0xed,
@@ -646,15 +646,15 @@ TEST_F(bolt8test, responder)
         0x41, 0x89, 0x84, 0xaa, 0xdc, 0x5c, 0xdb, 0x35,
         0x09, 0x6b, 0x9e, 0xa8, 0xfa, 0x5c, 0x34, 0x42,
     };
-    ASSERT_EQ(0, memcmp(RK, self.noise_recv.key, sizeof(RK)));
-    ASSERT_EQ(0, memcmp(SK, self.noise_send.key, sizeof(SK)));
-    ASSERT_EQ(0, self.noise_send.nonce);
-    ASSERT_EQ(0, self.noise_recv.nonce);
-    ASSERT_EQ(0, self.p_handshake);
+    ASSERT_EQ(0, memcmp(RK, noise.recv_ctx.key, sizeof(RK)));
+    ASSERT_EQ(0, memcmp(SK, noise.send_ctx.key, sizeof(SK)));
+    ASSERT_EQ(0, noise.send_ctx.nonce);
+    ASSERT_EQ(0, noise.recv_ctx.nonce);
+    ASSERT_EQ(0, noise.p_handshake);
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -663,7 +663,7 @@ TEST_F(bolt8test, responder)
 TEST_F(bolt8test, responder_act1_short_read)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -675,9 +675,9 @@ TEST_F(bolt8test, responder_act1_short_read)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -710,13 +710,13 @@ TEST_F(bolt8test, responder_act1_short_read)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
+    ASSERT_EQ(0, noise.p_handshake);
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -725,7 +725,7 @@ TEST_F(bolt8test, responder_act1_short_read)
 TEST_F(bolt8test, responder_act1_bad_version)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -737,9 +737,9 @@ TEST_F(bolt8test, responder_act1_bad_version)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -772,14 +772,14 @@ TEST_F(bolt8test, responder_act1_bad_version)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -788,7 +788,7 @@ TEST_F(bolt8test, responder_act1_bad_version)
 TEST_F(bolt8test, responder_act1_bad_key_serialization)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -800,9 +800,9 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -835,14 +835,14 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -851,7 +851,7 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
 TEST_F(bolt8test, responder_act1_bad_mac)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -863,9 +863,9 @@ TEST_F(bolt8test, responder_act1_bad_mac)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -898,14 +898,14 @@ TEST_F(bolt8test, responder_act1_bad_mac)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -914,7 +914,7 @@ TEST_F(bolt8test, responder_act1_bad_mac)
 TEST_F(bolt8test, responder_act3_bad_version)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -926,9 +926,9 @@ TEST_F(bolt8test, responder_act3_bad_version)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -961,10 +961,10 @@ TEST_F(bolt8test, responder_act3_bad_version)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
     const uint8_t OUTPUT_1R[50] = {
@@ -995,14 +995,14 @@ TEST_F(bolt8test, responder_act3_bad_version)
        0x39, 0xba,
     };
     utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1011,7 +1011,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
 TEST_F(bolt8test, responder_act3_short_read)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -1023,9 +1023,9 @@ TEST_F(bolt8test, responder_act3_short_read)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1058,10 +1058,10 @@ TEST_F(bolt8test, responder_act3_short_read)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
     const uint8_t OUTPUT_1R[50] = {
@@ -1092,14 +1092,14 @@ TEST_F(bolt8test, responder_act3_short_read)
        0x39,
     };
     utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1108,7 +1108,7 @@ TEST_F(bolt8test, responder_act3_short_read)
 TEST_F(bolt8test, responder_act3_bad_mac_cipher)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -1120,9 +1120,9 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1155,10 +1155,10 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
     const uint8_t OUTPUT_1R[50] = {
@@ -1189,14 +1189,14 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
        0x39, 0xba,
     };
     utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1205,7 +1205,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
 TEST_F(bolt8test, responder_act3_bad_rs)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -1217,9 +1217,9 @@ TEST_F(bolt8test, responder_act3_bad_rs)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1252,7 +1252,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
 
@@ -1268,7 +1268,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
     };
     ASSERT_EQ(sizeof(OUTPUT_1R), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
@@ -1286,14 +1286,14 @@ TEST_F(bolt8test, responder_act3_bad_rs)
        0xe7, 0x3c,
     };
     utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1302,7 +1302,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
 TEST_F(bolt8test, responder_act3_bad_mac)
 {
     bool ret;
-    ln_self_t   self;
+    ln_noise_t noise;
 
     //vector
     const uint8_t LS_PRIV[] = {
@@ -1314,9 +1314,9 @@ TEST_F(bolt8test, responder_act3_bad_mac)
 
     ln_node_setkey(LS_PRIV);
 
-    ret = ln_noise_handshake_init(&self, NULL);
+    ret = ln_noise_handshake_init(&noise, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8_t *pBolt = (struct bolt8_t *)self.p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)noise.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1349,10 +1349,10 @@ TEST_F(bolt8test, responder_act3_bad_mac)
     };
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
-    ASSERT_TRUE(ln_noise_handshake_state(&self));
+    ASSERT_TRUE(ln_noise_handshake_state(&noise));
 
     //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
     const uint8_t OUTPUT_1R[50] = {
@@ -1383,14 +1383,14 @@ TEST_F(bolt8test, responder_act3_bad_mac)
        0x39, 0xbb,
     };
     utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.p_handshake);
-    ASSERT_FALSE(ln_noise_handshake_state(&self));
+    ASSERT_EQ(0, noise.p_handshake);
+    ASSERT_FALSE(ln_noise_handshake_state(&noise));
 
     utl_buf_free(&buf);
 
-    ret = ln_noise_handshake_recv(&self, &buf);
+    ret = ln_noise_handshake_recv(&noise, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1398,8 +1398,8 @@ TEST_F(bolt8test, responder_act3_bad_mac)
 TEST_F(bolt8test, enc_dec)
 {
     bool ret;
-    ln_self_t   self;
-    ln_self_t   self_dec;
+    ln_noise_t noise;
+    ln_noise_t noise_dec;
 
     const uint8_t SK[] = {
         0x96, 0x9a, 0xb3, 0x1b, 0x4d, 0x28, 0x8c, 0xed,
@@ -1420,19 +1420,19 @@ TEST_F(bolt8test, enc_dec)
         0xf9, 0xab, 0x4b, 0xe7, 0x16, 0xe4, 0x2b, 0x01,
     };
 
-    memcpy(self.noise_send.key, SK, sizeof(SK));
-    memcpy(self.noise_recv.key, RK, sizeof(RK));
-    memcpy(self.noise_send.ck, CK, sizeof(CK));
-    memcpy(self.noise_recv.ck, CK, sizeof(CK));
-    self.noise_send.nonce = 0;
-    self.noise_recv.nonce = 0;
+    memcpy(noise.send_ctx.key, SK, sizeof(SK));
+    memcpy(noise.recv_ctx.key, RK, sizeof(RK));
+    memcpy(noise.send_ctx.ck, CK, sizeof(CK));
+    memcpy(noise.recv_ctx.ck, CK, sizeof(CK));
+    noise.send_ctx.nonce = 0;
+    noise.recv_ctx.nonce = 0;
 
-    memcpy(self_dec.noise_send.key, RK, sizeof(RK));
-    memcpy(self_dec.noise_recv.key, SK, sizeof(SK));
-    memcpy(self_dec.noise_send.ck, CK, sizeof(CK));
-    memcpy(self_dec.noise_recv.ck, CK, sizeof(CK));
-    self_dec.noise_send.nonce = 0;
-    self_dec.noise_recv.nonce = 0;
+    memcpy(noise_dec.send_ctx.key, RK, sizeof(RK));
+    memcpy(noise_dec.recv_ctx.key, SK, sizeof(SK));
+    memcpy(noise_dec.send_ctx.ck, CK, sizeof(CK));
+    memcpy(noise_dec.recv_ctx.ck, CK, sizeof(CK));
+    noise_dec.send_ctx.nonce = 0;
+    noise_dec.recv_ctx.nonce = 0;
 
     utl_buf_t bufin = UTL_BUF_INIT;
     utl_buf_t buf = UTL_BUF_INIT;
@@ -1442,7 +1442,7 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_alloccopy(&bufin, (const uint8_t *)"hello", 5);
 
     // 0
-    ret = ln_noise_enc(&self, &buf, &bufin);
+    ret = ln_noise_enc(&noise, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT0[] = {
@@ -1457,10 +1457,10 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_free(&buf);
 
     //dec
-    len = ln_noise_dec_len(&self_dec, OUTPUT0, LN_SZ_NOISE_HEADER);
+    len = ln_noise_dec_len(&noise_dec, OUTPUT0, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
     utl_buf_alloccopy(&buf_dec, OUTPUT0 + LN_SZ_NOISE_HEADER, len);
-    ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+    ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1470,7 +1470,7 @@ TEST_F(bolt8test, enc_dec)
     int count = 0;
 
     // 1
-    ret = ln_noise_enc(&self, &buf, &bufin);
+    ret = ln_noise_enc(&noise, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT1[] = {
@@ -1485,10 +1485,10 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_free(&buf);
 
     //dec
-    len = ln_noise_dec_len(&self_dec, OUTPUT1, LN_SZ_NOISE_HEADER);
+    len = ln_noise_dec_len(&noise_dec, OUTPUT1, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
     utl_buf_alloccopy(&buf_dec, OUTPUT1 + LN_SZ_NOISE_HEADER, len);
-    ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+    ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1499,14 +1499,14 @@ TEST_F(bolt8test, enc_dec)
 
     // 2-499
     for (int lp = 2; lp <= 499; lp++) {
-        ret = ln_noise_enc(&self, &buf, &bufin);
+        ret = ln_noise_enc(&noise, &buf, &bufin);
         ASSERT_TRUE(ret);
 
         //dec
-        len = ln_noise_dec_len(&self_dec, buf.buf, LN_SZ_NOISE_HEADER);
+        len = ln_noise_dec_len(&noise_dec, buf.buf, LN_SZ_NOISE_HEADER);
         ASSERT_EQ(5 + 16, len);
         utl_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
-        ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+        ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
         ASSERT_TRUE(ret);
         ASSERT_EQ(5, buf_dec.len);
         ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1524,7 +1524,7 @@ TEST_F(bolt8test, enc_dec)
     // k' = 0x3fbdc101abd1132ca3a0ae34a669d8d9ba69a587e0bb4ddd59524541cf4813d8
 
     // 500
-    ret = ln_noise_enc(&self, &buf, &bufin);
+    ret = ln_noise_enc(&noise, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT500[] = {
@@ -1539,10 +1539,10 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_free(&buf);
 
     //dec
-    len = ln_noise_dec_len(&self_dec, OUTPUT500, LN_SZ_NOISE_HEADER);
+    len = ln_noise_dec_len(&noise_dec, OUTPUT500, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
     utl_buf_alloccopy(&buf_dec, OUTPUT500 + LN_SZ_NOISE_HEADER, len);
-    ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+    ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1552,7 +1552,7 @@ TEST_F(bolt8test, enc_dec)
     ASSERT_EQ(500, count);
 
     // 501
-    ret = ln_noise_enc(&self, &buf, &bufin);
+    ret = ln_noise_enc(&noise, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT501[] = {
@@ -1567,10 +1567,10 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_free(&buf);
 
     //dec
-    len = ln_noise_dec_len(&self_dec, OUTPUT501, LN_SZ_NOISE_HEADER);
+    len = ln_noise_dec_len(&noise_dec, OUTPUT501, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
     utl_buf_alloccopy(&buf_dec, OUTPUT501 + LN_SZ_NOISE_HEADER, len);
-    ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+    ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1581,14 +1581,14 @@ TEST_F(bolt8test, enc_dec)
 
     // 502-999
     for (int lp = 502; lp <= 999; lp++) {
-        ret = ln_noise_enc(&self, &buf, &bufin);
+        ret = ln_noise_enc(&noise, &buf, &bufin);
         ASSERT_TRUE(ret);
 
         //dec
-        len = ln_noise_dec_len(&self_dec, buf.buf, LN_SZ_NOISE_HEADER);
+        len = ln_noise_dec_len(&noise_dec, buf.buf, LN_SZ_NOISE_HEADER);
         ASSERT_EQ(5 + 16, len);
         utl_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
-        ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+        ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
         ASSERT_TRUE(ret);
         ASSERT_EQ(5, buf_dec.len);
         ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1604,7 +1604,7 @@ TEST_F(bolt8test, enc_dec)
     // k' =0x9e0477f9850dca41e42db0e4d154e3a098e5a000d995e421849fcd5df27882bd
 
     // 1000
-    ret = ln_noise_enc(&self, &buf, &bufin);
+    ret = ln_noise_enc(&noise, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT1000[] = {
@@ -1619,10 +1619,10 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_free(&buf);
 
     //dec
-    len = ln_noise_dec_len(&self_dec, OUTPUT1000, LN_SZ_NOISE_HEADER);
+    len = ln_noise_dec_len(&noise_dec, OUTPUT1000, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
     utl_buf_alloccopy(&buf_dec, OUTPUT1000 + LN_SZ_NOISE_HEADER, len);
-    ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+    ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
@@ -1632,7 +1632,7 @@ TEST_F(bolt8test, enc_dec)
     ASSERT_EQ(1000, count);
 
     // 1001
-    ret = ln_noise_enc(&self, &buf, &bufin);
+    ret = ln_noise_enc(&noise, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT1001[] = {
@@ -1647,10 +1647,10 @@ TEST_F(bolt8test, enc_dec)
     utl_buf_free(&buf);
 
     //dec
-    len = ln_noise_dec_len(&self_dec, OUTPUT1001, LN_SZ_NOISE_HEADER);
+    len = ln_noise_dec_len(&noise_dec, OUTPUT1001, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
     utl_buf_alloccopy(&buf_dec, OUTPUT1001 + LN_SZ_NOISE_HEADER, len);
-    ret = ln_noise_dec_msg(&self_dec, &buf_dec);
+    ret = ln_noise_dec_msg(&noise_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));

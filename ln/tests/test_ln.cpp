@@ -167,6 +167,7 @@ public:
         ln_anno_prm_t annoprm;
 
         memset(self, 0xcc, sizeof(ln_self_t));
+        self->noise.p_handshake = NULL;
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
@@ -196,6 +197,7 @@ TEST_F(ln, init)
     ln_anno_prm_t annoprm;
 
     memset(&self, 0xcc, sizeof(self));
+    self.noise.p_handshake = NULL;
     memset(seed, 1, sizeof(seed));
     annoprm.cltv_expiry_delta = 10;
     annoprm.htlc_minimum_msat = 1000;
@@ -207,8 +209,8 @@ TEST_F(ln, init)
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ASSERT_EQ(0, self.cnl_add_htlc[idx].stat.bits);
     }
-    ASSERT_TRUE(DumpCheck(&self.noise_send, sizeof(ln_noise_t), 0xcc));
-    ASSERT_TRUE(DumpCheck(&self.noise_recv, sizeof(ln_noise_t), 0xcc));
+    ASSERT_TRUE(DumpCheck(&self.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
+    ASSERT_TRUE(DumpCheck(&self.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));
     ASSERT_EQ(0xcccccccccccccccc, self.p_param);
     ASSERT_EQ(0x123456, self.p_callback);
 

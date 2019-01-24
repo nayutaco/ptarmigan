@@ -180,17 +180,14 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
 {
     LOGD("BEGIN : pSeed=%p\n", pSeed);
 
-    ln_noise_t noise_sbak;
-    ln_noise_t noise_rbak;
+    ln_noise_t noise_bak;
     void *ptr_bak;
 
     //noise protocol handshake済みの場合があるため、初期値かどうかに関係なく残す
-    memcpy(&noise_sbak, &self->noise_send, sizeof(noise_sbak));
-    memcpy(&noise_rbak, &self->noise_recv, sizeof(noise_rbak));
+    memcpy(&noise_bak, &self->noise, sizeof(noise_bak));
     ptr_bak = self->p_param;
     memset(self, 0, sizeof(ln_self_t));
-    memcpy(&self->noise_recv, &noise_rbak, sizeof(noise_rbak));
-    memcpy(&self->noise_send, &noise_sbak, sizeof(noise_sbak));
+    memcpy(&self->noise, &noise_bak, sizeof(noise_bak));
     self->p_param = ptr_bak;
 
     utl_buf_init(&self->shutdown_scriptpk_local);
@@ -434,9 +431,9 @@ void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk)
 
 bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    if (!ln_noise_handshake_init(self, pNodeId)) return false;
+    if (!ln_noise_handshake_init(&self->noise, pNodeId)) return false;
     if (pNodeId != NULL) {
-        if (!ln_noise_handshake_start(self, pBuf, pNodeId)) return false;
+        if (!ln_noise_handshake_start(&self->noise, pBuf, pNodeId)) return false;
     }
     return true;
 }
@@ -444,16 +441,16 @@ bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId
 
 bool ln_handshake_recv(ln_self_t *self, bool *pCont, utl_buf_t *pBuf)
 {
-    if (!ln_noise_handshake_recv(self, pBuf)) return false;
+    if (!ln_noise_handshake_recv(&self->noise, pBuf)) return false;
     //continue?
-    *pCont = ln_noise_handshake_state(self);
+    *pCont = ln_noise_handshake_state(&self->noise);
     return true;
 }
 
 
 void ln_handshake_free(ln_self_t *self)
 {
-    ln_noise_handshake_free(self);
+    ln_noise_handshake_free(&self->noise);
 }
 
 
@@ -1583,7 +1580,7 @@ static void channel_clear(ln_self_t *self)
     self->anno_flag = 0;
     self->shutdown_flag = 0;
 
-    ln_noise_handshake_free(self);
+    ln_handshake_free(self);
 
     ln_establish_free(self);
 }
