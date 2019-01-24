@@ -38,6 +38,7 @@
 #include "ln_msg_setupctl.h"
 #include "ln_misc.h"
 #include "ln_local.h"
+#include "ln_msg.h"
 
 
 /********************************************************************

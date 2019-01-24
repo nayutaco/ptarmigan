@@ -25,54 +25,12 @@
 #ifndef LN_MISC_H__
 #define LN_MISC_H__
 
-#include "utl_push.h"
-
 #include "ln.h"
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
-
-
-/** 8bit値の書込み
- *
- * @param[out]      pPush       書込み先
- * @param[in]       Value       8bit値
- */
-void HIDDEN ln_misc_push8(utl_push_t *pPush, uint8_t Value);
-
-
-/** 16bit BE値の書込み
- *
- * @param[out]      pPush       書込み先
- * @param[in]       Value       16bit値
- */
-void HIDDEN ln_misc_push16be(utl_push_t *pPush, uint16_t Value);
-
-
-/** 32bit BE値の書込み
- *
- * @param[out]      pPush       書込み先
- * @param[in]       Value       32bit値
- */
-void HIDDEN ln_misc_push32be(utl_push_t *pPush, uint32_t Value);
-
-
-/** 64bit BE値の書込み
- *
- * @param[out]      pPush       書込み先
- * @param[in]       Value       64bit値
- */
-void HIDDEN ln_misc_push64be(utl_push_t *pPush, uint64_t Value);
-
-
-/** LenバイトをBigEndianで書込む
- *
- *
- */
-void HIDDEN ln_misc_setbe(uint8_t *pBuf, const void *pData, size_t Len);
-
 
 /** DER形式秘密鍵を64byte展開
  *
@@ -94,55 +52,5 @@ bool HIDDEN ln_misc_sigtrim(uint8_t *pSig, const uint8_t *pBuf);
  */
 void HIDDEN ln_misc_sigexpand(utl_buf_t *pSig, const uint8_t *pBuf);
 
-
-/** スクリプト用鍵生成/更新
- *
- * @param[in,out]   pLocal
- * @param[in,out]   pRemote
- * @note
- *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
- */
-void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote);
-
-
-/** channel_id生成
- *
- * @param[out]      pChannelId      生成結果
- * @param[in]       pTxid           funding-txのTXID
- * @param[in]       Index           funding-txの2-of-2 vout index
- */
-void HIDDEN ln_misc_calc_channel_id(uint8_t *pChannelId, const uint8_t *pTxid, uint16_t Index);
-
-
-/** short_channel_id生成
- *
- * @param[in]       Height          funding_txが取り込まれたブロックのブロック高
- * @param[in]       BIndex          funding_txが取り込まれたブロック中でのindex
- * @param[in]       VIndex          funding-txの2-of-2 vout index
- */
-uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, uint32_t VIndex);
-
-
-/** MAC計算
- *
- *
- */
-bool HIDDEN ln_misc_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
-
-
-/** short_channel_idパラメータ取得
- *
- * @param[out]      pHeight         ブロック高
- * @param[out]      pBIndex         ブロック中でのindex
- * @param[out]      pVIndex         funding-txの2-of-2 vout index
- */
-void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id);
-
-
-/** shared secret生成
- *
- *
- */
-void HIDDEN ln_misc_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
 
 #endif /* LN_MISC_H__ */

@@ -106,7 +106,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
 
     //generate keys
     ln_signer_create_channelkeys(self);
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
 #if defined(USE_BITCOIND)
     self->establish.p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));
@@ -247,7 +247,7 @@ bool HIDDEN ln_open_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //generate keys
     ln_signer_create_channelkeys(self);
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_print_keys(&self->funding_local, &self->funding_remote);
 
     if (!ln_accept_channel_send(self)) {
@@ -361,7 +361,7 @@ bool HIDDEN ln_accept_channel_recv(ln_self_t *self, const uint8_t *pData, uint16
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
 
     //generate keys
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //create funding_tx
@@ -467,7 +467,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
     }
 
     //temporary_channel_id -> channel_id
-    ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
+    ln_channel_id_calc(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     if (!ln_funding_signed_send(self)) {
         //XXX:
@@ -512,7 +512,7 @@ bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
     memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
-    ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
+    ln_channel_id_calc(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
     if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
@@ -590,7 +590,7 @@ bool HIDDEN ln_funding_locked_recv(ln_self_t *self, const uint8_t *pData, uint16
     //funding中終了
     ln_establish_free(self);
 
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_print_keys(&self->funding_local, &self->funding_remote);
     M_DB_SELF_SAVE(self);
 
@@ -905,7 +905,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
 
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     funding.b_send = bSendTx;
     if (bSendTx) {

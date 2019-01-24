@@ -845,7 +845,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //復元データからさらに復元
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
             self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
@@ -1214,7 +1214,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
     if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
          ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
         printf("\n");
-        ln_misc_update_scriptkeys(&local, &remote);
+        ln_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
     }
 #endif  //M_DEBUG_KEYS

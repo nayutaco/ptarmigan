@@ -81,37 +81,6 @@
 #error LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #endif
 
-
-/*
- * message type
- */
-#define MSGTYPE_INIT                        ((uint16_t)0x0010)
-#define MSGTYPE_ERROR                       ((uint16_t)0x0011)
-#define MSGTYPE_PING                        ((uint16_t)0x0012)
-#define MSGTYPE_PONG                        ((uint16_t)0x0013)
-
-#define MSGTYPE_OPEN_CHANNEL                ((uint16_t)0x0020)
-#define MSGTYPE_ACCEPT_CHANNEL              ((uint16_t)0x0021)
-#define MSGTYPE_FUNDING_CREATED             ((uint16_t)0x0022)
-#define MSGTYPE_FUNDING_SIGNED              ((uint16_t)0x0023)
-#define MSGTYPE_FUNDING_LOCKED              ((uint16_t)0x0024)
-#define MSGTYPE_SHUTDOWN                    ((uint16_t)0x0026)
-#define MSGTYPE_CLOSING_SIGNED              ((uint16_t)0x0027)
-
-#define MSGTYPE_UPDATE_ADD_HTLC             ((uint16_t)0x0080)
-#define MSGTYPE_UPDATE_FULFILL_HTLC         ((uint16_t)0x0082)
-#define MSGTYPE_UPDATE_FAIL_HTLC            ((uint16_t)0x0083)
-#define MSGTYPE_COMMITMENT_SIGNED           ((uint16_t)0x0084)
-#define MSGTYPE_REVOKE_AND_ACK              ((uint16_t)0x0085)
-#define MSGTYPE_UPDATE_FEE                  ((uint16_t)0x0086)
-#define MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC  ((uint16_t)0x0087)
-#define MSGTYPE_CHANNEL_REESTABLISH         ((uint16_t)0x0088)
-
-#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
-#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
-#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
-#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
-
 #define CHANNEL_FLAGS_ANNOCNL       (1 << 0)
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags

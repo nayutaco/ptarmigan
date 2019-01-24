@@ -39,6 +39,7 @@
 #include "ln_msg_anno.h"
 #include "ln_node.h"
 #include "ln_local.h"
+#include "ln_msg.h"
 
 
 /**************************************************************************

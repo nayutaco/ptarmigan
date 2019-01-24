@@ -188,6 +188,7 @@ public:
     }
 };
 
+
 ////////////////////////////////////////////////////////////////////////
 
 TEST_F(ln, init)
@@ -215,4 +216,20 @@ TEST_F(ln, init)
     ASSERT_EQ(0x123456, self.p_callback);
 
     ln_term(&self);
+}
+
+
+////////////////////////////////////////////////////////////////////////
+
+TEST_F(ln, calc_short1)
+{
+    uint64_t sid = ln_short_channel_id_calc(0x12345678, 0x9abcdef0, 0x6543210f);
+    ASSERT_EQ(0x345678bcdef0210f, sid);
+}
+
+
+TEST_F(ln, calc_short2)
+{
+    uint64_t sid = ln_short_channel_id_calc(1116104, 33, 0);
+    ASSERT_EQ(0x1107c80000210000, sid);
 }

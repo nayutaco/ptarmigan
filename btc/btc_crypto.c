@@ -311,6 +311,15 @@ bool btc_ecc_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t 
 }
 
 
+bool btc_ecc_shared_secret_sha256(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
+{
+    uint8_t pub[BTC_SZ_PUBKEY];
+    if (!btc_ecc_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY)) return false;
+    btc_md_sha256(pResult, pub, sizeof(pub));
+    return true;
+}
+
+
 bool btc_rng_init(void)
 {
 #ifndef PTARM_NO_USE_RNG

@@ -911,11 +911,11 @@ void ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t In
 /** short_channel_id情報取得
  *
  * @param[out]          pHeight     funding_txが入ったブロック height
- * @param[out]          pIndex      funding_txのTXIDが入っているindex
+ * @param[out]          pBIndex      funding_txのTXIDが入っているindex
  * @param[out]          pVIndex     funding_txとして使用するvout index
  * @param[in]           ShortChannelId  short_channel_id
  */
-void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
+void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
 
 
 /** short_channel_id情報設定
@@ -1009,6 +1009,15 @@ uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
 /********************************************************************
  * Establish関係
  ********************************************************************/
+
+/** channel_id生成
+ *
+ * @param[out]      pChannelId      生成結果
+ * @param[in]       pTxid           funding-txのTXID
+ * @param[in]       Index           funding-txの2-of-2 vout index
+ */
+void HIDDEN ln_channel_id_calc(uint8_t *pChannelId, const uint8_t *pTxid, uint16_t Index);
+
 
 /** 相手のchannel_update取得
  *
@@ -1185,6 +1194,9 @@ void ln_last_connected_addr_set(ln_self_t *self, const ln_node_addr_t *pAddr);
  * @return      channel_id
  */
 const uint8_t *ln_channel_id(const ln_self_t *self);
+
+
+uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint32_t VIndex);
 
 
 /** short_channel_id取得
@@ -1678,15 +1690,17 @@ uint64_t ln_node_total_msat(void);
 
 
 /********************************************************************
- * misc
+ * XXX:
  ********************************************************************/
 
-/** BOLTメッセージ名取得
+/** スクリプト用鍵生成/更新
  *
- * @param[in]   type        BOLT message type
- * @return          message name
+ * @param[in,out]   pLocal
+ * @param[in,out]   pRemote
+ * @note
+ *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
  */
-const char *ln_misc_msgname(uint16_t Type);
+void HIDDEN ln_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote);
 
 
 /********************************************************************

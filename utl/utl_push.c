@@ -26,6 +26,7 @@
 
 #include "utl_push.h"
 #include "utl_dbg.h"
+#include "utl_int.h"
 
 
 /**************************************************************************
@@ -103,3 +104,34 @@ bool utl_push_trim(utl_push_t *pPush)
     }
     return true;
 }
+
+
+bool utl_push_byte(utl_push_t *pPush, uint8_t Value)
+{
+    return utl_push_data(pPush, &Value, sizeof(Value));
+}
+
+
+bool utl_push_u16be(utl_push_t *pPush, uint16_t Value)
+{
+    uint8_t data[sizeof(Value)];
+    utl_int_unpack_u16be(data, Value);
+    return utl_push_data(pPush, data, sizeof(data));
+}
+
+
+bool utl_push_u32be(utl_push_t *pPush, uint32_t Value)
+{
+    uint8_t data[sizeof(Value)];
+    utl_int_unpack_u32be(data, Value);
+    return utl_push_data(pPush, data, sizeof(data));
+}
+
+
+bool utl_push_u64be(utl_push_t *pPush, uint64_t Value)
+{
+    uint8_t data[sizeof(Value)];
+    utl_int_unpack_u64be(data, Value);
+    return utl_push_data(pPush, data, sizeof(data));
+}
+

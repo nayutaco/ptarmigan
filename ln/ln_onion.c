@@ -84,6 +84,7 @@ static const uint8_t AMMAG[] = { 'a', 'm', 'm', 'a', 'g' };
  * prototypes
  **************************************************************************/
 
+static bool calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
 static void multi_scalar_mul(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactors, int NumHops);
 static bool blind_group_element(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactor);
 static void compute_blinding_factor(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pSharedSecret);
@@ -131,7 +132,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     btc_keys_priv2pub(eph_pubkeys, pSessionKey);
 
     //セッション鍵とpaymentPathの先頭から作った共有鍵のSHA256 --> shd_secrets[0]
-    ln_misc_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
+    btc_ecc_shared_secret_sha256(shd_secrets, pHopData[0].pubkey, pSessionKey);
 
     //eph_pubkeys[0]とshd_secrets[0]から計算 --> blind_factors[0]
     compute_blinding_factor(blind_factors, eph_pubkeys, shd_secrets);
@@ -196,11 +197,11 @@ bool ln_onion_create_packet(uint8_t *pPacket,
             *p = M_REALM_VAL_INVALID;
         }
         p++;
-        ln_misc_setbe(p, &pHopData[lp].short_channel_id, M_SZ_CHANNEL_ID);
+        utl_int_unpack_u64be(p, pHopData[lp].short_channel_id);
         p += M_SZ_CHANNEL_ID;
-        ln_misc_setbe(p, &pHopData[lp].amt_to_forward, M_SZ_AMT_TO_FORWARD);
+        utl_int_unpack_u64be(p, pHopData[lp].amt_to_forward);
         p += M_SZ_AMT_TO_FORWARD;
-        ln_misc_setbe(p, &pHopData[lp].outgoing_cltv_value, M_SZ_OUTGOING_CLTV_VAL);
+        utl_int_unpack_u32be(p, pHopData[lp].outgoing_cltv_value);
         p += M_SZ_OUTGOING_CLTV_VAL;
         memset(p, 0, M_SZ_PAD);
         p += M_SZ_PAD;
@@ -217,7 +218,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
         if (AssocLen != 0) {
             memcpy(pPacket + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
         }
-        ln_misc_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
+        calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
     }
 
     if (LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
@@ -296,7 +297,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (AssocLen != 0) {
         memcpy(p_msg + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
     }
-    ln_misc_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
+    calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
         LOGE("fail: hmac not match\n");
         UTL_DBG_FREE(p_msg);
@@ -321,7 +322,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
 
         //A1. if the realm byte is unknown:
         //      invalid_realm
-        ln_misc_push16be(pPushReason, LNONION_INV_REALM);
+        utl_push_u16be(pPushReason, LNONION_INV_REALM);
         return false;
     }
 
@@ -394,20 +395,20 @@ void ln_onion_failure_create(utl_buf_t *pNextPacket,
     proto.pos = M_SZ_HMAC;
 
     //    [2:failure_len]
-    ln_misc_push16be(&proto, pReason->len);
+    utl_push_u16be(&proto, pReason->len);
 
     //    [failure_len:failuremsg]
     utl_push_data(&proto, pReason->buf, pReason->len);
 
     //    [2:pad_len]
-    ln_misc_push16be(&proto, DATALEN - pReason->len);
+    utl_push_u16be(&proto, DATALEN - pReason->len);
 
     //    [pad_len:pad]
     memset(buf_fail.buf + proto.pos, 0, DATALEN - pReason->len);
     proto.pos += DATALEN - pReason->len;
 
     //HMAC
-    ln_misc_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
+    calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
     LOGD("um_key=");
@@ -492,7 +493,7 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
                     generate_key(um_key, UM, sizeof(UM), sharedsecret.buf);
 
                     uint8_t hmac[M_SZ_HMAC];
-                    ln_misc_calc_mac(hmac, um_key, M_SZ_KEYLEN,
+                    calc_mac(hmac, um_key, M_SZ_KEYLEN,
                                     p_out->buf + M_SZ_HMAC, p_out->len - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
@@ -617,6 +618,15 @@ char *ln_onion_get_errstr(const ln_onion_err_t *pOnionErr)
  * private functions
  **************************************************************************/
 
+static bool calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
+{
+    //HMAC(SHA256)
+    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pMsg, MsgLen, pMac);
+    return ret == 0;
+}
+
+
 /** loop{ PubKey * BlindingFactor[lp] } --> pOutput
  *
  * @param[out]      pResult         BTC_SZ_PUBKEY
@@ -692,7 +702,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
     //const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     //int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET, pResult);
     //return ret == 0;
-    return ln_misc_calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
+    return calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
 }
 
 
@@ -745,7 +755,7 @@ static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSr
  */
 static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code)
 {
-    ln_misc_push16be(pPushReason, Code);
+    utl_push_u16be(pPushReason, Code);
     //[32:sha256_of_onion]
     uint8_t sha256_of_onion[BTC_SZ_HASH256];
     btc_md_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);

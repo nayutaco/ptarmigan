@@ -49,6 +49,7 @@
 #include "ln_onion.h"
 #include "ln_node.h"
 #include "ln.h"
+#include "ln_msg.h"
 #include "ln_setupctl.h"
 #include "ln_msg_normalope.h"
 #include "ln_local.h"
@@ -315,13 +316,13 @@ bool HIDDEN ln_update_add_htlc_recv(ln_self_t *self, const uint8_t *pData, uint1
             bool retval = ln_channel_update_get_peer(self, &buf, NULL);
             if (retval) {
                 LOGE("fail: --> temporary channel failure\n");
-                ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
-                ln_misc_push16be(&push_htlc, (uint16_t)buf.len);
+                utl_push_u16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
+                utl_push_u16be(&push_htlc, (uint16_t)buf.len);
                 utl_push_data(&push_htlc, buf.buf, buf.len);
                 utl_buf_free(&buf);
             } else {
                 LOGE("fail: --> unknown next peer\n");
-                ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
+                utl_push_u16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
             }
         }
     }
@@ -536,7 +537,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
 
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //チェックOKであれば、revoke_and_ackを返す
@@ -670,7 +671,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     //per_commitment_point更新
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //revoke_and_ack受信フラグ
@@ -804,7 +805,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_self_t *self, const uint8_t *p
             utl_buf_t reason = UTL_BUF_INIT;
             utl_push_t push_rsn;
             utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_HASH256);
-            ln_misc_push16be(&push_rsn, msg.failure_code);
+            utl_push_u16be(&push_rsn, msg.failure_code);
             utl_push_data(&push_rsn, msg.p_sha256_of_onion, BTC_SZ_HASH256);
 
             ln_cb_fail_htlc_recv_t fail_recv;
@@ -1231,7 +1232,7 @@ static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushR
     //shutdown
     if (self->shutdown_flag & LN_SHDN_FLAG_SEND) {
         M_SET_ERR(self, LNERR_INV_STATE, "already shutdown sent");
-        ln_misc_push16be(pPushReason, LNONION_PERM_CHAN_FAIL);
+        utl_push_u16be(pPushReason, LNONION_PERM_CHAN_FAIL);
         return false;
     }
 
@@ -1309,7 +1310,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
         //C3. if the payment hash is unknown:
         //      unknown_payment_hash
         M_SET_ERR(self, LNERR_INV_VALUE, "preimage mismatch");
-        ln_misc_push16be(pPushReason, LNONION_UNKNOWN_PAY_HASH);
+        utl_push_u16be(pPushReason, LNONION_UNKNOWN_PAY_HASH);
         //no data
 
         return false;
@@ -1320,7 +1321,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     if (pAddHtlc->amount_msat < preimg.amount_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, preimg.amount_msat);
         ret = false;
-        ln_misc_push16be(pPushReason, LNONION_INCORR_PAY_AMT);
+        utl_push_u16be(pPushReason, LNONION_INCORR_PAY_AMT);
         //no data
 
         return false;
@@ -1331,7 +1332,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     if (preimg.amount_msat * 2 < pAddHtlc->amount_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, preimg.amount_msat * 2, pDataOut->amt_to_forward);
         ret = false;
-        ln_misc_push16be(pPushReason, LNONION_INCORR_PAY_AMT);
+        utl_push_u16be(pPushReason, LNONION_INCORR_PAY_AMT);
         //no data
 
         return false;
@@ -1345,7 +1346,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
          (pDataOut->outgoing_cltv_value < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
         LOGD("%" PRIu32 " < %" PRId32 "\n", pDataOut->outgoing_cltv_value + M_HYSTE_CLTV_EXPIRY_SOON, Height + M_HYSTE_CLTV_EXPIRY_MIN);
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_expiry too soon(final)");
-        ln_misc_push16be(pPushReason, LNONION_FINAL_EXPIRY_TOO_SOON);
+        utl_push_u16be(pPushReason, LNONION_FINAL_EXPIRY_TOO_SOON);
 
         return false;
     }
@@ -1355,9 +1356,9 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     if (pDataOut->outgoing_cltv_value != pAddHtlc->cltv_expiry) {
         LOGD("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(self));
         M_SET_ERR(self, LNERR_INV_VALUE, "incorrect cltv expiry(final)");
-        ln_misc_push16be(pPushReason, LNONION_FINAL_INCORR_CLTV_EXP);
+        utl_push_u16be(pPushReason, LNONION_FINAL_INCORR_CLTV_EXP);
         //[4:cltv_expiry]
-        ln_misc_push32be(pPushReason, pDataOut->outgoing_cltv_value);
+        utl_push_u32be(pPushReason, pDataOut->outgoing_cltv_value);
 
         return false;
     }
@@ -1367,9 +1368,9 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     if (pDataOut->amt_to_forward > pAddHtlc->amount_msat) {
         LOGD("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, pAddHtlc->amount_msat);
         M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final)");
-        ln_misc_push16be(pPushReason, LNONION_FINAL_INCORR_HTLC_AMT);
+        utl_push_u16be(pPushReason, LNONION_FINAL_INCORR_HTLC_AMT);
         //[4:incoming_htlc_amt]
-        ln_misc_push32be(pPushReason, pAddHtlc->amount_msat);
+        utl_push_u32be(pPushReason, pAddHtlc->amount_msat);
 
         return false;
     }
@@ -1414,7 +1415,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
          (ln_status_get(recv_prev.p_next_self) != LN_STATUS_NORMAL) ) {
         //転送先がない
         M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
-        ln_misc_push16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
+        utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
         //no data
 
         return false;
@@ -1443,7 +1444,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     if (!ret) {
         //channel_updateがない
         M_SET_ERR(self, LNERR_INV_VALUE, "no channel_update");
-        ln_misc_push16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
+        utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
         //no data
 
         return false;
@@ -1455,10 +1456,10 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
     if (pDataOut->amt_to_forward < recv_prev.p_next_self->commit_remote.htlc_minimum_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, recv_prev.p_next_self->commit_remote.htlc_minimum_msat);
-        ln_misc_push16be(pPushReason, LNONION_AMT_BELOW_MIN);
+        utl_push_u16be(pPushReason, LNONION_AMT_BELOW_MIN);
         //[8:htlc_msat]
         //[2:len]
-        ln_misc_push16be(pPushReason, cnlupd_buf.len);
+        utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
 
@@ -1471,10 +1472,10 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     uint64_t fwd_fee = ln_forward_fee(self, pDataOut->amt_to_forward);
     if (pAddHtlc->amount_msat < pDataOut->amt_to_forward + fwd_fee) {
         M_SET_ERR(self, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, pAddHtlc->amount_msat - pDataOut->amt_to_forward);
-        ln_misc_push16be(pPushReason, LNONION_FEE_INSUFFICIENT);
+        utl_push_u16be(pPushReason, LNONION_FEE_INSUFFICIENT);
         //[8:htlc_msat]
         //[2:len]
-        ln_misc_push16be(pPushReason, cnlupd_buf.len);
+        utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
 
@@ -1487,10 +1488,10 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     if ( (pAddHtlc->cltv_expiry <= pDataOut->outgoing_cltv_value) ||
             (pAddHtlc->cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < pDataOut->outgoing_cltv_value) ) {
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
-        ln_misc_push16be(pPushReason, LNONION_INCORR_CLTV_EXPIRY);
+        utl_push_u16be(pPushReason, LNONION_INCORR_CLTV_EXPIRY);
         //[4:cltv_expiry]
         //[2:len]
-        ln_misc_push16be(pPushReason, cnlupd_buf.len);
+        utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
 
@@ -1505,9 +1506,9 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
          (pAddHtlc->cltv_expiry < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
         LOGD("%" PRIu32 " < %" PRId32 "\n", pAddHtlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, Height + cnlupd.cltv_expiry_delta);
         M_SET_ERR(self, LNERR_INV_VALUE, "expiry too soon : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
-        ln_misc_push16be(pPushReason, LNONION_EXPIRY_TOO_SOON);
+        utl_push_u16be(pPushReason, LNONION_EXPIRY_TOO_SOON);
         //[2:len]
-        ln_misc_push16be(pPushReason, cnlupd_buf.len);
+        utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
 
@@ -1519,7 +1520,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     if (pAddHtlc->cltv_expiry > (uint32_t)Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR) {
         LOGD("%" PRIu32 " > %" PRId32 "\n", pAddHtlc->cltv_expiry, Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR);
         M_SET_ERR(self, LNERR_INV_VALUE, "expiry too far : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
-        ln_misc_push16be(pPushReason, LNONION_EXPIRY_TOO_FAR);
+        utl_push_u16be(pPushReason, LNONION_EXPIRY_TOO_FAR);
 
         return false;
     }
@@ -1777,7 +1778,7 @@ static void recv_idle_proc_nonfinal(ln_self_t *self, uint32_t FeeratePerKw)
                 }
                 if (buf.len > 0) {
                     uint16_t type = utl_int_pack_u16be(buf.buf);
-                    LOGD("send: %s\n", ln_misc_msgname(type));
+                    LOGD("send: %s\n", ln_msg_name(type));
                     ln_callback(self, LN_CB_SEND_REQ, &buf);
                     utl_buf_free(&buf);
                     self->cnl_add_htlc[idx].stat.flag.updsend = 1;
@@ -1971,8 +1972,8 @@ LABEL_EXIT:
                     utl_push_t push_htlc;
                     utl_push_init(&push_htlc, pReason,
                                         sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
-                    ln_misc_push16be(&push_htlc, LNONION_CHAN_DISABLE);
-                    ln_misc_push16be(&push_htlc, (uint16_t)buf.len);
+                    utl_push_u16be(&push_htlc, LNONION_CHAN_DISABLE);
+                    utl_push_u16be(&push_htlc, (uint16_t)buf.len);
                     utl_push_data(&push_htlc, buf.buf, buf.len);
                 } else {
                     LOGD("OK\n");
@@ -1990,8 +1991,8 @@ LABEL_EXIT:
                 utl_push_t push_htlc;
                 utl_push_init(&push_htlc, pReason,
                                     sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
-                ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
-                ln_misc_push16be(&push_htlc, (uint16_t)buf.len);
+                utl_push_u16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
+                utl_push_u16be(&push_htlc, (uint16_t)buf.len);
                 utl_push_data(&push_htlc, buf.buf, buf.len);
             } else {
                 //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
@@ -2000,7 +2001,7 @@ LABEL_EXIT:
 
                 utl_push_t push_htlc;
                 utl_push_init(&push_htlc, pReason, sizeof(uint16_t));
-                ln_misc_push16be(&push_htlc, LNONION_PERM_CHAN_FAIL);
+                utl_push_u16be(&push_htlc, LNONION_PERM_CHAN_FAIL);
             }
         }
     }

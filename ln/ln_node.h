@@ -72,7 +72,7 @@ void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey);
 /** 共有鍵生成
  *
  */
-void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey);
+bool HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey);
 
 
 /** node privkeyによる署名
