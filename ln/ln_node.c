@@ -54,7 +54,7 @@ typedef struct {
 
 
 /** @struct comp_param_srcnodeid_t
- *  @brief  #ln_node_search_nodeid()用
+ *  @brief  #ln_node_search_node_id()用
  */
 typedef struct {
     uint8_t *p_node_id;
@@ -249,7 +249,7 @@ bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
 }
 
 
-bool HIDDEN ln_node_search_nodeid(uint8_t *pNodeId, uint64_t ShortChannelId)
+bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId)
 {
     comp_param_srcnodeid_t param;
     param.p_node_id = pNodeId;
@@ -320,7 +320,7 @@ static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_para
 }
 
 
-/** #ln_node_search_nodeid()処理関数
+/** #ln_node_search_node_id()処理関数
  *
  * short_channel_idが一致した場合のnode_id(相手側)を返す。
  *

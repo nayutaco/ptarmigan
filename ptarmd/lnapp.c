@@ -70,6 +70,7 @@
 #include "ln_setupctl.h"
 #include "ln_establish.h"
 #include "ln_close.h"
+#include "ln_normalope.h"
 #include "ln_anno.h"
 
 #include "ptarmd.h"

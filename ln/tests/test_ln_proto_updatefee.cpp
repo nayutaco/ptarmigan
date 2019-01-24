@@ -46,6 +46,7 @@ extern "C" {
 #include "ln_signer.c"
 // #include "ln_segwit_addr.c"
 // #include "ln_print.c"
+#include "ln_normalope.c"
 
 #include "ln.c"
 }
@@ -406,7 +407,7 @@ TEST_F(ln, recv_updatefee_ok)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
     ASSERT_EQ(500, self.feerate_per_kw);
@@ -439,7 +440,7 @@ TEST_F(ln, recv_updatefee_decode)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, callback_called);
 
@@ -471,7 +472,7 @@ TEST_F(ln, recv_updatefee_channelid)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);
@@ -504,7 +505,7 @@ TEST_F(ln, recv_updatefee_funder)
 
     self.fund_flag = LN_FUNDFLAG_FUNDER;    //★
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);
@@ -535,7 +536,7 @@ TEST_F(ln, recv_updatefee_min)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);
@@ -569,7 +570,7 @@ TEST_F(ln, recv_updatefee_low)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);
@@ -603,7 +604,7 @@ TEST_F(ln, recv_updatefee_hi)
     self.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    bool ret = recv_update_fee(&self, NULL, 0);
+    bool ret = ln_update_fee_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&self);

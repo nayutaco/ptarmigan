@@ -46,6 +46,7 @@ extern "C" {
 #include "ln_signer.c"
 #include "ln_segwit_addr.c"
 #include "ln_print.c"
+#include "ln_normalope.c"
 
 #include "ln.c"
 }
@@ -310,7 +311,7 @@ namespace LN_UPDATE_ADD_HTLC_A {
 
 ////////////////////////////////////////////////////////////////////////
 
-TEST_F(ln, ln_set_add_htlc1)
+TEST_F(ln, set_add_htlc1)
 {
     ln_self_t self;
     LnInit(&self);
@@ -366,7 +367,7 @@ TEST_F(ln, ln_set_add_htlc1)
 }
 
 
-TEST_F(ln, ln_create_add_htlc1)
+TEST_F(ln, create_add_htlc1)
 {
     ln_self_t self;
     LnInit(&self);
@@ -427,7 +428,7 @@ TEST_F(ln, ln_create_add_htlc1)
 
 
 //fulfill
-TEST_F(ln, recv_update_add_htlc1)
+TEST_F(ln, update_add_htlc_recv1)
 {
     class dummy {
     public:
@@ -467,7 +468,7 @@ TEST_F(ln, recv_update_add_htlc1)
     bool ret;
 
     /*** TEST ***/
-    ret = recv_update_add_htlc(&self, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC));
+    ret = ln_update_add_htlc_recv(&self, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC));
 
     /*** CHECK ***/
     ASSERT_TRUE(ret);
@@ -499,7 +500,7 @@ TEST_F(ln, recv_update_add_htlc1)
 
 
 //fail
-TEST_F(ln, recv_update_add_htlc2)
+TEST_F(ln, update_add_htlc_recv2)
 {
     class dummy {
     public:
@@ -540,7 +541,7 @@ TEST_F(ln, recv_update_add_htlc2)
     bool ret;
 
     /*** TEST ***/
-    ret = recv_update_add_htlc(&self, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC));
+    ret = ln_update_add_htlc_recv(&self, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC));
 
     /*** CHECK ***/
     ASSERT_TRUE(ret);
@@ -573,7 +574,7 @@ TEST_F(ln, recv_update_add_htlc2)
 
 
 //malformed
-TEST_F(ln, recv_update_add_htlc3)
+TEST_F(ln, update_add_htlc_recv3)
 {
     class dummy {
     public:
@@ -592,7 +593,7 @@ TEST_F(ln, recv_update_add_htlc3)
     bool ret;
 
     /*** TEST ***/
-    ret = recv_update_add_htlc(&self, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC));
+    ret = ln_update_add_htlc_recv(&self, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC));
 
     /*** CHECK ***/
     ASSERT_TRUE(ret);
