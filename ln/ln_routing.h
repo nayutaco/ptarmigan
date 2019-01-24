@@ -30,7 +30,7 @@
 
 #include "ln_err.h"
 #include "ln_onion.h"
-#include "ln_segwit_addr.h"
+#include "ln_invoice.h"
 
 
 #ifdef __cplusplus

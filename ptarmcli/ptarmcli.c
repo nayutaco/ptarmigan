@@ -36,7 +36,7 @@
 #include "utl_str.h"
 #include "utl_time.h"
 
-#include "ln_segwit_addr.h"
+#include "ln_invoice.h"
 
 #include "ptarmd.h"
 #include "conf_cli.h"

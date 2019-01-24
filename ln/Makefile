@@ -57,7 +57,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln_db_lmdb.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_enc_auth.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_print.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_signer.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_segwit_addr.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln_invoice.c
 
 CPP_SOURCE_FILES += $(PRJ_PATH)/ln_routing.cpp
 

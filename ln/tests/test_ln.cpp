@@ -43,7 +43,7 @@ extern "C" {
 #include "ln_script.c"
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
-#include "ln_segwit_addr.c"
+#include "ln_invoice.c"
 #include "ln_print.c"
 
 #include "ln.c"
