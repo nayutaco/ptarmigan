@@ -25,6 +25,8 @@
 #ifndef LN_COMTX_H__
 #define LN_COMTX_H__
 
+#include "ln.h"
+
 
 /** 自分用commitment transaction作成
  *

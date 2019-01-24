@@ -130,4 +130,5 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
  */
 bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage_t *pStorage, uint64_t Index);
 
+
 #endif /* LN_DERKEY_H__ */
