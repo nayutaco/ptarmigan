@@ -171,26 +171,6 @@ extern "C" {
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
 
-/** @def    LN_HTLC_EMPTY(htlc)
- *  @brief  ln_update_add_htlc_tの空き
- *  @note
- *      - HTLCの空き場所を探している場合には、(amount_msat != 0)も同時にチェックする
- */
-#define LN_HTLC_EMPTY(htlc)     \
-            ( ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_NONE) && \
-            ((htlc)->amount_msat == 0) )
-
-/** @def    LN_HTLC_ENABLE(htlc)
- *  @brief  ln_update_add_htlc_tとして有効
- *  @note
- *      - (amount_msat != 0)で判定していたが、update_add_htlcの転送の場合、
- *          update_add_htlc受信時に転送先にパラメータを全部設定して待たせておき、
- *          revoke_and_ackが完了してから指示だけを出すようにしたかった。
- */
-//#define LN_HTLC_ENABLE(htlc)    ((htlc)->stat.flag.addhtlc != LN_ADDHTLC_NONE)
-#define LN_HTLC_ENABLE(htlc)    (!LN_HTLC_EMPTY(htlc))
-
-
 //
 // [ptarmcli --debug]true:通常動作(false:デバッグ動作)
 //
@@ -301,44 +281,6 @@ typedef enum {
 } ln_cb_t;
 
 
-/** @struct ln_htlcflag_t
- *  @brief  HTLC管理フラグ
- *  @note
- *      - uint16_tとunionする場合がある
- */
-typedef struct {
-    unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_OFFER/RECV
-    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/MALFORMED
-    unsigned        updsend     : 1;    ///< 1:update message sent
-    unsigned        comsend     : 1;    ///< 1:commitment_signed sent
-    unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
-    unsigned        comrecv     : 1;    ///< 1:commitment_signed received
-    unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
-    unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
-                                        //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
-    unsigned        updwait     : 1;    ///< 1:update message received
-    unsigned        Reserved    : 4;
-} ln_htlcflag_t;
-#define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, delhtlc
-#define LN_HTLCFLAG_MASK_UPDSEND    (0x0010)    ///< updsend
-#define LN_HTLCFLAG_MASK_COMSIG1    (0x0060)    ///< comsend, revrecv
-#define LN_HTLCFLAG_MASK_COMSIG2    (0x0180)    ///< comrecv, revsend
-#define LN_HTLCFLAG_MASK_COMSIG     ((LN_HTLCFLAG_MASK_COMSIG1 | LN_HTLCFLAG_MASK_COMSIG2))    ///< comsned, revrecv, comrecv, revsend
-#define LN_HTLCFLAG_MASK_FINDELHTLC (0x0600)    ///< fin_delhtlc
-#define LN_HTLCFLAG_MASK_UPDWAIT    (0x0800)    ///< updwait
-#define LN_HTLCFLAG_MASK_ALL        (LN_HTLCFLAG_MASK_FINDELHTLC | LN_HTLCFLAG_MASK_COMSIG | LN_HTLCFLAG_MASK_UPDSEND | LN_HTLCFLAG_MASK_HTLC)
-#define LN_HTLCFLAG_SFT_ADDHTLC(a)      ((uint16_t)(a))
-#define LN_HTLCFLAG_SFT_DELHTLC(a)      ((uint16_t)(a) << 2)
-#define LN_HTLCFLAG_SFT_UPDSEND         ((uint16_t)1 << 4)
-#define LN_HTLCFLAG_SFT_COMSEND         ((uint16_t)1 << 5)
-#define LN_HTLCFLAG_SFT_REVRECV         ((uint16_t)1 << 6)
-#define LN_HTLCFLAG_SFT_COMRECV         ((uint16_t)1 << 7)
-#define LN_HTLCFLAG_SFT_REVSEND         ((uint16_t)1 << 8)
-#define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
-#define LN_HTLCFLAG_SFT_UPDRECV         ((uint16_t)1 << 11)
-#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER))
-
-
 /** @typedef    ln_callback_t
  *  @brief      通知コールバック関数
  *  @note
@@ -447,8 +389,44 @@ typedef struct {
  * typedefs : Normal Operation
  **************************************************************************/
 
-/// @addtogroup normal_operation
-/// @{
+/** @struct ln_htlcflag_t
+ *  @brief  HTLC管理フラグ
+ *  @note
+ *      - uint16_tとunionする場合がある
+ */
+typedef struct {
+    unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_OFFER/RECV
+    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/MALFORMED
+    unsigned        updsend     : 1;    ///< 1:update message sent
+    unsigned        comsend     : 1;    ///< 1:commitment_signed sent
+    unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
+    unsigned        comrecv     : 1;    ///< 1:commitment_signed received
+    unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
+    unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
+                                        //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
+    unsigned        updwait     : 1;    ///< 1:update message received
+    unsigned        Reserved    : 4;
+} ln_htlcflag_t;
+
+#define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, delhtlc
+#define LN_HTLCFLAG_MASK_UPDSEND    (0x0010)    ///< updsend
+#define LN_HTLCFLAG_MASK_COMSIG1    (0x0060)    ///< comsend, revrecv
+#define LN_HTLCFLAG_MASK_COMSIG2    (0x0180)    ///< comrecv, revsend
+#define LN_HTLCFLAG_MASK_COMSIG     ((LN_HTLCFLAG_MASK_COMSIG1 | LN_HTLCFLAG_MASK_COMSIG2))    ///< comsned, revrecv, comrecv, revsend
+#define LN_HTLCFLAG_MASK_FINDELHTLC (0x0600)    ///< fin_delhtlc
+#define LN_HTLCFLAG_MASK_UPDWAIT    (0x0800)    ///< updwait
+#define LN_HTLCFLAG_MASK_ALL        (LN_HTLCFLAG_MASK_FINDELHTLC | LN_HTLCFLAG_MASK_COMSIG | LN_HTLCFLAG_MASK_UPDSEND | LN_HTLCFLAG_MASK_HTLC)
+#define LN_HTLCFLAG_SFT_ADDHTLC(a)      ((uint16_t)(a))
+#define LN_HTLCFLAG_SFT_DELHTLC(a)      ((uint16_t)(a) << 2)
+#define LN_HTLCFLAG_SFT_UPDSEND         ((uint16_t)1 << 4)
+#define LN_HTLCFLAG_SFT_COMSEND         ((uint16_t)1 << 5)
+#define LN_HTLCFLAG_SFT_REVRECV         ((uint16_t)1 << 6)
+#define LN_HTLCFLAG_SFT_COMRECV         ((uint16_t)1 << 7)
+#define LN_HTLCFLAG_SFT_REVSEND         ((uint16_t)1 << 8)
+#define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
+#define LN_HTLCFLAG_SFT_UPDRECV         ((uint16_t)1 << 11)
+#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER))
+
 
 /** @struct     ln_update_add_htlc_t
  *  @brief      update_add_htlc
@@ -483,10 +461,6 @@ typedef struct {
     //failで戻す
     utl_buf_t   buf_shared_secret;                  ///< failuremsg暗号化用
 } ln_update_add_htlc_t;
-
-
-
-/// @}
 
 
 /**************************************************************************
@@ -1152,13 +1126,6 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw);
 
 
-/** channel_reestablishメッセージ交換後
- *
- * @param[in,out]       self            channel info
- */
-void ln_channel_reestablish_after(ln_self_t *self);
-
-
 /** 接続直後のfunding_locked必要性チェック
  *
  * @param[in]           self            channel info
@@ -1260,94 +1227,6 @@ void ln_close_free_forcetx(ln_close_force_t *pClose);
  *      - self->wit にto_localのwitnessProgramを設定する
  */
 bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
-
-
-/********************************************************************
- * Normal Operation関係
- ********************************************************************/
-
-/** update_add_htlc設定
- *
- * @param[in,out]       self            channel info
- * @param[out]          pHtlcId         生成したHTLCのid
- * @param[out]          pReason         (非NULLかつ戻り値がfalse)onion reason
- * @param[in]           pPacket         onion packet
- * @param[in]           AmountMsat      送金額[msat]
- * @param[in]           CltvValue       CLTV値(絶対値)
- * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
- * @param[in]           PrevShortChannelId   転送元short_channel_id(ない場合は0)
- * @param[in]           PrevIdx         転送元cnl_add_htlc[]index(ない場合は0)
- * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
- * @retval      true    成功
- * @note
- *      - prev_short_channel_id はfullfillの通知先として使用する
- */
-bool ln_add_htlc_set(ln_self_t *self,
-            uint64_t *pHtlcId,
-            utl_buf_t *pReason,
-            const uint8_t *pPacket,
-            uint64_t AmountMsat,
-            uint32_t CltvValue,
-            const uint8_t *pPaymentHash,
-            uint64_t PrevShortChannelId,
-            uint16_t PrevIdx,
-            const utl_buf_t *pSharedSecrets);
-
-
-bool ln_add_htlc_set_fwd(ln_self_t *self,
-            uint64_t *pHtlcId,
-            utl_buf_t *pReason,
-            uint16_t *pNextIdx,
-            const uint8_t *pPacket,
-            uint64_t AmountMsat,
-            uint32_t CltvValue,
-            const uint8_t *pPaymentHash,
-            uint64_t PrevShortChannelId,
-            uint16_t PrevIdx,
-            const utl_buf_t *pSharedSecrets);
-
-
-void ln_add_htlc_start_fwd(ln_self_t *self, uint16_t Idx);
-
-
-/** update_fulfill_htlc設定
- *
- * @param[in,out]       self            channel info
- * @param[in]           Idx             設定するHTLCの内部管理index値
- * @param[in]           pPreImage       payment_preimage
- * @retval      true    成功
- */
-bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage);
-
-
-/** update_fail_htlc設定
- *
- * @param[in,out]       self            channel info
- * @param[in]           Idx             index
- * @param[in]           pReason         reason
- * @note
- *      - onion_routing_packetと共用のため、onion_routingは消える
- */
-bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
-
-
-bool ln_fail_htlc_set_bwd(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
-
-
-/** update_fail_htlc転送
- *
- *
- */
-void ln_del_htlc_start_bwd(ln_self_t *self, uint16_t Idx);
-
-
-/** update_feeメッセージ作成
- *
- * @param[in,out]       self            channel info
- * @param[out]          pUpdFee         生成したupdate_feeメッセージ
- * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
- */
-bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
 
 
 /********************************************************************

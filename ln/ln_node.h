@@ -77,6 +77,6 @@ bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
  * @param[in] ShortChannelId    検索するshort_channel_id
  * @retval  true    検索成功 
  */
-bool HIDDEN ln_node_search_nodeid(uint8_t *pNodeId, uint64_t ShortChannelId);
+bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId);
 
 #endif /* LN_NODE_H__ */

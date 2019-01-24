@@ -42,6 +42,7 @@
 #include "ln_misc.h"
 #include "ln_script.h"
 #include "ln_signer.h"
+#include "ln_normalope.h"
 #include "ln_local.h"
 
 

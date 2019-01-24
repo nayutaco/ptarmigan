@@ -47,6 +47,8 @@
 #include "ln_db_lmdb.h"
 #include "ln_msg_anno.h"
 
+#include "ln_normalope.h"
+
 #include "ptarmd.h"
 
 
