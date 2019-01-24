@@ -146,7 +146,7 @@ static void set_channels(void);
 int ptarmd_start(uint16_t RpcPort)
 {
     bool bret;
-    ln_nodeaddr_t *p_addr = ln_node_addr();
+    ln_node_addr_t *p_addr = ln_node_addr();
 
     mkdir(FNAME_LOGDIR, 0755);
 
@@ -167,10 +167,10 @@ int ptarmd_start(uint16_t RpcPort)
 
         if (p_addr->type == LN_ADDR_DESC_TYPE_IPV4) {
             fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
-                        p_addr->addrinfo.ipv4.addr[0],
-                        p_addr->addrinfo.ipv4.addr[1],
-                        p_addr->addrinfo.ipv4.addr[2],
-                        p_addr->addrinfo.ipv4.addr[3]);
+                        p_addr->addr[0],
+                        p_addr->addr[1],
+                        p_addr->addr[2],
+                        p_addr->addr[3]);
         } else {
             fprintf(fp, "ipaddr=127.0.0.1\n");
         }

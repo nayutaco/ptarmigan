@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "ln.h"
+#include "btc_keys.h"
+#include "btc_crypto.h"
 
 #define LN_INVOICE_MAINNET      ((uint8_t)4)
 #define LN_INVOICE_TESTNET      ((uint8_t)5)
