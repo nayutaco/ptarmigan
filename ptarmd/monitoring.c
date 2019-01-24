@@ -477,10 +477,10 @@ static bool channel_reconnect(ln_self_t *self)
     switch (ln_last_connected_addr(self)->type) {
     case LN_ADDR_DESC_TYPE_IPV4:
         sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[0],
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[1],
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[2],
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[3]);
+            ln_last_connected_addr(self)->addr[0],
+            ln_last_connected_addr(self)->addr[1],
+            ln_last_connected_addr(self)->addr[2],
+            ln_last_connected_addr(self)->addr[3]);
         conn_addr[1].port = ln_last_connected_addr(self)->port;
         LOGD("conn_addr[1]: %s:%d\n", conn_addr[1].ipaddr, conn_addr[1].port);
         break;

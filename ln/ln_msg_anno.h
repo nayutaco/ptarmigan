@@ -145,6 +145,7 @@ typedef enum {
     LN_ADDR_DESC_ADDR_LEN_IPV6 = 16,    ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
     LN_ADDR_DESC_ADDR_LEN_TORV2 = 10,   ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
     LN_ADDR_DESC_ADDR_LEN_TORV3 = 35,   ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+    LN_ADDR_DESC_ADDR_LEN_MAX = LN_ADDR_DESC_ADDR_LEN_TORV3,
 } ln_msg_address_descriptor_addr_len_t;
 
 

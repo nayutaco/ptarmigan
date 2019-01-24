@@ -963,8 +963,8 @@ static void *thread_main_start(void *pArg)
                 p_conf->funding_waiting = true;
             }
 
-            ln_nodeaddr_t conn_addr;
-            ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
+            ln_node_addr_t conn_addr;
+            ret = utl_addr_ipv4_str2bin(conn_addr.addr, p_conf->conn_str);
             if (ret) {
                 conn_addr.type = LN_ADDR_DESC_TYPE_IPV4;
                 conn_addr.port = p_conf->conn_port;
@@ -2365,8 +2365,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         stop_threads(p_conf);
     }
 
-    ln_nodeaddr_t conn_addr;
-    bool ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
+    ln_node_addr_t conn_addr;
+    bool ret = utl_addr_ipv4_str2bin(conn_addr.addr, p_conf->conn_str);
     if (ret) {
         conn_addr.type = LN_ADDR_DESC_TYPE_IPV4;
         conn_addr.port = p_conf->conn_port;

@@ -1083,12 +1083,12 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 }
 
 
-void ln_last_connected_addr_set(ln_self_t *self, const ln_nodeaddr_t *pAddr)
+void ln_last_connected_addr_set(ln_self_t *self, const ln_node_addr_t *pAddr)
 {
-    memcpy(&self->last_connected_addr, pAddr, sizeof(ln_nodeaddr_t));
+    memcpy(&self->last_connected_addr, pAddr, sizeof(ln_node_addr_t));
     LOGD("addr[%d]: %d.%d.%d.%d:%d\n", pAddr->type,
-            pAddr->addrinfo.ipv4.addr[0], pAddr->addrinfo.ipv4.addr[1],
-            pAddr->addrinfo.ipv4.addr[2], pAddr->addrinfo.ipv4.addr[3],
+            pAddr->addr[0], pAddr->addr[1],
+            pAddr->addr[2], pAddr->addr[3],
             pAddr->port);
     M_DB_SELF_SAVE(self);
 }
@@ -1417,7 +1417,7 @@ uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat)
 }
 
 
-const ln_nodeaddr_t *ln_last_connected_addr(const ln_self_t *self)
+const ln_node_addr_t *ln_last_connected_addr(const ln_self_t *self)
 {
     return &self->last_connected_addr;
 }

@@ -27,7 +27,8 @@
 
 #include <stdbool.h>
 
-#include "ln.h"
+#include "utl_buf.h"
+#include "utl_common.h"
 
 
 /**************************************************************************

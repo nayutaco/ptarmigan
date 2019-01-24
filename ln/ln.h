@@ -42,6 +42,7 @@
 #include "ln_onion.h"
 #include "ln_derkey.h"
 #include "ln_noise.h"
+#include "ln_node.h"
 
 
 #ifdef __cplusplus
@@ -458,35 +459,6 @@ typedef struct {
 /// @addtogroup announcement
 /// @{
 
-/** @struct     ln_nodeaddr_t
- *  @brief      node_announcementのアドレス情報
- */
-typedef struct {
-    //XXX: ln_msg_address_descriptor_type_t   type;
-    uint8_t         type;
-    uint16_t        port;
-    union {
-        uint8_t     addr[1];
-
-        struct {
-            uint8_t     addr[4];
-        } ipv4;
-
-        struct {
-            uint8_t     addr[16];
-        } ipv6;
-
-        struct {
-            uint8_t     addr[10];
-        } onionv2;
-
-        struct {
-            uint8_t     addr[35];
-        } onionv3;
-    }               addrinfo;
-} ln_nodeaddr_t;
-
-
 /** @struct     ln_anno_prm_t
  *  @brief      announce関連のパラメータ
  */
@@ -748,7 +720,7 @@ typedef struct {
 struct ln_self_t {
     //connect
     uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< [CONN_01]接続先ノード
-    ln_nodeaddr_t               last_connected_addr;            ///< [CONN_02]最後に接続したIP address
+    ln_node_addr_t               last_connected_addr;            ///< [CONN_02]最後に接続したIP address
     ln_status_t                 status;                         ///< [CONN_03]状態
 
     //key storage
@@ -763,23 +735,22 @@ struct ln_self_t {
     uint64_t                    obscured;                       ///< [FUND_04]commitment numberをXORするとobscured commitment numberになる値。
                                                                     // 0の場合、1回でもclosing_signed受信した
     utl_buf_t                   redeem_fund;                    ///< [FUND_05]2-of-2のredeemScript
-    btc_script_pubkey_order_t             key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
+    btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
     ln_establish_t              establish;                      ///< [FUND_08]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_09]minimum_depth
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 
-    //announce
+    //msg:announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
     ln_anno_prm_t               anno_prm;                       ///< [ANNO_02]announcementパラメータ
     utl_buf_t                   cnl_anno;                       ///< [ANNO_03]自channel_announcement
 
-    //msg:init
+    //msg:establish
     uint8_t                     init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
     uint8_t                     lfeature_local;                 ///< [INIT_02]initで送信したlocalfeature
     uint8_t                     lfeature_remote;                ///< [INIT_03]initで取得したlocalfeature
-    //channel_reestablish後の処理
     uint64_t                    reest_commit_num;               ///< [INIT_04]channel_reestablish.next_local_commitment_number
     uint64_t                    reest_revoke_num;               ///< [INIT_05]channel_reestablish.next_remote_revocation_number
 
@@ -807,15 +778,15 @@ struct ln_self_t {
     uint64_t                    short_channel_id;               ///< [NORM_05]short_channel_id
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
 
-    //commitment transaction情報(local/remote)
+    //commitment transaction(local/remote)
     ln_commit_data_t            commit_local;                   ///< [COMM_01]local commit_tx用
     ln_commit_data_t            commit_remote;                  ///< [COMM_02]remote commit_tx用
-    //commitment transaction情報(固有)
+    //commitment transaction(固有)
     uint64_t                    funding_sat;                    ///< [COMM_03]funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< [COMM_04]feerate_per_kw
 
     //noise protocol
-    ln_noise_t              noise;                          ///< [NOIS_01]noise protocol
+    ln_noise_t                  noise;                          ///< [NOIS_01]noise protocol
 
     //last error
     int                         err;                            ///< [ERRO_01]error code(ln_err.h)
@@ -1201,7 +1172,7 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
  *
  * @param[in,out]       self            channel info
  */
-void ln_last_connected_addr_set(ln_self_t *self, const ln_nodeaddr_t *pAddr);
+void ln_last_connected_addr_set(ln_self_t *self, const ln_node_addr_t *pAddr);
 
 
 /********************************************************************
@@ -1615,7 +1586,7 @@ uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat);
  *
  * @param[in]           self            channel info
  */
-const ln_nodeaddr_t *ln_last_connected_addr(const ln_self_t *self);
+const ln_node_addr_t *ln_last_connected_addr(const ln_self_t *self);
 
 
 /** 最後に発生したエラー番号
@@ -1657,7 +1628,7 @@ bool ln_cnlupd_enable(const ln_msg_channel_update_t *pCnlUpd);
  *
  * @return      ノードアドレス(非const)
  */
-ln_nodeaddr_t *ln_node_addr(void);
+ln_node_addr_t *ln_node_addr(void);
 
 
 char *ln_node_alias(void);

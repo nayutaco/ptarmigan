@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 {
     bool bret;
     rpc_conf_t rpc_conf;
-    ln_nodeaddr_t *p_addr;
+    ln_node_addr_t *p_addr;
     char *p_alias;
     int opt;
     uint16_t my_rpcport = 0;
@@ -136,13 +136,13 @@ int main(int argc, char *argv[])
         case 'a':
             //ip address
             {
-                uint8_t ipbin[4];
+                uint8_t ipbin[LN_ADDR_DESC_ADDR_LEN_IPV4];
                 bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
                 if (addrret) {
                     p_addr->type = LN_ADDR_DESC_TYPE_IPV4;
-                    memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
+                    memcpy(p_addr->addr, ipbin, sizeof(ipbin));
                     LOGD("ipv4=");
-                    DUMPD(p_addr->addrinfo.addr, sizeof(p_addr->addrinfo.ipv4.addr));
+                    DUMPD(p_addr->addr, sizeof(p_addr->addr));
                 } else {
                     LOGE("fail: ipv4(%s)\n", optarg);
                 }

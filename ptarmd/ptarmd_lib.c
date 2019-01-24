@@ -57,7 +57,7 @@ static void *sig_handler_start(void *pArg);
 int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
 {
     bool bret;
-    ln_nodeaddr_t *p_addr = ln_node_addr();
+    ln_node_addr_t *p_addr = ln_node_addr();
     char *p_alias = ln_node_alias();
 
     //`d` option is used to change working directory.

@@ -503,10 +503,10 @@ static void ln_print_self(const ln_self_t *self)
     //addr
     if (self->last_connected_addr.type == LN_ADDR_DESC_TYPE_IPV4) {
         printf(INDENT3 M_QQ("last_connected IPv4") ": \"%d.%d.%d.%d:%d\",\n",
-                    self->last_connected_addr.addrinfo.ipv4.addr[0],
-                    self->last_connected_addr.addrinfo.ipv4.addr[1],
-                    self->last_connected_addr.addrinfo.ipv4.addr[2],
-                    self->last_connected_addr.addrinfo.ipv4.addr[3],
+                    self->last_connected_addr.addr[0],
+                    self->last_connected_addr.addr[1],
+                    self->last_connected_addr.addr[2],
+                    self->last_connected_addr.addr[3],
                     self->last_connected_addr.port);
     }
     printf(INDENT3 M_QQ("err") ": %d\n", self->err);

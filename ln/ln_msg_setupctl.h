@@ -27,9 +27,8 @@
 
 #include <stdbool.h>
 
-#include "ln.h"
-
 //XXX: unit test
+
 
 /********************************************************************
  * typedefs

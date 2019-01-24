@@ -76,7 +76,7 @@ static ln_node_t    mNode;
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_param);
-//static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
+//static bool comp_node_addr(const ln_node_addr_t *pAddr1, const ln_node_addr_t *pAddr2);
 static void print_node(void);
 
 
@@ -90,7 +90,7 @@ const uint8_t *ln_node_getid(void)
 }
 
 
-ln_nodeaddr_t *ln_node_addr(void)
+ln_node_addr_t *ln_node_addr(void)
 {
     return &mNode.addr;
 }
@@ -131,9 +131,9 @@ bool ln_node_init(uint8_t Features)
         memset(dummy_signature, 0xcc, sizeof(dummy_signature));
         strncpy((char *)alias, mNode.alias, LN_SZ_ALIAS_STR);
 
-        if ((mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addrinfo.ipv4.addr)) {
+        if ((mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addr)) {
             addrs.addresses[0].type = mNode.addr.type;
-            addrs.addresses[0].p_addr = mNode.addr.addrinfo.ipv4.addr;
+            addrs.addresses[0].p_addr = mNode.addr.addr;
             addrs.addresses[0].port = mNode.addr.port;
             addrs.num = 1;
         } else {
@@ -343,13 +343,13 @@ static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_par
 
 
 #if 0
-/** ln_nodeaddr_t比較
+/** ln_node_addr_t比較
  *
  * @param[in]   pAddr1      比較対象1
  * @param[in]   pAddr2      比較対象2
  * @retval  true    一致
  */
-static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2)
+static bool comp_node_addr(const ln_node_addr_t *pAddr1, const ln_node_addr_t *pAddr2)
 {
     const size_t SZ[] = {
         0,          //LN_ADDR_DESC_TYPE_NONE
@@ -389,10 +389,10 @@ static void print_node(void)
     printf("addr.type=%d\n", mNode.addr.type);
     if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {
         printf("ipv4=%d.%d.%d.%d:%d\n",
-                mNode.addr.addrinfo.ipv4.addr[0],
-                mNode.addr.addrinfo.ipv4.addr[1],
-                mNode.addr.addrinfo.ipv4.addr[2],
-                mNode.addr.addrinfo.ipv4.addr[3],
+                mNode.addr.addr[0],
+                mNode.addr.addr[1],
+                mNode.addr.addr[2],
+                mNode.addr.addr[3],
                 mNode.addr.port);
     } else {
         printf("port=%d\n", mNode.addr.port);

@@ -25,7 +25,7 @@
 #ifndef LN_NODE_H__
 #define LN_NODE_H__
 
-#include "ln.h"
+#include "ln_msg_anno.h"
 
 
 /********************************************************************
@@ -36,6 +36,16 @@
  * typedefs
  ********************************************************************/
 
+/** @struct     ln_node_addr_t
+ *  @brief      node_announcementのアドレス情報
+ */
+typedef struct {
+    ln_msg_address_descriptor_type_t   type;
+    uint8_t     addr[LN_ADDR_DESC_ADDR_LEN_MAX];
+    uint16_t    port;
+} ln_node_addr_t;
+
+
 /** @struct ln_node_t
  *  @brief  ノード情報
  */
@@ -43,7 +53,7 @@ typedef struct {
     btc_keys_t          keys;                           ///< node鍵
     uint8_t             features;                       ///< localfeatures
     char                alias[LN_SZ_ALIAS_STR + 1];     ///< ノード名(\0 terminate)
-    ln_nodeaddr_t       addr;                           ///< ノードアドレス
+    ln_node_addr_t       addr;                           ///< ノードアドレス
 } ln_node_t;
 
 
