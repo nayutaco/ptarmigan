@@ -27,6 +27,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "utl_common.h"
+
 #include "ln_msg.h"
 
 

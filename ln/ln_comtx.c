@@ -336,7 +336,7 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
 
     if (ret) {
         //送信用 commitment_signed.signature
-        ln_misc_sigtrim(pCommit->signature, buf_sig.buf);
+        btc_sig_der2rs(pCommit->signature, buf_sig.buf, buf_sig.len);
     }
 
     if (ret) {
@@ -492,7 +492,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     uint8_t sighash[BTC_SZ_HASH256];
 
     //署名追加
-    ln_misc_sigexpand(&buf_sig_from_remote, self->commit_local.signature);
+    ln_misc_sig_expand(&buf_sig_from_remote, self->commit_local.signature);
     ln_comtx_set_vin_p2wsh_2of2(pTxCommit, 0, self->key_fund_sort,
                             pBufSig,
                             &buf_sig_from_remote,
@@ -703,7 +703,7 @@ static bool create_to_local_htlcverify(const ln_self_t *self,
                     uint64_t Amount)
 {
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, pHtlcSig);
+    ln_misc_sig_expand(&buf_sig, pHtlcSig);
 
     bool ret = ln_script_htlctx_verify(pTx,
                 Amount,
@@ -763,7 +763,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
     bool ret_img;
     uint8_t txid[BTC_SZ_TXID];
 
-    ln_misc_sigexpand(&buf_remote_sig,
+    ln_misc_sig_expand(&buf_remote_sig,
                 self->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature);
 
     if (pHtlcInfo->type == LN_HTLCTYPE_RECEIVED) {
@@ -941,7 +941,7 @@ static bool create_to_remote_spent(const ln_self_t *self,
     }
 
     utl_buf_t buf_remotesig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_remotesig, self->commit_local.signature);
+    ln_misc_sig_expand(&buf_remotesig, self->commit_local.signature);
 
     //HTLC署名用鍵
     btc_keys_t htlckey;
@@ -1138,7 +1138,7 @@ static bool create_to_remote_spenthtlc(
                     pHtlcKey,
                     &pHtlcInfo->script);
         if (ret && (pHtlcSigs != NULL)) {
-            ln_misc_sigtrim(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, buf_localsig.buf);
+            btc_sig_der2rs(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, buf_localsig.buf, buf_localsig.len);
         }
         if (ret) {
             ret = ln_script_htlctx_wit(&tx,

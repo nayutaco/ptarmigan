@@ -360,13 +360,13 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     }
 
     //送信用署名
-    ln_misc_sigtrim(self->commit_remote.signature, buf_sig.buf);
+    btc_sig_der2rs(self->commit_remote.signature, buf_sig.buf, buf_sig.len);
 
     //署名追加
     if (bVerify) {
         utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
 
-        ln_misc_sigexpand(&buf_sig_from_remote, self->commit_local.signature);
+        ln_misc_sig_expand(&buf_sig_from_remote, self->commit_local.signature);
         ln_comtx_set_vin_p2wsh_2of2(pTx, 0, self->key_fund_sort, &buf_sig, &buf_sig_from_remote, &self->redeem_fund);
         utl_buf_free(&buf_sig_from_remote);
 

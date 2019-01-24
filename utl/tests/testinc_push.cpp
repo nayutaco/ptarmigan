@@ -344,3 +344,69 @@ TEST_F(push, trim)
     utl_buf_free(&buf);
 }
 
+
+TEST_F(push, push8)
+{
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
+
+    utl_push_byte(&ps, 0x34);
+    ASSERT_EQ(0x34, buf.buf[0]);
+    ASSERT_EQ(1, ps.pos);
+
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(push, push16)
+{
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
+
+    utl_push_u16be(&ps, 0x3456);
+    ASSERT_EQ(0x34, buf.buf[0]);
+    ASSERT_EQ(0x56, buf.buf[1]);
+    ASSERT_EQ(2, ps.pos);
+
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(push, push32)
+{
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
+
+    utl_push_u32be(&ps, 0x3456789a);
+    ASSERT_EQ(0x34, buf.buf[0]);
+    ASSERT_EQ(0x56, buf.buf[1]);
+    ASSERT_EQ(0x78, buf.buf[2]);
+    ASSERT_EQ(0x9a, buf.buf[3]);
+    ASSERT_EQ(4, ps.pos);
+
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(push, push64)
+{
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
+
+    utl_push_u64be(&ps, 0x3456789abcdef012LL);
+    ASSERT_EQ(0x34, buf.buf[0]);
+    ASSERT_EQ(0x56, buf.buf[1]);
+    ASSERT_EQ(0x78, buf.buf[2]);
+    ASSERT_EQ(0x9a, buf.buf[3]);
+    ASSERT_EQ(0xbc, buf.buf[4]);
+    ASSERT_EQ(0xde, buf.buf[5]);
+    ASSERT_EQ(0xf0, buf.buf[6]);
+    ASSERT_EQ(0x12, buf.buf[7]);
+    ASSERT_EQ(8, ps.pos);
+
+    utl_buf_free(&buf);
+}

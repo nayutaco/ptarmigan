@@ -25,6 +25,9 @@
 #ifndef LN_MSG_H__
 #define LN_MSG_H__
 
+#include <stdint.h>
+#include <stdbool.h>
+
 
 /**************************************************************************
  * macros
