@@ -88,7 +88,7 @@ TEST_F(misc, push8)
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
-    ln_misc_push8(&ps, 0x34);
+    utl_push_byte(&ps, 0x34);
     ASSERT_EQ(0x34, buf.buf[0]);
     ASSERT_EQ(1, ps.pos);
 
@@ -102,7 +102,7 @@ TEST_F(misc, push16)
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
-    ln_misc_push16be(&ps, 0x3456);
+    utl_push_u16be(&ps, 0x3456);
     ASSERT_EQ(0x34, buf.buf[0]);
     ASSERT_EQ(0x56, buf.buf[1]);
     ASSERT_EQ(2, ps.pos);
@@ -117,7 +117,7 @@ TEST_F(misc, push32)
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
-    ln_misc_push32be(&ps, 0x3456789a);
+    utl_push_u32be(&ps, 0x3456789a);
     ASSERT_EQ(0x34, buf.buf[0]);
     ASSERT_EQ(0x56, buf.buf[1]);
     ASSERT_EQ(0x78, buf.buf[2]);
@@ -134,7 +134,7 @@ TEST_F(misc, push64)
     utl_push_t ps;
     utl_push_init(&ps, &buf, 13);
 
-    ln_misc_push64be(&ps, 0x3456789abcdef012LL);
+    utl_push_u64be(&ps, 0x3456789abcdef012LL);
     ASSERT_EQ(0x34, buf.buf[0]);
     ASSERT_EQ(0x56, buf.buf[1]);
     ASSERT_EQ(0x78, buf.buf[2]);
@@ -468,17 +468,3 @@ TEST_F(misc, sigtrimexp3)
 }
 
 
-////////////////////////////////////////////////////////////////////////
-
-TEST_F(misc, calc_short1)
-{
-    uint64_t sid = ln_misc_calc_short_channel_id(0x12345678, 0x9abcdef0, 0x6543210f);
-    ASSERT_EQ(0x345678bcdef0210f, sid);
-}
-
-
-TEST_F(misc, calc_short2)
-{
-    uint64_t sid = ln_misc_calc_short_channel_id(1116104, 33, 0);
-    ASSERT_EQ(0x1107c80000210000, sid);
-}

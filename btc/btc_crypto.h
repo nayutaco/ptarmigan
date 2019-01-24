@@ -136,6 +136,9 @@ int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *p
 bool btc_ecc_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 
 
+bool btc_ecc_shared_secret_sha256(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
+
+
 /**************************************************************************
  * prototypes (btc_rng)
  **************************************************************************/

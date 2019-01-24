@@ -235,11 +235,9 @@ void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 }
 
 
-void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
+bool HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
 {
-    uint8_t pub[BTC_SZ_PUBKEY];
-    btc_ecc_mul_pubkey(pub, pPubKey, mNode.keys.priv, BTC_SZ_PRIVKEY);
-    btc_md_sha256(pResult, pub, sizeof(pub));
+    return btc_ecc_shared_secret_sha256(pResult, pPubKey, mNode.keys.priv);
 }
 
 

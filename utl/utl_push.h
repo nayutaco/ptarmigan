@@ -107,6 +107,38 @@ bool utl_push_value(utl_push_t *pPush, uint64_t Value);
 bool utl_push_trim(utl_push_t *pPush);
 
 
+/** 8bit値の書込み
+ *
+ * @param[out]      pPush       書込み先
+ * @param[in]       Value       8bit値
+ */
+bool utl_push_byte(utl_push_t *pPush, uint8_t Value);
+
+
+/** 16bit BE値の書込み
+ *
+ * @param[out]      pPush       書込み先
+ * @param[in]       Value       16bit値
+ */
+bool utl_push_u16be(utl_push_t *pPush, uint16_t Value);
+
+
+/** 32bit BE値の書込み
+ *
+ * @param[out]      pPush       書込み先
+ * @param[in]       Value       32bit値
+ */
+bool utl_push_u32be(utl_push_t *pPush, uint32_t Value);
+
+
+/** 64bit BE値の書込み
+ *
+ * @param[out]      pPush       書込み先
+ * @param[in]       Value       64bit値
+ */
+bool utl_push_u64be(utl_push_t *pPush, uint64_t Value);
+
+
 #ifdef __cplusplus
 }
 #endif //__cplusplus

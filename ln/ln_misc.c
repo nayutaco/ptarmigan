@@ -40,7 +40,7 @@
  * public functions
  ********************************************************************/
 
-const char *ln_misc_msgname(uint16_t Type)
+const char *ln_msg_name(uint16_t Type)
 {
     const struct {
         uint16_t        type;
@@ -82,56 +82,6 @@ const char *ln_misc_msgname(uint16_t Type)
 /********************************************************************
  * functions
  ********************************************************************/
-
-void HIDDEN ln_misc_push8(utl_push_t *pPush, uint8_t Value)
-{
-    utl_push_data(pPush, &Value, sizeof(Value));
-}
-
-
-void HIDDEN ln_misc_push16be(utl_push_t *pPush, uint16_t Value)
-{
-    uint8_t data[sizeof(Value)];
-    data[1] = (uint8_t)Value;
-    data[0] = (uint8_t)(Value >> 8);
-    utl_push_data(pPush, data, sizeof(data));
-}
-
-
-void HIDDEN ln_misc_push32be(utl_push_t *pPush, uint32_t Value)
-{
-    uint8_t data[sizeof(Value)];
-    data[3] = (uint8_t)Value;
-    data[2] = (uint8_t)(Value >>= 8);
-    data[1] = (uint8_t)(Value >>= 8);
-    data[0] = (uint8_t)(Value >> 8);
-    utl_push_data(pPush, data, sizeof(data));
-}
-
-
-void HIDDEN ln_misc_push64be(utl_push_t *pPush, uint64_t Value)
-{
-    uint8_t data[sizeof(Value)];
-    data[7] = (uint8_t)Value;
-    data[6] = (uint8_t)(Value >>= 8);
-    data[5] = (uint8_t)(Value >>= 8);
-    data[4] = (uint8_t)(Value >>= 8);
-    data[3] = (uint8_t)(Value >>= 8);
-    data[2] = (uint8_t)(Value >>= 8);
-    data[1] = (uint8_t)(Value >>= 8);
-    data[0] = (uint8_t)(Value >> 8);
-    utl_push_data(pPush, data, sizeof(data));
-}
-
-
-void HIDDEN ln_misc_setbe(uint8_t *pBuf, const void *pData, size_t Len)
-{
-    const uint8_t *p = (const uint8_t *)pData;
-    for (size_t lp = 0; lp < Len; lp++) {
-        pBuf[lp] = *(p + Len - lp - 1);
-    }
-}
-
 
 bool HIDDEN ln_misc_sigtrim(uint8_t *pSig, const uint8_t *pBuf)
 {
@@ -259,118 +209,4 @@ void HIDDEN ln_misc_sigexpand(utl_buf_t *pSig, const uint8_t *pBuf)
     utl_push_data(&push, s_p, s_len);
     buf[0] = 0x01;
     utl_push_data(&push, buf, 1);        //SIGHASH_ALL
-}
-
-
-//  localkey, remotekey, local_delayedkey, remote_delayedkey
-//      pubkey = basepoint + SHA256(per_commitment_point || basepoint)*G
-//
-//  revocationkey
-//      revocationkey = revocation_basepoint * SHA256(revocation_basepoint || per_commitment_point) + per_commitment_point*SHA256(per_commitment_point || revocation_basepoint)
-//
-void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote)
-{
-    //
-    //local
-    //
-
-    //remotekey = local per_commitment_point & remote payment
-    //LOGD("local: remotekey\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
-                pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //delayedkey = local per_commitment_point & local delayed_payment
-    //LOGD("local: delayedkey\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
-                pLocal->pubkeys[MSG_FUNDIDX_DELAYED], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //revocationkey = remote per_commitment_point & local revocation_basepoint
-    //LOGD("local: revocationkey\n");
-    ln_derkey_revocationkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                pRemote->pubkeys[MSG_FUNDIDX_REVOCATION], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //local_htlckey = local per_commitment_point & local htlc_basepoint
-    //LOGD("local: local_htlckey\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
-                pLocal->pubkeys[MSG_FUNDIDX_HTLC], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //remote_htlckey = local per_commitment_point & remote htlc_basepoint
-    //LOGD("local: remote_htlckey\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
-                pRemote->pubkeys[MSG_FUNDIDX_HTLC], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-
-    //
-    //remote
-    //
-
-    //remotekey = remote per_commitment_point & local payment
-    //LOGD("remote: remotekey\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
-                pLocal->pubkeys[MSG_FUNDIDX_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //delayedkey = remote per_commitment_point & remote delayed_payment
-    //LOGD("remote: delayedkey\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
-                pRemote->pubkeys[MSG_FUNDIDX_DELAYED], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //revocationkey = local per_commitment_point & remote revocation_basepoint
-    //LOGD("remote: revocationkey\n");
-    ln_derkey_revocationkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                pLocal->pubkeys[MSG_FUNDIDX_REVOCATION], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //local_htlckey = remote per_commitment_point & remote htlc_basepoint
-    //LOGD("remote: local_htlckey\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
-                pRemote->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //remote_htlckey = remote per_commitment_point & local htlc_basepoint
-    //LOGD("remote: remote_htlckey\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
-                pLocal->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-}
-
-
-void HIDDEN ln_misc_calc_channel_id(uint8_t *pChannelId, const uint8_t *pTxid, uint16_t Index)
-{
-    //combining the funding-txid and the funding-output-index using big-endian exclusive-OR
-    memcpy(pChannelId, pTxid, LN_SZ_CHANNEL_ID - sizeof(uint16_t));
-    pChannelId[LN_SZ_CHANNEL_ID - 2] = pTxid[LN_SZ_CHANNEL_ID - 2] ^ (Index >> 8);
-    pChannelId[LN_SZ_CHANNEL_ID - 1] = pTxid[LN_SZ_CHANNEL_ID - 1] ^ (Index & 0xff);
-}
-
-
-uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, uint32_t VIndex)
-{
-    //[0～2]Funding Transactionのブロック高の3byte
-    //[3～5]そのブロック中のIndex
-    //[6～7]チャネルに支払ったvout index
-    uint64_t id = ((uint64_t)(Height & 0xffffff) << 40) | (uint64_t)(BIndex & 0xffffff) << 16 | (uint64_t)(VIndex & 0xffff);
-    //LOGD("short_channel_id= %016" PRIx64 "(height=%u, bindex=%u, vindex=%u)\n", id, Height, BIndex, VIndex);
-    return id;
-}
-
-
-bool HIDDEN ln_misc_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
-{
-    //HMAC(SHA256)
-    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pMsg, MsgLen, pMac);
-    return ret == 0;
-}
-
-
-void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id)
-{
-    *pHeight = short_channel_id >> 40;
-    *pBIndex = (short_channel_id >> 16) & 0xffffff;
-    *pVIndex = short_channel_id & 0xffff;
-}
-
-
-void HIDDEN ln_misc_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
-{
-    uint8_t pub[BTC_SZ_PUBKEY];
-    btc_ecc_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY);
-    btc_md_sha256(pResult, pub, sizeof(pub));
 }

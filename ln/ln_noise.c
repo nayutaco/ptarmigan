@@ -548,7 +548,7 @@ static bool actone_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRS)
     btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(rs, e.priv)
-    ln_misc_generate_shared_secret(ss, pRS, pBolt->e.priv);
+    btc_ecc_shared_secret_sha256(ss, pRS, pBolt->e.priv);
 
     // ck, temp_k1 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -693,7 +693,7 @@ static bool acttwo_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRE)
     btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
-    ln_misc_generate_shared_secret(ss, pRE, pBolt->e.priv);
+    btc_ecc_shared_secret_sha256(ss, pRE, pBolt->e.priv);
 
     // ck, temp_k2 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -772,7 +772,7 @@ static bool acttwo_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf)
     btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
-    ln_misc_generate_shared_secret(ss, re, pBolt->e.priv);
+    btc_ecc_shared_secret_sha256(ss, re, pBolt->e.priv);
 
     // ck, temp_k2 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -995,7 +995,7 @@ static bool actthree_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf)
     btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // ss = ECDH(rs, e.priv)
-    ln_misc_generate_shared_secret(ss, rs, pBolt->e.priv);
+    btc_ecc_shared_secret_sha256(ss, rs, pBolt->e.priv);
 
     // ck, temp_k3 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);

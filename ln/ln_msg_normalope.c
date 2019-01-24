@@ -39,6 +39,7 @@
 #include "ln_msg_normalope.h"
 #include "ln_misc.h"
 #include "ln_local.h"
+#include "ln_msg.h"
 
 
 /********************************************************************
