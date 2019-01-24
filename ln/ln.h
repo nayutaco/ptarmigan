@@ -41,6 +41,7 @@
 #include "ln_msg_anno.h"
 #include "ln_onion.h"
 #include "ln_derkey.h"
+#include "ln_noise.h"
 
 
 #ifdef __cplusplus
@@ -730,16 +731,6 @@ typedef struct {
 } ln_commit_data_t;
 
 
-/** @struct ln_noise_t
- *  @brief  BOLT#8 protocol
- */
-typedef struct {
-    uint8_t         key[BTC_SZ_PRIVKEY];            ///< key
-    uint64_t        nonce;                          ///< nonce
-    uint8_t         ck[BTC_SZ_HASH256];             ///< chainkey
-} ln_noise_t;
-
-
 typedef struct {
     uint64_t                    storage_index;                  ///< 自分のstorage_index
                                                                 //      鍵生成してからデクリメントするため、次に生成する際のindexを指している。
@@ -824,9 +815,7 @@ struct ln_self_t {
     uint32_t                    feerate_per_kw;                 ///< [COMM_04]feerate_per_kw
 
     //noise protocol
-    ln_noise_t                  noise_send;                     ///< [NOIS_01]noise protocol
-    ln_noise_t                  noise_recv;                     ///< [NOIS_02]noise protocol
-    void                        *p_handshake;                   ///< [NOIS_03]
+    ln_noise_t              noise;                          ///< [NOIS_01]noise protocol
 
     //last error
     int                         err;                            ///< [ERRO_01]error code(ln_err.h)

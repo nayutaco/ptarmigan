@@ -169,6 +169,7 @@ public:
         ln_anno_prm_t annoprm;
 
         memset(self, 0xcc, sizeof(ln_self_t));
+        self->noise.p_handshake = NULL;
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;

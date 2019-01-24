@@ -1521,7 +1521,7 @@ static void *thread_recv_start(void *pArg)
         }
         assert(len == LN_SZ_NOISE_HEADER);
         if (len == LN_SZ_NOISE_HEADER) {
-            len = ln_noise_dec_len(p_conf->p_self, head, len);
+            len = ln_noise_dec_len(&p_conf->p_self->noise, head, len);
         } else {
             break;
         }
@@ -1536,7 +1536,7 @@ static void *thread_recv_start(void *pArg)
         }
         if (len_msg == len) {
             buf_recv.len = len;
-            ret = ln_noise_dec_msg(p_conf->p_self, &buf_recv);
+            ret = ln_noise_dec_msg(&p_conf->p_self->noise, &buf_recv);
             if (!ret) {
                 LOGD("DECODE: loop end\n");
                 stop_threads(p_conf);
@@ -3152,7 +3152,7 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
     struct pollfd fds;
     ssize_t len = -1;
 
-    bool ret = ln_noise_enc(p_conf->p_self, &buf_enc, pBuf);
+    bool ret = ln_noise_enc(&p_conf->p_self->noise, &buf_enc, pBuf);
     if (!ret) {
         LOGE("fail: noise encode\n");
         goto LABEL_EXIT;

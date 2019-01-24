@@ -427,9 +427,7 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //nois
     //
-    //[NOIS01]noise_send
-    //[NOIS02]noise_recv
-    //[NOIS03]p_handshake
+    //[NOIS01]noise
 
     //
     //erro

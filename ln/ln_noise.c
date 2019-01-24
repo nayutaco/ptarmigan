@@ -99,12 +99,12 @@ struct bolt8_t {
  **************************************************************************/
 
 static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm);
-static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS);
-static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf);
-static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
-static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf);
-static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
-static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf);
+static bool actone_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRS);
+static bool actone_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf);
+static bool acttwo_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRE);
+static bool acttwo_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf);
+static bool actthree_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRE);
+static bool actthree_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf);
 static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[M_CHACHAPOLY_MAC]);
 
 
@@ -112,19 +112,19 @@ static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[
  * public functions
  ********************************************************************/
 
-bool HIDDEN ln_noise_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
+bool HIDDEN ln_noise_handshake_init(ln_noise_t *pCtx, const uint8_t *pNodeId)
 {
     bool ret;
 
     //handshake完了後にFREEする
-    self->p_handshake = UTL_DBG_MALLOC(sizeof(struct bolt8_t));
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    pCtx->p_handshake = UTL_DBG_MALLOC(sizeof(struct bolt8_t));
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
 
     //ephemeral key
     ret = btc_keys_create(&pBolt->e);
     if (!ret) {
         LOGE("fail: ephemeral key\n");
-        UTL_DBG_FREE(self->p_handshake);
+        UTL_DBG_FREE(pCtx->p_handshake);
         return false;
     }
 
@@ -152,30 +152,30 @@ bool HIDDEN ln_noise_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 }
 
 
-bool HIDDEN ln_noise_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
+bool HIDDEN ln_noise_handshake_start(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
 
     if ((pBolt == NULL) || (pBolt->state != START_INITIATOR)) {
         LOGE("fail: not initiator\n");
         return false;
     }
 
-    bool ret = actone_sender(self, pBuf, pNodeId);
+    bool ret = actone_sender(pCtx, pBuf, pNodeId);
     if (ret) {
         pBolt->state = WAIT_ACT_TWO;
     } else {
         //失敗したら最初からやり直す
-        UTL_DBG_FREE(self->p_handshake);
+        UTL_DBG_FREE(pCtx->p_handshake);
     }
 
     return ret;
 }
 
 
-bool HIDDEN ln_noise_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
+bool HIDDEN ln_noise_handshake_recv(ln_noise_t *pCtx, utl_buf_t *pBuf)
 {
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     bool ret;
 
     if (pBolt == NULL) {
@@ -187,28 +187,28 @@ bool HIDDEN ln_noise_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
     //initiator
     case WAIT_ACT_TWO:
         //
-        ret = acttwo_receiver(self, pBuf);
-        memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_HASH256);
-        memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_HASH256);
-        UTL_DBG_FREE(self->p_handshake);
-        self->noise_send.nonce = 0;
-        self->noise_recv.nonce = 0;
+        ret = acttwo_receiver(pCtx, pBuf);
+        memcpy(pCtx->send_ctx.ck, pBolt->ck, BTC_SZ_HASH256);
+        memcpy(pCtx->recv_ctx.ck, pBolt->ck, BTC_SZ_HASH256);
+        UTL_DBG_FREE(pCtx->p_handshake);
+        pCtx->send_ctx.nonce = 0;
+        pCtx->recv_ctx.nonce = 0;
         break;
 
     //responder
     case WAIT_ACT_ONE:
         //
-        ret = actone_receiver(self, pBuf);
+        ret = actone_receiver(pCtx, pBuf);
         pBolt->state = WAIT_ACT_THREE;
         break;
     case WAIT_ACT_THREE:
         //
-        ret = actthree_receiver(self, pBuf);
-        memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_HASH256);
-        memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_HASH256);
-        UTL_DBG_FREE(self->p_handshake);
-        self->noise_send.nonce = 0;
-        self->noise_recv.nonce = 0;
+        ret = actthree_receiver(pCtx, pBuf);
+        memcpy(pCtx->send_ctx.ck, pBolt->ck, BTC_SZ_HASH256);
+        memcpy(pCtx->recv_ctx.ck, pBolt->ck, BTC_SZ_HASH256);
+        UTL_DBG_FREE(pCtx->p_handshake);
+        pCtx->send_ctx.nonce = 0;
+        pCtx->recv_ctx.nonce = 0;
         break;
     default:
         ret = false;
@@ -216,26 +216,26 @@ bool HIDDEN ln_noise_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
     }
     if (!ret) {
         //失敗したら最初からやり直す
-        UTL_DBG_FREE(self->p_handshake);
+        UTL_DBG_FREE(pCtx->p_handshake);
     }
 
     return ret;
 }
 
 
-bool HIDDEN ln_noise_handshake_state(ln_self_t *self)
+bool HIDDEN ln_noise_handshake_state(ln_noise_t *pCtx)
 {
-    return self->p_handshake != NULL;
+    return pCtx->p_handshake != NULL;
 }
 
 
-void HIDDEN ln_noise_handshake_free(ln_self_t *self)
+void HIDDEN ln_noise_handshake_free(ln_noise_t *pCtx)
 {
-    UTL_DBG_FREE(self->p_handshake);
+    UTL_DBG_FREE(pCtx->p_handshake);
 }
 
 
-bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
+bool /*HIDDEN*/ ln_noise_enc(ln_noise_t *pCtx, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
 {
     bool ret = false;
     uint8_t nonce[12];
@@ -245,7 +245,7 @@ bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_
     int rc;
 
     memset(nonce, 0, 4);
-    memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
+    memcpy(nonce + 4, &pCtx->send_ctx.nonce, sizeof(uint64_t));
 #ifdef M_USE_SODIUM
     unsigned long long cllen;
     unsigned long long cmlen;
@@ -255,7 +255,7 @@ bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_
                     (uint8_t *)&l, sizeof(l),   //message length
                     NULL, 0,                    //additional data
                     NULL,                       //combined modeではNULL
-                    nonce, self->noise_send.key);     //nonce, key
+                    nonce, pCtx->send_ctx.key);     //nonce, key
     if ((rc != 0) || (cllen != sizeof(l) + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
         LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
@@ -263,7 +263,7 @@ bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_
 #else
     mbedtls_chachapoly_context ctx;
     mbedtls_chachapoly_init(&ctx);
-    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_send.key);
+    rc = mbedtls_chachapoly_setkey(&ctx, pCtx->send_ctx.key);
     if (rc != 0) {
         LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
@@ -283,16 +283,16 @@ bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_
     }
 #endif
 
-    if (self->noise_send.nonce == 0) {
-        dump_key(self->noise_send.key, cl + sizeof(l));
+    if (pCtx->send_ctx.nonce == 0) {
+        dump_key(pCtx->send_ctx.key, cl + sizeof(l));
     }
 
-    self->noise_send.nonce++;
-    if (self->noise_send.nonce == 1000) {
+    pCtx->send_ctx.nonce++;
+    if (pCtx->send_ctx.nonce == 1000) {
         LOGE("???: This root shall not in.\n");
         goto LABEL_EXIT;
     }
-    memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
+    memcpy(nonce + 4, &pCtx->send_ctx.nonce, sizeof(uint64_t));
 
 #ifdef M_USE_SODIUM
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
@@ -300,14 +300,14 @@ bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_
                     pBufIn->buf, pBufIn->len,       //message length
                     NULL, 0,                    //additional data
                     NULL,                       //combined modeではNULL
-                    nonce, self->noise_send.key);     //nonce, key
+                    nonce, pCtx->send_ctx.key);     //nonce, key
     if ((rc != 0) || (cmlen != pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
         LOGE("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 #else
     mbedtls_chachapoly_init(&ctx);
-    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_send.key);
+    rc = mbedtls_chachapoly_setkey(&ctx, pCtx->send_ctx.key);
     if (rc != 0) {
         LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
@@ -327,12 +327,12 @@ bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_
     }
 #endif
 
-    self->noise_send.nonce++;
-    if (self->noise_send.nonce == 1000) {
+    pCtx->send_ctx.nonce++;
+    if (pCtx->send_ctx.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        noise_hkdf(self->noise_send.ck, self->noise_send.key, self->noise_send.ck, self->noise_send.key);
-        self->noise_send.nonce = 0;
+        noise_hkdf(pCtx->send_ctx.ck, pCtx->send_ctx.key, pCtx->send_ctx.ck, pCtx->send_ctx.key);
+        pCtx->send_ctx.nonce = 0;
     }
 
     utl_buf_alloc(pBufEnc, sizeof(l) + pBufIn->len + 2 * M_CHACHAPOLY_MAC);
@@ -348,7 +348,7 @@ LABEL_EXIT:
 }
 
 
-uint16_t /*HIDDEN*/ ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+uint16_t /*HIDDEN*/ ln_noise_dec_len(ln_noise_t *pCtx, const uint8_t *pData, uint16_t Len)
 {
     uint8_t nonce[12];
     uint8_t pl[sizeof(uint16_t)];
@@ -360,7 +360,7 @@ uint16_t /*HIDDEN*/ ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint
     }
 
     memset(nonce, 0, 4);
-    memcpy(nonce + 4, &self->noise_recv.nonce, sizeof(uint64_t));
+    memcpy(nonce + 4, &pCtx->recv_ctx.nonce, sizeof(uint64_t));
 #ifdef M_USE_SODIUM
     unsigned long long pllen;
     rc = crypto_aead_chacha20poly1305_ietf_decrypt(
@@ -368,16 +368,16 @@ uint16_t /*HIDDEN*/ ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint
                     NULL,                       //combined modeではNULL
                     pData, LN_SZ_NOISE_HEADER,
                     NULL, 0,  //additional data
-                    nonce, self->noise_recv.key);      //nonce, key
+                    nonce, pCtx->recv_ctx.key);      //nonce, key
     if ((rc != 0) || (pllen != sizeof(uint16_t))) {
         LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
-        LOGD("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise_send.nonce, self->noise_recv.nonce);
+        LOGD("sn=%" PRIu64 ", rn=%" PRIu64 "\n", pCtx->send_ctx.nonce, pCtx->recv_ctx.nonce);
         goto LABEL_EXIT;
     }
 #else
     mbedtls_chachapoly_context ctx;
     mbedtls_chachapoly_init(&ctx);
-    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_recv.key);
+    rc = mbedtls_chachapoly_setkey(&ctx, pCtx->recv_ctx.key);
     if (rc != 0) {
         LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
@@ -396,12 +396,12 @@ uint16_t /*HIDDEN*/ ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint
     }
 #endif
 
-    if (self->noise_recv.nonce == 0) {
-        dump_key(self->noise_recv.key, pData + sizeof(pl));
+    if (pCtx->recv_ctx.nonce == 0) {
+        dump_key(pCtx->recv_ctx.key, pData + sizeof(pl));
     }
 
-    self->noise_recv.nonce++;
-    if (self->noise_recv.nonce == 1000) {
+    pCtx->recv_ctx.nonce++;
+    if (pCtx->recv_ctx.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
         LOGE("???: This root shall not in.\n");
@@ -416,7 +416,7 @@ LABEL_EXIT:
 }
 
 
-bool /*HIDDEN*/ ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
+bool /*HIDDEN*/ ln_noise_dec_msg(ln_noise_t *pCtx, utl_buf_t *pBuf)
 {
     bool ret = false;
     uint16_t l = pBuf->len - M_CHACHAPOLY_MAC;
@@ -425,7 +425,7 @@ bool /*HIDDEN*/ ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
     int rc;
 
     memset(nonce, 0, 4);
-    memcpy(nonce + 4, &self->noise_recv.nonce, sizeof(uint64_t));
+    memcpy(nonce + 4, &pCtx->recv_ctx.nonce, sizeof(uint64_t));
 #ifdef M_USE_SODIUM
     unsigned long long pmlen;
     rc = crypto_aead_chacha20poly1305_ietf_decrypt(
@@ -433,7 +433,7 @@ bool /*HIDDEN*/ ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
                     NULL,                       //combined modeではNULL
                     pBuf->buf, pBuf->len,
                     NULL, 0,  //additional data
-                    nonce, self->noise_recv.key);      //nonce, key
+                    nonce, pCtx->recv_ctx.key);      //nonce, key
     if ((rc != 0) || (pmlen != l)) {
         LOGE("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
@@ -441,7 +441,7 @@ bool /*HIDDEN*/ ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
 #else
     mbedtls_chachapoly_context ctx;
     mbedtls_chachapoly_init(&ctx);
-    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_recv.key);
+    rc = mbedtls_chachapoly_setkey(&ctx, pCtx->recv_ctx.key);
     if (rc != 0) {
         LOGE("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
@@ -460,12 +460,12 @@ bool /*HIDDEN*/ ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
     }
 #endif
 
-    self->noise_recv.nonce++;
-    if (self->noise_recv.nonce == 1000) {
+    pCtx->recv_ctx.nonce++;
+    if (pCtx->recv_ctx.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        noise_hkdf(self->noise_recv.ck, self->noise_recv.key, self->noise_recv.ck, self->noise_recv.key);
-        self->noise_recv.nonce = 0;
+        noise_hkdf(pCtx->recv_ctx.ck, pCtx->recv_ctx.key, pCtx->recv_ctx.ck, pCtx->recv_ctx.key);
+        pCtx->recv_ctx.nonce = 0;
     }
 
     utl_buf_free(pBuf);
@@ -535,10 +535,10 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
 }
 
 
-static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
+static bool actone_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRS)
 {
     bool ret = false;
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     uint8_t ss[BTC_SZ_PRIVKEY];
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
@@ -606,10 +606,10 @@ LABEL_EXIT:
 }
 
 
-static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
+static bool actone_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf)
 {
     bool ret = false;
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     uint8_t re[BTC_SZ_PUBKEY];
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t ss[BTC_SZ_PRIVKEY];
@@ -673,17 +673,17 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     // h = SHA-256(h || c)
     btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
-    ret = acttwo_sender(self, pBuf, re);
+    ret = acttwo_sender(pCtx, pBuf, re);
 
 LABEL_EXIT:
     return ret;
 }
 
 
-static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
+static bool acttwo_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRE)
 {
     bool ret = false;
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     uint8_t ss[BTC_SZ_PRIVKEY];
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
@@ -750,10 +750,10 @@ LABEL_EXIT:
 }
 
 
-static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
+static bool acttwo_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf)
 {
     bool ret = false;
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     uint8_t re[BTC_SZ_PUBKEY];
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t ss[BTC_SZ_PRIVKEY];
@@ -817,17 +817,17 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     // h = SHA-256(h || c)
     btc_md_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
-    ret = actthree_sender(self, pBuf, re);
+    ret = actthree_sender(pCtx, pBuf, re);
 
 LABEL_EXIT:
     return ret;
 }
 
 
-static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
+static bool actthree_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pRE)
 {
     bool ret = false;
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     uint8_t c[BTC_SZ_PUBKEY + M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     uint8_t ss[BTC_SZ_PRIVKEY];
@@ -916,7 +916,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
 #endif
 
     // sk, rk = HKDF(ck, zero)
-    noise_hkdf(self->noise_send.key, self->noise_recv.key, pBolt->ck, NULL);
+    noise_hkdf(pCtx->send_ctx.key, pCtx->recv_ctx.key, pBolt->ck, NULL);
 
     // SEND: m = 0 || c || t   over the network buffer.
     utl_buf_free(pBuf);
@@ -931,10 +931,10 @@ LABEL_EXIT:
 }
 
 
-static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
+static bool actthree_receiver(ln_noise_t *pCtx, utl_buf_t *pBuf)
 {
     bool ret = false;
-    struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
+    struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     uint8_t c[BTC_SZ_PUBKEY + M_CHACHAPOLY_MAC];
     uint8_t t[M_CHACHAPOLY_MAC];
     uint8_t rs[BTC_SZ_PUBKEY];
@@ -1035,7 +1035,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
 #endif
 
     // rk, sk = HKDF(ck, zero)
-    noise_hkdf(self->noise_recv.key, self->noise_send.key, pBolt->ck, NULL);
+    noise_hkdf(pCtx->recv_ctx.key, pCtx->send_ctx.key, pBolt->ck, NULL);
 
     //Act Treeでは相手のnode_idを返す
     utl_buf_free(pBuf);
