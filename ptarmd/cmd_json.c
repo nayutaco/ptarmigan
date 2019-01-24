@@ -79,9 +79,9 @@ typedef struct {
 
 
 typedef struct {
-    ln_fieldr_t     **pp_field;
+    ln_r_field_t     **pp_field;
     uint8_t         *p_fieldnum;
-} rfield_prm_t;
+} r_field_prm_t;
 
 
 /********************************************************************
@@ -160,10 +160,10 @@ static char *create_bolt11(
                 const uint8_t *pPayHash,
                 uint64_t Amount,
                 uint32_t Expiry,
-                const ln_fieldr_t *pFieldR,
-                uint8_t FieldRNum,
+                const ln_r_field_t *pRField,
+                uint8_t RFieldNum,
                 uint32_t MinFinalCltvExpiry);
-static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum);
+static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum);
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
@@ -614,11 +614,11 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 LABEL_EXIT:
     if (err == 0) {
-        ln_fieldr_t *p_rfield = NULL;
-        uint8_t rfieldnum = 0;
-        create_bolt11_rfield(&p_rfield, &rfieldnum);
+        ln_r_field_t *p_r_field = NULL;
+        uint8_t r_fieldnum = 0;
+        create_bolt11_r_field(&p_r_field, &r_fieldnum);
         char *p_invoice = create_bolt11(preimage_hash, amount,
-                            LN_INVOICE_EXPIRY, p_rfield, rfieldnum,
+                            LN_INVOICE_EXPIRY, p_r_field, r_fieldnum,
                             min_final_cltv_expiry);
 
         if (p_invoice != NULL) {
@@ -635,7 +635,7 @@ LABEL_EXIT:
             LOGE("fail: BOLT11 format\n");
             err = RPCERR_PARSE;
         }
-        UTL_DBG_FREE(p_rfield);
+        UTL_DBG_FREE(p_r_field);
     }
     if (err != 0) {
         ctx->error_code = err;
@@ -720,14 +720,14 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(utl_time_fmt(time, preimg.creation_time)));
             if (preimg.expiry != UINT32_MAX) {
                 cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(preimg.expiry));
-                // ln_fieldr_t *p_rfield = NULL;
-                // uint8_t rfieldnum = 0;
-                // create_bolt11_rfield(&p_rfield, &rfieldnum);
-                // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, p_rfield, rfieldnum, LN_MIN_FINAL_CLTV_EXPIRY);
+                // ln_r_field_t *p_r_field = NULL;
+                // uint8_t r_fieldnum = 0;
+                // create_bolt11_r_field(&p_r_field, &r_fieldnum);
+                // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, p_r_field, r_fieldnum, LN_MIN_FINAL_CLTV_EXPIRY);
                 // if (p_invoice != NULL) {
                 //     cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
                 //     UTL_DBG_FREE(p_invoice);
-                //     APP_FREE(p_rfield);
+                //     APP_FREE(p_r_field);
                 // }
             } else {
                 cJSON_AddItemToObject(json, "expiry", cJSON_CreateString("remove after close"));
@@ -2043,19 +2043,19 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
  * ただ、その経路は自分へ向いているため、channelの相手が送信するchannel_updateの情報を追加することになる。
  * 現在接続していなくても、送金時には接続している可能性があるため、r fieldに追加する。
  */
-static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum)
+static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum)
 {
-    rfield_prm_t prm;
+    r_field_prm_t prm;
 
-    *ppFieldR = NULL;
-    *pFieldRNum = 0;
+    *ppRField = NULL;
+    *pRFieldNum = 0;
 
-    prm.pp_field = ppFieldR;
-    prm.p_fieldnum = pFieldRNum;
+    prm.pp_field = ppRField;
+    prm.p_fieldnum = pRFieldNum;
     ln_db_self_search_readonly(comp_func_cnl, &prm);
 
-    if (*pFieldRNum != 0) {
-        LOGD("add r_field: %d\n", *pFieldRNum);
+    if (*pRFieldNum != 0) {
+        LOGD("add r_field: %d\n", *pRFieldNum);
     } else {
         LOGD("no r_field\n");
     }
@@ -2066,23 +2066,23 @@ static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum)
  *
  * @param[in,out]   self            DBから取得したself
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         rfield_prm_t構造体
+ * @param[in,out]   p_param         r_field_prm_t構造体
  */
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
     bool ret;
-    rfield_prm_t *prm = (rfield_prm_t *)p_param;
+    r_field_prm_t *prm = (r_field_prm_t *)p_param;
 
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_channel_update_t msg;
     ret = ln_channel_update_get_peer(self, &buf, &msg);
     if (ret && !ln_is_announced(self)) {
-        size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
-        *prm->pp_field = (ln_fieldr_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
+        size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_r_field_t);
+        *prm->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
 
-        ln_fieldr_t *pfield = *prm->pp_field + *prm->p_fieldnum;
+        ln_r_field_t *pfield = *prm->pp_field + *prm->p_fieldnum;
         memcpy(pfield->node_id, ln_their_node_id(self), BTC_SZ_PUBKEY);
         pfield->short_channel_id = ln_short_channel_id(self);
         pfield->fee_base_msat = msg.fee_base_msat;
@@ -2105,8 +2105,8 @@ static char *create_bolt11(
                 const uint8_t *pPayHash,
                 uint64_t Amount,
                 uint32_t Expiry,
-                const ln_fieldr_t *pFieldR,
-                uint8_t FieldRNum,
+                const ln_r_field_t *pRField,
+                uint8_t RFieldNum,
                 uint32_t MinFinalCltvExpiry)
 {
     uint8_t type;
@@ -2128,7 +2128,7 @@ static char *create_bolt11(
     char *p_invoice = NULL;
     if (type != BTC_BLOCK_CHAIN_UNKNOWN) {
         ln_invoice_create(&p_invoice, type,
-                pPayHash, Amount, Expiry, pFieldR, FieldRNum, MinFinalCltvExpiry);
+                pPayHash, Amount, Expiry, pRField, RFieldNum, MinFinalCltvExpiry);
     }
     return p_invoice;
 }

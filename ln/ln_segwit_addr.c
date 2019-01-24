@@ -265,13 +265,13 @@ static bool analyze_tagged_field(btc_buf_r_t *p_parts, ln_invoice_t **pp_invoice
             n = tmp_len / M_SZ_R_FIELD;
             p_invoice_data = (ln_invoice_t *)UTL_DBG_REALLOC(
                 p_invoice_data,
-                sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * n);
+                sizeof(ln_invoice_t) + sizeof(ln_r_field_t) * n);
             p_invoice_data->r_field_num = n;
 
             btc_buf_r_init(&buf_r, p_data, tmp_len);
 
             for (size_t lp = 0; lp < n; lp++) {
-                ln_fieldr_t *p_fieldr = &p_invoice_data->r_field[lp];
+                ln_r_field_t *p_fieldr = &p_invoice_data->r_field[lp];
                 if (!btc_buf_r_read(&buf_r, p_fieldr->node_id, BTC_SZ_PUBKEY)) goto LABEL_EXIT;
                 if (!btc_buf_r_read_u64be(&buf_r, &p_fieldr->short_channel_id)) goto LABEL_EXIT;
                 if (!btc_buf_r_read_u32be(&buf_r, &p_fieldr->fee_base_msat)) goto LABEL_EXIT;
@@ -413,7 +413,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(bits))) goto LABEL_EXIT;
 
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
-            const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
+            const ln_r_field_t *r = &p_invoice_data->r_field[lp];
             if (!btc_buf_w_write_data(&buf_w_r_field, r->node_id, BTC_SZ_PUBKEY)) goto LABEL_EXIT;
             if (!btc_buf_w_write_u64be(&buf_w_r_field, r->short_channel_id)) goto LABEL_EXIT;
             if (!btc_buf_w_write_u32be(&buf_w_r_field, r->fee_base_msat)) goto LABEL_EXIT;
@@ -656,14 +656,14 @@ LABEL_EXIT:
 
 
 bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry)
+                        const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry)
 {
     ln_invoice_t *p_invoice_data;
 
     size_t sz = sizeof(ln_invoice_t);
-    if (FieldRNum) {
-        if (!pFieldR) return false;
-        sz += sizeof(ln_fieldr_t) * FieldRNum;
+    if (RFieldNum) {
+        if (!pRField) return false;
+        sz += sizeof(ln_r_field_t) * RFieldNum;
     }
     p_invoice_data = (ln_invoice_t *)UTL_DBG_MALLOC(sz);
     if (!p_invoice_data) return false;
@@ -674,8 +674,8 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     p_invoice_data->min_final_cltv_expiry = MinFinalCltvExpiry;
     memcpy(p_invoice_data->pubkey, ln_node_getid(), BTC_SZ_PUBKEY);
     memcpy(p_invoice_data->payment_hash, pPayHash, BTC_SZ_HASH256);
-    p_invoice_data->r_field_num = FieldRNum;
-    memcpy(p_invoice_data->r_field, pFieldR, sizeof(ln_fieldr_t) * FieldRNum);
+    p_invoice_data->r_field_num = RFieldNum;
+    memcpy(p_invoice_data->r_field, pRField, sizeof(ln_r_field_t) * RFieldNum);
 
     bool ret = ln_invoice_encode(ppInvoice, p_invoice_data);
     UTL_DBG_FREE(p_invoice_data);

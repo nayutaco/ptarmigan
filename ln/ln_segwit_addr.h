@@ -14,7 +14,7 @@
 extern "C" {
 #endif //__cplusplus
 
-/** @struct ln_fieldr_t;
+/** @struct ln_r_field_t;
  *  @brief  r field
  */
 typedef struct {
@@ -23,7 +23,7 @@ typedef struct {
     uint32_t    fee_base_msat;                    ///< fee_base_msat
     uint32_t    fee_prop_millionths;              ///< fee_proportional_millionths
     uint16_t    cltv_expiry_delta;                ///< cltv_expiry_delta
-} ln_fieldr_t;
+} ln_r_field_t;
 
 
 /** @struct ln_invoice_t;
@@ -38,7 +38,7 @@ typedef struct {
     uint8_t     pubkey[BTC_SZ_PUBKEY];
     uint8_t     payment_hash[BTC_SZ_HASH256];
     uint8_t     r_field_num;
-    ln_fieldr_t r_field[];
+    ln_r_field_t r_field[];
 } ln_invoice_t;
 
 
@@ -67,15 +67,15 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
  * @param[in]       pPayHash
  * @param[in]       Amount
  * @param[in]       Expiry          invoice expiry
- * @param[in]       pFieldR
- * @param[in]       FieldRNum       pFieldR数
+ * @param[in]       pRField
+ * @param[in]       RFieldNum       pRField数
  * @param[in]       MinFinalCltvExpiry  min_final_cltv_expiry
  * @retval      true        成功
  * @attention
  *      - ppInoviceはUTL_DBG_MALLOC()で確保するため、、使用後にUTL_DBG_FREE()すること
  */
 bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry);
+                        const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry);
 
 #ifdef __cplusplus
 }
