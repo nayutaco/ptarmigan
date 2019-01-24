@@ -1,55 +1,3 @@
-#include "gtest/gtest.h"
-#include <string.h>
-#include "tests/fff.h"
-DEFINE_FFF_GLOBALS;
-
-
-extern "C" {
-//評価対象本体
-#undef LOG_TAG
-#include "../../utl/utl_thread.c"
-#undef LOG_TAG
-#include "../../utl/utl_log.c"
-#include "../../utl/utl_dbg.c"
-#include "../../utl/utl_buf.c"
-#include "../../utl/utl_push.c"
-#include "../../utl/utl_time.c"
-#include "../../utl/utl_int.c"
-#include "../../utl/utl_mem.c"
-#include "../../utl/utl_str.c"
-#undef LOG_TAG
-#include "../../btc/btc.c"
-//#include "../../btc/btc_buf.c"
-//#include "../../btc/btc_extkey.c"
-//#include "../../btc/btc_keys.c"
-//#include "../../btc/btc_sw.c"
-#include "../../btc/btc_sig.c"
-//#include "../../btc/btc_script.c"
-//#include "../../btc/btc_tx.c"
-//#include "../../btc/btc_tx_buf.c"
-#include "../../btc/btc_crypto.c"
-//#include "../../btc/segwit_addr.c"
-//#include "../../btc/btc_segwit_addr.c"
-//#include "../../btc/btc_test_util.c"
-#undef LOG_TAG
-//#include "ln.c"
-//#include "ln_derkey.c"
-#include "ln_misc.c"
-//#include "ln_msg_anno.c"
-//#include "ln_msg_close.c"
-//#include "ln_msg_establish.c"
-//#include "ln_msg_normalope.c"
-//#include "ln_msg_setupctl.c"
-//#include "ln_node.c"
-//#include "ln_onion.c"
-//#include "ln_script.c"
-//#include "ln_comtx.c"
-//#include "ln_noise.c"
-//#include "ln_signer.c"
-//#include "ln_invoice.c"
-}
-
-
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
 
@@ -57,7 +5,7 @@ extern "C" {
 
 ////////////////////////////////////////////////////////////////////////
 
-class misc: public testing::Test {
+class sig: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
@@ -86,7 +34,7 @@ public:
 
 
 
-TEST_F(misc, sigtrim1)
+TEST_F(sig, sig_der2rs_1)
 {
     //r=20, s=20, total=44 : OK
     const uint8_t SIG1[] = {
@@ -97,20 +45,20 @@ TEST_F(misc, sigtrim1)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG1, sizeof(SIG1)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
     bool ret = btc_sig_der2rs(sig, SIG1, sizeof(SIG1));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG1, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG1), buf_sig.len);
     utl_buf_free(&buf_sig);
 }
 
 
-TEST_F(misc, sigtrim2)
+TEST_F(sig, sig_der2rs_2)
 {
     //r=21, s=20, total=44 : NG
     const uint8_t SIG2[] = {
@@ -121,14 +69,14 @@ TEST_F(misc, sigtrim2)
     };
     ASSERT_FALSE(is_valid_signature_encoding(SIG2, sizeof(SIG2)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG2, sizeof(SIG2));
     ASSERT_FALSE(ret);
 }
 
 
-TEST_F(misc, sigtrim3)
+TEST_F(sig, sig_der2rs_3)
 {
     //r=21, s=20, total=45 : OK
     const uint8_t SIG3[] = {
@@ -139,21 +87,21 @@ TEST_F(misc, sigtrim3)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG3, sizeof(SIG3)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG3, sizeof(SIG3));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG3, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG3), buf_sig.len);
     utl_buf_free(&buf_sig);
 }
 
 
-TEST_F(misc, sigtrim4)
+TEST_F(sig, sig_der2rs_4)
 {
     //r=20, s=21, total=44 : NG
     const uint8_t SIG4[] = {
@@ -164,14 +112,14 @@ TEST_F(misc, sigtrim4)
     };
     ASSERT_FALSE(is_valid_signature_encoding(SIG4, sizeof(SIG4)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG4, sizeof(SIG4));
     ASSERT_FALSE(ret);
 }
 
 
-TEST_F(misc, sigtrim5)
+TEST_F(sig, sig_der2rs_5)
 {
     //r=20, s=21, total=45 : OK
     const uint8_t SIG5[] = {
@@ -182,21 +130,21 @@ TEST_F(misc, sigtrim5)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG5, sizeof(SIG5)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG5, sizeof(SIG5));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG5, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG5), buf_sig.len);
     utl_buf_free(&buf_sig);
 }
 
 
-TEST_F(misc, sigtrim6)
+TEST_F(sig, sig_der2rs_6)
 {
     //r=21, s=21, total=46 : OK
     const uint8_t SIG6[] = {
@@ -207,21 +155,21 @@ TEST_F(misc, sigtrim6)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG6, sizeof(SIG6)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG6, sizeof(SIG6));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG6, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG6), buf_sig.len);
     utl_buf_free(&buf_sig);
 }
 
 
-TEST_F(misc, sigexp1)
+TEST_F(sig, sig_rs2der_1)
 {
     const uint8_t SIG_1[] = {
         1,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,
@@ -237,14 +185,14 @@ TEST_F(misc, sigexp1)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sig_expand(&sig, SIG_1);
+    btc_sig_rs2der(&sig, SIG_1);
     ASSERT_EQ(0, memcmp(SIG1, sig.buf, sizeof(SIG1)));
     ASSERT_EQ(sizeof(SIG1), sig.len);
     utl_buf_free(&sig);
 }
 
 
-TEST_F(misc, sigexp2)
+TEST_F(sig, sig_rs2der_2)
 {
     const uint8_t SIG_3[] = {
         0x81,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,
@@ -260,14 +208,14 @@ TEST_F(misc, sigexp2)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sig_expand(&sig, SIG_3);
+    btc_sig_rs2der(&sig, SIG_3);
     ASSERT_EQ(0, memcmp(SIG3, sig.buf, sizeof(SIG3)));
     ASSERT_EQ(sizeof(SIG3), sig.len);
     utl_buf_free(&sig);
 }
 
 
-TEST_F(misc, sigexp3)
+TEST_F(sig, sig_rs2der_3)
 {
     const uint8_t SIG_5[] = {
         1,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,
@@ -283,14 +231,14 @@ TEST_F(misc, sigexp3)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sig_expand(&sig, SIG_5);
+    btc_sig_rs2der(&sig, SIG_5);
     ASSERT_EQ(0, memcmp(SIG5, sig.buf, sizeof(SIG5)));
     ASSERT_EQ(sizeof(SIG5), sig.len);
     utl_buf_free(&sig);
 }
 
 
-TEST_F(misc, sigexp4)
+TEST_F(sig, sig_rs2der_4)
 {
     const uint8_t SIG_6[] = {
         0x81,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,3,4,5,6,7,8,9,0, 1,2,
@@ -306,14 +254,14 @@ TEST_F(misc, sigexp4)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sig_expand(&sig, SIG_6);
+    btc_sig_rs2der(&sig, SIG_6);
     ASSERT_EQ(0, memcmp(SIG6, sig.buf, sizeof(SIG6)));
     ASSERT_EQ(sizeof(SIG6), sig.len);
     utl_buf_free(&sig);
 }
 
 
-TEST_F(misc, sigtrimexp1)
+TEST_F(sig, sig_der2rs_exp1)
 {
     //r=1, s=1, total=6 : OK
     const uint8_t SIG[] = {
@@ -328,22 +276,22 @@ TEST_F(misc, sigtrimexp1)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG, sizeof(SIG)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG, sizeof(SIG));
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
+    ASSERT_EQ(0, memcmp(SIGEX, sig, BTC_SZ_SIGN_RS));
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
     utl_buf_free(&buf_sig);
 }
 
 
-TEST_F(misc, sigtrimexp2)
+TEST_F(sig, sig_der2rs_exp2)
 {
     //r=33, s=33, total=6 : OK
     const uint8_t SIG[] = {
@@ -358,22 +306,22 @@ TEST_F(misc, sigtrimexp2)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG, sizeof(SIG)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG, sizeof(SIG));
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
+    ASSERT_EQ(0, memcmp(SIGEX, sig, BTC_SZ_SIGN_RS));
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
     utl_buf_free(&buf_sig);
 }
 
 
-TEST_F(misc, sigtrimexp3)
+TEST_F(sig, sig_der2rs_exp3)
 {
     //r=32, s=32, total=6 : OK
     const uint8_t SIG[] = {
@@ -388,15 +336,15 @@ TEST_F(misc, sigtrimexp3)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG, sizeof(SIG)));
 
-    uint8_t sig[LN_SZ_SIGNATURE];
+    uint8_t sig[BTC_SZ_SIGN_RS];
 
     bool ret = btc_sig_der2rs(sig, SIG, sizeof(SIG));
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
+    ASSERT_EQ(0, memcmp(SIGEX, sig, BTC_SZ_SIGN_RS));
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, sig);
+    btc_sig_rs2der(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
     utl_buf_free(&buf_sig);

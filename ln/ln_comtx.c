@@ -38,7 +38,6 @@
 #include "btc_sw.h"
 
 #include "ln_db.h"
-#include "ln_misc.h"
 #include "ln_script.h"
 #include "ln_signer.h"
 #include "ln_normalope.h"
@@ -492,7 +491,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     uint8_t sighash[BTC_SZ_HASH256];
 
     //署名追加
-    ln_misc_sig_expand(&buf_sig_from_remote, self->commit_local.signature);
+    btc_sig_rs2der(&buf_sig_from_remote, self->commit_local.signature);
     ln_comtx_set_vin_p2wsh_2of2(pTxCommit, 0, self->key_fund_sort,
                             pBufSig,
                             &buf_sig_from_remote,
@@ -703,7 +702,7 @@ static bool create_to_local_htlcverify(const ln_self_t *self,
                     uint64_t Amount)
 {
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_sig, pHtlcSig);
+    btc_sig_rs2der(&buf_sig, pHtlcSig);
 
     bool ret = ln_script_htlctx_verify(pTx,
                 Amount,
@@ -763,7 +762,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
     bool ret_img;
     uint8_t txid[BTC_SZ_TXID];
 
-    ln_misc_sig_expand(&buf_remote_sig,
+    btc_sig_rs2der(&buf_remote_sig,
                 self->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature);
 
     if (pHtlcInfo->type == LN_HTLCTYPE_RECEIVED) {
@@ -941,7 +940,7 @@ static bool create_to_remote_spent(const ln_self_t *self,
     }
 
     utl_buf_t buf_remotesig = UTL_BUF_INIT;
-    ln_misc_sig_expand(&buf_remotesig, self->commit_local.signature);
+    btc_sig_rs2der(&buf_remotesig, self->commit_local.signature);
 
     //HTLC署名用鍵
     btc_keys_t htlckey;

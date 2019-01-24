@@ -18,7 +18,6 @@ TEST_TARGET_SRC += \
 	test_ln_proto_acceptchannel.cpp \
 	test_ln_proto_updateaddhtlc.cpp \
 	test_ln_proto_updatefee.cpp \
-	test_ln_misc.cpp \
 	test_ln_bech32.cpp
 
 include ../../options.mak

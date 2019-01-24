@@ -27,6 +27,7 @@
 
 #include "utl_dbg.h"
 #include "utl_int.h"
+#include "utl_push.h"
 
 #include "btc_local.h"
 #include "btc_sig.h"
@@ -660,6 +661,8 @@ bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len)
 
     //  extract R and S and remove unnecessary 0x00
 
+    (void)Len;
+
     uint8_t sz = pDer[1] - 4;
     uint8_t sz_r = pDer[3];
     uint8_t sz_s = pDer[4 + sz_r + 1];
@@ -711,3 +714,67 @@ bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len)
 }
 
 
+bool btc_sig_rs2der(utl_buf_t *pSig, const uint8_t *pBuf)
+{
+    utl_push_t    push;
+    uint8_t r_len = 32;
+    uint8_t s_len = 32;
+    const uint8_t *r_p;
+    const uint8_t *s_p;
+
+    r_p = pBuf;
+    for (int lp = 0; lp < 31; lp++) {
+        if (*r_p != 0) {
+            break;
+        }
+        r_p++;
+        r_len--;
+    }
+    if (*r_p & 0x80) {
+        r_len++;
+    }
+
+    s_p = pBuf + 32;
+    for (int lp = 0; lp < 31; lp++) {
+        if (*s_p != 0) {
+            break;
+        }
+        s_p++;
+        s_len--;
+    }
+    if (*s_p & 0x80) {
+        s_len++;
+    }
+
+    //署名
+    //  [30][4+r_len+s_len][02][r len][...][02][s_len][...][01]
+    utl_push_init(&push, pSig, 7 + r_len + s_len);
+
+    uint8_t buf[6];
+    buf[0] = 0x30;
+    buf[1] = (uint8_t)(4 + r_len + s_len);
+    buf[2] = 0x02;
+    buf[3] = r_len;
+    buf[4] = 0x00;
+    buf[5] = 0x01;
+    utl_push_data(&push, buf, 4);
+    if (*r_p & 0x80) {
+        buf[0] = 0x00;
+        utl_push_data(&push, buf, 1);
+        r_len--;
+    }
+    utl_push_data(&push, r_p, r_len);
+
+    buf[0] = 0x02;
+    buf[1] = s_len;
+    utl_push_data(&push, buf, 2);
+    if (*s_p & 0x80) {
+        buf[0] = 0x00;
+        utl_push_data(&push, buf, 1);
+        s_len--;
+    }
+    utl_push_data(&push, s_p, s_len);
+    buf[0] = 0x01;
+    utl_push_data(&push, buf, 1);        //SIGHASH_ALL
+    return true;
+}

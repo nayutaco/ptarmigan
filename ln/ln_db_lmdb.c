@@ -45,7 +45,6 @@
 
 #include "ln_local.h"
 #include "ln_msg_anno.h"
-#include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
 #include "ln_db.h"

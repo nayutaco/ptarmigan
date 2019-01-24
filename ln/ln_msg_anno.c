@@ -37,7 +37,6 @@
 #include "btc_sig.h"
 #include "btc_buf.h"
 
-#include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
 #include "ln_local.h"

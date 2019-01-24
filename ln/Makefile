@@ -52,7 +52,6 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln_close.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_normalope.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_anno.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_node.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_misc.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_onion.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_db_lmdb.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_noise.c

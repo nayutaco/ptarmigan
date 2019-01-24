@@ -40,7 +40,6 @@
 #include "btc_script.h"
 #include "btc_sw.h"
 
-#include "ln_misc.h"
 #include "ln_db.h"
 #include "ln_signer.h"
 #include "ln_comtx.h"
@@ -366,7 +365,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     if (bVerify) {
         utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
 
-        ln_misc_sig_expand(&buf_sig_from_remote, self->commit_local.signature);
+        btc_sig_rs2der(&buf_sig_from_remote, self->commit_local.signature);
         ln_comtx_set_vin_p2wsh_2of2(pTx, 0, self->key_fund_sort, &buf_sig, &buf_sig_from_remote, &self->redeem_fund);
         utl_buf_free(&buf_sig_from_remote);
 

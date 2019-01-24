@@ -41,7 +41,6 @@
 #include "btc_sw.h"
 
 #include "ln_db.h"
-#include "ln_misc.h"
 #include "ln_msg_setupctl.h"
 #include "ln_msg_establish.h"
 #include "ln_msg_close.h"

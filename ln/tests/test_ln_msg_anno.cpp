@@ -31,7 +31,6 @@ extern "C" {
 
 #undef LOG_TAG
 #include "ln_msg_anno.c"
-#include "ln_misc.c"
 //#include "ln_node.c"
 #include "ln.c"
 }

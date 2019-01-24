@@ -136,6 +136,7 @@ bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, con
 bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
 
 
+//XXX:
 /** DER-format sig to RS-format(64bytes)
  *
  * @param[out]      pRs         RS-format 64bytes
@@ -144,6 +145,17 @@ bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_
  * @retval          true        success
  */
 bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len);
+
+
+//XXX:
+/** RS-format(64bytes) sig to DER-format
+ *
+ * @param[out]      pDer        DER-format sig
+ * @param[in]       pSig        RS-format 64bytes
+ * @note
+ *      - append a sig hash type (SIGHASH_ALL)
+ */
+bool btc_sig_rs2der(utl_buf_t *pRs, const uint8_t *pDer);
 
 
 #ifdef __cplusplus

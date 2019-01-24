@@ -19,7 +19,6 @@
 #include "btc_buf.h"
 
 #include "ln_node.h"
-#include "ln_misc.h"
 #include "ln_invoice.h"
 #include "ln_local.h"
 

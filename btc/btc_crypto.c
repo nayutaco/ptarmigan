@@ -385,6 +385,15 @@ void btc_crypto_error_print(int ErrNum)
 }
 
 
+bool btc_hmac_sha256(uint8_t *pHmac, const uint8_t *pKey, int KeyLen, const uint8_t *pMsg, int MsgLen)
+{
+    //HMAC(SHA256)
+    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    int ret = mbedtls_md_hmac(mdinfo, pKey, KeyLen, pMsg, MsgLen, pHmac);
+    return ret == 0;
+}
+
+
 /**************************************************************************
  * package functions (btc_ecc)
  **************************************************************************/
