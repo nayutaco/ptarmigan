@@ -39,6 +39,8 @@
 #include "ln_err.h"
 #include "ln_msg_establish.h"
 #include "ln_msg_anno.h"
+#include "ln_onion.h"
+#include "ln_derkey.h"
 
 
 #ifdef __cplusplus
@@ -74,7 +76,6 @@ extern "C" {
                                                     //      こちらから要求しなければ済む話である。
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
-#define LN_HOP_MAX                      (20)        ///< onion hop数
 #define LN_FEERATE_PER_KW               (500)       ///< estimate feeできなかった場合のfeerate_per_kw
 #define LN_FEERATE_PER_KW_MIN           (253)       ///< feerate_per_kwの下限
                                                     // https://github.com/ElementsProject/lightning/blob/86290b54d49d183e49f905be6a18bfc65612580e/lightningd/chaintopology.c#L298
@@ -221,8 +222,6 @@ extern "C" {
 //forward definition
 struct ln_self_t;
 typedef struct ln_self_t ln_self_t;
-struct ln_fieldr_t;
-typedef struct ln_fieldr_t ln_fieldr_t;
 
 
 /** @enum   ln_status_t
@@ -303,18 +302,6 @@ typedef enum {
     LN_HTLCTYPE_TOLOCAL     = 0xfe,                 ///< vout=to_local
     LN_HTLCTYPE_TOREMOTE    = 0xff                  ///< vout=to_remote
 } ln_htlctype_t;
-
-
-/** @struct ln_derkey_storage_t
- *  @brief  per-commitment secret storage
- *      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#efficient-per-commitment-secret-storage
- */
-typedef struct {
-    struct {
-        uint8_t     secret[BTC_SZ_PRIVKEY];     ///< secret
-        uint64_t    index;                      ///< index
-    } storage[49];
-} ln_derkey_storage_t;
 
 
 /** @struct ln_fundin_t
@@ -509,55 +496,6 @@ typedef struct {
     uint32_t    fee_base_msat;                      ///< 4 : fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
 } ln_anno_prm_t;
-
-/// @}
-
-
-/**************************************************************************
- * typedefs : onion
- **************************************************************************/
-
-/// @addtogroup onion
-/// @{
-
-/** @struct     ln_hop_datain_t
- *  @brief      ONIONパケット生成情報
- */
-typedef struct {
-    uint64_t            short_channel_id;               ///< short_channel_id
-    uint64_t            amt_to_forward;                 ///< update_add_htlcのamount-msat
-    uint32_t            outgoing_cltv_value;            ///< update_add_htlcのcltv-expiry
-    uint8_t             pubkey[BTC_SZ_PUBKEY];          ///< ノード公開鍵(node_id)
-} ln_hop_datain_t;
-
-
-/** @struct     ln_hop_dataout_t
- *  @brief      ONIONパケット解析情報
- */
-typedef struct {
-    bool                b_exit;                         ///< true:送金先, false:中継
-    uint64_t            short_channel_id;               ///< short_channel_id
-    uint64_t            amt_to_forward;                 ///< update_add_htlcのamount-msat
-    uint32_t            outgoing_cltv_value;            ///< update_add_htlcのcltv-expiry
-} ln_hop_dataout_t;
-
-
-/** @struct     ln_onion_err_t
- *  @brief      ONIONエラーreason解析
- */
-typedef struct {
-    uint16_t            reason;
-    void                *p_data;
-} ln_onion_err_t;
-
-
-/** @struct     ln_routing_result_t
- *  @brief      #ln_routing_calculate()戻り値
- */
-typedef struct {
-    uint8_t             hop_num;
-    ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
-} ln_routing_result_t;
 
 /// @}
 
@@ -1811,131 +1749,6 @@ bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *p
  * @return  our_msatの合計[msatoshis]
  */
 uint64_t ln_node_total_msat(void);
-
-
-/********************************************************************
- * ONION
- ********************************************************************/
-
-/** ONIONパケット生成
- *
- * @param[out]      pPacket             ONIONパケット[LN_SZ_ONION_ROUTE]
- * @param[out]      pSecrets            全shared secret(#ln_onion_failure_read()用)
- * @param[in]       pHopData            HOPデータ
- * @param[in]       NumHops             pHopData数
- * @param[in]       pSessionKey         セッション鍵[BTC_SZ_PRIVKEY]
- * @param[in]       pAssocData          Associated Data
- * @param[in]       AssocLen            pAssocData長
- * @retval      true    成功
- */
-bool ln_onion_create_packet(uint8_t *pPacket,
-            utl_buf_t *pSecrets,
-            const ln_hop_datain_t *pHopData,
-            int NumHops,
-            const uint8_t *pSessionKey,
-            const uint8_t *pAssocData, int AssocLen);
-
-
-/** ONION failureパケット生成
- *
- * @param[out]      pNextPacket         ONION failureパケット
- * @param[in]       pSharedSecret       shared secret
- * @param[in]       pReason             Failure Message(BOLT#4)
- *
- * @note
- *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#failure-messages
- */
-void ln_onion_failure_create(utl_buf_t *pNextPacket,
-            const utl_buf_t *pSharedSecret,
-            const utl_buf_t *pReason);
-
-
-/** ONION failure転送パケット生成
- *
- * @param[out]      pNextPacket         ONION failure転送パケット
- * @param[in]       pSharedSecret       shared secret
- * @param[in]       pPacket             受信したONION failureパケット
- */
-void ln_onion_failure_forward(utl_buf_t *pNextPacket,
-            const utl_buf_t *pSharedSecret,
-            const utl_buf_t *pPacket);
-
-
-/** ONION failureパケット解析
- *
- * @param[out]      pReason             Failure Message
- * @param[out]      pHop                エラー元までのノード数(0は相手ノード)
- * @param[in]       pSharedSecrets      ONIONパケット生成自の全shared secret(#ln_onion_create_packet())
- * @param[in]       pPacket             受信したONION failureパケット
- * @retval  true    成功
- */
-bool ln_onion_failure_read(utl_buf_t *pReason,
-            int *pHop,
-            const utl_buf_t *pSharedSecrets,
-            const utl_buf_t *pPacket);
-
-
-/** ONION failure reason解析
- *
- * @param[out]      pOnionErr
- * @param[in]       pReason
- * @retval  true    成功
- */
-bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason);
-
-
-/** set onion reaon: temporary node failure
- *
- * @param[out]      pReason
- */
-void ln_onion_create_reason_temp_node(utl_buf_t *pReason);
-
-
-/** set onion reaon: permanent node failure
- *
- * @param[out]      pReason
- */
-void ln_onion_create_reason_perm_node(utl_buf_t *pReason);
-
-
-/** ONION failure reason文字列取得
- *
- * @param[in]       pOnionErr
- * @return  エラー文字列(呼び元でfree()すること)
- */
-char *ln_onion_get_errstr(const ln_onion_err_t *pOnionErr);
-
-
-/********************************************************************
- * routing
- ********************************************************************/
-
-/** 支払いルート作成
- *
- * @param[out]  pResult
- * @param[in]   pPayerId
- * @param[in]   pPayeeId
- * @param[in]   CltvExpiry
- * @param[in]   AmountMsat
- * @param[in]   AddNum          追加route数(invoiceのr fieldを想定)
- * @param[in]   pAddRoute       追加route(invoiceのr fieldを想定)
- * @return  LNERR_ROUTE_xxx
- */
-lnerr_route_t ln_routing_calculate(
-        ln_routing_result_t *pResult,
-        const uint8_t *pPayerId,
-        const uint8_t *pPayeeId,
-        uint32_t CltvExpiry,
-        uint64_t AmountMsat,
-        uint8_t AddNum,
-        const ln_fieldr_t *pAddRoute);
-
-
-/** routing skip DB削除
- *
- * routingから除外するchannelリストを削除する。
- */
-void ln_routing_clear_skipdb(void);
 
 
 /********************************************************************
