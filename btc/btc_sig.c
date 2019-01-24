@@ -640,3 +640,74 @@ SKIP_LOOP:
     return bret;
 }
 
+
+bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len)
+{
+    //https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long/12556#12556
+    //A correct DER-encoded signature has the following form:
+    //  0x30: a header byte indicating a compound structure.
+    //  A 1-byte length descriptor for all what follows.
+    //  0x02: a header byte indicating an integer.
+    //  A 1-byte length descriptor for the R value
+    //  The R coordinate, as a big-endian integer.
+    //  0x02: a header byte indicating an integer.
+    //  A 1-byte length descriptor for the S value.
+    //  The S coordinate, as a big-endian integer.
+    //
+    //  Where initial 0x00 bytes for R and S are not allowed,
+    //  except when their first byte would otherwise be above 0x7F (in which case a single 0x00 in front is required).
+    //  Also note that inside transaction signatures, an extra hashtype byte follows the actual signature data.
+
+    //  extract R and S and remove unnecessary 0x00
+
+    uint8_t sz = pDer[1] - 4;
+    uint8_t sz_r = pDer[3];
+    uint8_t sz_s = pDer[4 + sz_r + 1];
+    const uint8_t *p = pDer + 4;
+
+    if (sz != sz_r + sz_s) {
+        return false;
+    }
+
+    //r
+    //0除去
+    for (int lp = 0; lp < sz_r - 1; lp++) {
+        if (*p != 0) {
+            break;
+        }
+        sz_r--;
+        p++;
+    }
+    if (sz_r > 32) {
+        return false;
+    }
+    if (sz_r < 32) {
+        memset(pRs, 0, 32 - sz_r);
+        pRs += 32 - sz_r;
+    }
+    memcpy(pRs, p, sz_r);
+    pRs += sz_r;
+    p += sz_r + 2;
+
+    //s
+    //0除去
+    for (int lp = 0; lp < sz_s - 1; lp++) {
+        if (*p != 0) {
+            break;
+        }
+        sz_s--;
+        p++;
+    }
+    if (sz_s > 32) {
+        return false;
+    }
+    if (sz_s < 32) {
+        memset(pRs, 0, 32 - sz_s);
+        pRs += 32 - sz_s;
+    }
+    memcpy(pRs, p, sz_s);
+
+    return true;
+}
+
+

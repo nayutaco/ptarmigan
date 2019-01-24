@@ -50,14 +50,6 @@ extern "C" {
 
 
 /**************************************************************************
- * macro functions
- **************************************************************************/
-
-/**************************************************************************
- * typedefs
- **************************************************************************/
-
-/**************************************************************************
  * prototypes
  **************************************************************************/
 
@@ -142,6 +134,16 @@ bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, con
  * @retval      true    成功
  */
 bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
+
+
+/** DER-format sig to RS-format(64bytes)
+ *
+ * @param[out]      pRs         RS-format 64bytes
+ * @param[in]       pDer        DER-format sig
+ * @param[in]       Len         length of DER-format sig
+ * @retval          true        success
+ */
+bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len);
 
 
 #ifdef __cplusplus

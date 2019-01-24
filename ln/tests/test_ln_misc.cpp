@@ -82,71 +82,6 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
-TEST_F(misc, push8)
-{
-    utl_buf_t buf = UTL_BUF_INIT;
-    utl_push_t ps;
-    utl_push_init(&ps, &buf, 13);
-
-    utl_push_byte(&ps, 0x34);
-    ASSERT_EQ(0x34, buf.buf[0]);
-    ASSERT_EQ(1, ps.pos);
-
-    utl_buf_free(&buf);
-}
-
-
-TEST_F(misc, push16)
-{
-    utl_buf_t buf = UTL_BUF_INIT;
-    utl_push_t ps;
-    utl_push_init(&ps, &buf, 13);
-
-    utl_push_u16be(&ps, 0x3456);
-    ASSERT_EQ(0x34, buf.buf[0]);
-    ASSERT_EQ(0x56, buf.buf[1]);
-    ASSERT_EQ(2, ps.pos);
-
-    utl_buf_free(&buf);
-}
-
-
-TEST_F(misc, push32)
-{
-    utl_buf_t buf = UTL_BUF_INIT;
-    utl_push_t ps;
-    utl_push_init(&ps, &buf, 13);
-
-    utl_push_u32be(&ps, 0x3456789a);
-    ASSERT_EQ(0x34, buf.buf[0]);
-    ASSERT_EQ(0x56, buf.buf[1]);
-    ASSERT_EQ(0x78, buf.buf[2]);
-    ASSERT_EQ(0x9a, buf.buf[3]);
-    ASSERT_EQ(4, ps.pos);
-
-    utl_buf_free(&buf);
-}
-
-
-TEST_F(misc, push64)
-{
-    utl_buf_t buf = UTL_BUF_INIT;
-    utl_push_t ps;
-    utl_push_init(&ps, &buf, 13);
-
-    utl_push_u64be(&ps, 0x3456789abcdef012LL);
-    ASSERT_EQ(0x34, buf.buf[0]);
-    ASSERT_EQ(0x56, buf.buf[1]);
-    ASSERT_EQ(0x78, buf.buf[2]);
-    ASSERT_EQ(0x9a, buf.buf[3]);
-    ASSERT_EQ(0xbc, buf.buf[4]);
-    ASSERT_EQ(0xde, buf.buf[5]);
-    ASSERT_EQ(0xf0, buf.buf[6]);
-    ASSERT_EQ(0x12, buf.buf[7]);
-    ASSERT_EQ(8, ps.pos);
-
-    utl_buf_free(&buf);
-}
 
 
 
@@ -163,12 +98,12 @@ TEST_F(misc, sigtrim1)
     ASSERT_TRUE(is_valid_signature_encoding(SIG1, sizeof(SIG1)));
 
     uint8_t sig[LN_SZ_SIGNATURE];
-    bool ret = ln_misc_sigtrim(sig, SIG1);
+    bool ret = btc_sig_der2rs(sig, SIG1, sizeof(SIG1));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG1, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG1), buf_sig.len);
     utl_buf_free(&buf_sig);
@@ -188,7 +123,7 @@ TEST_F(misc, sigtrim2)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG2);
+    bool ret = btc_sig_der2rs(sig, SIG2, sizeof(SIG2));
     ASSERT_FALSE(ret);
 }
 
@@ -206,12 +141,12 @@ TEST_F(misc, sigtrim3)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG3);
+    bool ret = btc_sig_der2rs(sig, SIG3, sizeof(SIG3));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG3, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG3), buf_sig.len);
     utl_buf_free(&buf_sig);
@@ -231,7 +166,7 @@ TEST_F(misc, sigtrim4)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG4);
+    bool ret = btc_sig_der2rs(sig, SIG4, sizeof(SIG4));
     ASSERT_FALSE(ret);
 }
 
@@ -249,12 +184,12 @@ TEST_F(misc, sigtrim5)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG5);
+    bool ret = btc_sig_der2rs(sig, SIG5, sizeof(SIG5));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG5, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG5), buf_sig.len);
     utl_buf_free(&buf_sig);
@@ -274,12 +209,12 @@ TEST_F(misc, sigtrim6)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG6);
+    bool ret = btc_sig_der2rs(sig, SIG6, sizeof(SIG6));
     ASSERT_TRUE(ret);
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG6, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG6), buf_sig.len);
     utl_buf_free(&buf_sig);
@@ -302,7 +237,7 @@ TEST_F(misc, sigexp1)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sigexpand(&sig, SIG_1);
+    ln_misc_sig_expand(&sig, SIG_1);
     ASSERT_EQ(0, memcmp(SIG1, sig.buf, sizeof(SIG1)));
     ASSERT_EQ(sizeof(SIG1), sig.len);
     utl_buf_free(&sig);
@@ -325,7 +260,7 @@ TEST_F(misc, sigexp2)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sigexpand(&sig, SIG_3);
+    ln_misc_sig_expand(&sig, SIG_3);
     ASSERT_EQ(0, memcmp(SIG3, sig.buf, sizeof(SIG3)));
     ASSERT_EQ(sizeof(SIG3), sig.len);
     utl_buf_free(&sig);
@@ -348,7 +283,7 @@ TEST_F(misc, sigexp3)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sigexpand(&sig, SIG_5);
+    ln_misc_sig_expand(&sig, SIG_5);
     ASSERT_EQ(0, memcmp(SIG5, sig.buf, sizeof(SIG5)));
     ASSERT_EQ(sizeof(SIG5), sig.len);
     utl_buf_free(&sig);
@@ -371,7 +306,7 @@ TEST_F(misc, sigexp4)
 
     utl_buf_t     sig = UTL_BUF_INIT;
 
-    ln_misc_sigexpand(&sig, SIG_6);
+    ln_misc_sig_expand(&sig, SIG_6);
     ASSERT_EQ(0, memcmp(SIG6, sig.buf, sizeof(SIG6)));
     ASSERT_EQ(sizeof(SIG6), sig.len);
     utl_buf_free(&sig);
@@ -395,13 +330,13 @@ TEST_F(misc, sigtrimexp1)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG);
+    bool ret = btc_sig_der2rs(sig, SIG, sizeof(SIG));
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
     utl_buf_free(&buf_sig);
@@ -425,13 +360,13 @@ TEST_F(misc, sigtrimexp2)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG);
+    bool ret = btc_sig_der2rs(sig, SIG, sizeof(SIG));
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
     utl_buf_free(&buf_sig);
@@ -455,13 +390,13 @@ TEST_F(misc, sigtrimexp3)
 
     uint8_t sig[LN_SZ_SIGNATURE];
 
-    bool ret = ln_misc_sigtrim(sig, SIG);
+    bool ret = btc_sig_der2rs(sig, SIG, sizeof(SIG));
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_misc_sigexpand(&buf_sig, sig);
+    ln_misc_sig_expand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
     utl_buf_free(&buf_sig);

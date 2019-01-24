@@ -32,17 +32,6 @@
  * prototypes
  **************************************************************************/
 
-/** DER形式秘密鍵を64byte展開
- *
- * @param[out]      pSig        展開先(64byte)
- * @param[in]       pBuf        DER形式秘密鍵
- * @retval      true    成功
- * @note
- *      - SIGHASH_ALLのチェックは行わない
- */
-bool HIDDEN ln_misc_sigtrim(uint8_t *pSig, const uint8_t *pBuf);
-
-
 /** 64bit形式秘密鍵をDER形式展開
  *
  * @param[out]      pSig        展開先(DER形式秘密鍵)
@@ -50,7 +39,7 @@ bool HIDDEN ln_misc_sigtrim(uint8_t *pSig, const uint8_t *pBuf);
  * @note
  *      - SIGHASH_ALLを付加する
  */
-void HIDDEN ln_misc_sigexpand(utl_buf_t *pSig, const uint8_t *pBuf);
+void HIDDEN ln_misc_sig_expand(utl_buf_t *pSig, const uint8_t *pBuf);
 
 
 #endif /* LN_MISC_H__ */
