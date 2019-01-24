@@ -38,7 +38,6 @@
 #include "btc_crypto.h"
 
 #include "ln_onion.h"
-#include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_local.h"
 
@@ -84,7 +83,6 @@ static const uint8_t AMMAG[] = { 'a', 'm', 'm', 'a', 'g' };
  * prototypes
  **************************************************************************/
 
-static bool calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
 static void multi_scalar_mul(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactors, int NumHops);
 static bool blind_group_element(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactor);
 static void compute_blinding_factor(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pSharedSecret);
@@ -218,7 +216,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
         if (AssocLen != 0) {
             memcpy(pPacket + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
         }
-        calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
+        btc_hmac_sha256(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
     }
 
     if (LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
@@ -297,7 +295,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (AssocLen != 0) {
         memcpy(p_msg + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
     }
-    calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
+    btc_hmac_sha256(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
         LOGE("fail: hmac not match\n");
         UTL_DBG_FREE(p_msg);
@@ -408,7 +406,7 @@ void ln_onion_failure_create(utl_buf_t *pNextPacket,
     proto.pos += DATALEN - pReason->len;
 
     //HMAC
-    calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
+    btc_hmac_sha256(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
     LOGD("um_key=");
@@ -493,7 +491,7 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
                     generate_key(um_key, UM, sizeof(UM), sharedsecret.buf);
 
                     uint8_t hmac[M_SZ_HMAC];
-                    calc_mac(hmac, um_key, M_SZ_KEYLEN,
+                    btc_hmac_sha256(hmac, um_key, M_SZ_KEYLEN,
                                     p_out->buf + M_SZ_HMAC, p_out->len - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
@@ -618,15 +616,6 @@ char *ln_onion_get_errstr(const ln_onion_err_t *pOnionErr)
  * private functions
  **************************************************************************/
 
-static bool calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
-{
-    //HMAC(SHA256)
-    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pMsg, MsgLen, pMac);
-    return ret == 0;
-}
-
-
 /** loop{ PubKey * BlindingFactor[lp] } --> pOutput
  *
  * @param[out]      pResult         BTC_SZ_PUBKEY
@@ -702,7 +691,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
     //const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     //int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET, pResult);
     //return ret == 0;
-    return calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
+    return btc_hmac_sha256(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
 }
 
 

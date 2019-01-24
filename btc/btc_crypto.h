@@ -174,10 +174,18 @@ bool btc_rng_big_rand(uint8_t *pData, uint16_t Len);
 void btc_rng_free(void);
 
 
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
+
 /** print error string
  *
  */
 void btc_crypto_error_print(int ErrNum);
+
+
+//XXX:
+bool btc_hmac_sha256(uint8_t *pHmac, const uint8_t *pKey, int KeyLen, const uint8_t *pMsg, int MsgLen);
 
 
 /**************************************************************************

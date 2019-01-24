@@ -41,7 +41,6 @@
 #include "btc_crypto.h"
 
 #include "ln_noise.h"
-#include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
 #include "ln_local.h"
@@ -510,9 +509,9 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     mbedtls_md_context_t ctx;
 
     uint8_t ikm_len = (pIkm) ? BTC_SZ_HASH256 : 0;
-    ret = ln_misc_calc_mac(prk, pSalt, BTC_SZ_HASH256, pIkm, ikm_len);
+    ret = btc_hmac_sha256(prk, pSalt, BTC_SZ_HASH256, pIkm, ikm_len);
     if (!ret) {
-        LOGE("fail: calc_mac\n");
+        LOGE("fail: btc_hmac_sha256\n");
         return false;
     }
 

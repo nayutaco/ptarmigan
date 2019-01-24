@@ -40,7 +40,6 @@
 #include "btc_script.h"
 #include "btc_sw.h"
 
-#include "ln_misc.h"
 #include "ln_db.h"
 #include "ln_signer.h"
 #include "ln_comtx.h"

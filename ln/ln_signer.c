@@ -32,7 +32,6 @@
 #include "ln_signer.h"
 #include "ln_derkey.h"
 #include "ln_node.h"
-#include "ln_misc.h"
 #include "ln_local.h"
 
 
