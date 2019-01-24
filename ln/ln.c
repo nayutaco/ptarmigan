@@ -55,7 +55,7 @@
 #include "ln_anno.h"
 
 #include "ln_node.h"
-#include "ln_enc_auth.h"
+#include "ln_noise.h"
 #include "ln_onion.h"
 #include "ln_script.h"
 #include "ln_comtx.h"
@@ -434,9 +434,9 @@ void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk)
 
 bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    if (!ln_enc_auth_handshake_init(self, pNodeId)) return false;
+    if (!ln_noise_handshake_init(self, pNodeId)) return false;
     if (pNodeId != NULL) {
-        if (!ln_enc_auth_handshake_start(self, pBuf, pNodeId)) return false;
+        if (!ln_noise_handshake_start(self, pBuf, pNodeId)) return false;
     }
     return true;
 }
@@ -444,34 +444,16 @@ bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId
 
 bool ln_handshake_recv(ln_self_t *self, bool *pCont, utl_buf_t *pBuf)
 {
-    if (!ln_enc_auth_handshake_recv(self, pBuf)) return false;
+    if (!ln_noise_handshake_recv(self, pBuf)) return false;
     //continue?
-    *pCont = ln_enc_auth_handshake_state(self);
+    *pCont = ln_noise_handshake_state(self);
     return true;
 }
 
 
 void ln_handshake_free(ln_self_t *self)
 {
-    ln_enc_auth_handshake_free(self);
-}
-
-
-bool ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
-{
-    return ln_enc_auth_enc(self, pBufEnc, pBufIn);
-}
-
-
-uint16_t ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len)
-{
-    return ln_enc_auth_dec_len(self, pData, Len);
-}
-
-
-bool ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
-{
-    return ln_enc_auth_dec_msg(self, pBuf);
+    ln_noise_handshake_free(self);
 }
 
 
@@ -1601,7 +1583,7 @@ static void channel_clear(ln_self_t *self)
     self->anno_flag = 0;
     self->shutdown_flag = 0;
 
-    ln_enc_auth_handshake_free(self);
+    ln_noise_handshake_free(self);
 
     ln_establish_free(self);
 }

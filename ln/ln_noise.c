@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ln_enc_auth.c
+/** @file   ln_noise.c
  *  @brief  [LN]BOLT#8関連
  */
 #include <stdio.h>
@@ -40,7 +40,7 @@
 
 #include "btc_crypto.h"
 
-#include "ln_enc_auth.h"
+#include "ln_noise.h"
 #include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
@@ -112,7 +112,7 @@ static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[
  * public functions
  ********************************************************************/
 
-bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
+bool HIDDEN ln_noise_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 {
     bool ret;
 
@@ -152,7 +152,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 }
 
 
-bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
+bool HIDDEN ln_noise_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
 
@@ -173,7 +173,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const 
 }
 
 
-bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
+bool HIDDEN ln_noise_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
 {
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
     bool ret;
@@ -223,19 +223,19 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
 }
 
 
-bool HIDDEN ln_enc_auth_handshake_state(ln_self_t *self)
+bool HIDDEN ln_noise_handshake_state(ln_self_t *self)
 {
     return self->p_handshake != NULL;
 }
 
 
-void HIDDEN ln_enc_auth_handshake_free(ln_self_t *self)
+void HIDDEN ln_noise_handshake_free(ln_self_t *self)
 {
     UTL_DBG_FREE(self->p_handshake);
 }
 
 
-bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
+bool /*HIDDEN*/ ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
 {
     bool ret = false;
     uint8_t nonce[12];
@@ -348,7 +348,7 @@ LABEL_EXIT:
 }
 
 
-uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+uint16_t /*HIDDEN*/ ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     uint8_t nonce[12];
     uint8_t pl[sizeof(uint16_t)];
@@ -416,7 +416,7 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
+bool /*HIDDEN*/ ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
 {
     bool ret = false;
     uint16_t l = pBuf->len - M_CHACHAPOLY_MAC;
