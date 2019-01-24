@@ -39,6 +39,7 @@
 
 #include "btc_crypto.h"
 #include "ln_segwit_addr.h"
+#include "ln_routing.h"
 
 #include "ptarmd.h"
 #include "btcrpc.h"

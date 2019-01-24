@@ -17,7 +17,7 @@ extern "C" {
 /** @struct ln_fieldr_t;
  *  @brief  r field
  */
-typedef struct ln_fieldr_t {
+typedef struct {
     uint8_t     node_id[BTC_SZ_PUBKEY];           ///< node_id
     uint64_t    short_channel_id;                 ///< short_channel_id
     uint32_t    fee_base_msat;                    ///< fee_base_msat
@@ -29,7 +29,7 @@ typedef struct ln_fieldr_t {
 /** @struct ln_invoice_t;
  *  @brief  BOLT#11 invoice
  */
-typedef struct ln_invoice_t {
+typedef struct {
     uint8_t     hrp_type;
     uint64_t    amount_msat;
     uint64_t    timestamp;

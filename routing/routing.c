@@ -39,6 +39,7 @@
 
 #include "btc_crypto.h"
 
+#include "ln_routing.h"
 #include "ln.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"

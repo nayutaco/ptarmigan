@@ -27,12 +27,28 @@
 #ifndef LN_DERKEY_H__
 #define LN_DERKEY_H__
 
-#include "ln.h"
+#include "btc_keys.h"
 
 
-/**************************************************************************
- * Key Derivation
- **************************************************************************/
+/********************************************************************
+ * typedefs
+ ********************************************************************/
+
+/** @struct ln_derkey_storage_t
+ *  @brief  per-commitment secret storage
+ *      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#efficient-per-commitment-secret-storage
+ */
+typedef struct {
+    struct {
+        uint8_t     secret[BTC_SZ_PRIVKEY];     ///< secret
+        uint64_t    index;                      ///< index
+    } storage[49];
+} ln_derkey_storage_t;
+
+
+/********************************************************************
+ * prototypes
+ ********************************************************************/
 
 /** key導出
  *

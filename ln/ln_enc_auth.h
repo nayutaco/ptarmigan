@@ -98,4 +98,5 @@ uint16_t ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len
  */
 bool ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf);
 
+
 #endif /* LN_ENC_AUTH_H__ */
