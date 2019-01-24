@@ -40,7 +40,6 @@
 #include "ln_onion.h"
 #include "ln_misc.h"
 #include "ln_node.h"
-#include "ln.h"
 #include "ln_local.h"
 
 
