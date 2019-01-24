@@ -38,7 +38,7 @@
 #include "utl_time.h"
 
 #include "btc_crypto.h"
-#include "ln_segwit_addr.h"
+#include "ln_invoice.h"
 #include "ln_routing.h"
 
 #include "ptarmd.h"

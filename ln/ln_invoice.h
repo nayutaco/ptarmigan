@@ -1,5 +1,5 @@
-#ifndef _LN_SEGWIT_ADDR_H_
-#define _LN_SEGWIT_ADDR_H_ 1
+#ifndef _LN_INVOICE_H_
+#define _LN_INVOICE_H_ 1
 
 #include <stdint.h>
 #include <stdbool.h>

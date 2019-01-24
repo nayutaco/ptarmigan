@@ -46,7 +46,7 @@ extern "C" {
 //#include "ln_comtx.c"
 //#include "ln_enc_auth.c"
 //#include "ln_signer.c"
-//#include "ln_segwit_addr.c"
+//#include "ln_invoice.c"
 }
 
 
