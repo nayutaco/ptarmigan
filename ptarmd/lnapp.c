@@ -72,6 +72,7 @@
 #include "ln_close.h"
 #include "ln_normalope.h"
 #include "ln_anno.h"
+#include "ln_noise.h"
 
 #include "ptarmd.h"
 #include "cmd_json.h"

@@ -42,7 +42,7 @@ extern "C" {
 #include "ln_node.c"
 // #include "ln_onion.c"
 // #include "ln_script.c"
-#include "ln_enc_auth.c"
+#include "ln_noise.c"
 #include "ln_signer.c"
 // #include "ln_invoice.c"
 // #include "ln_print.c"

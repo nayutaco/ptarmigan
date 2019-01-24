@@ -1011,40 +1011,6 @@ bool ln_handshake_recv(ln_self_t *self, bool *pCont, utl_buf_t *pBuf);
 void ln_handshake_free(ln_self_t *self);
 
 
-/** noise protocol encode
- *
- * @param[in,out]       self            channel info
- * @param[out]          pBufEnc     エンコード後データ
- * @param[in]           pBufIn      変換前データ(平BOLT)
- * @retval      true    成功
- */
-bool ln_noise_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn);
-
-
-/** noise protocol decode(length)
- *
- * @param[in,out]       self            channel info
- * @param[in]           pData       変換前データ(Length部)
- * @param[in]           Len         pData長
- * @retval      非0 次に受信すべきデータ長
- * @retval      0   失敗
- * @note
- *      - 平BOLT==>noise protocolエンコード==>送信 - - - 受信→noise protocolデコード==>平BOLT
- *      - noise protocolでエンコードされたデータはMACが付いているため、実データより16byte大きくなっている
- *      - 戻り値のデータ長分を受信し、受信したデータを #ln_noise_dec_msg() に渡してデコードする。
- */
-uint16_t ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-
-
-/** noise protocol decode(message)
- *
- * @param[in,out]       self            channel info
- * @param[in,out]       pBuf        [in]変換前データ, [out]デコード後データ(平BOLT)
- * @retval      true    成功
- */
-bool ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf);
-
-
 /** Lightningメッセージ受信処理
  *
  * @param[in,out]       self            channel info
