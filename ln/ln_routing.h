@@ -72,7 +72,7 @@ lnerr_route_t ln_routing_calculate(
         uint32_t CltvExpiry,
         uint64_t AmountMsat,
         uint8_t AddNum,
-        const ln_fieldr_t *pAddRoute);
+        const ln_r_field_t *pAddRoute);
 
 
 /** routing skip DB削除

@@ -293,10 +293,10 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
 
 
 //r-filedの追加
-static void add_rfield(
+static void add_r_field(
         nodes_result_t *p_result,
         const uint8_t *pPayeeId,
-        const ln_fieldr_t *pAddRoute,
+        const ln_r_field_t *pAddRoute,
         int AddNum)
 {
     //AddNum追加で確保しておく(少ない場合は後で減らす)
@@ -422,7 +422,7 @@ lnerr_route_t ln_routing_calculate(
         uint32_t CltvExpiry,
         uint64_t AmountMsat,
         uint8_t AddNum,
-        const ln_fieldr_t *pAddRoute)
+        const ln_r_field_t *pAddRoute)
 {
     pResult->hop_num = 0;
 
@@ -442,7 +442,7 @@ lnerr_route_t ln_routing_calculate(
     }
 
     if (AddNum > 0) {
-        add_rfield(&rt_res, pPayeeId, pAddRoute, AddNum);
+        add_r_field(&rt_res, pPayeeId, pAddRoute, AddNum);
     }
     LOGD("node_num: %d\n", rt_res.node_num);
 
