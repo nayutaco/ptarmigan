@@ -106,7 +106,7 @@ TEST_F(ln_derkey, revopubkey)
 {
     uint8_t localkey[BTC_SZ_PUBKEY];
 
-    bool ret = ln_derkey_revocationkey(localkey, BASE_POINT, PER_COMMITMENT_POINT);
+    bool ret = ln_derkey_revocation_pubkey(localkey, BASE_POINT, PER_COMMITMENT_POINT);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCALKEY[] = {
