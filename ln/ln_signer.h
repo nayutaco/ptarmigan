@@ -77,13 +77,13 @@ bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
  * @param[in,out]   self            チャネル情報
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
-void HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt);
+bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt);
 
 
 /**
  *
  */
-void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
+bool HIDDEN ln_signer_get_revoke_secret(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
 
 
 /** P2WSH署名 - Phase2: 署名作成
@@ -134,20 +134,18 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
  * @note
  *      - #btc_init()の設定で署名する
  */
-//XXX: bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
 
 
 /** to_local script署名用鍵取得
  *
  */
-void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool bRevoked);
+bool HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool bRevoked);
 
 
-void HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey);
-
-void HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey);
-
-void HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey);
+bool HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey);
+bool HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey);
+bool HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey);
 
 
 /**
