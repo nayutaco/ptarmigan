@@ -264,7 +264,7 @@ bool btc_extkey_generate(btc_extkey_t *pExtKey, uint8_t Type, uint8_t Depth, uin
         assert(ret);
     } else if (pExtKey->type == BTC_EXTKEY_PUB) {
         //parent public key --> child public key
-        ret = (btc_ecc_ecp_muladd(pExtKey->key, pKey, &l_L) == 0);
+        ret = (btc_ecc_ecp_add(pExtKey->key, pKey, &l_L) == 0);
     } else {
         assert(ret);
     }

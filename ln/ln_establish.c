@@ -726,7 +726,7 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
             //      既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
             //      "next_remote_revocation_number minus 1"だから、storage_index+4。
             uint8_t secret[BTC_SZ_PRIVKEY];
-            ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 4);
+            ln_derkey_storage_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 4);
             LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 4);
             DUMPD(secret, BTC_SZ_PRIVKEY);
             if (memcmp(secret, msg.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {

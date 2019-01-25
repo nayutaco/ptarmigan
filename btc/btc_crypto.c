@@ -120,7 +120,7 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
 }
 
 
-int btc_ecc_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey) //XXX: mbed
+int btc_ecc_ecp_read_binary_pubkey(void *pPoint, const uint8_t *pPubKey) //XXX: mbed
 {
     int ret;
     uint8_t parity;
@@ -229,7 +229,7 @@ LABEL_EXIT:
 }
 
 
-int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA) //XXX: mbed
+int btc_ecc_ecp_add(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA) //XXX: mbed
 {
     int ret;
     mbedtls_ecp_point P1;
@@ -244,7 +244,7 @@ int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *p
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
     //P1: 前の公開鍵座標
-    ret = btc_ecc_ecp_point_read_binary2(&P1, pPubKeyIn);
+    ret = btc_ecc_ecp_read_binary_pubkey(&P1, pPubKeyIn);
     if (ret) {
         goto LABEL_EXIT;
     }
@@ -255,7 +255,9 @@ int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *p
     if (ret) {
         goto LABEL_EXIT;
     }
-    ret = mbedtls_ecp_muladd(&keypair.grp, &P2, (const mbedtls_mpi *)pA, &keypair.grp.G, &one, &P1);
+    ret = mbedtls_ecp_muladd(&keypair.grp, &P2,
+        (const mbedtls_mpi *)pA, &keypair.grp.G,
+        &one, &P1);
     if (ret) {
         goto LABEL_EXIT;
     }
@@ -403,7 +405,7 @@ int btc_ecc_set_keypair(void *pKeyPair, const uint8_t *pPubKey) //XXX: mbed
     int ret;
 
     mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
-    ret = btc_ecc_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
+    ret = btc_ecc_ecp_read_binary_pubkey(&(p_keypair->Q), pPubKey);
 
     return ret;
 }

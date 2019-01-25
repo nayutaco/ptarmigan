@@ -442,7 +442,7 @@ TEST_F(keys, uncomp1)
     uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP - 1];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = btc_ecc_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_ecc_ecp_read_binary_pubkey(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
@@ -463,7 +463,7 @@ TEST_F(keys, uncomp2)
     uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP - 1];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = btc_ecc_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_ecc_ecp_read_binary_pubkey(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
@@ -484,7 +484,7 @@ TEST_F(keys, uncomp3)
     uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP - 1];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = btc_ecc_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_ecc_ecp_read_binary_pubkey(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
@@ -505,7 +505,7 @@ TEST_F(keys, uncomp4)
     uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP - 1];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = btc_ecc_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_ecc_ecp_read_binary_pubkey(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
