@@ -1150,7 +1150,7 @@ void ln_close_free_forcetx(ln_close_force_t *pClose);
  *      - self->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
  *      - self->wit にto_localのwitnessProgramを設定する
  */
-bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
+bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
 
 
 /********************************************************************

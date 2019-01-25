@@ -831,7 +831,7 @@ void ln_close_free_forcetx(ln_close_force_t *pClose)
  *          4.1 DBから当時のpayment_hashを検索
  *          4.2 script復元
  */
-bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
+bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
 {
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
