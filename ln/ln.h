@@ -69,8 +69,6 @@ extern "C" {
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
-#define LN_FUNDIDX_MAX                  (6)         ///< 管理用
-#define LN_SCRIPTIDX_MAX                (5)         ///< 管理用
 #define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
                                                     //      max_accepted_htlcsとして使用する
                                                     //      相手の分も同じ分しか用意していない
@@ -140,10 +138,39 @@ extern "C" {
 #define LN_INIT_LF_OPT_GSP_QUERY_REQ    (1 << 6)    ///< gossip_queries
 #define LN_INIT_LF_OPT_GSP_QUERY        (1 << 7)    ///< gossip_queries
 
+
 //XXX:
 #define LN_MAX_ACCEPTED_HTLCS_MAX       (483)
 #define LN_NUM_PONG_BYTES_MAX           (65532 - 1)
 #define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
+
+
+//0～5は、open_channel/accept_channelのfunding_pubkey～first_per_commitment_pointの順にすること
+//プロトコルで違いが生じた場合は、ソースを変更すること(ln_msg_establish.c)
+#define LN_FUND_IDX_FUNDING             (0)         ///< commitment tx署名用
+#define LN_FUND_IDX_REVOCATION          (1)         ///< revocation_basepoint
+#define LN_FUND_IDX_PAYMENT             (2)         ///< payment_basepoint
+#define LN_FUND_IDX_DELAYED             (3)         ///< delayed_payment_basepoint
+#define LN_FUND_IDX_HTLC                (4)         ///< htlc_basepoint
+#define LN_FUND_IDX_PER_COMMIT          (5)         ///< per_commitment_point
+                                                    ///<   commitment_signed:               next_per_commitment_point
+                                                    ///<   funding_created/funding_signed:  first_per_commitment_point
+                                                    ///<   unilateral close:                per_commitment_point
+                                                    ///<   revoked transaction close:       per_commitment_point
+#define LN_FUND_IDX_NUM                 (LN_FUND_IDX_PER_COMMIT + 1)
+
+
+//LN_FUND_IDX_PER_COMMITを使用してスクリプトを作成する
+#define LN_SCRIPT_IDX_REMOTEKEY         (0)         ///< remotekey
+#define LN_SCRIPT_IDX_DELAYED           (1)         ///< delayedkey
+#define LN_SCRIPT_IDX_REVOCATION        (2)         ///< revocationkey
+#define LN_SCRIPT_IDX_LOCALHTLCKEY      (3)         ///< local_htlckey
+#define LN_SCRIPT_IDX_REMOTEHTLCKEY     (4)         ///< remote_htlckey
+#define LN_SCRIPT_IDX_NUM               (LN_SCRIPT_IDX_REMOTEHTLCKEY+1)
+
+
+// https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
+#define LN_SECRET_INDEX_INIT            ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
 
 
 /**************************************************************************
@@ -659,10 +686,10 @@ typedef struct {
     uint8_t             txid[BTC_SZ_TXID];              ///< funding-tx TXID
     uint16_t            txindex;                        ///< funding-tx index
 
-    //MSG_FUNDIDX_xxx
-    uint8_t             pubkeys[LN_FUNDIDX_MAX][BTC_SZ_PUBKEY];         ///< 自分の公開鍵
-    //MSG_SCRIPTIDX_xxx
-    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][BTC_SZ_PUBKEY]; ///< script用PubKey
+    //LN_FUND_IDX_xxx
+    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];         ///< 自分の公開鍵
+    //LN_SCRIPT_IDX_xxx
+    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
 } ln_funding_local_data_t;
 
 
@@ -670,11 +697,11 @@ typedef struct {
  *  @brief  他ノードfunding情報
  */
 typedef struct {
-    //MSG_FUNDIDX_xxx
-    uint8_t             pubkeys[LN_FUNDIDX_MAX][BTC_SZ_PUBKEY];     ///< 相手から受信した公開鍵
+    //LN_FUND_IDX_xxx
+    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];     ///< 相手から受信した公開鍵
     uint8_t             prev_percommit[BTC_SZ_PUBKEY];              ///< 1つ前のper_commit_point
-    //MSG_SCRIPTIDX_xxx
-    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][BTC_SZ_PUBKEY]; ///< script用PubKey
+    //LN_SCRIPT_IDX_xxx
+    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
 } ln_funding_remote_data_t;
 
 
@@ -710,7 +737,7 @@ typedef struct {
                                                                 //      初回のcommit_txは0xFF...FFで作成することになる。
     uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
 
-    uint8_t                     priv[LN_FUNDIDX_MAX][BTC_SZ_PRIVKEY];
+    uint8_t                     priv[LN_FUND_IDX_NUM][BTC_SZ_PRIVKEY];
 } ln_self_priv_t;
 
 
@@ -798,6 +825,18 @@ struct ln_self_t {
 };
 
 /// @}
+
+
+/**************************************************************************
+ * static variables //XXX:
+ **************************************************************************/
+
+extern uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
+
+
+//blockhash at node creation
+//      usage: search blockchain limit
+extern uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
 
 
 /**************************************************************************
@@ -1004,6 +1043,18 @@ bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
 void ln_dbg_commitnum(const ln_self_t *self);
 btc_script_pubkey_order_t ln_node_id_sort(const ln_self_t *self, const uint8_t *pNodeId);
 uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
+
+
+/** revoked transaction close用のスクリプトバッファ確保
+ *
+ */
+void HIDDEN ln_revoked_buf_alloc(ln_self_t *self);
+
+
+/** revoked transaction close用のスクリプトバッファ解放
+ *
+ */
+void HIDDEN ln_revoked_buf_free(ln_self_t *self);
 
 
 /********************************************************************

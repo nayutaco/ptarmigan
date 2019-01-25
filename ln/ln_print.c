@@ -51,10 +51,10 @@
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
 #ifdef PTARM_USE_PRINTFUNC
-static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
+static const char *KEYS_STR[LN_FUND_IDX_NUM] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
-static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
+static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
     "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
 #endif  //PTARM_USE_PRINTFUNC
@@ -96,20 +96,20 @@ void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remot
     TXIDD(pLocal->txid);
     LOGD("  funding_txindex: %" PRIu16 "\n", pLocal->txindex);
 
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
         DUMPD(pLocal->pubkeys[lp], BTC_SZ_PUBKEY);
     }
-    for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
         DUMPD(pLocal->scriptpubkeys[lp], BTC_SZ_PUBKEY);
     }
 
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
         DUMPD(pRemote->pubkeys[lp], BTC_SZ_PUBKEY);
     }
-    for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
         DUMPD(pRemote->scriptpubkeys[lp], BTC_SZ_PUBKEY);
     }

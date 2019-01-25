@@ -123,7 +123,7 @@ TEST_F(ln_derkey, revoprivkey)
 {
     uint8_t privkey[BTC_SZ_HASH256];
 
-    bool ret = ln_derkey_revocationprivkey(privkey, BASE_POINT, PER_COMMITMENT_POINT, BASE_SECRET, PER_COMMIT_SECRET);
+    bool ret = ln_derkey_revocation_privkey(privkey, BASE_POINT, PER_COMMITMENT_POINT, BASE_SECRET, PER_COMMIT_SECRET);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCALKEY[] = {

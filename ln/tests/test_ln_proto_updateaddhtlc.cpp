@@ -331,7 +331,7 @@ TEST_F(ln, set_add_htlc1)
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     self.noise.p_handshake = NULL;
     memset(payhash, 0xdd, BTC_SZ_HASH256);
-    ln_signer_create_channelkeys(&self);
+    ln_signer_create_channel_keys(&self);
 
     /*** TEST ***/
     ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
@@ -387,7 +387,7 @@ TEST_F(ln, create_add_htlc1)
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payhash, 0xdd, BTC_SZ_HASH256);
-    ln_signer_create_channelkeys(&self);
+    ln_signer_create_channel_keys(&self);
 
     ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
                 amount_msat, cltv_expiry, payhash,

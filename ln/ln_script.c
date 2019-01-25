@@ -24,6 +24,10 @@
  */
 #include <inttypes.h>
 
+#include "mbedtls/sha256.h"
+#include "mbedtls/ripemd160.h"
+#include "mbedtls/ecp.h"
+
 #include "utl_push.h"
 #include "utl_dbg.h"
 
@@ -402,7 +406,7 @@ bool HIDDEN ln_script_committx_create(
     uint8_t txhash[BTC_SZ_HASH256];
     ret = btc_sw_sighash_p2wsh_wit(pTx, txhash, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
     if (ret) {
-        ret = ln_signer_p2wsh(pSig, txhash, pPrivData, MSG_FUNDIDX_FUNDING);
+        ret = ln_signer_p2wsh(pSig, txhash, pPrivData, LN_FUND_IDX_FUNDING);
     } else {
         LOGE("fail: calc sighash\n");
     }

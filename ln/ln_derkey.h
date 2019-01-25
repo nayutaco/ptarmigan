@@ -90,7 +90,7 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
  * @param[in]       pBaseSecret         Base Secret Point
  * @param[in]       pPerCommitSecret    per Commitment Secret Point
  */
-bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
+bool HIDDEN ln_derkey_revocation_privkey(uint8_t *pRevPrivKey,
             const uint8_t *pBasePoint, const uint8_t *pPerCommitPoint,
             const uint8_t *pBaseSecret, const uint8_t *pPerCommitSecret);
 

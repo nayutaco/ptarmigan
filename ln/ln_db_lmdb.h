@@ -185,6 +185,14 @@ int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, int32_t *ver, char *wif, 
 bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc, void *pFuncParam);
 
 
+/** DBで保存している対象のデータだけコピーする
+ *
+ * @param[out]  pOutSelf    コピー先
+ * @param[in]   pInSelf     コピー元
+ */
+void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
+
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

@@ -36,6 +36,11 @@
  * macros
  **************************************************************************/
 
+#define CHANNEL_FLAGS_ANNOCNL           (1 << 0)
+#define CHANNEL_FLAGS_MASK              CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
+#define CHANNEL_FLAGS_VALUE             CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
+
+
 /**************************************************************************
  * typedefs
  **************************************************************************/

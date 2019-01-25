@@ -24,6 +24,11 @@
  *  @note
  *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
  */
+
+#include "mbedtls/sha256.h"
+#include "mbedtls/ripemd160.h"
+#include "mbedtls/ecp.h"
+
 #include "btc.h"
 #include "btc_crypto.h"
 
@@ -219,7 +224,7 @@ LABEL_EXIT:
 //////////////////////////////////////////////////
 //revocationsecretkey = revocation-basepoint-secret * SHA256(revocation-basepoint || per-commitment-point)
 //                          + per-commitment-secret*SHA256(per-commitment-point || revocation-basepoint)
-bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
+bool HIDDEN ln_derkey_revocation_privkey(uint8_t *pRevPrivKey,
             const uint8_t *pBasePoint, const uint8_t *pPerCommitPoint,
             const uint8_t *pBaseSecret, const uint8_t *pPerCommitSecret)
 {

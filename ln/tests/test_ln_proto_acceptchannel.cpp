@@ -325,8 +325,8 @@ TEST_F(ln, ln_accept_channel_recv_ok)
     p_fundin->amount = 500000;
 #endif
 
-    memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(self.funding_local.pubkeys[LN_FUND_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(self.funding_remote.pubkeys[LN_FUND_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&self, NULL, 0);
     ASSERT_TRUE(ret);
@@ -402,8 +402,8 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
 
-    memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(self.funding_local.pubkeys[LN_FUND_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(self.funding_remote.pubkeys[LN_FUND_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);
@@ -480,8 +480,8 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
 
-    memcpy(self.funding_local.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(self.funding_remote.pubkeys[MSG_FUNDIDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(self.funding_local.pubkeys[LN_FUND_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(self.funding_remote.pubkeys[LN_FUND_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&self, NULL, 0);
     ASSERT_FALSE(ret);

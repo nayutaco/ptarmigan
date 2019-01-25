@@ -39,7 +39,7 @@
  * prototypes
  **************************************************************************/
 
-static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Offset);
+static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Offset);
 static void get_secret(const ln_self_t *self, btc_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
 
 
@@ -62,51 +62,50 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 }
 
 
-void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
+bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
 {
-    self->priv_data.storage_index = LN_SECINDEX_INIT;
+    self->priv_data.storage_index = LN_SECRET_INDEX_INIT;
     LOGD("storage_index = %016" PRIx64 "\n", self->priv_data.storage_index);
 
-    //鍵生成
-    //  open_channel/accept_channelの鍵は ln_signer_keys_update_storage()で生成
-    for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
-        if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            btc_keys_create_priv(self->priv_data.priv[lp]);
-            btc_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
-        }
+    //create keys
+    for (int lp = LN_FUND_IDX_FUNDING; lp < LN_FUND_IDX_NUM; lp++) {
+        if (lp == LN_FUND_IDX_PER_COMMIT) continue;
+        if (!btc_keys_create_priv(self->priv_data.priv[lp])) return false;
+        if (!btc_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp])) return false;
     }
 
-    ln_signer_keys_update_storage(self);
+    //for open_channel/accept_channel
+    return ln_signer_keys_update_storage(self);
 }
 
 
-void HIDDEN ln_signer_keys_update_storage(ln_self_t *self)
+bool HIDDEN ln_signer_keys_update_storage(ln_self_t *self)
 {
-    ln_signer_keys_update_force(self, self->priv_data.storage_index);
-
+    if (!ln_signer_keys_update_force(self, self->priv_data.storage_index)) return false;
     self->priv_data.storage_index--;
     LOGD("update storage_index = %016" PRIx64 "\n", self->priv_data.storage_index);
+    return true;
 }
 
 
-void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
+bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
-    create_percommitsec(self, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], Index);
-    LOGD("shachain index=%" PRIu64 "\n", Index);
+    LOGD("shachain index = %" PRIu64 "\n", Index);
+    return create_per_commit_secret(self, self->priv_data.priv[LN_FUND_IDX_PER_COMMIT], self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT], Index);
 }
 
 
-void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
+void HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
-    if (self->priv_data.storage_index + 2 <= LN_SECINDEX_INIT) {
-        //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
+    if (self->priv_data.storage_index + 2 <= LN_SECRET_INDEX_INIT) {
+        //  現在の funding_local.keys[LN_FUND_IDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
         //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
         //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-        create_percommitsec(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
+        create_per_commit_secret(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
     } else {
         memset(pSecret, 0, BTC_SZ_PRIVKEY);
         if (pPerCommitPt != NULL) {
-            memcpy(pPerCommitPt, self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
+            memcpy(pPerCommitPt, self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
         }
     }
 }
@@ -114,10 +113,10 @@ void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *p
 
 void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
-    ln_derkey_revocationprivkey(pKeys->priv,
-                self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION],
+    ln_derkey_revocation_privkey(pKeys->priv,
+                self->funding_local.pubkeys[LN_FUND_IDX_REVOCATION],
                 pPerCommit,
-                self->priv_data.priv[MSG_FUNDIDX_REVOCATION],
+                self->priv_data.priv[LN_FUND_IDX_REVOCATION],
                 pRevokedSec);
     btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
@@ -170,12 +169,12 @@ void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool 
 {
     if (!bRevoked) {
         //<delayed_secretkey>
-        get_secret(self, pKey, MSG_FUNDIDX_DELAYED,
-            self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+        get_secret(self, pKey, LN_FUND_IDX_DELAYED,
+            self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
     } else {
         //<revocationsecretkey>
         ln_signer_get_revokesec(self, pKey,
-                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+                    self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
                     self->revoked_sec.buf);
     }
 }
@@ -183,22 +182,22 @@ void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool 
 
 void HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey)
 {
-    get_secret(self, pKey, MSG_FUNDIDX_PAYMENT,
-        self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+    get_secret(self, pKey, LN_FUND_IDX_PAYMENT,
+        self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT]);
 }
 
 
 void HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey)
 {
-    get_secret(self, pKey, MSG_FUNDIDX_HTLC,
-        self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+    get_secret(self, pKey, LN_FUND_IDX_HTLC,
+        self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
 }
 
 
 void HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey)
 {
-    get_secret(self, pKey, MSG_FUNDIDX_HTLC,
-        self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+    get_secret(self, pKey, LN_FUND_IDX_HTLC,
+        self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT]);
 }
 
 
@@ -238,11 +237,11 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
  * @param[out]      pSecret         per_commit_secret
  * @param[in]       Offset          storage_indexからのオフセット値
  */
-static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
+static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
 {
     ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, Index);
     uint8_t pub[BTC_SZ_PUBKEY];
-    btc_keys_priv2pub(pub, pSecret);
+    if (!btc_keys_priv2pub(pub, pSecret)) return false;
     if (pPerCommitPt != NULL) {
         memcpy(pPerCommitPt, pub, BTC_SZ_PUBKEY);
     }
@@ -251,6 +250,7 @@ static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t
     DUMPD(pSecret, BTC_SZ_PRIVKEY);
     LOGD("       PER_COMMIT_PT: ");
     DUMPD(pub, BTC_SZ_PUBKEY);
+    return true;
 }
 
 
