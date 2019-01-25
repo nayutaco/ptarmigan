@@ -424,7 +424,7 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
         case LN_STATUS_CLOSE_REVOKED:
             //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
-            ret = ln_close_remoterevoked(self, &close_tx, p_db_param);
+            ret = ln_close_remote_revoked(self, &close_tx, p_db_param);
             if (ret) {
                 if (ln_revoked_cnt(self) > 0) {
                     //revoked transactionのvoutに未解決あり
@@ -435,7 +435,7 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
                     del = true;
                 }
             } else {
-                LOGE("fail: ln_close_remoterevoked\n");
+                LOGE("fail: ln_close_remote_revoked\n");
             }
             break;
         default:
