@@ -32,6 +32,7 @@
 #include "btc_local.h"
 #include "btc_sig.h"
 #include "btc_crypto.h"
+#include "btc_buf.h"
 
 
 /**************************************************************************
@@ -661,55 +662,41 @@ bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len)
 
     //  extract R and S and remove unnecessary 0x00
 
-    (void)Len;
+    uint8_t tmp_b;
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pDer, Len);
 
-    uint8_t sz = pDer[1] - 4;
-    uint8_t sz_r = pDer[3];
-    uint8_t sz_s = pDer[4 + sz_r + 1];
-    const uint8_t *p = pDer + 4;
-
-    if (sz != sz_r + sz_s) {
+    if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+    if (tmp_b != 0x30) return false;
+    if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+    if (btc_buf_r_remains(&buf_r) != tmp_b &&
+        btc_buf_r_remains(&buf_r) != (uint32_t)(tmp_b + 1)) { //with hashtype
         return false;
     }
 
-    //r
-    //0除去
-    for (int lp = 0; lp < sz_r - 1; lp++) {
-        if (*p != 0) {
-            break;
+    //R,S
+    for (int i = 0; i < 2; i++) {
+        uint8_t *p_rs_pos = pRs + (i * 32);
+        if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+        if (tmp_b != 0x02) return false;
+        if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+        if (tmp_b > 33) return false;
+        if (tmp_b == 33) {
+            if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+            if (tmp_b != 0x00) return false;
+            if (!btc_buf_r_read(&buf_r, p_rs_pos, 32)) return false;
+            if (p_rs_pos[0] <= 0x7f) return false;
+        } else {
+            uint32_t n_zeros = 32 - tmp_b;
+            memset(p_rs_pos, 0x00, n_zeros);
+            if (!btc_buf_r_read(&buf_r, p_rs_pos + n_zeros, tmp_b)) return false;
         }
-        sz_r--;
-        p++;
     }
-    if (sz_r > 32) {
+
+    if (btc_buf_r_remains(&buf_r) != 0 &&
+        btc_buf_r_remains(&buf_r) != 1) { //with hashtype
         return false;
     }
-    if (sz_r < 32) {
-        memset(pRs, 0, 32 - sz_r);
-        pRs += 32 - sz_r;
-    }
-    memcpy(pRs, p, sz_r);
-    pRs += sz_r;
-    p += sz_r + 2;
-
-    //s
-    //0除去
-    for (int lp = 0; lp < sz_s - 1; lp++) {
-        if (*p != 0) {
-            break;
-        }
-        sz_s--;
-        p++;
-    }
-    if (sz_s > 32) {
-        return false;
-    }
-    if (sz_s < 32) {
-        memset(pRs, 0, 32 - sz_s);
-        pRs += 32 - sz_s;
-    }
-    memcpy(pRs, p, sz_s);
-
     return true;
 }
 
