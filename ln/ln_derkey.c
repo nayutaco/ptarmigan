@@ -144,7 +144,7 @@ LABEL_EXIT:
 //////////////////////////////////////////////////
 //revocationkey = revocation-basepoint * SHA256(revocation-basepoint || per-commitment-point)
 //                  + per-commitment-point*SHA256(per-commitment-point || revocation-basepoint)
-bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
+bool HIDDEN ln_derkey_revocation_pubkey(uint8_t *pRevPubKey,
             const uint8_t *pBasePoint, const uint8_t *pPerCommitPoint)
 {
     int ret;

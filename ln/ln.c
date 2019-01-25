@@ -1592,7 +1592,7 @@ void HIDDEN ln_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_rem
 
     //revocationkey = remote per_commitment_point & local revocation_basepoint
     //LOGD("local: revocationkey\n");
-    ln_derkey_revocationkey(pLocal->scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
+    ln_derkey_revocation_pubkey(pLocal->scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
                 pRemote->pubkeys[LN_FUND_IDX_REVOCATION], pLocal->pubkeys[LN_FUND_IDX_PER_COMMIT]);
 
     //local_htlckey = local per_commitment_point & local htlc_basepoint
@@ -1622,7 +1622,7 @@ void HIDDEN ln_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_rem
 
     //revocationkey = local per_commitment_point & remote revocation_basepoint
     //LOGD("remote: revocationkey\n");
-    ln_derkey_revocationkey(pRemote->scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
+    ln_derkey_revocation_pubkey(pRemote->scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
                 pLocal->pubkeys[LN_FUND_IDX_REVOCATION], pRemote->pubkeys[LN_FUND_IDX_PER_COMMIT]);
 
     //local_htlckey = remote per_commitment_point & remote htlc_basepoint

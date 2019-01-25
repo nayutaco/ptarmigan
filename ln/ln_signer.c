@@ -49,16 +49,15 @@ static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int FundIdx, co
 
 void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 {
-    if (pSeed) {
-        memcpy(self->priv_data.storage_seed, pSeed, LN_SZ_SEED);
-        ln_derkey_storage_init(&self->peer_storage);
-    }
+    if (!pSeed) return;
+    memcpy(self->priv_data.storage_seed, pSeed, LN_SZ_SEED);
+    ln_derkey_storage_init(&self->peer_storage);
 }
 
 
-void HIDDEN ln_signer_term(ln_self_t *self)
+void HIDDEN ln_signer_term(ln_self_t *self) //XXX:
 {
-    memset(self->priv_data.storage_seed, 0, BTC_SZ_PRIVKEY);
+    memset(self->priv_data.storage_seed, 0x00, BTC_SZ_PRIVKEY);
 }
 
 
