@@ -318,7 +318,7 @@ void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uin
 
 void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
 {
-    for (int lp = 0; lp < 49; lp++) {
+    for (int lp = 0; lp < PER_COMMIT_SECRET_PAIR_NUM; lp++) {
         memset(pStorage->storage[lp].secret, 0xcc, BTC_SZ_PRIVKEY);
         pStorage->storage[lp].index = 0x123456789abc;
     }

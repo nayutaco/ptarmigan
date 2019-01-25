@@ -31,6 +31,13 @@
 
 
 /********************************************************************
+ * macros
+ ********************************************************************/
+
+#define PER_COMMIT_SECRET_PAIR_NUM  (49)
+
+
+/********************************************************************
  * typedefs
  ********************************************************************/
 
@@ -42,7 +49,7 @@ typedef struct {
     struct {
         uint8_t     secret[BTC_SZ_PRIVKEY];     ///< secret
         uint64_t    index;                      ///< index
-    } storage[49];
+    } storage[PER_COMMIT_SECRET_PAIR_NUM];
 } ln_derkey_storage_t;
 
 
