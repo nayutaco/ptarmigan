@@ -220,7 +220,6 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
 
     //seed
     ln_signer_init(self, pSeed);
-    self->peer_storage_index = LN_SECRET_INDEX_INIT;
 
     self->commit_local.commit_num = 0;
     self->commit_remote.commit_num = 0;
@@ -1760,7 +1759,7 @@ void ln_dbg_commitnum(const ln_self_t *self)
 {
     LOGD("------------------------------------------\n");
     LOGD("storage_index      = %016" PRIx64 "\n", self->priv_data.storage_index);
-    LOGD("peer_storage_index = %016" PRIx64 "\n", self->peer_storage_index);
+    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->peer_storage));
     LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
     LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);

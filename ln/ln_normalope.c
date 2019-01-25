@@ -1530,7 +1530,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 
 /** peerから受信したper_commitment_secret保存
  *
- * self->peer_storage_indexに保存後、self->peer_storage_indexをデクリメントする。
+ * ln_derkey_storage_get_current_index()に保存後、ln_derkey_storage_get_current_index()をデクリメントする。
  *
  * @param[in,out]   self            チャネル情報
  * @param[in]       p_prev_secret   受信したper_commitment_secret
@@ -1540,18 +1540,19 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
  */
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret)
 {
-    //LOGD("I=%016" PRIx64 "\n", self->peer_storage_index);
+    //LOGD("I=%016" PRIx64 "\n", ln_derkey_storage_get_current_index());
     //DUMPD(p_prev_secret, BTC_SZ_PRIVKEY);
     uint8_t pub[BTC_SZ_PUBKEY];
     btc_keys_priv2pub(pub, p_prev_secret);
     //DUMPD(pub, BTC_SZ_PUBKEY);
-    bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret, self->peer_storage_index);
+    bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret);
     if (ret) {
-        self->peer_storage_index--;
         //M_DB_SELF_SAVE(self);    //保存は呼び出し元で行う
-        LOGD("I=%016" PRIx64 " --> %016" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
+        LOGD("I=%016" PRIx64 " --> %016" PRIx64 "\n",
+            ln_derkey_storage_get_current_index(&self->peer_storage) + 1,
+            ln_derkey_storage_get_current_index(&self->peer_storage));
 
-        //for (uint64_t idx = LN_SECRET_INDEX_INIT; idx > self->peer_storage_index; idx--) {
+        //for (uint64_t idx = LN_SECRET_INDEX_INIT; idx > ln_derkey_storage_get_current_index(); idx--) {
         //    LOGD("I=%016" PRIx64 "\n", idx);
         //    LOGD2("  ");
         //    uint8_t sec[BTC_SZ_PRIVKEY];

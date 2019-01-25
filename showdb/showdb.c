@@ -234,7 +234,7 @@ static void ln_print_self(const ln_self_t *self)
     // printf(M_QQ("storage_seed") ": \"");
     // utl_dbg_dump(stdout, self->priv_data.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->peer_storage_index);
+    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_storage_get_current_index(&self->peer_storage));
 
     //funding
     printf(INDENT3 M_QQ("fund_flag") ": {\n");

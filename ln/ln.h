@@ -747,13 +747,12 @@ typedef struct {
 struct ln_self_t {
     //connect
     uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< [CONN_01]接続先ノード
-    ln_node_addr_t               last_connected_addr;            ///< [CONN_02]最後に接続したIP address
+    ln_node_addr_t              last_connected_addr;            ///< [CONN_02]最後に接続したIP address
     ln_status_t                 status;                         ///< [CONN_03]状態
 
     //key storage
     ln_derkey_storage_t         peer_storage;                   ///< [KEYS_01]key storage(peer)
-    uint64_t                    peer_storage_index;             ///< [KEYS_02]storage index(peer)
-    ln_self_priv_t              priv_data;                      ///< [KEYS_03]secret情報
+    ln_self_priv_t              priv_data;                      ///< [KEYS_02]secret情報
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
