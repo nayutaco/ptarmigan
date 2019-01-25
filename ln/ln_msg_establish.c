@@ -165,7 +165,7 @@ LABEL_ERROR:
 //XXX:
 static bool open_channel_check(const ln_msg_open_channel_t *pMsg)
 {
-    if (memcmp(gGenesisChainHash, pMsg->p_chain_hash, sizeof(gGenesisChainHash))) {
+    if (memcmp(ln_genesishash_get(), pMsg->p_chain_hash, BTC_SZ_HASH256)) {
         LOGE("fail: chain_hash mismatch\n");
         return false;
     }

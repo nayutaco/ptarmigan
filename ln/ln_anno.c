@@ -187,7 +187,7 @@ static bool channel_announcement_recv(ln_self_t *self, const uint8_t *pData, uin
         LOGE("fail: do nothing\n");
         return false;
     }
-    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
+    if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
         LOGE("fail: chain_hash mismatch\n");
         return false;
     }
@@ -312,7 +312,7 @@ static bool channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
+    if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
         LOGE("fail: chain_hash mismatch\n");
         return false;
     }
@@ -432,7 +432,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     msg.p_bitcoin_signature_2 = dummy_signature;
     msg.len = 0;
     msg.p_features = NULL;
-    msg.p_chain_hash = gGenesisChainHash;
+    msg.p_chain_hash = ln_genesishash_get();
     msg.short_channel_id = self->short_channel_id;
     btc_script_pubkey_order_t sort = ln_node_id_sort(self, NULL);
     if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
@@ -504,7 +504,7 @@ static bool create_channel_update(
     uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
     memset(dummy_signature, 0xcc, sizeof(dummy_signature));
     pUpd->p_signature = dummy_signature;
-    pUpd->p_chain_hash = gGenesisChainHash;
+    pUpd->p_chain_hash = ln_genesishash_get();
     pUpd->short_channel_id = self->short_channel_id;
     pUpd->timestamp = TimeStamp;
     pUpd->message_flags = 0;

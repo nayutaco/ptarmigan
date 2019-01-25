@@ -163,11 +163,11 @@ static const struct {
  **************************************************************************/
 
 //< 32: chain-hash
-uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
+static uint8_t mGenesisChainHash[BTC_SZ_HASH256];
 
 //blockhash at node creation
-//      usage: search blockchain limit
-uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
+//  usage: search blockchain limit
+static uint8_t mCreationBlockHash[BTC_SZ_HASH256];
 
 static unsigned long mDebug;
 
@@ -291,10 +291,10 @@ const char *ln_status_string(const ln_self_t *self)
 
 void ln_genesishash_set(const uint8_t *pHash)
 {
-    memcpy(gGenesisChainHash, pHash, BTC_SZ_HASH256);
-    btc_block_chain_t gen = btc_block_get_chain(gGenesisChainHash);
+    memcpy(mGenesisChainHash, pHash, BTC_SZ_HASH256);
+    btc_block_chain_t gen = btc_block_get_chain(mGenesisChainHash);
     LOGD("genesis(%d)=", (int)gen);
-    DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
+    DUMPD(mGenesisChainHash, BTC_SZ_HASH256);
     if (gen == BTC_BLOCK_CHAIN_UNKNOWN) {
         LOGE("fail: unknown genesis block hash\n");
     }
@@ -303,22 +303,22 @@ void ln_genesishash_set(const uint8_t *pHash)
 
 const uint8_t* ln_genesishash_get(void)
 {
-    return gGenesisChainHash;
+    return mGenesisChainHash;
 }
 
 
 void ln_creationhash_set(const uint8_t *pHash)
 {
-    memcpy(gCreationBlockHash, pHash, BTC_SZ_HASH256);
+    memcpy(mCreationBlockHash, pHash, BTC_SZ_HASH256);
 
     LOGD("block hash=");
-    DUMPD(gCreationBlockHash, BTC_SZ_HASH256);
+    DUMPD(mCreationBlockHash, BTC_SZ_HASH256);
 }
 
 
 const uint8_t *ln_creationhash_get(void)
 {
-    return gCreationBlockHash;
+    return mCreationBlockHash;
 }
 
 
