@@ -43,6 +43,7 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
 static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static int rs_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s, unsigned char *sig, size_t *slen );
 static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
+static bool write_unsigned_value_len_data_der(btc_buf_w_t *pBufW, const uint8_t *pData, uint32_t Len);
 
 
 /**************************************************************************
@@ -265,6 +266,85 @@ bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_
     }
 
     return ret;
+}
+
+
+bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len)
+{
+    //https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long/12556#12556
+    //A correct DER-encoded signature has the following form:
+    //  0x30: a header byte indicating a compound structure.
+    //  A 1-byte length descriptor for all what follows.
+    //  0x02: a header byte indicating an integer.
+    //  A 1-byte length descriptor for the R value
+    //  The R coordinate, as a big-endian integer.
+    //  0x02: a header byte indicating an integer.
+    //  A 1-byte length descriptor for the S value.
+    //  The S coordinate, as a big-endian integer.
+    //
+    //  Where initial 0x00 bytes for R and S are not allowed,
+    //  except when their first byte would otherwise be above 0x7F (in which case a single 0x00 in front is required).
+    //  Also note that inside transaction signatures, an extra hashtype byte follows the actual signature data.
+
+    //  extract R and S and remove unnecessary 0x00
+
+    uint8_t tmp_b;
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pDer, Len);
+
+    if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+    if (tmp_b != 0x30) return false;
+    if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+    if (btc_buf_r_remains(&buf_r) != tmp_b &&
+        btc_buf_r_remains(&buf_r) != (uint32_t)(tmp_b + 1)) { //with hashtype
+        return false;
+    }
+
+    //R,S
+    for (int i = 0; i < 2; i++) {
+        uint8_t *p_rs_pos = pRs + (i * 32);
+        if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+        if (tmp_b != 0x02) return false;
+        if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+        if (tmp_b > 33) return false;
+        if (tmp_b == 33) {
+            if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
+            if (tmp_b != 0x00) return false;
+            if (!btc_buf_r_read(&buf_r, p_rs_pos, 32)) return false;
+            if (p_rs_pos[0] <= 0x7f) return false;
+        } else {
+            uint32_t n_zeros = 32 - tmp_b;
+            memset(p_rs_pos, 0x00, n_zeros);
+            if (!btc_buf_r_read(&buf_r, p_rs_pos + n_zeros, tmp_b)) return false;
+        }
+    }
+
+    if (btc_buf_r_remains(&buf_r) != 0 &&
+        btc_buf_r_remains(&buf_r) != 1) { //with hashtype
+        return false;
+    }
+    return true;
+}
+
+
+bool btc_sig_rs2der(utl_buf_t *pDer, const uint8_t *pRs)
+{
+    btc_buf_w_t buf_w;
+    if (!btc_buf_w_init(&buf_w, 0)) return false;
+    if (!btc_buf_w_write_byte(&buf_w, 0x30)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, 0xcc)) goto LABEL_ERROR; //dummy len
+    if (!btc_buf_w_write_byte(&buf_w, 0x02)) goto LABEL_ERROR;
+    if (!write_unsigned_value_len_data_der(&buf_w, pRs, 32)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, 0x02)) goto LABEL_ERROR;
+    if (!write_unsigned_value_len_data_der(&buf_w, pRs + 32, 32)) goto LABEL_ERROR;
+    btc_buf_w_get_data(&buf_w)[1] = (uint8_t)(btc_buf_w_get_len(&buf_w) - 2); //len
+    if (!btc_buf_w_write_byte(&buf_w, SIGHASH_ALL)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pDer);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
 }
 
 
@@ -643,125 +723,34 @@ SKIP_LOOP:
 }
 
 
-bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len)
+static bool write_unsigned_value_len_data_der(btc_buf_w_t *pBufW, const uint8_t *pData, uint32_t Len)
 {
-    //https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long/12556#12556
-    //A correct DER-encoded signature has the following form:
-    //  0x30: a header byte indicating a compound structure.
-    //  A 1-byte length descriptor for all what follows.
-    //  0x02: a header byte indicating an integer.
-    //  A 1-byte length descriptor for the R value
-    //  The R coordinate, as a big-endian integer.
-    //  0x02: a header byte indicating an integer.
-    //  A 1-byte length descriptor for the S value.
-    //  The S coordinate, as a big-endian integer.
-    //
-    //  Where initial 0x00 bytes for R and S are not allowed,
-    //  except when their first byte would otherwise be above 0x7F (in which case a single 0x00 in front is required).
-    //  Also note that inside transaction signatures, an extra hashtype byte follows the actual signature data.
+    //count leading zeros
+    //and remove the zeros
+    //but if the top byte >= 0x7f, prepend 0x00
 
-    //  extract R and S and remove unnecessary 0x00
-
-    uint8_t tmp_b;
-    btc_buf_r_t buf_r;
-    btc_buf_r_init(&buf_r, pDer, Len);
-
-    if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
-    if (tmp_b != 0x30) return false;
-    if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
-    if (btc_buf_r_remains(&buf_r) != tmp_b &&
-        btc_buf_r_remains(&buf_r) != (uint32_t)(tmp_b + 1)) { //with hashtype
-        return false;
+    uint32_t n_zeros;
+    for (n_zeros = 0; n_zeros < Len; n_zeros++) {
+        if (pData[n_zeros]) break;
     }
 
-    //R,S
-    for (int i = 0; i < 2; i++) {
-        uint8_t *p_rs_pos = pRs + (i * 32);
-        if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
-        if (tmp_b != 0x02) return false;
-        if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
-        if (tmp_b > 33) return false;
-        if (tmp_b == 33) {
-            if (!btc_buf_r_read_byte(&buf_r, &tmp_b)) return false;
-            if (tmp_b != 0x00) return false;
-            if (!btc_buf_r_read(&buf_r, p_rs_pos, 32)) return false;
-            if (p_rs_pos[0] <= 0x7f) return false;
-        } else {
-            uint32_t n_zeros = 32 - tmp_b;
-            memset(p_rs_pos, 0x00, n_zeros);
-            if (!btc_buf_r_read(&buf_r, p_rs_pos + n_zeros, tmp_b)) return false;
-        }
-    }
+    pData += n_zeros;
+    Len -= n_zeros;
 
-    if (btc_buf_r_remains(&buf_r) != 0 &&
-        btc_buf_r_remains(&buf_r) != 1) { //with hashtype
-        return false;
+    if (!Len) {
+        if (!btc_buf_w_write_byte(pBufW, 0x01)) return false;
+        if (!btc_buf_w_write_byte(pBufW, 0x00)) return false;
+        return true;
+    }
+    if (pData[0] & 0x80) {
+        //prepend 0x00
+        if (!btc_buf_w_write_byte(pBufW, Len + 1)) return false;
+        if (!btc_buf_w_write_byte(pBufW, 0x00)) return false;
+        if (!btc_buf_w_write_data(pBufW, pData, Len)) return false;
+    } else {
+        if (!btc_buf_w_write_byte(pBufW, Len)) return false;
+        if (!btc_buf_w_write_data(pBufW, pData, Len)) return false;
     }
     return true;
 }
 
-
-bool btc_sig_rs2der(utl_buf_t *pSig, const uint8_t *pBuf)
-{
-    utl_push_t    push;
-    uint8_t r_len = 32;
-    uint8_t s_len = 32;
-    const uint8_t *r_p;
-    const uint8_t *s_p;
-
-    r_p = pBuf;
-    for (int lp = 0; lp < 31; lp++) {
-        if (*r_p != 0) {
-            break;
-        }
-        r_p++;
-        r_len--;
-    }
-    if (*r_p & 0x80) {
-        r_len++;
-    }
-
-    s_p = pBuf + 32;
-    for (int lp = 0; lp < 31; lp++) {
-        if (*s_p != 0) {
-            break;
-        }
-        s_p++;
-        s_len--;
-    }
-    if (*s_p & 0x80) {
-        s_len++;
-    }
-
-    //署名
-    //  [30][4+r_len+s_len][02][r len][...][02][s_len][...][01]
-    utl_push_init(&push, pSig, 7 + r_len + s_len);
-
-    uint8_t buf[6];
-    buf[0] = 0x30;
-    buf[1] = (uint8_t)(4 + r_len + s_len);
-    buf[2] = 0x02;
-    buf[3] = r_len;
-    buf[4] = 0x00;
-    buf[5] = 0x01;
-    utl_push_data(&push, buf, 4);
-    if (*r_p & 0x80) {
-        buf[0] = 0x00;
-        utl_push_data(&push, buf, 1);
-        r_len--;
-    }
-    utl_push_data(&push, r_p, r_len);
-
-    buf[0] = 0x02;
-    buf[1] = s_len;
-    utl_push_data(&push, buf, 2);
-    if (*s_p & 0x80) {
-        buf[0] = 0x00;
-        utl_push_data(&push, buf, 1);
-        s_len--;
-    }
-    utl_push_data(&push, s_p, s_len);
-    buf[0] = 0x01;
-    utl_push_data(&push, buf, 1);        //SIGHASH_ALL
-    return true;
-}
