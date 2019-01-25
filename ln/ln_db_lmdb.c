@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-30))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-31))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -159,6 +159,7 @@
     -28: self.htlc_num削除
     -29: self.statusとself.close_typeのマージ
     -30: bitcoindとSPVを同じにする
+    -31: include peer_storage_index in ln_derkey_storage_t
  */
 
 
@@ -327,7 +328,6 @@ static const backup_param_t DBSELF_VALUES[] = {
     //keys
     //
     M_ITEM(ln_self_t, peer_storage),    //[KEYS01]
-    M_ITEM(ln_self_t, peer_storage_index),      //[KEYS02]
     //[KEYS03]priv_data --> secret
 
     //
