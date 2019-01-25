@@ -665,20 +665,6 @@ typedef struct {
 /// @addtogroup channel_mng
 /// @{
 
-/** @struct ln_node_info_t
- *  @brief  announceノード情報
- *  @todo
- *      - channel_announcementに耐えられるようにすべきだが、まだ至っていない
- */
-typedef struct {
-    uint8_t                     node_id[BTC_SZ_PUBKEY];         ///< ノードID
-    char                        alias[LN_SZ_ALIAS_STR + 1];     ///< 名前
-    btc_script_pubkey_order_t   sort;                           ///< ノードの順番
-                                                            // #BTC_SCRYPT_PUBKEY_ORDER_ASC : 自ノードが先
-                                                            // #BTC_SCRYPT_PUBKEY_ORDER_OTHER : 他ノードが先
-} ln_node_info_t;
-
-
 /** @struct ln_funding_local_data_t
  *  @brief  自ノードfunding情報
  */
@@ -686,9 +672,7 @@ typedef struct {
     uint8_t             txid[BTC_SZ_TXID];              ///< funding-tx TXID
     uint16_t            txindex;                        ///< funding-tx index
 
-    //LN_FUND_IDX_xxx
     uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];         ///< 自分の公開鍵
-    //LN_SCRIPT_IDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
 } ln_funding_local_data_t;
 
@@ -697,11 +681,9 @@ typedef struct {
  *  @brief  他ノードfunding情報
  */
 typedef struct {
-    //LN_FUND_IDX_xxx
-    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];     ///< 相手から受信した公開鍵
-    uint8_t             prev_percommit[BTC_SZ_PUBKEY];              ///< 1つ前のper_commit_point
-    //LN_SCRIPT_IDX_xxx
-    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
+    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];            ///< 相手から受信した公開鍵
+    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];    ///< script用PubKey
+    uint8_t             prev_percommit[BTC_SZ_PUBKEY];                      ///< 1つ前のper_commit_point
 } ln_funding_remote_data_t;
 
 
@@ -731,13 +713,9 @@ typedef struct {
 
 
 typedef struct {
-    uint64_t                    storage_index;                  ///< 自分のstorage_index
-                                                                //      鍵生成してからデクリメントするため、次に生成する際のindexを指している。
-                                                                //      初期値は0xFFFFFFFFFFFF(48bit)。
-                                                                //      初回のcommit_txは0xFF...FFで作成することになる。
-    uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
-
-    uint8_t                     priv[LN_FUND_IDX_NUM][BTC_SZ_PRIVKEY];
+    uint64_t            storage_index;
+    uint8_t             storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
+    uint8_t             priv[LN_FUND_IDX_NUM][BTC_SZ_PRIVKEY];
 } ln_self_priv_t;
 
 
