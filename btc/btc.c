@@ -47,7 +47,7 @@
  **************************************************************************/
 
 uint8_t HIDDEN  mPref[BTC_PREF_MAX];        ///< prefix関連
-bool HIDDEN     mNativeSegwit;              ///< true:segwitのトランザクションをnativeで生成
+bool HIDDEN     mNativeSegwit = true;       ///< true:segwitのトランザクションをnativeで生成
 
 
 /**************************************************************************
