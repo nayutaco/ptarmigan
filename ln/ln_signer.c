@@ -20,7 +20,7 @@
  *  under the License.
  */
 /** @file   ln_signer.c
- *  @brief  [LN]秘密鍵管理
+ *  @brief  ln_signer
  */
 
 #include "btc_crypto.h"
@@ -40,7 +40,7 @@
  **************************************************************************/
 
 static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Offset);
-static void get_secret(const ln_self_t *self, btc_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
+static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int FundIdx, const uint8_t *pPerCommit);
 
 
 /**************************************************************************
@@ -95,30 +95,28 @@ bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 }
 
 
-void HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
+bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
     if (self->priv_data.storage_index + 2 <= LN_SECRET_INDEX_INIT) {
         //  現在の funding_local.keys[LN_FUND_IDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
         //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
         //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-        create_per_commit_secret(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
+        return create_per_commit_secret(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
     } else {
-        memset(pSecret, 0, BTC_SZ_PRIVKEY);
+        memset(pSecret, 0x00, BTC_SZ_PRIVKEY);
         if (pPerCommitPt != NULL) {
             memcpy(pPerCommitPt, self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
         }
+        return true;
     }
 }
 
 
-void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
+bool HIDDEN ln_signer_get_revoke_secret(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
-    ln_derkey_revocation_privkey(pKeys->priv,
-                self->funding_local.pubkeys[LN_FUND_IDX_REVOCATION],
-                pPerCommit,
-                self->priv_data.priv[LN_FUND_IDX_REVOCATION],
-                pRevokedSec);
-    btc_keys_priv2pub(pKeys->pub, pKeys->priv);
+    if (!ln_derkey_revocation_privkey(pKeys->priv, self->funding_local.pubkeys[LN_FUND_IDX_REVOCATION],
+        pPerCommit, self->priv_data.priv[LN_FUND_IDX_REVOCATION], pRevokedSec)) return false;
+    return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
@@ -136,94 +134,81 @@ bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const
 
 bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKeys)
 {
-    bool ret;
+    bool ret = false;
     uint8_t txhash[BTC_SZ_HASH256];
     utl_buf_t sigbuf = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
 
-    btc_script_p2wpkh_create_scriptcode(&script_code, pKeys->pub);
+    if (!btc_script_p2wpkh_create_scriptcode(&script_code, pKeys->pub)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(pTx, txhash, Index, Value, &script_code)) goto LABEL_EXIT;;
+    if (!btc_sig_sign(&sigbuf, txhash, pKeys->priv)) goto LABEL_EXIT;;
+    if (!btc_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub)) goto LABEL_EXIT;;
 
-    ret = btc_sw_sighash(pTx, txhash, Index, Value, &script_code);
-    if (ret) {
-        ret = btc_sig_sign(&sigbuf, txhash, pKeys->priv);
-    }
-    if (ret) {
-        //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
-        btc_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
-    }
+    ret = true;
 
+LABEL_EXIT:
     utl_buf_free(&sigbuf);
     utl_buf_free(&script_code);
-
     return ret;
 }
 
 
-/* XXX: bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
 {
     return btc_sig_sign_rs(pRS, pTxHash, pPrivData->priv[PrivIndex]);
-}*/
+}
 
 
-void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool bRevoked)
+bool HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool bRevoked)
 {
-    if (!bRevoked) {
-        //<delayed_secretkey>
-        get_secret(self, pKey, LN_FUND_IDX_DELAYED,
-            self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    if (bRevoked) {
+        return ln_signer_get_revoke_secret(self, pKey, 
+            self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], self->revoked_sec.buf);
     } else {
-        //<revocationsecretkey>
-        ln_signer_get_revokesec(self, pKey,
-                    self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
-                    self->revoked_sec.buf);
+        return get_secret(self, pKey, LN_FUND_IDX_DELAYED,
+            self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
     }
 }
 
 
-void HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey)
+bool HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey)
 {
-    get_secret(self, pKey, LN_FUND_IDX_PAYMENT,
+    return get_secret(self, pKey, LN_FUND_IDX_PAYMENT,
         self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT]);
 }
 
 
-void HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey)
+bool HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey)
 {
-    get_secret(self, pKey, LN_FUND_IDX_HTLC,
+    return get_secret(self, pKey, LN_FUND_IDX_HTLC,
         self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
 }
 
 
-void HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey)
+bool HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey)
 {
-    get_secret(self, pKey, LN_FUND_IDX_HTLC,
+    return get_secret(self, pKey, LN_FUND_IDX_HTLC,
         self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT]);
 }
 
 
-bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
-                    utl_buf_t *pSig,
-                    uint64_t Value,
-                    const utl_buf_t *pWitScript, bool bRevoked)
+bool HIDDEN ln_signer_tolocal_tx(
+    const ln_self_t *self, btc_tx_t *pTx, utl_buf_t *pSig, uint64_t Value,
+    const utl_buf_t *pWitScript, bool bRevoked)
 {
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
         LOGE("fail: invalid vin/vout\n");
         return false;
     }
 
-    btc_keys_t sigkey;
-    ln_signer_tolocal_key(self, &sigkey, bRevoked);
+    btc_keys_t key;
+    if (!ln_signer_tolocal_key(self, &key, bRevoked)) return false;
 
-    bool ret;
-    uint8_t sighash[BTC_SZ_HASH256];
-
-    //vinは1つしかないので、Indexは0固定
-    ret = btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, Value, pWitScript);
-    if (ret) {
-        ret = btc_sig_sign(pSig, sighash, sigkey.priv);
-    }
-
-    return ret;
+    uint8_t hash[BTC_SZ_HASH256];
+    if (!btc_sw_sighash_p2wsh_wit(pTx, hash,
+        0, //only one vin
+        Value, pWitScript)) return false;
+    return btc_sig_sign(pSig, hash, key.priv);
 }
 
 
@@ -239,7 +224,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
  */
 static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
 {
-    ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, Index);
+    /*void*/ ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, Index);
     uint8_t pub[BTC_SZ_PUBKEY];
     if (!btc_keys_priv2pub(pub, pSecret)) return false;
     if (pPerCommitPt != NULL) {
@@ -254,11 +239,9 @@ static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, ui
 }
 
 
-static void get_secret(const ln_self_t *self, btc_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
+static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int FundIdx, const uint8_t *pPerCommit)
 {
-    ln_derkey_privkey(pKeys->priv,
-                self->funding_local.pubkeys[MsgFundIdx],
-                pPerCommit,
-                self->priv_data.priv[MsgFundIdx]);
-    btc_keys_priv2pub(pKeys->pub, pKeys->priv);
+    if (!ln_derkey_privkey(pKeys->priv, self->funding_local.pubkeys[FundIdx],
+        pPerCommit, self->priv_data.priv[FundIdx])) return false;
+    return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }

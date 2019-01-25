@@ -1028,7 +1028,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;
-    ln_signer_get_revokesec(self, &signkey,
+    ln_signer_get_revoke_secret(self, &signkey,
                     self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
                     self->revoked_sec.buf);
     // LOGD("key-priv: ");
