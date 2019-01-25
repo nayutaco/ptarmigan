@@ -545,7 +545,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     // //revokeするsecret
     // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
     //     uint8_t old_secret[BTC_SZ_PRIVKEY];
-    //     ln_derkey_create_secret(old_secret, self->priv_data.storage_seed, LN_SECRET_INDEX_INIT - index);
+    //     ln_derkey_storage_create_secret(old_secret, self->priv_data.storage_seed, LN_SECRET_INDEX_INIT - index);
     //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT -index);
     //     DUMPD(old_secret, sizeof(old_secret));
     // }
@@ -1100,7 +1100,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
             // revoke_and_ackで渡すsecretは、storage_index+2。
             // 既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
             //
-            ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 3);
+            ln_derkey_storage_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 3);
             LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 3);
             DUMPD(secret, BTC_SZ_PRIVKEY);
         }

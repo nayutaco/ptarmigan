@@ -109,7 +109,7 @@ bool HIDDEN ln_derkey_revocation_privkey(uint8_t *pPrivKey,
  * @param[in]       pSeed(32byte)
  * @param[in]       Index(下位6byte使用)
  */
-void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uint64_t Index);
+void HIDDEN ln_derkey_storage_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uint64_t Index);
 
 
 /** per-commitment secret storage初期化

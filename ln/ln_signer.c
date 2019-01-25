@@ -223,7 +223,7 @@ bool HIDDEN ln_signer_tolocal_tx(
  */
 static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
 {
-    /*void*/ ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, Index);
+    /*void*/ ln_derkey_storage_create_secret(pSecret, self->priv_data.storage_seed, Index);
     uint8_t pub[BTC_SZ_PUBKEY];
     if (!btc_keys_priv2pub(pub, pSecret)) return false;
     if (pPerCommitPt != NULL) {

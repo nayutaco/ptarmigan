@@ -119,14 +119,14 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
  * @note
  *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
  */
-int btc_ecc_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
+int btc_ecc_ecp_read_binary_pubkey(void *pPoint, const uint8_t *pBin);
 
 
 /**
  * pPubKeyOut = pPubKeyIn + pA * G
  *
  */
-int btc_ecc_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
+int btc_ecc_ecp_add(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
 
 
 /**

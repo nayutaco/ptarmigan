@@ -638,7 +638,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
         pubx[0] = 0x02;
         ret = mbedtls_mpi_write_binary(&x, pubx + 1, BTC_SZ_FIELD);
         assert(ret == 0);
-        ret = btc_ecc_ecp_point_read_binary2(&R, pubx);
+        ret = btc_ecc_ecp_read_binary_pubkey(&R, pubx);
         assert(ret == 0);
 
         // 1.4.
