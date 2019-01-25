@@ -285,7 +285,7 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_EQ(0, memcmp(keys_local_funding.pub, LOCAL_FUNDING_PUBKEY, BTC_SZ_PUBKEY));
     memcpy(remote_funding_pubkey, REMOTE_FUNDING_PUBKEY, BTC_SZ_PUBKEY);
 
-    memcpy(priv_data.priv[MSG_FUNDIDX_FUNDING], LOCAL_FUNDING_PRIVKEY, BTC_SZ_PRIVKEY);
+    memcpy(priv_data.priv[LN_FUND_IDX_FUNDING], LOCAL_FUNDING_PRIVKEY, BTC_SZ_PRIVKEY);
 
     memcpy(keys_local_commit.priv, LOCAL_SECRETKEY, BTC_SZ_PRIVKEY);
     ret = btc_keys_priv2pub(keys_local_commit.pub, keys_local_commit.priv);

@@ -126,10 +126,10 @@ static MDB_env      *mpDbWalt = NULL;
 static FILE         *fp_err;
 
 
-static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
+static const char *KEYS_STR[LN_FUND_IDX_NUM] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
-static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
+static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
     "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
 
@@ -253,7 +253,7 @@ static void ln_print_self(const ln_self_t *self)
     btc_dbg_dump_txid(stdout, self->funding_local.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         // printf(INDENT4 M_QQ("priv") ": \"");
         // utl_dbg_dump(stdout, self->funding_local.keys[lp].priv, BTC_SZ_PRIVKEY, false);
@@ -263,7 +263,7 @@ static void ln_print_self(const ln_self_t *self)
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
-    for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         if (lp != 0) {
             printf(",\n");
         }
@@ -277,7 +277,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 
     printf(INDENT3 M_QQ("funding_remote") ": {\n");
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
         utl_dbg_dump(stdout, self->funding_remote.pubkeys[lp], BTC_SZ_PUBKEY, false);
@@ -287,7 +287,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("%s") ": \"", "prev_percommit");
     utl_dbg_dump(stdout, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY, false);
     printf("\",\n");
-    for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
+    for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         if (lp != 0) {
             printf(",\n");
         }

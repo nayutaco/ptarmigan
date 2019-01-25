@@ -532,7 +532,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     }
 
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
-    ln_signer_create_prev_percommitsec(self, prev_secret, NULL);
+    ln_signer_create_prev_per_commit_secret(self, prev_secret, NULL);
 
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
@@ -545,14 +545,14 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     // //revokeするsecret
     // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
     //     uint8_t old_secret[BTC_SZ_PRIVKEY];
-    //     ln_derkey_create_secret(old_secret, self->priv_data.storage_seed, LN_SECINDEX_INIT - index);
-    //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECINDEX_INIT -index);
+    //     ln_derkey_create_secret(old_secret, self->priv_data.storage_seed, LN_SECRET_INDEX_INIT - index);
+    //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT -index);
     //     DUMPD(old_secret, sizeof(old_secret));
     // }
 
     revack.p_channel_id = commsig.p_channel_id;
     revack.p_per_commitment_secret = prev_secret;
-    revack.p_next_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    revack.p_next_per_commitment_point = self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT];
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
     ret = ln_msg_revoke_and_ack_write(&buf, &revack);
     if (ret) {
@@ -627,12 +627,12 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
     // uint8_t old_secret[BTC_SZ_PRIVKEY];
     // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
-    //     ret = ln_derkey_storage_get_secret(old_secret, &self->peer_storage, LN_SECINDEX_INIT - index);
+    //     ret = ln_derkey_storage_get_secret(old_secret, &self->peer_storage, LN_SECRET_INDEX_INIT - index);
     //     if (ret) {
     //         uint8_t pubkey[BTC_SZ_PUBKEY];
     //         btc_keys_priv2pub(pubkey, old_secret);
     //         //M_DB_SELF_SAVE(self);
-    //         LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECINDEX_INIT - index);
+    //         LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT - index);
     //         DUMPD(old_secret, sizeof(old_secret));
     //         LOGD("$$$ pubkey: ");
     //         DUMPD(pubkey, sizeof(pubkey));
@@ -646,7 +646,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     //     LOGE("fail: prev_secret mismatch\n");
 
     //     //check re-send
-    //     if (memcmp(new_commitpt, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY) == 0) {
+    //     if (memcmp(new_commitpt, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY) == 0) {
     //         //current per_commitment_point
     //         LOGD("skip: same as previous next_per_commitment_point\n");
     //         ret = true;
@@ -668,8 +668,8 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //per_commitment_point更新
-    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
     ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
@@ -1071,14 +1071,14 @@ void ln_channel_reestablish_after(ln_self_t *self)
         LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");
 
         uint8_t prev_secret[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_percommitsec(self, prev_secret, NULL);
+        ln_signer_create_prev_per_commit_secret(self, prev_secret, NULL);
 
         utl_buf_t buf = UTL_BUF_INIT;
         ln_msg_revoke_and_ack_t revack;
         revack.p_channel_id = self->channel_id;
         revack.p_per_commitment_secret = prev_secret;
-        revack.p_next_per_commitment_point = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+        revack.p_next_per_commitment_point = self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT];
+        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
         bool ret = ln_msg_revoke_and_ack_write(&buf, &revack);
         if (ret) {
             ln_callback(self, LN_CB_SEND_REQ, &buf);
@@ -1551,7 +1551,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
         //M_DB_SELF_SAVE(self);    //保存は呼び出し元で行う
         LOGD("I=%016" PRIx64 " --> %016" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
-        //for (uint64_t idx = LN_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
+        //for (uint64_t idx = LN_SECRET_INDEX_INIT; idx > self->peer_storage_index; idx--) {
         //    LOGD("I=%016" PRIx64 "\n", idx);
         //    LOGD2("  ");
         //    uint8_t sec[BTC_SZ_PRIVKEY];

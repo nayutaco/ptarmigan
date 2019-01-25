@@ -54,7 +54,7 @@ void HIDDEN ln_signer_term(ln_self_t *self);
  * @note
  *      - open_channel/accept_channelの送信前に使用する想定
  */
-void HIDDEN ln_signer_create_channelkeys(ln_self_t *self);
+bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self);
 
 
 /** local per_commitment_secret更新およびstorage_index更新
@@ -63,13 +63,13 @@ void HIDDEN ln_signer_create_channelkeys(ln_self_t *self);
  * @note
  *      - indexを進める
  */
-void HIDDEN ln_signer_keys_update_storage(ln_self_t *self);
+bool HIDDEN ln_signer_keys_update_storage(ln_self_t *self);
 
 
 /** local per_commitment_secret更新(storage_index指定)
  *
  */
-void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
+bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
 
 
 /** 1つ前のper_commit_secret取得
@@ -77,7 +77,7 @@ void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
  * @param[in,out]   self            チャネル情報
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
-void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt);
+void HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt);
 
 
 /**

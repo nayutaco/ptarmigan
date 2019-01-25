@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <ftw.h>
+#include <stddef.h>
 
 #include "utl_str.h"
 #include "utl_dbg.h"
@@ -846,8 +847,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     //復元データからさらに復元
     ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
     btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
-            self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
-            self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
+            self->funding_local.pubkeys[LN_FUND_IDX_FUNDING],
+            self->funding_remote.pubkeys[LN_FUND_IDX_FUNDING]);
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
@@ -4099,7 +4100,7 @@ static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     // LOGD("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");
     // DUMPD(self->priv_data.storage_seed, BTC_SZ_PRIVKEY);
-    // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {
+    // for (size_t lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
     //     LOGD("[priv][%lu] ", lp);
     //     DUMPD(self->priv_data.priv[lp], BTC_SZ_PRIVKEY);
     // }

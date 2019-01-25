@@ -53,7 +53,7 @@
  * @param[in]           DustLimitSat      localのDustLimitSat
  * @retval      true    成功
  * @note
- *      - pubkeys[MSG_FUNDIDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
+ *      - pubkeys[LN_FUND_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
 bool HIDDEN ln_comtx_create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
