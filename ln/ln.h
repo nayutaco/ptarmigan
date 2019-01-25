@@ -828,18 +828,6 @@ struct ln_self_t {
 
 
 /**************************************************************************
- * static variables //XXX:
- **************************************************************************/
-
-extern uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
-
-
-//blockhash at node creation
-//      usage: search blockchain limit
-extern uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
-
-
-/**************************************************************************
  * prototypes
  **************************************************************************/
 

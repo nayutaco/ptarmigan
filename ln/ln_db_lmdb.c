@@ -778,7 +778,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     LOGD("DB genesis hash:\n");
     btc_block_chain_t dbtype = btc_block_get_chain(genesis);
     LOGD("node genesis hash:\n");
-    btc_block_chain_t bctype = btc_block_get_chain(gGenesisChainHash);
+    btc_block_chain_t bctype = btc_block_get_chain(ln_genesishash_get());
     if (dbtype != bctype) {
         LOGE("fail: genesis hash(%d != %d)\n", dbtype, bctype);
         if (bStdErr) fprintf(stderr, "genesis hash not match\n");
@@ -4747,13 +4747,13 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         // LOGD("name=%s\n", pNodeName);
         // LOGD("port=%" PRIu16 "\n", Port);
         nodeinfo_t nodeinfo;
-        memcpy(nodeinfo.genesis, gGenesisChainHash, BTC_SZ_HASH256);
+        memcpy(nodeinfo.genesis, ln_genesishash_get(), BTC_SZ_HASH256);
         strncpy(nodeinfo.wif, pWif, BTC_SZ_WIF_STR_MAX);
         strncpy(nodeinfo.name, pNodeName, LN_SZ_ALIAS_STR);
         nodeinfo.wif[BTC_SZ_WIF_STR_MAX] = '\0';
         nodeinfo.name[LN_SZ_ALIAS_STR] = '\0';
         nodeinfo.port = Port;
-        memcpy(nodeinfo.create_bhash, gCreationBlockHash, BTC_SZ_HASH256);
+        memcpy(nodeinfo.create_bhash, ln_creationhash_get(), BTC_SZ_HASH256);
         data.mv_size = sizeof(nodeinfo);
         data.mv_data = (void *)&nodeinfo;
         retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -4826,7 +4826,7 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
         *pPort = nodeinfo.port;
     }
     memcpy(pGenesis, nodeinfo.genesis, BTC_SZ_HASH256);
-    memcpy(gCreationBlockHash, nodeinfo.create_bhash, BTC_SZ_HASH256);
+    ln_creationhash_set(nodeinfo.create_bhash);
     // LOGD("wif=%s\n", pWif);
     // LOGD("name=%s\n", pNodeName);
     // LOGD("port=%" PRIu16 "\n", *pPort);

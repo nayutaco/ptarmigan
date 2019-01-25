@@ -116,7 +116,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
 
     //open_channel
     ln_msg_open_channel_t msg;
-    msg.p_chain_hash = gGenesisChainHash;
+    msg.p_chain_hash = ln_genesishash_get();
     msg.p_temporary_channel_id = self->channel_id;
     msg.funding_satoshis = FundingSat;
     msg.push_msat = LN_SATOSHI2MSAT(PushSat);
@@ -187,7 +187,7 @@ bool HIDDEN ln_open_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t
     memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_HTLC], msg.p_htlc_basepoint, BTC_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], msg.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
-    if (memcmp(gGenesisChainHash, msg.p_chain_hash, sizeof(gGenesisChainHash))) {
+    if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
         LOGE("fail: chain_hash mismatch\n");
         return false;
     }
