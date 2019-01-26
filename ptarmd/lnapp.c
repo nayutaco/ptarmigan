@@ -111,6 +111,8 @@
 #define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
 #define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
+#define M_SZ_SCRIPT_PARAM       (512)
+
 #if 1
 #define DBGTRACE_BEGIN  LOGD("BEGIN\n");
 #define DBGTRACE_END    LOGD("END\n");
@@ -379,8 +381,8 @@ LABEL_EXIT:
         utl_str_bin2str(hashstr, pPay->payment_hash, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%s %s "
+        char param[M_SZ_SCRIPT_PARAM];
+        snprintf(param, sizeof(param), "%s %s "
                     "%" PRIu64 " "
                     "%" PRIu32 " "
                     "%s",
@@ -398,7 +400,7 @@ LABEL_EXIT:
     } else {
         LOGE("fail\n");
         // char errstr[512];
-        // sprintf(errstr, M_ERRSTR_CANNOTSTART,
+        // snprintf(errstr, sizeof(errstr), M_ERRSTR_CANNOTSTART,
         //             ln_our_msat(pAppConf->p_self),
         //             pPay->hop_datain[0].amt_to_forward);
         // set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
@@ -729,7 +731,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
                 utl_str_bin2str(transaction, buf.buf, buf.len);
                 utl_buf_free(&buf);
 
-                char title[10];
+                char title[128];
                 if (lp == LN_CLOSE_IDX_COMMIT) {
                     strcpy(title, "committx");
                 } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
@@ -737,7 +739,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
                 } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
                     strcpy(title, "to_remote");
                 } else {
-                    sprintf(title, "htlc%d", lp - LN_CLOSE_IDX_HTLC);
+                    snprintf(title, sizeof(title), "htlc%d", lp - LN_CLOSE_IDX_HTLC);
                 }
                 cJSON_AddItemToObject(result, title, cJSON_CreateString(transaction));
                 UTL_DBG_FREE(transaction);
@@ -1037,17 +1039,19 @@ static void *thread_main_start(void *pArg)
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
+        // $4: recieved_localfeatures
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%s %s "
-                    "%s",
+        char param[M_SZ_SCRIPT_PARAM];
+        snprintf(param, sizeof(param), "%s %s "
+                    "%s %d",
                     str_sci, node_id,
-                    peer_id);
+                    peer_id,
+                    p_self->lfeature_remote);
         ptarmd_call_script(PTARMD_EVT_CONNECTED, param);
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
@@ -1083,7 +1087,7 @@ LABEL_SHUTDOWN:
 
     LOGD("stop channel[%016" PRIx64 "]\n", ln_short_channel_id(p_self));
 
-    if (ln_short_channel_id(p_self) != 0) {
+    if (p_conf->sock != -1) {
         // method: disconnect
         // $1: short_channel_id
         // $2: node_id
@@ -1094,8 +1098,8 @@ LABEL_SHUTDOWN:
         utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%s %s "
+        char param[M_SZ_SCRIPT_PARAM];
+        snprintf(param, sizeof(param), "%s %s "
                     "%s",
                     str_sci, node_id,
                     peer_id);
@@ -1397,13 +1401,13 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
     char txidstr[BTC_SZ_TXID * 2 + 1];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
-    char param[256];
+    char param[M_SZ_SCRIPT_PARAM];
     uint64_t total_amount = ln_node_total_msat();
 
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     utl_str_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), BTC_SZ_TXID);
     utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%s %s "
+    snprintf(param, sizeof(param), "%s %s "
                 "%" PRIu64 " "
                 "%s",
                 str_sci, node_id,
@@ -2460,13 +2464,13 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     ln_cb_add_htlc_recv_t *p_addhtlc = (ln_cb_add_htlc_recv_t *)p_param;
-    const char *p_stat;
+    const char *p_info;
     char str_stat[256];
 
     ptarmd_preimage_lock();
     if (p_addhtlc->p_hop->b_exit) {
         //final node
-        p_stat = "final node";
+        p_info = "final node";
         LOGD("final node\n");
         cbsub_add_htlc_finalnode(p_conf, p_addhtlc);
     } else {
@@ -2474,7 +2478,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         snprintf(str_stat, sizeof(str_stat), "-->[fwd]0x%016" PRIx64 ", cltv=%d",
                 p_addhtlc->p_hop->short_channel_id,
                 p_addhtlc->p_hop->outgoing_cltv_value);
-        p_stat = str_stat;
+        p_info = str_stat;
         LOGD("forward\n");
         cbsub_add_htlc_forward(p_conf, p_addhtlc);
     }
@@ -2482,7 +2486,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     ptarmd_eventlog(ln_channel_id(p_conf->p_self),
             "[RECV]add_htlc: %s(HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d)",
-                p_stat,
+                p_info,
                 p_addhtlc->id,
                 p_addhtlc->amount_msat,
                 p_addhtlc->cltv_expiry);
@@ -2550,8 +2554,8 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         utl_str_bin2str(hashstr, p_addhtlc->p_payment, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%s %s "
+        char param[M_SZ_SCRIPT_PARAM];
+        snprintf(param, sizeof(param), "%s %s "
                     "%" PRIu64 " "
                     "%" PRIu32 " "
                     "%s",
@@ -2636,25 +2640,25 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     ln_cb_fulfill_htlc_recv_t *p_fulfill = (ln_cb_fulfill_htlc_recv_t *)p_param;
-    const char *p_stat;
+    const char *p_info;
     char str_stat[256];
 
     if (p_fulfill->prev_short_channel_id != 0) {
         LOGD("backwind: id=%" PRIu64 ", prev_short_channel_id=%016" PRIx64 "\n", p_fulfill->id, p_fulfill->prev_short_channel_id);
         snprintf(str_stat, sizeof(str_stat), "-->[fwd]%016" PRIx64, p_fulfill->prev_short_channel_id);
-        p_stat = str_stat;
+        p_info = str_stat;
 
         cbsub_fulfill_backwind(p_conf, p_fulfill);
     } else {
         LOGD("origin node\n");
-        p_stat = "origin node";
+        p_info = "origin node";
 
         cbsub_fulfill_originnode(p_conf, p_fulfill);
     }
 
     ptarmd_eventlog(ln_channel_id(p_conf->p_self),
         "[RECV]fulfill_htlc: %s(HTLC id=%" PRIu64 "): %s",
-            p_stat,
+            p_info,
             p_fulfill->id,
             ((p_fulfill->ret) ? "success" : "fail"));
 
@@ -2696,8 +2700,8 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv
         utl_str_bin2str(imgstr, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%s %s "
+        char param[M_SZ_SCRIPT_PARAM];
+        snprintf(param, sizeof(param), "%s %s "
                     "%s "
                     "%s",
                     str_sci, node_id,
@@ -2747,25 +2751,44 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     ln_cb_fail_htlc_recv_t *p_fail = (ln_cb_fail_htlc_recv_t *)p_param;
-    const char *p_stat;
+    const char *p_info;
     char str_stat[256];
 
     if (p_fail->prev_short_channel_id != 0) {
         LOGD("backwind fail_htlc: prev_idx=%" PRIu16 ", prev_short_channel_id=%016" PRIx64 ")\n", p_fail->prev_idx, p_fail->prev_short_channel_id);
         snprintf(str_stat, sizeof(str_stat), "-->%016" PRIx64, p_fail->prev_short_channel_id);
-        p_stat = str_stat;
+        p_info = str_stat;
 
         cbsub_fail_backwind(p_conf, p_fail);
     } else {
         LOGD("origin node\n");
-        p_stat = "origin node";
+        p_info = "origin node";
 
         cbsub_fail_originnode(p_conf, p_fail);
     }
 
+    if (p_fail->result) {
+        show_self_param(p_conf->p_self, stderr, "fail_htlc send", __LINE__);
+
+        // method: fail
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: info
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        char param[M_SZ_SCRIPT_PARAM];
+        snprintf(param, sizeof(param), "%s %s "
+                    "\"%s\"",
+                    str_sci, node_id,
+                    p_info);
+        ptarmd_call_script(PTARMD_EVT_FAIL, param);
+    }
+
     ptarmd_eventlog(ln_channel_id(p_conf->p_self),
         "[RECV]fail_htlc: %s(HTLC id=%" PRIu64 ")",
-                p_stat,
+                p_info,
                 p_fail->orig_id);
 
     DBGTRACE_END
@@ -2789,22 +2812,6 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *p_
         pthread_mutex_unlock(&p_prevconf->mux_self);
     }
     p_fail->result = ret;
-
-    if (ret) {
-        show_self_param(p_conf->p_self, stderr, "fail_htlc send", __LINE__);
-
-        // method: fail
-        // $1: short_channel_id
-        // $2: node_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%s %s ",
-                    str_sci, node_id);
-        ptarmd_call_script(PTARMD_EVT_FAIL, param);
-    }
 }
 
 
@@ -2887,7 +2894,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *
 
         char errstr[512];
         char *reasonstr = ln_onion_get_errstr(&onionerr);
-        sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
+        snprintf(errstr, sizeof(errstr), M_ERRSTR_REASON, reasonstr, hop, suggest);
         cmd_json_pay_result(p_fail->p_payment_hash, errstr);
         UTL_DBG_FREE(reasonstr);
         UTL_DBG_FREE(onionerr.p_data);
@@ -2910,13 +2917,13 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
     // $2: node_id
     // $3: our_msat
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-    char param[256];
+    char param[M_SZ_SCRIPT_PARAM];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     uint64_t total_amount = ln_node_total_msat();
 
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-    sprintf(param, "%s %s "
+    snprintf(param, sizeof(param), "%s %s "
                 "%" PRIu64,
                 str_sci, node_id,
                 total_amount);
@@ -2999,12 +3006,12 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
             // $3: closing_txid
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
             ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-            char param[256];
+            char param[M_SZ_SCRIPT_PARAM];
             char txidstr[BTC_SZ_TXID * 2 + 1];
             utl_str_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
             char node_id[BTC_SZ_PUBKEY * 2 + 1];
             utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-            sprintf(param, "%s %s "
+            snprintf(param, sizeof(param), "%s %s "
                         "%s",
                         str_sci, node_id,
                         txidstr);
@@ -3245,7 +3252,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%s %s "
+        snprintf(param, len_max, "%s %s "
                     "\"%s\"",
                     str_sci, node_id,
                     p_conf->p_errstr);

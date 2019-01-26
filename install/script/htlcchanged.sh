@@ -1,10 +1,13 @@
 #!/bin/bash
+set -eu
 #   method: htlc_changed
 #   $1: short_channel_id
 #   $2: node_id
 #   $3: our_msat
 DATE=`date -u +"%Y-%m-%dT%H:%M:%S.%N"`
-echo { \"method\": \"htlc_changed\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"our_msat\": $3 } | jq -c .
+cat << EOS | jq
+{ "method":"htlc_changed", "short_channel_id":"$1", "node_id":"$2", "date":"$DATE", "our_msat":$3 }
+EOS
 
 ## changes in amount
 #if [ -f our_msat_$1.txt ]; then
