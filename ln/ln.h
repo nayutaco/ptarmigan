@@ -41,6 +41,7 @@
 #include "ln_msg_anno.h"
 #include "ln_onion.h"
 #include "ln_derkey.h"
+#include "ln_derkey_ex.h"
 #include "ln_noise.h"
 #include "ln_node.h"
 
@@ -61,7 +62,6 @@ extern "C" {
 #define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< (size) signature
 #define LN_SZ_ALIAS_STR                 (32)        ///< (size) node alias //XXX:
 #define LN_SZ_PREIMAGE                  (32)        ///< (size) preimage
-#define LN_SZ_SEED                      (32)        ///< (size) seed
 #define LN_SZ_ONION_ROUTE               (1366)      ///< (size) onion-routing-packet
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< (size) noise packet header
 #define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< (size) funding_txのvsize(nested in BIP16 P2SH format)
@@ -143,34 +143,6 @@ extern "C" {
 #define LN_MAX_ACCEPTED_HTLCS_MAX       (483)
 #define LN_NUM_PONG_BYTES_MAX           (65532 - 1)
 #define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
-
-
-//0～5は、open_channel/accept_channelのfunding_pubkey～first_per_commitment_pointの順にすること
-//プロトコルで違いが生じた場合は、ソースを変更すること(ln_msg_establish.c)
-#define LN_FUND_IDX_FUNDING             (0)         ///< commitment tx署名用
-#define LN_FUND_IDX_REVOCATION          (1)         ///< revocation_basepoint
-#define LN_FUND_IDX_PAYMENT             (2)         ///< payment_basepoint
-#define LN_FUND_IDX_DELAYED             (3)         ///< delayed_payment_basepoint
-#define LN_FUND_IDX_HTLC                (4)         ///< htlc_basepoint
-#define LN_FUND_IDX_PER_COMMIT          (5)         ///< per_commitment_point
-                                                    ///<   commitment_signed:               next_per_commitment_point
-                                                    ///<   funding_created/funding_signed:  first_per_commitment_point
-                                                    ///<   unilateral close:                per_commitment_point
-                                                    ///<   revoked transaction close:       per_commitment_point
-#define LN_FUND_IDX_NUM                 (LN_FUND_IDX_PER_COMMIT + 1)
-
-
-//LN_FUND_IDX_PER_COMMITを使用してスクリプトを作成する
-#define LN_SCRIPT_IDX_REMOTEKEY         (0)         ///< remotekey
-#define LN_SCRIPT_IDX_DELAYED           (1)         ///< delayedkey
-#define LN_SCRIPT_IDX_REVOCATION        (2)         ///< revocationkey
-#define LN_SCRIPT_IDX_LOCALHTLCKEY      (3)         ///< local_htlckey
-#define LN_SCRIPT_IDX_REMOTEHTLCKEY     (4)         ///< remote_htlckey
-#define LN_SCRIPT_IDX_NUM               (LN_SCRIPT_IDX_REMOTEHTLCKEY+1)
-
-
-// https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
-#define LN_SECRET_INDEX_INIT            ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
 
 
 /**************************************************************************
@@ -672,7 +644,7 @@ typedef struct {
     uint8_t             txid[BTC_SZ_TXID];              ///< funding-tx TXID
     uint16_t            txindex;                        ///< funding-tx index
 
-    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];         ///< 自分の公開鍵
+    ln_derkey_pubkeys_t pubkeys;    ///< pubkeys
 } ln_funding_local_data_t;
 
 
@@ -680,8 +652,7 @@ typedef struct {
  *  @brief  他ノードfunding情報
  */
 typedef struct {
-    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];        ///< 相手から受信した公開鍵
-    uint8_t             prev_percommit[BTC_SZ_PUBKEY];                  ///< 1つ前のper_commit_point
+    ln_derkey_pubkeys_t pubkeys;    ///< pubkeys
 } ln_funding_remote_data_t;
 
 
@@ -707,15 +678,8 @@ typedef struct {
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
                                                         //      commit_local:  revoke_and_ack送信後、commit_local.commit_num - 1を代入
                                                         //      commit_remote: revoke_and_ack受信後、self->commit_remote.commit_num - 1を代入
-    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
+    ln_derkey_script_pubkeys_t  script_pubkeys;         ///< script用PubKey
 } ln_commit_data_t;
-
-
-typedef struct {
-    uint64_t            storage_index;
-    uint8_t             storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
-    uint8_t             priv[LN_FUND_IDX_NUM][BTC_SZ_PRIVKEY];
-} ln_self_priv_t;
 
 
 /** @struct     ln_self_t
@@ -729,7 +693,7 @@ struct ln_self_t {
 
     //key storage
     ln_derkey_storage_t         peer_storage;                   ///< [KEYS_01]key storage(peer)
-    ln_self_priv_t              priv_data;                      ///< [KEYS_02]secret情報
+    ln_derkey_privkeys_t        privkeys;                       ///< [KEYS_02]secret情報
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
