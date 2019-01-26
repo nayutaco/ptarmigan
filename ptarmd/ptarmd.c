@@ -424,8 +424,9 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
     struct stat buf;
     int ret = stat(kSCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char *cmdline = (char *)UTL_DBG_MALLOC(128 + strlen(param));    //UTL_DBG_FREE: この中
-        sprintf(cmdline, "%s %s", kSCRIPT[event], param);
+        size_t sclen = strlen(kSCRIPT[event]) + 64 + strlen(param);
+        char *cmdline = (char *)UTL_DBG_MALLOC(sclen);    //UTL_DBG_FREE: この中   //+64は余裕を持たせている
+        snprintf(cmdline, sclen, "%s %s", kSCRIPT[event], param);
         LOGD("cmdline: %s\n", cmdline);
         system(cmdline);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中

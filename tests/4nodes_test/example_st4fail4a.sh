@@ -46,4 +46,4 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 read -p "Hit ENTER Key!" key
 
 # 戻す
-#./ptarmcli --debug 1 $ACCIDENT_PORT
+./ptarmcli --debug 1 $ACCIDENT_PORT
