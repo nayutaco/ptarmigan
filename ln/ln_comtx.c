@@ -268,7 +268,7 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
     ln_script_create_tolocal(&buf_ws,
                 self->funding_remote.scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[LN_SCRIPT_IDX_DELAYED],
-                self->commit_local.to_self_delay);
+                self->commit_remote.to_self_delay);
 
     //HTLC info(amount)
     ln_script_htlcinfo_t **pp_htlcinfo = (ln_script_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t*) * LN_HTLC_MAX);
