@@ -126,7 +126,7 @@ static MDB_env      *mpDbWalt = NULL;
 static FILE         *fp_err;
 
 
-static const char *KEYS_STR[LN_FUND_IDX_NUM] = {
+static const char *KEYS_STR[LN_BASEPOINT_IDX_NUM + 1] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
@@ -230,9 +230,9 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("status") ": " M_QQ("%s") ",\n", p_status_str);
 
     //key storage
-    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->priv_data.storage_index);
+    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->privkeys.storage_index);
     // printf(M_QQ("storage_seed") ": \"");
-    // utl_dbg_dump(stdout, self->priv_data.storage_seed, BTC_SZ_PRIVKEY, false);
+    // utl_dbg_dump(stdout, self->privkeys.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
     printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_storage_get_current_index(&self->peer_storage));
 
@@ -253,23 +253,26 @@ static void ln_print_self(const ln_self_t *self)
     btc_dbg_dump_txid(stdout, self->funding_local.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
-    for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
+    int lp;
+    for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
-        // printf(INDENT4 M_QQ("priv") ": \"");
-        // utl_dbg_dump(stdout, self->funding_local.keys[lp].priv, BTC_SZ_PRIVKEY, false);
-        // printf("\",");
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->funding_local.pubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_local.pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
-    for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
+    printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
+    printf(INDENT5 M_QQ("pub") ": \"");
+    utl_dbg_dump(stdout, self->funding_local.pubkeys.per_commitment_point, BTC_SZ_PUBKEY, false);
+    printf("\"\n");
+    printf(INDENT4 "},\n");
+    for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         if (lp != 0) {
             printf(",\n");
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->commit_local.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->commit_local.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -277,23 +280,28 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 
     printf(INDENT3 M_QQ("funding_remote") ": {\n");
-    for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
+    for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->funding_remote.pubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_remote.pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
+    printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
+    printf(INDENT5 M_QQ("pub") ": \"");
+    utl_dbg_dump(stdout, self->funding_remote.pubkeys.per_commitment_point, BTC_SZ_PUBKEY, false);
+    printf("\"\n");
+    printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("%s") ": \"", "prev_percommit");
-    utl_dbg_dump(stdout, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\",\n");
-    for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
+    for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         if (lp != 0) {
             printf(",\n");
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->commit_remote.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->commit_remote.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -337,7 +345,7 @@ static void ln_print_self(const ln_self_t *self)
 
     printf(INDENT3 M_QQ("add_htlc") ": [\n");
     int cnt = 0;
-    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+    for (lp = 0; lp < LN_HTLC_MAX; lp++) {
         if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
             if (cnt > 0) {
                 printf(",\n");

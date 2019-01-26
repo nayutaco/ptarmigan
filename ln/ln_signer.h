@@ -90,13 +90,13 @@ bool HIDDEN ln_signer_get_revoke_secret(const ln_self_t *self, btc_keys_t *pKeys
  *
  * @param[out]      pSig
  * @param[in]       pTxHash
- * @param[in]       pPrivData
- * @param[in]       PrivIndex
+ * @param[in]       pPrivKeys
+ * @param[in]       Index
  * @return      true:成功
  * @note
  *      - 中身は #btc_sig_sign()
  */
-bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
+bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_derkey_privkeys_t *pPrivKeys, int Index);
 
 
 /** P2WSH署名 - Phase2: 署名作成(key指定)
@@ -128,13 +128,13 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
  *
  * @param[out]      pRS         署名結果
  * @param[in]       pTxHash     ハッシュ値
- * @param[in]       pPrivData
- * @param[in]       PrivIndex
+ * @param[in]       pPrivKeys
+ * @param[in]       Index
  * @return      true:成功
  * @note
  *      - #btc_init()の設定で署名する
  */
-bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_derkey_privkeys_t *pPrivKeys, int Index);
 
 
 /** to_local script署名用鍵取得

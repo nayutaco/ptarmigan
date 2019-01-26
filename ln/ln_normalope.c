@@ -552,7 +552,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
 
     revack.p_channel_id = commsig.p_channel_id;
     revack.p_per_commitment_secret = prev_secret;
-    revack.p_next_per_commitment_point = self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT];
+    revack.p_next_per_commitment_point = self->funding_local.pubkeys.per_commitment_point;
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
     ret = ln_msg_revoke_and_ack_write(&buf, &revack);
     if (ret) {
@@ -642,11 +642,11 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     //     }
     // }
 
-    // if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) != 0) {
+    // if (memcmp(prev_commitpt, self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY) != 0) {
     //     LOGE("fail: prev_secret mismatch\n");
 
     //     //check re-send
-    //     if (memcmp(new_commitpt, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY) == 0) {
+    //     if (memcmp(new_commitpt, self->funding_remote.pubkeys.per_commitment_point, BTC_SZ_PUBKEY) == 0) {
     //         //current per_commitment_point
     //         LOGD("skip: same as previous next_per_commitment_point\n");
     //         ret = true;
@@ -654,7 +654,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     //         LOGD("recv secret: ");
     //         DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
     //         LOGD("my secret: ");
-    //         DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+    //         DUMPD(self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
     //         ret = false;
     //     }
     //     goto LABEL_EXIT;
@@ -668,8 +668,8 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //per_commitment_point更新
-    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys.prev_per_commitment_point, self->funding_remote.pubkeys.per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
     ln_update_scriptkeys(self);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
@@ -1077,8 +1077,8 @@ void ln_channel_reestablish_after(ln_self_t *self)
         ln_msg_revoke_and_ack_t revack;
         revack.p_channel_id = self->channel_id;
         revack.p_per_commitment_secret = prev_secret;
-        revack.p_next_per_commitment_point = self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT];
-        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
+        revack.p_next_per_commitment_point = self->funding_local.pubkeys.per_commitment_point;
+        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys.per_commitment_point);
         bool ret = ln_msg_revoke_and_ack_write(&buf, &revack);
         if (ret) {
             ln_callback(self, LN_CB_SEND_REQ, &buf);
@@ -1105,7 +1105,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
             DUMPD(secret, BTC_SZ_PRIVKEY);
         }
         if ( (memcmp(reest.your_last_per_commitment_secret, secret, BTC_SZ_PRIVKEY) == 0) &&
-          (memcmp(reest.my_current_per_commitment_point, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) == 0) ) {
+          (memcmp(reest.my_current_per_commitment_point, self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY) == 0) ) {
             //一致
             LOGD("OK!\n");
         } else {
@@ -1114,7 +1114,7 @@ void ln_channel_reestablish_after(ln_self_t *self)
             LOGE("secret: ");
             DUMPE(secret, BTC_SZ_PRIVKEY);
             LOGE("prevpt: ");
-            DUMPE(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+            DUMPE(self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
         }
 
 #endif

@@ -537,8 +537,8 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
     est.p_fundin = &fundin;
 
     ln_init(dummy, seed, &annoprm, NULL);
-    memcpy(dummy->funding_remote.pubkeys[LN_FUND_IDX_FUNDING],
-            dummy->funding_local.pubkeys[LN_FUND_IDX_FUNDING],
+    memcpy(dummy->funding_remote.pubkeys[LN_BASEPOINT_IDX_FUNDING],
+            dummy->funding_local.pubkeys[LN_BASEPOINT_IDX_FUNDING],
             BTC_SZ_PUBKEY);
     memcpy(&dummy->establish, est, sizeof((est));
     bool ret = create_funding_tx(dummy, false);
@@ -670,7 +670,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
             if (ret) {
                 //revoked transaction close(remote)
                 self->status = LN_STATUS_CLOSE_REVOKED;
-                btc_keys_priv2pub(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], self->revoked_sec.buf);
+                btc_keys_priv2pub(self->funding_remote.pubkeys.per_commitment_point, self->revoked_sec.buf);
             } else {
                 //unilateral close(remote)
                 self->status = LN_STATUS_CLOSE_UNI_REMOTE;
@@ -702,17 +702,17 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, self->priv_data.priv[LN_FUND_IDX_PER_COMMIT], sizeof(bak_percommit));
-    memcpy(bak_remotecommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], sizeof(bak_remotecommit));
+    memcpy(bak_percommit, self->privkeys.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_remotecommit, self->funding_remote.pubkeys.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(self,
-                self->priv_data.priv[LN_FUND_IDX_PER_COMMIT],
-                self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
+                self->privkeys.per_commitment_secret,
+                self->funding_local.pubkeys.per_commitment_point);
 
     //remote
-    memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
-            self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys.per_commitment_point,
+            self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
     ln_update_scriptkeys(self);
@@ -732,11 +732,11 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     }
 
     //元に戻す
-    memcpy(self->priv_data.priv[LN_FUND_IDX_PER_COMMIT],
+    memcpy(self->privkeys.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT],
-            self->priv_data.priv[LN_FUND_IDX_PER_COMMIT]);
-    memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
+    btc_keys_priv2pub(self->funding_local.pubkeys.per_commitment_point,
+            self->privkeys.per_commitment_secret);
+    memcpy(self->funding_remote.pubkeys.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_scriptkeys(self);
     ln_print_keys(self);
@@ -758,17 +758,17 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, self->priv_data.priv[LN_FUND_IDX_PER_COMMIT], sizeof(bak_percommit));
-    memcpy(bak_remotecommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], sizeof(bak_remotecommit));
+    memcpy(bak_percommit, self->privkeys.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_remotecommit, self->funding_remote.pubkeys.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(self,
-                self->priv_data.priv[LN_FUND_IDX_PER_COMMIT],
-                self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT]);
+                self->privkeys.per_commitment_secret,
+                self->funding_local.pubkeys.per_commitment_point);
 
     //remote
-    memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
-            self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys.per_commitment_point,
+            self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
     ln_update_scriptkeys(self);
@@ -788,11 +788,11 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     }
 
     //元に戻す
-    memcpy(self->priv_data.priv[LN_FUND_IDX_PER_COMMIT],
+    memcpy(self->privkeys.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(self->funding_local.pubkeys[LN_FUND_IDX_PER_COMMIT],
-            self->priv_data.priv[LN_FUND_IDX_PER_COMMIT]);
-    memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
+    btc_keys_priv2pub(self->funding_local.pubkeys.per_commitment_point,
+            self->privkeys.per_commitment_secret);
+    memcpy(self->funding_remote.pubkeys.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_scriptkeys(self);
 
@@ -859,11 +859,11 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
         LOGE("fail: ln_derkey_storage_get_secret()\n");
         abort();
     }
-    btc_keys_priv2pub(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], self->revoked_sec.buf);
+    btc_keys_priv2pub(self->funding_remote.pubkeys.per_commitment_point, self->revoked_sec.buf);
     //LOGD2("  pri:");
     //DUMPD(self->revoked_sec.buf, BTC_SZ_PRIVKEY);
     //LOGD2("  pub:");
-    //DUMPD(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
+    //DUMPD(self->funding_remote.pubkeys.per_commitment_point, BTC_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
     ln_signer_keys_update_force(self, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
@@ -877,8 +877,8 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
     ln_script_create_tolocal(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
-                self->commit_remote.scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
-                self->commit_remote.scriptpubkeys[LN_SCRIPT_IDX_DELAYED],
+                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
+                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYED],
                 self->commit_remote.to_self_delay);
     utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
     btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
@@ -909,9 +909,9 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
                 ln_script_htlcinfo_script(&self->p_revoked_wit[htlc_idx],
                         type,
-                        self->commit_remote.scriptpubkeys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                        self->commit_remote.scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
-                        self->commit_remote.scriptpubkeys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
                 utl_buf_init(&self->p_revoked_vout[htlc_idx]);
@@ -1028,7 +1028,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
 
     btc_keys_t signkey;
     ln_signer_get_revoke_secret(self, &signkey,
-                    self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT],
+                    self->funding_remote.pubkeys.per_commitment_point,
                     self->revoked_sec.buf);
     // LOGD("key-priv: ");
     // DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
@@ -1576,11 +1576,10 @@ uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
 //
 void HIDDEN ln_update_scriptkeys(ln_self_t *self)
 {
-    typedef uint8_t pubkey_t[BTC_SZ_PUBKEY];
-    pubkey_t *p_local_pubkeys = self->funding_local.pubkeys;
-    pubkey_t *p_remote_pubkeys = self->funding_remote.pubkeys;
-    pubkey_t *p_local_scriptpubkeys = self->commit_local.scriptpubkeys;
-    pubkey_t *p_remote_scriptpubkeys = self->commit_remote.scriptpubkeys;
+    ln_derkey_pubkeys_t         *p_local_pubkeys = &self->funding_local.pubkeys;
+    ln_derkey_pubkeys_t         *p_remote_pubkeys = &self->funding_remote.pubkeys;
+    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &self->commit_local.script_pubkeys;
+    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &self->commit_remote.script_pubkeys;
 
     //
     //local
@@ -1588,28 +1587,28 @@ void HIDDEN ln_update_scriptkeys(ln_self_t *self)
 
     //remotekey = local per_commitment_point & remote payment
     //LOGD("local: remotekey\n");
-    ln_derkey_pubkey(p_local_scriptpubkeys[LN_SCRIPT_IDX_REMOTEKEY],
-                p_remote_pubkeys[LN_FUND_IDX_PAYMENT], p_local_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEKEY],
+                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_PAYMENT], p_local_pubkeys->per_commitment_point);
 
     //delayedkey = local per_commitment_point & local delayed_payment
     //LOGD("local: delayedkey\n");
-    ln_derkey_pubkey(p_local_scriptpubkeys[LN_SCRIPT_IDX_DELAYED],
-                p_local_pubkeys[LN_FUND_IDX_DELAYED], p_local_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_DELAYED],
+                p_local_pubkeys->keys[LN_BASEPOINT_IDX_DELAYED], p_local_pubkeys->per_commitment_point);
 
     //revocationkey = remote per_commitment_point & local revocation_basepoint
     //LOGD("local: revocationkey\n");
-    ln_derkey_revocation_pubkey(p_local_scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
-                p_remote_pubkeys[LN_FUND_IDX_REVOCATION], p_local_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_revocation_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_REVOCATION],
+                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_REVOCATION], p_local_pubkeys->per_commitment_point);
 
     //local_htlckey = local per_commitment_point & local htlc_basepoint
     //LOGD("local: local_htlckey\n");
-    ln_derkey_pubkey(p_local_scriptpubkeys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                p_local_pubkeys[LN_FUND_IDX_HTLC], p_local_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
+                p_local_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_local_pubkeys->per_commitment_point);
 
     //remote_htlckey = local per_commitment_point & remote htlc_basepoint
     //LOGD("local: remote_htlckey\n");
-    ln_derkey_pubkey(p_local_scriptpubkeys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
-                p_remote_pubkeys[LN_FUND_IDX_HTLC], p_local_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_local_pubkeys->per_commitment_point);
 
 
     //
@@ -1618,28 +1617,28 @@ void HIDDEN ln_update_scriptkeys(ln_self_t *self)
 
     //remotekey = remote per_commitment_point & local payment
     //LOGD("remote: remotekey\n");
-    ln_derkey_pubkey(p_remote_scriptpubkeys[LN_SCRIPT_IDX_REMOTEKEY],
-                p_local_pubkeys[LN_FUND_IDX_PAYMENT], p_remote_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEKEY],
+                p_local_pubkeys->keys[LN_BASEPOINT_IDX_PAYMENT], p_remote_pubkeys->per_commitment_point);
 
     //delayedkey = remote per_commitment_point & remote delayed_payment
     //LOGD("remote: delayedkey\n");
-    ln_derkey_pubkey(p_remote_scriptpubkeys[LN_SCRIPT_IDX_DELAYED],
-                p_remote_pubkeys[LN_FUND_IDX_DELAYED], p_remote_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_DELAYED],
+                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_DELAYED], p_remote_pubkeys->per_commitment_point);
 
     //revocationkey = local per_commitment_point & remote revocation_basepoint
     //LOGD("remote: revocationkey\n");
-    ln_derkey_revocation_pubkey(p_remote_scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
-                p_local_pubkeys[LN_FUND_IDX_REVOCATION], p_remote_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_revocation_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_REVOCATION],
+                p_local_pubkeys->keys[LN_BASEPOINT_IDX_REVOCATION], p_remote_pubkeys->per_commitment_point);
 
     //local_htlckey = remote per_commitment_point & remote htlc_basepoint
     //LOGD("remote: local_htlckey\n");
-    ln_derkey_pubkey(p_remote_scriptpubkeys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                p_remote_pubkeys[LN_FUND_IDX_HTLC], p_remote_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
+                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_remote_pubkeys->per_commitment_point);
 
     //remote_htlckey = remote per_commitment_point & local htlc_basepoint
     //LOGD("remote: remote_htlckey\n");
-    ln_derkey_pubkey(p_remote_scriptpubkeys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
-                p_local_pubkeys[LN_FUND_IDX_HTLC], p_remote_pubkeys[LN_FUND_IDX_PER_COMMIT]);
+    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                p_local_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_remote_pubkeys->per_commitment_point);
 }
 
 
@@ -1764,7 +1763,7 @@ static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
 void ln_dbg_commitnum(const ln_self_t *self)
 {
     LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %016" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("storage_index      = %016" PRIx64 "\n", self->privkeys.storage_index);
     LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->peer_storage));
     LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);

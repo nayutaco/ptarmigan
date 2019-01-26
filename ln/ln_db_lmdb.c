@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-32))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-33))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -161,6 +161,7 @@
     -30: bitcoindとSPVを同じにする
     -31: include peer_storage_index in ln_derkey_storage_t
     -32: exchange the values of commit_local.to_self_delay and commit_remote.to_self_delay
+    -33: change the format of pub/priv keys
  */
 
 
@@ -307,9 +308,7 @@ static MDB_txn          *mTxnAnno;
  *  @brief  ln_self_tのsecret
  */
 static const backup_param_t DBSELF_SECRET[] = {
-    M_ITEM(ln_self_priv_t, storage_index),
-    M_ITEM(ln_self_priv_t, storage_seed),
-    M_ITEM(ln_self_priv_t, priv),
+    M_ITEM(ln_self_t, privkeys),
 };
 
 
@@ -339,7 +338,6 @@ static const backup_param_t DBSELF_VALUES[] = {
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),        //[FUND02]
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),        //[FUND02]
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),      //[FUND03]funding_remote
-    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),   //[FUND03]
     M_ITEM(ln_self_t, obscured),    //[FUND04]
     //[FUND05]redeem_fund
     //[FUND06]key_fund_sort
@@ -461,7 +459,6 @@ static const backup_param_t DBSELF_COPY[] = {
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
-    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
@@ -848,8 +845,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     //復元データからさらに復元
     ln_update_scriptkeys(self);
     btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
-            self->funding_local.pubkeys[LN_FUND_IDX_FUNDING],
-            self->funding_remote.pubkeys[LN_FUND_IDX_FUNDING]);
+            self->funding_local.pubkeys.keys[LN_BASEPOINT_IDX_FUNDING],
+            self->funding_remote.pubkeys.keys[LN_BASEPOINT_IDX_FUNDING]);
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
@@ -1149,11 +1146,6 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                     utl_dbg_dump(stdout, p, DBSELF_COPYIDX[lp].length, false);
                     printf("\"");
                 }
-#ifdef M_DEBUG_KEYS
-                if (DBSELF_COPYIDX[lp].type == ETYPE_REMOTECOMM) {
-                    memcpy(remote.prev_percommit, p, DBSELF_COPYIDX[lp].length);
-                }
-#endif  //M_DEBUG_KEYS
                 break;
             case ETYPE_UINT64U:
                 if (DBSELF_COPYIDX[lp].disp) {
@@ -1193,14 +1185,14 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 #ifdef M_DEBUG_KEYS
                 {
                     const btc_keys_t *p_keys = (const btc_keys_t *)p;
-                    memcpy(local.pubkeys, p_keys, M_SIZE(ln_funding_local_data_t, pubkeys));
+                    memcpy(&local.pubkeys, p_keys, M_SIZE(ln_funding_local_data_t, pubkeys));
                 }
 #endif  //M_DEBUG_KEYS
                 break;
             case ETYPE_REMOTEKEYS: //funding_remote.keys
 #ifdef M_DEBUG_KEYS
                 {
-                    memcpy(remote.pubkeys, p, M_SIZE(ln_funding_remote_data_t, pubkeys));
+                    memcpy(&remote.pubkeys, p, M_SIZE(ln_funding_remote_data_t, pubkeys));
                 }
 #endif  //M_DEBUG_KEYS
                 break;
@@ -1212,8 +1204,8 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         }
     }
 #ifdef M_DEBUG_KEYS
-    if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
-         ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
+    if ( ((local.pubkeys.keys[0][0] == 0x02) || (local.pubkeys.keys[0][0] == 0x03)) &&
+         ((remote.pubkeys.keys[0][0] == 0x02) || (remote.pubkeys.keys[0][0] == 0x03))) {
         printf("\n");
         //ln_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
@@ -1288,7 +1280,7 @@ bool ln_db_secret_save(ln_self_t *self)
         goto LABEL_EXIT;
     }
 
-    retval = backup_param_save(&self->priv_data, &db, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
+    retval = backup_param_save(self, &db, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
     if (retval == 0) {
         MDB_TXN_COMMIT(db.txn);
     } else {
@@ -3812,10 +3804,10 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     // add_htlc
     memcpy(pOutSelf->cnl_add_htlc,  pInSelf->cnl_add_htlc, M_SIZE(ln_self_t, cnl_add_htlc));
     // scriptpubkeys
-    memcpy(pOutSelf->commit_local.scriptpubkeys, pInSelf->commit_local.scriptpubkeys,
-                                            M_SIZE(ln_commit_data_t, scriptpubkeys));
-    memcpy(pOutSelf->commit_remote.scriptpubkeys, pInSelf->commit_remote.scriptpubkeys,
-                                            M_SIZE(ln_commit_data_t, scriptpubkeys));
+    memcpy(&pOutSelf->commit_local.script_pubkeys, &pInSelf->commit_local.script_pubkeys,
+                                            M_SIZE(ln_commit_data_t, script_pubkeys));
+    memcpy(&pOutSelf->commit_remote.script_pubkeys, &pInSelf->commit_remote.script_pubkeys,
+                                            M_SIZE(ln_commit_data_t, script_pubkeys));
 
     //復元データ
     utl_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);
@@ -3837,11 +3829,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     memcpy(&pOutSelf->shutdown_scriptpk_remote, &pInSelf->shutdown_scriptpk_remote, sizeof(utl_buf_t));
 
     //secret
-    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_SECRET); lp++) {
-        memcpy((uint8_t *)&pOutSelf->priv_data + DBSELF_SECRET[lp].offset,
-                    (uint8_t *)&pInSelf->priv_data + DBSELF_SECRET[lp].offset,
-                    DBSELF_SECRET[lp].datalen);
-    }
+    memcpy(&pOutSelf->privkeys, &pInSelf->privkeys, sizeof(ln_derkey_privkeys_t));
 }
 
 
@@ -4093,18 +4081,21 @@ static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     memcpy(dbname, M_PREF_SECRET, M_PREFIX_LEN);
     retval = mdb_dbi_open(pDb->txn, dbname, 0, &pDb->dbi);
     if (retval == 0) {
-        retval = backup_param_load(&self->priv_data, pDb, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
+        retval = backup_param_load(self, pDb, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
     }
     if (retval != 0) {
         LOGE("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
     // LOGD("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");
-    // DUMPD(self->priv_data.storage_seed, BTC_SZ_PRIVKEY);
-    // for (size_t lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
+    // DUMPD(self->privkeys.storage_seed, BTC_SZ_PRIVKEY);
+    // size_t lp;
+    // for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
     //     LOGD("[priv][%lu] ", lp);
-    //     DUMPD(self->priv_data.priv[lp], BTC_SZ_PRIVKEY);
+    //     DUMPD(self->privkeys.key[lp], BTC_SZ_PRIVKEY);
     // }
+    // LOGD("[priv][%lu] ", lp);
+    // DUMPD(self->privkeys.per_commitment_secret, BTC_SZ_PRIVKEY);
 
     return retval;
 }
