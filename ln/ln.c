@@ -724,7 +724,7 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     bool ret = ln_comtx_create_to_local(self,
                 pClose, NULL, 0,        //closeのみ(HTLC署名無し)
                 self->commit_local.commit_num,
-                self->commit_remote.to_self_delay,
+                self->commit_local.to_self_delay,
                 self->commit_local.dust_limit_sat);
     if (!ret) {
         LOGE("fail: create_to_local\n");
@@ -879,7 +879,7 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
     ln_script_create_tolocal(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
                 self->funding_remote.scriptpubkeys[LN_SCRIPT_IDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[LN_SCRIPT_IDX_DELAYED],
-                self->commit_local.to_self_delay);
+                self->commit_remote.to_self_delay);
     utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
     btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     // LOGD("calc to_local vout: ");

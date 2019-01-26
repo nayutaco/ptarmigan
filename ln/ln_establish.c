@@ -145,12 +145,13 @@ bool /*HIDDEN*/ ln_open_channel_send(
     self->commit_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
     self->commit_local.channel_reserve_sat = msg.channel_reserve_satoshis;
     self->commit_local.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_local.to_self_delay = msg.to_self_delay;
     self->commit_local.max_accepted_htlcs = msg.max_accepted_htlcs;
     self->our_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
     self->their_msat = msg.push_msat;
     self->funding_sat = msg.funding_satoshis;
     self->feerate_per_kw = msg.feerate_per_kw;
+
+    self->commit_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     return true;
@@ -231,8 +232,9 @@ bool HIDDEN ln_open_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t
     self->commit_remote.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
     self->commit_remote.channel_reserve_sat = msg.channel_reserve_satoshis;
     self->commit_remote.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_remote.to_self_delay = msg.to_self_delay;
     self->commit_remote.max_accepted_htlcs = msg.max_accepted_htlcs;
+
+    self->commit_local.to_self_delay = msg.to_self_delay; //XXX:
 
     //copy first_per_commitment_point for the first revoke_and_ack
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
@@ -288,8 +290,9 @@ bool HIDDEN ln_accept_channel_send(ln_self_t *self)
     self->commit_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
     self->commit_local.channel_reserve_sat = msg.channel_reserve_satoshis;
     self->commit_local.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_local.to_self_delay = msg.to_self_delay;
     self->commit_local.max_accepted_htlcs = msg.max_accepted_htlcs;
+
+    self->commit_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     //obscured commitment tx number
     self->obscured = ln_script_calc_obscured_txnum(
@@ -353,8 +356,9 @@ bool HIDDEN ln_accept_channel_recv(ln_self_t *self, const uint8_t *pData, uint16
     self->commit_remote.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
     self->commit_remote.channel_reserve_sat = msg.channel_reserve_satoshis;
     self->commit_remote.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_remote.to_self_delay = msg.to_self_delay;
     self->commit_remote.max_accepted_htlcs = msg.max_accepted_htlcs;
+
+    self->commit_local.to_self_delay = msg.to_self_delay; //XXX:
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
@@ -450,7 +454,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
     //    HTLCは存在しない
     if (!ln_comtx_create_to_local(self,
         NULL, NULL, 0,  //closeもHTLC署名も無し
-        0, self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat)) {
+        0, self->commit_local.to_self_delay, self->commit_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -522,7 +526,7 @@ bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
     //  HTLCは存在しない
     if (!ln_comtx_create_to_local(self,
         NULL, NULL, 0,      //closeもHTLC署名も無し
-        0, self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat)) {
+        0, self->commit_local.to_self_delay, self->commit_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }

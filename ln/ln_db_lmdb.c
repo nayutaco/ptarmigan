@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-31))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-32))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -160,6 +160,7 @@
     -29: self.statusとself.close_typeのマージ
     -30: bitcoindとSPVを同じにする
     -31: include peer_storage_index in ln_derkey_storage_t
+    -32: exchange the values of commit_local.to_self_delay and commit_remote.to_self_delay
  */
 
 

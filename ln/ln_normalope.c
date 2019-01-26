@@ -500,7 +500,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     ret = ln_comtx_create_to_local(self,
             NULL, commsig.p_htlc_signature, commsig.num_htlcs,  //HTLC署名のみ(closeなし)
             self->commit_local.commit_num + 1,
-            self->commit_remote.to_self_delay,
+            self->commit_local.to_self_delay,
             self->commit_local.dust_limit_sat);
     if (!ret) {
         LOGE("fail: create_to_local\n");

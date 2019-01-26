@@ -948,7 +948,7 @@ static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, in
 
     bool ret = ln_wallet_create_tolocal(self, &tx,
                 pTx->vout[VIndex].value,
-                ln_commit_local(self)->to_self_delay,
+                ln_commit_remote(self)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
     if (ret) {
         if (tx.vin_cnt > 0) {
@@ -956,7 +956,7 @@ static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, in
 
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TOLOCAL);
             set_wallet_data(&wlt, &tx);
-            wlt.sequence = ln_commit_local(self)->to_self_delay;
+            wlt.sequence = ln_commit_remote(self)->to_self_delay;
             ln_db_wallet_add(&wlt);
         }
 
