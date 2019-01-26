@@ -536,7 +536,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
 
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //チェックOKであれば、revoke_and_ackを返す
@@ -670,7 +670,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     //per_commitment_point更新
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //revoke_and_ack受信フラグ

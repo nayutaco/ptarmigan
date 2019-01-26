@@ -673,7 +673,6 @@ typedef struct {
     uint16_t            txindex;                        ///< funding-tx index
 
     uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];         ///< 自分の公開鍵
-    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
 } ln_funding_local_data_t;
 
 
@@ -681,9 +680,8 @@ typedef struct {
  *  @brief  他ノードfunding情報
  */
 typedef struct {
-    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];            ///< 相手から受信した公開鍵
-    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];    ///< script用PubKey
-    uint8_t             prev_percommit[BTC_SZ_PUBKEY];                      ///< 1つ前のper_commit_point
+    uint8_t             pubkeys[LN_FUND_IDX_NUM][BTC_SZ_PUBKEY];        ///< 相手から受信した公開鍵
+    uint8_t             prev_percommit[BTC_SZ_PUBKEY];                  ///< 1つ前のper_commit_point
 } ln_funding_remote_data_t;
 
 
@@ -709,6 +707,7 @@ typedef struct {
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
                                                         //      commit_local:  revoke_and_ack送信後、commit_local.commit_num - 1を代入
                                                         //      commit_remote: revoke_and_ack受信後、self->commit_remote.commit_num - 1を代入
+    uint8_t             scriptpubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY]; ///< script用PubKey
 } ln_commit_data_t;
 
 
@@ -1711,12 +1710,11 @@ uint64_t ln_node_total_msat(void);
 
 /** スクリプト用鍵生成/更新
  *
- * @param[in,out]   pLocal
- * @param[in,out]   pRemote
+ * @param[in,out]   pSelf
  * @note
  *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
  */
-void HIDDEN ln_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote);
+void HIDDEN ln_update_scriptkeys(ln_self_t *self);
 
 
 /********************************************************************
@@ -1734,7 +1732,7 @@ unsigned long ln_debug_get(void);
  * @param[in]   pLocal
  * @param[in]   pRemote
  */
-void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote);
+void ln_print_keys(ln_self_t *self);
 #else
 #define ln_print_keys(...)      //nothing
 #endif

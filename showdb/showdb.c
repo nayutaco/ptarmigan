@@ -269,7 +269,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->funding_local.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->commit_local.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -293,7 +293,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->funding_remote.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->commit_remote.scriptpubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }

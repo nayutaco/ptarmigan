@@ -88,33 +88,39 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 }
 
 
-void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote)
+void ln_print_keys(ln_self_t *self)
 {
+    typedef uint8_t pubkey_t[BTC_SZ_PUBKEY];
+    pubkey_t *p_local_pubkeys = self->funding_local.pubkeys;
+    pubkey_t *p_remote_pubkeys = self->funding_remote.pubkeys;
+    pubkey_t *p_local_scriptpubkeys = self->commit_local.scriptpubkeys;
+    pubkey_t *p_remote_scriptpubkeys = self->commit_remote.scriptpubkeys;
+
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
     LOGD("  funding_txid: ");
-    TXIDD(pLocal->txid);
-    LOGD("  funding_txindex: %" PRIu16 "\n", pLocal->txindex);
+    TXIDD(self->funding_local.txid);
+    LOGD("  funding_txindex: %" PRIu16 "\n", self->funding_local.txindex);
 
     for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(pLocal->pubkeys[lp], BTC_SZ_PUBKEY);
+        DUMPD(p_local_pubkeys[lp], BTC_SZ_PUBKEY);
     }
     for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
-        DUMPD(pLocal->scriptpubkeys[lp], BTC_SZ_PUBKEY);
+        DUMPD(p_local_scriptpubkeys[lp], BTC_SZ_PUBKEY);
     }
 
     for (int lp = 0; lp < LN_FUND_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(pRemote->pubkeys[lp], BTC_SZ_PUBKEY);
+        DUMPD(p_remote_pubkeys[lp], BTC_SZ_PUBKEY);
     }
     for (int lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
-        DUMPD(pRemote->scriptpubkeys[lp], BTC_SZ_PUBKEY);
+        DUMPD(p_remote_scriptpubkeys[lp], BTC_SZ_PUBKEY);
     }
     LOGD("prev_percommit: ");
-    DUMPD(pRemote->prev_percommit, BTC_SZ_PUBKEY);
+    DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;
