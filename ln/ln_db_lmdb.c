@@ -846,7 +846,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //復元データからさらに復元
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
     btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
             self->funding_local.pubkeys[LN_FUND_IDX_FUNDING],
             self->funding_remote.pubkeys[LN_FUND_IDX_FUNDING]);
@@ -1215,7 +1215,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
     if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
          ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
         printf("\n");
-        ln_update_scriptkeys(&local, &remote);
+        //ln_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
     }
 #endif  //M_DEBUG_KEYS
@@ -3812,10 +3812,10 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     // add_htlc
     memcpy(pOutSelf->cnl_add_htlc,  pInSelf->cnl_add_htlc, M_SIZE(ln_self_t, cnl_add_htlc));
     // scriptpubkeys
-    memcpy(pOutSelf->funding_local.scriptpubkeys, pInSelf->funding_local.scriptpubkeys,
-                                            M_SIZE(ln_funding_local_data_t, scriptpubkeys));
-    memcpy(pOutSelf->funding_remote.scriptpubkeys, pInSelf->funding_remote.scriptpubkeys,
-                                            M_SIZE(ln_funding_remote_data_t, scriptpubkeys));
+    memcpy(pOutSelf->commit_local.scriptpubkeys, pInSelf->commit_local.scriptpubkeys,
+                                            M_SIZE(ln_commit_data_t, scriptpubkeys));
+    memcpy(pOutSelf->commit_remote.scriptpubkeys, pInSelf->commit_remote.scriptpubkeys,
+                                            M_SIZE(ln_commit_data_t, scriptpubkeys));
 
     //復元データ
     utl_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);

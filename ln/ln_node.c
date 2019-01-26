@@ -289,7 +289,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
                 }
                 utl_buf_free(&buf);
             }
-            ln_print_keys(&p->p_self->funding_local, &p->p_self->funding_remote);
+            ln_print_keys(p->p_self);
         } else {
             //true時は呼び元では解放しないので、ここで解放する
             ln_term(self);

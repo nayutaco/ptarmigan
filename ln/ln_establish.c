@@ -105,7 +105,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
 
     //generate keys
     ln_signer_create_channel_keys(self);
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
 
 #if defined(USE_BITCOIND)
     self->establish.p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));
@@ -248,8 +248,8 @@ bool HIDDEN ln_open_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //generate keys
     ln_signer_create_channel_keys(self);
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    ln_print_keys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
+    ln_print_keys(self);
 
     if (!ln_accept_channel_send(self)) {
         LOGE("fail: send accept_channel\n");
@@ -364,8 +364,8 @@ bool HIDDEN ln_accept_channel_recv(ln_self_t *self, const uint8_t *pData, uint16
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[LN_FUND_IDX_PER_COMMIT], BTC_SZ_PUBKEY);
 
     //generate keys
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    ln_print_keys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
+    ln_print_keys(self);
 
     //create funding_tx
     if (!create_funding_tx(self, true)) {
@@ -593,8 +593,8 @@ bool HIDDEN ln_funding_locked_recv(ln_self_t *self, const uint8_t *pData, uint16
     //funding中終了
     ln_establish_free(self);
 
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    ln_print_keys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
+    ln_print_keys(self);
     M_DB_SELF_SAVE(self);
 
     ln_callback(self, LN_CB_FUNDINGLOCKED_RECV, NULL);
@@ -908,7 +908,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
 
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
-    ln_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_update_scriptkeys(self);
 
     funding.b_send = bSendTx;
     if (bSendTx) {
