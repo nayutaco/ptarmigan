@@ -309,7 +309,7 @@ void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
         memset(pStorage->storage[lp].secret, 0xcc, BTC_SZ_PRIVKEY);
         pStorage->storage[lp].index = 0x123456789abc;
     }
-    pStorage->current_index = LN_SECRET_INDEX_INIT;
+    pStorage->next_index = LN_SECRET_INDEX_INIT;
 }
 
 
@@ -329,18 +329,18 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
     //    known[B].secret = secret
 
     uint8_t output[BTC_SZ_PRIVKEY];
-    int bit = where_to_put_secret(pStorage->current_index);
-    LOGD("I=%016" PRIx64 ", bit=%d\n", pStorage->current_index, bit);
+    int bit = where_to_put_secret(pStorage->next_index);
+    LOGD("I=%016" PRIx64 ", bit=%d\n", pStorage->next_index, bit);
     for (int lp = 0; lp < bit; lp++) {
         derive_secret(output, pSecret, bit - 1, pStorage->storage[lp].index);
         if (memcmp(output, pStorage->storage[lp].secret, BTC_SZ_PRIVKEY)) {
-            LOGE("fail: secret mismatch(I=%016" PRIx64 "), bit=%d\n", pStorage->current_index, bit);
+            LOGE("fail: secret mismatch(I=%016" PRIx64 "), bit=%d\n", pStorage->next_index, bit);
             return false;
         }
     }
     memcpy(pStorage->storage[bit].secret, pSecret, BTC_SZ_PRIVKEY);
-    pStorage->storage[bit].index = pStorage->current_index;
-    pStorage->current_index--;
+    pStorage->storage[bit].index = pStorage->next_index;
+    pStorage->next_index--;
     return true;
 }
 
@@ -377,7 +377,13 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
 
 uint64_t ln_derkey_storage_get_current_index(const ln_derkey_storage_t *pStorage)
 {
-    return pStorage->current_index;
+    return pStorage->next_index + 1;
+}
+
+
+uint64_t ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage)
+{
+    return pStorage->next_index;
 }
 
 
