@@ -39,7 +39,6 @@
  * prototypes
  **************************************************************************/
 
-static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Offset);
 static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int Index, const uint8_t *pPerCommit);
 
 
@@ -86,8 +85,10 @@ bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self)
 
 bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
-    LOGD("shachain index = %" PRIu64 "\n", Index);
-    return create_per_commit_secret(self, self->privkeys.per_commitment_secret, self->funding_local.pubkeys.per_commitment_point, Index);
+    /*void*/ ln_derkey_storage_create_secret(
+        self->privkeys.per_commitment_secret, self->privkeys._storage_seed, Index);
+    return btc_keys_priv2pub(
+        self->funding_local.pubkeys.per_commitment_point, self->privkeys.per_commitment_secret);
 }
 
 
@@ -97,14 +98,18 @@ bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8
         //  現在の funding_local.keys[LN_BASEPOINT_IDX_PER_COMMIT]はself->storage_next_indexから生成されていて、「次のper_commitment_secret」になる。
         //  最後に使用した値は self->storage_next_index + 1で、これが「現在のper_commitment_secret」になる。
         //  そのため、「1つ前のper_commitment_secret」は self->storage_next_index + 2 となる。
-        return create_per_commit_secret(self, pSecret, pPerCommitPt, self->privkeys._next_storage_index + 2);
+        /*void*/ ln_derkey_storage_create_secret(
+            pSecret, self->privkeys._storage_seed, self->privkeys._next_storage_index + 2);
+        if (pPerCommitPt) {
+            if (!btc_keys_priv2pub(pPerCommitPt, pSecret)) return false;
+        }
     } else {
         memset(pSecret, 0x00, BTC_SZ_PRIVKEY);
-        if (pPerCommitPt != NULL) {
+        if (pPerCommitPt) {
             memcpy(pPerCommitPt, self->funding_local.pubkeys.per_commitment_point, BTC_SZ_PUBKEY);
         }
-        return true;
     }
+    return true;
 }
 
 
@@ -212,32 +217,10 @@ bool HIDDEN ln_signer_tolocal_tx(
  * private functions
  **************************************************************************/
 
-/** 指定したper_commit_secret取得
- *
- * @param[in,out]   self            チャネル情報
- * @param[out]      pSecret         per_commit_secret
- * @param[in]       Offset          storage_next_indexからのオフセット値
- */
-static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
-{
-    /*void*/ ln_derkey_storage_create_secret(pSecret, self->privkeys._storage_seed, Index);
-    uint8_t pub[BTC_SZ_PUBKEY];
-    if (!btc_keys_priv2pub(pub, pSecret)) return false;
-    if (pPerCommitPt != NULL) {
-        memcpy(pPerCommitPt, pub, BTC_SZ_PUBKEY);
-    }
-
-    LOGD("PER_COMMIT_SEC(%016" PRIx64 "): ", Index);
-    DUMPD(pSecret, BTC_SZ_PRIVKEY);
-    LOGD("       PER_COMMIT_PT: ");
-    DUMPD(pub, BTC_SZ_PUBKEY);
-    return true;
-}
-
-
 static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int Index, const uint8_t *pPerCommit)
 {
-    if (!ln_derkey_privkey(pKeys->priv, self->funding_local.pubkeys.keys[Index],
+    if (!ln_derkey_privkey(
+        pKeys->priv, self->funding_local.pubkeys.keys[Index],
         pPerCommit, self->privkeys.keys[Index])) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
