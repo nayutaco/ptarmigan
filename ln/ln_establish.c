@@ -719,19 +719,11 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
     //  if it supports option_data_loss_protect, AND the option_data_loss_protect fields are present:
     if ( !(chk_commit_num && chk_revoke_num) && option_data_loss_protect ) {
         //if next_remote_revocation_number is greater than expected above,
-        if (msg.next_remote_revocation_number > self->commit_local.commit_num) {
+        if (msg.next_remote_revocation_number > self->commit_local.commit_num) { //XXX: ?
             //  AND your_last_per_commitment_secret is correct for that next_remote_revocation_number minus 1:
-            //
-            //      [実装]
-            //      self->privkeys.storage_indexは鍵導出後にデクリメントしている。
-            //      最新のcommit_tx生成後は、次の次に生成するstorage_indexを指している。
-            //      最後に交換したcommit_txは、storage_index+1。
-            //      revoke_and_ackで渡すsecretは、storage_index+2。
-            //      既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
-            //      "next_remote_revocation_number minus 1"だから、storage_index+4。
             uint8_t secret[BTC_SZ_PRIVKEY];
-            ln_derkey_storage_create_secret(secret, self->privkeys.storage_seed, self->privkeys.storage_index + 4);
-            LOGD("storage_index(%016" PRIx64 ": ", self->privkeys.storage_index + 4);
+            ln_derkey_storage_create_secret(secret, self->privkeys.storage_seed, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
+            LOGD("secret: ");
             DUMPD(secret, BTC_SZ_PRIVKEY);
             if (memcmp(secret, msg.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
                 //MUST NOT broadcast its commitment transaction.

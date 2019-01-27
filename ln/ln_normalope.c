@@ -1088,36 +1088,6 @@ void ln_channel_reestablish_after(ln_self_t *self)
         }
         utl_buf_free(&buf);
     }
-
-#if 0
-        uint8_t secret[BTC_SZ_PRIVKEY];
-        if (self->commit_local.commit_num == 0) {
-            memset(secret, 0, BTC_SZ_PRIVKEY);
-        } else {
-            // self->priv_data.storage_indexは鍵導出後にデクリメントしている。
-            // 最新のcommit_tx生成後は、次の次に生成するstorage_indexを指している。
-            // 最後に交換したcommit_txは、storage_index+1。
-            // revoke_and_ackで渡すsecretは、storage_index+2。
-            // 既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
-            //
-            ln_derkey_storage_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 3);
-            LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 3);
-            DUMPD(secret, BTC_SZ_PRIVKEY);
-        }
-        if ( (memcmp(reest.your_last_per_commitment_secret, secret, BTC_SZ_PRIVKEY) == 0) &&
-          (memcmp(reest.my_current_per_commitment_point, self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY) == 0) ) {
-            //一致
-            LOGD("OK!\n");
-        } else {
-            //
-            LOGE("NG...\n");
-            LOGE("secret: ");
-            DUMPE(secret, BTC_SZ_PRIVKEY);
-            LOGE("prevpt: ");
-            DUMPE(self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
-        }
-
-#endif
 }
 
 
