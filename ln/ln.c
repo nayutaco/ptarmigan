@@ -1699,7 +1699,7 @@ static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
 void ln_dbg_commitnum(const ln_self_t *self)
 {
     LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %016" PRIx64 "\n", self->privkeys.storage_index);
+    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_privkeys_get_current_storage_index(&self->privkeys));
     LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->peer_storage));
     LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);

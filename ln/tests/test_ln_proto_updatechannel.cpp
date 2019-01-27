@@ -19,7 +19,7 @@ extern "C" {
 #include "../../btc/btc.c"
 #include "../../btc/btc_buf.c"
 #include "../../btc/btc_extkey.c"
-//#include "../../btc/btc_keys.c"
+#include "../../btc/btc_keys.c"
 #include "../../btc/btc_sw.c"
 #include "../../btc/btc_sig.c"
 #include "../../btc/btc_script.c"
@@ -32,6 +32,7 @@ extern "C" {
 
 #undef LOG_TAG
 #include "ln_derkey.c"
+#include "ln_derkey_ex.c"
 // #include "ln_msg_anno.c"
 // #include "ln_msg_close.c"
 // #include "ln_msg_establish.c"
@@ -66,7 +67,6 @@ FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_is_prune, uint64_t , uint32_t );
 FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_save, const utl_buf_t *, const ln_msg_channel_update_t *, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_annocnl_load, utl_buf_t *, uint64_t );
 
-FAKE_VALUE_FUNC(bool, btc_keys_check_pub, const uint8_t *);
 FAKE_VALUE_FUNC(time_t, utl_time_time);
 FAKE_VALUE_FUNC(const char *, utl_time_str_time, char *);
 FAKE_VALUE_FUNC(const char *, utl_time_fmt, char *, time_t );
@@ -254,7 +254,6 @@ protected:
         ln_msg_channel_update_read_fake.return_val = true;
         ln_msg_channel_update_verify_fake.return_val = true;
         ln_msg_channel_announcement_read_fake.return_val = true;
-        btc_keys_check_pub_fake.return_val = true;
 
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, true);

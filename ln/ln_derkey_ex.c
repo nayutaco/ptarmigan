@@ -44,6 +44,31 @@
  * public functions
  **************************************************************************/
 
+bool HIDDEN ln_derkey_privkeys_init(ln_derkey_privkeys_t *pPrivKeys, const uint8_t *pSeed)
+{
+    memset(pPrivKeys, 0xcc, sizeof(ln_derkey_privkeys_t));
+    pPrivKeys->_next_storage_index = LN_SECRET_INDEX_INIT;
+    memcpy(pPrivKeys->_storage_seed, pSeed, LN_SZ_SEED);
+    for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
+        if (!btc_keys_create_priv(pPrivKeys->keys[lp])) return false;
+    }
+    //per_commitment_secret
+    return true;
+}
+
+
+void HIDDEN ln_derkey_privkeys_term(ln_derkey_privkeys_t *pPrivKeys)
+{
+    memset(pPrivKeys, 0x00, sizeof(ln_derkey_privkeys_t));
+}
+
+
+uint64_t ln_derkey_privkeys_get_current_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
+{
+    return pPrivKeys->_next_storage_index + 1;
+}
+
+
 //  localkey, remotekey, local_delayedkey, remote_delayedkey
 //      pubkey = basepoint + SHA256(per_commitment_point || basepoint)*G
 //
