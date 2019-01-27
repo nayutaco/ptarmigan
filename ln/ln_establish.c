@@ -907,7 +907,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     // self->short_channel_id = 0;
 
     //storage_indexデクリメントおよびper_commit_secret更新
-    ln_signer_keys_update_storage(self);
+    ln_signer_keys_update_per_commitment_secret(self);
     ln_update_scriptkeys(self);
 
     funding.b_send = bSendTx;

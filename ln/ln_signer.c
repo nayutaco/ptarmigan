@@ -73,11 +73,11 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
     }
 
     //for open_channel/accept_channel
-    return ln_signer_keys_update_storage(self);
+    return ln_signer_keys_update_per_commitment_secret(self);
 }
 
 
-bool HIDDEN ln_signer_keys_update_storage(ln_self_t *self)
+bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self)
 {
     if (!ln_signer_keys_update_force(self, self->privkeys.storage_index)) return false;
     self->privkeys.storage_index--;

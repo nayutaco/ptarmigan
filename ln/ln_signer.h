@@ -63,7 +63,7 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self);
  * @note
  *      - indexを進める
  */
-bool HIDDEN ln_signer_keys_update_storage(ln_self_t *self);
+bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self);
 
 
 /** local per_commitment_secret更新(storage_index指定)
