@@ -1568,77 +1568,13 @@ uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
 }
 
 
-//  localkey, remotekey, local_delayedkey, remote_delayedkey
-//      pubkey = basepoint + SHA256(per_commitment_point || basepoint)*G
-//
-//  revocationkey
-//      revocationkey = revocation_basepoint * SHA256(revocation_basepoint || per_commitment_point) + per_commitment_point*SHA256(per_commitment_point || revocation_basepoint)
-//
-void HIDDEN ln_update_scriptkeys(ln_self_t *self)
+bool HIDDEN ln_update_scriptkeys(ln_self_t *self)
 {
-    ln_derkey_pubkeys_t         *p_local_pubkeys = &self->funding_local.pubkeys;
-    ln_derkey_pubkeys_t         *p_remote_pubkeys = &self->funding_remote.pubkeys;
-    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &self->commit_local.script_pubkeys;
-    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &self->commit_remote.script_pubkeys;
-
-    //
-    //local
-    //
-
-    //remotekey = local per_commitment_point & remote payment
-    //LOGD("local: remotekey\n");
-    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEKEY],
-                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_PAYMENT], p_local_pubkeys->per_commitment_point);
-
-    //delayedkey = local per_commitment_point & local delayed_payment
-    //LOGD("local: delayedkey\n");
-    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_DELAYED],
-                p_local_pubkeys->keys[LN_BASEPOINT_IDX_DELAYED], p_local_pubkeys->per_commitment_point);
-
-    //revocationkey = remote per_commitment_point & local revocation_basepoint
-    //LOGD("local: revocationkey\n");
-    ln_derkey_revocation_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_REVOCATION],
-                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_REVOCATION], p_local_pubkeys->per_commitment_point);
-
-    //local_htlckey = local per_commitment_point & local htlc_basepoint
-    //LOGD("local: local_htlckey\n");
-    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                p_local_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_local_pubkeys->per_commitment_point);
-
-    //remote_htlckey = local per_commitment_point & remote htlc_basepoint
-    //LOGD("local: remote_htlckey\n");
-    ln_derkey_pubkey(p_local_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
-                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_local_pubkeys->per_commitment_point);
-
-
-    //
-    //remote
-    //
-
-    //remotekey = remote per_commitment_point & local payment
-    //LOGD("remote: remotekey\n");
-    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEKEY],
-                p_local_pubkeys->keys[LN_BASEPOINT_IDX_PAYMENT], p_remote_pubkeys->per_commitment_point);
-
-    //delayedkey = remote per_commitment_point & remote delayed_payment
-    //LOGD("remote: delayedkey\n");
-    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_DELAYED],
-                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_DELAYED], p_remote_pubkeys->per_commitment_point);
-
-    //revocationkey = local per_commitment_point & remote revocation_basepoint
-    //LOGD("remote: revocationkey\n");
-    ln_derkey_revocation_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_REVOCATION],
-                p_local_pubkeys->keys[LN_BASEPOINT_IDX_REVOCATION], p_remote_pubkeys->per_commitment_point);
-
-    //local_htlckey = remote per_commitment_point & remote htlc_basepoint
-    //LOGD("remote: local_htlckey\n");
-    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                p_remote_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_remote_pubkeys->per_commitment_point);
-
-    //remote_htlckey = remote per_commitment_point & local htlc_basepoint
-    //LOGD("remote: remote_htlckey\n");
-    ln_derkey_pubkey(p_remote_script_pubkeys->keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
-                p_local_pubkeys->keys[LN_BASEPOINT_IDX_HTLC], p_remote_pubkeys->per_commitment_point);
+    return ln_derkey_update_scriptkeys(
+        &self->commit_local.script_pubkeys,
+        &self->commit_remote.script_pubkeys,
+        &self->funding_local.pubkeys,
+        &self->funding_remote.pubkeys);
 }
 
 
