@@ -535,7 +535,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     ln_signer_create_prev_per_commit_secret(self, prev_secret, NULL);
 
     //storage_indexデクリメントおよびper_commit_secret更新
-    ln_signer_keys_update_storage(self);
+    ln_signer_keys_update_per_commitment_secret(self);
     ln_update_scriptkeys(self);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
 
