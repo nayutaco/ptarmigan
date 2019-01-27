@@ -47,28 +47,26 @@ static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int Index, cons
  * library functions
  **************************************************************************/
 
-void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
+bool HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 {
-    if (!pSeed) return;
-    memcpy(self->privkeys.storage_seed, pSeed, LN_SZ_SEED);
+    if (!pSeed) return true;
+
+    if (!ln_derkey_privkeys_init(&self->privkeys, pSeed)) return false;
     ln_derkey_storage_init(&self->peer_storage);
+    return true;
 }
 
 
-void HIDDEN ln_signer_term(ln_self_t *self) //XXX:
+void HIDDEN ln_signer_term(ln_self_t *self)
 {
-    memset(self->privkeys.storage_seed, 0x00, BTC_SZ_PRIVKEY);
+    /*void*/ ln_derkey_privkeys_term(&self->privkeys);
 }
 
 
 bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
 {
-    self->privkeys.storage_index = LN_SECRET_INDEX_INIT;
-    LOGD("storage_index = %016" PRIx64 "\n", self->privkeys.storage_index);
-
-    //create keys
+    //create pubkeys
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
-        if (!btc_keys_create_priv(self->privkeys.keys[lp])) return false;
         if (!btc_keys_priv2pub(self->funding_local.pubkeys.keys[lp], self->privkeys.keys[lp])) return false;
     }
 
@@ -79,9 +77,9 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
 
 bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self)
 {
-    if (!ln_signer_keys_update_force(self, self->privkeys.storage_index)) return false;
-    self->privkeys.storage_index--;
-    LOGD("update storage_index = %016" PRIx64 "\n", self->privkeys.storage_index);
+    if (!ln_signer_keys_update_force(self, self->privkeys._next_storage_index)) return false;
+    self->privkeys._next_storage_index--;
+    LOGD("update storage_next_index = %016" PRIx64 "\n", self->privkeys._next_storage_index);
     return true;
 }
 
@@ -95,11 +93,11 @@ bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 
 bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
-    if (self->privkeys.storage_index + 2 <= LN_SECRET_INDEX_INIT) {
-        //  現在の funding_local.keys[LN_BASEPOINT_IDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
-        //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
-        //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-        return create_per_commit_secret(self, pSecret, pPerCommitPt, self->privkeys.storage_index + 2);
+    if (self->privkeys._next_storage_index + 2 <= LN_SECRET_INDEX_INIT) {
+        //  現在の funding_local.keys[LN_BASEPOINT_IDX_PER_COMMIT]はself->storage_next_indexから生成されていて、「次のper_commitment_secret」になる。
+        //  最後に使用した値は self->storage_next_index + 1で、これが「現在のper_commitment_secret」になる。
+        //  そのため、「1つ前のper_commitment_secret」は self->storage_next_index + 2 となる。
+        return create_per_commit_secret(self, pSecret, pPerCommitPt, self->privkeys._next_storage_index + 2);
     } else {
         memset(pSecret, 0x00, BTC_SZ_PRIVKEY);
         if (pPerCommitPt != NULL) {
@@ -218,11 +216,11 @@ bool HIDDEN ln_signer_tolocal_tx(
  *
  * @param[in,out]   self            チャネル情報
  * @param[out]      pSecret         per_commit_secret
- * @param[in]       Offset          storage_indexからのオフセット値
+ * @param[in]       Offset          storage_next_indexからのオフセット値
  */
 static bool create_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
 {
-    /*void*/ ln_derkey_storage_create_secret(pSecret, self->privkeys.storage_seed, Index);
+    /*void*/ ln_derkey_storage_create_secret(pSecret, self->privkeys._storage_seed, Index);
     uint8_t pub[BTC_SZ_PUBKEY];
     if (!btc_keys_priv2pub(pub, pSecret)) return false;
     if (pPerCommitPt != NULL) {

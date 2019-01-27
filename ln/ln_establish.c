@@ -722,7 +722,7 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
         if (msg.next_remote_revocation_number > self->commit_local.commit_num) { //XXX: ?
             //  AND your_last_per_commitment_secret is correct for that next_remote_revocation_number minus 1:
             uint8_t secret[BTC_SZ_PRIVKEY];
-            ln_derkey_storage_create_secret(secret, self->privkeys.storage_seed, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
+            ln_derkey_storage_create_secret(secret, self->privkeys._storage_seed, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
             LOGD("secret: ");
             DUMPD(secret, BTC_SZ_PRIVKEY);
             if (memcmp(secret, msg.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
@@ -898,7 +898,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     // self->htlc_id_num = 0;
     // self->short_channel_id = 0;
 
-    //storage_indexデクリメントおよびper_commit_secret更新
+    //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_per_commitment_secret(self);
     ln_update_scriptkeys(self);
 

@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-33))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-34))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -162,6 +162,8 @@
     -31: include peer_storage_index in ln_derkey_storage_t
     -32: exchange the values of commit_local.to_self_delay and commit_remote.to_self_delay
     -33: change the format of pub/priv keys
+    -34: change the size of ln_derkey_privkeys_t::per_commitment_secret
+         BTC_SZ_PUBKEY -> BTC_SZ_PRIVKEY
  */
 
 
@@ -4086,7 +4088,7 @@ static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     if (retval != 0) {
         LOGE("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
-    // LOGD("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
+    // LOGD("[priv]storage_index: %016" PRIx64 "\n", ln_derkey_privkeys_get_current_storage_index(&self->privkeys);
     // LOGD("[priv]storage_seed: ");
     // DUMPD(self->privkeys.storage_seed, BTC_SZ_PRIVKEY);
     // size_t lp;

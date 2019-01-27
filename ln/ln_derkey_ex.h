@@ -72,10 +72,10 @@ typedef struct {
 
 
 typedef struct {
-    uint64_t    storage_index;
-    uint8_t     storage_seed[LN_SZ_SEED];
+    uint64_t    _next_storage_index;
+    uint8_t     _storage_seed[LN_SZ_SEED];
     uint8_t     keys[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY];
-    uint8_t     per_commitment_secret[BTC_SZ_PUBKEY];
+    uint8_t     per_commitment_secret[BTC_SZ_PRIVKEY];
 } ln_derkey_privkeys_t;
 
 
@@ -87,6 +87,15 @@ typedef struct {
 /********************************************************************
  * prototypes
  ********************************************************************/
+
+bool HIDDEN ln_derkey_privkeys_init(ln_derkey_privkeys_t *pPrivKeys, const uint8_t *pSeed);
+
+
+void HIDDEN ln_derkey_privkeys_term(ln_derkey_privkeys_t *pPrivKeys);
+
+
+uint64_t ln_derkey_privkeys_get_current_storage_index(const ln_derkey_privkeys_t *pPrivKeys);
+
 
 bool HIDDEN ln_derkey_update_scriptkeys(
     ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,

@@ -534,7 +534,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
     ln_signer_create_prev_per_commit_secret(self, prev_secret, NULL);
 
-    //storage_indexデクリメントおよびper_commit_secret更新
+    //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_per_commitment_secret(self);
     ln_update_scriptkeys(self);
     //ln_print_keys(&self->funding_local, &self->funding_remote);
@@ -545,8 +545,8 @@ bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uin
     // //revokeするsecret
     // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
     //     uint8_t old_secret[BTC_SZ_PRIVKEY];
-    //     ln_derkey_storage_create_secret(old_secret, self->priv_data.storage_seed, LN_SECRET_INDEX_INIT - index);
-    //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT -index);
+    //     ln_derkey_storage_create_secret(old_secret, self->privkeys.storage_seed, LN_SECRET_INDEX_INIT - index);
+    //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT - index);
     //     DUMPD(old_secret, sizeof(old_secret));
     // }
 

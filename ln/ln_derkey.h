@@ -145,7 +145,7 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
 uint64_t ln_derkey_storage_get_current_index(const ln_derkey_storage_t *pStorage);
 
 
-uint64_t ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage);
+uint64_t HIDDEN ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage);
 
 
 #endif /* LN_DERKEY_H__ */

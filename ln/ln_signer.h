@@ -39,7 +39,7 @@
 /**
  *
  */
-void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
+bool HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
 
 
 /**
@@ -57,7 +57,7 @@ void HIDDEN ln_signer_term(ln_self_t *self);
 bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self);
 
 
-/** local per_commitment_secret更新およびstorage_index更新
+/** local per_commitment_secret更新およびstorage_next_index更新
  *
  * @param[in,out]   self        チャネル情報
  * @note
@@ -66,7 +66,7 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self);
 bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self);
 
 
-/** local per_commitment_secret更新(storage_index指定)
+/** local per_commitment_secret更新(storage_next_index指定)
  *
  */
 bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);

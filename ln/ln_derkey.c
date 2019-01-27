@@ -305,10 +305,7 @@ void HIDDEN ln_derkey_storage_create_secret(uint8_t *pPrivKey, const uint8_t *pS
 
 void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
 {
-    for (int lp = 0; lp < PER_COMMIT_SECRET_PAIR_NUM; lp++) {
-        memset(pStorage->storage[lp].secret, 0xcc, BTC_SZ_PRIVKEY);
-        pStorage->storage[lp].index = 0x123456789abc;
-    }
+    memset(pStorage, 0xcc, sizeof(ln_derkey_storage_t));
     pStorage->next_index = LN_SECRET_INDEX_INIT;
 }
 
@@ -381,7 +378,7 @@ uint64_t ln_derkey_storage_get_current_index(const ln_derkey_storage_t *pStorage
 }
 
 
-uint64_t ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage)
+uint64_t HIDDEN ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage)
 {
     return pStorage->next_index;
 }
