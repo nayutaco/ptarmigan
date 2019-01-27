@@ -1678,7 +1678,7 @@ uint64_t ln_node_total_msat(void);
  * @note
  *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
  */
-void HIDDEN ln_update_scriptkeys(ln_self_t *self);
+bool HIDDEN ln_update_scriptkeys(ln_self_t *self);
 
 
 /********************************************************************

@@ -40,6 +40,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_script.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_comtx.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_derkey.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln_derkey_ex.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_setupctl.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_establish.c

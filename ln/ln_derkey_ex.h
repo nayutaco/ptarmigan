@@ -88,5 +88,11 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+bool HIDDEN ln_derkey_update_scriptkeys(
+    ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
+    ln_derkey_script_pubkeys_t *pRemoteScriptPubKeys,
+    ln_derkey_pubkeys_t *pLocalPubKeys,
+    ln_derkey_pubkeys_t *pRemotePubKeys);
+
 
 #endif /* LN_DERKEY_EX_H__ */
