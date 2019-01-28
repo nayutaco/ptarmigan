@@ -383,6 +383,109 @@ bool ln_channel_update_disable(ln_self_t *self)
 }
 
 
+bool ln_query_short_channel_ids_send(ln_self_t *self)
+{
+    (void)self;
+    return false;
+}
+
+
+bool HIDDEN ln_query_short_channel_ids_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    (void)self;
+    ln_msg_query_short_channel_ids_t msg;
+    ln_msg_query_short_channel_ids_read(&msg, pData, Len);
+    return true;
+}
+
+
+bool ln_reply_short_channel_ids_recv_send(ln_self_t *self)
+{
+    (void)self;
+    return false;
+}
+
+
+bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    (void)self;
+    ln_msg_reply_short_channel_ids_end_t msg;
+    ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len);
+    return true;
+}
+
+
+bool ln_query_channel_range_send(ln_self_t *self)
+{
+    ln_msg_query_channel_range_t msg;
+    msg.p_chain_hash = ln_genesishash_get();
+    msg.first_blocknum = 0;
+    msg.number_of_blocks = 0xffffffff;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if(!ln_msg_query_channel_range_write(&buf, &msg)) {
+        LOGE("fail: create query_channel_range\n");
+        return false;
+    }
+    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
+}
+
+
+bool HIDDEN ln_query_channel_range_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    (void)self;
+    ln_msg_query_channel_range_t msg;
+    ln_msg_query_channel_range_read(&msg, pData, Len);
+    return true;
+}
+
+
+bool ln_reply_channel_range_send(ln_self_t *self)
+{
+    (void)self;
+    return false;
+}
+
+
+bool HIDDEN ln_reply_channel_range_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    (void)self;
+    ln_msg_reply_channel_range_t msg;
+    bool ret = ln_msg_reply_channel_range_read(&msg, pData, Len);
+    if (ret) {
+        uint64_t *p_short_ids = NULL;
+        size_t ids = 0;
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        ret = ln_msg_gossip_ids_decode(&p_short_ids, &ids, msg.p_encoded_short_ids, msg.len);
+        if (ret) {
+            for (size_t lp = 0; lp < ids; lp++) {
+                ln_short_channel_id_string(str_sci, p_short_ids[lp]);
+                LOGD("[%ld]%s\n", lp, str_sci);
+            }
+            UTL_DBG_FREE(p_short_ids);
+        }
+    }
+    return true;
+}
+
+
+bool ln_gossip_timestamp_filter_send(ln_self_t *self)
+{
+    (void)self;
+    return false;
+}
+
+
+bool HIDDEN ln_gossip_timestamp_filter_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    (void)self;
+    ln_msg_gossip_timestamp_filter_t msg;
+    ln_msg_gossip_timestamp_filter_read(&msg, pData, Len);
+    return true;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/

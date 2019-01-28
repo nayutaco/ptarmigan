@@ -30,6 +30,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <zlib.h>
+
+#include "utl_dbg.h"
 #include "utl_time.h"
 #include "utl_int.h"
 
@@ -58,6 +61,8 @@
 #define DBG_PRINT_WRITE_UPD
 #define DBG_PRINT_WRITE_SIG
 #define DBG_PRINT_READ_SIG
+#define DBG_PRINT_WRITE_GQUERY
+#define DBG_PRINT_READ_GQUERY
 
 
 /********************************************************************
@@ -94,6 +99,14 @@ static void node_announcement_addresses_print(const ln_msg_node_announcement_add
 #if defined(DBG_PRINT_WRITE_UPD) || defined(DBG_PRINT_READ_UPD)
 static void channel_update_print(const ln_msg_channel_update_t *pMsg);
 #endif
+#if defined(DBG_PRINT_WRITE_GQUERY) || defined(DBG_PRINT_READ_GQUERY)
+static void query_short_channel_ids_print(const ln_msg_query_short_channel_ids_t *pMsg);
+static void reply_short_channel_ids_end_print(const ln_msg_reply_short_channel_ids_end_t *pMsg);
+static void query_channel_range_print(const ln_msg_query_channel_range_t *pMsg);
+static void reply_channel_range_print(const ln_msg_reply_channel_range_t *pMsg);
+static void gossip_timestamp_filter_print(const ln_msg_gossip_timestamp_filter_t *pMsg);
+#endif
+
 
 /********************************************************************
  * announcement_signatures
@@ -677,3 +690,407 @@ bool HIDDEN ln_msg_channel_update_print(const uint8_t *pData, uint16_t Len)
     return true;
 }
 
+
+/********************************************************************
+ * Query Messages
+ ********************************************************************/
+
+bool HIDDEN ln_msg_query_short_channel_ids_write(utl_buf_t *pBuf, const ln_msg_query_short_channel_ids_t *pMsg)
+{
+#ifdef DBG_PRINT_WRITE_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    query_short_channel_ids_print(pMsg);
+#endif  //DBG_PRINT_WRITE_GQUERY
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_QUERY_SHORT_CHANNEL_IDS)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->len)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_encoded_short_ids, pMsg->len)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_query_short_channel_ids_read(ln_msg_query_short_channel_ids_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (type != MSGTYPE_QUERY_SHORT_CHANNEL_IDS) {
+        LOGE("fail: type not match: %04x\n", type);
+        return false;
+    }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->len)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_encoded_short_ids, pMsg->len)) goto LABEL_ERROR_SYNTAX;
+
+#ifdef DBG_PRINT_READ_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    query_short_channel_ids_print(pMsg);
+#endif  //DBG_PRINT_READ_GQUERY
+    return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
+}
+
+
+static void query_short_channel_ids_print(const ln_msg_query_short_channel_ids_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[query_short_channel_ids]-------------------------------\n");
+    LOGD("chain_hash: ");
+    DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
+    LOGD("encoded_short_ids: ");
+    size_t len = pMsg->len;
+    if (len > 100) {
+        len = 100;
+    }
+    DUMPD(pMsg->p_encoded_short_ids, len);
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
+}
+
+
+bool HIDDEN ln_msg_reply_short_channel_ids_end_write(utl_buf_t *pBuf, const ln_msg_reply_short_channel_ids_end_t *pMsg)
+{
+#ifdef DBG_PRINT_WRITE_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    reply_short_channel_ids_end_print(pMsg);
+#endif  //DBG_PRINT_WRITE_GQUERY
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_REPLY_SHORT_CHANNEL_IDS_END)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, pMsg->complete)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_reply_short_channel_ids_end_read(ln_msg_reply_short_channel_ids_end_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (type != MSGTYPE_REPLY_SHORT_CHANNEL_IDS_END) {
+        LOGE("fail: type not match: %04x\n", type);
+        return false;
+    }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_byte(&buf_r, &pMsg->complete)) goto LABEL_ERROR_SYNTAX;
+
+#ifdef DBG_PRINT_READ_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    reply_short_channel_ids_end_print(pMsg);
+#endif  //DBG_PRINT_READ_GQUERY
+    return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
+}
+
+
+static void reply_short_channel_ids_end_print(const ln_msg_reply_short_channel_ids_end_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[reply_short_channel_ids_end]-------------------------------\n");
+    LOGD("chain_hash: ");
+    DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
+    LOGD("complete: %02x\n", pMsg->complete);
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
+}
+
+
+bool HIDDEN ln_msg_query_channel_range_write(utl_buf_t *pBuf, const ln_msg_query_channel_range_t *pMsg)
+{
+#ifdef DBG_PRINT_WRITE_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    query_channel_range_print(pMsg);
+#endif  //DBG_PRINT_WRITE_GQUERY
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_QUERY_CHANNEL_RANGE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->first_blocknum)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->number_of_blocks)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_query_channel_range_read(ln_msg_query_channel_range_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (type != MSGTYPE_QUERY_CHANNEL_RANGE) {
+        LOGE("fail: type not match: %04x\n", type);
+        return false;
+    }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->first_blocknum)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->number_of_blocks)) goto LABEL_ERROR_SYNTAX;
+
+#ifdef DBG_PRINT_READ_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    query_channel_range_print(pMsg);
+#endif  //DBG_PRINT_READ_GQUERY
+    return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
+}
+
+
+static void query_channel_range_print(const ln_msg_query_channel_range_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[query_channel_range]-------------------------------\n");
+    LOGD("chain_hash: ");
+    DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
+    LOGD("first_blocknum: %" PRIu32 "\n", pMsg->first_blocknum);
+    LOGD("number_of_blocks: %" PRIu32 "\n", pMsg->number_of_blocks);
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
+}
+
+
+bool HIDDEN ln_msg_reply_channel_range_write(utl_buf_t *pBuf, const ln_msg_reply_channel_range_t *pMsg)
+{
+#ifdef DBG_PRINT_WRITE_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    reply_channel_range_print(pMsg);
+#endif  //DBG_PRINT_WRITE_GQUERY
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_REPLY_CHANNEL_RANGE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->first_blocknum)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->number_of_blocks)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_byte(&buf_w, pMsg->complete)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, pMsg->len)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_encoded_short_ids, pMsg->len)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_reply_channel_range_read(ln_msg_reply_channel_range_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (type != MSGTYPE_REPLY_CHANNEL_RANGE) {
+        LOGE("fail: type not match: %04x\n", type);
+        return false;
+    }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->first_blocknum)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->number_of_blocks)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_byte(&buf_r, &pMsg->complete)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u16be(&buf_r, &pMsg->len)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_encoded_short_ids, pMsg->len)) goto LABEL_ERROR_SYNTAX;
+
+#ifdef DBG_PRINT_READ_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    reply_channel_range_print(pMsg);
+#endif  //DBG_PRINT_READ_GQUERY
+    return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
+}
+
+
+static void reply_channel_range_print(const ln_msg_reply_channel_range_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[reply_channel_range]-------------------------------\n");
+    LOGD("chain_hash: ");
+    DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
+    LOGD("first_blocknum: %" PRIu32 "\n", pMsg->first_blocknum);
+    LOGD("number_of_blocks: %" PRIu32 "\n", pMsg->number_of_blocks);
+    LOGD("complete: %02x\n", pMsg->complete);
+    LOGD("encoded_short_ids: ");
+    size_t len = pMsg->len;
+    if (len > 100) {
+        len = 100;
+    }
+    DUMPD(pMsg->p_encoded_short_ids, len);
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
+}
+
+
+bool HIDDEN ln_msg_gossip_timestamp_filter_write(utl_buf_t *pBuf, const ln_msg_gossip_timestamp_filter_t *pMsg)
+{
+#ifdef DBG_PRINT_WRITE_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    gossip_timestamp_filter_print(pMsg);
+#endif  //DBG_PRINT_WRITE_GQUERY
+
+    btc_buf_w_t buf_w;
+    btc_buf_w_init(&buf_w, 0);
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_QUERY_CHANNEL_RANGE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->first_timestamp)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u32be(&buf_w, pMsg->timestamp_range)) goto LABEL_ERROR;
+    btc_buf_w_move(&buf_w, pBuf);
+    return true;
+
+LABEL_ERROR:
+    btc_buf_w_free(&buf_w);
+    return false;
+}
+
+
+bool HIDDEN ln_msg_gossip_timestamp_filter_read(ln_msg_gossip_timestamp_filter_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    btc_buf_r_t buf_r;
+    btc_buf_r_init(&buf_r, pData, Len);
+    uint16_t type;
+    if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
+    if (type != MSGTYPE_QUERY_CHANNEL_RANGE) {
+        LOGE("fail: type not match: %04x\n", type);
+        return false;
+    }
+    if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->first_timestamp)) goto LABEL_ERROR_SYNTAX;
+    if (!btc_buf_r_read_u32be(&buf_r, &pMsg->timestamp_range)) goto LABEL_ERROR_SYNTAX;
+
+#ifdef DBG_PRINT_READ_GQUERY
+    LOGD("@@@@@ %s @@@@@\n", __func__);
+    gossip_timestamp_filter_print(pMsg);
+#endif  //DBG_PRINT_READ_GQUERY
+    return true;
+
+LABEL_ERROR_SYNTAX:
+    LOGE("fail: invalid syntax\n");
+    return false;
+}
+
+
+static void gossip_timestamp_filter_print(const ln_msg_gossip_timestamp_filter_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[gossip_timestamp_filter]-------------------------------\n");
+    LOGD("chain_hash: ");
+    DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
+    LOGD("first_timestamp: %" PRIu32 "\n", pMsg->first_timestamp);
+    LOGD("timestamp_range: %" PRIu32 "\n", pMsg->timestamp_range);
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
+}
+
+
+bool ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const uint8_t *pData, size_t Len)
+{
+    bool ret = true;
+
+    if ((*pData != 0x00) && (*pData != 0x01)) {
+        LOGE("fail: invalid encode type\n");
+        return false;
+    }
+
+    uint8_t encode = *pData;
+    uint8_t *p_decoded = NULL;
+    size_t decoded_len = 0;
+    pData++;
+    Len--;
+
+    if (encode == 0x00) {
+        p_decoded = (uint8_t *)pData;
+        decoded_len = Len;
+    } else if (encode == 0x01) {
+        int retval;
+        z_stream zstm;
+        uint8_t *buf_out = (uint8_t *)UTL_DBG_MALLOC(Len);
+
+        zstm.zalloc = Z_NULL;
+        zstm.zfree = Z_NULL;
+        zstm.opaque = Z_NULL;
+
+        retval = inflateInit(&zstm);
+        assert(retval == Z_OK);
+
+        zstm.next_in = (uint8_t *)pData;
+        zstm.avail_in = Len;
+        do {
+            zstm.avail_out = Len;
+            zstm.next_out = buf_out;
+            retval = inflate(&zstm, Z_NO_FLUSH);
+            if (retval == Z_STREAM_ERROR) {
+                UTL_DBG_FREE(p_decoded);
+                p_decoded = NULL;
+                ret = false;
+                goto LABEL_ERR;
+            }
+            if (Len - zstm.avail_out > 0) {
+                p_decoded = (uint8_t *)UTL_DBG_REALLOC(p_decoded, decoded_len + Len - zstm.avail_out);
+                assert (p_decoded != NULL);
+                memcpy(p_decoded + decoded_len, buf_out, Len - zstm.avail_out);
+                decoded_len += Len - zstm.avail_out;
+            }
+        } while (zstm.avail_out == 0);
+LABEL_ERR:
+        inflateEnd(&zstm);
+        UTL_DBG_FREE(buf_out);
+    }
+
+    if (p_decoded != NULL) {
+        size_t ids = decoded_len / sizeof(uint64_t);
+        uint64_t *p_short_channel_ids = (uint64_t *)UTL_DBG_MALLOC(ids * sizeof(uint64_t));
+        const uint8_t *p = p_decoded;
+        for (size_t lp = 0; lp < ids; lp++) {
+            p_short_channel_ids[lp] =
+                ((uint64_t)*p << 56) |
+                ((uint64_t)*(p + 1) << 48) |
+                ((uint64_t)*(p + 2) << 40) |
+                ((uint64_t)*(p + 3) << 32) |
+                ((uint64_t)*(p + 4) << 24) |
+                ((uint64_t)*(p + 5) << 16) |
+                ((uint64_t)*(p + 6) <<  8) |
+                 (uint64_t)*(p + 7);
+            //LOGD("[%ld]%" PRIx64 "\n", lp, p_short_channel_ids[lp]);
+            p += 8;
+        }
+        *ppShortChannelIds = p_short_channel_ids;
+        *pSz = ids;
+        if (encode == 0x01) {
+            UTL_DBG_FREE(p_decoded);
+        }
+    }
+
+    return ret;
+}
