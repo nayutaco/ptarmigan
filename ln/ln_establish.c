@@ -140,17 +140,17 @@ bool /*HIDDEN*/ ln_open_channel_send(
     ln_callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
-    self->commit_local.dust_limit_sat = msg.dust_limit_satoshis;
-    self->commit_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
-    self->commit_local.channel_reserve_sat = msg.channel_reserve_satoshis;
-    self->commit_local.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_local.max_accepted_htlcs = msg.max_accepted_htlcs;
+    self->commit_tx_local.dust_limit_sat = msg.dust_limit_satoshis;
+    self->commit_tx_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
+    self->commit_tx_local.channel_reserve_sat = msg.channel_reserve_satoshis;
+    self->commit_tx_local.htlc_minimum_msat = msg.htlc_minimum_msat;
+    self->commit_tx_local.max_accepted_htlcs = msg.max_accepted_htlcs;
     self->our_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
     self->their_msat = msg.push_msat;
     self->funding_sat = msg.funding_satoshis;
     self->feerate_per_kw = msg.feerate_per_kw;
 
-    self->commit_remote.to_self_delay = msg.to_self_delay; //XXX:
+    self->commit_tx_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     return true;
@@ -226,14 +226,14 @@ bool HIDDEN ln_open_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t
         return false;
     }
 
-    //params for commit_remote
-    self->commit_remote.dust_limit_sat = msg.dust_limit_satoshis;
-    self->commit_remote.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
-    self->commit_remote.channel_reserve_sat = msg.channel_reserve_satoshis;
-    self->commit_remote.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_remote.max_accepted_htlcs = msg.max_accepted_htlcs;
+    //params for commit_tx_remote
+    self->commit_tx_remote.dust_limit_sat = msg.dust_limit_satoshis;
+    self->commit_tx_remote.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
+    self->commit_tx_remote.channel_reserve_sat = msg.channel_reserve_satoshis;
+    self->commit_tx_remote.htlc_minimum_msat = msg.htlc_minimum_msat;
+    self->commit_tx_remote.max_accepted_htlcs = msg.max_accepted_htlcs;
 
-    self->commit_local.to_self_delay = msg.to_self_delay; //XXX:
+    self->commit_tx_local.to_self_delay = msg.to_self_delay; //XXX:
 
     //copy first_per_commitment_point for the first revoke_and_ack
     memcpy(self->pubkeys_remote.prev_per_commitment_point, self->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
@@ -285,13 +285,13 @@ bool HIDDEN ln_accept_channel_send(ln_self_t *self)
     utl_buf_free(&buf);
 
     self->min_depth = msg.minimum_depth;
-    self->commit_local.dust_limit_sat = msg.dust_limit_satoshis;
-    self->commit_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
-    self->commit_local.channel_reserve_sat = msg.channel_reserve_satoshis;
-    self->commit_local.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_local.max_accepted_htlcs = msg.max_accepted_htlcs;
+    self->commit_tx_local.dust_limit_sat = msg.dust_limit_satoshis;
+    self->commit_tx_local.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
+    self->commit_tx_local.channel_reserve_sat = msg.channel_reserve_satoshis;
+    self->commit_tx_local.htlc_minimum_msat = msg.htlc_minimum_msat;
+    self->commit_tx_local.max_accepted_htlcs = msg.max_accepted_htlcs;
 
-    self->commit_remote.to_self_delay = msg.to_self_delay; //XXX:
+    self->commit_tx_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     //obscured commitment tx number
     self->obscured = ln_script_calc_obscured_txnum(
@@ -341,23 +341,23 @@ bool HIDDEN ln_accept_channel_recv(ln_self_t *self, const uint8_t *pData, uint16
     //   - MUST reject the channel.
     //  - if channel_reserve_satoshis from the open_channel message is less than dust_limit_satoshis:
     //   - MUST reject the channel. Other fields have the same requirements as their counterparts in open_channel.
-    if (self->commit_local.dust_limit_sat > msg.channel_reserve_satoshis) {
+    if (self->commit_tx_local.dust_limit_sat > msg.channel_reserve_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our dust_limit_satoshis is greater than their channel_reserve_satoshis");
         return false;
     }
-    if (self->commit_local.channel_reserve_sat < msg.dust_limit_satoshis) {
+    if (self->commit_tx_local.channel_reserve_sat < msg.dust_limit_satoshis) {
         M_SEND_ERR(self, LNERR_INV_VALUE, "our channel_reserve_satoshis is lower than their dust_limit_satoshis");
         return false;
     }
 
     self->min_depth = msg.minimum_depth;
-    self->commit_remote.dust_limit_sat = msg.dust_limit_satoshis;
-    self->commit_remote.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
-    self->commit_remote.channel_reserve_sat = msg.channel_reserve_satoshis;
-    self->commit_remote.htlc_minimum_msat = msg.htlc_minimum_msat;
-    self->commit_remote.max_accepted_htlcs = msg.max_accepted_htlcs;
+    self->commit_tx_remote.dust_limit_sat = msg.dust_limit_satoshis;
+    self->commit_tx_remote.max_htlc_value_in_flight_msat = msg.max_htlc_value_in_flight_msat;
+    self->commit_tx_remote.channel_reserve_sat = msg.channel_reserve_satoshis;
+    self->commit_tx_remote.htlc_minimum_msat = msg.htlc_minimum_msat;
+    self->commit_tx_remote.max_accepted_htlcs = msg.max_accepted_htlcs;
 
-    self->commit_local.to_self_delay = msg.to_self_delay; //XXX:
+    self->commit_tx_local.to_self_delay = msg.to_self_delay; //XXX:
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->pubkeys_remote.prev_per_commitment_point, self->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
@@ -380,7 +380,7 @@ bool HIDDEN ln_accept_channel_recv(ln_self_t *self, const uint8_t *pData, uint16
     //initial commit tx(Remoteが持つTo-Local)
     //  署名計算のみのため、計算後は破棄する
     //  HTLCは存在しないため、計算省略
-    if (!ln_comtx_create_to_remote(self, &self->commit_remote,
+    if (!ln_comtx_create_to_remote(self, &self->commit_tx_remote,
         NULL, NULL, //close無し、署名作成無し
         0)) {
         //XXX:
@@ -404,7 +404,7 @@ bool HIDDEN ln_funding_created_send(ln_self_t *self)
     msg.p_temporary_channel_id = self->channel_id;
     msg.p_funding_txid = ln_funding_txid(self);
     msg.funding_output_index = ln_funding_txindex(self);
-    msg.p_signature = self->commit_remote.signature;
+    msg.p_signature = self->commit_tx_remote.signature;
     ln_msg_funding_created_write(&buf, &msg);
     ln_callback(self, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
@@ -427,7 +427,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
         return false;
     }
     ln_funding_set_txid(self, msg.p_funding_txid);
-    memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(self->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //temporary_channel_id
     if (!ln_check_channel_id(msg.p_temporary_channel_id, self->channel_id)) {
@@ -453,7 +453,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
     //    HTLCは存在しない
     if (!ln_comtx_create_to_local(self,
         NULL, NULL, 0,  //closeもHTLC署名も無し
-        0, self->commit_local.to_self_delay, self->commit_local.dust_limit_sat)) {
+        0, self->commit_tx_local.to_self_delay, self->commit_tx_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -461,7 +461,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    if (!ln_comtx_create_to_remote(self, &self->commit_remote,
+    if (!ln_comtx_create_to_remote(self, &self->commit_tx_remote,
         NULL, NULL,     //close無し、署名作成無し
         0)) {
         LOGE("fail: create_to_remote\n");
@@ -485,7 +485,7 @@ bool HIDDEN ln_funding_signed_send(ln_self_t *self)
 {
     ln_msg_funding_signed_t msg;
     msg.p_channel_id = self->channel_id;
-    msg.p_signature = self->commit_remote.signature;
+    msg.p_signature = self->commit_tx_remote.signature;
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_funding_signed_write(&buf, &msg);
     ln_callback(self, LN_CB_SEND_REQ, &buf);
@@ -511,7 +511,7 @@ bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(self->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
     ln_channel_id_calc(self->channel_id, ln_funding_txid(self), ln_funding_txindex(self));
@@ -525,7 +525,7 @@ bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
     //  HTLCは存在しない
     if (!ln_comtx_create_to_local(self,
         NULL, NULL, 0,      //closeもHTLC署名も無し
-        0, self->commit_local.to_self_delay, self->commit_local.dust_limit_sat)) {
+        0, self->commit_tx_local.to_self_delay, self->commit_tx_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -621,20 +621,20 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_self_t *self)
 
     //MUST set next_local_commitment_number to the commitment number
     //  of the next commitment_signed it expects to receive.
-    msg.next_local_commitment_number = self->commit_local.commit_num + 1;
+    msg.next_local_commitment_number = self->commit_tx_local.commit_num + 1;
     //MUST set next_remote_revocation_number to the commitment number
     //  of the next revoke_and_ack message it expects to receive.
-    msg.next_remote_revocation_number = self->commit_remote.revoke_num + 1;
+    msg.next_remote_revocation_number = self->commit_tx_remote.revoke_num + 1;
 
     //option_data_loss_protect
     bool option_data_loss_protect = false;
     if (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS) {
         option_data_loss_protect = true;
 
-        if (self->commit_remote.commit_num) {
+        if (self->commit_tx_remote.commit_num) {
             if (!ln_derkey_storage_get_secret(
                 your_last_per_commitment_secret, &self->privkeys_remote.storage,
-                (uint64_t)(LN_SECRET_INDEX_INIT - (self->commit_remote.commit_num - 1)))) {
+                (uint64_t)(LN_SECRET_INDEX_INIT - (self->commit_tx_remote.commit_num - 1)))) {
                 LOGD("no last secret\n");
                 memset(your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
             }
@@ -687,30 +687,30 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
 
     //  next_local_commitment_number
     bool chk_commit_num = true;
-    if (self->commit_remote.commit_num + 1 == msg.next_local_commitment_number) {
+    if (self->commit_tx_remote.commit_num + 1 == msg.next_local_commitment_number) {
         LOGD("next_local_commitment_number: OK\n");
-    } else if (self->commit_remote.commit_num == msg.next_local_commitment_number) {
+    } else if (self->commit_tx_remote.commit_num == msg.next_local_commitment_number) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         LOGD("next_local_commitment_number == remote commit_num: reuse\n");
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
         //      * SHOULD fail the channel.
-        LOGE("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_remote.commit_num + 1, msg.next_local_commitment_number);
+        LOGE("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_tx_remote.commit_num + 1, msg.next_local_commitment_number);
         chk_commit_num = false;
     }
 
     //BOLT#02
     //  next_remote_revocation_number
     bool chk_revoke_num = true;
-    if (self->commit_local.revoke_num + 1 == msg.next_remote_revocation_number) {
+    if (self->commit_tx_local.revoke_num + 1 == msg.next_remote_revocation_number) {
         LOGD("next_remote_revocation_number: OK\n");
-    } else if (self->commit_local.revoke_num == msg.next_remote_revocation_number) {
+    } else if (self->commit_tx_local.revoke_num == msg.next_remote_revocation_number) {
         // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
         //      * MUST re-send the revoke_and_ack.
         LOGD("next_remote_revocation_number == local commit_num: resend\n");
     } else {
-        LOGE("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_local.revoke_num + 1, msg.next_remote_revocation_number);
+        LOGE("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_tx_local.revoke_num + 1, msg.next_remote_revocation_number);
         chk_revoke_num = false;
     }
 
@@ -718,7 +718,7 @@ bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, u
     //  if it supports option_data_loss_protect, AND the option_data_loss_protect fields are present:
     if ( !(chk_commit_num && chk_revoke_num) && option_data_loss_protect ) {
         //if next_remote_revocation_number is greater than expected above,
-        if (msg.next_remote_revocation_number > self->commit_local.commit_num) { //XXX: ?
+        if (msg.next_remote_revocation_number > self->commit_tx_local.commit_num) { //XXX: ?
             //  AND your_last_per_commitment_secret is correct for that next_remote_revocation_number minus 1:
             uint8_t secret[BTC_SZ_PRIVKEY];
             ln_derkey_storage_create_secret(secret, self->privkeys_local._storage_seed, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
@@ -892,10 +892,10 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
     //  BOLT#2
     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
-    self->commit_local.commit_num = 0;
-    self->commit_local.revoke_num = (uint64_t)-1;
-    self->commit_remote.commit_num = 0;
-    self->commit_remote.revoke_num = (uint64_t)-1;
+    self->commit_tx_local.commit_num = 0;
+    self->commit_tx_local.revoke_num = (uint64_t)-1;
+    self->commit_tx_remote.commit_num = 0;
+    self->commit_tx_remote.revoke_num = (uint64_t)-1;
     // self->htlc_id_num = 0;
     // self->short_channel_id = 0;
 

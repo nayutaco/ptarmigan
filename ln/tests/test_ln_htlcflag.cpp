@@ -72,7 +72,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_msg_fu
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_data_t *, ln_close_force_t *, uint8_t **, uint64_t);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -144,12 +144,12 @@ public:
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
         ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
-        self->commit_local.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_local.htlc_minimum_msat = 0;
-        self->commit_local.max_accepted_htlcs = 10;
-        self->commit_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_remote.htlc_minimum_msat = 0;
-        self->commit_remote.max_accepted_htlcs = 10;
+        self->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
+        self->commit_tx_local.htlc_minimum_msat = 0;
+        self->commit_tx_local.max_accepted_htlcs = 10;
+        self->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        self->commit_tx_remote.htlc_minimum_msat = 0;
+        self->commit_tx_remote.max_accepted_htlcs = 10;
         self->our_msat = 1000000;
         self->their_msat = 1000000;
         btc_tx_init(&self->tx_funding);

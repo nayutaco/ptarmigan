@@ -226,8 +226,8 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     //seed
     ln_signer_init(self, pSeed);
 
-    self->commit_local.commit_num = 0;
-    self->commit_remote.commit_num = 0;
+    self->commit_tx_local.commit_num = 0;
+    self->commit_tx_remote.commit_num = 0;
 
     LOGD("END\n");
 
@@ -500,7 +500,7 @@ bool ln_funding_locked_check_need(const ln_self_t *self)
 {
     return (self->short_channel_id != 0) &&
         (
-            ((self->commit_local.commit_num == 0) && (self->commit_remote.commit_num == 0)) ||
+            ((self->commit_tx_local.commit_num == 0) && (self->commit_tx_remote.commit_num == 0)) ||
             ((self->reest_commit_num == 1) && (self->reest_revoke_num == 0))
         );
 }
@@ -663,7 +663,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
                utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
             //mutual close
             self->status = LN_STATUS_CLOSE_MUTUAL;
-        } else if (memcmp(txid, self->commit_local.txid, BTC_SZ_TXID) == 0) {
+        } else if (memcmp(txid, self->commit_tx_local.txid, BTC_SZ_TXID) == 0) {
             //unilateral close(local)
             self->status = LN_STATUS_CLOSE_UNI_LOCAL;
         } else {
@@ -723,14 +723,14 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     ln_update_scriptkeys(self);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_tx_local.htlc_num);
 
     //local commit_tx
     bool ret = ln_comtx_create_to_local(self,
                 pClose, NULL, 0,        //closeのみ(HTLC署名無し)
-                self->commit_local.commit_num,
-                self->commit_local.to_self_delay,
-                self->commit_local.dust_limit_sat);
+                self->commit_tx_local.commit_num,
+                self->commit_tx_local.to_self_delay,
+                self->commit_tx_local.dust_limit_sat);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
@@ -780,13 +780,13 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     ln_print_keys(self);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_tx_remote.htlc_num);
 
     //remote commit_tx
     bool ret = ln_comtx_create_to_remote(self,
-                &self->commit_remote,
+                &self->commit_tx_remote,
                 pClose, NULL,
-                self->commit_remote.commit_num);
+                self->commit_tx_remote.commit_num);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
@@ -877,14 +877,14 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
     ln_update_scriptkeys(self);
     ln_print_keys(self);
     //commitment number(for obscured commitment number)
-    //self->commit_remote.commit_num = commit_num;
+    //self->commit_tx_remote.commit_num = commit_num;
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
     ln_script_create_tolocal(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
-                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
-                self->commit_remote.to_self_delay);
+                self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
+                self->commit_tx_remote.to_self_delay);
     utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
     btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     // LOGD("calc to_local vout: ");
@@ -914,9 +914,9 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
                 ln_script_htlcinfo_script(&self->p_revoked_wit[htlc_idx],
                         type,
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                        self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         payhash,
                         expiry);
                 utl_buf_init(&self->p_revoked_vout[htlc_idx]);
@@ -1328,15 +1328,15 @@ uint64_t ln_closing_signed_initfee(const ln_self_t *self)
 }
 
 
-const ln_commit_data_t *ln_commit_local(const ln_self_t *self)
+const ln_commit_tx_t *ln_commit_tx_local(const ln_self_t *self)
 {
-    return &self->commit_local;
+    return &self->commit_tx_local;
 }
 
 
-const ln_commit_data_t *ln_commit_remote(const ln_self_t *self)
+const ln_commit_tx_t *ln_commit_tx_remote(const ln_self_t *self)
 {
-    return &self->commit_remote;
+    return &self->commit_tx_remote;
 }
 
 
@@ -1596,7 +1596,7 @@ bool HIDDEN ln_update_scriptkeys(ln_self_t *self)
 bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self)
 {
     if (!ln_derkey_update_scriptkeys(
-        &self->commit_local.script_pubkeys, &self->pubkeys_local, &self->pubkeys_remote)) return false;
+        &self->commit_tx_local.script_pubkeys, &self->pubkeys_local, &self->pubkeys_remote)) return false;
     return true;
 }
 
@@ -1604,7 +1604,7 @@ bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self)
 bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self)
 {
     if (!ln_derkey_update_scriptkeys(
-        &self->commit_remote.script_pubkeys, &self->pubkeys_remote, &self->pubkeys_local)) return false;
+        &self->commit_tx_remote.script_pubkeys, &self->pubkeys_remote, &self->pubkeys_local)) return false;
     return true;
 }
 
@@ -1731,10 +1731,10 @@ void ln_dbg_commitnum(const ln_self_t *self)
     LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys_local));
     LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->privkeys_remote.storage));
     LOGD("------------------------------------------\n");
-    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
-    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
-    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_local.revoke_num);
-    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_remote.revoke_num);
+    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_tx_local.commit_num);
+    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_tx_remote.commit_num);
+    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_tx_local.revoke_num);
+    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_tx_remote.revoke_num);
     LOGD("------------------------------------------\n");
     LOGD("htlc_id_num: %" PRIu64 "\n", self->htlc_id_num);
     LOGD("------------------------------------------\n");

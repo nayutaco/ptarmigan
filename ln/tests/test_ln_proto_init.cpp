@@ -144,12 +144,12 @@ public:
         annoprm.fee_prop_millionths = 200;
 
         ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
-        self->commit_local.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_local.htlc_minimum_msat = 0;
-        self->commit_local.max_accepted_htlcs = 10;
-        self->commit_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_remote.htlc_minimum_msat = 0;
-        self->commit_remote.max_accepted_htlcs = 10;
+        self->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
+        self->commit_tx_local.htlc_minimum_msat = 0;
+        self->commit_tx_local.max_accepted_htlcs = 10;
+        self->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        self->commit_tx_remote.htlc_minimum_msat = 0;
+        self->commit_tx_remote.max_accepted_htlcs = 10;
         self->our_msat = 1000000;
         self->their_msat = 1000000;
         btc_tx_init(&self->tx_funding);

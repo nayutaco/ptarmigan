@@ -182,7 +182,7 @@ bool HIDDEN ln_closing_signed_send(ln_self_t *self, ln_msg_closing_signed_t *pCl
     utl_buf_t buf = UTL_BUF_INIT;
     msg.p_channel_id = self->channel_id;
     msg.fee_satoshis = self->close_fee_sat;
-    msg.p_signature = self->commit_remote.signature;
+    msg.p_signature = self->commit_tx_remote.signature;
     if (!ln_msg_closing_signed_write(&buf, &msg)) {
         LOGE("fail: create closeing_signed\n");
         return false;
@@ -210,7 +210,7 @@ bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(self->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
     if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
@@ -294,8 +294,8 @@ bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
  * @param[in]   bVerify     true:verifyを行う
  * @note
  *      - INPUT: 2-of-2(順番はself->key_fund_sort)
- *          - 自分：self->commit_remote.signature
- *          - 相手：self->commit_local.signature
+ *          - 自分：self->commit_tx_remote.signature
+ *          - 相手：self->commit_tx_local.signature
  *      - OUTPUT:
  *          - 自分：self->shutdown_scriptpk_local, self->our_msat / 1000
  *          - 相手：self->shutdown_scriptpk_remote, self->their_msat / 1000
@@ -359,13 +359,13 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     }
 
     //送信用署名
-    btc_sig_der2rs(self->commit_remote.signature, buf_sig.buf, buf_sig.len);
+    btc_sig_der2rs(self->commit_tx_remote.signature, buf_sig.buf, buf_sig.len);
 
     //署名追加
     if (bVerify) {
         utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
 
-        btc_sig_rs2der(&buf_sig_from_remote, self->commit_local.signature);
+        btc_sig_rs2der(&buf_sig_from_remote, self->commit_tx_local.signature);
         ln_comtx_set_vin_p2wsh_2of2(pTx, 0, self->key_fund_sort, &buf_sig, &buf_sig_from_remote, &self->redeem_fund);
         utl_buf_free(&buf_sig_from_remote);
 

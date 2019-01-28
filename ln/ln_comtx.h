@@ -73,7 +73,7 @@ bool HIDDEN ln_comtx_create_to_local(ln_self_t *self,
  *          - to_remote output
  *          - 各HTLC output
  *
- * 作成した署名は、To-Localはself->commit_remote.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
+ * 作成した署名は、To-Localはself->commit_tx_remote.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
  *
  *   1. to_local script作成
  *   2. HTLC情報設定
@@ -88,7 +88,7 @@ bool HIDDEN ln_comtx_create_to_local(ln_self_t *self,
  * @retval  true    成功
  */
 bool HIDDEN ln_comtx_create_to_remote(const ln_self_t *self,
-                    ln_commit_data_t *pCommit,
+                    ln_commit_tx_t *pCommit,
                     ln_close_force_t *pClose,
                     uint8_t **ppHtlcSigs,
                     uint64_t CommitNum);

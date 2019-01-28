@@ -497,7 +497,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
 
-    LOGD("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
+    LOGD("close: bad way(local): htlc=%d\n", ln_commit_tx_local(p_self)->htlc_num);
     ptarmd_eventlog(ln_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
     UTL_DBG_FREE(p_self);
@@ -585,9 +585,9 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         //our_msat
         cJSON_AddItemToObject(our, "msatoshi", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //commit_num(local)
-        cJSON_AddItemToObject(our, "commit_num", cJSON_CreateNumber(ln_commit_local(p_self)->commit_num));
+        cJSON_AddItemToObject(our, "commit_num", cJSON_CreateNumber(ln_commit_tx_local(p_self)->commit_num));
         //htlc_num(local)
-        cJSON_AddItemToObject(our, "htlc_num", cJSON_CreateNumber(ln_commit_local(p_self)->htlc_num));
+        cJSON_AddItemToObject(our, "htlc_num", cJSON_CreateNumber(ln_commit_tx_local(p_self)->htlc_num));
         cJSON_AddItemToObject(result, "our", our);
 
         //their
@@ -595,12 +595,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         //their_msat
         cJSON_AddItemToObject(their, "msatoshi", cJSON_CreateNumber64(ln_their_msat(p_self)));
         //commit_num(remote)
-        cJSON_AddItemToObject(their, "commit_num", cJSON_CreateNumber(ln_commit_remote(p_self)->commit_num));
+        cJSON_AddItemToObject(their, "commit_num", cJSON_CreateNumber(ln_commit_tx_remote(p_self)->commit_num));
         //htlc_num(remote)
-        cJSON_AddItemToObject(their, "htlc_num", cJSON_CreateNumber(ln_commit_remote(p_self)->htlc_num));
+        cJSON_AddItemToObject(their, "htlc_num", cJSON_CreateNumber(ln_commit_tx_remote(p_self)->htlc_num));
         cJSON_AddItemToObject(result, "their", their);
 
-        if (ln_commit_local(p_self)->htlc_num != 0) {
+        if (ln_commit_tx_local(p_self)->htlc_num != 0) {
             cJSON *htlcs = cJSON_CreateArray();
             for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
                 const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(p_self, lp);

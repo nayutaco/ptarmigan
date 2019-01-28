@@ -646,7 +646,7 @@ typedef struct {
 } ln_funding_tx_t;
 
 
-/** @struct ln_commit_data_t
+/** @struct ln_commit_tx_t
  *  @brief  commitment transaction用情報
  */
 typedef struct {
@@ -663,13 +663,13 @@ typedef struct {
     uint8_t             txid[BTC_SZ_TXID];              ///< txid
     uint16_t            htlc_num;                       ///< commit_tx中のHTLC数
     uint64_t            commit_num;                     ///< commitment_number
-                                                        //      commit_local:  commitment_signed受信後、インクリメント
-                                                        //      commit_remote: commitment_signed送信後、インクリメント
+                                                        //      commit_tx_local:  commitment_signed受信後、インクリメント
+                                                        //      commit_tx_remote: commitment_signed送信後、インクリメント
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
-                                                        //      commit_local:  revoke_and_ack送信後、commit_local.commit_num - 1を代入
-                                                        //      commit_remote: revoke_and_ack受信後、self->commit_remote.commit_num - 1を代入
+                                                        //      commit_tx_local:  revoke_and_ack送信後、commit_tx_local.commit_num - 1を代入
+                                                        //      commit_tx_remote: revoke_and_ack受信後、self->commit_tx_remote.commit_num - 1を代入
     ln_derkey_script_pubkeys_t  script_pubkeys;         ///< script用PubKey
-} ln_commit_data_t;
+} ln_commit_tx_t;
 
 
 /** @struct     ln_self_t
@@ -737,8 +737,8 @@ struct ln_self_t {
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
 
     //commitment transaction(local/remote)
-    ln_commit_data_t            commit_local;                   ///< [COMM_01]local commit_tx用
-    ln_commit_data_t            commit_remote;                  ///< [COMM_02]remote commit_tx用
+    ln_commit_tx_t            commit_tx_local;                   ///< [COMM_01]local commit_tx用
+    ln_commit_tx_t            commit_tx_remote;                  ///< [COMM_02]remote commit_tx用
     //commitment transaction(固有)
     uint64_t                    funding_sat;                    ///< [COMM_03]funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< [COMM_04]feerate_per_kw
@@ -1383,20 +1383,20 @@ bool ln_is_shutdown_sent(const ln_self_t *self);
 uint64_t ln_closing_signed_initfee(const ln_self_t *self);
 
 
-/** commit_local取得
+/** commit_tx_local取得
  *
  * @param[in]           self            channel info
- * @return      commit_local情報
+ * @return      commit_tx_local情報
  */
-const ln_commit_data_t *ln_commit_local(const ln_self_t *self);
+const ln_commit_tx_t *ln_commit_tx_local(const ln_self_t *self);
 
 
-/** commit_remote取得
+/** commit_tx_remote取得
  *
  * @param[in]           self            channel info
- * @return      commit_remote情報
+ * @return      commit_tx_remote情報
  */
-const ln_commit_data_t *ln_commit_remote(const ln_self_t *self);
+const ln_commit_tx_t *ln_commit_tx_remote(const ln_self_t *self);
 
 
 /** shutdown時のlocal scriptPubKey取得
