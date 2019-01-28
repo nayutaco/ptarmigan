@@ -65,6 +65,11 @@ const char *ln_msg_name(uint16_t Type)
         { 0x0101, "node_announcement" },
         { 0x0102, "channel_update" },
         { 0x0103, "announcement_signatures" },
+        { 0x0105, "query_short_channel_ids" },
+        { 0x0106, "reply_short_channel_ids_end" },
+        { 0x0107, "query_channel_range" },
+        { 0x0108, "reply_channel_range" },
+        { 0x0109, "gossip_timestamp_filter" },
     };
     for (size_t lp = 0; lp < ARRAY_SIZE(MESSAGE); lp++) {
         if (Type == MESSAGE[lp].type) {

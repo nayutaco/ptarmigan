@@ -108,13 +108,13 @@ LDFLAGS += -pthread
 
 #Link Library
 LIBS += -L$(COMMON_PATH)/libs/install/lib
+LIBS += -L$(COMMON_PATH)/ln -lln
+LIBS += -L$(COMMON_PATH)/btc -lbtc
+LIBS += -L$(COMMON_PATH)/utl -lutl
 LIBS += -ljansson
 LIBS += -lcurl -lrt -lz
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
-LIBS += -L$(COMMON_PATH)/ln -lln
-LIBS += -L$(COMMON_PATH)/btc -lbtc
-LIBS += -L$(COMMON_PATH)/utl -lutl
 LIBS += -llmdb -lbase58 -lmbedcrypto
 LIBS += -lstdc++
 

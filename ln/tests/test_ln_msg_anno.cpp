@@ -76,6 +76,12 @@ namespace LN_DUMMY {
     uint32_t fee_base_msat;
     uint32_t fee_proportional_millionths;
     uint64_t htlc_maximum_msat;
+    uint8_t encoded_short_ids[128];
+    uint8_t complete;
+    uint32_t first_blocknum;
+    uint32_t number_of_blocks;
+    uint32_t first_timestamp;
+    uint32_t timestamp_range;
 }
 
 
@@ -122,6 +128,12 @@ protected:
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::fee_base_msat, sizeof(LN_DUMMY::fee_base_msat)));
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::fee_proportional_millionths, sizeof(LN_DUMMY::fee_proportional_millionths)));
         ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::htlc_maximum_msat, sizeof(LN_DUMMY::htlc_maximum_msat)));
+        ASSERT_TRUE(btc_rng_big_rand(LN_DUMMY::encoded_short_ids, sizeof(LN_DUMMY::encoded_short_ids)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::complete, sizeof(LN_DUMMY::complete)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::first_blocknum, sizeof(LN_DUMMY::first_blocknum)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::number_of_blocks, sizeof(LN_DUMMY::number_of_blocks)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::first_timestamp, sizeof(LN_DUMMY::first_timestamp)));
+        ASSERT_TRUE(btc_rng_big_rand((uint8_t *)&LN_DUMMY::timestamp_range, sizeof(LN_DUMMY::timestamp_range)));
         btc_rng_free();
     }
 
@@ -332,5 +344,119 @@ TEST_F(ln, channel_update)
     ASSERT_EQ(msg.fee_base_msat, LN_DUMMY::fee_base_msat);
     ASSERT_EQ(msg.fee_proportional_millionths, LN_DUMMY::fee_proportional_millionths);
     ASSERT_EQ(msg.htlc_maximum_msat, LN_DUMMY::htlc_maximum_msat);
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, query_short_channel_ids)
+{
+    ln_msg_query_short_channel_ids_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.len = (uint16_t)sizeof(LN_DUMMY::encoded_short_ids);
+    msg.p_encoded_short_ids = LN_DUMMY::encoded_short_ids;
+    bool ret = ln_msg_query_short_channel_ids_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_query_short_channel_ids_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(sizeof(LN_DUMMY::encoded_short_ids), msg.len);
+    ASSERT_EQ(0, memcmp(msg.p_encoded_short_ids, LN_DUMMY::encoded_short_ids, sizeof(LN_DUMMY::encoded_short_ids)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, reply_short_channel_ids_end)
+{
+    ln_msg_reply_short_channel_ids_end_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.complete = LN_DUMMY::complete;
+    bool ret = ln_msg_reply_short_channel_ids_end_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_reply_short_channel_ids_end_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(LN_DUMMY::complete, msg.complete);
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, query_channel_range)
+{
+    ln_msg_query_channel_range_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.first_blocknum = LN_DUMMY::first_blocknum;
+    msg.number_of_blocks = LN_DUMMY::number_of_blocks;
+    bool ret = ln_msg_query_channel_range_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_query_channel_range_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(LN_DUMMY::first_blocknum, msg.first_blocknum);
+    ASSERT_EQ(LN_DUMMY::number_of_blocks, msg.number_of_blocks);
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, reply_channel_range)
+{
+    ln_msg_reply_channel_range_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.first_blocknum = LN_DUMMY::first_blocknum;
+    msg.number_of_blocks = LN_DUMMY::number_of_blocks;
+    msg.complete = LN_DUMMY::complete;
+    msg.len = (uint16_t)sizeof(LN_DUMMY::encoded_short_ids);
+    msg.p_encoded_short_ids = LN_DUMMY::encoded_short_ids;
+    bool ret = ln_msg_reply_channel_range_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_reply_channel_range_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(LN_DUMMY::first_blocknum, msg.first_blocknum);
+    ASSERT_EQ(LN_DUMMY::number_of_blocks, msg.number_of_blocks);
+    ASSERT_EQ(LN_DUMMY::complete, msg.complete);
+    ASSERT_EQ(sizeof(LN_DUMMY::encoded_short_ids), msg.len);
+    ASSERT_EQ(0, memcmp(msg.p_encoded_short_ids, LN_DUMMY::encoded_short_ids, sizeof(LN_DUMMY::encoded_short_ids)));
+    utl_buf_free(&buf);
+}
+
+
+TEST_F(ln, gossip_timestamp_filter)
+{
+    ln_msg_gossip_timestamp_filter_t msg;
+    utl_buf_t buf = UTL_BUF_INIT;
+
+    msg.p_chain_hash = LN_DUMMY::chain_hash;
+    msg.first_timestamp = LN_DUMMY::first_timestamp;
+    msg.timestamp_range = LN_DUMMY::timestamp_range;
+    bool ret = ln_msg_gossip_timestamp_filter_write(&buf, &msg);
+    ASSERT_TRUE(ret);
+
+    memset(&msg, 0x00, sizeof(msg)); //clear
+    ret = ln_msg_gossip_timestamp_filter_read(&msg, buf.buf, (uint16_t)buf.len);
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(0, memcmp(msg.p_chain_hash, LN_DUMMY::chain_hash, sizeof(LN_DUMMY::chain_hash)));
+    ASSERT_EQ(LN_DUMMY::first_timestamp, msg.first_timestamp);
+    ASSERT_EQ(LN_DUMMY::timestamp_range, msg.timestamp_range);
     utl_buf_free(&buf);
 }

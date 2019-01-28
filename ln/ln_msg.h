@@ -62,6 +62,11 @@
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+#define MSGTYPE_QUERY_SHORT_CHANNEL_IDS     ((uint16_t)0x0105)
+#define MSGTYPE_REPLY_SHORT_CHANNEL_IDS_END ((uint16_t)0x0106)
+#define MSGTYPE_QUERY_CHANNEL_RANGE         ((uint16_t)0x0107)
+#define MSGTYPE_REPLY_CHANNEL_RANGE         ((uint16_t)0x0108)
+#define MSGTYPE_GOSSIP_TIMESTAMP_FILTER     ((uint16_t)0x0109)
 
 
 /**************************************************************************

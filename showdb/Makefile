@@ -7,7 +7,7 @@ CC              := "$(GNU_PREFIX)gcc"
 
 CFLAGS  += --std=c99 -I../utl -I../btc -I../ln -I../ptarmd -I../libs/install/include
 LDFLAGS += -L../libs/install/lib -L../ln -L../btc -L../utl
-LDFLAGS += -pthread -lln -lbtc -lutl -llmdb -lbase58 -lmbedcrypto -lstdc++
+LDFLAGS += -pthread -lln -lbtc -lutl -llmdb -lbase58 -lmbedcrypto -lz -lstdc++
 
 all: showdb
 

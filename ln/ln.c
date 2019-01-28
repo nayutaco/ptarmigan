@@ -154,7 +154,12 @@ static const struct {
     { MSGTYPE_CHANNEL_ANNOUNCEMENT,         ln_channel_announcement_recv },
     { MSGTYPE_NODE_ANNOUNCEMENT,            ln_node_announcement_recv },
     { MSGTYPE_CHANNEL_UPDATE,               ln_channel_update_recv },
-    { MSGTYPE_ANNOUNCEMENT_SIGNATURES,      ln_announcement_signatures_recv }
+    { MSGTYPE_ANNOUNCEMENT_SIGNATURES,      ln_announcement_signatures_recv },
+    { MSGTYPE_QUERY_SHORT_CHANNEL_IDS,      ln_query_short_channel_ids_recv },
+    { MSGTYPE_REPLY_SHORT_CHANNEL_IDS_END,  ln_reply_short_channel_ids_end_recv },
+    { MSGTYPE_QUERY_CHANNEL_RANGE,          ln_query_channel_range_recv },
+    { MSGTYPE_REPLY_CHANNEL_RANGE,          ln_reply_channel_range_recv },
+    { MSGTYPE_GOSSIP_TIMESTAMP_FILTER,      ln_gossip_timestamp_filter_recv }
 };
 
 

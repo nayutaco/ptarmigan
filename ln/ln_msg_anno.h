@@ -200,6 +200,90 @@ typedef struct {
 } ln_msg_channel_update_t;
 
 
+/** @struct     ln_msg_query_short_channel_ids_t
+ *  @brief      query_short_channel_ids
+ */
+typedef struct ln_msg_query_short_channel_ids_t {
+    //1. type: 261 (`query_short_channel_ids`) (`gossip_queries`)
+    //2. data:
+    //    * [`32`:`chain_hash`]
+    //    * [`2`:`len`]
+    //    * [`len`:`encoded_short_ids`]
+
+    const uint8_t *p_chain_hash;
+    uint16_t len;
+    const uint8_t *p_encoded_short_ids;
+} ln_msg_query_short_channel_ids_t;
+
+
+/** @struct     ln_msg_reply_short_channel_ids_end_t
+ *  @brief      reply_short_channel_ids_end
+ */
+typedef struct ln_msg_reply_short_channel_ids_end_t {
+    //1. type: 262 (`reply_short_channel_ids_end`) (`gossip_queries`)
+    //2. data:
+    //    * [`32`:`chain_hash`]
+    //    * [`1`:`complete`]
+
+    const uint8_t *p_chain_hash;
+    uint8_t complete;
+} ln_msg_reply_short_channel_ids_end_t;
+
+
+/** @struct     ln_msg_query_channel_range_t
+ *  @brief      query_channel_range
+ */
+typedef struct ln_msg_query_channel_range_t {
+    //1. type: 263 (`query_channel_range`) (`gossip_queries`)
+    //2. data:
+    //    * [`32`:`chain_hash`]
+    //    * [`4`:`first_blocknum`]
+    //    * [`4`:`number_of_blocks`]
+
+    const uint8_t *p_chain_hash;
+    uint32_t first_blocknum;
+    uint32_t number_of_blocks;
+} ln_msg_query_channel_range_t;
+
+
+/** @struct     ln_msg_reply_channel_range_t
+ *  @brief      reply_channel_range
+ */
+typedef struct ln_msg_reply_channel_range_t {
+    //1. type: 264 (`reply_channel_range`) (`gossip_queries`)
+    //2. data:
+    //    * [`32`:`chain_hash`]
+    //    * [`4`:`first_blocknum`]
+    //    * [`4`:`number_of_blocks`]
+    //    * [`1`:`complete`]
+    //    * [`2`:`len`]
+    //    * [`len`:`encoded_short_ids`]
+
+    const uint8_t *p_chain_hash;
+    uint32_t first_blocknum;
+    uint32_t number_of_blocks;
+    uint8_t complete;
+    uint16_t len;
+    const uint8_t *p_encoded_short_ids;
+} ln_msg_reply_channel_range_t;
+
+
+/** @struct     ln_msg_gossip_timestamp_filter_t
+ *  @brief      gossip_timestamp_filter
+ */
+typedef struct ln_msg_gossip_timestamp_filter_t {
+    //1. type: 265 (`gossip_timestamp_filter`) (`gossip_queries`)
+    //2. data:
+    //    * [`32`:`chain_hash`]
+    //    * [`4`:`first_timestamp`]
+    //    * [`4`:`timestamp_range`]
+
+    const uint8_t *p_chain_hash;
+    uint32_t first_timestamp;
+    uint32_t timestamp_range;
+} ln_msg_gossip_timestamp_filter_t;
+
+
 /**************************************************************************
  * const variables
  **************************************************************************/
@@ -314,11 +398,11 @@ bool HIDDEN ln_msg_node_announcement_print_2(const uint8_t *pData, uint16_t Len)
 
 
 //XXX:
-bool HIDDEN ln_msg_node_announcement_addresses_write(utl_buf_t *pBuf, const ln_msg_node_announcement_addresses_t *pAddrs); 
+bool HIDDEN ln_msg_node_announcement_addresses_write(utl_buf_t *pBuf, const ln_msg_node_announcement_addresses_t *pAddrs);
 
 
 //XXX:
-bool /*HIDDEN*/ ln_msg_node_announcement_addresses_read(ln_msg_node_announcement_addresses_t *pAddrs, const uint8_t *pData, uint16_t Len); 
+bool /*HIDDEN*/ ln_msg_node_announcement_addresses_read(ln_msg_node_announcement_addresses_t *pAddrs, const uint8_t *pData, uint16_t Len);
 
 
 /** sign node_announcement
@@ -327,7 +411,7 @@ bool /*HIDDEN*/ ln_msg_node_announcement_addresses_read(ln_msg_node_announcement
 bool HIDDEN ln_msg_node_announcement_sign(uint8_t *pData, uint16_t Len);
 
 
-/** vefiry node_announcement
+/** verify node_announcement
  *
  */
 bool HIDDEN ln_msg_node_announcement_verify(const ln_msg_node_announcement_t *pMsg, const uint8_t *pData, uint16_t Len);
@@ -373,5 +457,77 @@ bool HIDDEN ln_msg_channel_update_verify(const uint8_t *pNodePubKey, const uint8
  */
 bool HIDDEN ln_msg_channel_update_print(const uint8_t *pData, uint16_t Len);
 
+
+/** write query_short_channel_ids
+ *
+ */
+bool HIDDEN ln_msg_query_short_channel_ids_write(utl_buf_t *pBuf, const ln_msg_query_short_channel_ids_t *pMsg);
+
+
+/** read query_short_channel_ids
+ *
+ */
+bool HIDDEN ln_msg_query_short_channel_ids_read(ln_msg_query_short_channel_ids_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** write reply_short_channel_ids_end
+ *
+ */
+bool HIDDEN ln_msg_reply_short_channel_ids_end_write(utl_buf_t *pBuf, const ln_msg_reply_short_channel_ids_end_t *pMsg);
+
+
+/** write reply_short_channel_ids_end
+ *
+ */
+bool HIDDEN ln_msg_reply_short_channel_ids_end_read(ln_msg_reply_short_channel_ids_end_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** write query_channel_range
+ *
+ */
+bool HIDDEN ln_msg_query_channel_range_write(utl_buf_t *pBuf, const ln_msg_query_channel_range_t *pMsg);
+
+
+/** write query_channel_range
+ *
+ */
+bool HIDDEN ln_msg_query_channel_range_read(ln_msg_query_channel_range_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** write reply_channel_range
+ *
+ */
+bool HIDDEN ln_msg_reply_channel_range_write(utl_buf_t *pBuf, const ln_msg_reply_channel_range_t *pMsg);
+
+
+/** write reply_channel_range
+ *
+ */
+bool HIDDEN ln_msg_reply_channel_range_read(ln_msg_reply_channel_range_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** write gossip_timestamp_filter
+ *
+ */
+bool HIDDEN ln_msg_gossip_timestamp_filter_write(utl_buf_t *pBuf, const ln_msg_gossip_timestamp_filter_t *pMsg);
+
+
+/** write gossip_timestamp_filter
+ *
+ */
+bool HIDDEN ln_msg_gossip_timestamp_filter_read(ln_msg_gossip_timestamp_filter_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** decode encoded_short_ids
+ *
+ * @param[out]     ppShortChannelIds       decoded short_channel_id (free() after used)
+ * @param[out]     pSz                     num of ppShortChannelIds
+ * @param[in]      pData                   encoded_short_ids
+ * @param[in]      Len                     pData length
+ * @retval      true    success
+ * @attention
+ *      - ppShortChannelIds is allocated by this function.
+ */
+bool HIDDEN ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const uint8_t *pData, size_t Len);
 
 #endif /* LN_MSG_ANNO_H__ */
