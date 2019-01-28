@@ -627,7 +627,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16
     DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
     // uint8_t old_secret[BTC_SZ_PRIVKEY];
     // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
-    //     ret = ln_derkey_storage_get_secret(old_secret, &self->peer_storage, LN_SECRET_INDEX_INIT - index);
+    //     ret = ln_derkey_storage_get_secret(old_secret, &self->privkeys_remote.storage, LN_SECRET_INDEX_INIT - index);
     //     if (ret) {
     //         uint8_t pubkey[BTC_SZ_PUBKEY];
     //         btc_keys_priv2pub(pubkey, old_secret);
@@ -1513,17 +1513,17 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
     uint8_t pub[BTC_SZ_PUBKEY];
     btc_keys_priv2pub(pub, p_prev_secret);
     //DUMPD(pub, BTC_SZ_PUBKEY);
-    bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret);
+    bool ret = ln_derkey_storage_insert_secret(&self->privkeys_remote.storage, p_prev_secret);
     if (!ret) return false;
 
     //M_DB_SELF_SAVE(self);    //保存は呼び出し元で行う
-    LOGD("I=%016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->peer_storage));
+    LOGD("I=%016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->privkeys_remote.storage));
 
     //for (uint64_t idx = LN_SECRET_INDEX_INIT; idx > ln_derkey_storage_get_current_index(); idx--) {
     //    LOGD("I=%016" PRIx64 "\n", idx);
     //    LOGD2("  ");
     //    uint8_t sec[BTC_SZ_PRIVKEY];
-    //    ret = ln_derkey_storage_get_secret(sec, &self->peer_storage, idx);
+    //    ret = ln_derkey_storage_get_secret(sec, &self->privkeys_remote.storage, idx);
     //    assert(ret);
     //    LOGD2("  pri:");
     //    DUMPD(sec, BTC_SZ_PRIVKEY);

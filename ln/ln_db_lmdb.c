@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-35))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-36))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -165,6 +165,7 @@
     -34: change the size of ln_derkey_local_privkeys_t::per_commitment_secret
          BTC_SZ_PUBKEY -> BTC_SZ_PRIVKEY
     -35: change the order of internal members in ln_derkey_local_privkeys_t
+    -36: change self->peer_storage -> self->privkeys_remote
  */
 
 
@@ -330,7 +331,7 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //keys
     //
-    M_ITEM(ln_self_t, peer_storage),    //[KEYS01]
+    M_ITEM(ln_self_t, privkeys_remote),    //[KEYS01]
     //[KEYS03]priv_data --> secret
 
     //

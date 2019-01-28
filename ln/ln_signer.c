@@ -51,7 +51,7 @@ bool HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
     if (!pSeed) return true;
 
     if (!ln_derkey_local_privkeys_init(&self->privkeys_local, pSeed)) return false;
-    ln_derkey_storage_init(&self->peer_storage);
+    ln_derkey_storage_init(&self->privkeys_remote.storage);
     return true;
 }
 

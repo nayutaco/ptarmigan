@@ -698,8 +698,8 @@ struct ln_self_t {
     ln_status_t                 status;                         ///< [CONN_03]状態
 
     //key storage
-    ln_derkey_storage_t         peer_storage;                   ///< [KEYS_01]key storage(peer)
-    ln_derkey_local_privkeys_t  privkeys_local;                 ///< [KEYS_02]secret情報
+    ln_derkey_local_privkeys_t  privkeys_local;                 ///< [KEYS_01]local secret
+    ln_derkey_remote_privkeys_t privkeys_remote;                ///< [KEYS_02]remote secret
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee

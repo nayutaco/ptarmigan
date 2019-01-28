@@ -666,7 +666,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
             uint64_t commit_num = calc_commit_num(self, pCloseTx);
 
             utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
-            bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+            bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
             if (ret) {
                 //revoked transaction close(remote)
                 self->status = LN_STATUS_CLOSE_REVOKED;
@@ -854,7 +854,7 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
 
     //remote per_commitment_secretの復元
     utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
-    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
     if (!ret) {
         LOGE("fail: ln_derkey_storage_get_secret()\n");
         abort();
@@ -1726,7 +1726,7 @@ void ln_dbg_commitnum(const ln_self_t *self)
 {
     LOGD("------------------------------------------\n");
     LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys_local));
-    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->peer_storage));
+    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->privkeys_remote.storage));
     LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
     LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);

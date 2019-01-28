@@ -80,6 +80,11 @@ typedef struct {
 
 
 typedef struct {
+    ln_derkey_storage_t     storage;
+} ln_derkey_remote_privkeys_t;
+
+
+typedef struct {
     uint8_t     keys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];
 } ln_derkey_script_pubkeys_t;
 
