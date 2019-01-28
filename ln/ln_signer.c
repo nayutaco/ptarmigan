@@ -94,12 +94,9 @@ bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 
 bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
-    if (self->privkeys._next_storage_index + 2 <= LN_SECRET_INDEX_INIT) {
-        //  現在の funding_local.keys[LN_BASEPOINT_IDX_PER_COMMIT]はself->storage_next_indexから生成されていて、「次のper_commitment_secret」になる。
-        //  最後に使用した値は self->storage_next_index + 1で、これが「現在のper_commitment_secret」になる。
-        //  そのため、「1つ前のper_commitment_secret」は self->storage_next_index + 2 となる。
+    if (ln_derkey_privkeys_get_prev_storage_index(&self->privkeys)) {
         /*void*/ ln_derkey_storage_create_secret(
-            pSecret, self->privkeys._storage_seed, self->privkeys._next_storage_index + 2);
+            pSecret, self->privkeys._storage_seed, ln_derkey_privkeys_get_prev_storage_index(&self->privkeys));
         if (pPerCommitPt) {
             if (!btc_keys_priv2pub(pPerCommitPt, pSecret)) return false;
         }
