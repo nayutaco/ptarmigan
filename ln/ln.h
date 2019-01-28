@@ -699,7 +699,7 @@ struct ln_self_t {
 
     //key storage
     ln_derkey_storage_t         peer_storage;                   ///< [KEYS_01]key storage(peer)
-    ln_derkey_privkeys_t        privkeys;                       ///< [KEYS_02]secret情報
+    ln_derkey_local_privkeys_t  privkeys_local;                 ///< [KEYS_02]secret情報
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee

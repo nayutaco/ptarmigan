@@ -230,9 +230,9 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("status") ": " M_QQ("%s") ",\n", p_status_str);
 
     //key storage
-    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_privkeys_get_current_storage_index(&self->privkeys));
+    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys_local));
     // printf(M_QQ("storage_seed") ": \"");
-    // utl_dbg_dump(stdout, self->privkeys.storage_seed, BTC_SZ_PRIVKEY, false);
+    // utl_dbg_dump(stdout, self->privkeys_local.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
     printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_storage_get_current_index(&self->peer_storage));
 

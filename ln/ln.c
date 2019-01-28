@@ -702,12 +702,12 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, self->privkeys.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_percommit, self->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
     memcpy(bak_remotecommit, self->funding_remote.pubkeys.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(self,
-                self->privkeys.per_commitment_secret,
+                self->privkeys_local.per_commitment_secret,
                 self->funding_local.pubkeys.per_commitment_point);
 
     //remote
@@ -732,10 +732,10 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     }
 
     //元に戻す
-    memcpy(self->privkeys.per_commitment_secret,
+    memcpy(self->privkeys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
     btc_keys_priv2pub(self->funding_local.pubkeys.per_commitment_point,
-            self->privkeys.per_commitment_secret);
+            self->privkeys_local.per_commitment_secret);
     memcpy(self->funding_remote.pubkeys.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_scriptkeys(self);
@@ -758,12 +758,12 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, self->privkeys.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_percommit, self->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
     memcpy(bak_remotecommit, self->funding_remote.pubkeys.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(self,
-                self->privkeys.per_commitment_secret,
+                self->privkeys_local.per_commitment_secret,
                 self->funding_local.pubkeys.per_commitment_point);
 
     //remote
@@ -788,10 +788,10 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     }
 
     //元に戻す
-    memcpy(self->privkeys.per_commitment_secret,
+    memcpy(self->privkeys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
     btc_keys_priv2pub(self->funding_local.pubkeys.per_commitment_point,
-            self->privkeys.per_commitment_secret);
+            self->privkeys_local.per_commitment_secret);
     memcpy(self->funding_remote.pubkeys.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_scriptkeys(self);
@@ -1725,7 +1725,7 @@ static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
 void ln_dbg_commitnum(const ln_self_t *self)
 {
     LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_privkeys_get_current_storage_index(&self->privkeys));
+    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys_local));
     LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->peer_storage));
     LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);

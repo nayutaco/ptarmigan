@@ -204,7 +204,7 @@ bool ln_comtx_create_to_local(ln_self_t *self,
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
-    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->privkeys);
+    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->privkeys_local);
     if (ret) {
         //2-of-2 verify
         ret = create_to_local_sign_verify(self, &tx_commit, &buf_sig);
@@ -323,7 +323,7 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
-    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->privkeys);
+    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->privkeys_local);
     if (ret) {
         LOGD("++++++++++++++ remote commit tx: tx_commit[%016" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
