@@ -90,8 +90,8 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 
 void ln_print_keys(ln_self_t *self)
 {
-    ln_derkey_pubkeys_t         *p_local_pubkeys = &self->funding_local.pubkeys;
-    ln_derkey_pubkeys_t         *p_remote_pubkeys = &self->funding_remote.pubkeys;
+    ln_derkey_pubkeys_t         *p_local_pubkeys = &self->pubkeys_local;
+    ln_derkey_pubkeys_t         *p_remote_pubkeys = &self->pubkeys_remote;
     ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &self->commit_local.script_pubkeys;
     ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &self->commit_remote.script_pubkeys;
 
@@ -127,7 +127,7 @@ void ln_print_keys(ln_self_t *self)
     }
 
     LOGD("prev_percommit: ");
-    DUMPD(self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    DUMPD(self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;
