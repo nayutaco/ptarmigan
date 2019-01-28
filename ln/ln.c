@@ -1636,8 +1636,6 @@ static void channel_clear(ln_self_t *self)
     self->anno_flag = 0;
     self->shutdown_flag = 0;
 
-    ln_handshake_free(self);
-
     ln_establish_free(self);
 }
 
