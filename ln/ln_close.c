@@ -64,45 +64,45 @@
  * prototypes
  **************************************************************************/
 
-static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, bool bVerify);
+static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-bool /*HIDDEN*/ ln_shutdown_send(ln_self_t *self)
+bool /*HIDDEN*/ ln_shutdown_send(ln_channel_t *pChannel)
 {
     LOGD("BEGIN\n");
 
     ln_msg_shutdown_t msg;
-    msg.p_channel_id = self->channel_id;
-    msg.len = self->shutdown_scriptpk_local.len;
-    msg.p_scriptpubkey = self->shutdown_scriptpk_local.buf;
+    msg.p_channel_id = pChannel->channel_id;
+    msg.len = pChannel->shutdown_scriptpk_local.len;
+    msg.p_scriptpubkey = pChannel->shutdown_scriptpk_local.buf;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_shutdown_write(&buf, &msg)) {
         LOGE("fail: create shutdown\n");
         return false;
     }
 
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
-    self->shutdown_flag |= LN_SHDN_FLAG_SEND;
-    M_DB_SELF_SAVE(self);
-    ln_channel_update_disable(self);
+    pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND;
+    M_DB_CHANNEL_SAVE(pChannel);
+    ln_channel_update_disable(pChannel);
 
     LOGD("END\n");
     return true;
 }
 
 
-bool HIDDEN ln_shutdown_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     LOGD("BEGIN\n");
 
-    self->close_last_fee_sat = 0; //XXX:
-    if (self->shutdown_flag & LN_SHDN_FLAG_RECV) {
+    pChannel->close_last_fee_sat = 0; //XXX:
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV) {
         //既にshutdownを受信済みなら、何もしない
         //XXX: return false;
         return true;
@@ -110,42 +110,42 @@ bool HIDDEN ln_shutdown_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len
 
     ln_msg_shutdown_t msg;
     if (!ln_msg_shutdown_read(&msg, pData, Len)) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    utl_buf_alloccopy(&self->shutdown_scriptpk_remote, msg.p_scriptpubkey, msg.len);
+    utl_buf_alloccopy(&pChannel->shutdown_scriptpk_remote, msg.p_scriptpubkey, msg.len);
 
     //channel_id
-    if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
-        M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
+    if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
+        M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     //scriptPubKey
-    if (!ln_script_scriptpkh_check(&self->shutdown_scriptpk_remote)) {
-        M_SET_ERR(self, LNERR_INV_PRIVKEY, "unknown scriptPubKey type");
+    if (!ln_script_scriptpkh_check(&pChannel->shutdown_scriptpk_remote)) {
+        M_SET_ERR(pChannel, LNERR_INV_PRIVKEY, "unknown scriptPubKey type");
         return false;
     }
 
-    self->shutdown_flag |= LN_SHDN_FLAG_RECV;
-    M_DB_SELF_SAVE(self);
+    pChannel->shutdown_flag |= LN_SHDN_FLAG_RECV;
+    M_DB_CHANNEL_SAVE(pChannel);
 
-    ln_callback(self, LN_CB_SHUTDOWN_RECV, NULL);
+    ln_callback(pChannel, LN_CB_SHUTDOWN_RECV, NULL);
 
-    if (!(self->shutdown_flag & LN_SHDN_FLAG_SEND)) {
+    if (!(pChannel->shutdown_flag & LN_SHDN_FLAG_SEND)) {
         //shutdown has not been sent
-        if (!ln_shutdown_send(self)) {
-            M_SET_ERR(self, LNERR_CREATE_MSG, "send shutdown");
+        if (!ln_shutdown_send(pChannel)) {
+            M_SET_ERR(pChannel, LNERR_CREATE_MSG, "send shutdown");
             return false;
         }
     }
 
-    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
-        self->status = LN_STATUS_CLOSE_WAIT;
-        M_DB_SELF_SAVE(self);
+    if (M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
+        pChannel->status = LN_STATUS_CLOSE_WAIT;
+        M_DB_CHANNEL_SAVE(pChannel);
 
-        if (ln_is_funder(self)) {
-            if (!ln_closing_signed_send(self, NULL)) {
+        if (ln_is_funder(pChannel)) {
+            if (!ln_closing_signed_send(pChannel, NULL)) {
                 LOGE("fail\n");
                 return false;
             }
@@ -157,71 +157,71 @@ bool HIDDEN ln_shutdown_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len
 }
 
 
-bool HIDDEN ln_closing_signed_send(ln_self_t *self, ln_msg_closing_signed_t *pClosingSignedMsg)
+bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed_t *pClosingSignedMsg)
 {
-    LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
+    LOGD("fee_sat: %" PRIu64 "\n", pChannel->close_fee_sat);
 
     if (pClosingSignedMsg) {
         ln_cb_closed_fee_t closed_fee;
         closed_fee.fee_sat = pClosingSignedMsg->fee_satoshis;
-        ln_callback(self, LN_CB_CLOSED_FEE, &closed_fee);
-        //self->close_fee_sat updated
+        ln_callback(pChannel, LN_CB_CLOSED_FEE, &closed_fee);
+        //pChannel->close_fee_sat updated
     } else {
-        self->close_fee_sat = ln_closing_signed_initfee(self);
+        pChannel->close_fee_sat = ln_closing_signed_initfee(pChannel);
     }
 
     //we don't have remote sig
     //  don't verify sig
-    btc_tx_free(&self->tx_closing);
-    if (!create_closing_tx(self, &self->tx_closing, self->close_fee_sat, false)) {
+    btc_tx_free(&pChannel->tx_closing);
+    if (!create_closing_tx(pChannel, &pChannel->tx_closing, pChannel->close_fee_sat, false)) {
         LOGE("fail: create close_t\n");
         return false;
     }
 
     ln_msg_closing_signed_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
-    msg.p_channel_id = self->channel_id;
-    msg.fee_satoshis = self->close_fee_sat;
-    msg.p_signature = self->commit_tx_remote.signature;
+    msg.p_channel_id = pChannel->channel_id;
+    msg.fee_satoshis = pChannel->close_fee_sat;
+    msg.p_signature = pChannel->commit_tx_remote.signature;
     if (!ln_msg_closing_signed_write(&buf, &msg)) {
         LOGE("fail: create closeing_signed\n");
         return false;
     }
-    self->close_last_fee_sat = self->close_fee_sat;
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    pChannel->close_last_fee_sat = pChannel->close_fee_sat;
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
-    M_DB_SELF_SAVE(self);
+    M_DB_CHANNEL_SAVE(pChannel);
     return true;
 }
 
 
-bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     LOGD("BEGIN\n");
 
-    if (!M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "shutdown status : %02x", self->shutdown_flag);
+    if (!M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "shutdown status : %02x", pChannel->shutdown_flag);
         return false;
     }
 
     ln_msg_closing_signed_t msg;
     if (!ln_msg_closing_signed_read(&msg, pData, Len)) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
-    if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
-        M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
+    if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
+        M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
     //BOLT#3
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
-    uint64_t feemax = ln_closing_signed_initfee(self);
+    uint64_t feemax = ln_closing_signed_initfee(pChannel);
     if (msg.fee_satoshis > feemax) {
         LOGE("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", msg.fee_satoshis, feemax);
         return false;
@@ -230,16 +230,16 @@ bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
     //XXX: check lower limit for the inclusion in a block
 
     //verify
-    btc_tx_free(&self->tx_closing);
-    if (!create_closing_tx(self, &self->tx_closing, msg.fee_satoshis, true)) {
+    btc_tx_free(&pChannel->tx_closing);
+    if (!create_closing_tx(pChannel, &pChannel->tx_closing, msg.fee_satoshis, true)) {
         LOGE("fail: create close_tx\n");
         return false;
     }
 
-    if (self->close_last_fee_sat == msg.fee_satoshis) {
+    if (pChannel->close_last_fee_sat == msg.fee_satoshis) {
         //create closing_tx
-        btc_tx_free(&self->tx_closing);
-        if (!create_closing_tx(self, &self->tx_closing, self->close_fee_sat, true)) {
+        btc_tx_free(&pChannel->tx_closing);
+        if (!create_closing_tx(pChannel, &pChannel->tx_closing, pChannel->close_fee_sat, true)) {
             LOGE("fail: create close_tx\n");
             return false;
         }
@@ -247,14 +247,14 @@ bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
         //bloadcast closing_tx
         LOGD("same fee!\n");
         utl_buf_t txbuf = UTL_BUF_INIT;
-        if (!btc_tx_write(&self->tx_closing, &txbuf)) {
+        if (!btc_tx_write(&pChannel->tx_closing, &txbuf)) {
             LOGE("fail: create closeing_tx\n");
             return false;
         }
         ln_cb_closed_t closed;
         closed.result = false;
         closed.p_tx_closing = &txbuf;
-        ln_callback(self, LN_CB_CLOSED, &closed);
+        ln_callback(pChannel, LN_CB_CLOSED, &closed);
         if (!closed.result) {
             //XXX: retry to send closing_tx
             LOGE("fail: send closing_tx\n");
@@ -265,16 +265,16 @@ bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
 
         //funding_txがspentになった
         LOGD("$$$ close waiting\n");
-        self->status = LN_STATUS_CLOSE_SPENT;
+        pChannel->status = LN_STATUS_CLOSE_SPENT;
 
         //clearはDB削除に任せる
-        //channel_clear(self);
+        //channel_clear(pChannel);
 
-        M_DB_SELF_SAVE(self);
+        M_DB_CHANNEL_SAVE(pChannel);
     } else {
         LOGD("different fee!\n");
 
-        if (!ln_closing_signed_send(self, &msg)) {
+        if (!ln_closing_signed_send(pChannel, &msg)) {
             return false;
         }
     }
@@ -293,19 +293,19 @@ bool HIDDEN ln_closing_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
  * @param[in]   FeeSat
  * @param[in]   bVerify     true:verifyを行う
  * @note
- *      - INPUT: 2-of-2(順番はself->key_fund_sort)
- *          - 自分：self->commit_tx_remote.signature
- *          - 相手：self->commit_tx_local.signature
+ *      - INPUT: 2-of-2(順番はpChannel->key_fund_sort)
+ *          - 自分：pChannel->commit_tx_remote.signature
+ *          - 相手：pChannel->commit_tx_local.signature
  *      - OUTPUT:
- *          - 自分：self->shutdown_scriptpk_local, self->our_msat / 1000
- *          - 相手：self->shutdown_scriptpk_remote, self->their_msat / 1000
+ *          - 自分：pChannel->shutdown_scriptpk_local, pChannel->our_msat / 1000
+ *          - 相手：pChannel->shutdown_scriptpk_remote, pChannel->their_msat / 1000
  *      - BIP69でソートする
  */
-static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, bool bVerify)
+static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t FeeSat, bool bVerify)
 {
     LOGD("BEGIN\n");
 
-    if ((self->shutdown_scriptpk_local.len == 0) || (self->shutdown_scriptpk_remote.len == 0)) {
+    if ((pChannel->shutdown_scriptpk_local.len == 0) || (pChannel->shutdown_scriptpk_remote.len == 0)) {
         LOGD("not mutual output set\n");
         return false;
     }
@@ -316,7 +316,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     utl_buf_t buf_sig = UTL_BUF_INIT;
 
     //BOLT#3: feeはfundedの方から引く
-    if (ln_is_funder(self)) {
+    if (ln_is_funder(pChannel)) {
         fee_local = FeeSat;
         fee_remote = 0;
     } else {
@@ -326,52 +326,52 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 
     //vout
     //vout#0 - local
-    bool vout_local = (LN_MSAT2SATOSHI(self->our_msat) > fee_local + BTC_DUST_LIMIT);
-    bool vout_remote = (LN_MSAT2SATOSHI(self->their_msat) > fee_remote + BTC_DUST_LIMIT);
+    bool vout_local = (LN_MSAT2SATOSHI(pChannel->our_msat) > fee_local + BTC_DUST_LIMIT);
+    bool vout_remote = (LN_MSAT2SATOSHI(pChannel->their_msat) > fee_remote + BTC_DUST_LIMIT);
 
     if (vout_local) {
-        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(self->our_msat) - fee_local);
-        utl_buf_alloccopy(&vout->script, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
+        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->our_msat) - fee_local);
+        utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_local.buf, pChannel->shutdown_scriptpk_local.len);
     }
     //vout#1 - remote
     if (vout_remote) {
-        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(self->their_msat) - fee_remote);
-        utl_buf_alloccopy(&vout->script, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len);
+        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->their_msat) - fee_remote);
+        utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_remote.buf, pChannel->shutdown_scriptpk_remote.len);
     }
 
     //vin
-    btc_tx_add_vin(pTx, ln_funding_txid(self), ln_funding_txindex(self));
+    btc_tx_add_vin(pTx, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
 
     //BIP69
     btc_tx_sort_bip69(pTx);
 
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
-    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, self->funding_sat, &self->redeem_fund)) {
+    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_sat, &pChannel->redeem_fund)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
     }
-    if (!ln_signer_p2wsh(&buf_sig, sighash, &self->privkeys_local, LN_BASEPOINT_IDX_FUNDING)) {
+    if (!ln_signer_p2wsh(&buf_sig, sighash, &pChannel->privkeys_local, LN_BASEPOINT_IDX_FUNDING)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
     }
 
     //送信用署名
-    btc_sig_der2rs(self->commit_tx_remote.signature, buf_sig.buf, buf_sig.len);
+    btc_sig_der2rs(pChannel->commit_tx_remote.signature, buf_sig.buf, buf_sig.len);
 
     //署名追加
     if (bVerify) {
         utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
 
-        btc_sig_rs2der(&buf_sig_from_remote, self->commit_tx_local.signature);
-        ln_comtx_set_vin_p2wsh_2of2(pTx, 0, self->key_fund_sort, &buf_sig, &buf_sig_from_remote, &self->redeem_fund);
+        btc_sig_rs2der(&buf_sig_from_remote, pChannel->commit_tx_local.signature);
+        ln_comtx_set_vin_p2wsh_2of2(pTx, 0, pChannel->key_fund_sort, &buf_sig, &buf_sig_from_remote, &pChannel->redeem_fund);
         utl_buf_free(&buf_sig_from_remote);
 
         //verify
         if (!btc_sw_verify_p2wsh_2of2(
-            pTx, 0, sighash, &self->tx_funding.vout[ln_funding_txindex(self)].script)) {
+            pTx, 0, sighash, &pChannel->tx_funding.vout[ln_funding_txindex(pChannel)].script)) {
             btc_tx_free(pTx);
             LOGD("fail: verify\n");
             return false;
@@ -381,7 +381,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     }
     utl_buf_free(&buf_sig);
 
-    LOGD("+++++++++++++ closing_tx[%016" PRIx64 "]\n", self->short_channel_id);
+    LOGD("+++++++++++++ closing_tx[%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(pTx);
 
     //LOGD("END ret=%d\n", ret);

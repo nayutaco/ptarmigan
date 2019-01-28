@@ -37,13 +37,13 @@ FAKE_VALUE_FUNC(lnapp_conf_t*, ptarmd_search_transferable_nodeid, const uint8_t*
 FAKE_VALUE_FUNC(bool, ptarmd_nodefail_get, const uint8_t*, const char*, uint16_t, ln_msg_address_descriptor_type_t, bool);
 FAKE_VALUE_FUNC(char*, ptarmd_error_str, int);
 FAKE_VALUE_FUNC(uint32_t, ptarmd_get_latest_feerate_kw);
-FAKE_VALUE_FUNC(bool, monitor_close_unilateral_local, ln_self_t*, void*);
+FAKE_VALUE_FUNC(bool, monitor_close_unilateral_local, ln_channel_t*, void*);
 FAKE_VALUE_FUNC(int, cmd_json_connect, const uint8_t*, const char*, uint16_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay, const char*, uint64_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay_retry, const uint8_t*);
 
 FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t *, uint64_t , const uint8_t *, int , const utl_buf_t *, const uint8_t *, uint32_t );
-FAKE_VOID_FUNC(btcrpc_set_committxid, const ln_self_t*);
+FAKE_VOID_FUNC(btcrpc_set_committxid, const ln_channel_t*);
 
 
 ////////////////////////////////////////////////////////////////////////

@@ -662,9 +662,9 @@ void btcrpc_del_channel(const uint8_t *pPeerId)
 }
 
 
-void btcrpc_set_committxid(const ln_self_t *self)
+void btcrpc_set_committxid(const ln_channel_t *pChannel)
 {
-    (void)self;
+    (void)pChannel;
     LOGD("\n");
 }
 

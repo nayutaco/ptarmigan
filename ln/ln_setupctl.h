@@ -36,7 +36,7 @@
  * macros
  ********************************************************************/
 
-// ln_self_t.init_flag //XXX:
+// ln_channel_t.init_flag //XXX:
 #define M_INIT_FLAG_SEND                    (0x01)
 #define M_INIT_FLAG_RECV                    (0x02)
 #define M_INIT_FLAG_EXCG                    (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)
@@ -50,13 +50,13 @@
 #define M_INIT_ANNOSIG_SENT                 (0x10)          ///< announcement_signatures送信/再送済み
 
 
-#define M_SET_ERR(self, err, fmt,...) { \
-        ln_error_set(self, err, fmt, ##__VA_ARGS__); \
-        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg); \
+#define M_SET_ERR(pChannel, err, fmt,...) { \
+        ln_error_set(pChannel, err, fmt, ##__VA_ARGS__); \
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, pChannel->err_msg); \
     }
-#define M_SEND_ERR(self, err, fmt, ...) { \
-        ln_error_send(self, err, fmt, ##__VA_ARGS__); \
-        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg); \
+#define M_SEND_ERR(pChannel, err, fmt, ...) { \
+        ln_error_send(pChannel, err, fmt, ##__VA_ARGS__); \
+        LOGE("[%s:%d]fail: %s\n", __func__, (int)__LINE__, pChannel->err_msg); \
     }
 
 
@@ -70,16 +70,16 @@
  */
 void ln_init_localfeatures_set(uint8_t lf);
 
-void HIDDEN ln_error_set(ln_self_t *self, int Err, const char *pFormat, ...);
+void HIDDEN ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
 
-bool /*HIDDEN*/ ln_init_send(ln_self_t *self, bool bInitRouteSync, bool bHaveCnl);
-bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_error_send(ln_self_t *self, int Err, const char *pFormat, ...);
-bool HIDDEN ln_error_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool /*HIDDEN*/ ln_ping_send(ln_self_t *self, uint16_t PingLen, uint16_t PongLen);
-bool HIDDEN ln_ping_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_pong_send(ln_self_t *self, ln_msg_ping_t *pPingMsg);
-bool HIDDEN ln_pong_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool bHaveCnl);
+bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
+bool HIDDEN ln_error_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_ping_send(ln_channel_t *pChannel, uint16_t PingLen, uint16_t PongLen);
+bool HIDDEN ln_ping_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_pong_send(ln_channel_t *pChannel, ln_msg_ping_t *pPingMsg);
+bool HIDDEN ln_pong_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 
 #endif /* LN_SETUPCTL_H__ */

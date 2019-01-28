@@ -85,7 +85,7 @@ int p2p_cli_connected_peer(void);
 /** [p2p_cli]動作中lnapp全出力
  *
  */
-void p2p_cli_show_self(cJSON *pResult);
+void p2p_cli_show_channel(cJSON *pResult);
 
 
 /** [p2p_cli]ループ状態取得

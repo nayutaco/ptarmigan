@@ -42,7 +42,7 @@
 
 /** send open_channel
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           pFundin         fund-in情報
  * @param[in]           FundingSat      fundingするamount[satoshi]
  * @param[in]           PushSat         push_msatするamount[satoshi]
@@ -50,18 +50,18 @@
  * retval       true    成功
  */
 bool /*HIDDEN*/ ln_open_channel_send(
-    ln_self_t *self, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
-bool HIDDEN ln_open_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_accept_channel_send(ln_self_t *self);
-bool HIDDEN ln_accept_channel_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_funding_created_send(ln_self_t *self);
-bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_funding_signed_send(ln_self_t *self);
-bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool /*HIDDEN*/ ln_funding_locked_send(ln_self_t *self);
-bool HIDDEN ln_funding_locked_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool /*HIDDEN*/ ln_channel_reestablish_send(ln_self_t *self);
-bool HIDDEN ln_channel_reestablish_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
+bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel);
+bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_funding_created_send(ln_channel_t *pChannel);
+bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_funding_signed_send(ln_channel_t *pChannel);
+bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_funding_locked_send(ln_channel_t *pChannel);
+bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel);
+bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 
 #endif /* LN_ESTABLISH_H__ */

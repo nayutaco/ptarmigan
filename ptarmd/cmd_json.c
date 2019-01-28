@@ -164,9 +164,9 @@ static char *create_bolt11(
                 uint8_t RFieldNum,
                 uint32_t MinFinalCltvExpiry);
 static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum);
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
-static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static char *strdup_cjson(const char *pStr);
 static char *error_str_cjson(int errCode);
 
@@ -403,8 +403,8 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 #endif
 
     //peer info
-    p2p_svr_show_self(result_peer);
-    p2p_cli_show_self(result_peer);
+    p2p_svr_show_channel(result_peer);
+    p2p_cli_show_channel(result_peer);
     cJSON_AddItemToObject(result, "peers", result_peer);
 
     //payment info
@@ -1193,7 +1193,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     prm.b_local = true;
     prm.p_nodeid = conn.node_id;
     prm.result = result;
-    ln_db_self_search_readonly(comp_func_getcommittx, &prm);
+    ln_db_channel_search_readonly(comp_func_getcommittx, &prm);
 
 LABEL_EXIT:
     if (index < 0) {
@@ -1254,7 +1254,7 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (json && (json->type == cJSON_String)) {
         uint8_t channel_id[LN_SZ_CHANNEL_ID];
         utl_str_str2bin(channel_id, sizeof(channel_id), json->valuestring);
-        ret = ln_db_self_del(channel_id);
+        ret = ln_db_channel_del(channel_id);
     }
     if (ret) {
         return cJSON_CreateString(kOK);
@@ -1608,7 +1608,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         return RPCERR_ALOPEN;
     }
 
-    bool is_funding = ln_is_funding(p_appconf->p_self);
+    bool is_funding = ln_is_funding(p_appconf->p_channel);
     if (is_funding) {
         //開設しようとしてチャネルが開設中
         return RPCERR_OPENING;
@@ -1802,7 +1802,7 @@ static int cmd_routepay_proc2(
         } else {
             LOGE("fail: lnapp_payment(0x%016" PRIx64 ")\n", pRouteResult->hop_datain[0].short_channel_id);
             if (p_result == NULL) {
-                p_result = ln_errmsg(pAppConf->p_self);
+                p_result = ln_errmsg(pAppConf->p_channel);
             }
             if (p_result == NULL) {
                 p_result = "fail payment";
@@ -2052,7 +2052,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum)
 
     prm.pp_field = ppRField;
     prm.p_fieldnum = pRFieldNum;
-    ln_db_self_search_readonly(comp_func_cnl, &prm);
+    ln_db_channel_search_readonly(comp_func_cnl, &prm);
 
     if (*pRFieldNum != 0) {
         LOGD("add r_field: %d\n", *pRFieldNum);
@@ -2064,11 +2064,11 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum)
 
 /** #ln_node_search_channel()処理関数
  *
- * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
  * @param[in,out]   p_param         r_field_prm_t構造体
  */
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
@@ -2077,14 +2077,14 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_channel_update_t msg;
-    ret = ln_channel_update_get_peer(self, &buf, &msg);
-    if (ret && !ln_is_announced(self)) {
+    ret = ln_channel_update_get_peer(pChannel, &buf, &msg);
+    if (ret && !ln_is_announced(pChannel)) {
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_r_field_t);
         *prm->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
 
         ln_r_field_t *pfield = *prm->pp_field + *prm->p_fieldnum;
-        memcpy(pfield->node_id, ln_their_node_id(self), BTC_SZ_PUBKEY);
-        pfield->short_channel_id = ln_short_channel_id(self);
+        memcpy(pfield->node_id, ln_their_node_id(pChannel), BTC_SZ_PUBKEY);
+        pfield->short_channel_id = ln_short_channel_id(pChannel);
         pfield->fee_base_msat = msg.fee_base_msat;
         pfield->fee_prop_millionths = msg.fee_proportional_millionths;
         pfield->cltv_expiry_delta = msg.cltv_expiry_delta;
@@ -2168,15 +2168,15 @@ static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
 /** getcommittx処理
  *
  */
-static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
     getcommittx_t *prm = (getcommittx_t *)p_param;
 
-    if (memcmp(prm->p_nodeid, ln_their_node_id(self), BTC_SZ_PUBKEY) == 0) {
+    if (memcmp(prm->p_nodeid, ln_their_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
         lnapp_conf_t appconf;
-        appconf.p_self= self;
+        appconf.p_channel = pChannel;
         lnapp_get_committx(&appconf, prm->result, prm->b_local);
     }
 

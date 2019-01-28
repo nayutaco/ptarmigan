@@ -69,7 +69,7 @@ int p2p_svr_connected_peer(void);
 /** [p2p_svr]動作中lnapp全出力
  *
  */
-void p2p_svr_show_self(cJSON *pResult);
+void p2p_svr_show_channel(cJSON *pResult);
 
 
 /** [p2p_svr]ループ状態取得

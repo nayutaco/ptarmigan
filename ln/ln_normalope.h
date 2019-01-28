@@ -239,18 +239,18 @@
  * prototypes
  ********************************************************************/
 
-bool HIDDEN ln_update_add_htlc_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_update_fulfill_htlc_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_update_fail_htlc_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_commitment_signed_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_revoke_and_ack_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_update_fee_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 
 /** update_add_htlc設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[out]          pHtlcId         生成したHTLCのid
  * @param[out]          pReason         (非NULLかつ戻り値がfalse)onion reason
  * @param[in]           pPacket         onion packet
@@ -264,7 +264,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_self_t *self, const uint8_t *p
  * @note
  *      - prev_short_channel_id はfullfillの通知先として使用する
  */
-bool ln_add_htlc_set(ln_self_t *self,
+bool ln_add_htlc_set(ln_channel_t *pChannel,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             const uint8_t *pPacket,
@@ -276,7 +276,7 @@ bool ln_add_htlc_set(ln_self_t *self,
             const utl_buf_t *pSharedSecrets);
 
 
-bool ln_add_htlc_set_fwd(ln_self_t *self,
+bool ln_add_htlc_set_fwd(ln_channel_t *pChannel,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             uint16_t *pNextIdx,
@@ -289,54 +289,54 @@ bool ln_add_htlc_set_fwd(ln_self_t *self,
             const utl_buf_t *pSharedSecrets);
 
 
-void ln_add_htlc_start_fwd(ln_self_t *self, uint16_t Idx);
+void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t Idx);
 
 
 /** update_fulfill_htlc設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           Idx             設定するHTLCの内部管理index値
  * @param[in]           pPreImage       payment_preimage
  * @retval      true    成功
  */
-bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage);
+bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pPreImage);
 
 
 /** update_fail_htlc設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           Idx             index
  * @param[in]           pReason         reason
  * @note
  *      - onion_routing_packetと共用のため、onion_routingは消える
  */
-bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
+bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const utl_buf_t *pReason);
 
 
-bool ln_fail_htlc_set_bwd(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
+bool ln_fail_htlc_set_bwd(ln_channel_t *pChannel, uint16_t Idx, const utl_buf_t *pReason);
 
 
 /** update_fail_htlc転送
  *
  *
  */
-void ln_del_htlc_start_bwd(ln_self_t *self, uint16_t Idx);
+void ln_del_htlc_start_bwd(ln_channel_t *pChannel, uint16_t Idx);
 
 
 /** update_feeメッセージ作成
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[out]          pUpdFee         生成したupdate_feeメッセージ
  * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
  */
-bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
+bool ln_update_fee_create(ln_channel_t *pChannel, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
 
 
 /** channel_reestablishメッセージ交換後
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  */
-void ln_channel_reestablish_after(ln_self_t *self);
+void ln_channel_reestablish_after(ln_channel_t *pChannel);
 
 
 #endif /* LN_NORMALOPE_H__ */

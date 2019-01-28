@@ -126,7 +126,7 @@ struct nodes_result_t {
     nodes_t     *p_nodes;
 };
 
-struct param_self_t {
+struct param_channel_t {
     nodes_result_t  *p_result;
     const uint8_t   *p_payer;
 };
@@ -240,34 +240,34 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
 
 
 //開設済みで生きている送金元channelは、announcementの有無にかかわらず検索候補に追加する
-static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
-    param_self_t *p_prm_self = (param_self_t *)p_param;
+    param_channel_t *p_prm_channel = (param_channel_t *)p_param;
 
-    M_DBGLOG("self: short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
-    M_DBGLOG("      status=%d\n", ln_status_get(self));
-    if ((self->short_channel_id != 0) && (ln_status_get(self) == LN_STATUS_NORMAL)) {
+    M_DBGLOG("channel: short_channel_id=%016" PRIx64 "\n", pChannel->short_channel_id);
+    M_DBGLOG("      status=%d\n", ln_status_get(pChannel));
+    if ((pChannel->short_channel_id != 0) && (ln_status_get(pChannel) == LN_STATUS_NORMAL)) {
         //チャネルは開設している && normal operation
-        ln_db_routeskip_t rskip = ln_db_routeskip_search(self->short_channel_id);
+        ln_db_routeskip_t rskip = ln_db_routeskip_search(pChannel->short_channel_id);
         if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
-            M_DBGLOG("skip DB: %016" PRIx64 "\n", self->short_channel_id);
+            M_DBGLOG("skip DB: %016" PRIx64 "\n", pChannel->short_channel_id);
             return false;
         }
 
-        if (memcmp(self->peer_node_id, p_prm_self->p_payer, BTC_SZ_PUBKEY) == 0) {
+        if (memcmp(pChannel->peer_node_id, p_prm_channel->p_payer, BTC_SZ_PUBKEY) == 0) {
             M_DBGLOG("skip\n");
             return false;
         }
 
-        p_prm_self->p_result->node_num++;
-        p_prm_self->p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_prm_self->p_result->p_nodes, sizeof(nodes_t) * p_prm_self->p_result->node_num);
-        p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1].short_channel_id = self->short_channel_id;
+        p_prm_channel->p_result->node_num++;
+        p_prm_channel->p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_prm_channel->p_result->p_nodes, sizeof(nodes_t) * p_prm_channel->p_result->node_num);
+        p_prm_channel->p_result->p_nodes[p_prm_channel->p_result->node_num - 1].short_channel_id = pChannel->short_channel_id;
 
-        nodes_t *p_nodes_result = &p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1];
+        nodes_t *p_nodes_result = &p_prm_channel->p_result->p_nodes[p_prm_channel->p_result->node_num - 1];
         const uint8_t *p1, *p2;
-        direction(&p1, &p2, p_prm_self->p_payer, self->peer_node_id);
+        direction(&p1, &p2, p_prm_channel->p_payer, pChannel->peer_node_id);
         memcpy(p_nodes_result->ninfo[0].node_id, p1, BTC_SZ_PUBKEY);
         memcpy(p_nodes_result->ninfo[1].node_id, p2, BTC_SZ_PUBKEY);
         for (int lp = 0; lp < 2; lp++) {
@@ -278,12 +278,12 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             p_nodes_result->ninfo[lp].routeskip = rskip;
         }
 
-        M_DBGLOGV("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
-        M_DBGLOGV("[self]short_channel_id: %016" PRIx64 "\n", self->short_channel_id);
-        M_DBGLOGV("[self]p_payer= ");
-        M_DBGDUMPV(p_prm_self->p_payer, BTC_SZ_PUBKEY);
-        M_DBGLOGV("[self]self->peer_node_id= ");
-        M_DBGDUMPV(self->peer_node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("[channel]nodenum=%d\n",  p_prm_channel->p_result->node_num);
+        M_DBGLOGV("[channel]short_channel_id: %016" PRIx64 "\n", pChannel->short_channel_id);
+        M_DBGLOGV("[channel]p_payer= ");
+        M_DBGDUMPV(p_prm_channel->p_payer, BTC_SZ_PUBKEY);
+        M_DBGLOGV("[channel]pChannel->peer_node_id= ");
+        M_DBGDUMPV(pChannel->peer_node_id, BTC_SZ_PUBKEY);
     } else {
         M_DBGLOG("skip\n");
     }
@@ -349,12 +349,12 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 {
     int ret;
 
-    //self
-    param_self_t prm_self;
+    //channel
+    param_channel_t prm_channel;
 
-    prm_self.p_result = p_result;
-    prm_self.p_payer = pPayerId;
-    ln_db_self_search_readonly(comp_func_self, &prm_self);
+    prm_channel.p_result = p_result;
+    prm_channel.p_payer = pPayerId;
+    ln_db_channel_search_readonly(comp_func_channel, &prm_channel);
 
     //channel_anno
     void *p_cur;

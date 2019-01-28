@@ -64,28 +64,28 @@
  * prototypes
  **************************************************************************/
 
-static void proc_announcement_signatures(ln_self_t *self);
-static bool create_local_channel_announcement(ln_self_t *self);
-static bool get_node_id_from_channel_announcement(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);
-static bool create_channel_update(ln_self_t *self, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
+static void proc_announcement_signatures(ln_channel_t *pChannel);
+static bool create_local_channel_announcement(ln_channel_t *pChannel);
+static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);
+static bool create_channel_update(ln_channel_t *pChannel, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-bool /*HIDDEN*/ ln_announcement_signatures_send(ln_self_t *self)
+bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
 {
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
-    if (!self->cnl_anno.buf) {
-        if (!create_local_channel_announcement(self)) return false;
+    if (!pChannel->cnl_anno.buf) {
+        if (!create_local_channel_announcement(pChannel)) return false;
     }
-    ln_msg_channel_announcement_get_sigs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, ln_node_id_sort(self, NULL));
+    ln_msg_channel_announcement_get_sigs(pChannel->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, ln_node_id_sort(pChannel, NULL));
 
     ln_msg_announcement_signatures_t msg;
-    msg.p_channel_id = self->channel_id;
-    msg.short_channel_id = self->short_channel_id;
+    msg.p_channel_id = pChannel->channel_id;
+    msg.short_channel_id = pChannel->short_channel_id;
     msg.p_node_signature = p_sig_node;
     msg.p_bitcoin_signature = p_sig_btc;
     utl_buf_t buf = UTL_BUF_INIT;
@@ -94,81 +94,81 @@ bool /*HIDDEN*/ ln_announcement_signatures_send(ln_self_t *self)
         return false;
     }
 
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
-    self->anno_flag |= M_ANNO_FLAG_SEND;
-    proc_announcement_signatures(self);
-    M_DB_SELF_SAVE(self);
-    self->init_flag |= M_INIT_ANNOSIG_SENT;
+    pChannel->anno_flag |= M_ANNO_FLAG_SEND;
+    proc_announcement_signatures(pChannel);
+    M_DB_CHANNEL_SAVE(pChannel);
+    pChannel->init_flag |= M_INIT_ANNOSIG_SENT;
     return true;
 }
 
 
-bool HIDDEN ln_announcement_signatures_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    if (!self->fund_flag) { //XXX: after `funding_locked`
+    if (!pChannel->fund_flag) { //XXX: after `funding_locked`
         LOGE("fail: not open peer\n");
         return false;
     }
 
-    if (!self->cnl_anno.buf) {
-        create_local_channel_announcement(self);
+    if (!pChannel->cnl_anno.buf) {
+        create_local_channel_announcement(pChannel);
     }
 
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
-    btc_script_pubkey_order_t sort = ln_node_id_sort(self, NULL);
-    ln_msg_channel_announcement_get_sigs(self->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
+    btc_script_pubkey_order_t sort = ln_node_id_sort(pChannel, NULL);
+    ln_msg_channel_announcement_get_sigs(pChannel->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
 
     ln_msg_announcement_signatures_t msg;
     if (!ln_msg_announcement_signatures_read(&msg, pData, Len)) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
     if (!msg.short_channel_id) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
     memcpy(p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
     memcpy(p_sig_btc, msg.p_bitcoin_signature, LN_SZ_SIGNATURE);
 
-    if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
-        M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
+    if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
+        M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
 
-    if (self->short_channel_id) {
-        if (msg.short_channel_id != self->short_channel_id) {
-            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", self->short_channel_id, msg.short_channel_id);
-            M_SET_ERR(self, LNERR_MSG_READ, "read message"); //XXX:
+    if (pChannel->short_channel_id) {
+        if (msg.short_channel_id != pChannel->short_channel_id) {
+            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pChannel->short_channel_id, msg.short_channel_id);
+            M_SET_ERR(pChannel, LNERR_MSG_READ, "read message"); //XXX:
             return false;
         }
     }
 
-    if (!(self->anno_flag & LN_ANNO_FLAG_END)) {
-        self->short_channel_id = msg.short_channel_id;
-        if (!ln_msg_channel_announcement_update_short_channel_id(self->cnl_anno.buf, self->short_channel_id)) {
+    if (!(pChannel->anno_flag & LN_ANNO_FLAG_END)) {
+        pChannel->short_channel_id = msg.short_channel_id;
+        if (!ln_msg_channel_announcement_update_short_channel_id(pChannel->cnl_anno.buf, pChannel->short_channel_id)) {
             LOGE("fail: update short_channel_id\n");
             return false;
         }
         if (!ln_msg_channel_announcement_sign(
-            self->cnl_anno.buf, self->cnl_anno.len,
-            self->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
+            pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
+            pChannel->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
             sort)) {
             LOGE("fail: sign\n");
             return false;
         }
-        self->anno_flag |= M_ANNO_FLAG_RECV;
-        proc_announcement_signatures(self);
-        M_DB_SELF_SAVE(self);
-    } else if ((self->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
+        pChannel->anno_flag |= M_ANNO_FLAG_RECV;
+        proc_announcement_signatures(pChannel);
+        M_DB_CHANNEL_SAVE(pChannel);
+    } else if ((pChannel->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
         //BOLT07
         //  MUST respond to the first announcement_signatures message with its own announcement_signatures message.
         //  LN_ANNO_FLAG_ENDであっても再接続後の初回のみは送信する
         LOGD("respond announcement_signatures\n");
-        /*ignore*/ ln_announcement_signatures_send(self);
-        self->init_flag |= M_INIT_ANNOSIG_SENT;
+        /*ignore*/ ln_announcement_signatures_send(pChannel);
+        pChannel->init_flag |= M_INIT_ANNOSIG_SENT;
     }
 
     return true;
@@ -176,7 +176,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_self_t *self, const uint8_t *pDat
 
 
 //called by `ln_channel_announcement_recv` only
-static bool channel_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     ln_msg_channel_announcement_t msg;
     if (!ln_msg_channel_announcement_read(&msg, pData, Len)) {
@@ -198,7 +198,7 @@ static bool channel_announcement_recv(ln_self_t *self, const uint8_t *pData, uin
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
-    if (!ln_db_annocnl_save(&buf, msg.short_channel_id, ln_their_node_id(self), msg.p_node_id_1, msg.p_node_id_2)) {
+    if (!ln_db_annocnl_save(&buf, msg.short_channel_id, ln_their_node_id(pChannel), msg.p_node_id_1, msg.p_node_id_2)) {
         LOGE("fail: save\n");
         return false;
     }
@@ -206,23 +206,23 @@ static bool channel_announcement_recv(ln_self_t *self, const uint8_t *pData, uin
 
     ln_cb_update_annodb_t db;
     db.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
-    ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
+    ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
     return true;
 }
 
 
-bool HIDDEN ln_channel_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     //always return ture
     //don't close the channel
 
-    /*ignore*/channel_announcement_recv(self, pData, Len);
+    /*ignore*/channel_announcement_recv(pChannel, pData, Len);
     return true;
 }
 
 
 //called by `ln_node_announcement_recv` only
-static bool node_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     ln_msg_node_announcement_t msg;
     if (!ln_msg_node_announcement_read(&msg, pData, Len)) {
@@ -240,7 +240,7 @@ static bool node_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
-    if (!ln_db_annonod_save(&buf, &msg, ln_their_node_id(self))) {
+    if (!ln_db_annonod_save(&buf, &msg, ln_their_node_id(pChannel))) {
         LOGE("fail: save\n");
         return false;
     }
@@ -249,26 +249,26 @@ static bool node_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16
 
     ln_cb_update_annodb_t db;
     db.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
-    ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
+    ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
     return true;
 }
 
 
-bool HIDDEN ln_node_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     //always return ture
     //don't close the channel
 
-    /*ignore*/node_announcement_recv(self, pData, Len);
+    /*ignore*/node_announcement_recv(pChannel, pData, Len);
     return true;
 }
 
 
-bool /*HIDDEN*/ ln_channel_update_send(ln_self_t *self)
+bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel)
 {
     ln_msg_channel_update_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
-    if (!create_channel_update(self, &msg, &buf, (uint32_t)utl_time_time(), 0)) {
+    if (!create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), 0)) {
         LOGE("fail: create channel_update\n");
         return false;
     }
@@ -278,24 +278,24 @@ bool /*HIDDEN*/ ln_channel_update_send(ln_self_t *self)
         return false;
     }
 
-    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
+    if (pChannel->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         //we have exchanged our announcement signatures
         //save for broadcasting
         ln_cb_update_annodb_t db;
         db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
-        ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
+        ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
     }
 
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
 
 
 //called by `ln_channel_update_recv` only
-static bool channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)self;
+    (void)pChannel;
 
     ln_msg_channel_update_t msg;
     uint64_t now = (uint64_t)utl_time_time();
@@ -320,7 +320,7 @@ static bool channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t 
     LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), msg.short_channel_id);
 
     uint8_t node_id[BTC_SZ_PUBKEY];
-    if (get_node_id_from_channel_announcement(self, node_id, msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)) {
+    if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)) {
         //found
         if (!btc_keys_check_pub(node_id)) {
             LOGE("fail: invalid pubkey\n");
@@ -349,7 +349,7 @@ static bool channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t 
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
-    if (!ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(self))) {
+    if (!ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(pChannel))) {
         LOGE("fail: save\n");
         return false;
     }
@@ -357,65 +357,65 @@ static bool channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     ln_cb_update_annodb_t db;
     db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
-    ln_callback(self, LN_CB_UPDATE_ANNODB, &db);
+    ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
     return true;
 }
 
 
-bool HIDDEN ln_channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     //always return ture
     //don't close the channel
 
-    /*ignore*/channel_update_recv(self, pData, Len);
+    /*ignore*/channel_update_recv(pChannel, pData, Len);
     return true;
 }
 
 
-bool ln_channel_update_disable(ln_self_t *self)
+bool ln_channel_update_disable(ln_channel_t *pChannel)
 {
     ln_msg_channel_update_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
-    if (!create_channel_update(self, &msg, &buf, (uint32_t)utl_time_time(), LN_CNLUPD_CHFLAGS_DISABLE)) return false;
-    ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(self));
+    if (!create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), LN_CNLUPD_CHFLAGS_DISABLE)) return false;
+    ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(pChannel));
     utl_buf_free(&buf);
     return true;
 }
 
 
-bool ln_query_short_channel_ids_send(ln_self_t *self)
+bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
 {
-    (void)self;
+    (void)pChannel;
     return false;
 }
 
 
-bool HIDDEN ln_query_short_channel_ids_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)self;
+    (void)pChannel;
     ln_msg_query_short_channel_ids_t msg;
     ln_msg_query_short_channel_ids_read(&msg, pData, Len);
     return true;
 }
 
 
-bool ln_reply_short_channel_ids_recv_send(ln_self_t *self)
+bool ln_reply_short_channel_ids_recv_send(ln_channel_t *pChannel)
 {
-    (void)self;
+    (void)pChannel;
     return false;
 }
 
 
-bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)self;
+    (void)pChannel;
     ln_msg_reply_short_channel_ids_end_t msg;
     ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len);
     return true;
 }
 
 
-bool ln_query_channel_range_send(ln_self_t *self)
+bool ln_query_channel_range_send(ln_channel_t *pChannel)
 {
     ln_msg_query_channel_range_t msg;
     msg.p_chain_hash = ln_genesishash_get();
@@ -426,31 +426,31 @@ bool ln_query_channel_range_send(ln_self_t *self)
         LOGE("fail: create query_channel_range\n");
         return false;
     }
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
 
 
-bool HIDDEN ln_query_channel_range_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)self;
+    (void)pChannel;
     ln_msg_query_channel_range_t msg;
     ln_msg_query_channel_range_read(&msg, pData, Len);
     return true;
 }
 
 
-bool ln_reply_channel_range_send(ln_self_t *self)
+bool ln_reply_channel_range_send(ln_channel_t *pChannel)
 {
-    (void)self;
+    (void)pChannel;
     return false;
 }
 
 
-bool HIDDEN ln_reply_channel_range_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)self;
+    (void)pChannel;
     ln_msg_reply_channel_range_t msg;
     bool ret = ln_msg_reply_channel_range_read(&msg, pData, Len);
     if (ret) {
@@ -470,16 +470,16 @@ bool HIDDEN ln_reply_channel_range_recv(ln_self_t *self, const uint8_t *pData, u
 }
 
 
-bool ln_gossip_timestamp_filter_send(ln_self_t *self)
+bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
 {
-    (void)self;
+    (void)pChannel;
     return false;
 }
 
 
-bool HIDDEN ln_gossip_timestamp_filter_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)self;
+    (void)pChannel;
     ln_msg_gossip_timestamp_filter_t msg;
     ln_msg_gossip_timestamp_filter_read(&msg, pData, Len);
     return true;
@@ -490,16 +490,16 @@ bool HIDDEN ln_gossip_timestamp_filter_recv(ln_self_t *self, const uint8_t *pDat
  * private functions
  ********************************************************************/
 
-static void proc_announcement_signatures(ln_self_t *self)
+static void proc_announcement_signatures(ln_channel_t *pChannel)
 {
-    if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) && self->short_channel_id ) {
+    if ( (pChannel->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) && pChannel->short_channel_id ) {
         //announcement_signatures have been exchanged
-        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", self->short_channel_id);
+        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", pChannel->short_channel_id);
 
         //channel_announcement
         if (ln_db_annocnl_save(
-            &self->cnl_anno, self->short_channel_id, NULL, ln_their_node_id(self), ln_node_getid())) {
-            utl_buf_free(&self->cnl_anno);
+            &pChannel->cnl_anno, pChannel->short_channel_id, NULL, ln_their_node_id(pChannel), ln_node_getid())) {
+            utl_buf_free(&pChannel->cnl_anno);
         } else {
             LOGE("fail\n");
         }
@@ -507,24 +507,24 @@ static void proc_announcement_signatures(ln_self_t *self)
         //channel_update
         ln_msg_channel_update_t msg;
         utl_buf_t buf = UTL_BUF_INIT;
-        if (create_channel_update(self, &msg, &buf, (uint32_t)utl_time_time(), 0)) {
+        if (create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), 0)) {
             ln_db_annocnlupd_save(&buf, &msg, NULL);
         } else {
             LOGE("fail\n");
         }
         utl_buf_free(&buf);
 
-        self->anno_flag |= LN_ANNO_FLAG_END;
+        pChannel->anno_flag |= LN_ANNO_FLAG_END;
     } else {
-        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", self->anno_flag, self->short_channel_id);
+        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", pChannel->anno_flag, pChannel->short_channel_id);
     }
 }
 
 
-static bool create_local_channel_announcement(ln_self_t *self)
+static bool create_local_channel_announcement(ln_channel_t *pChannel)
 {
-    LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
-    utl_buf_free(&self->cnl_anno);
+    LOGD("short_channel_id=%016" PRIx64 "\n", pChannel->short_channel_id);
+    utl_buf_free(&pChannel->cnl_anno);
 
     uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
     memset(dummy_signature, 0xcc, sizeof(dummy_signature));
@@ -536,28 +536,28 @@ static bool create_local_channel_announcement(ln_self_t *self)
     msg.len = 0;
     msg.p_features = NULL;
     msg.p_chain_hash = ln_genesishash_get();
-    msg.short_channel_id = self->short_channel_id;
-    btc_script_pubkey_order_t sort = ln_node_id_sort(self, NULL);
+    msg.short_channel_id = pChannel->short_channel_id;
+    btc_script_pubkey_order_t sort = ln_node_id_sort(pChannel, NULL);
     if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         msg.p_node_id_1 = ln_node_getid();
-        msg.p_node_id_2 = self->peer_node_id;
-        msg.p_bitcoin_key_1 = self->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
-        msg.p_bitcoin_key_2 = self->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_node_id_2 = pChannel->peer_node_id;
+        msg.p_bitcoin_key_1 = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_2 = pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
     } else {
-        msg.p_node_id_1 = self->peer_node_id;
+        msg.p_node_id_1 = pChannel->peer_node_id;
         msg.p_node_id_2 = ln_node_getid();
-        msg.p_bitcoin_key_1 = self->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
-        msg.p_bitcoin_key_2 = self->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_1 = pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_2 = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
     }
-    if (!ln_msg_channel_announcement_write(&self->cnl_anno, &msg)) return false;
+    if (!ln_msg_channel_announcement_write(&pChannel->cnl_anno, &msg)) return false;
     return ln_msg_channel_announcement_sign(
-        self->cnl_anno.buf, self->cnl_anno.len,
-        self->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
+        pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
+        pChannel->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
         sort);
 }
 
 
-static bool get_node_id_from_channel_announcement(ln_self_t *self, uint8_t *pNodeId, uint64_t ShortChannelId, uint8_t Dir)
+static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint64_t ShortChannelId, uint8_t Dir)
 {
     bool ret = false;
 
@@ -572,15 +572,15 @@ static bool get_node_id_from_channel_announcement(ln_self_t *self, uint8_t *pNod
         }
         memcpy(pNodeId, Dir ? msg.p_node_id_2 : msg.p_node_id_1, BTC_SZ_PUBKEY);
     } else {
-        if (ShortChannelId != self->short_channel_id) goto LABEL_EXIT;
-        btc_script_pubkey_order_t order = ln_node_id_sort(self, NULL);
+        if (ShortChannelId != pChannel->short_channel_id) goto LABEL_EXIT;
+        btc_script_pubkey_order_t order = ln_node_id_sort(pChannel, NULL);
         if ( ((order == BTC_SCRYPT_PUBKEY_ORDER_ASC) && (Dir == 0)) ||
              ((order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) && (Dir == 1)) ) {
             LOGD("this channel: my node\n");
             memcpy(pNodeId, ln_node_getid(), BTC_SZ_PUBKEY);
         } else {
             LOGD("this channel: peer node\n");
-            memcpy(pNodeId, self->peer_node_id, BTC_SZ_PUBKEY);
+            memcpy(pNodeId, pChannel->peer_node_id, BTC_SZ_PUBKEY);
         }
     }
 
@@ -594,7 +594,7 @@ LABEL_EXIT:
 
 /** channel_update作成
  *
- * @param[in,out]       self            channel情報
+ * @param[in,out]       pChannel        channel情報
  * @param[out]          pUpd            生成したchannel_update構造体
  * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
  * @param[in]           TimeStamp       作成時刻とするEPOCH time
@@ -602,20 +602,20 @@ LABEL_EXIT:
  * @retval      ture    成功
  */
 static bool create_channel_update(
-    ln_self_t *self, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag)
+    ln_channel_t *pChannel, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag)
 {
     uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
     memset(dummy_signature, 0xcc, sizeof(dummy_signature));
     pUpd->p_signature = dummy_signature;
     pUpd->p_chain_hash = ln_genesishash_get();
-    pUpd->short_channel_id = self->short_channel_id;
+    pUpd->short_channel_id = pChannel->short_channel_id;
     pUpd->timestamp = TimeStamp;
     pUpd->message_flags = 0;
-    pUpd->channel_flags = Flag | ln_sort_to_dir(ln_node_id_sort(self, NULL));
-    pUpd->cltv_expiry_delta = self->anno_prm.cltv_expiry_delta;
-    pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
-    pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
-    pUpd->fee_proportional_millionths = self->anno_prm.fee_prop_millionths;
+    pUpd->channel_flags = Flag | ln_sort_to_dir(ln_node_id_sort(pChannel, NULL));
+    pUpd->cltv_expiry_delta = pChannel->anno_prm.cltv_expiry_delta;
+    pUpd->htlc_minimum_msat = pChannel->anno_prm.htlc_minimum_msat;
+    pUpd->fee_base_msat = pChannel->anno_prm.fee_base_msat;
+    pUpd->fee_proportional_millionths = pChannel->anno_prm.fee_prop_millionths;
     pUpd->htlc_maximum_msat = 0;
     if (!ln_msg_channel_update_write(pCnlUpd, pUpd)) return false;
     return ln_msg_channel_update_sign(pCnlUpd->buf, pCnlUpd->len);

@@ -111,17 +111,17 @@
  * typedefs
  **************************************************************************/
 
-typedef bool (*pRecvFunc_t)(ln_self_t *self,const uint8_t *pData, uint16_t Len);
+typedef bool (*pRecvFunc_t)(ln_channel_t *pChannel,const uint8_t *pData, uint16_t Len);
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
-static void channel_clear(ln_self_t *self);
+static void channel_clear(ln_channel_t *pChannel);
 static bool create_basetx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime, const uint8_t *pTxid, int Index, bool bRevoked);
 static void close_alloc(ln_close_force_t *pClose, int Num);
-static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx);
+static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx);
 
 
 /**************************************************************************
@@ -181,7 +181,7 @@ static unsigned long mDebug;
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
+bool ln_init(ln_channel_t *pChannel, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
 {
     LOGD("BEGIN : pSeed=%p\n", pSeed);
 
@@ -189,45 +189,45 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     void *ptr_bak;
 
     //noise protocol handshake済みの場合があるため、初期値かどうかに関係なく残す
-    memcpy(&noise_bak, &self->noise, sizeof(noise_bak));
-    ptr_bak = self->p_param;
-    memset(self, 0, sizeof(ln_self_t));
-    memcpy(&self->noise, &noise_bak, sizeof(noise_bak));
-    self->p_param = ptr_bak;
+    memcpy(&noise_bak, &pChannel->noise, sizeof(noise_bak));
+    ptr_bak = pChannel->p_param;
+    memset(pChannel, 0, sizeof(ln_channel_t));
+    memcpy(&pChannel->noise, &noise_bak, sizeof(noise_bak));
+    pChannel->p_param = ptr_bak;
 
-    utl_buf_init(&self->shutdown_scriptpk_local);
-    utl_buf_init(&self->shutdown_scriptpk_remote);
-    utl_buf_init(&self->redeem_fund);
-    utl_buf_init(&self->cnl_anno);
-    utl_buf_init(&self->revoked_sec);
-    self->p_revoked_vout = NULL;
-    self->p_revoked_wit = NULL;
-    self->p_revoked_type = NULL;
+    utl_buf_init(&pChannel->shutdown_scriptpk_local);
+    utl_buf_init(&pChannel->shutdown_scriptpk_remote);
+    utl_buf_init(&pChannel->redeem_fund);
+    utl_buf_init(&pChannel->cnl_anno);
+    utl_buf_init(&pChannel->revoked_sec);
+    pChannel->p_revoked_vout = NULL;
+    pChannel->p_revoked_wit = NULL;
+    pChannel->p_revoked_type = NULL;
 
-    btc_tx_init(&self->tx_funding);
-    btc_tx_init(&self->tx_closing);
+    btc_tx_init(&pChannel->tx_funding);
+    btc_tx_init(&pChannel->tx_closing);
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        utl_buf_init(&self->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_init(&self->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_init(&self->cnl_add_htlc[idx].buf_shared_secret);
+        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
     }
 
-    self->lfeature_remote = 0;
+    pChannel->lfeature_remote = 0;
 
-    self->p_callback = pFunc;
+    pChannel->p_callback = pFunc;
 
-    memcpy(&self->anno_prm, pAnnoPrm, sizeof(ln_anno_prm_t));
-    LOGD("cltv_expiry_delta=%" PRIu16 "\n", self->anno_prm.cltv_expiry_delta);
-    LOGD("htlc_minimum_msat=%" PRIu64 "\n", self->anno_prm.htlc_minimum_msat);
-    LOGD("fee_base_msat=%" PRIu32 "\n", self->anno_prm.fee_base_msat);
-    LOGD("fee_prop_millionths=%" PRIu32 "\n", self->anno_prm.fee_prop_millionths);
+    memcpy(&pChannel->anno_prm, pAnnoPrm, sizeof(ln_anno_prm_t));
+    LOGD("cltv_expiry_delta=%" PRIu16 "\n", pChannel->anno_prm.cltv_expiry_delta);
+    LOGD("htlc_minimum_msat=%" PRIu64 "\n", pChannel->anno_prm.htlc_minimum_msat);
+    LOGD("fee_base_msat=%" PRIu32 "\n", pChannel->anno_prm.fee_base_msat);
+    LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_prm.fee_prop_millionths);
 
     //seed
-    ln_signer_init(self, pSeed);
+    ln_signer_init(pChannel, pSeed);
 
-    self->commit_tx_local.commit_num = 0;
-    self->commit_tx_remote.commit_num = 0;
+    pChannel->commit_tx_local.commit_num = 0;
+    pChannel->commit_tx_remote.commit_num = 0;
 
     LOGD("END\n");
 
@@ -235,30 +235,30 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
 }
 
 
-void ln_term(ln_self_t *self)
+void ln_term(ln_channel_t *pChannel)
 {
-    channel_clear(self);
+    channel_clear(pChannel);
 
-    ln_signer_term(self);
+    ln_signer_term(pChannel);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        utl_buf_free(&self->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_free(&self->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_free(&self->cnl_add_htlc[idx].buf_shared_secret);
+        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
     }
     //LOGD("END\n");
 }
 
 
-bool ln_status_load(ln_self_t *self)
+bool ln_status_load(ln_channel_t *pChannel)
 {
-    return ln_db_self_load_status(self);
+    return ln_db_channel_load_status(pChannel);
 }
 
 
-const char *ln_status_string(const ln_self_t *self)
+const char *ln_status_string(const ln_channel_t *pChannel)
 {
     const char *p_str_stat;
-    switch (self->status) {
+    switch (pChannel->status) {
     case LN_STATUS_NONE:
         p_str_stat = "none";
         break;
@@ -326,27 +326,27 @@ const uint8_t *ln_creationhash_get(void)
 }
 
 
-void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId)
+void ln_peer_set_nodeid(ln_channel_t *pChannel, const uint8_t *pNodeId)
 {
-    memcpy(self->peer_node_id, pNodeId, BTC_SZ_PUBKEY);
+    memcpy(pChannel->peer_node_id, pNodeId, BTC_SZ_PUBKEY);
 }
 
 
-bool ln_establish_alloc(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
+bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_prm_t *pEstPrm)
 {
     LOGD("BEGIN\n");
 
     if (pEstPrm != NULL) {
-        self->establish.p_fundin = NULL;       //open_channel送信側が設定する
+        pChannel->establish.p_fundin = NULL;       //open_channel送信側が設定する
 
-        memcpy(&self->establish.estprm, pEstPrm, sizeof(ln_establish_prm_t));
-        LOGD("dust_limit_sat= %" PRIu64 "\n", self->establish.estprm.dust_limit_sat);
-        LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->establish.estprm.max_htlc_value_in_flight_msat);
-        LOGD("channel_reserve_sat= %" PRIu64 "\n", self->establish.estprm.channel_reserve_sat);
-        LOGD("htlc_minimum_msat= %" PRIu64 "\n", self->establish.estprm.htlc_minimum_msat);
-        LOGD("to_self_delay= %" PRIu16 "\n", self->establish.estprm.to_self_delay);
-        LOGD("max_accepted_htlcs= %" PRIu16 "\n", self->establish.estprm.max_accepted_htlcs);
-        LOGD("min_depth= %" PRIu16 "\n", self->establish.estprm.min_depth);
+        memcpy(&pChannel->establish.estprm, pEstPrm, sizeof(ln_establish_prm_t));
+        LOGD("dust_limit_sat= %" PRIu64 "\n", pChannel->establish.estprm.dust_limit_sat);
+        LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pChannel->establish.estprm.max_htlc_value_in_flight_msat);
+        LOGD("channel_reserve_sat= %" PRIu64 "\n", pChannel->establish.estprm.channel_reserve_sat);
+        LOGD("htlc_minimum_msat= %" PRIu64 "\n", pChannel->establish.estprm.htlc_minimum_msat);
+        LOGD("to_self_delay= %" PRIu16 "\n", pChannel->establish.estprm.to_self_delay);
+        LOGD("max_accepted_htlcs= %" PRIu16 "\n", pChannel->establish.estprm.max_accepted_htlcs);
+        LOGD("min_depth= %" PRIu16 "\n", pChannel->establish.estprm.min_depth);
     }
 
     LOGD("END\n");
@@ -355,14 +355,14 @@ bool ln_establish_alloc(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
 }
 
 
-void ln_establish_free(ln_self_t *self)
+void ln_establish_free(ln_channel_t *pChannel)
 {
-    if (self->establish.p_fundin != NULL) {
-        LOGD("self->establish.p_fundin=%p\n", self->establish.p_fundin);
-        UTL_DBG_FREE(self->establish.p_fundin);
+    if (pChannel->establish.p_fundin != NULL) {
+        LOGD("pChannel->establish.p_fundin=%p\n", pChannel->establish.p_fundin);
+        UTL_DBG_FREE(pChannel->establish.p_fundin);
         LOGD("free\n");
     }
-    self->fund_flag = (ln_fundflag_t)((self->fund_flag & ~LN_FUNDFLAG_FUNDING) | LN_FUNDFLAG_OPENED);
+    pChannel->fund_flag = (ln_fundflag_t)((pChannel->fund_flag & ~LN_FUNDFLAG_FUNDING) | LN_FUNDFLAG_OPENED);
 }
 
 
@@ -377,11 +377,11 @@ uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint3
 }
 
 
-void ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index)
+void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint32_t Index)
 {
-    self->short_channel_id = ln_short_channel_id_calc(Height, Index, ln_funding_txindex(self));
-    self->status = LN_STATUS_NORMAL;
-    M_DB_SELF_SAVE(self);
+    pChannel->short_channel_id = ln_short_channel_id_calc(Height, Index, ln_funding_txindex(pChannel));
+    pChannel->status = LN_STATUS_NORMAL;
+    M_DB_CHANNEL_SAVE(pChannel);
 }
 
 
@@ -393,12 +393,12 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_
 }
 
 
-void ln_funding_blockhash_set(ln_self_t *self, const uint8_t *pMinedHash)
+void ln_funding_blockhash_set(ln_channel_t *pChannel, const uint8_t *pMinedHash)
 {
     LOGD("save minedHash=");
     TXIDD(pMinedHash);
-    memcpy(self->funding_bhash, pMinedHash, BTC_SZ_HASH256);
-    M_DB_SELF_SAVE(self);
+    memcpy(pChannel->funding_bhash, pMinedHash, BTC_SZ_HASH256);
+    M_DB_CHANNEL_SAVE(pChannel);
 }
 
 
@@ -413,7 +413,7 @@ void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId)
 
 
 #if 0
-bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey, int ShutdownPref)
+bool ln_set_shutdown_vout_pubkey(ln_channel_t *pChannel, const uint8_t *pShutdownPubkey, int ShutdownPref)
 {
     bool ret = false;
 
@@ -422,13 +422,13 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
         utl_buf_t spk = UTL_BUF_INIT;
 
         ln_script_scriptpkh_write(&spk, &pub, ShutdownPref);
-        utl_buf_free(&self->shutdown_scriptpk_local);
-        utl_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
+        utl_buf_free(&pChannel->shutdown_scriptpk_local);
+        utl_buf_alloccopy(&pChannel->shutdown_scriptpk_local, spk.buf, spk.len);
         utl_buf_free(&spk);
 
         ret = true;
     } else {
-        M_SET_ERR(self, LNERR_INV_PREF, "invalid prefix");
+        M_SET_ERR(pChannel, LNERR_INV_PREF, "invalid prefix");
     }
 
     return ret;
@@ -436,53 +436,53 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
 #endif
 
 
-void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk)
+void ln_shutdown_set_vout_addr(ln_channel_t *pChannel, const utl_buf_t *pScriptPk)
 {
     LOGD("set close addr: ");
     DUMPD(pScriptPk->buf, pScriptPk->len);
-    utl_buf_free(&self->shutdown_scriptpk_local);
-    utl_buf_alloccopy(&self->shutdown_scriptpk_local, pScriptPk->buf, pScriptPk->len);
+    utl_buf_free(&pChannel->shutdown_scriptpk_local);
+    utl_buf_alloccopy(&pChannel->shutdown_scriptpk_local, pScriptPk->buf, pScriptPk->len);
 }
 
 
-bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
+bool ln_handshake_start(ln_channel_t *pChannel, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    if (!ln_noise_handshake_init(&self->noise, pNodeId)) return false;
+    if (!ln_noise_handshake_init(&pChannel->noise, pNodeId)) return false;
     if (pNodeId != NULL) {
-        if (!ln_noise_handshake_start(&self->noise, pBuf, pNodeId)) return false;
+        if (!ln_noise_handshake_start(&pChannel->noise, pBuf, pNodeId)) return false;
     }
     return true;
 }
 
 
-bool ln_handshake_recv(ln_self_t *self, bool *pCont, utl_buf_t *pBuf)
+bool ln_handshake_recv(ln_channel_t *pChannel, bool *pCont, utl_buf_t *pBuf)
 {
-    if (!ln_noise_handshake_recv(&self->noise, pBuf)) return false;
+    if (!ln_noise_handshake_recv(&pChannel->noise, pBuf)) return false;
     //continue?
-    *pCont = ln_noise_handshake_state(&self->noise);
+    *pCont = ln_noise_handshake_state(&pChannel->noise);
     return true;
 }
 
 
-void ln_handshake_free(ln_self_t *self)
+void ln_handshake_free(ln_channel_t *pChannel)
 {
-    ln_noise_handshake_free(&self->noise);
+    ln_noise_handshake_free(&pChannel->noise);
 }
 
 
-bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool ln_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     uint16_t type = utl_int_pack_u16be(pData);
 
-    if (type != MSGTYPE_INIT && !M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init received : %04x", type);
+    if (type != MSGTYPE_INIT && !M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "no init received : %04x", type);
         return false;
     }
 
     size_t lp;
     for (lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type != RECV_FUNC[lp].type) continue;
-        if (!(*RECV_FUNC[lp].func)(self, pData, Len)) {
+        if (!(*RECV_FUNC[lp].func)(pChannel, pData, Len)) {
             LOGE("fail: type=%04x\n", type);
             return false;
         }
@@ -496,12 +496,12 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 }
 
 
-bool ln_funding_locked_check_need(const ln_self_t *self)
+bool ln_funding_locked_check_need(const ln_channel_t *pChannel)
 {
-    return (self->short_channel_id != 0) &&
+    return (pChannel->short_channel_id != 0) &&
         (
-            ((self->commit_tx_local.commit_num == 0) && (self->commit_tx_remote.commit_num == 0)) ||
-            ((self->reest_commit_num == 1) && (self->reest_revoke_num == 0))
+            ((pChannel->commit_tx_local.commit_num == 0) && (pChannel->commit_tx_remote.commit_num == 0)) ||
+            ((pChannel->reest_commit_num == 1) && (pChannel->reest_revoke_num == 0))
         );
 }
 
@@ -517,13 +517,13 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 {
     LOGD("Feerate:   %" PRIu32 "\n", Feerate);
 
-    ln_self_t *dummy = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
+    ln_channel_t *dummy = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
     uint8_t seed[LN_SZ_SEED];
     ln_anno_prm_t annoprm;
     ln_establish_t est;
     ln_fundin_t fundin;
 
-    memset(dummy, 0, sizeof(ln_self_t));
+    memset(dummy, 0, sizeof(ln_channel_t));
     memset(seed, 1, sizeof(seed));
     memset(&annoprm, 0, sizeof(annoprm));
     memset(&est, 0, sizeof(est));
@@ -598,13 +598,13 @@ void HIDDEN ln_channel_id_calc(uint8_t *pChannelId, const uint8_t *pTxid, uint16
 }
 
 
-bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg)
+bool ln_channel_update_get_peer(const ln_channel_t *pChannel, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg)
 {
     bool ret;
 
-    btc_script_pubkey_order_t sort = ln_node_id_sort(self, NULL);
+    btc_script_pubkey_order_t sort = ln_node_id_sort(pChannel, NULL);
     uint8_t dir = (sort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, pChannel->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_channel_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
@@ -624,29 +624,29 @@ bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *
  * Close関係
  ********************************************************************/
 
-void ln_shutdown_update_fee(ln_self_t *self, uint64_t Fee)
+void ln_shutdown_update_fee(ln_channel_t *pChannel, uint64_t Fee)
 {
     //BOLT#3
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
-    uint64_t feemax = ln_closing_signed_initfee(self);
+    uint64_t feemax = ln_closing_signed_initfee(pChannel);
     if (Fee > feemax) {
         LOGD("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feemax);
         Fee = feemax;
     }
 
-    self->close_fee_sat = Fee;
-    LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
+    pChannel->close_fee_sat = Fee;
+    LOGD("fee_sat: %" PRIu64 "\n", pChannel->close_fee_sat);
 }
 
 
-void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
+void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void *pDbParam)
 {
-    LOGD("BEGIN: status=%d\n", (int)self->status);
-    if ((self->status == LN_STATUS_NORMAL) || (self->status == LN_STATUS_CLOSE_WAIT)) {
-        self->status = LN_STATUS_CLOSE_SPENT;
-        ln_db_self_save_status(self, pDbParam);
-    } else if (self->status == LN_STATUS_CLOSE_SPENT) {
+    LOGD("BEGIN: status=%d\n", (int)pChannel->status);
+    if ((pChannel->status == LN_STATUS_NORMAL) || (pChannel->status == LN_STATUS_CLOSE_WAIT)) {
+        pChannel->status = LN_STATUS_CLOSE_SPENT;
+        ln_db_channel_save_status(pChannel, pDbParam);
+    } else if (pChannel->status == LN_STATUS_CLOSE_SPENT) {
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
@@ -656,37 +656,37 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
             return;
         }
 
-        if ( (ln_shutdown_scriptpk_local(self)->len > 0) &&
-             (ln_shutdown_scriptpk_remote(self)->len > 0) &&
+        if ( (ln_shutdown_scriptpk_local(pChannel)->len > 0) &&
+             (ln_shutdown_scriptpk_remote(pChannel)->len > 0) &&
              (pCloseTx->vout_cnt <= 2) &&
-             ( utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(self)) ||
-               utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
+             ( utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(pChannel)) ||
+               utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(pChannel)) ) ) {
             //mutual close
-            self->status = LN_STATUS_CLOSE_MUTUAL;
-        } else if (memcmp(txid, self->commit_tx_local.txid, BTC_SZ_TXID) == 0) {
+            pChannel->status = LN_STATUS_CLOSE_MUTUAL;
+        } else if (memcmp(txid, pChannel->commit_tx_local.txid, BTC_SZ_TXID) == 0) {
             //unilateral close(local)
-            self->status = LN_STATUS_CLOSE_UNI_LOCAL;
+            pChannel->status = LN_STATUS_CLOSE_UNI_LOCAL;
         } else {
             //commitment numberの復元
-            uint64_t commit_num = calc_commit_num(self, pCloseTx);
+            uint64_t commit_num = calc_commit_num(pChannel, pCloseTx);
 
-            utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
-            bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+            utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
+            bool ret = ln_derkey_storage_get_secret(pChannel->revoked_sec.buf, &pChannel->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
             if (ret) {
                 //revoked transaction close(remote)
-                self->status = LN_STATUS_CLOSE_REVOKED;
-                btc_keys_priv2pub(self->pubkeys_remote.per_commitment_point, self->revoked_sec.buf);
+                pChannel->status = LN_STATUS_CLOSE_REVOKED;
+                btc_keys_priv2pub(pChannel->pubkeys_remote.per_commitment_point, pChannel->revoked_sec.buf);
             } else {
                 //unilateral close(remote)
-                self->status = LN_STATUS_CLOSE_UNI_REMOTE;
-                utl_buf_free(&self->revoked_sec);
+                pChannel->status = LN_STATUS_CLOSE_UNI_REMOTE;
+                utl_buf_free(&pChannel->revoked_sec);
             }
         }
-        ln_db_self_save_status(self, pDbParam);
+        ln_db_channel_save_status(pChannel, pDbParam);
 
-        ln_channel_update_disable(self);
+        ln_channel_update_disable(pChannel);
     }
-    LOGD("END: type=%d\n", (int)self->status);
+    LOGD("END: type=%d\n", (int)pChannel->status);
 }
 
 
@@ -697,54 +697,54 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
  *
  * 現在のcommitment_transactionを取得する場合にも呼び出されるため、値を元に戻す。
  */
-bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
+bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
 {
     LOGD("BEGIN\n");
 
     //to_local送金先設定確認
-    assert(self->shutdown_scriptpk_local.len > 0);
+    assert(pChannel->shutdown_scriptpk_local.len > 0);
 
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, self->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
-    memcpy(bak_remotecommit, self->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
+    memcpy(bak_percommit, pChannel->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_remotecommit, pChannel->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
-    ln_signer_create_prev_per_commit_secret(self,
-                self->privkeys_local.per_commitment_secret,
-                self->pubkeys_local.per_commitment_point);
+    ln_signer_create_prev_per_commit_secret(pChannel,
+                pChannel->privkeys_local.per_commitment_secret,
+                pChannel->pubkeys_local.per_commitment_point);
 
     //remote
-    memcpy(self->pubkeys_remote.per_commitment_point,
-            self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->pubkeys_remote.per_commitment_point,
+            pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_update_scriptkeys(self);
+    ln_update_scriptkeys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_tx_local.htlc_num);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_local.htlc_num);
 
     //local commit_tx
-    bool ret = ln_comtx_create_to_local(self,
+    bool ret = ln_comtx_create_to_local(pChannel,
                 pClose, NULL, 0,        //closeのみ(HTLC署名無し)
-                self->commit_tx_local.commit_num,
-                self->commit_tx_local.to_self_delay,
-                self->commit_tx_local.dust_limit_sat);
+                pChannel->commit_tx_local.commit_num,
+                pChannel->commit_tx_local.to_self_delay,
+                pChannel->commit_tx_local.dust_limit_sat);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
     }
 
     //元に戻す
-    memcpy(self->privkeys_local.per_commitment_secret,
+    memcpy(pChannel->privkeys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(self->pubkeys_local.per_commitment_point,
-            self->privkeys_local.per_commitment_secret);
-    memcpy(self->pubkeys_remote.per_commitment_point,
+    btc_keys_priv2pub(pChannel->pubkeys_local.per_commitment_point,
+            pChannel->privkeys_local.per_commitment_secret);
+    memcpy(pChannel->pubkeys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
-    ln_update_scriptkeys(self);
-    ln_print_keys(self);
+    ln_update_scriptkeys(pChannel);
+    ln_print_keys(pChannel);
 
     LOGD("END: %d\n", ret);
 
@@ -756,50 +756,50 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
  * funding_txがspentで、remote commit_txのtxidがgetrawtransactionできる状態で呼ばれる。
  * (remote commit_txが展開＝相手がunilateral closeした)
  */
-bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
+bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
 {
     LOGD("BEGIN\n");
 
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, self->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
-    memcpy(bak_remotecommit, self->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
+    memcpy(bak_percommit, pChannel->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_remotecommit, pChannel->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
-    ln_signer_create_prev_per_commit_secret(self,
-                self->privkeys_local.per_commitment_secret,
-                self->pubkeys_local.per_commitment_point);
+    ln_signer_create_prev_per_commit_secret(pChannel,
+                pChannel->privkeys_local.per_commitment_secret,
+                pChannel->pubkeys_local.per_commitment_point);
 
     //remote
-    memcpy(self->pubkeys_remote.per_commitment_point,
-            self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->pubkeys_remote.per_commitment_point,
+            pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_update_scriptkeys(self);
-    ln_print_keys(self);
+    ln_update_scriptkeys(pChannel);
+    ln_print_keys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_tx_remote.htlc_num);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_remote.htlc_num);
 
     //remote commit_tx
-    bool ret = ln_comtx_create_to_remote(self,
-                &self->commit_tx_remote,
+    bool ret = ln_comtx_create_to_remote(pChannel,
+                &pChannel->commit_tx_remote,
                 pClose, NULL,
-                self->commit_tx_remote.commit_num);
+                pChannel->commit_tx_remote.commit_num);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
     }
 
     //元に戻す
-    memcpy(self->privkeys_local.per_commitment_secret,
+    memcpy(pChannel->privkeys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(self->pubkeys_local.per_commitment_point,
-            self->privkeys_local.per_commitment_secret);
-    memcpy(self->pubkeys_remote.per_commitment_point,
+    btc_keys_priv2pub(pChannel->pubkeys_local.per_commitment_point,
+            pChannel->privkeys_local.per_commitment_secret);
+    memcpy(pChannel->pubkeys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
-    ln_update_scriptkeys(self);
+    ln_update_scriptkeys(pChannel);
 
     LOGD("END\n");
     return ret;
@@ -835,60 +835,60 @@ void ln_close_free_forcetx(ln_close_force_t *pClose)
  *          4.1 DBから当時のpayment_hashを検索
  *          4.2 script復元
  */
-bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
+bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx, void *pDbParam)
 {
     //取り戻す必要があるvout数
-    self->revoked_cnt = 0;
+    pChannel->revoked_cnt = 0;
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
         if (pRevokedTx->vout[lp].script.len != BTC_SZ_WITPROG_P2WPKH) {
             //to_remote output以外はスクリプトを作って取り戻す
-            self->revoked_cnt++;
+            pChannel->revoked_cnt++;
         }
     }
-    LOGD("revoked_cnt=%d\n", self->revoked_cnt);
-    self->revoked_num = 1 + self->revoked_cnt;      //p_revoked_vout[0]にto_local系を必ず入れるため、+1しておく
+    LOGD("revoked_cnt=%d\n", pChannel->revoked_cnt);
+    pChannel->revoked_num = 1 + pChannel->revoked_cnt;      //p_revoked_vout[0]にto_local系を必ず入れるため、+1しておく
                                                     //(to_local自体が無くても、HTLC txの送金先がto_localと同じtxになるため)
-    ln_revoked_buf_alloc(self);
+    ln_revoked_buf_alloc(pChannel);
 
     //
     //相手がrevoked_txを展開した前提で、スクリプトを再現
     //
 
     //commitment numberの復元
-    uint64_t commit_num = calc_commit_num(self, pRevokedTx);
+    uint64_t commit_num = calc_commit_num(pChannel, pRevokedTx);
 
     //remote per_commitment_secretの復元
-    utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
-    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+    utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
+    bool ret = ln_derkey_storage_get_secret(pChannel->revoked_sec.buf, &pChannel->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
     if (!ret) {
         LOGE("fail: ln_derkey_storage_get_secret()\n");
         abort();
     }
-    btc_keys_priv2pub(self->pubkeys_remote.per_commitment_point, self->revoked_sec.buf);
+    btc_keys_priv2pub(pChannel->pubkeys_remote.per_commitment_point, pChannel->revoked_sec.buf);
     //LOGD2("  pri:");
-    //DUMPD(self->revoked_sec.buf, BTC_SZ_PRIVKEY);
+    //DUMPD(pChannel->revoked_sec.buf, BTC_SZ_PRIVKEY);
     //LOGD2("  pub:");
-    //DUMPD(self->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
+    //DUMPD(pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
-    ln_signer_keys_update_force(self, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+    ln_signer_keys_update_force(pChannel, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
 
     //鍵の復元
-    ln_update_scriptkeys(self);
-    ln_print_keys(self);
+    ln_update_scriptkeys(pChannel);
+    ln_print_keys(pChannel);
     //commitment number(for obscured commitment number)
-    //self->commit_tx_remote.commit_num = commit_num;
+    //pChannel->commit_tx_remote.commit_num = commit_num;
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
-    ln_script_create_tolocal(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
-                self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
-                self->commit_tx_remote.to_self_delay);
-    utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
-    btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
+    ln_script_create_tolocal(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
+                pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
+                pChannel->commit_tx_remote.to_self_delay);
+    utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
+    btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     // LOGD("calc to_local vout: ");
-    // DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
+    // DUMPD(pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
 
     int htlc_cnt = 0;
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
@@ -897,9 +897,9 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
         if (pRevokedTx->vout[lp].script.len == BTC_SZ_WITPROG_P2WPKH) {
             //to_remote output
             LOGD("[%d]to_remote_output\n", lp);
-            utl_buf_init(&self->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
-            utl_buf_alloccopy(&self->p_revoked_vout[LN_RCLOSE_IDX_TOREMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
-        } else if (utl_buf_equal(&pRevokedTx->vout[lp].script, &self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
+            utl_buf_init(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
+            utl_buf_alloccopy(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOREMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
+        } else if (utl_buf_equal(&pRevokedTx->vout[lp].script, &pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             //to_local output
             LOGD("[%d]to_local_output\n", lp);
         } else {
@@ -912,16 +912,16 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
-                ln_script_htlcinfo_script(&self->p_revoked_wit[htlc_idx],
+                ln_script_htlcinfo_script(&pChannel->p_revoked_wit[htlc_idx],
                         type,
-                        self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        self->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                        pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         payhash,
                         expiry);
-                utl_buf_init(&self->p_revoked_vout[htlc_idx]);
-                btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[htlc_idx], &self->p_revoked_wit[htlc_idx]);
-                self->p_revoked_type[htlc_idx] = type;
+                utl_buf_init(&pChannel->p_revoked_vout[htlc_idx]);
+                btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
+                pChannel->p_revoked_type[htlc_idx] = type;
 
                 LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_HTLCTYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
                 htlc_cnt++;
@@ -940,42 +940,42 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
  * Normal Operation関係
  ********************************************************************/
 
-bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
+bool ln_update_fee_create(ln_channel_t *pChannel, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
-    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
+    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
 
     bool ret;
 
-    if (!M_INIT_CH_EXCHANGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init/channel_reestablish finished");
+    if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "no init/channel_reestablish finished");
         return false;
     }
 
     //BOLT02
     //  The node not responsible for paying the Bitcoin fee:
     //    MUST NOT send update_fee.
-    if (!ln_is_funder(self)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "not funder");
+    if (!ln_is_funder(pChannel)) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "not funder");
         return false;
     }
 
-    if (self->feerate_per_kw == FeeratePerKw) {
+    if (pChannel->feerate_per_kw == FeeratePerKw) {
         //same
-        M_SET_ERR(self, LNERR_INV_STATE, "same feerate_per_kw");
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "same feerate_per_kw");
         return false;
     }
     if (FeeratePerKw < LN_FEERATE_PER_KW_MIN) {
         //too low
-        M_SET_ERR(self, LNERR_INV_STATE, "feerate_per_kw too low");
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "feerate_per_kw too low");
         return false;
     }
 
     ln_msg_update_fee_t msg;
-    msg.p_channel_id = self->channel_id;
+    msg.p_channel_id = pChannel->channel_id;
     msg.feerate_per_kw = FeeratePerKw;
     ret = ln_msg_update_fee_write(pUpdFee, &msg);
     if (ret) {
-        self->feerate_per_kw = FeeratePerKw;
+        pChannel->feerate_per_kw = FeeratePerKw;
     } else {
         LOGE("fail\n");
     }
@@ -989,14 +989,14 @@ bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
  * others
  ********************************************************************/
 
-bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
+bool ln_wallet_create_tolocal(const ln_channel_t *pChannel, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
     bool ret = create_basetx(pTx, Value,
                 NULL, ToSelfDelay, pTxid, Index, bRevoked);
     if (ret) {
         btc_keys_t sigkey;
-        ln_signer_tolocal_key(self, &sigkey, bRevoked);
+        ln_signer_tolocal_key(pChannel, &sigkey, bRevoked);
         ret = ln_script_tolocal_wit(pTx, &sigkey, pScript, bRevoked);
     }
     return ret;
@@ -1004,14 +1004,14 @@ bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx,uint64_t Valu
 
 
 bool ln_wallet_create_toremote(
-            const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+            const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
             const uint8_t *pTxid, int Index)
 {
     bool ret = create_basetx(pTx, Value,
                 NULL, 0, pTxid, Index, false);
     if (ret) {
         btc_keys_t sigkey;
-        ln_signer_toremote_key(self, &sigkey);
+        ln_signer_toremote_key(pChannel, &sigkey);
         ln_script_toremote_wit(pTx, &sigkey);
     }
 
@@ -1019,29 +1019,29 @@ bool ln_wallet_create_toremote(
 }
 
 
-bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
     ln_script_feeinfo_t feeinfo;
-    feeinfo.feerate_per_kw = self->feerate_per_kw;
+    feeinfo.feerate_per_kw = pChannel->feerate_per_kw;
     ln_script_fee_calc(&feeinfo, NULL, 0);
-    uint64_t fee = (self->p_revoked_type[WitIndex] == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
-    ln_script_htlctx_create(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
+    ln_script_htlctx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;
-    ln_signer_get_revoke_secret(self, &signkey,
-                    self->pubkeys_remote.per_commitment_point,
-                    self->revoked_sec.buf);
+    ln_signer_get_revoke_secret(pChannel, &signkey,
+                    pChannel->pubkeys_remote.per_commitment_point,
+                    pChannel->revoked_sec.buf);
     // LOGD("key-priv: ");
     // DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
     // LOGD("key-pub : ");
     // DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
     ln_script_htlcsign_t htlcsign = LN_HTLCSIGN_NONE;
-    switch (self->p_revoked_type[WitIndex]) {
+    switch (pChannel->p_revoked_type[WitIndex]) {
     case LN_HTLCTYPE_OFFERED:
         htlcsign = LN_HTLCSIGN_REVOKE_OFFER;
         break;
@@ -1049,7 +1049,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
         htlcsign = LN_HTLCSIGN_REVOKE_RECV;
         break;
     default:
-        LOGD("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
+        LOGD("index=%d, %d\n", WitIndex, pChannel->p_revoked_type[WitIndex]);
         assert(0);
     }
     bool ret;
@@ -1059,14 +1059,14 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
                 &buf_sig,
                 Value,
                 &signkey,
-                &self->p_revoked_wit[WitIndex]);
+                &pChannel->p_revoked_wit[WitIndex]);
         if (ret) {
             ret = ln_script_htlctx_wit(pTx,
                 &buf_sig,
                 &signkey,
                 NULL,
                 NULL,
-                &self->p_revoked_wit[WitIndex],
+                &pChannel->p_revoked_wit[WitIndex],
                 htlcsign);
         }
         utl_buf_free(&buf_sig);
@@ -1108,14 +1108,14 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 }
 
 
-void ln_last_connected_addr_set(ln_self_t *self, const ln_node_addr_t *pAddr)
+void ln_last_connected_addr_set(ln_channel_t *pChannel, const ln_node_addr_t *pAddr)
 {
-    memcpy(&self->last_connected_addr, pAddr, sizeof(ln_node_addr_t));
+    memcpy(&pChannel->last_connected_addr, pAddr, sizeof(ln_node_addr_t));
     LOGD("addr[%d]: %d.%d.%d.%d:%d\n", pAddr->type,
             pAddr->addr[0], pAddr->addr[1],
             pAddr->addr[2], pAddr->addr[3],
             pAddr->port);
-    M_DB_SELF_SAVE(self);
+    M_DB_CHANNEL_SAVE(pChannel);
 }
 
 
@@ -1146,137 +1146,137 @@ unsigned long ln_debug_get(void)
  * getter/setter
  **************************************************************************/
 
-const uint8_t *ln_channel_id(const ln_self_t *self)
+const uint8_t *ln_channel_id(const ln_channel_t *pChannel)
 {
-    return self->channel_id;
+    return pChannel->channel_id;
 }
 
 
-uint64_t ln_short_channel_id(const ln_self_t *self)
+uint64_t ln_short_channel_id(const ln_channel_t *pChannel)
 {
-    return self->short_channel_id;
+    return pChannel->short_channel_id;
 }
 
 
-void ln_short_channel_id_clr(ln_self_t *self)
+void ln_short_channel_id_clr(ln_channel_t *pChannel)
 {
-    self->short_channel_id = 0;
+    pChannel->short_channel_id = 0;
 }
 
 
-void *ln_get_param(ln_self_t *self)
+void *ln_get_param(ln_channel_t *pChannel)
 {
-    return self->p_param;
+    return pChannel->p_param;
 }
 
 
-ln_status_t ln_status_get(const ln_self_t *self)
+ln_status_t ln_status_get(const ln_channel_t *pChannel)
 {
-    return self->status;
+    return pChannel->status;
 }
 
 
-bool ln_status_is_closing(const ln_self_t *self)
+bool ln_status_is_closing(const ln_channel_t *pChannel)
 {
-    return self->status > LN_STATUS_NORMAL;
+    return pChannel->status > LN_STATUS_NORMAL;
 }
 
 
-uint64_t ln_our_msat(const ln_self_t *self)
+uint64_t ln_our_msat(const ln_channel_t *pChannel)
 {
-    return self->our_msat;
+    return pChannel->our_msat;
 }
 
 
-uint64_t ln_their_msat(const ln_self_t *self)
+uint64_t ln_their_msat(const ln_channel_t *pChannel)
 {
-    return self->their_msat;
+    return pChannel->their_msat;
 }
 
 
-void ln_funding_set_txid(ln_self_t *self, const uint8_t *pTxid)
+void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid)
 {
-    memcpy(self->funding_tx.txid, pTxid, BTC_SZ_TXID);
+    memcpy(pChannel->funding_tx.txid, pTxid, BTC_SZ_TXID);
 }
 
 
-const uint8_t *ln_funding_txid(const ln_self_t *self)
+const uint8_t *ln_funding_txid(const ln_channel_t *pChannel)
 {
-    return self->funding_tx.txid;
+    return pChannel->funding_tx.txid;
 }
 
 
-void ln_funding_set_txindex(ln_self_t *self, uint32_t Txindex)
+void ln_funding_set_txindex(ln_channel_t *pChannel, uint32_t Txindex)
 {
-    self->funding_tx.txindex = Txindex;
+    pChannel->funding_tx.txindex = Txindex;
 }
 
 
-uint32_t ln_funding_txindex(const ln_self_t *self)
+uint32_t ln_funding_txindex(const ln_channel_t *pChannel)
 {
-    return self->funding_tx.txindex;
+    return pChannel->funding_tx.txindex;
 }
 
 
-const utl_buf_t *ln_funding_redeem(const ln_self_t *self)
+const utl_buf_t *ln_funding_redeem(const ln_channel_t *pChannel)
 {
-    return &self->redeem_fund;
+    return &pChannel->redeem_fund;
 }
 
 
-uint32_t ln_minimum_depth(const ln_self_t *self)
+uint32_t ln_minimum_depth(const ln_channel_t *pChannel)
 {
-    return self->min_depth;
+    return pChannel->min_depth;
 }
 
 
-bool ln_is_funder(const ln_self_t *self)
+bool ln_is_funder(const ln_channel_t *pChannel)
 {
-    return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+    return (pChannel->fund_flag & LN_FUNDFLAG_FUNDER);
 }
 
 
-bool ln_is_funding(const ln_self_t *self)
+bool ln_is_funding(const ln_channel_t *pChannel)
 {
-    return (self->fund_flag & LN_FUNDFLAG_FUNDING);
+    return (pChannel->fund_flag & LN_FUNDFLAG_FUNDING);
 }
 
 
-const btc_tx_t *ln_funding_tx(const ln_self_t *self)
+const btc_tx_t *ln_funding_tx(const ln_channel_t *pChannel)
 {
-    return &self->tx_funding;
+    return &pChannel->tx_funding;
 }
 
 
-const uint8_t *ln_funding_blockhash(const ln_self_t *self)
+const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel)
 {
-    return self->funding_bhash;
+    return pChannel->funding_bhash;
 }
 
 
-uint32_t ln_last_conf_get(const ln_self_t *self)
+uint32_t ln_last_conf_get(const ln_channel_t *pChannel)
 {
-    return self->last_confirm;
+    return pChannel->last_confirm;
 }
 
 
-void ln_last_conf_set(ln_self_t *self, uint32_t Conf)
+void ln_last_conf_set(ln_channel_t *pChannel, uint32_t Conf)
 {
-    if (Conf > self->last_confirm) {
-        self->last_confirm = Conf;
+    if (Conf > pChannel->last_confirm) {
+        pChannel->last_confirm = Conf;
     }
 }
 
 
-bool ln_need_init_routing_sync(const ln_self_t *self)
+bool ln_need_init_routing_sync(const ln_channel_t *pChannel)
 {
-    return self->lfeature_remote & LN_INIT_LF_ROUTE_SYNC;
+    return pChannel->lfeature_remote & LN_INIT_LF_ROUTE_SYNC;
 }
 
 
-bool ln_is_announced(const ln_self_t *self)
+bool ln_is_announced(const ln_channel_t *pChannel)
 {
-    return (self->anno_flag & LN_ANNO_FLAG_END);
+    return (pChannel->anno_flag & LN_ANNO_FLAG_END);
 }
 
 
@@ -1292,15 +1292,15 @@ uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw)
 }
 
 
-uint32_t ln_feerate_per_kw(const ln_self_t *self)
+uint32_t ln_feerate_per_kw(const ln_channel_t *pChannel)
 {
-    return self->feerate_per_kw;
+    return pChannel->feerate_per_kw;
 }
 
 
-void ln_feerate_per_kw_set(ln_self_t *self, uint32_t FeeratePerKw)
+void ln_feerate_per_kw_set(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
-    self->feerate_per_kw = FeeratePerKw;
+    pChannel->feerate_per_kw = FeeratePerKw;
 }
 
 
@@ -1316,53 +1316,53 @@ uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw)
 }
 
 
-bool ln_is_shutdown_sent(const ln_self_t *self)
+bool ln_is_shutdown_sent(const ln_channel_t *pChannel)
 {
-    return self->shutdown_flag & LN_SHDN_FLAG_SEND;
+    return pChannel->shutdown_flag & LN_SHDN_FLAG_SEND;
 }
 
 
-uint64_t ln_closing_signed_initfee(const ln_self_t *self)
+uint64_t ln_closing_signed_initfee(const ln_channel_t *pChannel)
 {
-    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
+    return (LN_FEE_COMMIT_BASE * pChannel->feerate_per_kw / 1000);
 }
 
 
-const ln_commit_tx_t *ln_commit_tx_local(const ln_self_t *self)
+const ln_commit_tx_t *ln_commit_tx_local(const ln_channel_t *pChannel)
 {
-    return &self->commit_tx_local;
+    return &pChannel->commit_tx_local;
 }
 
 
-const ln_commit_tx_t *ln_commit_tx_remote(const ln_self_t *self)
+const ln_commit_tx_t *ln_commit_tx_remote(const ln_channel_t *pChannel)
 {
-    return &self->commit_tx_remote;
+    return &pChannel->commit_tx_remote;
 }
 
 
-const utl_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *self)
+const utl_buf_t *ln_shutdown_scriptpk_local(const ln_channel_t *pChannel)
 {
-    return &self->shutdown_scriptpk_local;
+    return &pChannel->shutdown_scriptpk_local;
 }
 
 
-const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self)
+const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_channel_t *pChannel)
 {
-    return &self->shutdown_scriptpk_remote;
+    return &pChannel->shutdown_scriptpk_remote;
 }
 
 
-const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, uint16_t htlc_idx)
+const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uint16_t htlc_idx)
 {
-    return (htlc_idx < LN_HTLC_MAX) ? &self->cnl_add_htlc[htlc_idx] : NULL;
+    return (htlc_idx < LN_HTLC_MAX) ? &pChannel->cnl_add_htlc[htlc_idx] : NULL;
 }
 
 
-bool ln_is_offered_htlc_timeout(const ln_self_t *self, uint16_t htlc_idx, uint32_t BlkCnt)
+bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlkCnt)
 {
     return (htlc_idx < LN_HTLC_MAX) &&
-            ((self->cnl_add_htlc[htlc_idx].stat.bits & LN_HTLCFLAG_MASK_ALL) == LN_HTLCFLAG_SFT_TIMEOUT) &&
-            (self->cnl_add_htlc[htlc_idx].cltv_expiry <= BlkCnt);
+            ((pChannel->cnl_add_htlc[htlc_idx].stat.bits & LN_HTLCFLAG_MASK_ALL) == LN_HTLCFLAG_SFT_TIMEOUT) &&
+            (pChannel->cnl_add_htlc[htlc_idx].cltv_expiry <= BlkCnt);
 }
 
 
@@ -1372,58 +1372,58 @@ const utl_buf_t *ln_preimage_remote(const btc_tx_t *pTx)
 }
 
 
-uint16_t ln_revoked_cnt(const ln_self_t *self)
+uint16_t ln_revoked_cnt(const ln_channel_t *pChannel)
 {
-    return self->revoked_cnt;
+    return pChannel->revoked_cnt;
 }
 
 
-bool ln_revoked_cnt_dec(ln_self_t *self)
+bool ln_revoked_cnt_dec(ln_channel_t *pChannel)
 {
-    self->revoked_cnt--;
-    return self->revoked_cnt == 0;
+    pChannel->revoked_cnt--;
+    return pChannel->revoked_cnt == 0;
 }
 
 
-uint16_t ln_revoked_num(const ln_self_t *self)
+uint16_t ln_revoked_num(const ln_channel_t *pChannel)
 {
-    return self->revoked_num;
+    return pChannel->revoked_num;
 }
 
 
-void ln_set_revoked_confm(ln_self_t *self, uint32_t confm)
+void ln_set_revoked_confm(ln_channel_t *pChannel, uint32_t confm)
 {
-    self->revoked_chk = confm;
+    pChannel->revoked_chk = confm;
 }
 
 
-uint32_t ln_revoked_confm(const ln_self_t *self)
+uint32_t ln_revoked_confm(const ln_channel_t *pChannel)
 {
-    return self->revoked_chk;
+    return pChannel->revoked_chk;
 }
 
 
-const utl_buf_t* ln_revoked_vout(const ln_self_t *self)
+const utl_buf_t* ln_revoked_vout(const ln_channel_t *pChannel)
 {
-    return self->p_revoked_vout;
+    return pChannel->p_revoked_vout;
 }
 
 
-const utl_buf_t* ln_revoked_wit(const ln_self_t *self)
+const utl_buf_t* ln_revoked_wit(const ln_channel_t *pChannel)
 {
-    return self->p_revoked_wit;
+    return pChannel->p_revoked_wit;
 }
 
 
-bool ln_open_channel_announce(const ln_self_t *self)
+bool ln_open_channel_announce(const ln_channel_t *pChannel)
 {
-    bool ret = (self->fund_flag & LN_FUNDFLAG_NO_ANNO_CH);
+    bool ret = (pChannel->fund_flag & LN_FUNDFLAG_NO_ANNO_CH);
 
     //コメントアウトすると、announcement_signatures交換済みかどうかにかかわらず、
     //送信しても良い状況であればannouncement_signaturesを起動時に送信する
     if (ret) {
         utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
-        bool havedb = ln_db_annocnl_load(&buf_cnl_anno, self->short_channel_id);
+        bool havedb = ln_db_annocnl_load(&buf_cnl_anno, pChannel->short_channel_id);
         if (havedb) {
             ln_msg_channel_announcement_print(buf_cnl_anno.buf, buf_cnl_anno.len);
         }
@@ -1435,40 +1435,40 @@ bool ln_open_channel_announce(const ln_self_t *self)
 }
 
 
-const uint8_t *ln_their_node_id(const ln_self_t *self)
+const uint8_t *ln_their_node_id(const ln_channel_t *pChannel)
 {
-    return self->peer_node_id;
+    return pChannel->peer_node_id;
 }
 
 
-uint32_t ln_cltv_expily_delta(const ln_self_t *self)
+uint32_t ln_cltv_expily_delta(const ln_channel_t *pChannel)
 {
-    return self->anno_prm.cltv_expiry_delta;
+    return pChannel->anno_prm.cltv_expiry_delta;
 }
 
 
-uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat)
+uint64_t ln_forward_fee(const ln_channel_t *pChannel, uint64_t AmountMsat)
 {
-    return (uint64_t)self->anno_prm.fee_base_msat +
-            (AmountMsat * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
+    return (uint64_t)pChannel->anno_prm.fee_base_msat +
+            (AmountMsat * (uint64_t)pChannel->anno_prm.fee_prop_millionths / (uint64_t)1000000);
 }
 
 
-const ln_node_addr_t *ln_last_connected_addr(const ln_self_t *self)
+const ln_node_addr_t *ln_last_connected_addr(const ln_channel_t *pChannel)
 {
-    return &self->last_connected_addr;
+    return &pChannel->last_connected_addr;
 }
 
 
-int ln_err(const ln_self_t *self)
+int ln_err(const ln_channel_t *pChannel)
 {
-    return self->err;
+    return pChannel->err;
 }
 
 
-const char *ln_errmsg(const ln_self_t *self)
+const char *ln_errmsg(const ln_channel_t *pChannel)
 {
-    return self->err_msg;
+    return pChannel->err_msg;
 }
 
 
@@ -1491,17 +1491,17 @@ bool ln_cnlupd_enable(const ln_msg_channel_update_t *pCnlUpd)
 /** revoked transaction close関連のメモリ確保
  *
  */
-void HIDDEN ln_revoked_buf_alloc(ln_self_t *self)
+void HIDDEN ln_revoked_buf_alloc(ln_channel_t *pChannel)
 {
-    LOGD("alloc(%d)\n", self->revoked_num);
+    LOGD("alloc(%d)\n", pChannel->revoked_num);
 
-    self->p_revoked_vout = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * self->revoked_num);
-    self->p_revoked_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * self->revoked_num);
-    self->p_revoked_type = (ln_htlctype_t *)UTL_DBG_MALLOC(sizeof(ln_htlctype_t) * self->revoked_num);
-    for (int lp = 0; lp < self->revoked_num; lp++) {
-        utl_buf_init(&self->p_revoked_vout[lp]);
-        utl_buf_init(&self->p_revoked_wit[lp]);
-        self->p_revoked_type[lp] = LN_HTLCTYPE_NONE;
+    pChannel->p_revoked_vout = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pChannel->revoked_num);
+    pChannel->p_revoked_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pChannel->revoked_num);
+    pChannel->p_revoked_type = (ln_htlctype_t *)UTL_DBG_MALLOC(sizeof(ln_htlctype_t) * pChannel->revoked_num);
+    for (int lp = 0; lp < pChannel->revoked_num; lp++) {
+        utl_buf_init(&pChannel->p_revoked_vout[lp]);
+        utl_buf_init(&pChannel->p_revoked_wit[lp]);
+        pChannel->p_revoked_type[lp] = LN_HTLCTYPE_NONE;
     }
 }
 
@@ -1509,45 +1509,45 @@ void HIDDEN ln_revoked_buf_alloc(ln_self_t *self)
 /** #ln_revoked_buf_alloc()で確保したメモリの解放
  *
  */
-void HIDDEN ln_revoked_buf_free(ln_self_t *self)
+void HIDDEN ln_revoked_buf_free(ln_channel_t *pChannel)
 {
-    if (self->revoked_num == 0) {
+    if (pChannel->revoked_num == 0) {
         return;
     }
 
-    for (int lp = 0; lp < self->revoked_num; lp++) {
-        utl_buf_free(&self->p_revoked_vout[lp]);
-        utl_buf_free(&self->p_revoked_wit[lp]);
+    for (int lp = 0; lp < pChannel->revoked_num; lp++) {
+        utl_buf_free(&pChannel->p_revoked_vout[lp]);
+        utl_buf_free(&pChannel->p_revoked_wit[lp]);
     }
-    UTL_DBG_FREE(self->p_revoked_vout);
-    UTL_DBG_FREE(self->p_revoked_wit);
-    UTL_DBG_FREE(self->p_revoked_type);
-    self->revoked_num = 0;
-    self->revoked_cnt = 0;
+    UTL_DBG_FREE(pChannel->p_revoked_vout);
+    UTL_DBG_FREE(pChannel->p_revoked_wit);
+    UTL_DBG_FREE(pChannel->p_revoked_type);
+    pChannel->revoked_num = 0;
+    pChannel->revoked_cnt = 0;
 
     LOGD("free\n");
 }
 
 
-void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam)
+void ln_callback(ln_channel_t *pChannel, ln_cb_t Req, void *pParam)
 {
-    if (self->p_callback == NULL) {
+    if (pChannel->p_callback == NULL) {
         LOGE("fail: not callback(%d)\n", (int)Req);
         return;
     }
 
-    (*self->p_callback)(self, Req, pParam);
+    (*pChannel->p_callback)(pChannel, Req, pParam);
 }
 
 
 /**
  *
- * @param[in]   self
+ * @param[in]   pChannel
  * @param[in]   pNodeId
  * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     自ノードが先
  * @retval      BTC_SCRYPT_PUBKEY_ORDER_OTHER   相手ノードが先
  */
-btc_script_pubkey_order_t ln_node_id_sort(const ln_self_t *self, const uint8_t *pNodeId)
+btc_script_pubkey_order_t ln_node_id_sort(const ln_channel_t *pChannel, const uint8_t *pNodeId)
 {
     btc_script_pubkey_order_t sort;
 
@@ -1555,7 +1555,7 @@ btc_script_pubkey_order_t ln_node_id_sort(const ln_self_t *self, const uint8_t *
     const uint8_t *p_nodeid = ln_node_getid();
     const uint8_t *p_peerid;
     if (pNodeId == NULL) {
-        p_peerid = self->peer_node_id;
+        p_peerid = pChannel->peer_node_id;
     } else {
         p_peerid = pNodeId;
     }
@@ -1585,26 +1585,26 @@ uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
 }
 
 
-bool HIDDEN ln_update_scriptkeys(ln_self_t *self)
+bool HIDDEN ln_update_scriptkeys(ln_channel_t *pChannel)
 {
-    if (!ln_update_scriptkeys_local(self)) return false;
-    if (!ln_update_scriptkeys_remote(self)) return false;
+    if (!ln_update_scriptkeys_local(pChannel)) return false;
+    if (!ln_update_scriptkeys_remote(pChannel)) return false;
     return true;
 }
 
 
-bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self)
+bool HIDDEN ln_update_scriptkeys_local(ln_channel_t *pChannel)
 {
     if (!ln_derkey_update_scriptkeys(
-        &self->commit_tx_local.script_pubkeys, &self->pubkeys_local, &self->pubkeys_remote)) return false;
+        &pChannel->commit_tx_local.script_pubkeys, &pChannel->pubkeys_local, &pChannel->pubkeys_remote)) return false;
     return true;
 }
 
 
-bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self)
+bool HIDDEN ln_update_scriptkeys_remote(ln_channel_t *pChannel)
 {
     if (!ln_derkey_update_scriptkeys(
-        &self->commit_tx_remote.script_pubkeys, &self->pubkeys_remote, &self->pubkeys_local)) return false;
+        &pChannel->commit_tx_remote.script_pubkeys, &pChannel->pubkeys_remote, &pChannel->pubkeys_local)) return false;
     return true;
 }
 
@@ -1615,33 +1615,33 @@ bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self)
 
 /** チャネル情報消去
  *
- * @param[in,out]       self
+ * @param[in,out]       pChannel
  * @note
  *      - channelが閉じたときに呼び出すこと
  */
-static void channel_clear(ln_self_t *self)
+static void channel_clear(ln_channel_t *pChannel)
 {
-    utl_buf_free(&self->shutdown_scriptpk_local);
-    utl_buf_free(&self->shutdown_scriptpk_remote);
-    utl_buf_free(&self->redeem_fund);
-    utl_buf_free(&self->cnl_anno);
-    utl_buf_free(&self->revoked_sec);
-    ln_revoked_buf_free(self);
+    utl_buf_free(&pChannel->shutdown_scriptpk_local);
+    utl_buf_free(&pChannel->shutdown_scriptpk_remote);
+    utl_buf_free(&pChannel->redeem_fund);
+    utl_buf_free(&pChannel->cnl_anno);
+    utl_buf_free(&pChannel->revoked_sec);
+    ln_revoked_buf_free(pChannel);
 
-    btc_tx_free(&self->tx_funding);
-    btc_tx_free(&self->tx_closing);
+    btc_tx_free(&pChannel->tx_funding);
+    btc_tx_free(&pChannel->tx_closing);
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        utl_buf_free(&self->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_free(&self->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_free(&self->cnl_add_htlc[idx].buf_shared_secret);
+        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
     }
 
-    memset(self->peer_node_id, 0, BTC_SZ_PUBKEY);
-    self->anno_flag = 0;
-    self->shutdown_flag = 0;
+    memset(pChannel->peer_node_id, 0, BTC_SZ_PUBKEY);
+    pChannel->anno_flag = 0;
+    pChannel->shutdown_flag = 0;
 
-    ln_establish_free(self);
+    ln_establish_free(pChannel);
 }
 
 
@@ -1712,11 +1712,11 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 /** transactionからcommitment numberを復元
  *
  */
-static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
+static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx)
 {
     uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
     commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
-    commit_num ^= self->obscured;
+    commit_num ^= pChannel->obscured;
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;
 }
@@ -1725,17 +1725,17 @@ static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
 /** commitment_number debug output
  *
  */
-void ln_dbg_commitnum(const ln_self_t *self)
+void ln_dbg_commitnum(const ln_channel_t *pChannel)
 {
     LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys_local));
-    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&self->privkeys_remote.storage));
+    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&pChannel->privkeys_local));
+    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&pChannel->privkeys_remote.storage));
     LOGD("------------------------------------------\n");
-    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_tx_local.commit_num);
-    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_tx_remote.commit_num);
-    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_tx_local.revoke_num);
-    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_tx_remote.revoke_num);
+    LOGD("local.commit_num  = %" PRIu64 "\n", pChannel->commit_tx_local.commit_num);
+    LOGD("remote.commit_num = %" PRIu64 "\n", pChannel->commit_tx_remote.commit_num);
+    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)pChannel->commit_tx_local.revoke_num);
+    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)pChannel->commit_tx_remote.revoke_num);
     LOGD("------------------------------------------\n");
-    LOGD("htlc_id_num: %" PRIu64 "\n", self->htlc_id_num);
+    LOGD("htlc_id_num: %" PRIu64 "\n", pChannel->htlc_id_num);
     LOGD("------------------------------------------\n");
 }

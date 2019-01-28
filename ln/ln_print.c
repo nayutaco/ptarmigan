@@ -88,18 +88,18 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 }
 
 
-void ln_print_keys(ln_self_t *self)
+void ln_print_keys(ln_channel_t *pChannel)
 {
-    ln_derkey_pubkeys_t         *p_local_pubkeys = &self->pubkeys_local;
-    ln_derkey_pubkeys_t         *p_remote_pubkeys = &self->pubkeys_remote;
-    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &self->commit_tx_local.script_pubkeys;
-    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &self->commit_tx_remote.script_pubkeys;
+    ln_derkey_pubkeys_t         *p_local_pubkeys = &pChannel->pubkeys_local;
+    ln_derkey_pubkeys_t         *p_remote_pubkeys = &pChannel->pubkeys_remote;
+    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &pChannel->commit_tx_local.script_pubkeys;
+    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &pChannel->commit_tx_remote.script_pubkeys;
 
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
     LOGD("  funding_txid: ");
-    TXIDD(ln_funding_txid(self));
-    LOGD("  funding_txindex: %" PRIu16 "\n", ln_funding_txindex(self));
+    TXIDD(ln_funding_txid(pChannel));
+    LOGD("  funding_txindex: %" PRIu16 "\n", ln_funding_txindex(pChannel));
 
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
@@ -127,7 +127,7 @@ void ln_print_keys(ln_self_t *self)
     }
 
     LOGD("prev_percommit: ");
-    DUMPD(self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    DUMPD(pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;
