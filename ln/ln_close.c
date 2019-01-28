@@ -340,7 +340,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     }
 
     //vin
-    btc_tx_add_vin(pTx, self->funding_local.txid, self->funding_local.txindex);
+    btc_tx_add_vin(pTx, ln_funding_txid(self), ln_funding_txindex(self));
 
     //BIP69
     btc_tx_sort_bip69(pTx);
@@ -371,7 +371,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 
         //verify
         if (!btc_sw_verify_p2wsh_2of2(
-            pTx, 0, sighash, &self->tx_funding.vout[self->funding_local.txindex].script)) {
+            pTx, 0, sighash, &self->tx_funding.vout[ln_funding_txindex(self)].script)) {
             btc_tx_free(pTx);
             LOGD("fail: verify\n");
             return false;

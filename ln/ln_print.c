@@ -98,8 +98,8 @@ void ln_print_keys(ln_self_t *self)
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
     LOGD("  funding_txid: ");
-    TXIDD(self->funding_local.txid);
-    LOGD("  funding_txindex: %" PRIu16 "\n", self->funding_local.txindex);
+    TXIDD(ln_funding_txid(self));
+    LOGD("  funding_txindex: %" PRIu16 "\n", ln_funding_txindex(self));
 
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {

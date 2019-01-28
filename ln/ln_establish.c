@@ -402,8 +402,8 @@ bool HIDDEN ln_funding_created_send(ln_self_t *self)
     ln_msg_funding_created_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
     msg.p_temporary_channel_id = self->channel_id;
-    msg.p_funding_txid = self->funding_local.txid;
-    msg.funding_output_index = self->funding_local.txindex;
+    msg.p_funding_txid = ln_funding_txid(self);
+    msg.funding_output_index = ln_funding_txindex(self);
     msg.p_signature = self->commit_remote.signature;
     ln_msg_funding_created_write(&buf, &msg);
     ln_callback(self, LN_CB_SEND_REQ, &buf);
@@ -426,7 +426,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(self->funding_local.txid, msg.p_funding_txid, BTC_SZ_TXID);
+    ln_funding_set_txid(self, msg.p_funding_txid);
     memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //temporary_channel_id
@@ -435,17 +435,17 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
         return false;
     }
 
-    self->funding_local.txindex = msg.funding_output_index;
+    ln_funding_set_txindex(self, msg.funding_output_index);
 
     //署名チェック用
     btc_tx_free(&self->tx_funding);
-    for (int lp = 0; lp < self->funding_local.txindex; lp++) {
+    for (uint32_t lp = 0; lp < ln_funding_txindex(self); lp++) {
         //処理の都合上、voutの位置を調整している
         btc_tx_add_vout(&self->tx_funding, 0);
     }
     btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
-    btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
+    btc_tx_add_vin(&self->tx_funding, ln_funding_txid(self), 0);
 
     //署名チェック
     //  initial commit tx(自分が持つTo-Local)
@@ -469,7 +469,7 @@ bool HIDDEN ln_funding_created_recv(ln_self_t *self, const uint8_t *pData, uint1
     }
 
     //temporary_channel_id -> channel_id
-    ln_channel_id_calc(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
+    ln_channel_id_calc(self->channel_id, ln_funding_txid(self), ln_funding_txindex(self));
 
     if (!ln_funding_signed_send(self)) {
         //XXX:
@@ -514,7 +514,7 @@ bool HIDDEN ln_funding_signed_recv(ln_self_t *self, const uint8_t *pData, uint16
     memcpy(self->commit_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
-    ln_channel_id_calc(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
+    ln_channel_id_calc(self->channel_id, ln_funding_txid(self), ln_funding_txindex(self));
     if (!ln_check_channel_id(msg.p_channel_id, self->channel_id)) {
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
@@ -780,7 +780,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
 
     if (self->establish.p_fundin != NULL) {
         //output
-        self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
+        ln_funding_set_txindex(self, M_FUNDING_INDEX);      //TODO: vout#0は2-of-2、vout#1はchangeにしている
         //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
         btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
 
@@ -827,9 +827,9 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     } else {
         //for SPV
         //fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
-        //その代わり、self->funding_local.txindexは固定値にならない。
+        //その代わり、ln_funding_txindex(self)は固定値にならない。
         btc_sw_add_vout_p2wsh_wit(&self->tx_funding, self->funding_sat, &self->redeem_fund);
-        btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0); //dummy
+        btc_tx_add_vin(&self->tx_funding, ln_funding_txid(self), 0); //dummy
     }
 
     //sign
@@ -849,7 +849,9 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         return false;
     }
 
-    btc_tx_txid(&self->tx_funding, self->funding_local.txid);
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(&self->tx_funding, txid);
+    ln_funding_set_txid(self, txid);
     LOGD("***** funding_tx *****\n");
     M_DBG_PRINT_TX(&self->tx_funding);
 
@@ -866,8 +868,8 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         btc_tx_free(&self->tx_funding);
         return false;
     }
-    self->funding_local.txindex = (uint16_t)lp;
-    LOGD("funding_txindex=%d\n", self->funding_local.txindex);
+    ln_funding_set_txindex(self, lp);
+    LOGD("funding_txindex=%d\n", ln_funding_txindex(self));
     return true;
 }
 

@@ -153,8 +153,8 @@ static void ln_print_wallet(const ln_self_t *self)
         ln_short_channel_id_string(str_sci, self->short_channel_id);
         printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->short_channel_id);
         printf(INDENT3 M_QQ("funding_tx") ": \"");
-        btc_dbg_dump_txid(stdout, self->funding_local.txid);
-        printf(":%d\",\n", self->funding_local.txindex);
+        btc_dbg_dump_txid(stdout, ln_funding_txid(self));
+        printf(":%d\",\n", ln_funding_txindex(self));
         uint64_t offered = 0;
         uint64_t received = 0;
         printf(INDENT3 M_QQ("pending") ": [\n");
@@ -250,9 +250,9 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", self->last_confirm);
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
-    btc_dbg_dump_txid(stdout, self->funding_local.txid);
+    btc_dbg_dump_txid(stdout, ln_funding_txid(self));
     printf("\",\n");
-    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
+    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", ln_funding_txindex(self));
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
