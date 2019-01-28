@@ -37,7 +37,7 @@
 #define PER_COMMIT_SECRET_PAIR_NUM  (49)
 
 // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
-#define LN_SECRET_INDEX_INIT            ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
+#define LN_SECRET_INDEX_INIT            (UINT64_C(0xffffffffffff))      ///< per-commitment secret生成用indexの初期値
 
 
 /********************************************************************
