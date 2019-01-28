@@ -537,8 +537,8 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
     est.p_fundin = &fundin;
 
     ln_init(dummy, seed, &annoprm, NULL);
-    memcpy(dummy->funding_remote.pubkeys[LN_BASEPOINT_IDX_FUNDING],
-            dummy->funding_local.pubkeys[LN_BASEPOINT_IDX_FUNDING],
+    memcpy(dummy->pubkeys_remote[LN_BASEPOINT_IDX_FUNDING],
+            dummy->pubkeys_local[LN_BASEPOINT_IDX_FUNDING],
             BTC_SZ_PUBKEY);
     memcpy(&dummy->establish, est, sizeof((est));
     bool ret = create_funding_tx(dummy, false);
@@ -670,7 +670,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
             if (ret) {
                 //revoked transaction close(remote)
                 self->status = LN_STATUS_CLOSE_REVOKED;
-                btc_keys_priv2pub(self->funding_remote.pubkeys.per_commitment_point, self->revoked_sec.buf);
+                btc_keys_priv2pub(self->pubkeys_remote.per_commitment_point, self->revoked_sec.buf);
             } else {
                 //unilateral close(remote)
                 self->status = LN_STATUS_CLOSE_UNI_REMOTE;
@@ -703,16 +703,16 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
     memcpy(bak_percommit, self->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
-    memcpy(bak_remotecommit, self->funding_remote.pubkeys.per_commitment_point, sizeof(bak_remotecommit));
+    memcpy(bak_remotecommit, self->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(self,
                 self->privkeys_local.per_commitment_secret,
-                self->funding_local.pubkeys.per_commitment_point);
+                self->pubkeys_local.per_commitment_point);
 
     //remote
-    memcpy(self->funding_remote.pubkeys.per_commitment_point,
-            self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->pubkeys_remote.per_commitment_point,
+            self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
     ln_update_scriptkeys(self);
@@ -734,9 +734,9 @@ bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     //元に戻す
     memcpy(self->privkeys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(self->funding_local.pubkeys.per_commitment_point,
+    btc_keys_priv2pub(self->pubkeys_local.per_commitment_point,
             self->privkeys_local.per_commitment_secret);
-    memcpy(self->funding_remote.pubkeys.per_commitment_point,
+    memcpy(self->pubkeys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_scriptkeys(self);
     ln_print_keys(self);
@@ -759,16 +759,16 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
     memcpy(bak_percommit, self->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
-    memcpy(bak_remotecommit, self->funding_remote.pubkeys.per_commitment_point, sizeof(bak_remotecommit));
+    memcpy(bak_remotecommit, self->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(self,
                 self->privkeys_local.per_commitment_secret,
-                self->funding_local.pubkeys.per_commitment_point);
+                self->pubkeys_local.per_commitment_point);
 
     //remote
-    memcpy(self->funding_remote.pubkeys.per_commitment_point,
-            self->funding_remote.pubkeys.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(self->pubkeys_remote.per_commitment_point,
+            self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
     ln_update_scriptkeys(self);
@@ -790,9 +790,9 @@ bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
     //元に戻す
     memcpy(self->privkeys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(self->funding_local.pubkeys.per_commitment_point,
+    btc_keys_priv2pub(self->pubkeys_local.per_commitment_point,
             self->privkeys_local.per_commitment_secret);
-    memcpy(self->funding_remote.pubkeys.per_commitment_point,
+    memcpy(self->pubkeys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_scriptkeys(self);
 
@@ -859,11 +859,11 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
         LOGE("fail: ln_derkey_storage_get_secret()\n");
         abort();
     }
-    btc_keys_priv2pub(self->funding_remote.pubkeys.per_commitment_point, self->revoked_sec.buf);
+    btc_keys_priv2pub(self->pubkeys_remote.per_commitment_point, self->revoked_sec.buf);
     //LOGD2("  pri:");
     //DUMPD(self->revoked_sec.buf, BTC_SZ_PRIVKEY);
     //LOGD2("  pub:");
-    //DUMPD(self->funding_remote.pubkeys.per_commitment_point, BTC_SZ_PUBKEY);
+    //DUMPD(self->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
     ln_signer_keys_update_force(self, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
@@ -1028,7 +1028,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
 
     btc_keys_t signkey;
     ln_signer_get_revoke_secret(self, &signkey,
-                    self->funding_remote.pubkeys.per_commitment_point,
+                    self->pubkeys_remote.per_commitment_point,
                     self->revoked_sec.buf);
     // LOGD("key-priv: ");
     // DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
@@ -1591,7 +1591,7 @@ bool HIDDEN ln_update_scriptkeys(ln_self_t *self)
 bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self)
 {
     if (!ln_derkey_update_scriptkeys(
-        &self->commit_local.script_pubkeys, &self->funding_local.pubkeys, &self->funding_remote.pubkeys)) return false;
+        &self->commit_local.script_pubkeys, &self->pubkeys_local, &self->pubkeys_remote)) return false;
     return true;
 }
 
@@ -1599,7 +1599,7 @@ bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self)
 bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self)
 {
     if (!ln_derkey_update_scriptkeys(
-        &self->commit_remote.script_pubkeys, &self->funding_remote.pubkeys, &self->funding_local.pubkeys)) return false;
+        &self->commit_remote.script_pubkeys, &self->pubkeys_remote, &self->pubkeys_local)) return false;
     return true;
 }
 

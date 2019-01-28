@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-36))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-37))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -166,6 +166,7 @@
          BTC_SZ_PUBKEY -> BTC_SZ_PRIVKEY
     -35: change the order of internal members in ln_derkey_local_privkeys_t
     -36: change self->peer_storage -> self->privkeys_remote
+    -37: funding_local -> pubkeys_local, funding_remote -> pubkeys_remote
  */
 
 
@@ -324,120 +325,120 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //conn
     //
-    M_ITEM(ln_self_t, peer_node_id),    //[CONN01]
-    M_ITEM(ln_self_t, last_connected_addr),     //[CONN02]
-    M_ITEM(ln_self_t, status),      //[CONN03]
+    M_ITEM(ln_self_t, peer_node_id),    //[CONN_01]
+    M_ITEM(ln_self_t, last_connected_addr),     //[CONN_02]
+    M_ITEM(ln_self_t, status),      //[CONN_03]
 
     //
     //keys
     //
-    M_ITEM(ln_self_t, privkeys_remote),    //[KEYS01]
-    //[KEYS03]priv_data --> secret
+    //[KEYS_01]priv_data --> secret
+    M_ITEM(ln_self_t, privkeys_remote),     //[KEYS_02]
+    M_ITEM(ln_self_t, pubkeys_local),       //[FUND_03]
+    M_ITEM(ln_self_t, pubkeys_remote),      //[FUND_04]
 
     //
     //fund
     //
-    M_ITEM(ln_self_t, fund_flag),                                               //[FUND01]
-    M_ITEM(ln_self_t, funding_tx),                                              //[FUND02]
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),        //[FUND03]
-    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),      //[FUND04]funding_remote
-    M_ITEM(ln_self_t, obscured),                                                //[FUND05]
-    M_ITEM(ln_self_t, min_depth),                                               //[FUND10]
-    M_ITEM(ln_self_t, funding_bhash),   //[FUNDSPV01]
-    M_ITEM(ln_self_t, last_confirm),    //[FUNDSPV02]
+    M_ITEM(ln_self_t, fund_flag),                                               //[FUND_01]
+    M_ITEM(ln_self_t, funding_tx),                                              //[FUND_02]
+    M_ITEM(ln_self_t, obscured),                                                //[FUND_05]
+    M_ITEM(ln_self_t, min_depth),                                               //[FUND_08]
+    M_ITEM(ln_self_t, funding_bhash),   //[FUNDSPV_01]
+    M_ITEM(ln_self_t, last_confirm),    //[FUNDSPV_02]
 
     //
     //anno
     //
-    M_ITEM(ln_self_t, anno_flag),       //[ANNO01]
-    //[ANNO02]anno_prm
-    //[ANNO03]cnl_anno
+    M_ITEM(ln_self_t, anno_flag),       //[ANNO_01]
+    //[ANNO_02]anno_prm
+    //[ANNO_03]cnl_anno
 
     //
     //init
     //
-    //[INIT01]init_flag
-    //[INIT02]lfeature_local
-    //[INIT03]lfeature_remote
-    //[INIT04]reest_commit_num
-    //[INIT05]reest_revoke_num
+    //[INIT_01]init_flag
+    //[INIT_02]lfeature_local
+    //[INIT_03]lfeature_remote
+    //[INIT_04]reest_commit_num
+    //[INIT_05]reest_revoke_num
 
     //
     //clse
     //
-    //[CLSE01]---
-    //[CLSE02]tx_closing
-    M_ITEM(ln_self_t, shutdown_flag),   //[CLSE03]shutdown_flag
-    //[CLSE04]close_fee_sat
-    //[CLSE05]close_last_fee_sat
-    //[CLSE06]shutdown_scriptpk_local --> script
-    //[CLSE07]shutdown_scriptpk_remote --> script
+    //[CLSE_01]---
+    //[CLSE_02]tx_closing
+    M_ITEM(ln_self_t, shutdown_flag),   //[CLSE_03]shutdown_flag
+    //[CLSE_04]close_fee_sat
+    //[CLSE_05]close_last_fee_sat
+    //[CLSE_06]shutdown_scriptpk_local --> script
+    //[CLSE_07]shutdown_scriptpk_remote --> script
 
     //
     //revk
     //
-    //[REVK01]p_revoked_vout --> revoked db
-    //[REVK02]p_revoked_wit  --> revoked db
-    //[REVK03]p_revoked_type --> revoked db
-    //[REVK04]revoked_sec --> revoked db
-    //[REVK05]revoked_num --> revoked db
-    //[REVK06]revoked_cnt --> revoked db
-    //[REVK07]revoked_chk --> revoked db
+    //[REVK_01]p_revoked_vout --> revoked db
+    //[REVK_02]p_revoked_wit  --> revoked db
+    //[REVK_03]p_revoked_type --> revoked db
+    //[REVK_04]revoked_sec --> revoked db
+    //[REVK_05]revoked_num --> revoked db
+    //[REVK_06]revoked_cnt --> revoked db
+    //[REVK_07]revoked_chk --> revoked db
 
     //
     //norm
     //
-    M_ITEM(ln_self_t, htlc_id_num),     //[NORM01]
-    M_ITEM(ln_self_t, our_msat),        //[NORM02]
-    M_ITEM(ln_self_t, their_msat),      //[NORM03]
-    M_ITEM(ln_self_t, channel_id),      //[NORM04]
-    M_ITEM(ln_self_t, short_channel_id),        //[NORM05]
-    //[NORM06]cnl_add_htlc --> HTLC
+    M_ITEM(ln_self_t, htlc_id_num),     //[NORM_01]
+    M_ITEM(ln_self_t, our_msat),        //[NORM_02]
+    M_ITEM(ln_self_t, their_msat),      //[NORM_03]
+    M_ITEM(ln_self_t, channel_id),      //[NORM_04]
+    M_ITEM(ln_self_t, short_channel_id),        //[NORM_05]
+    //[NORM_06]cnl_add_htlc --> HTLC
 
     //
     //comm
     //
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, dust_limit_sat),     //[COMM01]commit_local
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_htlc_value_in_flight_msat),      //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, channel_reserve_sat),        //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_minimum_msat),      //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, to_self_delay),      //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_accepted_htlcs),     //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, signature),      //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),       //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),       //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),     //[COMM01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),     //[COMM01]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, dust_limit_sat),        //[COMM02]commit_remote
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_htlc_value_in_flight_msat),     //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, channel_reserve_sat),       //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_minimum_msat),     //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),     //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_accepted_htlcs),        //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, signature),     //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),      //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),      //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),        //[COMM02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),        //[COMM02]
-    M_ITEM(ln_self_t, funding_sat),     //[COMM03]
-    M_ITEM(ln_self_t, feerate_per_kw),      //[COMM04]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, dust_limit_sat),     //[COMM_01]commit_local
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_htlc_value_in_flight_msat),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, channel_reserve_sat),        //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_minimum_msat),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, to_self_delay),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_accepted_htlcs),     //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, signature),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),       //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),       //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),     //[COMM_01]
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),     //[COMM_01]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, dust_limit_sat),        //[COMM_02]commit_remote
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_htlc_value_in_flight_msat),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, channel_reserve_sat),       //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_minimum_msat),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_accepted_htlcs),        //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, signature),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),      //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),      //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),        //[COMM_02]
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),        //[COMM_02]
+    M_ITEM(ln_self_t, funding_sat),     //[COMM_03]
+    M_ITEM(ln_self_t, feerate_per_kw),      //[COMM_04]
 
     //
     //nois
     //
-    //[NOIS01]noise
+    //[NOIS_01]noise
 
     //
     //erro
     //
-    //[ERRO01]err
-    //[ERRO02]err_msg
+    //[ERRO_01]err
+    //[ERRO_02]err_msg
 
     //
     //apps
     //
-    //[APPS01]p_callback
-    //[APPS02]p_param
+    //[APPS_01]p_callback
+    //[APPS_02]p_param
 };
 
 
@@ -455,8 +456,8 @@ static const backup_param_t DBSELF_COPY[] = {
     M_ITEM(ln_self_t, their_msat),
     M_ITEM(ln_self_t, htlc_id_num),
     M_ITEM(ln_self_t, funding_tx),
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
-    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
+    M_ITEM(ln_self_t, pubkeys_local),
+    M_ITEM(ln_self_t, pubkeys_remote),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
@@ -494,8 +495,8 @@ static const struct {
     { ETYPE_UINT64U,    1, true },                  // htlc_id_num
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
-    { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
-    { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
+    { ETYPE_LOCALKEYS,  1, false },                 // pubkeys_local
+    { ETYPE_REMOTEKEYS, 1, false },                 // pubkeys_remote
     { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
     { ETYPE_UINT64U,    1, true },                  // commit_local.commit_num
     { ETYPE_UINT64U,    1, true },                  // commit_local.revoke_num
@@ -843,8 +844,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     //復元データからさらに復元
     ln_update_scriptkeys(self);
     btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
-            self->funding_local.pubkeys.basepoints[LN_BASEPOINT_IDX_FUNDING],
-            self->funding_remote.pubkeys.basepoints[LN_BASEPOINT_IDX_FUNDING]);
+            self->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
+            self->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
@@ -1118,10 +1119,12 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 {
     MDB_val         key, data;
 #ifdef M_DEBUG_KEYS
-    ln_funding_local_data_t     local;
-    ln_funding_remote_data_t    remote;
-    memset(&local, 0, sizeof(local));
-    memset(&remote, 0, sizeof(remote));
+    ln_funding_tx_t funding_tx;
+    ln_derkey_pubkeys_t pubkeys_local;
+    ln_derkey_pubkeys_t pubkeys_remote;
+    memset(&funding_tx, 0x00, sizeof(funding_tx));
+    memset(&pubkeys_local, 0x00, sizeof(pubkeys_local));
+    memset(&pubkeys_remote, 0x00, sizeof(pubkeys_remote));
 #endif  //M_DEBUG_KEYS
 
     for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_COPY); lp++) {
@@ -1160,10 +1163,10 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 if (DBSELF_COPYIDX[lp].disp) {
                     printf("%" PRIu16, *(const uint16_t *)p);
                 }
-#ifdef M_DEBUG_KEYS //XXX:
-                //if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXIDX) {
-                //    local.txindex = *(const uint16_t *)p;
-                //}
+#ifdef M_DEBUG_KEYS
+                if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXIDX) {
+                    funding_tx.txindex = *(const uint16_t *)p;
+                }
 #endif  //M_DEBUG_KEYS
                 break;
             case ETYPE_TXID: //txid
@@ -1173,24 +1176,23 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                     btc_dbg_dump_txid(stdout, p);
                     printf("\"");
                 }
-#ifdef M_DEBUG_KEYS //XXX:
-                //if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXID) {
-                //    memcpy(local.txid, p, DBSELF_COPYIDX[lp].length);
-                //}
-#endif  //M_DEBUG_KEYS
-                break;
-            case ETYPE_LOCALKEYS: //funding_local.keys
 #ifdef M_DEBUG_KEYS
-                {
-                    const btc_keys_t *p_keys = (const btc_keys_t *)p;
-                    memcpy(&local.pubkeys, p_keys, M_SIZE(ln_funding_local_data_t, pubkeys));
+                if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXID) {
+                    memcpy(funding_tx.txid, p, DBSELF_COPYIDX[lp].length);
                 }
 #endif  //M_DEBUG_KEYS
                 break;
-            case ETYPE_REMOTEKEYS: //funding_remote.keys
+            case ETYPE_LOCALKEYS: //pubkeys_local
 #ifdef M_DEBUG_KEYS
                 {
-                    memcpy(&remote.pubkeys, p, M_SIZE(ln_funding_remote_data_t, pubkeys));
+                    memcpy(&pubkeys_local, p, sizeof(ln_derkey_pubkeys_t));
+                }
+#endif  //M_DEBUG_KEYS
+                break;
+            case ETYPE_REMOTEKEYS: //pubkeys_remote
+#ifdef M_DEBUG_KEYS
+                {
+                    memcpy(&pubkeys_remote, p, sizeof(ln_derkey_pubkeys_t));
                 }
 #endif  //M_DEBUG_KEYS
                 break;
@@ -1202,8 +1204,8 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         }
     }
 #ifdef M_DEBUG_KEYS
-    if ( ((local.pubkeys.basepoints[0][0] == 0x02) || (local.pubkeys.basepoints[0][0] == 0x03)) &&
-         ((remote.pubkeys.basepoints[0][0] == 0x02) || (remote.pubkeys.basepoints[0][0] == 0x03))) {
+    if ( ((pubkeys_local.basepoints[0][0] == 0x02) || (pubkeys_local.basepoints[0][0] == 0x03)) &&
+         ((pubkeys_remote.basepoints[0][0] == 0x02) || (pubkeys_remote.basepoints[0][0] == 0x03))) {
         printf("\n");
         //ln_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);

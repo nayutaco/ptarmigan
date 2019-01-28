@@ -646,22 +646,6 @@ typedef struct {
 } ln_funding_tx_t;
 
 
-/** @struct ln_funding_local_data_t
- *  @brief  自ノードfunding情報
- */
-typedef struct {
-    ln_derkey_pubkeys_t pubkeys;    ///< pubkeys
-} ln_funding_local_data_t;
-
-
-/** @struct ln_funding_remote_data_t
- *  @brief  他ノードfunding情報
- */
-typedef struct {
-    ln_derkey_pubkeys_t pubkeys;    ///< pubkeys
-} ln_funding_remote_data_t;
-
-
 /** @struct ln_commit_data_t
  *  @brief  commitment transaction用情報
  */
@@ -698,21 +682,21 @@ struct ln_self_t {
     ln_status_t                 status;                         ///< [CONN_03]状態
 
     //key storage
-    ln_derkey_local_privkeys_t  privkeys_local;                 ///< [KEYS_01]local secret
-    ln_derkey_remote_privkeys_t privkeys_remote;                ///< [KEYS_02]remote secret
+    ln_derkey_local_privkeys_t  privkeys_local;                 ///< [KEYS_01]local secrets
+    ln_derkey_remote_privkeys_t privkeys_remote;                ///< [KEYS_02]remote secrets
+    ln_derkey_pubkeys_t         pubkeys_local;                  ///< [KEYS_03]local pubkeys
+    ln_derkey_pubkeys_t         pubkeys_remote;                 ///< [KEYS_04]remote pubkeys
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
     ln_funding_tx_t             funding_tx;                     ///< [FUND_02]funding tx
-    ln_funding_local_data_t     funding_local;                  ///< [FUND_03]funding情報:local
-    ln_funding_remote_data_t    funding_remote;                 ///< [FUND_04]funding情報:remote
-    uint64_t                    obscured;                       ///< [FUND_05]commitment numberをXORするとobscured commitment numberになる値。
+    uint64_t                    obscured;                       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
                                                                     // 0の場合、1回でもclosing_signed受信した
-    utl_buf_t                   redeem_fund;                    ///< [FUND_06]2-of-2のredeemScript
-    btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_07]2-of-2のソート順(local, remoteを正順とした場合)
-    btc_tx_t                    tx_funding;                     ///< [FUND_08]funding_tx
-    ln_establish_t              establish;                      ///< [FUND_09]Establishワーク領域
-    uint32_t                    min_depth;                      ///< [FUND_10]minimum_depth
+    utl_buf_t                   redeem_fund;                    ///< [FUND_04]2-of-2のredeemScript
+    btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_05]2-of-2のソート順(local, remoteを正順とした場合)
+    btc_tx_t                    tx_funding;                     ///< [FUND_06]funding_tx
+    ln_establish_t              establish;                      ///< [FUND_07]Establishワーク領域
+    uint32_t                    min_depth;                      ///< [FUND_08]minimum_depth
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 
