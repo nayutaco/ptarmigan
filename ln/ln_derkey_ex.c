@@ -50,7 +50,7 @@ bool HIDDEN ln_derkey_privkeys_init(ln_derkey_privkeys_t *pPrivKeys, const uint8
     pPrivKeys->_next_storage_index = LN_SECRET_INDEX_INIT;
     memcpy(pPrivKeys->_storage_seed, pSeed, LN_SZ_SEED);
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
-        if (!btc_keys_create_priv(pPrivKeys->keys[lp])) return false;
+        if (!btc_keys_create_priv(pPrivKeys->secrets[lp])) return false;
     }
     //per_commitment_secret
     return true;
@@ -89,12 +89,7 @@ uint64_t ln_derkey_privkeys_get_next_storage_index(const ln_derkey_privkeys_t *p
 }
 
 
-//  localkey, remotekey, local_delayedkey, remote_delayedkey
-//      pubkey = basepoint + SHA256(per_commitment_point || basepoint)*G
-//
-//  revocationkey
-//      revocationkey = revocation_basepoint * SHA256(revocation_basepoint || per_commitment_point) + per_commitment_point*SHA256(per_commitment_point || revocation_basepoint)
-//
+//https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
 bool HIDDEN ln_derkey_update_scriptkeys(
     ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
     ln_derkey_script_pubkeys_t *pRemoteScriptPubKeys,
@@ -102,82 +97,82 @@ bool HIDDEN ln_derkey_update_scriptkeys(
     ln_derkey_pubkeys_t *pRemotePubKeys)
 {
     //
-    //local
+    //local commitment transaction
     //
 
-    //remotekey = local per_commitment_point & remote payment
-    //LOGD("local: remotekey\n");
+    //localpubkey (for `to_remote` output)
+    //LOGD("local: localpubkey\n");
     if (!ln_derkey_pubkey(
-        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTEKEY],
-        pRemotePubKeys->keys[LN_BASEPOINT_IDX_PAYMENT],
+        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_PUBKEY],
+        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
         pLocalPubKeys->per_commitment_point)) return false;
 
-    //delayedkey = local per_commitment_point & local delayed_payment
-    //LOGD("local: delayedkey\n");
-    if (!ln_derkey_pubkey(
-        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_DELAYED],
-        pLocalPubKeys->keys[LN_BASEPOINT_IDX_DELAYED],
-        pLocalPubKeys->per_commitment_point)) return false;
-
-    //revocationkey = remote per_commitment_point & local revocation_basepoint
-    //LOGD("local: revocationkey\n");
-    if (!ln_derkey_revocation_pubkey(
-        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REVOCATION],
-        pRemotePubKeys->keys[LN_BASEPOINT_IDX_REVOCATION],
-        pLocalPubKeys->per_commitment_point)) return false;
-
-    //local_htlckey = local per_commitment_point & local htlc_basepoint
+    //local_htlckey
     //LOGD("local: local_htlckey\n");
     if (!ln_derkey_pubkey(
-        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-        pLocalPubKeys->keys[LN_BASEPOINT_IDX_HTLC],
+        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pLocalPubKeys->per_commitment_point)) return false;
 
-    //remote_htlckey = local per_commitment_point & remote htlc_basepoint
+    //remote_htlckey
     //LOGD("local: remote_htlckey\n");
     if (!ln_derkey_pubkey(
-        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
-        pRemotePubKeys->keys[LN_BASEPOINT_IDX_HTLC],
+        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
+        pLocalPubKeys->per_commitment_point)) return false;
+
+    //local_delayedkey
+    //LOGD("local: delayedkey\n");
+    if (!ln_derkey_pubkey(
+        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_DELAYEDKEY],
+        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_DELAYED],
+        pLocalPubKeys->per_commitment_point)) return false;
+
+    //revocationkey
+    //LOGD("local: revocationkey\n");
+    if (!ln_derkey_revocation_pubkey(
+        pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_REVOCATION],
         pLocalPubKeys->per_commitment_point)) return false;
 
 
     //
-    //remote
+    //remote commitment transaction
     //
 
-    //remotekey = remote per_commitment_point & local payment
-    //LOGD("remote: remotekey\n");
+    //remotepubkey (for `to_remote` output)
+    //LOGD("remote: remotepubkey\n");
     if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTEKEY],
-        pLocalPubKeys->keys[LN_BASEPOINT_IDX_PAYMENT],
+        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_PUBKEY],
+        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
         pRemotePubKeys->per_commitment_point)) return false;
 
-    //delayedkey = remote per_commitment_point & remote delayed_payment
-    //LOGD("remote: delayedkey\n");
-    if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_DELAYED],
-        pRemotePubKeys->keys[LN_BASEPOINT_IDX_DELAYED],
-        pRemotePubKeys->per_commitment_point)) return false;
-
-    //revocationkey = local per_commitment_point & remote revocation_basepoint
-    //LOGD("remote: revocationkey\n");
-    if (!ln_derkey_revocation_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REVOCATION],
-        pLocalPubKeys->keys[LN_BASEPOINT_IDX_REVOCATION],
-        pRemotePubKeys->per_commitment_point)) return false;
-
-    //local_htlckey = remote per_commitment_point & remote htlc_basepoint
+    //local_htlckey
     //LOGD("remote: local_htlckey\n");
     if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-        pRemotePubKeys->keys[LN_BASEPOINT_IDX_HTLC],
+        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pRemotePubKeys->per_commitment_point)) return false;
 
-    //remote_htlckey = remote per_commitment_point & local htlc_basepoint
+    //remote_htlckey
     //LOGD("remote: remote_htlckey\n");
     if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
-        pLocalPubKeys->keys[LN_BASEPOINT_IDX_HTLC],
+        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
+        pRemotePubKeys->per_commitment_point)) return false;
+
+    //remote_delayedkey
+    //LOGD("remote: remote_delayedkey\n");
+    if (!ln_derkey_pubkey(
+        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_DELAYEDKEY],
+        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_DELAYED],
+        pRemotePubKeys->per_commitment_point)) return false;
+
+    //revocationkey
+    //LOGD("remote: revocationkey\n");
+    if (!ln_derkey_revocation_pubkey(
+        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_REVOCATION],
         pRemotePubKeys->per_commitment_point)) return false;
 
     return true;

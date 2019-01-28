@@ -157,8 +157,8 @@ bool ln_comtx_create_to_local(ln_self_t *self,
 
     //To-Local
     ln_script_create_tolocal(&buf_ws,
-                self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
-                self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYED],
+                self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
                 ToSelfDelay);
 
     //HTLC info(amount)
@@ -170,9 +170,9 @@ bool ln_comtx_create_to_local(ln_self_t *self,
     for (int lp = 0; lp < cnt; lp++) {
         ln_script_htlcinfo_script(&pp_htlcinfo[lp]->script,
                         pp_htlcinfo[lp]->type,
-                        self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                        self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
-                        self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                        self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         pp_htlcinfo[lp]->preimage_hash,
                         pp_htlcinfo[lp]->expiry);
     }
@@ -199,7 +199,7 @@ bool ln_comtx_create_to_local(ln_self_t *self,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(our_msat);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(their_msat);
-    lntx_commit.remote.pubkey = self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEKEY];
+    lntx_commit.remote.pubkey = self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_PUBKEY];
     lntx_commit.obscured = self->obscured ^ CommitNum;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
@@ -266,8 +266,8 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
 
     //To-Local
     ln_script_create_tolocal(&buf_ws,
-                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
-                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYED],
+                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
                 self->commit_remote.to_self_delay);
 
     //HTLC info(amount)
@@ -279,9 +279,9 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
     for (int lp = 0; lp < cnt; lp++) {
         ln_script_htlcinfo_script(&pp_htlcinfo[lp]->script,
                         pp_htlcinfo[lp]->type,
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         pp_htlcinfo[lp]->preimage_hash,
                         pp_htlcinfo[lp]->expiry);
 #ifdef LN_UGLY_NORMAL
@@ -318,7 +318,7 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(our_msat);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(their_msat);
-    lntx_commit.remote.pubkey = self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEKEY];
+    lntx_commit.remote.pubkey = self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_PUBKEY];
     lntx_commit.obscured = self->obscured ^ CommitNum;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
@@ -707,7 +707,7 @@ static bool create_to_local_htlcverify(const ln_self_t *self,
     bool ret = ln_script_htlctx_verify(pTx,
                 Amount,
                 NULL,
-                self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                self->commit_local.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                 NULL,
                 &buf_sig,
                 pScript);

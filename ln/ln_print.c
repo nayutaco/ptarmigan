@@ -104,7 +104,7 @@ void ln_print_keys(ln_self_t *self)
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(p_local_pubkeys->keys[lp], BTC_SZ_PUBKEY);
+        DUMPD(p_local_pubkeys->basepoints[lp], BTC_SZ_PUBKEY);
     }
     LOGD("    %s: ", KEYS_STR[lp]);
     DUMPD(p_local_pubkeys->per_commitment_point, BTC_SZ_PUBKEY);
@@ -116,7 +116,7 @@ void ln_print_keys(ln_self_t *self)
 
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(p_remote_pubkeys->keys[lp], BTC_SZ_PUBKEY);
+        DUMPD(p_remote_pubkeys->basepoints[lp], BTC_SZ_PUBKEY);
     }
     LOGD("    %s: ", KEYS_STR[lp]);
     DUMPD(p_remote_pubkeys->per_commitment_point, BTC_SZ_PUBKEY);
