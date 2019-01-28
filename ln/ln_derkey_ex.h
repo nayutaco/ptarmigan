@@ -94,7 +94,13 @@ bool HIDDEN ln_derkey_privkeys_init(ln_derkey_privkeys_t *pPrivKeys, const uint8
 void HIDDEN ln_derkey_privkeys_term(ln_derkey_privkeys_t *pPrivKeys);
 
 
+uint64_t ln_derkey_privkeys_get_prev_storage_index(const ln_derkey_privkeys_t *pPrivKeys);
+
+
 uint64_t ln_derkey_privkeys_get_current_storage_index(const ln_derkey_privkeys_t *pPrivKeys);
+
+
+uint64_t ln_derkey_privkeys_get_next_storage_index(const ln_derkey_privkeys_t *pPrivKeys);
 
 
 bool HIDDEN ln_derkey_update_scriptkeys(

@@ -63,9 +63,29 @@ void HIDDEN ln_derkey_privkeys_term(ln_derkey_privkeys_t *pPrivKeys)
 }
 
 
+uint64_t ln_derkey_privkeys_get_prev_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
+{
+    if (pPrivKeys->_next_storage_index + 2 > LN_SECRET_INDEX_INIT) {
+        //0 is a valid index, but it is too far, it is not realistic, so it is returned as an invalid value
+        return 0;
+    }
+    return pPrivKeys->_next_storage_index + 2;
+}
+
+
 uint64_t ln_derkey_privkeys_get_current_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
 {
+    if (pPrivKeys->_next_storage_index + 1 > LN_SECRET_INDEX_INIT) {
+        //0 is a valid index, but it is too far, it is not realistic, so it is returned as an invalid value
+        return 0;
+    }
     return pPrivKeys->_next_storage_index + 1;
+}
+
+
+uint64_t ln_derkey_privkeys_get_next_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
+{
+    return pPrivKeys->_next_storage_index;
 }
 
 
