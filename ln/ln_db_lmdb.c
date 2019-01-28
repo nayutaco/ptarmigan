@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-34))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-35))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -164,6 +164,7 @@
     -33: change the format of pub/priv keys
     -34: change the size of ln_derkey_privkeys_t::per_commitment_secret
          BTC_SZ_PUBKEY -> BTC_SZ_PRIVKEY
+    -35: change the order of internal members in ln_derkey_privkeys_t
  */
 
 
@@ -847,8 +848,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     //復元データからさらに復元
     ln_update_scriptkeys(self);
     btc_script_2of2_create_redeem_sorted(&self->redeem_fund, &self->key_fund_sort,
-            self->funding_local.pubkeys.keys[LN_BASEPOINT_IDX_FUNDING],
-            self->funding_remote.pubkeys.keys[LN_BASEPOINT_IDX_FUNDING]);
+            self->funding_local.pubkeys.basepoints[LN_BASEPOINT_IDX_FUNDING],
+            self->funding_remote.pubkeys.basepoints[LN_BASEPOINT_IDX_FUNDING]);
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
@@ -1206,8 +1207,8 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         }
     }
 #ifdef M_DEBUG_KEYS
-    if ( ((local.pubkeys.keys[0][0] == 0x02) || (local.pubkeys.keys[0][0] == 0x03)) &&
-         ((remote.pubkeys.keys[0][0] == 0x02) || (remote.pubkeys.keys[0][0] == 0x03))) {
+    if ( ((local.pubkeys.basepoints[0][0] == 0x02) || (local.pubkeys.basepoints[0][0] == 0x03)) &&
+         ((remote.pubkeys.basepoints[0][0] == 0x02) || (remote.pubkeys.basepoints[0][0] == 0x03))) {
         printf("\n");
         //ln_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);

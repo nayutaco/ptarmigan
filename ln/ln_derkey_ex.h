@@ -52,12 +52,12 @@
 ///<   revoked transaction close:       per_commitment_point
 
 
-#define LN_SCRIPT_IDX_REMOTEKEY         (0)         ///< remotekey
-#define LN_SCRIPT_IDX_DELAYED           (1)         ///< delayedkey
-#define LN_SCRIPT_IDX_REVOCATION        (2)         ///< revocationkey
-#define LN_SCRIPT_IDX_LOCALHTLCKEY      (3)         ///< local_htlckey
-#define LN_SCRIPT_IDX_REMOTEHTLCKEY     (4)         ///< remote_htlckey
-#define LN_SCRIPT_IDX_NUM               (LN_SCRIPT_IDX_REMOTEHTLCKEY + 1)
+#define LN_SCRIPT_IDX_PUBKEY            (0)         ///< pubkey
+#define LN_SCRIPT_IDX_LOCAL_HTLCKEY     (1)         ///< local_htlckey
+#define LN_SCRIPT_IDX_REMOTE_HTLCKEY    (2)         ///< remote_htlckey
+#define LN_SCRIPT_IDX_DELAYEDKEY        (3)         ///< delayedkey
+#define LN_SCRIPT_IDX_REVOCATIONKEY     (4)         ///< revocationkey
+#define LN_SCRIPT_IDX_NUM               (LN_SCRIPT_IDX_REVOCATIONKEY + 1)
 
 
 /********************************************************************
@@ -65,16 +65,16 @@
  ********************************************************************/
 
 typedef struct {
-    uint8_t     keys[LN_BASEPOINT_IDX_NUM][BTC_SZ_PUBKEY];
+    uint8_t     basepoints[LN_BASEPOINT_IDX_NUM][BTC_SZ_PUBKEY];
     uint8_t     per_commitment_point[BTC_SZ_PUBKEY];
     uint8_t     prev_per_commitment_point[BTC_SZ_PUBKEY];
 } ln_derkey_pubkeys_t;
 
 
 typedef struct {
+    uint8_t     secrets[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY];
     uint64_t    _next_storage_index;
     uint8_t     _storage_seed[LN_SZ_SEED];
-    uint8_t     keys[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY];
     uint8_t     per_commitment_secret[BTC_SZ_PRIVKEY];
 } ln_derkey_privkeys_t;
 

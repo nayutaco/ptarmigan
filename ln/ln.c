@@ -877,8 +877,8 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
     ln_script_create_tolocal(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
-                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
-                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYED],
+                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
                 self->commit_remote.to_self_delay);
     utl_buf_init(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
     btc_script_p2wsh_create_scriptsig(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
@@ -909,9 +909,9 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
                 ln_script_htlcinfo_script(&self->p_revoked_wit[htlc_idx],
                         type,
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCALHTLCKEY],
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATION],
-                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTEHTLCKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        self->commit_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         payhash,
                         expiry);
                 utl_buf_init(&self->p_revoked_vout[htlc_idx]);

@@ -257,7 +257,7 @@ static void ln_print_self(const ln_self_t *self)
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->funding_local.pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_local.pubkeys.basepoints[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
@@ -283,7 +283,7 @@ static void ln_print_self(const ln_self_t *self)
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->funding_remote.pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->funding_remote.pubkeys.basepoints[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }

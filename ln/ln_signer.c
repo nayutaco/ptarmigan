@@ -66,7 +66,7 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
 {
     //create pubkeys
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
-        if (!btc_keys_priv2pub(self->funding_local.pubkeys.keys[lp], self->privkeys.keys[lp])) return false;
+        if (!btc_keys_priv2pub(self->funding_local.pubkeys.basepoints[lp], self->privkeys.secrets[lp])) return false;
     }
 
     //for open_channel/accept_channel
@@ -112,15 +112,15 @@ bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8
 
 bool HIDDEN ln_signer_get_revoke_secret(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
-    if (!ln_derkey_revocation_privkey(pKeys->priv, self->funding_local.pubkeys.keys[LN_BASEPOINT_IDX_REVOCATION],
-        pPerCommit, self->privkeys.keys[LN_BASEPOINT_IDX_REVOCATION], pRevokedSec)) return false;
+    if (!ln_derkey_revocation_privkey(pKeys->priv, self->funding_local.pubkeys.basepoints[LN_BASEPOINT_IDX_REVOCATION],
+        pPerCommit, self->privkeys.secrets[LN_BASEPOINT_IDX_REVOCATION], pRevokedSec)) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
 bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_derkey_privkeys_t *pPrivKey, int Index)
 {
-    return btc_sig_sign(pSig, pTxHash, pPrivKey->keys[Index]);
+    return btc_sig_sign(pSig, pTxHash, pPrivKey->secrets[Index]);
 }
 
 
@@ -153,7 +153,7 @@ LABEL_EXIT:
 
 bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_derkey_privkeys_t *pPrivKey, int Index)
 {
-    return btc_sig_sign_rs(pRS, pTxHash, pPrivKey->keys[Index]);
+    return btc_sig_sign_rs(pRS, pTxHash, pPrivKey->secrets[Index]);
 }
 
 
@@ -217,7 +217,7 @@ bool HIDDEN ln_signer_tolocal_tx(
 static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int Index, const uint8_t *pPerCommit)
 {
     if (!ln_derkey_privkey(
-        pKeys->priv, self->funding_local.pubkeys.keys[Index],
-        pPerCommit, self->privkeys.keys[Index])) return false;
+        pKeys->priv, self->funding_local.pubkeys.basepoints[Index],
+        pPerCommit, self->privkeys.secrets[Index])) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
