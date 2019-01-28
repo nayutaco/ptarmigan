@@ -1570,11 +1570,25 @@ uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
 
 bool HIDDEN ln_update_scriptkeys(ln_self_t *self)
 {
-    return ln_derkey_update_scriptkeys(
-        &self->commit_local.script_pubkeys,
-        &self->commit_remote.script_pubkeys,
-        &self->funding_local.pubkeys,
-        &self->funding_remote.pubkeys);
+    if (!ln_update_scriptkeys_local(self)) return false;
+    if (!ln_update_scriptkeys_remote(self)) return false;
+    return true;
+}
+
+
+bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self)
+{
+    if (!ln_derkey_update_scriptkeys(
+        &self->commit_local.script_pubkeys, &self->funding_local.pubkeys, &self->funding_remote.pubkeys)) return false;
+    return true;
+}
+
+
+bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self)
+{
+    if (!ln_derkey_update_scriptkeys(
+        &self->commit_remote.script_pubkeys, &self->funding_remote.pubkeys, &self->funding_local.pubkeys)) return false;
+    return true;
 }
 
 
