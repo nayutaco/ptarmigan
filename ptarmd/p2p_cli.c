@@ -269,10 +269,10 @@ int p2p_cli_connected_peer(void)
 }
 
 
-void p2p_cli_show_self(cJSON *pResult)
+void p2p_cli_show_channel(cJSON *pResult)
 {
     for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
-        lnapp_show_self(&mAppConf[lp], pResult, "client");
+        lnapp_show_channel(&mAppConf[lp], pResult, "client");
     }
 }
 

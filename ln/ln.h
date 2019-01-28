@@ -101,7 +101,7 @@ extern "C" {
 #define LN_CNLUPD_CHFLAGS_DIRECTION     (0x01)      ///< b0: direction
 #define LN_CNLUPD_CHFLAGS_DISABLE       (0x02)      ///< b1: disable
 
-// ln_self_t.shutdown_flag
+// ln_channel_t.shutdown_flag
 #define LN_SHDN_FLAG_SEND               (0x01)      ///< shutdown送信済み
 #define LN_SHDN_FLAG_RECV               (0x02)      ///< shutdown受信済み
 
@@ -112,16 +112,16 @@ extern "C" {
 #define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
 #define LN_CLOSE_IDX_NONE               ((uint8_t)0xff)
 
-// self.anno_flag
+// channel.anno_flag
 #define LN_ANNO_FLAG_END                (0x80)      ///< 1:announcement_signatures交換済み
 
-//self.fund_flag
+// channel.fund_flag
 #define LN_FUNDFLAG_FUNDER              (1 << 0)    ///< 1:funder / 0:fundee
 #define LN_FUNDFLAG_NO_ANNO_CH          (1 << 1)    ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
 #define LN_FUNDFLAG_FUNDING             (1 << 2)    ///< 1:open_channel～funding_lockedまで
 #define LN_FUNDFLAG_OPENED              (1 << 7)    ///< 1:opened
 
-// revoked transaction closeされたときの self->p_revoked_vout, p_revoked_witのインデックス値
+// revoked transaction closeされたときの pChannel->p_revoked_vout, p_revoked_witのインデックス値
 #define LN_RCLOSE_IDX_TOLOCAL           (0)         ///< to_local
 #define LN_RCLOSE_IDX_TOREMOTE          (1)         ///< to_remote
 #define LN_RCLOSE_IDX_HTLC              (2)         ///< HTLC
@@ -192,8 +192,8 @@ extern "C" {
 // 0x40: update_fulfill_htlcを戻すときに相手が見つからない
 #define LN_DBG_FULFILL_BWD() ((ln_debug_get() & 0x40) == 0)
 
-#define M_DB_SELF_SAVE(self)    { bool ret = ln_db_self_save(self); LOGD("ln_db_self_save()=%d\n", ret); }
-#define M_DB_SECRET_SAVE(self)  { bool ret = ln_db_secret_save(self); LOGD("ln_db_secret_save()=%d\n", ret); }
+#define M_DB_CHANNEL_SAVE(pChannel) { bool ret = ln_db_channel_save(pChannel); LOGD("ln_db_channel_save()=%d\n", ret); }
+#define M_DB_SECRET_SAVE(pChannel)  { bool ret = ln_db_secret_save(pChannel); LOGD("ln_db_secret_save()=%d\n", ret); }
 
 #if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
@@ -206,13 +206,13 @@ extern "C" {
 
 #define M_DBG_COMMITHTLC
 #ifdef M_DBG_COMMITHTLC
-#define M_DBG_COMMITNUM(self) { LOGD("----- debug commit_num -----\n"); ln_dbg_commitnum(self); }
+#define M_DBG_COMMITNUM(pChannel) { LOGD("----- debug commit_num -----\n"); ln_dbg_commitnum(pChannel); }
 #define M_DBG_HTLCFLAG(htlc) dbg_htlcflag(htlc)
-#define M_DBG_HTLCFLAGALL(self) dbg_htlcflagall(self)
+#define M_DBG_HTLCFLAGALL(pChannel) dbg_htlcflagall(pChannel)
 #else
-#define M_DBG_COMMITNUM(self)   //none
-#define M_DBG_HTLCFLAG(htlc)    //none
-#define M_DBG_HTLCFLAGALL(self) //none
+#define M_DBG_COMMITNUM(pChannel)   //none
+#define M_DBG_HTLCFLAG(htlc)        //none
+#define M_DBG_HTLCFLAGALL(pChannel) //none
 #endif
 
 
@@ -221,12 +221,12 @@ extern "C" {
  ********************************************************************/
 
 //forward definition
-struct ln_self_t;
-typedef struct ln_self_t ln_self_t;
+struct ln_channel_t;
+typedef struct ln_channel_t ln_channel_t;
 
 
 /** @enum   ln_status_t
- *  @brief  ln_self_t.status
+ *  @brief  ln_channel_t.status
  */
 typedef enum {
     LN_STATUS_NONE = 0,
@@ -242,7 +242,7 @@ typedef enum {
 
 
 /** @enum   ln_fundflag_t
- *  @brief  self->fund_flag
+ *  @brief  pChannel->fund_flag
  *  @note   LN_FUNDFLAG_xxx
  */
 typedef uint8_t ln_fundflag_t;
@@ -286,7 +286,7 @@ typedef enum {
  *  @note
  *      - p_paramで渡すデータを上位層で保持しておきたい場合、コピーを取ること
  */
-typedef void (*ln_callback_t)(ln_self_t *self, ln_cb_t type, void *p_param);
+typedef void (*ln_callback_t)(ln_channel_t *pChannel, ln_cb_t type, void *p_param);
 
 
 /**************************************************************************
@@ -328,7 +328,7 @@ typedef struct {
     uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
     uint64_t    channel_reserve_sat;                ///< 8 : channel-reserve-satoshis
     uint64_t    htlc_minimum_msat;                  ///< 8 : htlc-minimum-msat
-    uint16_t    to_self_delay;                      ///< 2 : to-self-delay
+    uint16_t    to_self_delay;                      ///< 2 : to_self_delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
 } ln_establish_prm_t;
@@ -365,7 +365,7 @@ typedef struct {
     int             num;                            ///< p_txのtransaction数
     btc_tx_t        *p_tx;                          ///< トランザクション
                                                     ///<    添字:[0]commit_tx [1]to_local [2]to_remote [3-]HTLC
-    uint8_t         *p_htlc_idx;                    ///< self->cnl_add_htlc[]のhtlc_idx
+    uint8_t         *p_htlc_idx;                    ///< pChannel->cnl_add_htlc[]のhtlc_idx
                                                     ///<    添字:[3]以上で有効
     utl_buf_t       tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
@@ -503,7 +503,7 @@ typedef struct {
  */
 typedef struct {
     uint64_t                next_short_channel_id;
-    const ln_self_t         *p_next_self;
+    const ln_channel_t      *p_next_channel;
 } ln_cb_add_htlc_recv_prev_t;
 
 
@@ -525,9 +525,9 @@ typedef struct {
     uint64_t                    id;                     ///< HTLC id
     const uint8_t               *p_payment;             ///< payment_hash
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
-    uint64_t                    amount_msat;            ///< self->cnl_add_htlc[idx].amount_msat
-    uint32_t                    cltv_expiry;            ///< self->cnl_add_htlc[idx].cltv_expiry
-    uint16_t                    idx;                    ///< self->cnl_add_htlc[idx]
+    uint64_t                    amount_msat;            ///< pChannel->cnl_add_htlc[idx].amount_msat
+    uint32_t                    cltv_expiry;            ///< pChannel->cnl_add_htlc[idx].cltv_expiry
+    uint16_t                    idx;                    ///< pChannel->cnl_add_htlc[idx]
     utl_buf_t                   *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
     const utl_buf_t             *p_shared_secret;       ///< onion shared secret
 } ln_cb_add_htlc_recv_t;
@@ -552,7 +552,7 @@ typedef struct {
 typedef struct {
     bool                    ret;                    ///< callback処理結果
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
+    uint16_t                prev_idx;               ///< pChannel->cnl_add_htlc[idx]
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                id;                     ///< HTLC id
     uint64_t                amount_msat;            ///< HTLC amount
@@ -568,7 +568,7 @@ typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
     const utl_buf_t         *p_shared_secret;       ///< shared secret
-    uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
+    uint16_t                prev_idx;               ///< pChannel->cnl_add_htlc[idx]
     uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
     uint16_t                malformed_failure;      ///< !0: malformed_htlcのfailure_code
@@ -667,15 +667,15 @@ typedef struct {
                                                         //      commit_tx_remote: commitment_signed送信後、インクリメント
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
                                                         //      commit_tx_local:  revoke_and_ack送信後、commit_tx_local.commit_num - 1を代入
-                                                        //      commit_tx_remote: revoke_and_ack受信後、self->commit_tx_remote.commit_num - 1を代入
+                                                        //      commit_tx_remote: revoke_and_ack受信後、pChannel->commit_tx_remote.commit_num - 1を代入
     ln_derkey_script_pubkeys_t  script_pubkeys;         ///< script用PubKey
 } ln_commit_tx_t;
 
 
-/** @struct     ln_self_t
+/** @struct     ln_channel_t
  *  @brief      チャネル情報
  */
-struct ln_self_t {
+struct ln_channel_t {
     //connect
     uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< [CONN_01]接続先ノード
     ln_node_addr_t              last_connected_addr;            ///< [CONN_02]最後に接続したIP address
@@ -766,36 +766,36 @@ struct ln_self_t {
  *
  * 鍵関係を、ストレージを含めて初期化している。
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           pSeed           per-commit-secret生成用
  * @param[in]           pAnnoPrm        announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
+bool ln_init(ln_channel_t *pChannel, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
 
 
 /** 終了
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  */
-void ln_term(ln_self_t *self);
+void ln_term(ln_channel_t *pChannel);
 
 
 /** load status from DB
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @return      load result
  */
-bool ln_status_load(ln_self_t *self);
+bool ln_status_load(ln_channel_t *pChannel);
 
 
 /** get status string
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return  status
  */
-const char *ln_status_string(const ln_self_t *self);
+const char *ln_status_string(const ln_channel_t *pChannel);
 
 
 /** Genesis Block Hash設定
@@ -830,46 +830,46 @@ const uint8_t *ln_creationhash_get(void);
 
 /** peer node_id設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  */
-void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId);
+void ln_peer_set_nodeid(ln_channel_t *pChannel, const uint8_t *pNodeId);
 
 
 /** Channel Establish設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           pEstPrm         Establishパラメータ
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_establish_alloc(ln_self_t *self, const ln_establish_prm_t *pEstPrm);
+bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_prm_t *pEstPrm);
 
 
 /** #ln_establish_alloc()で確保したメモリを解放する
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @note
  *      - lnapp.cでfunding済みだった場合に呼ばれる想定
  */
-void ln_establish_free(ln_self_t *self);
+void ln_establish_free(ln_channel_t *pChannel);
 
 
 /** short_channel_id情報設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           Height          funding_txが入ったブロック height
  * @param[in]           Index           funding_txのTXIDが入っているindex
  * @note
- *  - save DB if self->short_channel_id == 0
+ *  - save DB if pChannel->short_channel_id == 0
  */
-void ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index);
+void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint32_t Index);
 
 
 /** short_channel_id情報取得
  *
  * @param[out]          pHeight     funding_txが入ったブロック height
- * @param[out]          pBIndex      funding_txのTXIDが入っているindex
+ * @param[out]          pBIndex     funding_txのTXIDが入っているindex
  * @param[out]          pVIndex     funding_txとして使用するvout index
  * @param[in]           ShortChannelId  short_channel_id
  */
@@ -878,10 +878,10 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_
 
 /** short_channel_id情報設定
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           pMinedHash      funding_txがマイニングされたblock hash
  */
-void ln_funding_blockhash_set(ln_self_t *self, const uint8_t *pMinedHash);
+void ln_funding_blockhash_set(ln_channel_t *pChannel, const uint8_t *pMinedHash);
 
 
 /** get BOLT short_channel_id string
@@ -894,86 +894,86 @@ void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId);
 
 /** shutdown時の出力先設定(address)
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           pScriptPk       shutdown時の送金先ScriptPubKey
  */
-void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk);
+void ln_shutdown_set_vout_addr(ln_channel_t *pChannel, const utl_buf_t *pScriptPk);
 
 
 /** noise handshake開始
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @param[out]          pBuf        送信データ
  * @param[in]           pNodeId     送信側:接続先ノードID, 受信側:NULL
  * @retval      true    成功
  */
-bool ln_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId);
+bool ln_handshake_start(ln_channel_t *pChannel, utl_buf_t *pBuf, const uint8_t *pNodeId);
 
 
 /** noise handshake受信
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @param[out]          pCont       true:次も受信を継続する(戻り値がtrue時のみ有効)
  * @param[in,out]       pBuf        in:受信データ, out:送信データ
  * @retval      true    成功
  */
-bool ln_handshake_recv(ln_self_t *self, bool *pCont, utl_buf_t *pBuf);
+bool ln_handshake_recv(ln_channel_t *pChannel, bool *pCont, utl_buf_t *pBuf);
 
 
 /** noise handshakeメモリ解放
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @note
  *      - handshakeを中断した場合に呼び出す
  */
-void ln_handshake_free(ln_self_t *self);
+void ln_handshake_free(ln_channel_t *pChannel);
 
 
 /** Lightningメッセージ受信処理
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @param[in]           pData       受信データ
  * @param[in]           Len         pData長
  * @retval      true    解析成功
  */
-bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+bool ln_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 
 /** 受信アイドル処理
  * Normal Operationの処理を進める
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           FeeratePerKw    latest feerate_per_kw
  */
-void ln_recv_idle_proc(ln_self_t *self, uint32_t FeeratePerKw);
+void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 
 
 /** 接続直後のfunding_locked必要性チェック
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval  true    funding_lockedの送信必要あり
  */
-bool ln_funding_locked_check_need(const ln_self_t *self);
+bool ln_funding_locked_check_need(const ln_channel_t *pChannel);
 
 
 //XXX:
-void ln_callback(ln_self_t *self, ln_cb_t Req, void *pParam);
+void ln_callback(ln_channel_t *pChannel, ln_cb_t Req, void *pParam);
 bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
-void ln_dbg_commitnum(const ln_self_t *self);
-btc_script_pubkey_order_t ln_node_id_sort(const ln_self_t *self, const uint8_t *pNodeId);
+void ln_dbg_commitnum(const ln_channel_t *pChannel);
+btc_script_pubkey_order_t ln_node_id_sort(const ln_channel_t *pChannel, const uint8_t *pNodeId);
 uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
 
 
 /** revoked transaction close用のスクリプトバッファ確保
  *
  */
-void HIDDEN ln_revoked_buf_alloc(ln_self_t *self);
+void HIDDEN ln_revoked_buf_alloc(ln_channel_t *pChannel);
 
 
 /** revoked transaction close用のスクリプトバッファ解放
  *
  */
-void HIDDEN ln_revoked_buf_free(ln_self_t *self);
+void HIDDEN ln_revoked_buf_free(ln_channel_t *pChannel);
 
 
 /********************************************************************
@@ -993,12 +993,12 @@ void HIDDEN ln_channel_id_calc(uint8_t *pChannelId, const uint8_t *pTxid, uint16
  *
  * DBから検索し、見つからなければfalseを返す
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel    channel info
  * @param[out]          pCnlUpd     検索したchannel_updateパケット
  * @param[out]          pMsg        (非NULL)pCnlUpdデコード結果
  * @retval      ture    成功
  */
-bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg);
+bool ln_channel_update_get_peer(const ln_channel_t *pChannel, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg);
 
 
 /** [routing用]channel_updateデータ解析
@@ -1017,39 +1017,39 @@ bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *
 
 /** closing transactionのFEE設定
  *
- * @param[in,out]       self            channel info
- * @param[in]           Fee             FEE
+ * @param[in,out]       pChannel    channel info
+ * @param[in]           Fee         FEE
  */
-void ln_shutdown_update_fee(ln_self_t *self, uint64_t Fee);
+void ln_shutdown_update_fee(ln_channel_t *pChannel, uint64_t Fee);
 
 
 /** close中状態に遷移させる
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  */
-void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam);
+void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void *pDbParam);
 
 
 /** local unilateral closeトランザクション作成
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @param[out]          pClose      生成したトランザクション
  * @retval      ture    成功
  * @note
  *      - pCloseは @ln_close_free_forcetx()で解放すること
  */
-bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose);
+bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pClose);
 
 
 /** 相手からcloseされたcommit_txを復元
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @param[out]          pClose      生成したトランザクション
  * @retval      ture    成功
  * @note
  *      - pCloseは @ln_close_free_forcetx()で解放すること
  */
-bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose);
+bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose);
 
 
 /** ln_close_force_tのメモリ解放
@@ -1061,15 +1061,15 @@ void ln_close_free_forcetx(ln_close_force_t *pClose);
 
 /** revoked transaction close(ugly way)の対処
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel    channel info
  * @param[in]           pRevokedTx  revoked transaction
  * @param[in,out]       pDbParam    DBパラメータ
  * @retval      ture    成功
  * @note
- *      - self->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
- *      - self->wit にto_localのwitnessProgramを設定する
+ *      - pChannel->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
+ *      - pChannel->wit にto_localのwitnessProgramを設定する
  */
-bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
+bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx, void *pDbParam);
 
 
 /********************************************************************
@@ -1082,7 +1082,7 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
  *      - vin: pTxid:Index, witness([0]=secret
  *      - vout: input value
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @param[out]          pTx             生成結果
  * @param[in]           Value           vinとなるamount
  * @param[in]           ToSelfDelay     to_self_delay
@@ -1092,7 +1092,7 @@ bool ln_close_remote_revoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *
  * @param[in]           bRevoked        true:revoked transaction close対応
  * @retval  true    成功
  */
-bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+bool ln_wallet_create_tolocal(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
@@ -1102,7 +1102,7 @@ bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx, uint64_t Val
  *      - vin: pTxid:Index, witness([0]=secret
  *      - vout: input value
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @param[out]          pTx             生成結果
  * @param[in]           Value           vinとなるamount
  * @param[in]           pTxid           vinとなるoutpointのtxid
@@ -1114,16 +1114,16 @@ bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx, uint64_t Val
  *      - vout: value, secret
  */
 bool ln_wallet_create_toremote(
-            const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+            const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
             const uint8_t *pTxid, int Index);
 
 
 /** revoked HTLC Txから取り戻すトランザクション作成
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  *
  */
-bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index);
 
 
@@ -1149,9 +1149,9 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 
 /** 最後に接続したアドレス保存
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  */
-void ln_last_connected_addr_set(ln_self_t *self, const ln_node_addr_t *pAddr);
+void ln_last_connected_addr_set(ln_channel_t *pChannel, const ln_node_addr_t *pAddr);
 
 
 /********************************************************************
@@ -1160,10 +1160,10 @@ void ln_last_connected_addr_set(ln_self_t *self, const ln_node_addr_t *pAddr);
 
 /** channel_id取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      channel_id
  */
-const uint8_t *ln_channel_id(const ln_self_t *self);
+const uint8_t *ln_channel_id(const ln_channel_t *pChannel);
 
 
 uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint32_t VIndex);
@@ -1171,149 +1171,149 @@ uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint3
 
 /** short_channel_id取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      short_channel_id
  */
-uint64_t ln_short_channel_id(const ln_self_t *self);
+uint64_t ln_short_channel_id(const ln_channel_t *pChannel);
 
 
 /** short_channel_idクリア
  *
  * short_channel_idを0にする.
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  */
-void ln_short_channel_id_clr(ln_self_t *self);
+void ln_short_channel_id_clr(ln_channel_t *pChannel);
 
 
 /** アプリ用パラメータポインタ取得
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @return      アプリ用パラメータ(非const)
  */
-void *ln_get_param(ln_self_t *self);
+void *ln_get_param(ln_channel_t *pChannel);
 
 
 /** get status
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return  status
  */
-ln_status_t ln_status_get(const ln_self_t *self);
+ln_status_t ln_status_get(const ln_channel_t *pChannel);
 
 
 /** is closing ?
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval  true    closing now
  */
-bool ln_status_is_closing(const ln_self_t *self);
+bool ln_status_is_closing(const ln_channel_t *pChannel);
 
 
 /** our_msat取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      自channelのmilli satoshi
  */
-uint64_t ln_our_msat(const ln_self_t *self);
+uint64_t ln_our_msat(const ln_channel_t *pChannel);
 
 
 /** their_msat取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      他channelのmilli satoshi
  */
-uint64_t ln_their_msat(const ln_self_t *self);
+uint64_t ln_their_msat(const ln_channel_t *pChannel);
 
 
-void ln_funding_set_txid(ln_self_t *self, const uint8_t *pTxid);
+void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid);
 
 
 /** funding_txのTXID取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      funding_txのTXID
  */
-const uint8_t *ln_funding_txid(const ln_self_t *self);
+const uint8_t *ln_funding_txid(const ln_channel_t *pChannel);
 
 
-void ln_funding_set_txindex(ln_self_t *self, uint32_t Txindex);
+void ln_funding_set_txindex(ln_channel_t *pChannel, uint32_t Txindex);
 
 
 /** funding_txのTXINDEX取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      funding_txのTXINDEX
  */
-uint32_t ln_funding_txindex(const ln_self_t *self);
+uint32_t ln_funding_txindex(const ln_channel_t *pChannel);
 
 
-const utl_buf_t *ln_funding_redeem(const ln_self_t *self);
+const utl_buf_t *ln_funding_redeem(const ln_channel_t *pChannel);
 
 
 /** minimum_depth
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      accept_channelで受信したminimum_depth
  */
-uint32_t ln_minimum_depth(const ln_self_t *self);
+uint32_t ln_minimum_depth(const ln_channel_t *pChannel);
 
 
 /** funderかどうか
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval      true    funder
  * @retval      false   fundee
  */
-bool ln_is_funder(const ln_self_t *self);
+bool ln_is_funder(const ln_channel_t *pChannel);
 
 
 /** funding中かどうか
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval      true    fundingしている
  * @retval      false   fundingしていない(未funding or funding済み)
  */
-bool ln_is_funding(const ln_self_t *self);
+bool ln_is_funding(const ln_channel_t *pChannel);
 
 
 /** funding_tx
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      funding_tx
  */
-const btc_tx_t *ln_funding_tx(const ln_self_t *self);
+const btc_tx_t *ln_funding_tx(const ln_channel_t *pChannel);
 
 
 /** funding_txがマイニングされたblock hash
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      block hash
  */
-const uint8_t *ln_funding_blockhash(const ln_self_t *self);
+const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel);
 
 
-uint32_t ln_last_conf_get(const ln_self_t *self);
+uint32_t ln_last_conf_get(const ln_channel_t *pChannel);
 
 
-void ln_last_conf_set(ln_self_t *self, uint32_t Conf);
+void ln_last_conf_set(ln_channel_t *pChannel, uint32_t Conf);
 
 
 /** initial_routing_sync動作が必要かどうか
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval  true    必要:保持しているchannel情報を送信する
  */
-bool ln_need_init_routing_sync(const ln_self_t *self);
+bool ln_need_init_routing_sync(const ln_channel_t *pChannel);
 
 
 /** announcement_signatures交換済みかどうか
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval      true    announcement_signatures交換済み
  * @retval      false   announcement_signatures未交換
  */
-bool ln_is_announced(const ln_self_t *self);
+bool ln_is_announced(const ln_channel_t *pChannel);
 
 
 /** estimatesmartfee --> feerate_per_kw
@@ -1335,18 +1335,18 @@ uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw);
 
 /** feerate_per_kw取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      feerate_per_kw
  */
-uint32_t ln_feerate_per_kw(const ln_self_t *self);
+uint32_t ln_feerate_per_kw(const ln_channel_t *pChannel);
 
 
 /** feerate_per_kw設定
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @param[in]           FeeratePerKw    設定値
  */
-void ln_feerate_per_kw_set(ln_self_t *self, uint32_t FeeratePerKw);
+void ln_feerate_per_kw_set(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 
 
 /** funding_txの予想されるfee(+α)取得
@@ -1369,65 +1369,65 @@ uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw);
 
 /** `shutdown` message sent
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval      true    `shutdown` has sent
  */
-bool ln_is_shutdown_sent(const ln_self_t *self);
+bool ln_is_shutdown_sent(const ln_channel_t *pChannel);
 
 
 /** 初期closing_tx FEE取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      fee[satoshis]
  */
-uint64_t ln_closing_signed_initfee(const ln_self_t *self);
+uint64_t ln_closing_signed_initfee(const ln_channel_t *pChannel);
 
 
 /** commit_tx_local取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      commit_tx_local情報
  */
-const ln_commit_tx_t *ln_commit_tx_local(const ln_self_t *self);
+const ln_commit_tx_t *ln_commit_tx_local(const ln_channel_t *pChannel);
 
 
 /** commit_tx_remote取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      commit_tx_remote情報
  */
-const ln_commit_tx_t *ln_commit_tx_remote(const ln_self_t *self);
+const ln_commit_tx_t *ln_commit_tx_remote(const ln_channel_t *pChannel);
 
 
 /** shutdown時のlocal scriptPubKey取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      local scriptPubKey
  */
-const utl_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *self);
+const utl_buf_t *ln_shutdown_scriptpk_local(const ln_channel_t *pChannel);
 
 
 /** shutdown時のremote scriptPubKey取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      remote scriptPubKey
  */
-const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self);
+const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_channel_t *pChannel);
 
 
 /** add_htlc構造体取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @param[in]           htlc_idx        index値
  * @retval      非NULL  add_htlc構造体
  * @retval      NULL    index不正
  */
-const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, uint16_t htlc_idx);
+const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uint16_t htlc_idx);
 
 
 /** Offered HTLCがTimeoutしているかどうか
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval      true    Timeoutしている
  * @note
  *      - addhtlc == OFFERED
@@ -1437,7 +1437,7 @@ const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, uint16_t h
  *      - fin_delhtlc == none
  *      - cltv_expiry <= current blockcount
  */
-bool ln_is_offered_htlc_timeout(const ln_self_t *self, uint16_t htlc_idx, uint32_t BlkCnt);
+bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlkCnt);
 
 
 /** トランザクションがHTLC Success Txの場合、preimageを取得
@@ -1479,118 +1479,118 @@ const utl_buf_t *ln_preimage_remote(const btc_tx_t *pTx);
 
 /** revoked transaction closeされた後の残取り戻し数
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      残取り戻し数
  */
-uint16_t ln_revoked_cnt(const ln_self_t *self);
+uint16_t ln_revoked_cnt(const ln_channel_t *pChannel);
 
 
 /** revoked transaction closeされた後の残取り戻しチェック
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @retval      true        取り戻し完了
  */
-bool ln_revoked_cnt_dec(ln_self_t *self);
+bool ln_revoked_cnt_dec(ln_channel_t *pChannel);
 
 
 /** revoked transaction closeされた後の取り戻し数
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      取り戻し数
  */
-uint16_t ln_revoked_num(const ln_self_t *self);
+uint16_t ln_revoked_num(const ln_channel_t *pChannel);
 
 
 /** revoked transaction closeされた後のfunding_tx confirmation数更新
  *
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @param[in]           confm           confirmation数
  */
-void ln_set_revoked_confm(ln_self_t *self, uint32_t confm);
+void ln_set_revoked_confm(ln_channel_t *pChannel, uint32_t confm);
 
 
 /** ln_revoked_confm()で保存した値の取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      ln_revoked_confm()で保存したconfirmation数
  */
-uint32_t ln_revoked_confm(const ln_self_t *self);
+uint32_t ln_revoked_confm(const ln_channel_t *pChannel);
 
 
 /** revoked vout
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      revoked transaction後に監視するvoutスクリプト
  */
-const utl_buf_t* ln_revoked_vout(const ln_self_t *self);
+const utl_buf_t* ln_revoked_vout(const ln_channel_t *pChannel);
 
 
 /** revoked witness script
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      revoked transaction後に取り戻す際のunlocking witness script
  */
-const utl_buf_t* ln_revoked_wit(const ln_self_t *self);
+const utl_buf_t* ln_revoked_wit(const ln_channel_t *pChannel);
 
 
 /** open_channelのchannel_flags.announce_channel
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      open_channelのchannel_flags.announce_channel
  * @note
  *      - This indicates whether the initiator of the funding flow
  *          wishes to advertise this channel publicly to the network
  *          as detailed within BOLT #7.
  */
-bool ln_open_channel_announce(const ln_self_t *self);
+bool ln_open_channel_announce(const ln_channel_t *pChannel);
 
 
 /** 他ノードID取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      自channelの他node_id
  */
-const uint8_t *ln_their_node_id(const ln_self_t *self);
+const uint8_t *ln_their_node_id(const ln_channel_t *pChannel);
 
 
 /** cltv_expiry_delta取得
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      cltv_expiry_delta
  */
-uint32_t ln_cltv_expily_delta(const ln_self_t *self);
+uint32_t ln_cltv_expily_delta(const ln_channel_t *pChannel);
 
 
 /** 転送FEE計算
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @param[in]           AmountMsat      転送amount_msat
  * @return      転送FEE(msat)
  * @note
  *      - fee_prop_millionths is a proportion (ppm)
  */
-uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat);
+uint64_t ln_forward_fee(const ln_channel_t *pChannel, uint64_t AmountMsat);
 
 
 /** 最後に接続したIPアドレス
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  */
-const ln_node_addr_t *ln_last_connected_addr(const ln_self_t *self);
+const ln_node_addr_t *ln_last_connected_addr(const ln_channel_t *pChannel);
 
 
 /** 最後に発生したエラー番号
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      エラー番号(ln_err.h)
  */
-int ln_err(const ln_self_t *self);
+int ln_err(const ln_channel_t *pChannel);
 
 
 /** 最後に発生したエラー情報
  *
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @return      エラー情報文字列
  */
-const char *ln_errmsg(const ln_self_t *self);
+const char *ln_errmsg(const ln_channel_t *pChannel);
 
 
 /** [channel_update]direction取得
@@ -1638,14 +1638,14 @@ void ln_node_term(void);
 
 /** channel情報検索(node_idから)
  *
- *      self DBから、channelの相手になっているpeerのnode_idが一致するselfを検索する。
- *      一致した場合、pSelfにDB保存しているデータを返す。
+ *      pChannel DBから、channelの相手になっているpeerのnode_idが一致するchannelを検索する。
+ *      一致した場合、pChannelにDB保存しているデータを返す。
  *
- * @param[out]      self                検索成功時、pSelfが非NULLであればコピーする
+ * @param[out]      pChannel            検索成功時、pChannelが非NULLであればコピーする
  * @param[in]       pNodeId             検索する相手チャネルnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId);
+bool ln_node_search_channel(ln_channel_t *pChannel, const uint8_t *pNodeId);
 
 
 /** node_announcement検索(node_idから)
@@ -1671,17 +1671,17 @@ uint64_t ln_node_total_msat(void);
 
 /** スクリプト用鍵生成/更新
  *
- * @param[in,out]   pSelf
+ * @param[in,out]   pChannel
  * @note
  *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
  */
-bool HIDDEN ln_update_scriptkeys(ln_self_t *self);
+bool HIDDEN ln_update_scriptkeys(ln_channel_t *pChannel);
 
 
-bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self);
+bool HIDDEN ln_update_scriptkeys_local(ln_channel_t *pChannel);
 
 
-bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self);
+bool HIDDEN ln_update_scriptkeys_remote(ln_channel_t *pChannel);
 
 
 /********************************************************************
@@ -1699,7 +1699,7 @@ unsigned long ln_debug_get(void);
  * @param[in]   pLocal
  * @param[in]   pRemote
  */
-void ln_print_keys(ln_self_t *self);
+void ln_print_keys(ln_channel_t *pChannel);
 #else
 #define ln_print_keys(...)      //nothing
 #endif

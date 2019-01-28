@@ -135,7 +135,7 @@ static const char *kSCRIPT[] = {
  ********************************************************************/
 
 static void load_channel_settings(void);
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static void set_channels(void);
 
 
@@ -314,7 +314,7 @@ lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id)
         LOGE("fail: not pingpong\n");
         goto LABEL_EXIT;
     }
-    if (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL) {
+    if (ln_status_get(p_appconf->p_channel) != LN_STATUS_NORMAL) {
         LOGE("fail: bad status\n");
         goto LABEL_EXIT;
     }
@@ -340,7 +340,7 @@ lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id)
 lnapp_conf_t *ptarmd_search_transferable_nodeid(const uint8_t *p_node_id)
 {
     lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(p_node_id);
-    if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL)) {
+    if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_channel) != LN_STATUS_NORMAL)) {
         p_appconf = NULL;
     }
     return p_appconf;
@@ -575,25 +575,25 @@ static void load_channel_settings(void)
 
 /** #ln_node_search_channel()処理関数
  *
- * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   pChannel        DBから取得したchannel
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
  * @param[in,out]   p_param         comp_param_cnl_t構造体
  */
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param; (void)p_param;
 
-    LOGD("short_channel_id=%016" PRIx64 "\n", ln_short_channel_id(self));
+    LOGD("short_channel_id=%016" PRIx64 "\n", ln_short_channel_id(pChannel));
 
     const uint8_t *p_bhash;
-    p_bhash = ln_funding_blockhash(self);
-    btcrpc_set_channel(ln_their_node_id(self),
-            ln_short_channel_id(self),
-            ln_funding_txid(self),
-            ln_funding_txindex(self),
-            ln_funding_redeem(self),
+    p_bhash = ln_funding_blockhash(pChannel);
+    btcrpc_set_channel(ln_their_node_id(pChannel),
+            ln_short_channel_id(pChannel),
+            ln_funding_txid(pChannel),
+            ln_funding_txindex(pChannel),
+            ln_funding_redeem(pChannel),
             p_bhash,
-            ln_last_conf_get(self));
+            ln_last_conf_get(pChannel));
 
     return false;
 }
@@ -602,5 +602,5 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 static void set_channels(void)
 {
     LOGD("\n");
-    ln_db_self_search_readonly(comp_func_cnl, NULL);
+    ln_db_channel_search_readonly(comp_func_cnl, NULL);
 }

@@ -75,25 +75,25 @@ static uint32_t             mFeeratePerKw;              ///< 0:estimate fee / !0
  * prototypes
  ********************************************************************/
 
-static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
+static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 
-static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param);
-static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param);
-static bool channel_reconnect(ln_self_t *self);
+static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_param);
+static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_param);
+static bool channel_reconnect(ln_channel_t *pChannel);
 static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
-static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
+static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 static bool close_unilateral_local_received(bool spent);
 
-static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
-static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
+static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam);
+static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num);
 
-static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
-static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
-static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, int VIndex);
-static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, int VIndex);
-static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int VIndex, int WitIndex);
+static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
+static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pDbParam);
+static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex);
+static bool close_revoked_toremote(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex);
+static bool close_revoked_htlc(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex, int WitIndex);
 
 static void set_wallet_data(ln_db_wallet_t *pWlt, const btc_tx_t *pTx);
 
@@ -130,7 +130,7 @@ void *monitor_thread_start(void *pArg)
         }
         bool ret = btcrpc_getblockcount(&param.height);
         if (ret) {
-            ln_db_self_search(monfunc, &param);
+            ln_db_channel_search(monfunc, &param);
         }
     }
     LOGD("[exit]monitor thread\n");
@@ -170,12 +170,12 @@ void monitor_set_feerate_per_kw(uint32_t FeeratePerKw)
  *  Received HTLC outputs
  *      preimage入手後にHTLC success_txを展開可能
  */
-bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
+bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
 {
     LOGD("closed: unilateral close[local]\n");
 
     ln_close_force_t close_dat;
-    bool ret = ln_close_create_unilateral_tx(self, &close_dat);
+    bool ret = ln_close_create_unilateral_tx(pChannel, &close_dat);
     if (!ret) {
         LOGE("fail\n");
         return false;
@@ -229,7 +229,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         //各close_dat.p_tx[]のINPUT展開済みチェック
         bool unspent;
         bool ret = btcrpc_check_unspent(
-                            ln_their_node_id(self),
+                            ln_their_node_id(pChannel),
                             &unspent, NULL,
                             p_tx->vin[0].txid, p_tx->vin[0].index);
         if (!ret) {
@@ -247,7 +247,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         bool send_req = false;
         switch (p_tx->vout[0].opt) {
         case LN_HTLCTYPE_OFFERED:
-            send_req = close_unilateral_local_offered(self, &del, !unspent, &close_dat, lp, pDbParam);
+            send_req = close_unilateral_local_offered(pChannel, &del, !unspent, &close_dat, lp, pDbParam);
             break;
         case LN_HTLCTYPE_RECEIVED:
             send_req = close_unilateral_local_received(!unspent);
@@ -282,64 +282,64 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
  * private functions
  ********************************************************************/
 
-/** 監視処理(#ln_db_self_search()のコールバック)
+/** 監視処理(#ln_db_channel_search()のコールバック)
  *
- * @param[in,out]   self        チャネル情報
+ * @param[in,out]   pChannel    チャネル情報
  * @param[in,out]   p_db_param  DB情報
  * @param[in,out]   p_param     パラメータ(未使用)
  */
-static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
+static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
     p_prm->confm = 0;
-    (void)btcrpc_get_confirm(&p_prm->confm, ln_funding_txid(self));
+    (void)btcrpc_get_confirm(&p_prm->confm, ln_funding_txid(pChannel));
     bool ret;
     bool del = false;
     bool unspent;
-    if (ln_status_is_closing(self)) {
+    if (ln_status_is_closing(pChannel)) {
         ret = true;
         unspent = false;
     } else {
-        ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+        ret = btcrpc_check_unspent(ln_their_node_id(pChannel), &unspent, NULL, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
     }
     if (ret && !unspent) {
         //funding_tx SPENT
-        del = funding_spent(self, p_prm, p_db_param);
+        del = funding_spent(pChannel, p_prm, p_db_param);
     } else {
         //funding_tx UNSPENT
-        del = funding_unspent(self, p_prm, p_db_param);
+        del = funding_unspent(pChannel, p_prm, p_db_param);
     }
     if (del) {
         LOGD("delete from DB\n");
-        ln_db_annoown_del(ln_short_channel_id(self));
-        ret = ln_db_self_del_prm(self, p_db_param);
+        ln_db_annoown_del(ln_short_channel_id(pChannel));
+        ret = ln_db_channel_del_prm(pChannel, p_db_param);
         if (ret) {
-            ptarmd_eventlog(ln_channel_id(self), "close: finish");
+            ptarmd_eventlog(ln_channel_id(pChannel), "close: finish");
         } else {
             LOGE("fail: del channel: ");
-            DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
+            DUMPD(ln_channel_id(pChannel), LN_SZ_CHANNEL_ID);
         }
-        btcrpc_del_channel(ln_their_node_id(self));
+        btcrpc_del_channel(ln_their_node_id(pChannel));
     }
 
     return false;
 }
 
 
-static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
+static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_param)
 {
     bool del = false;
 
-    lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
+    lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(pChannel));
     if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
-            !mDisableAutoConn && !ln_status_is_closing(self) ) {
+            !mDisableAutoConn && !ln_status_is_closing(pChannel) ) {
         //socket未接続であれば、再接続を試行
-        del = channel_reconnect(self);
+        del = channel_reconnect(pChannel);
     } else if (p_app_conf != NULL) {
         //socket接続済みであれば、feerate_per_kwチェック
         //  当面、feerate_per_kwを手動で変更した場合のみとする
-        if ((ln_status_get(self) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
+        if ((ln_status_get(pChannel) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
             lnapp_set_feerate(p_app_conf, p_prm->feerate_per_kw);
         }
     } else {
@@ -348,9 +348,9 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
 
     //Offered HTLCのtimeoutチェック
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (ln_is_offered_htlc_timeout(self, lp, p_prm->height)) {
-            LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(self));
-            bool ret = monitor_close_unilateral_local(self, p_db_param);
+        if (ln_is_offered_htlc_timeout(pChannel, lp, p_prm->height)) {
+            LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(pChannel));
+            bool ret = monitor_close_unilateral_local(pChannel, p_db_param);
             if (!ret) {
                 LOGE("fail: unilateral close\n");
             }
@@ -358,17 +358,17 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
         }
     }
 
-    if (p_prm->confm > ln_last_conf_get(self)) {
-        ln_last_conf_set(self, p_prm->confm);
-        ln_db_self_save_lastconf(self, p_db_param);
+    if (p_prm->confm > ln_last_conf_get(pChannel)) {
+        ln_last_conf_set(pChannel, p_prm->confm);
+        ln_db_channel_save_lastconf(pChannel, p_db_param);
 
-        btcrpc_set_channel(ln_their_node_id(self),
-                ln_short_channel_id(self),
-                ln_funding_txid(self),
-                ln_funding_txindex(self),
-                ln_funding_redeem(self),
-                ln_funding_blockhash(self),
-                ln_last_conf_get(self));
+        btcrpc_set_channel(ln_their_node_id(pChannel),
+                ln_short_channel_id(pChannel),
+                ln_funding_txid(pChannel),
+                ln_funding_txindex(pChannel),
+                ln_funding_redeem(pChannel),
+                ln_funding_blockhash(pChannel),
+                ln_last_conf_get(pChannel));
     }
 
     return del;
@@ -377,36 +377,36 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
 
 /**
  *
- * @param[in,out]   self        チャネル情報
+ * @param[in,out]   pChannel    チャネル情報
  * @param[in]       confm       confirmation数
  * @param[in,out]   p_db_param  DB情報
- * @retval      true    selfをDB削除可能
+ * @retval      true    pChannelをDB削除可能
  */
-static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
+static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_param)
 {
     bool del = false;
     bool ret;
     char txid_str[BTC_SZ_TXID * 2 + 1];
 
     btc_tx_t close_tx = BTC_TX_INIT;
-    ln_status_t stat = ln_status_get(self);
-    utl_str_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
+    ln_status_t stat = ln_status_get(pChannel);
+    utl_str_bin2str_rev(txid_str, ln_funding_txid(pChannel), BTC_SZ_TXID);
 
-    LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(self));
+    LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(pChannel));
     if (stat <= LN_STATUS_CLOSE_SPENT) {
         //update status
-        ret = btcrpc_search_outpoint(&close_tx, p_prm->confm, ln_funding_txid(self), ln_funding_txindex(self));
+        ret = btcrpc_search_outpoint(&close_tx, p_prm->confm, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
         if (ret || (stat == LN_STATUS_NORMAL)) {
             //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
-            ln_close_change_stat(self, &close_tx, p_db_param);
-            stat = ln_status_get(self);
-            const char *p_str = ln_status_string(self);
-            ptarmd_eventlog(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
+            ln_close_change_stat(pChannel, &close_tx, p_db_param);
+            stat = ln_status_get(pChannel);
+            const char *p_str = ln_status_string(pChannel);
+            ptarmd_eventlog(ln_channel_id(pChannel), "close: %s(%s)", p_str, txid_str);
         }
     }
 
-    ln_db_revtx_load(self, p_db_param);
-    const utl_buf_t *p_vout = ln_revoked_vout(self);
+    ln_db_revtx_load(pChannel, p_db_param);
+    const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
     if (p_vout == NULL) {
         switch (stat) {
         case LN_STATUS_CLOSE_MUTUAL:
@@ -415,21 +415,21 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
             break;
         case LN_STATUS_CLOSE_UNI_LOCAL:
             //最新のlocal commit_tx --> unilateral close(local)
-            del = monitor_close_unilateral_local(self, p_db_param);
+            del = monitor_close_unilateral_local(pChannel, p_db_param);
             break;
         case LN_STATUS_CLOSE_UNI_REMOTE:
             //最新のremote commit_tx --> unilateral close(remote)
-            del = close_unilateral_remote(self, p_db_param);
+            del = close_unilateral_remote(pChannel, p_db_param);
             break;
         case LN_STATUS_CLOSE_REVOKED:
             //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
-            ret = ln_close_remote_revoked(self, &close_tx, p_db_param);
+            ret = ln_close_remote_revoked(pChannel, &close_tx, p_db_param);
             if (ret) {
-                if (ln_revoked_cnt(self) > 0) {
+                if (ln_revoked_cnt(pChannel) > 0) {
                     //revoked transactionのvoutに未解決あり
                     //  2回目以降はclose_revoked_after()が呼び出される
-                    del = close_revoked_first(self, &close_tx, p_prm->confm, p_db_param);
+                    del = close_revoked_first(pChannel, &close_tx, p_prm->confm, p_db_param);
                 } else {
                     LOGD("all revoked transaction vout is already solved.\n");
                     del = true;
@@ -443,7 +443,7 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
         }
     } else {
         // revoked transaction close
-        del = close_revoked_after(self, p_prm->confm, p_db_param);
+        del = close_revoked_after(pChannel, p_prm->confm, p_db_param);
     }
     btc_tx_free(&close_tx);
 
@@ -451,9 +451,9 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
 }
 
 
-static bool channel_reconnect(ln_self_t *self)
+static bool channel_reconnect(ln_channel_t *pChannel)
 {
-    const uint8_t *p_node_id = ln_their_node_id(self);
+    const uint8_t *p_node_id = ln_their_node_id(pChannel);
     struct {
         char ipaddr[SZ_IPV4_LEN + 1];
         uint16_t port;
@@ -473,15 +473,15 @@ static bool channel_reconnect(ln_self_t *self)
     }
 
     //conn_addr[1]
-    //self->last_connected_addrがあれば、それを使う
-    switch (ln_last_connected_addr(self)->type) {
+    //pChannel->last_connected_addrがあれば、それを使う
+    switch (ln_last_connected_addr(pChannel)->type) {
     case LN_ADDR_DESC_TYPE_IPV4:
         sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
-            ln_last_connected_addr(self)->addr[0],
-            ln_last_connected_addr(self)->addr[1],
-            ln_last_connected_addr(self)->addr[2],
-            ln_last_connected_addr(self)->addr[3]);
-        conn_addr[1].port = ln_last_connected_addr(self)->port;
+            ln_last_connected_addr(pChannel)->addr[0],
+            ln_last_connected_addr(pChannel)->addr[1],
+            ln_last_connected_addr(pChannel)->addr[2],
+            ln_last_connected_addr(pChannel)->addr[3]);
+        conn_addr[1].port = ln_last_connected_addr(pChannel)->port;
         LOGD("conn_addr[1]: %s:%d\n", conn_addr[1].ipaddr, conn_addr[1].port);
         break;
     default:
@@ -551,13 +551,13 @@ static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, 
 
 
 // Unilateral Close(自分がcommit_tx展開): Offered HTLC output
-static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
+static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
     bool send_req = false;
 
     LOGD("offered HTLC output\n");
     if (spent) {
-        const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, pCloseDat->p_htlc_idx[lp]);
+        const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, pCloseDat->p_htlc_idx[lp]);
         if (p_htlc->prev_short_channel_id == UINT64_MAX) {
             LOGD("origin node\n");
         } else if (p_htlc->prev_short_channel_id != 0) {
@@ -566,7 +566,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
             uint32_t confm;
-            bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+            bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(pChannel));
             if (b_get) {
                 btc_tx_t tx = BTC_TX_INIT;
                 uint8_t txid[BTC_SZ_TXID];
@@ -639,14 +639,14 @@ static bool close_unilateral_local_received(bool spent)
  *  Received HTLC outputs
  *      cltv_expiry後、即座に使用可能
  */
-static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
+static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
 {
     bool del = true;
     ln_close_force_t close_dat;
 
     LOGD("closed: unilateral close[remote]\n");
 
-    bool ret = ln_close_create_tx(self, &close_dat);
+    bool ret = ln_close_create_tx(pChannel, &close_dat);
     if (ret) {
         for (int lp = 0; lp < close_dat.num; lp++) {
             const btc_tx_t *p_tx = &close_dat.p_tx[lp];
@@ -680,7 +680,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 } else if (p_tx->vin[0].wit_item_cnt > 0) {
                     //INPUT spent check
                     bool unspent;
-                    bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL,
+                    bool ret = btcrpc_check_unspent(ln_their_node_id(pChannel), &unspent, NULL,
                                     p_tx->vin[0].txid, p_tx->vin[0].index);
                     if (ret && !unspent) {
                         LOGD("already spent\n");
@@ -712,7 +712,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                     if ((p_tx->vout_cnt > 0) && (p_tx->vout[0].opt == LN_HTLCTYPE_OFFERED)) {
                         //preimageを取得できていない
                         LOGD("  not have preimage\n");
-                        close_unilateral_remote_offered(self, &del, &close_dat, lp, pDbParam);
+                        close_unilateral_remote_offered(pChannel, &del, &close_dat, lp, pDbParam);
                     } else {
                         LOGD("\n");
                     }
@@ -733,16 +733,16 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 
 // Unilateral Close(相手がcommit_tx展開): Offered HTLC output
 //  相手からofferされているから、preimageがあれば取り戻す
-static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
+static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
     LOGD("offered HTLC output\n");
 
-    const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, pCloseDat->p_htlc_idx[lp]);
+    const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, pCloseDat->p_htlc_idx[lp]);
     if (p_htlc->prev_short_channel_id != 0) {
         LOGD("origin/hop node\n");
 
         bool unspent;
-        bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL,
+        bool ret = btcrpc_check_unspent(ln_their_node_id(pChannel), &unspent, NULL,
                         pCloseDat->p_tx[lp].vin[0].txid, pCloseDat->p_tx[lp].vin[0].index);
         if (ret && !unspent) {
             LOGD("already spent\n");
@@ -753,7 +753,7 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
         //転送元がある場合、preimageを抽出する
         LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
         uint32_t confm;
-        bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+        bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(pChannel));
         if (b_get) {
             btc_tx_t tx = BTC_TX_INIT;
             uint8_t txid[BTC_SZ_TXID];
@@ -820,51 +820,51 @@ static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
 
 /** revoked transactionから即座に取り戻す
  *
- * @param[in,out]   self
+ * @param[in,out]   pChannel
  * @param[in]       pTx         revoked transaction
  * @param[in]       confm       confirmation
  * @param[in]       pDbParam    DB parameter
  */
-static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, void *pDbParam)
+static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t confm, void *pDbParam)
 {
     bool del = false;
     bool save = true;
     bool ret;
 
-    ptarmd_eventlog(ln_channel_id(self), "close: ugly way");
+    ptarmd_eventlog(ln_channel_id(pChannel), "close: ugly way");
 
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        const utl_buf_t *p_vout = ln_revoked_vout(self);
+        const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
 
         LOGD("vout[%u]=", lp);
         DUMPD(pTx->vout[lp].script.buf, pTx->vout[lp].script.len);
         if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             LOGD("[%u]to_local !\n", lp);
 
-            ret = close_revoked_tolocal(self, pTx, lp);
+            ret = close_revoked_tolocal(pChannel, pTx, lp);
             if (ret) {
-                del = ln_revoked_cnt_dec(self);
-                ln_set_revoked_confm(self, confm);
+                del = ln_revoked_cnt_dec(pChannel);
+                ln_set_revoked_confm(pChannel, confm);
             } else {
                 save = false;
             }
         } else if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOREMOTE])) {
             LOGD("[%u]to_remote !\n", lp);
-            ret = close_revoked_toremote(self, pTx, lp);
+            ret = close_revoked_toremote(pChannel, pTx, lp);
             if (ret) {
                 save = true;
             }
         } else {
-            for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(self); lp2++) {
+            for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(pChannel); lp2++) {
                 // LOGD("p_vout[%u][%d]=", lp, lp2);
                 // DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
                 if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[lp2])) {
                     LOGD("[%u]HTLC vout[%d] !\n", lp, lp2);
 
-                    ret = close_revoked_htlc(self, pTx, lp, lp2);
+                    ret = close_revoked_htlc(pChannel, pTx, lp, lp2);
                     if (ret) {
-                        del = ln_revoked_cnt_dec(self);
-                        ln_set_revoked_confm(self, confm);
+                        del = ln_revoked_cnt_dec(pChannel);
+                        ln_set_revoked_confm(pChannel, confm);
                     }
                 } else {
                     LOGD(" --> not match\n");
@@ -873,7 +873,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
         }
     }
     if (save) {
-        ln_db_revtx_save(self, true, pDbParam);
+        ln_db_revtx_save(pChannel, true, pDbParam);
     }
 
     return del;
@@ -882,19 +882,19 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
 
 /** HTLC Timeout/Success Tx後から取り戻す
  *
- * @param[in,out]   self
+ * @param[in,out]   pChannel
  * @param[in]       confm       confirmation
  * @param[in]       pDbParam    DB parameter
  */
-static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
+static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pDbParam)
 {
     bool del = false;
 
-    if (confm != ln_revoked_confm(self)) {
+    if (confm != ln_revoked_confm(pChannel)) {
         //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
         utl_buf_t txbuf = UTL_BUF_INIT;
-        const utl_buf_t *p_vout = ln_revoked_vout(self);
-        bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(self), &p_vout[0]);
+        const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
+        bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(pChannel), &p_vout[0]);
         if (ret) {
             bool sendret = true;
             int num = txbuf.len / sizeof(btc_tx_t);
@@ -904,11 +904,11 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
                 LOGD("-------- %d ----------\n", lp);
                 btc_tx_print(&pTx[lp]);
 
-                ret = close_revoked_tolocal(self, &pTx[lp], 0);
+                ret = close_revoked_tolocal(pChannel, &pTx[lp], 0);
                 btc_tx_free(&pTx[lp]);
                 if (ret) {
-                    del = ln_revoked_cnt_dec(self);
-                    LOGD("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(self));
+                    del = ln_revoked_cnt_dec(pChannel);
+                    LOGD("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(pChannel));
                 } else {
                     sendret = false;
                     break;
@@ -917,20 +917,20 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
             utl_buf_free(&txbuf);
 
             if (sendret) {
-                ln_set_revoked_confm(self, confm);
-                ln_db_revtx_save(self, false, pDbParam);
-                LOGD("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(self));
+                ln_set_revoked_confm(pChannel, confm);
+                ln_db_revtx_save(pChannel, false, pDbParam);
+                LOGD("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(pChannel));
             } else {
                 //送信エラーがあった場合には、次回やり直す
                 LOGD("sendtx error\n");
             }
         } else {
-            ln_set_revoked_confm(self, confm);
-            ln_db_revtx_save(self, false, pDbParam);
-            LOGD("no target txid: %u, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
+            ln_set_revoked_confm(pChannel, confm);
+            ln_db_revtx_save(pChannel, false, pDbParam);
+            LOGD("no target txid: %u, revoked_cnt=%d\n", confm, ln_revoked_cnt(pChannel));
         }
     } else {
-        LOGD("same block: %u, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
+        LOGD("same block: %u, revoked_cnt=%d\n", confm, ln_revoked_cnt(pChannel));
     }
 
     return del;
@@ -938,17 +938,17 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 
 
 //revoked to_local output/HTLC Timeout/Success Txを取り戻す
-static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, int VIndex)
+static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex)
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(pTx, txid);
 
-    const utl_buf_t *p_wit = ln_revoked_wit(self);
+    const utl_buf_t *p_wit = ln_revoked_wit(pChannel);
 
-    bool ret = ln_wallet_create_tolocal(self, &tx,
+    bool ret = ln_wallet_create_tolocal(pChannel, &tx,
                 pTx->vout[VIndex].value,
-                ln_commit_tx_remote(self)->to_self_delay,
+                ln_commit_tx_remote(pChannel)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
     if (ret) {
         if (tx.vin_cnt > 0) {
@@ -956,7 +956,7 @@ static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, in
 
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TOLOCAL);
             set_wallet_data(&wlt, &tx);
-            wlt.sequence = ln_commit_tx_remote(self)->to_self_delay;
+            wlt.sequence = ln_commit_tx_remote(pChannel)->to_self_delay;
             ln_db_wallet_add(&wlt);
         }
 
@@ -969,14 +969,14 @@ static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, in
 
 //revoked to_remote outputを取り戻す
 //  to_remoteはP2WPKHで支払い済みだが、bitcoindがremotekeyを知らないため、転送する
-static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, int VIndex)
+static bool close_revoked_toremote(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex)
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(pTx, txid);
 
     bool ret = ln_wallet_create_toremote(
-                    self, &tx, pTx->vout[VIndex].value,
+                    pChannel, &tx, pTx->vout[VIndex].value,
                     txid, VIndex);
     if (ret) {
         if (tx.vin_cnt > 0) {
@@ -1003,13 +1003,13 @@ static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, i
 
 
 //Offered/Recieved HTLCを取り戻す
-static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int VIndex, int WitIndex)
+static bool close_revoked_htlc(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex, int WitIndex)
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(pTx, txid);
 
-    ln_revokedhtlc_create_spenttx(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
+    ln_revokedhtlc_create_spenttx(pChannel, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
     btc_tx_print(&tx);
     utl_buf_t buf = UTL_BUF_INIT;
     btc_tx_write(&tx, &buf);

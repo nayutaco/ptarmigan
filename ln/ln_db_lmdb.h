@@ -63,11 +63,11 @@ extern "C" {
 
 typedef enum {
     LN_LMDB_DBTYPE_UNKNOWN,
-    LN_LMDB_DBTYPE_SELF,
+    LN_LMDB_DBTYPE_CHANNEL,
     LN_LMDB_DBTYPE_SECRET,
     LN_LMDB_DBTYPE_ADD_HTLC,
     LN_LMDB_DBTYPE_REVOKED,
-    LN_LMDB_DBTYPE_BKSELF,
+    LN_LMDB_DBTYPE_BKCHANNEL,
     LN_LMDB_DBTYPE_WALLET,
     LN_LMDB_DBTYPE_ANNO_CNL,
     LN_LMDB_DBTYPE_ANNO_NODE,
@@ -109,18 +109,18 @@ typedef struct {
 /** LMDBパス設定
  *
  * LMDBのenvironmentを格納するパスを指定する。
- * 指定したパスの中に、dbself/ と dbnode/ を作成する。
+ * 指定したパスの中に、dbchnl/ と dbnode/ を作成する。
  *
  * @param[in]   pPath       DBを作成するディレクトリ
  */
 void ln_lmdb_set_path(const char *pPath);
 
 
-/** LMDB selfパス取得
+/** LMDB channelパス取得
  *
- * @return  dbptarm_selfパス
+ * @return  dbptarm_chnlパス
  */
-const char *ln_lmdb_get_selfpath(void);
+const char *ln_lmdb_get_chnlpath(void);
 
 
 /** LMDB nodeパス取得
@@ -146,21 +146,21 @@ const char *ln_lmdb_get_waltpath(void);
 
 /** channel情報読込み
  *
- * @param[out]      self
+ * @param[out]      pChannel
  * @param[in]       txn
  * @param[in]       pdbi
  * @retval      0       成功
  * @attention
  *      -
- *      - 新規 self に読込を行う場合は、事前に #ln_self_init()を行っておくこと(seedはNULLでよい)
+ *      - 新規 pChannel に読込を行う場合は、事前に #ln_init()を行っておくこと(seedはNULLでよい)
  */
-int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
+int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi);
 
 
 /** closeしたDB("cn")を出力
  *
  */
-void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi);
+void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi);
 
 
 /**
@@ -187,10 +187,10 @@ bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc,
 
 /** DBで保存している対象のデータだけコピーする
  *
- * @param[out]  pOutSelf    コピー先
- * @param[in]   pInSelf     コピー元
+ * @param[out]  pOutChannel
+ * @param[in]   pInChannel
  */
-void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
+void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pInChannel);
 
 
 #ifdef __cplusplus

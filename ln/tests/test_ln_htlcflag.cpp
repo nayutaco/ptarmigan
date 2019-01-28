@@ -58,8 +58,8 @@ FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, 
 FAKE_VALUE_FUNC(bool, ln_db_preimg_del, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_get, void *, bool *, ln_db_preimg_t *);
-FAKE_VALUE_FUNC(bool, ln_db_self_search, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_self_search_readonly, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_htlctype_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
@@ -72,7 +72,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_msg_fu
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -86,8 +86,8 @@ protected:
         RESET_FAKE(ln_db_preimg_del)
         RESET_FAKE(ln_db_preimg_cur_open)
         RESET_FAKE(ln_db_preimg_cur_get)
-        RESET_FAKE(ln_db_self_search)
-        RESET_FAKE(ln_db_self_search_readonly)
+        RESET_FAKE(ln_db_channel_search)
+        RESET_FAKE(ln_db_channel_search_readonly)
         RESET_FAKE(ln_db_phash_save)
         RESET_FAKE(ln_db_preimg_search)
         RESET_FAKE(ln_db_preimg_set_expiry)
@@ -131,30 +131,30 @@ public:
         }
         return ret;
     }
-    static void LnInit(ln_self_t *self)
+    static void LnInit(ln_channel_t *pChannel)
     {
         uint8_t seed[LN_SZ_SEED];
         ln_anno_prm_t annoprm;
 
-        memset(self, 0xcc, sizeof(ln_self_t));
-        self->noise.p_handshake = NULL;
+        memset(pChannel, 0xcc, sizeof(ln_channel_t));
+        pChannel->noise.p_handshake = NULL;
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
-        ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
-        self->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_local.htlc_minimum_msat = 0;
-        self->commit_tx_local.max_accepted_htlcs = 10;
-        self->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_remote.htlc_minimum_msat = 0;
-        self->commit_tx_remote.max_accepted_htlcs = 10;
-        self->our_msat = 1000000;
-        self->their_msat = 1000000;
-        btc_tx_init(&self->tx_funding);
-        utl_buf_init(&self->redeem_fund);
-        self->p_callback = NULL;
+        ln_init(pChannel, seed, &annoprm, (ln_callback_t)0x123456);
+        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_local.htlc_minimum_msat = 0;
+        pChannel->commit_tx_local.max_accepted_htlcs = 10;
+        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
+        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
+        pChannel->our_msat = 1000000;
+        pChannel->their_msat = 1000000;
+        btc_tx_init(&pChannel->tx_funding);
+        utl_buf_init(&pChannel->redeem_fund);
+        pChannel->p_callback = NULL;
     }
 };
 
@@ -162,10 +162,10 @@ public:
 
 TEST_F(ln_htlcflag, htlcflag_macro_offer_fulfill)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
-    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
@@ -381,16 +381,16 @@ TEST_F(ln_htlcflag, htlcflag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 TEST_F(ln_htlcflag, htlcflag_macro_offer_fail)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
-    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
@@ -606,16 +606,16 @@ TEST_F(ln_htlcflag, htlcflag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 TEST_F(ln_htlcflag, htlcflag_macro_recv_fulfill)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
-    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc受信
@@ -831,16 +831,16 @@ TEST_F(ln_htlcflag, htlcflag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 TEST_F(ln_htlcflag, htlcflag_macro_recv_fail)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
-    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc受信
@@ -1056,16 +1056,16 @@ TEST_F(ln_htlcflag, htlcflag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 TEST_F(ln_htlcflag, htlcflag_offer_timeout)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
-    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     p_htlc->cltv_expiry = 100;
@@ -1077,46 +1077,46 @@ TEST_F(ln_htlcflag, htlcflag_offer_timeout)
     p_flag->revsend = true;
     uint16_t bak = p_htlc->stat.bits;
 
-    ASSERT_TRUE(ln_is_offered_htlc_timeout(&self, 0, 100)); //just
-    ASSERT_TRUE(ln_is_offered_htlc_timeout(&self, 0, 101)); //pass
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 99)); //before
+    ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100)); //just
+    ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 101)); //pass
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 99)); //before
 
     p_flag->addhtlc = LN_ADDHTLC_NONE;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_flag->addhtlc = LN_ADDHTLC_RECV;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->delhtlc = LN_DELHTLC_FULFILL;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->updsend = false;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->comsend = false;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->revrecv = false;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->comrecv = false;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->revsend = false;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->fin_delhtlc = LN_DELHTLC_FULFILL;
-    ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
     p_flag->Reserved = 1;
-    ASSERT_TRUE(ln_is_offered_htlc_timeout(&self, 0, 100));
+    ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 }
 

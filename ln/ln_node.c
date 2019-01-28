@@ -49,7 +49,7 @@
 
 typedef struct {
     const uint8_t *p_node_id;
-    ln_self_t *p_self;
+    ln_channel_t *p_channel;
 } comp_param_cnl_t;
 
 
@@ -73,9 +73,9 @@ static ln_node_t    mNode;
  * prototypes
  **************************************************************************/
 
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
-static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param);
-static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static bool comp_func_total_msat(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static bool comp_func_srch_nodeid(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 //static bool comp_node_addr(const ln_node_addr_t *pAddr1, const ln_node_addr_t *pAddr2);
 static void print_node(void);
 
@@ -185,7 +185,7 @@ void ln_node_term(void)
 }
 
 
-bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
+bool ln_node_search_channel(ln_channel_t *pChannel, const uint8_t *pNodeId)
 {
     LOGD("search id:");
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
@@ -193,8 +193,8 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
     comp_param_cnl_t prm;
 
     prm.p_node_id = pNodeId;
-    prm.p_self = self;
-    bool detect = ln_db_self_search_readonly(comp_func_cnl, &prm);
+    prm.p_channel = pChannel;
+    bool detect = ln_db_channel_search_readonly(comp_func_cnl, &prm);
 
     LOGD("  --> detect=%d\n", detect);
 
@@ -217,7 +217,7 @@ bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *p
 uint64_t ln_node_total_msat(void)
 {
     uint64_t amount = 0;
-    ln_db_self_search_readonly(comp_func_total_msat, &amount);
+    ln_db_channel_search_readonly(comp_func_total_msat, &amount);
     return amount;
 }
 
@@ -252,7 +252,7 @@ bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId)
     comp_param_srcnodeid_t param;
     param.p_node_id = pNodeId;
     param.short_channel_id = ShortChannelId;
-    bool ret = ln_db_self_search_readonly(comp_func_srch_nodeid, &param);
+    bool ret = ln_db_channel_search_readonly(comp_func_srch_nodeid, &param);
     LOGD("ret=%d\n", ret);
     return ret;
 }
@@ -264,35 +264,35 @@ bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId)
 
 /** #ln_node_search_channel()処理関数
  *
- * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
  * @param[in,out]   p_param         comp_param_cnl_t構造体
  */
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
     comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
 
-    bool ret = (memcmp(self->peer_node_id, p->p_node_id, BTC_SZ_PUBKEY) == 0);
+    bool ret = (memcmp(pChannel->peer_node_id, p->p_node_id, BTC_SZ_PUBKEY) == 0);
     if (ret) {
-        if (p->p_self) {
-            //DBから復元(selfからshallow copyするので、selfは解放しない)
-            LOGD("recover self from DB...\n");
-            ln_db_copy_channel(p->p_self, self);
+        if (p->p_channel) {
+            //DBから復元(pChannelからshallow copyするので、pChannelは解放しない)
+            LOGD("recover pChannel from DB...\n");
+            ln_db_copy_channel(p->p_channel, pChannel);
 
-            if (p->p_self->short_channel_id != 0) {
+            if (p->p_channel->short_channel_id != 0) {
                 utl_buf_t buf = UTL_BUF_INIT;
 
-                bool bret2 = ln_db_annocnl_load(&p->p_self->cnl_anno, p->p_self->short_channel_id);
+                bool bret2 = ln_db_annocnl_load(&p->p_channel->cnl_anno, p->p_channel->short_channel_id);
                 if (bret2) {
-                    utl_buf_alloccopy(&p->p_self->cnl_anno, buf.buf, buf.len);
+                    utl_buf_alloccopy(&p->p_channel->cnl_anno, buf.buf, buf.len);
                 }
                 utl_buf_free(&buf);
             }
-            ln_print_keys(p->p_self);
+            ln_print_keys(p->p_channel);
         } else {
             //true時は呼び元では解放しないので、ここで解放する
-            ln_term(self);
+            ln_term(pChannel);
         }
     }
     return ret;
@@ -303,17 +303,17 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
  *
  * our_msatの総額を求める。
  *
- * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
  * @param[in,out]   p_param         uint64_t
  */
-static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_total_msat(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
     uint64_t *p_amount = (uint64_t *)p_param;
 
-    //LOGD("our_msat:%" PRIu64 "\n", ln_our_msat(self));
-    *p_amount += ln_our_msat(self);
+    //LOGD("our_msat:%" PRIu64 "\n", ln_our_msat(pChannel));
+    *p_amount += ln_our_msat(pChannel);
     return false;
 }
 
@@ -322,19 +322,19 @@ static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_para
  *
  * short_channel_idが一致した場合のnode_id(相手側)を返す。
  *
- * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
  * @param[in,out]   p_param         comp_param_srcnodeid_t
  */
-static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_srch_nodeid(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
     comp_param_srcnodeid_t *p_srch = (comp_param_srcnodeid_t *)p_param;
-    bool ret = (ln_short_channel_id(self) == p_srch->short_channel_id);
+    bool ret = (ln_short_channel_id(pChannel) == p_srch->short_channel_id);
     if (ret) {
-        memcpy(p_srch->p_node_id, ln_their_node_id(self), BTC_SZ_PUBKEY);
-        ln_term(self);
+        memcpy(p_srch->p_node_id, ln_their_node_id(pChannel), BTC_SZ_PUBKEY);
+        ln_term(pChannel);
     }
     return ret;
 }

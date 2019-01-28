@@ -26,8 +26,8 @@
 #define MONITORING_H__
 
 //forward definition
-struct ln_self_t;
-typedef struct ln_self_t ln_self_t;
+struct ln_channel_t;
+typedef struct ln_channel_t ln_channel_t;
 
 
 #ifdef __cplusplus
@@ -71,10 +71,10 @@ void monitor_set_feerate_per_kw(uint32_t FeeratePerKw);
 
 /** Unilateral Close(自分が展開)
  *
- * @param[in,out]       self        チャネル情報
+ * @param[in,out]       pChannel    チャネル情報
  * @param[in,out]       pDbParam    DB情報
  */
-bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam);
+bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam);
 
 
 #ifdef __cplusplus

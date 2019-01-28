@@ -238,10 +238,10 @@ int p2p_svr_connected_peer(void)
 }
 
 
-void p2p_svr_show_self(cJSON *pResult)
+void p2p_svr_show_channel(cJSON *pResult)
 {
     for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
-        lnapp_show_self(&mAppConf[lp], pResult, "server");
+        lnapp_show_channel(&mAppConf[lp], pResult, "server");
     }
 }
 

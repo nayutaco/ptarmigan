@@ -50,7 +50,7 @@ typedef struct {
  */
 typedef struct {
     ln_htlctype_t           type;                   ///< HTLC種別
-    uint16_t                add_htlc_idx;           ///< 対応するself->cnl_add_htlc[]のindex値
+    uint16_t                add_htlc_idx;           ///< 対応するpChannel->cnl_add_htlc[]のindex値
     uint32_t                expiry;                 ///< Expiry
     uint64_t                amount_msat;            ///< amount_msat
     const uint8_t           *preimage_hash;         ///< preimageをHASH160したデータ

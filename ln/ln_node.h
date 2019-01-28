@@ -81,7 +81,7 @@ bool HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPub
 bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
 
 
-/** short_channel_idから相手のnode_idを検索(self DB)
+/** short_channel_idから相手のnode_idを検索(channel DB)
  * 
  * @param[out] pNodeId          検索結果(戻り値がtrue時)
  * @param[in] ShortChannelId    検索するshort_channel_id

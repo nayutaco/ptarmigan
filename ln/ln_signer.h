@@ -39,51 +39,51 @@
 /**
  *
  */
-bool HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
+bool HIDDEN ln_signer_init(ln_channel_t *pChannel, const uint8_t *pSeed);
 
 
 /**
  *
  */
-void HIDDEN ln_signer_term(ln_self_t *self);
+void HIDDEN ln_signer_term(ln_channel_t *pChannel);
 
 
 /** チャネル用鍵生成
  *
- * @param[in,out]   self        チャネル情報
+ * @param[in,out]   pChannel    チャネル情報
  * @note
  *      - open_channel/accept_channelの送信前に使用する想定
  */
-bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self);
+bool HIDDEN ln_signer_create_channel_keys(ln_channel_t *pChannel);
 
 
 /** local per_commitment_secret更新およびstorage_next_index更新
  *
- * @param[in,out]   self        チャネル情報
+ * @param[in,out]   pChannel    チャネル情報
  * @note
  *      - indexを進める
  */
-bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self);
+bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_channel_t *pChannel);
 
 
 /** local per_commitment_secret更新(storage_next_index指定)
  *
  */
-bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
+bool HIDDEN ln_signer_keys_update_force(ln_channel_t *pChannel, uint64_t Index);
 
 
 /** 1つ前のper_commit_secret取得
  *
- * @param[in,out]   self            チャネル情報
+ * @param[in,out]   pChannel    チャネル情報
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
-bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt);
+bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_channel_t *pChannel, uint8_t *pSecret, uint8_t *pPerCommitPt);
 
 
 /**
  *
  */
-bool HIDDEN ln_signer_get_revoke_secret(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
+bool HIDDEN ln_signer_get_revoke_secret(const ln_channel_t *pChannel, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
 
 
 /** P2WSH署名 - Phase2: 署名作成
@@ -140,18 +140,18 @@ bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_der
 /** to_local script署名用鍵取得
  *
  */
-bool HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool bRevoked);
+bool HIDDEN ln_signer_tolocal_key(const ln_channel_t *pChannel, btc_keys_t *pKey, bool bRevoked);
 
 
-bool HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey);
-bool HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey);
-bool HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey);
+bool HIDDEN ln_signer_toremote_key(const ln_channel_t *pChannel, btc_keys_t *pKey);
+bool HIDDEN ln_signer_htlc_localkey(const ln_channel_t *pChannel, btc_keys_t *pKey);
+bool HIDDEN ln_signer_htlc_remotekey(const ln_channel_t *pChannel, btc_keys_t *pKey);
 
 
 /**
  *
  */
-bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
+bool HIDDEN ln_signer_tolocal_tx(const ln_channel_t *pChannel, btc_tx_t *pTx,
                     utl_buf_t *pSig,
                     uint64_t Value,
                     const utl_buf_t *pWitScript, bool bRevoked);

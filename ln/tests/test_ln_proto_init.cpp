@@ -100,8 +100,8 @@ public:
         }
         return ret;
     }
-    static void LnCallbackType(ln_self_t *self, ln_cb_t type, void *p_param) {
-        (void)self; (void)p_param;
+    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        (void)pChannel; (void)p_param;
         const char *p_str;
         switch (type) {
         case LN_CB_ERROR: p_str = "LN_CB_ERROR"; break;
@@ -131,30 +131,30 @@ public:
         }
         printf("*** callback: %s(%d)\n", p_str, type);
     }
-    static void LnInit(ln_self_t *self)
+    static void LnInit(ln_channel_t *pChannel)
     {
         uint8_t seed[LN_SZ_SEED];
         ln_anno_prm_t annoprm;
 
-        memset(self, 0xcc, sizeof(ln_self_t));
+        memset(pChannel, 0xcc, sizeof(ln_channel_t));
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
 
-        ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
-        self->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_local.htlc_minimum_msat = 0;
-        self->commit_tx_local.max_accepted_htlcs = 10;
-        self->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_remote.htlc_minimum_msat = 0;
-        self->commit_tx_remote.max_accepted_htlcs = 10;
-        self->our_msat = 1000000;
-        self->their_msat = 1000000;
-        btc_tx_init(&self->tx_funding);
-        utl_buf_init(&self->redeem_fund);
-        self->p_callback = LnCallbackType;
+        ln_init(pChannel, seed, &annoprm, (ln_callback_t)0x123456);
+        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_local.htlc_minimum_msat = 0;
+        pChannel->commit_tx_local.max_accepted_htlcs = 10;
+        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
+        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
+        pChannel->our_msat = 1000000;
+        pChannel->their_msat = 1000000;
+        btc_tx_init(&pChannel->tx_funding);
+        utl_buf_init(&pChannel->redeem_fund);
+        pChannel->p_callback = LnCallbackType;
     }
 };
 
@@ -162,8 +162,8 @@ public:
 
 TEST_F(ln, init_recv_ok)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
     static bool b_called;
     static bool b_initial_routing_sync;
@@ -174,21 +174,21 @@ TEST_F(ln, init_recv_ok)
             pMsg->lflen = 0;
             return true;
         }
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            (void)self;
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+            (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
                 b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
-    bool ret = ln_init_recv(&self, NULL, 0);
+    bool ret = ln_init_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0x00, self.lfeature_remote);
-    ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+    ASSERT_EQ(0x00, channel.lfeature_remote);
+    ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
     ASSERT_TRUE(b_called);
     ASSERT_FALSE(b_initial_routing_sync);
 }
@@ -196,8 +196,8 @@ TEST_F(ln, init_recv_ok)
 
 TEST_F(ln, init_recv_fail)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
     static bool b_called;
     static bool b_initial_routing_sync;
@@ -206,8 +206,8 @@ TEST_F(ln, init_recv_fail)
         // static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
         //     return false;
         // }
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            (void)self;
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+            (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
                 b_initial_routing_sync = *(bool *)p_param;
@@ -215,9 +215,9 @@ TEST_F(ln, init_recv_fail)
         }
     };
     ln_msg_init_read_fake.return_val = false;
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
 
-    bool ret = ln_init_recv(&self, NULL, 0);
+    bool ret = ln_init_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
     ASSERT_FALSE(b_called);
 }
@@ -225,8 +225,8 @@ TEST_F(ln, init_recv_fail)
 
 TEST_F(ln, init_recv_gf1)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
     static bool b_called;
     static bool b_initial_routing_sync;
@@ -239,22 +239,22 @@ TEST_F(ln, init_recv_gf1)
             pMsg->lflen = 0;
             return true;
         }
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            (void)self;
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+            (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
                 b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
     bool ret;
     
     for (int lp = 1; lp <= 0x0f; lp++) {
-        self.init_flag = 0;
-        self.lfeature_remote = 0;
+        channel.init_flag = 0;
+        channel.lfeature_remote = 0;
         b_called = false;
         b_initial_routing_sync = false;
 
@@ -262,10 +262,10 @@ TEST_F(ln, init_recv_gf1)
         //          abcd
         //      a0b0c0d0
         gf = (lp & 0x08) << 4 | (lp & 0x04) << 3 | (lp & 0x02) << 2 | (lp & 0x01) << 1;
-        ret = ln_init_recv(&self, NULL, 0);
+        ret = ln_init_recv(&channel, NULL, 0);
         ASSERT_TRUE(ret);
-        ASSERT_EQ(0x00, self.lfeature_remote);
-        ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+        ASSERT_EQ(0x00, channel.lfeature_remote);
+        ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
         ASSERT_TRUE(b_called);
         ASSERT_FALSE(b_initial_routing_sync);
     }
@@ -274,8 +274,8 @@ TEST_F(ln, init_recv_gf1)
 
 TEST_F(ln, init_recv_gf2)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
     static bool b_called;
     static bool b_initial_routing_sync;
@@ -287,22 +287,22 @@ TEST_F(ln, init_recv_gf2)
             pMsg->p_globalfeatures = &gf;
             return true;
         }
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            (void)self;
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+            (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
                 b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
     bool ret;
     
     for (int lp = 1; lp <= 0x0f; lp++) {
-        self.init_flag = 0;
-        self.lfeature_remote = 0;
+        channel.init_flag = 0;
+        channel.lfeature_remote = 0;
         b_called = false;
         b_initial_routing_sync = false;
 
@@ -310,10 +310,10 @@ TEST_F(ln, init_recv_gf2)
         //          abcd
         //      0a0b0c0d
         gf = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
-        ret = ln_init_recv(&self, NULL, 0);
+        ret = ln_init_recv(&channel, NULL, 0);
         ASSERT_FALSE(ret);
-        ASSERT_EQ(0x00, self.lfeature_remote);
-        ASSERT_EQ(0, self.init_flag);
+        ASSERT_EQ(0x00, channel.lfeature_remote);
+        ASSERT_EQ(0, channel.init_flag);
         ASSERT_FALSE(b_called);
         ASSERT_FALSE(b_initial_routing_sync);
     }
@@ -322,8 +322,8 @@ TEST_F(ln, init_recv_gf2)
 
 TEST_F(ln, init_recv_lf1)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
     static bool b_called;
     static bool b_initial_routing_sync;
@@ -336,22 +336,22 @@ TEST_F(ln, init_recv_lf1)
             pMsg->p_localfeatures = &lf;
             return true;
         }
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            (void)self;
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+            (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
                 b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
     bool ret;
     
     for (int lp = 1; lp <= 0x0f; lp++) {
-        self.init_flag = 0;
-        self.lfeature_remote = 0;
+        channel.init_flag = 0;
+        channel.lfeature_remote = 0;
         b_called = false;
         b_initial_routing_sync = false;
 
@@ -359,10 +359,10 @@ TEST_F(ln, init_recv_lf1)
         //          abcd
         //      a0b0c0d0
         lf = (lp & 0x08) << 4 | (lp & 0x04) << 3 | (lp & 0x02) << 2 | (lp & 0x01) << 1;
-        ret = ln_init_recv(&self, NULL, 0);
+        ret = ln_init_recv(&channel, NULL, 0);
         ASSERT_TRUE(ret);
-        ASSERT_EQ(lf, self.lfeature_remote);
-        ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+        ASSERT_EQ(lf, channel.lfeature_remote);
+        ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
         ASSERT_TRUE(b_called);
         bool initsync = ((lp & 0x02) << 2) != 0;
         ASSERT_EQ(initsync, b_initial_routing_sync);
@@ -372,8 +372,8 @@ TEST_F(ln, init_recv_lf1)
 
 TEST_F(ln, init_recv_lf2)
 {
-    ln_self_t self;
-    LnInit(&self);
+    ln_channel_t channel;
+    LnInit(&channel);
 
     static bool b_called;
     static bool b_initial_routing_sync;
@@ -386,22 +386,22 @@ TEST_F(ln, init_recv_lf2)
             pMsg->p_localfeatures = &lf;
             return true;
         }
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
-            (void)self;
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+            (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
                 b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
 
     bool ret;
     
     for (int lp = 1; lp <= 0x0f; lp++) {
-        self.init_flag = 0;
-        self.lfeature_remote = 0;
+        channel.init_flag = 0;
+        channel.lfeature_remote = 0;
         b_called = false;
         b_initial_routing_sync = false;
 
@@ -409,18 +409,18 @@ TEST_F(ln, init_recv_lf2)
         //          abcd
         //      0a0b0c0d
         lf = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
-        ret = ln_init_recv(&self, NULL, 0);
+        ret = ln_init_recv(&channel, NULL, 0);
         if (lf == 0x01) {
             //option_data_loss_protect
             ASSERT_TRUE(ret);
-            ASSERT_EQ(lf, self.lfeature_remote);
-            ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+            ASSERT_EQ(lf, channel.lfeature_remote);
+            ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
             ASSERT_TRUE(b_called);
             ASSERT_FALSE(b_initial_routing_sync);
         } else {
             ASSERT_FALSE(ret);
-            ASSERT_EQ(0x00, self.lfeature_remote);
-            ASSERT_EQ(0, self.init_flag);
+            ASSERT_EQ(0x00, channel.lfeature_remote);
+            ASSERT_EQ(0, channel.init_flag);
             ASSERT_FALSE(b_called);
             ASSERT_FALSE(b_initial_routing_sync);
         }

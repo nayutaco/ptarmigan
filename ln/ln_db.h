@@ -109,25 +109,25 @@ typedef struct {
 
 
 /** @typedef    ln_db_func_cmp_t
- *  @brief      比較関数(#ln_db_self_search())
+ *  @brief      比較関数(#ln_db_channel_search())
  *
- * DB内からselfを順次取得しコールバックされる(同期処理)。
+ * DB内からpChannelを順次取得しコールバックされる(同期処理)。
  * trueを返すまでコールバックが続けられる。
- * 最後までfalseを返し、DBの走査が終わると、#ln_db_self_search()はfalseを返す。
+ * 最後までfalseを返し、DBの走査が終わると、#ln_db_channel_search()はfalseを返す。
  *
- * @param[in]       self            DBから取得したself
+ * @param[in]       pChannel        channel from DB
  * @param[in]       p_db_param      DB情報(ln_dbで使用する)
- * @param[in]       p_param         #ln_db_self_search()に渡したデータポインタ
- * @retval  true    比較終了(#ln_db_self_search()の戻り値もtrue)
+ * @param[in]       p_param         #ln_db_channel_search()に渡したデータポインタ
+ * @retval  true    比較終了(#ln_db_channel_search()の戻り値もtrue)
  * @retval  false   比較継続
  */
-typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
+typedef bool (*ln_db_func_cmp_t)(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 
 
 /** @typedef    ln_db_func_preimg_t
  *  @brief      比較関数(#ln_db_preimg_search())
  *
- * @param[in]       self            DBから取得したself
+ * @param[in]       pChannel        channel from DB
  * @param[in]       p_db_param      DB情報(ln_dbで使用する)
  * @param[in]       p_param         #ln_db_preimg_search()に渡したデータポインタ
  * @retval  true    比較終了
@@ -139,7 +139,7 @@ typedef bool (*ln_db_func_preimg_t)(const uint8_t *pPreImage, uint64_t Amount, u
 /** @typedef    ln_db_func_wallet_t
  *  @brief      比較関数(#ln_db_wallet_search())
  *
- * @param[in]       self            DBから取得したself
+ * @param[in]       pChannel        channel from DB
  * @param[in]       p_param         #ln_db_wallet_search()に渡したデータポインタ
  * @retval  true    比較終了
  * @retval  false   比較継続
@@ -179,46 +179,46 @@ bool ln_db_have_dbdir(void);
 
 
 /********************************************************************
- * self
+ * channel
  ********************************************************************/
 
 /** channel情報読込み
  *
- * @param[out]      self
+ * @param[out]      pChannel
  * @param[in]       pChannelId
  * @retval      true    成功
  * @attention
  *      -
- *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
+ *      - 新規 pChannel に読込を行う場合は、事前に #ln_init()???を行っておくこと(seedはNULLでよい)
  */
-//bool ln_db_self_load(ln_self_t *self, const uint8_t *pChannelId);
+//bool ln_db_channel_load(ln_channel_t *pChannel, const uint8_t *pChannelId);
 
 
 /** channel情報書き込み
  *
- * @param[in]       self
+ * @param[in]       pChannel
  * @retval      true    成功
  */
-bool ln_db_self_save(const ln_self_t *self);
+bool ln_db_channel_save(const ln_channel_t *pChannel);
 
 
 /** channel削除(channel_id指定)
  *
- * @param[in]       pChannelId      削除するselfのchannel_id
+ * @param[in]       pChannelId      削除するpChannelのchannel_id
  * @retval      true    検索成功(削除成功かどうかは判断しない)
  */
-bool ln_db_self_del(const uint8_t *pChannelId);
+bool ln_db_channel_del(const uint8_t *pChannelId);
 
 
 /** channel削除(DB paramあり)
  *
- * @param[in]       self
+ * @param[in]       pChannel
  * @param[in,out]   p_db_param      呼び出されたコールバック関数のパラメータ
  * @retval      true    成功
  * @note
- *      - #ln_db_self_search() 経由を想定
+ *      - #ln_db_channel_search() 経由を想定
  */
-bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param);
+bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param);
 
 
 /** channel情報検索
@@ -229,48 +229,48 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param);
  * @retval      true    検索関数がtrueを戻した
  * @retval      false   検索関数が最後までtrueを返さなかった
  * @note
- *      - 戻り値がtrueの場合、検索関数のselfは解放しない。必要があれば#ln_term()を実行すること。
+ *      - 戻り値がtrueの場合、検索関数のpChannelは解放しない。必要があれば#ln_term()を実行すること。
  */
-bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
-bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
+bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
+bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
-/** load self->status
+/** load pChannel->status
  * 
- * @param[in,out]       self            channel info
+ * @param[in,out]       pChannel        channel info
  * @retval  load result
  * @note
- *      - update self->status
+ *      - update pChannel->status
  */
-bool ln_db_self_load_status(ln_self_t *self);
+bool ln_db_channel_load_status(ln_channel_t *pChannel);
 
 
-/** save self->status
+/** save pChannel->status
  * 
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval  save result
  */
-bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam);
+bool ln_db_channel_save_status(const ln_channel_t *pChannel, void *pDbParam);
 
 
-/** save self->last_confirm
+/** save pChannel->last_confirm
  * 
- * @param[in]           self            channel info
+ * @param[in]           pChannel        channel info
  * @retval  save result
  */
-bool ln_db_self_save_lastconf(const ln_self_t *self, void *pDbParam);
+bool ln_db_channel_save_lastconf(const ln_channel_t *pChannel, void *pDbParam);
 
 
 /** short_channel_idが自分が持つチャネルかどうか
  *
  */
-bool ln_db_self_chk_mynode(uint64_t ShortChannelId);
+bool ln_db_channel_chk_mynode(uint64_t ShortChannelId);
 
 
 /** secret保存
  *
  */
-bool ln_db_secret_save(ln_self_t *self);
+bool ln_db_secret_save(ln_channel_t *pChannel);
 
 
 /********************************************************************
@@ -710,21 +710,21 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
 
 /** revoked transaction情報読込み
  *
- * @param[in,out]   self
+ * @param[in,out]   pChannel
  * @param[in,out]   pDbParam
  * @retval  true        .
  */
-bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
+bool ln_db_revtx_load(ln_channel_t *pChannel, void *pDbParam);
 
 
 /** revoked transaction情報保存
  *
- * @param[in]       self
+ * @param[in]       pChannel
  * @param[in]       bUpdate
  * @param[in,out]   pDbParam
  * @retval  true        .
  */
-bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
+bool ln_db_revtx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDbParam);
 
 
 /********************************************************************

@@ -64,12 +64,12 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
-#define SHOW_SELF               (0x0001)
-#define SHOW_SELF_WALLET        (0x0002)
+#define SHOW_CHANNEL            (0x0001)
+#define SHOW_CHANNEL_WALLET     (0x0002)
 #define SHOW_ANNOCNL            (0x0004)
 #define SHOW_DEBUG              (0x0008)
 #define SHOW_ANNONODE           (0x0010)
-#define SHOW_SELF_LISTCH        (0x0020)
+#define SHOW_CHANNEL_LISTCH     (0x0020)
 #define SHOW_ANNOINFO           (0x0040)
 #define SHOW_VERSION            (0x0080)
 #define SHOW_PREIMAGE           (0x0100)
@@ -119,7 +119,7 @@ static int          cnt2;
 static int          cnt4;
 static int          cnt5;
 static int          cnt6;
-static MDB_env      *mpDbSelf = NULL;
+static MDB_env      *mpDbChannel = NULL;
 static MDB_env      *mpDbNode = NULL;
 static MDB_env      *mpDbAnno = NULL;
 static MDB_env      *mpDbWalt = NULL;
@@ -138,81 +138,81 @@ static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
  * functions
  ********************************************************************/
 
-static void ln_print_wallet(const ln_self_t *self)
+static void ln_print_wallet(const ln_channel_t *pChannel)
 {
-    ln_status_t stat = ln_status_get(self);
+    ln_status_t stat = ln_status_get(pChannel);
     if (stat == LN_STATUS_NORMAL) {
         printf(INDENT2 "{\n");
         printf(INDENT3 M_QQ("node_id") ": \"");
-        utl_dbg_dump(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->peer_node_id, BTC_SZ_PUBKEY, false);
         printf("\",\n");
         printf(INDENT3 M_QQ("channel_id") ": \"");
-        utl_dbg_dump(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
+        utl_dbg_dump(stdout, pChannel->channel_id, LN_SZ_CHANNEL_ID, false);
         printf("\",\n");
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-        ln_short_channel_id_string(str_sci, self->short_channel_id);
-        printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->short_channel_id);
+        ln_short_channel_id_string(str_sci, pChannel->short_channel_id);
+        printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, pChannel->short_channel_id);
         printf(INDENT3 M_QQ("funding_tx") ": \"");
-        btc_dbg_dump_txid(stdout, ln_funding_txid(self));
-        printf(":%d\",\n", ln_funding_txindex(self));
+        btc_dbg_dump_txid(stdout, ln_funding_txid(pChannel));
+        printf(":%d\",\n", ln_funding_txindex(pChannel));
         uint64_t offered = 0;
         uint64_t received = 0;
         printf(INDENT3 M_QQ("pending") ": [\n");
         int cnt = 0;
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
+            if (LN_HTLC_ENABLE(&pChannel->cnl_add_htlc[lp])) {
                 if (cnt != 0) {
                     printf(",\n");
                 }
                 const char *p_dir = NULL;
-                switch (self->cnl_add_htlc[lp].stat.flag.addhtlc) {
+                switch (pChannel->cnl_add_htlc[lp].stat.flag.addhtlc) {
                 case LN_ADDHTLC_OFFER:
                     p_dir = "Offered";
-                    offered += self->cnl_add_htlc[lp].amount_msat;
+                    offered += pChannel->cnl_add_htlc[lp].amount_msat;
                     break;
                 case LN_ADDHTLC_RECV:
                     p_dir = "Received";
-                    received += self->cnl_add_htlc[lp].amount_msat;
+                    received += pChannel->cnl_add_htlc[lp].amount_msat;
                     break;
                 default:
                     p_dir = "???";
                 }
                 printf(INDENT4 "{\n");
                 printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
-                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
-                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", self->cnl_add_htlc[lp].cltv_expiry);
+                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].amount_msat);
+                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", pChannel->cnl_add_htlc[lp].cltv_expiry);
                 printf(INDENT4 "}");
                 cnt++;
             }
         }
         printf("\n" INDENT3 "],\n");
-        printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat - offered);
-        printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat - received);
+        printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", pChannel->our_msat - offered);
+        printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", pChannel->their_msat - received);
         printf(INDENT2 "}");
     }
 }
 
-static void ln_print_self(const ln_self_t *self)
+static void ln_print_channel(const ln_channel_t *pChannel)
 {
     printf(INDENT2 "{\n");
 
     //peer_node
     printf(INDENT3 M_QQ("peer_node_id") ": \"");
-    utl_dbg_dump(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->peer_node_id, BTC_SZ_PUBKEY, false);
     printf("\",\n");
 
     //channel_id
     printf(INDENT3 M_QQ("channel_id") ": \"");
-    utl_dbg_dump(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
+    utl_dbg_dump(stdout, pChannel->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
     printf(INDENT3 M_QQ("short_channel_id") ": {\n");
     uint32_t height;
     uint32_t bindex;
     uint32_t vindex;
-    ln_short_channel_id_get_param(&height, &bindex, &vindex, self->short_channel_id);
-    printf(INDENT4 M_QQ("hex") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    ln_short_channel_id_get_param(&height, &bindex, &vindex, pChannel->short_channel_id);
+    printf(INDENT4 M_QQ("hex") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->short_channel_id);
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-    ln_short_channel_id_string(str_sci, self->short_channel_id);
+    ln_short_channel_id_string(str_sci, pChannel->short_channel_id);
     printf(INDENT4 M_QQ("str") ": " M_QQ("%s") ",\n", str_sci);
     printf(INDENT4 M_QQ("block_height") ": %" PRIu32 ",\n", height);
     printf(INDENT4 M_QQ("block_index") ": %" PRIu32 ",\n", bindex);
@@ -220,50 +220,50 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 
     //amount
-    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
-    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
-    printf(INDENT3 M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
-    printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
+    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", pChannel->our_msat);
+    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", pChannel->their_msat);
+    printf(INDENT3 M_QQ("funding_sat") ": %" PRIu64 ",\n", pChannel->funding_sat);
+    printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", pChannel->feerate_per_kw);
 
     //status
-    const char *p_status_str = ln_status_string(self);
+    const char *p_status_str = ln_status_string(pChannel);
     printf(INDENT3 M_QQ("status") ": " M_QQ("%s") ",\n", p_status_str);
 
     //key storage
-    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys_local));
+    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_local_privkeys_get_current_storage_index(&pChannel->privkeys_local));
     // printf(M_QQ("storage_seed") ": \"");
-    // utl_dbg_dump(stdout, self->privkeys_local.storage_seed, BTC_SZ_PRIVKEY, false);
+    // utl_dbg_dump(stdout, pChannel->privkeys_local.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_storage_get_current_index(&self->privkeys_remote.storage));
+    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_storage_get_current_index(&pChannel->privkeys_remote.storage));
 
     //funding
     printf(INDENT3 M_QQ("fund_flag") ": {\n");
-    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->fund_flag);
-    printf(INDENT4 M_QQ("is_funder") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDER) == LN_FUNDFLAG_FUNDER));
-    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_NO_ANNO_CH) == LN_FUNDFLAG_NO_ANNO_CH));
-    printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
-    printf(INDENT4 M_QQ("is_opened") ": %d\n", ((self->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
+    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", pChannel->fund_flag);
+    printf(INDENT4 M_QQ("is_funder") ": %d,\n", ((pChannel->fund_flag & LN_FUNDFLAG_FUNDER) == LN_FUNDFLAG_FUNDER));
+    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((pChannel->fund_flag & LN_FUNDFLAG_NO_ANNO_CH) == LN_FUNDFLAG_NO_ANNO_CH));
+    printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((pChannel->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
+    printf(INDENT4 M_QQ("is_opened") ": %d\n", ((pChannel->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
     printf(INDENT3 "},\n");
     printf(INDENT3 M_QQ("mined_block") ": \"");
-    btc_dbg_dump_txid(stdout, self->funding_bhash);
+    btc_dbg_dump_txid(stdout, pChannel->funding_bhash);
     printf("\",\n");
-    printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", self->last_confirm);
+    printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", pChannel->last_confirm);
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
-    btc_dbg_dump_txid(stdout, ln_funding_txid(self));
+    btc_dbg_dump_txid(stdout, ln_funding_txid(pChannel));
     printf("\",\n");
-    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", ln_funding_txindex(self));
+    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", ln_funding_txindex(pChannel));
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->pubkeys_local.basepoints[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->pubkeys_local.basepoints[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
     printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
     printf(INDENT5 M_QQ("pub") ": \"");
-    utl_dbg_dump(stdout, self->pubkeys_local.per_commitment_point, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->pubkeys_local.per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\"\n");
     printf(INDENT4 "},\n");
     for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
@@ -272,7 +272,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->commit_tx_local.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->commit_tx_local.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -283,17 +283,17 @@ static void ln_print_self(const ln_self_t *self)
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->pubkeys_remote.basepoints[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->pubkeys_remote.basepoints[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
     printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
     printf(INDENT5 M_QQ("pub") ": \"");
-    utl_dbg_dump(stdout, self->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\"\n");
     printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("%s") ": \"", "prev_percommit");
-    utl_dbg_dump(stdout, self->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\",\n");
     for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         if (lp != 0) {
@@ -301,60 +301,60 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->commit_tx_remote.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->commit_tx_remote.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
     printf("\n");
     printf(INDENT3 "},\n");
-    printf(INDENT3 M_QQ("obscured") ": " M_QQ("0x%016" PRIx64) ",\n", self->obscured);
+    printf(INDENT3 M_QQ("obscured") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->obscured);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
-    // utl_dbg_dump(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
+    // utl_dbg_dump(stdout, pChannel->redeem_fund.buf, pChannel->redeem_fund.len, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
-    printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", self->min_depth);
+    printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (pChannel->key_fund_sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
+    printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", pChannel->min_depth);
 
     //announce
     printf(INDENT3 M_QQ("anno_flag") ": {\n");
-    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->anno_flag);
-    printf(INDENT4 M_QQ("announcement_signatures send") ": %d,\n", (self->anno_flag & 0x01) == 0x01);
-    printf(INDENT4 M_QQ("announcement_signatures recv") ": %d,\n", (self->anno_flag & 0x02) == 0x02);
-    printf(INDENT4 M_QQ("exchanged") ": %d\n", (self->anno_flag & LN_ANNO_FLAG_END) == LN_ANNO_FLAG_END);
+    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", pChannel->anno_flag);
+    printf(INDENT4 M_QQ("announcement_signatures send") ": %d,\n", (pChannel->anno_flag & 0x01) == 0x01);
+    printf(INDENT4 M_QQ("announcement_signatures recv") ": %d,\n", (pChannel->anno_flag & 0x02) == 0x02);
+    printf(INDENT4 M_QQ("exchanged") ": %d\n", (pChannel->anno_flag & LN_ANNO_FLAG_END) == LN_ANNO_FLAG_END);
     printf(INDENT3 "},\n");
 
     //init
-    printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("0x%02x") ",\n", self->lfeature_remote);
+    printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("0x%02x") ",\n", pChannel->lfeature_remote);
 
     //close
     printf(INDENT3 M_QQ("close") ": {\n");
     printf(INDENT4 M_QQ("shutdown_flag") ": {\n");
-    printf(INDENT5 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->shutdown_flag);
-    printf(INDENT5 M_QQ("shutdown_send") ": %d,\n", (self->shutdown_flag & 0x01) == 0x01);
-    printf(INDENT5 M_QQ("shutdown_recv") ": %d\n", (self->shutdown_flag & 0x02) == 0x02);
+    printf(INDENT5 M_QQ("value") ": " M_QQ("0x%02x") ",\n", pChannel->shutdown_flag);
+    printf(INDENT5 M_QQ("shutdown_send") ": %d,\n", (pChannel->shutdown_flag & 0x01) == 0x01);
+    printf(INDENT5 M_QQ("shutdown_recv") ": %d\n", (pChannel->shutdown_flag & 0x02) == 0x02);
     printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("local_scriptPubKey") ": \"");
-    utl_dbg_dump(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
+    utl_dbg_dump(stdout, pChannel->shutdown_scriptpk_local.buf, pChannel->shutdown_scriptpk_local.len, false);
     printf("\",\n");
     printf(INDENT4 M_QQ("remote_scriptPubKey") ": \"");
-    utl_dbg_dump(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
+    utl_dbg_dump(stdout, pChannel->shutdown_scriptpk_remote.buf, pChannel->shutdown_scriptpk_remote.len, false);
     printf("\"\n");
     printf(INDENT3 "},\n");
 
     //normal operation
-    printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
+    printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", pChannel->htlc_id_num);
 
     printf(INDENT3 M_QQ("add_htlc") ": [\n");
     int cnt = 0;
     for (lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
+        if (LN_HTLC_ENABLE(&pChannel->cnl_add_htlc[lp])) {
             if (cnt > 0) {
                 printf(",\n");
             }
             printf(INDENT4 "{\n");
             printf(INDENT5 M_QQ("type") ": \"");
-            if (self->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
+            if (pChannel->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
                 printf("final node");
-            } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_OFFER)) {
+            } else if ((pChannel->cnl_add_htlc[lp].prev_short_channel_id == 0) && (pChannel->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_OFFER)) {
                 //prev_short_channel_idが0になる
                 //      - origin node
                 //      - update_add_htlcの受信側
@@ -363,15 +363,15 @@ static void ln_print_self(const ln_self_t *self)
                 printf("hop");
             }
             printf("\",\n");
-            printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
+            printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].id);
             // printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n",
-            //             ((self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_RECV) ? "Received" : "Offered"),
-            //             self->cnl_add_htlc[lp].stat.bits);
+            //             ((pChannel->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_RECV) ? "Received" : "Offered"),
+            //             pChannel->cnl_add_htlc[lp].stat.bits);
             printf(INDENT5 M_QQ("flag") ": {\n");
             const char *p_str_addhtlc;
             const char *p_str_delhtlc;
             const char *p_str_fin_delhtlc;
-            switch (self->cnl_add_htlc[lp].stat.flag.addhtlc) {
+            switch (pChannel->cnl_add_htlc[lp].stat.flag.addhtlc) {
             case LN_ADDHTLC_NONE:
                 p_str_addhtlc = "---";
                 break;
@@ -384,7 +384,7 @@ static void ln_print_self(const ln_self_t *self)
             default:
                 p_str_addhtlc = "???";
             }
-            switch (self->cnl_add_htlc[lp].stat.flag.delhtlc) {
+            switch (pChannel->cnl_add_htlc[lp].stat.flag.delhtlc) {
             case LN_DELHTLC_NONE:
                 p_str_delhtlc = "---";
                 break;
@@ -400,7 +400,7 @@ static void ln_print_self(const ln_self_t *self)
             default:
                 p_str_delhtlc = "???";
             }
-            switch (self->cnl_add_htlc[lp].stat.flag.fin_delhtlc) {
+            switch (pChannel->cnl_add_htlc[lp].stat.flag.fin_delhtlc) {
             case LN_DELHTLC_NONE:
                 p_str_fin_delhtlc = "---";
                 break;
@@ -416,50 +416,50 @@ static void ln_print_self(const ln_self_t *self)
             default:
                 p_str_fin_delhtlc = "???";
             }
-            printf(INDENT6 M_QQ("value") ": " M_QQ("0x%04x") ",\n", self->cnl_add_htlc[lp].stat.bits);
+            printf(INDENT6 M_QQ("value") ": " M_QQ("0x%04x") ",\n", pChannel->cnl_add_htlc[lp].stat.bits);
             printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
             printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
-            printf(INDENT6 M_QQ("updsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.updsend);
-            printf(INDENT6 M_QQ("comsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comsend);
-            printf(INDENT6 M_QQ("revrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revrecv);
-            printf(INDENT6 M_QQ("comrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comrecv);
-            printf(INDENT6 M_QQ("revsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revsend);
+            printf(INDENT6 M_QQ("updsend") ": %d,\n", pChannel->cnl_add_htlc[lp].stat.flag.updsend);
+            printf(INDENT6 M_QQ("comsend") ": %d,\n", pChannel->cnl_add_htlc[lp].stat.flag.comsend);
+            printf(INDENT6 M_QQ("revrecv") ": %d,\n", pChannel->cnl_add_htlc[lp].stat.flag.revrecv);
+            printf(INDENT6 M_QQ("comrecv") ": %d,\n", pChannel->cnl_add_htlc[lp].stat.flag.comrecv);
+            printf(INDENT6 M_QQ("revsend") ": %d,\n", pChannel->cnl_add_htlc[lp].stat.flag.revsend);
             printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
             printf(INDENT5 "},\n");
-            printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
-            printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
+            printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].amount_msat);
+            printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", pChannel->cnl_add_htlc[lp].cltv_expiry);
             printf(INDENT5 M_QQ("payhash") ": \"");
-            utl_dbg_dump(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
+            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
             printf("\",\n");
             printf(INDENT5 M_QQ("preimage") ": \"");
-            utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
+            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf, pChannel->cnl_add_htlc[lp].buf_payment_preimage.len, false);
             printf("\",\n");
             uint8_t sha[BTC_SZ_HASH256];
-            btc_md_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
+            btc_md_sha256(sha, pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf, pChannel->cnl_add_htlc[lp].buf_payment_preimage.len);
             printf(INDENT5 M_QQ("preimage_check") ": ");
-            if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
+            if (memcmp(sha, pChannel->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
                 printf(M_QQ("OK") ",\n");
             } else {
                 printf(M_QQ("NG") ",\n");
             }
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-            ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].next_short_channel_id);
-            printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->cnl_add_htlc[lp].next_short_channel_id);
-            printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].next_idx);
-            ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].prev_short_channel_id);
-            printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, self->cnl_add_htlc[lp].prev_short_channel_id);
-            printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].prev_idx);
+            ln_short_channel_id_string(str_sci, pChannel->cnl_add_htlc[lp].next_short_channel_id);
+            printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, pChannel->cnl_add_htlc[lp].next_short_channel_id);
+            printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", pChannel->cnl_add_htlc[lp].next_idx);
+            ln_short_channel_id_string(str_sci, pChannel->cnl_add_htlc[lp].prev_short_channel_id);
+            printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, pChannel->cnl_add_htlc[lp].prev_short_channel_id);
+            printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", pChannel->cnl_add_htlc[lp].prev_idx);
             printf(INDENT5 M_QQ("onion_reason") ": \"");
-            if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
-                printf("length=%d, ", self->cnl_add_htlc[lp].buf_onion_reason.len);
-                utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
+            if (pChannel->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
+                printf("length=%d, ", pChannel->cnl_add_htlc[lp].buf_onion_reason.len);
+                utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
                 printf("...");
             } else {
-                utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, self->cnl_add_htlc[lp].buf_onion_reason.len, false);
+                utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_onion_reason.buf, pChannel->cnl_add_htlc[lp].buf_onion_reason.len, false);
             }
             printf("\",\n");
             printf(INDENT5 M_QQ("shared_secret") ": \"");
-            utl_dbg_dump(stdout, self->cnl_add_htlc[lp].buf_shared_secret.buf, self->cnl_add_htlc[lp].buf_shared_secret.len, false);
+            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_shared_secret.buf, pChannel->cnl_add_htlc[lp].buf_shared_secret.len, false);
             printf("\",\n");
             printf(INDENT5 M_QQ("index") ": %d\n", lp);
             printf(INDENT4 "}");
@@ -470,19 +470,19 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "],\n");
 
     printf(INDENT3 M_QQ("commit_tx_local") ": {\n");
-    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_tx_local.dust_limit_sat);
-    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_tx_local.max_htlc_value_in_flight_msat);
-    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_tx_local.channel_reserve_sat);
-    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->commit_tx_local.htlc_minimum_msat);
-    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_tx_local.to_self_delay);
-    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_tx_local.max_accepted_htlcs);
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", pChannel->commit_tx_local.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", pChannel->commit_tx_local.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_dbg_dump_txid(stdout, self->commit_tx_local.txid);
+    btc_dbg_dump_txid(stdout, pChannel->commit_tx_local.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_tx_local.htlc_num);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_tx_local.commit_num);
-    if (self->commit_tx_local.revoke_num != (uint64_t)-1) {
-        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_tx_local.revoke_num);
+    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", pChannel->commit_tx_local.htlc_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_tx_local.commit_num);
+    if (pChannel->commit_tx_local.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_tx_local.revoke_num);
     } else {
         printf(INDENT4 M_QQ("revoke_num") ": null\n");
     }
@@ -490,34 +490,34 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 
     printf(INDENT3 M_QQ("commit_tx_remote") ": {\n");
-    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_tx_remote.dust_limit_sat);
-    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_tx_remote.max_htlc_value_in_flight_msat);
-    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_tx_remote.channel_reserve_sat);
-    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", self->commit_tx_remote.htlc_minimum_msat);
-    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_tx_remote.to_self_delay);
-    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_tx_remote.max_accepted_htlcs);
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", pChannel->commit_tx_remote.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", pChannel->commit_tx_remote.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", pChannel->commit_tx_remote.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_dbg_dump_txid(stdout, self->commit_tx_remote.txid);
+    btc_dbg_dump_txid(stdout, pChannel->commit_tx_remote.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_tx_remote.htlc_num);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_tx_remote.commit_num);
-    if (self->commit_tx_remote.revoke_num != (uint64_t)-1) {
-        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_tx_remote.revoke_num);
+    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", pChannel->commit_tx_remote.htlc_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.commit_num);
+    if (pChannel->commit_tx_remote.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_tx_remote.revoke_num);
     } else {
         printf(INDENT4 M_QQ("revoke_num") ": null\n");
     }
     printf(INDENT3 "},\n");
 
     //addr
-    if (self->last_connected_addr.type == LN_ADDR_DESC_TYPE_IPV4) {
+    if (pChannel->last_connected_addr.type == LN_ADDR_DESC_TYPE_IPV4) {
         printf(INDENT3 M_QQ("last_connected IPv4") ": \"%d.%d.%d.%d:%d\",\n",
-                    self->last_connected_addr.addr[0],
-                    self->last_connected_addr.addr[1],
-                    self->last_connected_addr.addr[2],
-                    self->last_connected_addr.addr[3],
-                    self->last_connected_addr.port);
+                    pChannel->last_connected_addr.addr[0],
+                    pChannel->last_connected_addr.addr[1],
+                    pChannel->last_connected_addr.addr[2],
+                    pChannel->last_connected_addr.addr[3],
+                    pChannel->last_connected_addr.port);
     }
-    printf(INDENT3 M_QQ("err") ": %d\n", self->err);
+    printf(INDENT3 M_QQ("err") ": %d\n", pChannel->err);
 
     printf(INDENT2 "}");
 }
@@ -626,26 +626,26 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
  *
  ********************************************************************/
 
-static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
+static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
 {
-    //self
-    if (showflag & (SHOW_SELF | SHOW_SELF_WALLET | SHOW_SELF_LISTCH)) {
-        ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
-        memset(p_self, 0, sizeof(ln_self_t));
+    //channel
+    if (showflag & (SHOW_CHANNEL | SHOW_CHANNEL_WALLET | SHOW_CHANNEL_LISTCH)) {
+        ln_channel_t *p_channel = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
+        memset(p_channel, 0, sizeof(ln_channel_t));
 
-        int retval = ln_lmdb_self_load(p_self, txn, dbi);
+        int retval = ln_lmdb_channel_load(p_channel, txn, dbi);
         if (retval != 0) {
             //printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
         }
         const char *p_title;
-        if (showflag & SHOW_SELF) {
+        if (showflag & SHOW_CHANNEL) {
             p_title = "channel_info";
         }
-        if (showflag & SHOW_SELF_WALLET) {
+        if (showflag & SHOW_CHANNEL_WALLET) {
             p_title = "wallet_info";
         }
-        if (showflag & SHOW_SELF_LISTCH) {
+        if (showflag & SHOW_CHANNEL_LISTCH) {
             p_title = "peer_node_id";
         }
 
@@ -655,34 +655,34 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
             printf(INDENT1 M_QQ("%s") ": [\n", p_title);
         }
 
-        if (showflag & SHOW_SELF) {
-            ln_print_self(p_self);
+        if (showflag & SHOW_CHANNEL) {
+            ln_print_channel(p_channel);
         }
-        if (showflag & SHOW_SELF_WALLET) {
-            ln_print_wallet(p_self);
+        if (showflag & SHOW_CHANNEL_WALLET) {
+            ln_print_wallet(p_channel);
         }
-        if (showflag & SHOW_SELF_LISTCH) {
+        if (showflag & SHOW_CHANNEL_LISTCH) {
             printf(INDENT2 "\"");
-            utl_dbg_dump(stdout, p_self->peer_node_id, BTC_SZ_PUBKEY, false);
+            utl_dbg_dump(stdout, p_channel->peer_node_id, BTC_SZ_PUBKEY, false);
             printf("\"");
         }
-        ln_term(p_self);
-        UTL_DBG_FREE(p_self);
+        ln_term(p_channel);
+        UTL_DBG_FREE(p_channel);
         cnt0++;
     }
 }
 
-static void dumpit_bkself(MDB_txn *txn, MDB_dbi dbi)
+static void dumpit_bkchannel(MDB_txn *txn, MDB_dbi dbi)
 {
-    //bkself
+    //bkchannel
     if (showflag & (SHOW_CLOSED_CH)) {
         if (cnt5) {
             printf(",\n");
         } else {
-            printf(INDENT1 M_QQ("closed_self") ": [\n");
+            printf(INDENT1 M_QQ("closed_channel") ": [\n");
         }
         printf(INDENT2 "{\n");
-        ln_lmdb_bkself_show(txn, dbi);
+        ln_lmdb_bkchannel_show(txn, dbi);
         printf(INDENT2 "}");
         cnt5++;
     }
@@ -754,7 +754,7 @@ static void dumpit_wallet(MDB_txn *txn, MDB_dbi dbi)
     ln_lmdb_wallet_search(&cur, dumpit_wallet_func, NULL);
 }
 
-static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
+static void dumpit_channel_anno(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag & SHOW_ANNOCNL) {
         if (cnt1) {
@@ -1106,13 +1106,13 @@ int main(int argc, char *argv[])
     }
     optind = 0;
 
-    ret = mdb_env_create(&mpDbSelf);
+    ret = mdb_env_create(&mpDbChannel);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbSelf, 10);
+    ret = mdb_env_set_maxdbs(mpDbChannel, 10);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbChannel, ln_lmdb_get_chnlpath(), MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_selfpath());
+        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_chnlpath());
         return -1;
     }
     ret = mdb_env_create(&mpDbNode);
@@ -1157,20 +1157,20 @@ int main(int argc, char *argv[])
             break;
 
         case 's':
-            showflag = SHOW_SELF;
-            p_env = mpDbSelf;
+            showflag = SHOW_CHANNEL;
+            p_env = mpDbChannel;
             break;
         case 'w':
-            showflag = SHOW_SELF_WALLET;
-            p_env = mpDbSelf;
+            showflag = SHOW_CHANNEL_WALLET;
+            p_env = mpDbChannel;
             break;
         case 'l':
-            showflag = SHOW_SELF_LISTCH;
-            p_env = mpDbSelf;
+            showflag = SHOW_CHANNEL_LISTCH;
+            p_env = mpDbChannel;
             break;
         case 'q':
             showflag = SHOW_CLOSED_CH;
-            p_env = mpDbSelf;
+            p_env = mpDbChannel;
             break;
         case 'c':
             showflag = SHOW_ANNOCNL;
@@ -1198,7 +1198,7 @@ int main(int argc, char *argv[])
             break;
         case 'v':
             showflag = SHOW_VERSION;
-            p_env = mpDbSelf;
+            p_env = mpDbChannel;
             break;
         case '9':
             switch (optarg[1]) {
@@ -1214,7 +1214,7 @@ int main(int argc, char *argv[])
                 break;
             case '3':
                 showflag = SHOW_PREIMAGE;
-                p_env = mpDbSelf;
+                p_env = mpDbChannel;
                 break;
             }
             break;
@@ -1234,9 +1234,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-d : dbptarm directory(use current directory's dbptarm if not set)\n");
         fprintf(stderr, "\t\t-w : 2nd layer wallet info\n");
         fprintf(stderr, "\t\t-W : 1st layer wallet info\n");
-        fprintf(stderr, "\t\t-s : self info\n");
+        fprintf(stderr, "\t\t-s : channel info\n");
         fprintf(stderr, "\t\t-l : channel list\n");
-        fprintf(stderr, "\t\t-q : closed self info\n");
+        fprintf(stderr, "\t\t-q : closed channel info\n");
         fprintf(stderr, "\t\t-c : channel_announcement/channel_update\n");
         fprintf(stderr, "\t\t-n : node_announcement\n");
         fprintf(stderr, "\t\t-a : (internal)announcement received/sent node_id list\n");
@@ -1246,7 +1246,7 @@ int main(int argc, char *argv[])
     }
 
 
-    ln_lmdb_setenv(mpDbSelf, mpDbNode, mpDbAnno, mpDbWalt);
+    ln_lmdb_setenv(mpDbChannel, mpDbNode, mpDbAnno, mpDbWalt);
 
     btc_block_chain_t gtype;
     bool bret = ln_db_ver_check(NULL, &gtype);
@@ -1309,21 +1309,21 @@ int main(int argc, char *argv[])
             } else {
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 switch (dbtype) {
-                case LN_LMDB_DBTYPE_SELF:
-                    dumpit_self(txn, dbi2);
+                case LN_LMDB_DBTYPE_CHANNEL:
+                    dumpit_channel(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_SECRET:
                 case LN_LMDB_DBTYPE_ADD_HTLC:
-                    //LN_LMDB_DBTYPE_SELFで読み込むので、スルー
+                    //LN_LMDB_DBTYPE_CHANNELで読み込むので、スルー
                     break;
-                case LN_LMDB_DBTYPE_BKSELF:
-                    dumpit_bkself(txn, dbi2);
+                case LN_LMDB_DBTYPE_BKCHANNEL:
+                    dumpit_bkchannel(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_WALLET:
                     dumpit_wallet(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_ANNO_CNL:
-                    dumpit_channel(txn, dbi2);
+                    dumpit_channel_anno(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_ANNO_NODE:
                     dumpit_node(txn, dbi2);
@@ -1366,5 +1366,5 @@ int main(int argc, char *argv[])
     mdb_env_close(mpDbWalt);
     mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbNode);
-    mdb_env_close(mpDbSelf);
+    mdb_env_close(mpDbChannel);
 }

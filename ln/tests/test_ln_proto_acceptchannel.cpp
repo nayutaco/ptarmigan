@@ -59,8 +59,8 @@ FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, 
 FAKE_VALUE_FUNC(bool, ln_db_preimg_del, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_get, void *, bool *, ln_db_preimg_t *);
-FAKE_VALUE_FUNC(bool, ln_db_self_search, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_self_search_readonly, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_htlctype_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
@@ -73,7 +73,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_msg_fu
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_self_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -87,8 +87,8 @@ protected:
         RESET_FAKE(ln_db_preimg_del)
         RESET_FAKE(ln_db_preimg_cur_open)
         RESET_FAKE(ln_db_preimg_cur_get)
-        RESET_FAKE(ln_db_self_search)
-        RESET_FAKE(ln_db_self_search_readonly)
+        RESET_FAKE(ln_db_channel_search)
+        RESET_FAKE(ln_db_channel_search_readonly)
         RESET_FAKE(ln_db_phash_save)
         RESET_FAKE(ln_db_preimg_search)
         RESET_FAKE(ln_db_preimg_set_expiry)
@@ -132,8 +132,8 @@ public:
         }
         return ret;
     }
-    static void LnCallbackType(ln_self_t *self, ln_cb_t type, void *p_param) {
-        (void)self; (void)p_param;
+    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        (void)pChannel; (void)p_param;
         const char *p_str;
         switch (type) {
         case LN_CB_ERROR: p_str = "LN_CB_ERROR"; break;
@@ -163,30 +163,30 @@ public:
         }
         printf("*** callback: %s(%d)\n", p_str, type);
     }
-    static void LnInit(ln_self_t *self)
+    static void LnInit(ln_channel_t *pChannel)
     {
         uint8_t seed[LN_SZ_SEED];
         ln_anno_prm_t annoprm;
 
-        memset(self, 0xcc, sizeof(ln_self_t));
-        self->noise.p_handshake = NULL;
+        memset(pChannel, 0xcc, sizeof(ln_channel_t));
+        pChannel->noise.p_handshake = NULL;
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
-        ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
-        self->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_local.htlc_minimum_msat = 0;
-        self->commit_tx_local.max_accepted_htlcs = 10;
-        self->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_remote.htlc_minimum_msat = 0;
-        self->commit_tx_remote.max_accepted_htlcs = 10;
-        self->our_msat = 1000000;
-        self->their_msat = 1000000;
-        btc_tx_init(&self->tx_funding);
-        utl_buf_init(&self->redeem_fund);
-        self->p_callback = LnCallbackType;
+        ln_init(pChannel, seed, &annoprm, (ln_callback_t)0x123456);
+        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_local.htlc_minimum_msat = 0;
+        pChannel->commit_tx_local.max_accepted_htlcs = 10;
+        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
+        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
+        pChannel->our_msat = 1000000;
+        pChannel->their_msat = 1000000;
+        btc_tx_init(&pChannel->tx_funding);
+        utl_buf_init(&pChannel->redeem_fund);
+        pChannel->p_callback = LnCallbackType;
     }
 };
 
@@ -242,45 +242,45 @@ namespace LN_DUMMY {
 
 TEST_F(ln, init)
 {
-    ln_self_t self;
+    ln_channel_t channel;
     uint8_t seed[LN_SZ_SEED];
     ln_anno_prm_t annoprm;
 
-    memset(&self, 0xcc, sizeof(self));
-    self.noise.p_handshake = NULL;
+    memset(&channel, 0xcc, sizeof(channel));
+    channel.noise.p_handshake = NULL;
     memset(seed, 1, sizeof(seed));
     annoprm.cltv_expiry_delta = 10;
     annoprm.htlc_minimum_msat = 1000;
     annoprm.fee_base_msat = 20;
     annoprm.fee_prop_millionths = 200;
-    ln_init(&self, seed, &annoprm, (ln_callback_t)0x123456);
+    ln_init(&channel, seed, &annoprm, (ln_callback_t)0x123456);
 
-    ASSERT_EQ(LN_STATUS_NONE, self.status);
+    ASSERT_EQ(LN_STATUS_NONE, channel.status);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ASSERT_EQ(0, self.cnl_add_htlc[idx].stat.bits);
+        ASSERT_EQ(0, channel.cnl_add_htlc[idx].stat.bits);
     }
-    ASSERT_TRUE(DumpCheck(&self.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
-    ASSERT_TRUE(DumpCheck(&self.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));
-    ASSERT_EQ(0xcccccccccccccccc, self.p_param);
-    ASSERT_EQ(0x123456, self.p_callback);
+    ASSERT_TRUE(DumpCheck(&channel.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
+    ASSERT_TRUE(DumpCheck(&channel.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));
+    ASSERT_EQ(0xcccccccccccccccc, channel.p_param);
+    ASSERT_EQ(0x123456, channel.p_callback);
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 //OK
 TEST_F(ln, ln_accept_channel_recv_ok)
 {
-    ln_self_t self;
-    LnInit(&self);
-    self.fund_flag = LN_FUNDFLAG_FUNDER;       //funder
+    ln_channel_t channel;
+    LnInit(&channel);
+    channel.fund_flag = LN_FUNDFLAG_FUNDER;       //funder
 
     const uint8_t CHANGE_SPK[] = { 0x12, 0x34, 0x56 };
 
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
             switch (type) {
             case LN_CB_SIGN_FUNDINGTX_REQ:
                 {
@@ -310,33 +310,33 @@ TEST_F(ln, ln_accept_channel_recv_ok)
             return true;
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    self.commit_tx_local.dust_limit_sat = 10000;
-    self.commit_tx_local.channel_reserve_sat = 800;
-    memcpy(self.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    self.funding_sat = 100000;
+    channel.commit_tx_local.dust_limit_sat = 10000;
+    channel.commit_tx_local.channel_reserve_sat = 800;
+    memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+    channel.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
-    self.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
-    ln_fundin_t *p_fundin = self.establish.p_fundin;
+    channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
+    ln_fundin_t *p_fundin = channel.establish.p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
     p_fundin->amount = 500000;
 #endif
 
-    memcpy(self.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(self.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(channel.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(channel.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
-    bool ret = ln_accept_channel_recv(&self, NULL, 0);
+    bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
 
 #ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
-    UTL_DBG_FREE(self.establish.p_fundin);
+    UTL_DBG_FREE(channel.establish.p_fundin);
 #endif
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
@@ -349,16 +349,16 @@ TEST_F(ln, ln_accept_channel_recv_ok)
 // 受信したaccept_channel.channel_reserve_satoshisがopen_channel.dust_limit_satoshisより小さい場合
 TEST_F(ln, ln_accept_channel_recv_receiver1)
 {
-    ln_self_t self;
-    LnInit(&self);
-    self.fund_flag = LN_FUNDFLAG_FUNDER;       //funder
+    ln_channel_t channel;
+    LnInit(&channel);
+    channel.fund_flag = LN_FUNDFLAG_FUNDER;       //funder
 
     const uint8_t CHANGE_SPK[] = { 0x12, 0x34, 0x56 };
 
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
             switch (type) {
             case LN_CB_SIGN_FUNDINGTX_REQ:
                 {
@@ -388,32 +388,32 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
             return true;
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    self.commit_tx_local.dust_limit_sat = 10000;    //★
-    self.commit_tx_local.channel_reserve_sat = 800;
-    memcpy(self.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    self.funding_sat = 100000;
+    channel.commit_tx_local.dust_limit_sat = 10000;    //★
+    channel.commit_tx_local.channel_reserve_sat = 800;
+    memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+    channel.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
-    self.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
-    ln_fundin_t *p_fundin = self.establish.p_fundin;
+    channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
+    ln_fundin_t *p_fundin = channel.establish.p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
 
-    memcpy(self.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(self.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(channel.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(channel.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
-    bool ret = ln_accept_channel_recv(&self, NULL, 0);
+    bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
 
 #ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
-    UTL_DBG_FREE(self.establish.p_fundin);
+    UTL_DBG_FREE(channel.establish.p_fundin);
 #endif
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
@@ -427,16 +427,16 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
 // よってここでは、「受信したaccept_channel.dust_limit_satoshisが、送信したopen_channel.channel_reserve_satoshisより小さい場合」である。
 TEST_F(ln, ln_accept_channel_recv_receiver2)
 {
-    ln_self_t self;
-    LnInit(&self);
-    self.fund_flag = LN_FUNDFLAG_FUNDER;       //funder
+    ln_channel_t channel;
+    LnInit(&channel);
+    channel.fund_flag = LN_FUNDFLAG_FUNDER;       //funder
 
     const uint8_t CHANGE_SPK[] = { 0x12, 0x34, 0x56 };
 
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
             switch (type) {
             case LN_CB_SIGN_FUNDINGTX_REQ:
                 {
@@ -466,30 +466,30 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
             return true;
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    self.commit_tx_local.dust_limit_sat = 10000;
-    self.commit_tx_local.channel_reserve_sat = 800;    //★
-    memcpy(self.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    self.funding_sat = 100000;
+    channel.commit_tx_local.dust_limit_sat = 10000;
+    channel.commit_tx_local.channel_reserve_sat = 800;    //★
+    memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+    channel.funding_sat = 100000;
 
 #ifdef USE_BITCOIND
-    self.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
-    ln_fundin_t *p_fundin = self.establish.p_fundin;
+    channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
+    ln_fundin_t *p_fundin = channel.establish.p_fundin;
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
 
-    memcpy(self.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(self.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(channel.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(channel.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
-    bool ret = ln_accept_channel_recv(&self, NULL, 0);
+    bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
 
 #ifdef USE_BITCOIND
     utl_buf_free(&p_fundin->change_spk);
-    UTL_DBG_FREE(self.establish.p_fundin);
+    UTL_DBG_FREE(channel.establish.p_fundin);
 #endif
-    ln_term(&self);
+    ln_term(&channel);
 }

@@ -70,57 +70,57 @@ void ln_init_localfeatures_set(uint8_t lf)
 }
 
 
-void HIDDEN ln_error_set(ln_self_t *self, int Err, const char *pFormat, ...)
+void HIDDEN ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
 {
     va_list ap;
 
-    self->err = Err;
+    pChannel->err = Err;
 
     va_start(ap, pFormat);
-    vsnprintf(self->err_msg, LN_SZ_ERRMSG, pFormat, ap);
+    vsnprintf(pChannel->err_msg, LN_SZ_ERRMSG, pFormat, ap);
     va_end(ap);
 }
 
 
-bool /*HIDDEN*/ ln_init_send(ln_self_t *self, bool bInitRouteSync, bool bHaveCnl)
+bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool bHaveCnl)
 {
     (void)bHaveCnl;
 
-    if (self->init_flag & M_INIT_FLAG_SEND) {
-        M_SEND_ERR(self, LNERR_INV_STATE, "init already sent");
+    if (pChannel->init_flag & M_INIT_FLAG_SEND) {
+        M_SEND_ERR(pChannel, LNERR_INV_STATE, "init already sent");
         return false;
     }
 
     ln_msg_init_t msg;
     msg.gflen = 0;
     msg.p_globalfeatures = NULL;
-    self->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
-    msg.lflen = sizeof(self->lfeature_local);
-    msg.p_localfeatures = &self->lfeature_local;
+    pChannel->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
+    msg.lflen = sizeof(pChannel->lfeature_local);
+    msg.p_localfeatures = &pChannel->lfeature_local;
     LOGD("localfeatures: ");
     DUMPD(msg.p_localfeatures, msg.lflen);
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_init_write(&buf, &msg)) {
         return false;
     }
-    self->init_flag |= M_INIT_FLAG_SEND;
+    pChannel->init_flag |= M_INIT_FLAG_SEND;
 
-    M_DB_SELF_SAVE(self);
+    M_DB_CHANNEL_SAVE(pChannel);
 
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
 
 
-bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
     bool initial_routing_sync = false;
 
-    if (self->init_flag & M_INIT_FLAG_RECV) {
+    if (pChannel->init_flag & M_INIT_FLAG_RECV) {
         //TODO: multiple init error
-        M_SEND_ERR(self, LNERR_MSG_INIT, "multiple init receive");
+        M_SEND_ERR(pChannel, LNERR_MSG_INIT, "multiple init receive");
         return false;
     }
 
@@ -138,7 +138,7 @@ bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         }
     }
 
-    self->lfeature_remote = 0x00;
+    pChannel->lfeature_remote = 0x00;
     if (msg.lflen) {
         //check
         for (uint32_t lp = 0; lp < msg.lflen; lp++) {
@@ -160,55 +160,55 @@ bool HIDDEN ln_init_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
                 goto LABEL_EXIT;
             }
         }
-        self->lfeature_remote = msg.p_localfeatures[0];
+        pChannel->lfeature_remote = msg.p_localfeatures[0];
     }
 
-    self->init_flag |= M_INIT_FLAG_RECV;
+    pChannel->init_flag |= M_INIT_FLAG_RECV;
 
-    ln_callback(self, LN_CB_INIT_RECV, &initial_routing_sync);
+    ln_callback(pChannel, LN_CB_INIT_RECV, &initial_routing_sync);
 
     ret = true;
 
 LABEL_EXIT:
     if (!ret) {
-        M_SET_ERR(self, LNERR_INV_FEATURE, "init error");
+        M_SET_ERR(pChannel, LNERR_INV_FEATURE, "init error");
     }
     return ret;
 }
 
 
-bool HIDDEN ln_error_send(ln_self_t *self, int Err, const char *pFormat, ...)
+bool HIDDEN ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
 {
-    ln_error_set(self, Err, pFormat);
+    ln_error_set(pChannel, Err, pFormat);
     ln_msg_error_t msg;
-    msg.p_channel_id = self->channel_id;
-    msg.p_data = (const uint8_t *)self->err_msg;
-    msg.len = strlen(self->err_msg);
+    msg.p_channel_id = pChannel->channel_id;
+    msg.p_data = (const uint8_t *)pChannel->err_msg;
+    msg.len = strlen(pChannel->err_msg);
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_error_write(&buf, &msg);
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
 
 
-bool HIDDEN ln_error_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_error_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    if (ln_is_funding(self)) {
+    if (ln_is_funding(pChannel)) {
         LOGD("stop funding\n");
-        ln_establish_free(self);
+        ln_establish_free(pChannel);
     }
 
     ln_msg_error_t msg;
     ln_msg_error_read(&msg, pData, Len);
-    ln_callback(self, LN_CB_ERROR, &msg);
+    ln_callback(pChannel, LN_CB_ERROR, &msg);
     return true;
 }
 
 
-bool /*HIDDEN*/ ln_ping_send(ln_self_t *self, uint16_t PingLen, uint16_t PongLen)
+bool /*HIDDEN*/ ln_ping_send(ln_channel_t *pChannel, uint16_t PingLen, uint16_t PongLen)
 {
-    (void)self;
+    (void)pChannel;
 
     ln_msg_ping_t msg;
     msg.byteslen = PingLen;
@@ -216,56 +216,56 @@ bool /*HIDDEN*/ ln_ping_send(ln_self_t *self, uint16_t PingLen, uint16_t PongLen
     msg.p_ignored = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_ping_write(&buf, &msg)) return false;
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
 
 
-bool HIDDEN ln_ping_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_ping_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     //LOGD("BEGIN\n");
 
     ln_msg_ping_t msg;
     if (!ln_msg_ping_read(&msg, pData, Len)) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
 
-    if (!ln_pong_send(self, &msg)) return false;
+    if (!ln_pong_send(pChannel, &msg)) return false;
 
     //LOGD("END\n");
     return true;
 }
 
 
-bool HIDDEN ln_pong_send(ln_self_t *self, ln_msg_ping_t *pPingMsg)
+bool HIDDEN ln_pong_send(ln_channel_t *pChannel, ln_msg_ping_t *pPingMsg)
 {
     ln_msg_pong_t msg;
     msg.byteslen = pPingMsg->num_pong_bytes;
     msg.p_ignored = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_pong_write(&buf, &msg)) return false;
-    ln_callback(self, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
 
 
-bool HIDDEN ln_pong_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_pong_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     //LOGD("BEGIN\n");
 
     ln_msg_pong_t msg;
     if (!ln_msg_pong_read(&msg, pData, Len)) {
-        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
     ln_cb_pong_recv_t param;
     param.result = false;
     param.byteslen = msg.byteslen;
     param.p_ignored = msg.p_ignored;
-    ln_callback(self, LN_CB_PONG_RECV, &param);
+    ln_callback(pChannel, LN_CB_PONG_RECV, &param);
 
     //LOGD("END\n");
     return param.result;

@@ -44,7 +44,7 @@
  *   4. commit_txの送金先処理
  *   5. メモリ解放
  *
- * @param[in,out]       self
+ * @param[in,out]       pChannel
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
  * @param[in]           pHtlcSigs         commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           HtlcSigsNum       pHtlcSigsの署名数
@@ -55,7 +55,7 @@
  * @note
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
-bool HIDDEN ln_comtx_create_to_local(ln_self_t *self,
+bool HIDDEN ln_comtx_create_to_local(ln_channel_t *pChannel,
                     ln_close_force_t *pClose,
                     const uint8_t *pHtlcSigs,
                     uint8_t HtlcSigsNum,
@@ -73,7 +73,7 @@ bool HIDDEN ln_comtx_create_to_local(ln_self_t *self,
  *          - to_remote output
  *          - 各HTLC output
  *
- * 作成した署名は、To-Localはself->commit_tx_remote.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
+ * 作成した署名は、To-LocalはpChannel->commit_tx_remote.signatureに、HTLCはpChannel->cnl_add_htlc[].signature 代入する
  *
  *   1. to_local script作成
  *   2. HTLC情報設定
@@ -82,12 +82,12 @@ bool HIDDEN ln_comtx_create_to_local(ln_self_t *self,
  *   4. commit_txの送金先処理
  *   5. メモリ解放
  *
- * @param[in,out]       self
+ * @param[in,out]       pChannel
  * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
  * @param[out]          ppHtlcSigs        commitment_signed送信用署名(NULLの場合は代入しない)
  * @retval  true    成功
  */
-bool HIDDEN ln_comtx_create_to_remote(const ln_self_t *self,
+bool HIDDEN ln_comtx_create_to_remote(const ln_channel_t *pChannel,
                     ln_commit_tx_t *pCommit,
                     ln_close_force_t *pClose,
                     uint8_t **ppHtlcSigs,

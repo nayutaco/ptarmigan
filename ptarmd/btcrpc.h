@@ -67,7 +67,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
 
 /** [bitcoin IF]funding_txのconfirmation数取得
  *
- * @param[in]   self        取得対象のchannel
+ * @param[in]   pChannel    取得対象のchannel
  * @param[out]  confirmation数
  * @retval  true        success(*pConfirm > 0)
  * @retval  false       fail(*pConfirm not changed)
@@ -225,9 +225,9 @@ void btcrpc_del_channel(const uint8_t *pPeerId);
 
 /** [bitcoin IF]監視TXID設定
  *
- * @param[in]   self
+ * @param[in]   pChannel
  */
-void btcrpc_set_committxid(const ln_self_t *self);
+void btcrpc_set_committxid(const ln_channel_t *pChannel);
 
 
 /** [bitcoin IF]balance取得

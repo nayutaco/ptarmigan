@@ -37,24 +37,24 @@
  * prototypes
  ********************************************************************/
 
-bool /*HIDDEN*/ ln_announcement_signatures_send(ln_self_t *self);
-bool HIDDEN ln_announcement_signatures_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel);
+bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 //XXX: no ch-anno send
-bool HIDDEN ln_channel_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_node_announcement_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool /*HIDDEN*/ ln_channel_update_send(ln_self_t *self);
-bool HIDDEN ln_channel_update_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool ln_channel_update_disable(ln_self_t *self);
+bool HIDDEN ln_channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel);
+bool HIDDEN ln_channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool ln_channel_update_disable(ln_channel_t *pChannel);
 
-bool ln_query_short_channel_ids_send(ln_self_t *self);
-bool HIDDEN ln_query_short_channel_ids_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool ln_reply_short_channel_ids_recv_send(ln_self_t *self);
-bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool ln_query_channel_range_send(ln_self_t *self);
-bool HIDDEN ln_query_channel_range_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool ln_reply_channel_range_send(ln_self_t *self);
-bool HIDDEN ln_reply_channel_range_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-bool ln_gossip_timestamp_filter_send(ln_self_t *self);
-bool HIDDEN ln_gossip_timestamp_filter_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+bool ln_query_short_channel_ids_send(ln_channel_t *pChannel);
+bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool ln_reply_short_channel_ids_recv_send(ln_channel_t *pChannel);
+bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool ln_query_channel_range_send(ln_channel_t *pChannel);
+bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool ln_reply_channel_range_send(ln_channel_t *pChannel);
+bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
+bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel);
+bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_ANNO_H__ */

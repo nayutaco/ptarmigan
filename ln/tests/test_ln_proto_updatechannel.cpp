@@ -58,8 +58,8 @@ FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, 
 FAKE_VALUE_FUNC(bool, ln_db_preimg_del, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_get, void *, bool *, ln_db_preimg_t *);
-FAKE_VALUE_FUNC(bool, ln_db_self_search, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_self_search_readonly, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_htlctype_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
@@ -235,8 +235,8 @@ protected:
         RESET_FAKE(ln_db_preimg_del)
         RESET_FAKE(ln_db_preimg_cur_open)
         RESET_FAKE(ln_db_preimg_cur_get)
-        RESET_FAKE(ln_db_self_search)
-        RESET_FAKE(ln_db_self_search_readonly)
+        RESET_FAKE(ln_db_channel_search)
+        RESET_FAKE(ln_db_channel_search_readonly)
         RESET_FAKE(ln_db_phash_save)
         RESET_FAKE(ln_db_preimg_search)
         RESET_FAKE(ln_db_preimg_set_expiry)
@@ -285,8 +285,8 @@ public:
         }
         return ret;
     }
-    static void LnCallbackType(ln_self_t *self, ln_cb_t type, void *p_param) {
-        (void)self; (void)p_param;
+    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        (void)pChannel; (void)p_param;
         const char *p_str;
         switch (type) {
         case LN_CB_ERROR: p_str = "LN_CB_ERROR"; break;
@@ -316,41 +316,41 @@ public:
         }
         printf("*** callback: %s(%d)\n", p_str, type);
     }
-    static void LnInit(ln_self_t *self)
+    static void LnInit(ln_channel_t *pChannel)
     {
         uint8_t seed[LN_SZ_SEED];
         ln_anno_prm_t annoprm;
 
-        memset(self, 0xcc, sizeof(ln_self_t));
-        self->noise.p_handshake = NULL;
+        memset(pChannel, 0xcc, sizeof(ln_channel_t));
+        pChannel->noise.p_handshake = NULL;
         memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
 
-        ln_init(self, seed, &annoprm, (ln_callback_t)0x123456);
-        self->init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
-        self->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_local.htlc_minimum_msat = 0;
-        self->commit_tx_local.max_accepted_htlcs = 10;
-        self->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        self->commit_tx_remote.htlc_minimum_msat = 0;
-        self->commit_tx_remote.max_accepted_htlcs = 10;
-        self->our_msat = 1000000;
-        self->their_msat = 1000000;
-        btc_tx_init(&self->tx_funding);
-        utl_buf_init(&self->redeem_fund);
-        self->p_callback = LnCallbackType;
-        memcpy(self->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
+        ln_init(pChannel, seed, &annoprm, (ln_callback_t)0x123456);
+        pChannel->init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
+        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_local.htlc_minimum_msat = 0;
+        pChannel->commit_tx_local.max_accepted_htlcs = 10;
+        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
+        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
+        pChannel->our_msat = 1000000;
+        pChannel->their_msat = 1000000;
+        btc_tx_init(&pChannel->tx_funding);
+        utl_buf_init(&pChannel->redeem_fund);
+        pChannel->p_callback = LnCallbackType;
+        memcpy(pChannel->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     }
-    static void LnInitSend(ln_self_t *self)
+    static void LnInitSend(ln_channel_t *pChannel)
     {
-        LnInit(self);
+        LnInit(pChannel);
     }
-    static void LnInitRecv(ln_self_t *self)
+    static void LnInitRecv(ln_channel_t *pChannel)
     {
-        LnInit(self);
+        LnInit(pChannel);
 
     }
 };
@@ -360,13 +360,13 @@ public:
 //OK
 TEST_F(ln, recv_updatechannel_ok)
 {
-    ln_self_t self;
-    LnInitRecv(&self);
+    ln_channel_t channel;
+    LnInitRecv(&channel);
 
     static int callback_called = 0;
     class dummy {
     public:
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
             if (type == LN_CB_UPDATE_ANNODB) {
                 callback_called++;
             }
@@ -401,33 +401,33 @@ TEST_F(ln, recv_updatechannel_ok)
             return true;
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_channel_update_read_fake.custom_fake = dummy::ln_msg_channel_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
     ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
-    bool ret = ln_channel_update_recv(&self, NULL, 0);
+    bool ret = ln_channel_update_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
     ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(1, ln_db_annocnlupd_save_fake.call_count);
     ASSERT_EQ(1, callback_called);
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
 {
-    ln_self_t self;
-    LnInitRecv(&self);
+    ln_channel_t channel;
+    LnInitRecv(&channel);
 
     static int callback_called = 0;
     class dummy {
     public:
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
             if (type == LN_CB_UPDATE_ANNODB) {
                 callback_called++;
             }
@@ -462,33 +462,33 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
             return true;
         }
     };
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_channel_update_read_fake.custom_fake = dummy::ln_msg_channel_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
     ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
-    bool ret = ln_channel_update_recv(&self, NULL, 0);
+    bool ret = ln_channel_update_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
     ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(1, ln_db_annocnlupd_save_fake.call_count);
     ASSERT_EQ(1, callback_called);
 
-    ln_term(&self);
+    ln_term(&channel);
 }
 
 
 TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
 {
-    ln_self_t self;
-    LnInitRecv(&self);
+    ln_channel_t channel;
+    LnInitRecv(&channel);
 
     static int callback_called = 0;
     class dummy {
     public:
-        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
             if (type == LN_CB_UPDATE_ANNODB) {
                 callback_called++;
             }
@@ -524,19 +524,19 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
         }
     };
     
-    self.p_callback = dummy::callback;
+    channel.p_callback = dummy::callback;
     ln_msg_channel_update_read_fake.custom_fake = dummy::ln_msg_channel_update_read;
     ln_db_annocnl_load_fake.custom_fake = dummy::ln_db_annocnl_load;
     ln_msg_channel_announcement_read_fake.custom_fake = dummy::ln_msg_channel_announcement_read;
 
     utl_time_time_fake.return_val = CHANUPD::TIMESTAMP;
 
-    bool ret = ln_channel_update_recv(&self, NULL, 0);
+    bool ret = ln_channel_update_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_annocnlupd_is_prune_fake.call_count);
     ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count);
     ASSERT_EQ(0, ln_db_annocnlupd_save_fake.call_count);
     ASSERT_EQ(0, callback_called);
 
-    ln_term(&self);
+    ln_term(&channel);
 }

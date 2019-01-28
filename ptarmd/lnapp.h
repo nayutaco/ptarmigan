@@ -95,7 +95,7 @@ typedef struct lnapp_conf_t {
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
-    ln_self_t       *p_self;                ///< channelのコンテキスト
+    ln_channel_t    *p_channel;             ///< channelのコンテキスト
 
     bool            initial_routing_sync;   ///< init.localfeaturesのinitial_routing_sync
     int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
@@ -112,7 +112,7 @@ typedef struct lnapp_conf_t {
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
-    pthread_mutex_t mux_self;       ///< ln_self_t処理中のmutex
+    pthread_mutex_t mux_channel;       ///< ln_channel_t処理中のmutex
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
     pthread_mutex_t mux_sendque;    ///< BOLT送信キュー用mutex
@@ -223,7 +223,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 /** [lnapp]lnapp出力
  *
  */
-void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli);
+void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli);
 
 
 /** [lnapp]現在のcommit_tx出力

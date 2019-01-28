@@ -190,17 +190,17 @@ int main(int argc, char* argv[])
 #endif  //M_SPOIL_STDERR
 
 
-    MDB_env     *pDbSelf = NULL;
+    MDB_env     *pDbChannel = NULL;
     MDB_env     *pDbNode = NULL;
     MDB_env     *pDbAnno = NULL;
 
-    ret = mdb_env_create(&pDbSelf);
+    ret = mdb_env_create(&pDbChannel);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbSelf, 10);
+    ret = mdb_env_set_maxdbs(pDbChannel, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbSelf, ln_lmdb_get_selfpath(), 0, 0664);
+    ret = mdb_env_open(pDbChannel, ln_lmdb_get_chnlpath(), 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_selfpath());
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_chnlpath());
         return -5;
     }
 
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
         fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_annopath());
         return -6;
     }
-    ln_lmdb_setenv(pDbSelf, pDbNode, pDbAnno);
+    ln_lmdb_setenv(pDbChannel, pDbNode, pDbAnno);
 
     uint8_t my_nodeid[BTC_SZ_PUBKEY];
     btc_block_chain_t gtype;
