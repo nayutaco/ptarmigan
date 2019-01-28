@@ -633,7 +633,7 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_self_t *self)
 
         if (self->commit_remote.commit_num) {
             if (!ln_derkey_storage_get_secret(
-                your_last_per_commitment_secret, &self->peer_storage,
+                your_last_per_commitment_secret, &self->privkeys_remote.storage,
                 (uint64_t)(LN_SECRET_INDEX_INIT - (self->commit_remote.commit_num - 1)))) {
                 LOGD("no last secret\n");
                 memset(your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
