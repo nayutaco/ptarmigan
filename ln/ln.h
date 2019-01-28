@@ -637,13 +637,19 @@ typedef struct {
 /// @addtogroup channel_mng
 /// @{
 
+/** @struct ln_funding_tx_t
+ *  @brief  自ノードfunding情報
+ */
+typedef struct {
+    uint8_t     txid[BTC_SZ_TXID];              ///< funding-tx TXID
+    uint16_t    txindex;                        ///< funding-tx index
+} ln_funding_tx_t;
+
+
 /** @struct ln_funding_local_data_t
  *  @brief  自ノードfunding情報
  */
 typedef struct {
-    uint8_t             txid[BTC_SZ_TXID];              ///< funding-tx TXID
-    uint16_t            txindex;                        ///< funding-tx index
-
     ln_derkey_pubkeys_t pubkeys;    ///< pubkeys
 } ln_funding_local_data_t;
 
@@ -697,15 +703,16 @@ struct ln_self_t {
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
-    ln_funding_local_data_t     funding_local;                  ///< [FUND_02]funding情報:local
-    ln_funding_remote_data_t    funding_remote;                 ///< [FUND_03]funding情報:remote
-    uint64_t                    obscured;                       ///< [FUND_04]commitment numberをXORするとobscured commitment numberになる値。
+    ln_funding_tx_t             funding_tx;                     ///< [FUND_02]funding tx
+    ln_funding_local_data_t     funding_local;                  ///< [FUND_03]funding情報:local
+    ln_funding_remote_data_t    funding_remote;                 ///< [FUND_04]funding情報:remote
+    uint64_t                    obscured;                       ///< [FUND_05]commitment numberをXORするとobscured commitment numberになる値。
                                                                     // 0の場合、1回でもclosing_signed受信した
-    utl_buf_t                   redeem_fund;                    ///< [FUND_05]2-of-2のredeemScript
-    btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
-    btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
-    ln_establish_t              establish;                      ///< [FUND_08]Establishワーク領域
-    uint32_t                    min_depth;                      ///< [FUND_09]minimum_depth
+    utl_buf_t                   redeem_fund;                    ///< [FUND_06]2-of-2のredeemScript
+    btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_07]2-of-2のソート順(local, remoteを正順とした場合)
+    btc_tx_t                    tx_funding;                     ///< [FUND_08]funding_tx
+    ln_establish_t              establish;                      ///< [FUND_09]Establishワーク領域
+    uint32_t                    min_depth;                      ///< [FUND_10]minimum_depth
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 
@@ -1235,12 +1242,18 @@ uint64_t ln_our_msat(const ln_self_t *self);
 uint64_t ln_their_msat(const ln_self_t *self);
 
 
+void ln_funding_set_txid(ln_self_t *self, const uint8_t *pTxid);
+
+
 /** funding_txのTXID取得
  *
  * @param[in]           self            channel info
  * @return      funding_txのTXID
  */
 const uint8_t *ln_funding_txid(const ln_self_t *self);
+
+
+void ln_funding_set_txindex(ln_self_t *self, uint32_t Txindex);
 
 
 /** funding_txのTXINDEX取得

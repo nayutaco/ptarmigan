@@ -192,8 +192,8 @@ bool ln_comtx_create_to_local(ln_self_t *self,
 
     //commitment transaction
     LOGD("local commitment_number=%" PRIu64 "\n", CommitNum);
-    lntx_commit.fund.txid = self->funding_local.txid;
-    lntx_commit.fund.txid_index = self->funding_local.txindex;
+    lntx_commit.fund.txid = ln_funding_txid(self);
+    lntx_commit.fund.txid_index = ln_funding_txindex(self);
     lntx_commit.fund.satoshi = self->funding_sat;
     lntx_commit.fund.p_script = &self->redeem_fund;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(our_msat);
@@ -311,8 +311,8 @@ bool ln_comtx_create_to_remote(const ln_self_t *self,
 
     //commitment transaction
     LOGD("remote commitment_number=%" PRIu64 "\n", CommitNum);
-    lntx_commit.fund.txid = self->funding_local.txid;
-    lntx_commit.fund.txid_index = self->funding_local.txindex;
+    lntx_commit.fund.txid = ln_funding_txid(self);
+    lntx_commit.fund.txid_index = ln_funding_txindex(self);
     lntx_commit.fund.satoshi = self->funding_sat;
     lntx_commit.fund.p_script = &self->redeem_fund;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(our_msat);
@@ -504,7 +504,7 @@ static bool create_to_local_sign_verify(const ln_self_t *self,
     ret = btc_sw_sighash(pTxCommit, sighash, 0, self->funding_sat, &script_code);
     if (ret) {
         ret = btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash,
-                &self->tx_funding.vout[self->funding_local.txindex].script);
+                &self->tx_funding.vout[ln_funding_txindex(self)].script);
     }
 
     utl_buf_free(&buf_sig_from_remote);

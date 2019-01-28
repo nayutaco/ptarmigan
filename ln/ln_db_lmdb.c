@@ -336,17 +336,12 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //fund
     //
-    M_ITEM(ln_self_t, fund_flag),       //[FUND01]
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),       //[FUND02]funding_local
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),        //[FUND02]
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),        //[FUND02]
-    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),      //[FUND03]funding_remote
-    M_ITEM(ln_self_t, obscured),    //[FUND04]
-    //[FUND05]redeem_fund
-    //[FUND06]key_fund_sort
-    //[FUND07]tx_funding --> script
-    //[FUND08]p_establish
-    M_ITEM(ln_self_t, min_depth),       //[FUND09]
+    M_ITEM(ln_self_t, fund_flag),                                               //[FUND01]
+    M_ITEM(ln_self_t, funding_tx),                                              //[FUND02]
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),        //[FUND03]
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),      //[FUND04]funding_remote
+    M_ITEM(ln_self_t, obscured),                                                //[FUND05]
+    M_ITEM(ln_self_t, min_depth),                                               //[FUND10]
     M_ITEM(ln_self_t, funding_bhash),   //[FUNDSPV01]
     M_ITEM(ln_self_t, last_confirm),    //[FUNDSPV02]
 
@@ -458,8 +453,7 @@ static const backup_param_t DBSELF_COPY[] = {
     M_ITEM(ln_self_t, our_msat),
     M_ITEM(ln_self_t, their_msat),
     M_ITEM(ln_self_t, htlc_id_num),
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
+    M_ITEM(ln_self_t, funding_tx),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
@@ -1165,10 +1159,10 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 if (DBSELF_COPYIDX[lp].disp) {
                     printf("%" PRIu16, *(const uint16_t *)p);
                 }
-#ifdef M_DEBUG_KEYS
-                if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXIDX) {
-                    local.txindex = *(const uint16_t *)p;
-                }
+#ifdef M_DEBUG_KEYS //XXX:
+                //if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXIDX) {
+                //    local.txindex = *(const uint16_t *)p;
+                //}
 #endif  //M_DEBUG_KEYS
                 break;
             case ETYPE_TXID: //txid
@@ -1178,10 +1172,10 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                     btc_dbg_dump_txid(stdout, p);
                     printf("\"");
                 }
-#ifdef M_DEBUG_KEYS
-                if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXID) {
-                    memcpy(local.txid, p, DBSELF_COPYIDX[lp].length);
-                }
+#ifdef M_DEBUG_KEYS //XXX:
+                //if (DBSELF_COPYIDX[lp].type == ETYPE_FUNDTXID) {
+                //    memcpy(local.txid, p, DBSELF_COPYIDX[lp].length);
+                //}
 #endif  //M_DEBUG_KEYS
                 break;
             case ETYPE_LOCALKEYS: //funding_local.keys

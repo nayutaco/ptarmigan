@@ -1189,15 +1189,27 @@ uint64_t ln_their_msat(const ln_self_t *self)
 }
 
 
+void ln_funding_set_txid(ln_self_t *self, const uint8_t *pTxid)
+{
+    memcpy(self->funding_tx.txid, pTxid, BTC_SZ_TXID);
+}
+
+
 const uint8_t *ln_funding_txid(const ln_self_t *self)
 {
-    return self->funding_local.txid;
+    return self->funding_tx.txid;
+}
+
+
+void ln_funding_set_txindex(ln_self_t *self, uint32_t Txindex)
+{
+    self->funding_tx.txindex = Txindex;
 }
 
 
 uint32_t ln_funding_txindex(const ln_self_t *self)
 {
-    return self->funding_local.txindex;
+    return self->funding_tx.txindex;
 }
 
 
