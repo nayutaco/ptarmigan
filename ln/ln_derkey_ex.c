@@ -89,92 +89,61 @@ uint64_t ln_derkey_privkeys_get_next_storage_index(const ln_derkey_privkeys_t *p
 }
 
 
-//https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
 bool HIDDEN ln_derkey_update_scriptkeys(
     ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
-    ln_derkey_script_pubkeys_t *pRemoteScriptPubKeys,
     ln_derkey_pubkeys_t *pLocalPubKeys,
     ln_derkey_pubkeys_t *pRemotePubKeys)
 {
-    //
-    //local commitment transaction
-    //
-
-    //localpubkey (for `to_remote` output)
-    //LOGD("local: localpubkey\n");
+    //pubkey (for `to_remote` output)
+    //LOGD("pubkey\n");
     if (!ln_derkey_pubkey(
         pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_PUBKEY],
         pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
         pLocalPubKeys->per_commitment_point)) return false;
 
     //local_htlckey
-    //LOGD("local: local_htlckey\n");
+    //LOGD("local_htlckey\n");
     if (!ln_derkey_pubkey(
         pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
         pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pLocalPubKeys->per_commitment_point)) return false;
 
     //remote_htlckey
-    //LOGD("local: remote_htlckey\n");
+    //LOGD("remote_htlckey\n");
     if (!ln_derkey_pubkey(
         pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
         pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pLocalPubKeys->per_commitment_point)) return false;
 
     //local_delayedkey
-    //LOGD("local: delayedkey\n");
+    //LOGD("delayedkey\n");
     if (!ln_derkey_pubkey(
         pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_DELAYEDKEY],
         pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_DELAYED],
         pLocalPubKeys->per_commitment_point)) return false;
 
     //revocationkey
-    //LOGD("local: revocationkey\n");
+    //LOGD("revocationkey\n");
     if (!ln_derkey_revocation_pubkey(
         pLocalScriptPubKeys->keys[LN_SCRIPT_IDX_REVOCATIONKEY],
         pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_REVOCATION],
         pLocalPubKeys->per_commitment_point)) return false;
 
+    return true;
+}
 
-    //
-    //remote commitment transaction
-    //
 
-    //remotepubkey (for `to_remote` output)
-    //LOGD("remote: remotepubkey\n");
-    if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_PUBKEY],
-        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
-        pRemotePubKeys->per_commitment_point)) return false;
-
-    //local_htlckey
-    //LOGD("remote: local_htlckey\n");
-    if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
-        pRemotePubKeys->per_commitment_point)) return false;
-
-    //remote_htlckey
-    //LOGD("remote: remote_htlckey\n");
-    if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
-        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
-        pRemotePubKeys->per_commitment_point)) return false;
-
-    //remote_delayedkey
-    //LOGD("remote: remote_delayedkey\n");
-    if (!ln_derkey_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_DELAYEDKEY],
-        pRemotePubKeys->basepoints[LN_BASEPOINT_IDX_DELAYED],
-        pRemotePubKeys->per_commitment_point)) return false;
-
-    //revocationkey
-    //LOGD("remote: revocationkey\n");
-    if (!ln_derkey_revocation_pubkey(
-        pRemoteScriptPubKeys->keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-        pLocalPubKeys->basepoints[LN_BASEPOINT_IDX_REVOCATION],
-        pRemotePubKeys->per_commitment_point)) return false;
-
+//https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
+bool HIDDEN ln_derkey_update_scriptkeys_2(
+    ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
+    ln_derkey_script_pubkeys_t *pRemoteScriptPubKeys,
+    ln_derkey_pubkeys_t *pLocalPubKeys,
+    ln_derkey_pubkeys_t *pRemotePubKeys)
+{
+    if (!ln_derkey_update_scriptkeys(
+        pLocalScriptPubKeys, pLocalPubKeys, pRemotePubKeys)) return false;
+    if (!ln_derkey_update_scriptkeys(
+        pRemoteScriptPubKeys, pRemotePubKeys, pLocalPubKeys)) return false;
     return true;
 }
 

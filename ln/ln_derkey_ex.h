@@ -105,6 +105,12 @@ uint64_t ln_derkey_privkeys_get_next_storage_index(const ln_derkey_privkeys_t *p
 
 bool HIDDEN ln_derkey_update_scriptkeys(
     ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
+    ln_derkey_pubkeys_t *pLocalPubKeys,
+    ln_derkey_pubkeys_t *pRemotePubKeys);
+
+
+bool HIDDEN ln_derkey_update_scriptkeys_2(
+    ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
     ln_derkey_script_pubkeys_t *pRemoteScriptPubKeys,
     ln_derkey_pubkeys_t *pLocalPubKeys,
     ln_derkey_pubkeys_t *pRemotePubKeys);

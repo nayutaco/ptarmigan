@@ -1681,6 +1681,12 @@ uint64_t ln_node_total_msat(void);
 bool HIDDEN ln_update_scriptkeys(ln_self_t *self);
 
 
+bool HIDDEN ln_update_scriptkeys_local(ln_self_t *self);
+
+
+bool HIDDEN ln_update_scriptkeys_remote(ln_self_t *self);
+
+
 /********************************************************************
  * デバッグ
  ********************************************************************/
