@@ -133,8 +133,8 @@
     -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
     -5 : backup_self_tにln_node_info_t追加
     -6 : self.min_depth追加
-    -7 : ln_commit_data_tにtxid追加
-    -8 : ln_commit_data_tにhtlc_num追加
+    -7 : ln_commit_tx_tにtxid追加
+    -8 : ln_commit_tx_tにhtlc_num追加
     -9 : self.shutdown_scriptpk_localを対象に追加
     -10: htlckey対応
     -11: self.shutdown_scriptpk_remoteを対象に追加, LOCALKEY削除, funding_local/remote整理
@@ -160,7 +160,7 @@
     -29: self.statusとself.close_typeのマージ
     -30: bitcoindとSPVを同じにする
     -31: include peer_storage_index in ln_derkey_storage_t
-    -32: exchange the values of commit_local.to_self_delay and commit_remote.to_self_delay
+    -32: exchange the values of commit_tx_local.to_self_delay and commit_tx_remote.to_self_delay
     -33: change the format of pub/priv keys
     -34: change the size of ln_derkey_local_privkeys_t::per_commitment_secret
          BTC_SZ_PUBKEY -> BTC_SZ_PRIVKEY
@@ -398,28 +398,28 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //comm
     //
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, dust_limit_sat),     //[COMM_01]commit_local
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_htlc_value_in_flight_msat),      //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, channel_reserve_sat),        //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_minimum_msat),      //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, to_self_delay),      //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_accepted_htlcs),     //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, signature),      //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),       //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),       //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),     //[COMM_01]
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),     //[COMM_01]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, dust_limit_sat),        //[COMM_02]commit_remote
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_htlc_value_in_flight_msat),     //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, channel_reserve_sat),       //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_minimum_msat),     //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),     //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_accepted_htlcs),        //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, signature),     //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),      //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),      //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),        //[COMM_02]
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),        //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, dust_limit_sat),     //[COMM_01]commit_tx_local
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, max_htlc_value_in_flight_msat),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, channel_reserve_sat),        //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, htlc_minimum_msat),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, to_self_delay),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, max_accepted_htlcs),     //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, signature),      //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, txid),       //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, htlc_num),       //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, commit_num),     //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, revoke_num),     //[COMM_01]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, dust_limit_sat),        //[COMM_02]commit_tx_remote
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, max_htlc_value_in_flight_msat),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, channel_reserve_sat),       //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, htlc_minimum_msat),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, to_self_delay),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, max_accepted_htlcs),        //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, signature),     //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, txid),      //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, htlc_num),      //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, commit_num),        //[COMM_02]
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, revoke_num),        //[COMM_02]
     M_ITEM(ln_self_t, funding_sat),     //[COMM_03]
     M_ITEM(ln_self_t, feerate_per_kw),      //[COMM_04]
 
@@ -458,10 +458,10 @@ static const backup_param_t DBSELF_COPY[] = {
     M_ITEM(ln_self_t, funding_tx),
     M_ITEM(ln_self_t, pubkeys_local),
     M_ITEM(ln_self_t, pubkeys_remote),
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, commit_num),
+    MM_ITEM(ln_self_t, commit_tx_local, ln_commit_tx_t, revoke_num),
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, commit_num),
+    MM_ITEM(ln_self_t, commit_tx_remote, ln_commit_tx_t, revoke_num),
 };
 
 
@@ -498,10 +498,10 @@ static const struct {
     { ETYPE_LOCALKEYS,  1, false },                 // pubkeys_local
     { ETYPE_REMOTEKEYS, 1, false },                 // pubkeys_remote
     { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
-    { ETYPE_UINT64U,    1, true },                  // commit_local.commit_num
-    { ETYPE_UINT64U,    1, true },                  // commit_local.revoke_num
-    { ETYPE_UINT64U,    1, true },                  // commit_remote.commit_num
-    { ETYPE_UINT64U,    1, true },                  // commit_remote.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.commit_num
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.commit_num
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.revoke_num
 };
 
 
@@ -3804,10 +3804,10 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     // add_htlc
     memcpy(pOutSelf->cnl_add_htlc,  pInSelf->cnl_add_htlc, M_SIZE(ln_self_t, cnl_add_htlc));
     // scriptpubkeys
-    memcpy(&pOutSelf->commit_local.script_pubkeys, &pInSelf->commit_local.script_pubkeys,
-                                            M_SIZE(ln_commit_data_t, script_pubkeys));
-    memcpy(&pOutSelf->commit_remote.script_pubkeys, &pInSelf->commit_remote.script_pubkeys,
-                                            M_SIZE(ln_commit_data_t, script_pubkeys));
+    memcpy(&pOutSelf->commit_tx_local.script_pubkeys, &pInSelf->commit_tx_local.script_pubkeys,
+                                            M_SIZE(ln_commit_tx_t, script_pubkeys));
+    memcpy(&pOutSelf->commit_tx_remote.script_pubkeys, &pInSelf->commit_tx_remote.script_pubkeys,
+                                            M_SIZE(ln_commit_tx_t, script_pubkeys));
 
     //復元データ
     utl_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);

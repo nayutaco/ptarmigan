@@ -272,7 +272,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->commit_local.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->commit_tx_local.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -301,7 +301,7 @@ static void ln_print_self(const ln_self_t *self)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, self->commit_remote.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, self->commit_tx_remote.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -469,40 +469,40 @@ static void ln_print_self(const ln_self_t *self)
     printf("\n");
     printf(INDENT3 "],\n");
 
-    printf(INDENT3 M_QQ("commit_local") ": {\n");
-    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_local.dust_limit_sat);
-    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_local.max_htlc_value_in_flight_msat);
-    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_local.channel_reserve_sat);
-    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->commit_local.htlc_minimum_msat);
-    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_local.to_self_delay);
-    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_local.max_accepted_htlcs);
+    printf(INDENT3 M_QQ("commit_tx_local") ": {\n");
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_tx_local.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_tx_local.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_tx_local.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->commit_tx_local.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_tx_local.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_tx_local.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_dbg_dump_txid(stdout, self->commit_local.txid);
+    btc_dbg_dump_txid(stdout, self->commit_tx_local.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_local.commit_num);
-    if (self->commit_local.revoke_num != (uint64_t)-1) {
-        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_local.revoke_num);
+    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_tx_local.htlc_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_tx_local.commit_num);
+    if (self->commit_tx_local.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_tx_local.revoke_num);
     } else {
         printf(INDENT4 M_QQ("revoke_num") ": null\n");
     }
 
     printf(INDENT3 "},\n");
 
-    printf(INDENT3 M_QQ("commit_remote") ": {\n");
-    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_remote.dust_limit_sat);
-    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_remote.max_htlc_value_in_flight_msat);
-    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_remote.channel_reserve_sat);
-    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", self->commit_remote.htlc_minimum_msat);
-    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_remote.to_self_delay);
-    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_remote.max_accepted_htlcs);
+    printf(INDENT3 M_QQ("commit_tx_remote") ": {\n");
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_tx_remote.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_tx_remote.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_tx_remote.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", self->commit_tx_remote.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_tx_remote.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_tx_remote.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_dbg_dump_txid(stdout, self->commit_remote.txid);
+    btc_dbg_dump_txid(stdout, self->commit_tx_remote.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_remote.htlc_num);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_remote.commit_num);
-    if (self->commit_remote.revoke_num != (uint64_t)-1) {
-        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_remote.revoke_num);
+    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_tx_remote.htlc_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_tx_remote.commit_num);
+    if (self->commit_tx_remote.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_tx_remote.revoke_num);
     } else {
         printf(INDENT4 M_QQ("revoke_num") ": null\n");
     }

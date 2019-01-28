@@ -92,8 +92,8 @@ void ln_print_keys(ln_self_t *self)
 {
     ln_derkey_pubkeys_t         *p_local_pubkeys = &self->pubkeys_local;
     ln_derkey_pubkeys_t         *p_remote_pubkeys = &self->pubkeys_remote;
-    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &self->commit_local.script_pubkeys;
-    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &self->commit_remote.script_pubkeys;
+    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &self->commit_tx_local.script_pubkeys;
+    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &self->commit_tx_remote.script_pubkeys;
 
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
