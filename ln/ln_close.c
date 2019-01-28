@@ -352,7 +352,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
         btc_tx_free(pTx);
         return false;
     }
-    if (!ln_signer_p2wsh(&buf_sig, sighash, &self->privkeys, LN_BASEPOINT_IDX_FUNDING)) {
+    if (!ln_signer_p2wsh(&buf_sig, sighash, &self->privkeys_local, LN_BASEPOINT_IDX_FUNDING)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;

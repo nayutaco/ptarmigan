@@ -219,7 +219,7 @@ protected:
     virtual void TearDown() {
     }
 
-    static ln_derkey_privkeys_t    privkeys;
+    static ln_derkey_local_privkeys_t    privkeys;
     static btc_keys_t keys_local_funding;
     static btc_keys_t keys_local_commit;
     static uint8_t remote_funding_pubkey[BTC_SZ_PUBKEY];
@@ -244,7 +244,7 @@ public:
     }
 };
 
-ln_derkey_privkeys_t    ln_bolt3_c::privkeys;
+ln_derkey_local_privkeys_t    ln_bolt3_c::privkeys;
 btc_keys_t ln_bolt3_c::keys_local_funding;
 btc_keys_t ln_bolt3_c::keys_local_commit;
 uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];

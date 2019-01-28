@@ -222,7 +222,7 @@ bool HIDDEN ln_script_committx_create(
                     utl_buf_t *pSig,
                     const ln_script_committx_t *pCmt,
                     bool Local,
-                    const ln_derkey_privkeys_t *pPrivKeys);
+                    const ln_derkey_local_privkeys_t *pPrivKeys);
 
 
 /** Offered/Receveid HTLC Transaction作成

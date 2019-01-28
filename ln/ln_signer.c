@@ -50,7 +50,7 @@ bool HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 {
     if (!pSeed) return true;
 
-    if (!ln_derkey_privkeys_init(&self->privkeys, pSeed)) return false;
+    if (!ln_derkey_local_privkeys_init(&self->privkeys_local, pSeed)) return false;
     ln_derkey_storage_init(&self->peer_storage);
     return true;
 }
@@ -58,7 +58,7 @@ bool HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 
 void HIDDEN ln_signer_term(ln_self_t *self)
 {
-    /*void*/ ln_derkey_privkeys_term(&self->privkeys);
+    /*void*/ ln_derkey_local_privkeys_term(&self->privkeys_local);
 }
 
 
@@ -66,7 +66,7 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
 {
     //create pubkeys
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
-        if (!btc_keys_priv2pub(self->funding_local.pubkeys.basepoints[lp], self->privkeys.secrets[lp])) return false;
+        if (!btc_keys_priv2pub(self->funding_local.pubkeys.basepoints[lp], self->privkeys_local.secrets[lp])) return false;
     }
 
     //for open_channel/accept_channel
@@ -76,9 +76,9 @@ bool HIDDEN ln_signer_create_channel_keys(ln_self_t *self)
 
 bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self)
 {
-    if (!ln_signer_keys_update_force(self, self->privkeys._next_storage_index)) return false;
-    self->privkeys._next_storage_index--;
-    LOGD("update storage_next_index = %016" PRIx64 "\n", self->privkeys._next_storage_index);
+    if (!ln_signer_keys_update_force(self, self->privkeys_local._next_storage_index)) return false;
+    self->privkeys_local._next_storage_index--;
+    LOGD("update storage_next_index = %016" PRIx64 "\n", self->privkeys_local._next_storage_index);
     return true;
 }
 
@@ -86,17 +86,17 @@ bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_self_t *self)
 bool HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
     /*void*/ ln_derkey_storage_create_secret(
-        self->privkeys.per_commitment_secret, self->privkeys._storage_seed, Index);
+        self->privkeys_local.per_commitment_secret, self->privkeys_local._storage_seed, Index);
     return btc_keys_priv2pub(
-        self->funding_local.pubkeys.per_commitment_point, self->privkeys.per_commitment_secret);
+        self->funding_local.pubkeys.per_commitment_point, self->privkeys_local.per_commitment_secret);
 }
 
 
 bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
-    if (ln_derkey_privkeys_get_prev_storage_index(&self->privkeys)) {
+    if (ln_derkey_local_privkeys_get_prev_storage_index(&self->privkeys_local)) {
         /*void*/ ln_derkey_storage_create_secret(
-            pSecret, self->privkeys._storage_seed, ln_derkey_privkeys_get_prev_storage_index(&self->privkeys));
+            pSecret, self->privkeys_local._storage_seed, ln_derkey_local_privkeys_get_prev_storage_index(&self->privkeys_local));
         if (pPerCommitPt) {
             if (!btc_keys_priv2pub(pPerCommitPt, pSecret)) return false;
         }
@@ -113,12 +113,12 @@ bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_self_t *self, uint8
 bool HIDDEN ln_signer_get_revoke_secret(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
     if (!ln_derkey_revocation_privkey(pKeys->priv, self->funding_local.pubkeys.basepoints[LN_BASEPOINT_IDX_REVOCATION],
-        pPerCommit, self->privkeys.secrets[LN_BASEPOINT_IDX_REVOCATION], pRevokedSec)) return false;
+        pPerCommit, self->privkeys_local.secrets[LN_BASEPOINT_IDX_REVOCATION], pRevokedSec)) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
-bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_derkey_privkeys_t *pPrivKey, int Index)
+bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_derkey_local_privkeys_t *pPrivKey, int Index)
 {
     return btc_sig_sign(pSig, pTxHash, pPrivKey->secrets[Index]);
 }
@@ -151,7 +151,7 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_derkey_privkeys_t *pPrivKey, int Index)
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_derkey_local_privkeys_t *pPrivKey, int Index)
 {
     return btc_sig_sign_rs(pRS, pTxHash, pPrivKey->secrets[Index]);
 }
@@ -218,6 +218,6 @@ static bool get_secret(const ln_self_t *self, btc_keys_t *pKeys, int Index, cons
 {
     if (!ln_derkey_privkey(
         pKeys->priv, self->funding_local.pubkeys.basepoints[Index],
-        pPerCommit, self->privkeys.secrets[Index])) return false;
+        pPerCommit, self->privkeys_local.secrets[Index])) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }

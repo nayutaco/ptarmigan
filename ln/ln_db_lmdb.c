@@ -162,9 +162,9 @@
     -31: include peer_storage_index in ln_derkey_storage_t
     -32: exchange the values of commit_local.to_self_delay and commit_remote.to_self_delay
     -33: change the format of pub/priv keys
-    -34: change the size of ln_derkey_privkeys_t::per_commitment_secret
+    -34: change the size of ln_derkey_local_privkeys_t::per_commitment_secret
          BTC_SZ_PUBKEY -> BTC_SZ_PRIVKEY
-    -35: change the order of internal members in ln_derkey_privkeys_t
+    -35: change the order of internal members in ln_derkey_local_privkeys_t
  */
 
 
@@ -311,7 +311,7 @@ static MDB_txn          *mTxnAnno;
  *  @brief  ln_self_tのsecret
  */
 static const backup_param_t DBSELF_SECRET[] = {
-    M_ITEM(ln_self_t, privkeys),
+    M_ITEM(ln_self_t, privkeys_local),
 };
 
 
@@ -3826,7 +3826,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     memcpy(&pOutSelf->shutdown_scriptpk_remote, &pInSelf->shutdown_scriptpk_remote, sizeof(utl_buf_t));
 
     //secret
-    memcpy(&pOutSelf->privkeys, &pInSelf->privkeys, sizeof(ln_derkey_privkeys_t));
+    memcpy(&pOutSelf->privkeys_local, &pInSelf->privkeys_local, sizeof(ln_derkey_local_privkeys_t));
 }
 
 
@@ -4083,7 +4083,7 @@ static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     if (retval != 0) {
         LOGE("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
-    // LOGD("[priv]storage_index: %016" PRIx64 "\n", ln_derkey_privkeys_get_current_storage_index(&self->privkeys);
+    // LOGD("[priv]storage_index: %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&self->privkeys);
     // LOGD("[priv]storage_seed: ");
     // DUMPD(self->privkeys.storage_seed, BTC_SZ_PRIVKEY);
     // size_t lp;

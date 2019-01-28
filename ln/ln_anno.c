@@ -154,7 +154,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_self_t *self, const uint8_t *pDat
         }
         if (!ln_msg_channel_announcement_sign(
             self->cnl_anno.buf, self->cnl_anno.len,
-            self->privkeys.secrets[LN_BASEPOINT_IDX_FUNDING],
+            self->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
             sort)) {
             LOGE("fail: sign\n");
             return false;
@@ -449,7 +449,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     if (!ln_msg_channel_announcement_write(&self->cnl_anno, &msg)) return false;
     return ln_msg_channel_announcement_sign(
         self->cnl_anno.buf, self->cnl_anno.len,
-        self->privkeys.secrets[LN_BASEPOINT_IDX_FUNDING],
+        self->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
         sort);
 }
 

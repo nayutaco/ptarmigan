@@ -44,9 +44,9 @@
  * public functions
  **************************************************************************/
 
-bool HIDDEN ln_derkey_privkeys_init(ln_derkey_privkeys_t *pPrivKeys, const uint8_t *pSeed)
+bool HIDDEN ln_derkey_local_privkeys_init(ln_derkey_local_privkeys_t *pPrivKeys, const uint8_t *pSeed)
 {
-    memset(pPrivKeys, 0xcc, sizeof(ln_derkey_privkeys_t));
+    memset(pPrivKeys, 0xcc, sizeof(ln_derkey_local_privkeys_t));
     pPrivKeys->_next_storage_index = LN_SECRET_INDEX_INIT;
     memcpy(pPrivKeys->_storage_seed, pSeed, LN_SZ_SEED);
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
@@ -57,13 +57,13 @@ bool HIDDEN ln_derkey_privkeys_init(ln_derkey_privkeys_t *pPrivKeys, const uint8
 }
 
 
-void HIDDEN ln_derkey_privkeys_term(ln_derkey_privkeys_t *pPrivKeys)
+void HIDDEN ln_derkey_local_privkeys_term(ln_derkey_local_privkeys_t *pPrivKeys)
 {
-    memset(pPrivKeys, 0x00, sizeof(ln_derkey_privkeys_t));
+    memset(pPrivKeys, 0x00, sizeof(ln_derkey_local_privkeys_t));
 }
 
 
-uint64_t ln_derkey_privkeys_get_prev_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
+uint64_t ln_derkey_local_privkeys_get_prev_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys)
 {
     if (pPrivKeys->_next_storage_index + 2 > LN_SECRET_INDEX_INIT) {
         //0 is a valid index, but it is too far, it is not realistic, so it is returned as an invalid value
@@ -73,7 +73,7 @@ uint64_t ln_derkey_privkeys_get_prev_storage_index(const ln_derkey_privkeys_t *p
 }
 
 
-uint64_t ln_derkey_privkeys_get_current_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
+uint64_t ln_derkey_local_privkeys_get_current_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys)
 {
     if (pPrivKeys->_next_storage_index + 1 > LN_SECRET_INDEX_INIT) {
         //0 is a valid index, but it is too far, it is not realistic, so it is returned as an invalid value
@@ -83,7 +83,7 @@ uint64_t ln_derkey_privkeys_get_current_storage_index(const ln_derkey_privkeys_t
 }
 
 
-uint64_t ln_derkey_privkeys_get_next_storage_index(const ln_derkey_privkeys_t *pPrivKeys)
+uint64_t ln_derkey_local_privkeys_get_next_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys)
 {
     return pPrivKeys->_next_storage_index;
 }
