@@ -46,76 +46,51 @@ static bool get_secret(const ln_channel_t *pChannel, btc_keys_t *pKeys, int Inde
  * library functions
  **************************************************************************/
 
-bool HIDDEN ln_signer_init(ln_channel_t *pChannel, const uint8_t *pSeed)
+bool HIDDEN ln_signer_init(ln_channel_t *pChannel)
 {
-    if (!pSeed) return true;
-
-    if (!ln_derkey_local_privkeys_init(&pChannel->privkeys_local, pSeed)) return false;
-    /*void*/ ln_derkey_remote_privkeys_init(&pChannel->privkeys_remote);
-    /*void*/ ln_derkey_storage_create_secret(
-        pChannel->privkeys_local.per_commitment_secret,
-        pChannel->privkeys_local._storage_seed,
-        pChannel->privkeys_local._next_storage_index);
-    pChannel->privkeys_local._next_storage_index--;
+    if (!ln_derkey_local_init(&pChannel->keys_local)) return false;
+    /*void*/ ln_derkey_remote_init(&pChannel->keys_remote);
     return true;
 }
 
 
 void HIDDEN ln_signer_term(ln_channel_t *pChannel)
 {
-    /*void*/ ln_derkey_local_privkeys_term(&pChannel->privkeys_local);
-    /*void*/ ln_derkey_remote_privkeys_term(&pChannel->privkeys_remote);
+    /*void*/ ln_derkey_local_term(&pChannel->keys_local);
+    /*void*/ ln_derkey_remote_term(&pChannel->keys_remote);
 }
 
 
 bool HIDDEN ln_signer_create_channel_keys(ln_channel_t *pChannel)
 {
-    //create pubkeys
-    for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
-        if (!btc_keys_priv2pub(pChannel->pubkeys_local.basepoints[lp], pChannel->privkeys_local.secrets[lp])) return false;
-    }
-    if (!btc_keys_priv2pub(
-        pChannel->pubkeys_local.per_commitment_point,
-        pChannel->privkeys_local.per_commitment_secret)) return false;
-    return true;
+    return ln_derkey_local_priv2pub(&pChannel->keys_local);
 }
 
 
 bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_channel_t *pChannel)
 {
-    /*void*/ ln_derkey_storage_create_secret(
-        pChannel->privkeys_local.per_commitment_secret,
-        pChannel->privkeys_local._storage_seed,
-        pChannel->privkeys_local._next_storage_index);
-    pChannel->privkeys_local._next_storage_index--;
-    if (!btc_keys_priv2pub(
-        pChannel->pubkeys_local.per_commitment_point,
-        pChannel->privkeys_local.per_commitment_secret)) return false;
-    return true;
+    return ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
 }
 
 
 bool HIDDEN ln_signer_keys_update_force(ln_channel_t *pChannel, uint64_t Index)
 {
-    /*void*/ ln_derkey_storage_create_secret(
-        pChannel->privkeys_local.per_commitment_secret, pChannel->privkeys_local._storage_seed, Index);
-    return btc_keys_priv2pub(
-        pChannel->pubkeys_local.per_commitment_point, pChannel->privkeys_local.per_commitment_secret);
+    return ln_derkey_local_storage_update_per_commitment_point_force(&pChannel->keys_local, Index);
 }
 
 
 bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_channel_t *pChannel, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
-    if (ln_derkey_local_privkeys_get_prev_storage_index(&pChannel->privkeys_local)) {
-        /*void*/ ln_derkey_storage_create_secret(
-            pSecret, pChannel->privkeys_local._storage_seed, ln_derkey_local_privkeys_get_prev_storage_index(&pChannel->privkeys_local));
+    if (ln_derkey_local_storage_get_prev_index(&pChannel->keys_local)) {
+        /*void*/ ln_derkey_local_storage_create_per_commitment_secret(
+            &pChannel->keys_local, pSecret, ln_derkey_local_storage_get_prev_index(&pChannel->keys_local));
         if (pPerCommitPt) {
             if (!btc_keys_priv2pub(pPerCommitPt, pSecret)) return false;
         }
     } else {
         memset(pSecret, 0x00, BTC_SZ_PRIVKEY);
         if (pPerCommitPt) {
-            memcpy(pPerCommitPt, pChannel->pubkeys_local.per_commitment_point, BTC_SZ_PUBKEY);
+            memcpy(pPerCommitPt, pChannel->keys_local.per_commitment_point, BTC_SZ_PUBKEY);
         }
     }
     return true;
@@ -124,15 +99,15 @@ bool HIDDEN ln_signer_create_prev_per_commit_secret(const ln_channel_t *pChannel
 
 bool HIDDEN ln_signer_get_revoke_secret(const ln_channel_t *pChannel, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
-    if (!ln_derkey_revocation_privkey(pKeys->priv, pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION],
-        pPerCommit, pChannel->privkeys_local.secrets[LN_BASEPOINT_IDX_REVOCATION], pRevokedSec)) return false;
+    if (!ln_derkey_revocation_privkey(pKeys->priv, pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION],
+        pPerCommit, pChannel->keys_local.secrets[LN_BASEPOINT_IDX_REVOCATION], pRevokedSec)) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
-bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_derkey_local_privkeys_t *pPrivKey, int Index)
+bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_derkey_local_keys_t *pKey, int Index)
 {
-    return btc_sig_sign(pSig, pTxHash, pPrivKey->secrets[Index]);
+    return btc_sig_sign(pSig, pTxHash, pKey->secrets[Index]);
 }
 
 
@@ -163,9 +138,9 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_derkey_local_privkeys_t *pPrivKey, int Index)
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_derkey_local_keys_t *pKey, int Index)
 {
-    return btc_sig_sign_rs(pRS, pTxHash, pPrivKey->secrets[Index]);
+    return btc_sig_sign_rs(pRS, pTxHash, pKey->secrets[Index]);
 }
 
 
@@ -173,10 +148,10 @@ bool HIDDEN ln_signer_tolocal_key(const ln_channel_t *pChannel, btc_keys_t *pKey
 {
     if (bRevoked) {
         return ln_signer_get_revoke_secret(pChannel, pKey, 
-            pChannel->pubkeys_remote.per_commitment_point, pChannel->revoked_sec.buf);
+            pChannel->keys_remote.per_commitment_point, pChannel->revoked_sec.buf);
     } else {
         return get_secret(pChannel, pKey, LN_BASEPOINT_IDX_DELAYED,
-            pChannel->pubkeys_local.per_commitment_point);
+            pChannel->keys_local.per_commitment_point);
     }
 }
 
@@ -184,21 +159,21 @@ bool HIDDEN ln_signer_tolocal_key(const ln_channel_t *pChannel, btc_keys_t *pKey
 bool HIDDEN ln_signer_toremote_key(const ln_channel_t *pChannel, btc_keys_t *pKey)
 {
     return get_secret(pChannel, pKey, LN_BASEPOINT_IDX_PAYMENT,
-        pChannel->pubkeys_remote.per_commitment_point);
+        pChannel->keys_remote.per_commitment_point);
 }
 
 
 bool HIDDEN ln_signer_htlc_localkey(const ln_channel_t *pChannel, btc_keys_t *pKey)
 {
     return get_secret(pChannel, pKey, LN_BASEPOINT_IDX_HTLC,
-        pChannel->pubkeys_local.per_commitment_point);
+        pChannel->keys_local.per_commitment_point);
 }
 
 
 bool HIDDEN ln_signer_htlc_remotekey(const ln_channel_t *pChannel, btc_keys_t *pKey)
 {
     return get_secret(pChannel, pKey, LN_BASEPOINT_IDX_HTLC,
-        pChannel->pubkeys_remote.per_commitment_point);
+        pChannel->keys_remote.per_commitment_point);
 }
 
 
@@ -229,7 +204,7 @@ bool HIDDEN ln_signer_tolocal_tx(
 static bool get_secret(const ln_channel_t *pChannel, btc_keys_t *pKeys, int Index, const uint8_t *pPerCommit)
 {
     if (!ln_derkey_privkey(
-        pKeys->priv, pChannel->pubkeys_local.basepoints[Index],
-        pPerCommit, pChannel->privkeys_local.secrets[Index])) return false;
+        pKeys->priv, pChannel->keys_local.basepoints[Index],
+        pPerCommit, pChannel->keys_local.secrets[Index])) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }

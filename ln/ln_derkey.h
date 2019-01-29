@@ -53,7 +53,7 @@ typedef struct {
         uint8_t     secret[BTC_SZ_PRIVKEY];     ///< secret
         uint64_t    index;                      ///< index
     } storage[PER_COMMIT_SECRET_PAIR_NUM];
-    uint64_t    next_index;
+    //uint64_t    next_index;
 } ln_derkey_storage_t;
 
 
@@ -108,11 +108,11 @@ bool HIDDEN ln_derkey_revocation_privkey(uint8_t *pPrivKey,
 
 /** per-commitment secret生成
  *
- * @param[out]      pPrivKey
+ * @param[out]      pSecret
  * @param[in]       pSeed(32byte)
  * @param[in]       Index(下位6byte使用)
  */
-void HIDDEN ln_derkey_storage_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uint64_t Index);
+void HIDDEN ln_derkey_storage_create_secret(uint8_t *pSecret, const uint8_t *pSeed, uint64_t Index);
 
 
 /** per-commitment secret storage初期化
@@ -129,7 +129,7 @@ void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage);
  * @param[in]       Index
  * @return      true    成功
  */
-bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret);
+bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret, uint64_t Index);
 
 
 /** per-commitment secret取得
@@ -140,12 +140,6 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
  * @return      true    成功
  */
 bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage_t *pStorage, uint64_t Index);
-
-
-uint64_t ln_derkey_storage_get_current_index(const ln_derkey_storage_t *pStorage);
-
-
-uint64_t HIDDEN ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage);
 
 
 #endif /* LN_DERKEY_H__ */

@@ -230,11 +230,11 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 M_QQ("status") ": " M_QQ("%s") ",\n", p_status_str);
 
     //key storage
-    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_local_privkeys_get_current_storage_index(&pChannel->privkeys_local));
+    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_local_storage_get_current_index(&pChannel->keys_local));
     // printf(M_QQ("storage_seed") ": \"");
-    // utl_dbg_dump(stdout, pChannel->privkeys_local.storage_seed, BTC_SZ_PRIVKEY, false);
+    // utl_dbg_dump(stdout, pChannel->keys_local.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_storage_get_current_index(&pChannel->privkeys_remote.storage));
+    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_remote_storage_get_current_index(&pChannel->keys_remote));
 
     //funding
     printf(INDENT3 M_QQ("fund_flag") ": {\n");
@@ -257,13 +257,13 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, pChannel->pubkeys_local.basepoints[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->keys_local.basepoints[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
     printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
     printf(INDENT5 M_QQ("pub") ": \"");
-    utl_dbg_dump(stdout, pChannel->pubkeys_local.per_commitment_point, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->keys_local.per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\"\n");
     printf(INDENT4 "},\n");
     for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
@@ -272,7 +272,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, pChannel->script_pubkeys_local.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->keys_local.script_pubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -283,17 +283,17 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, pChannel->pubkeys_remote.basepoints[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->keys_remote.basepoints[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "},\n");
     }
     printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
     printf(INDENT5 M_QQ("pub") ": \"");
-    utl_dbg_dump(stdout, pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\"\n");
     printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("%s") ": \"", "prev_percommit");
-    utl_dbg_dump(stdout, pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY, false);
+    utl_dbg_dump(stdout, pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY, false);
     printf("\",\n");
     for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         if (lp != 0) {
@@ -301,7 +301,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, pChannel->script_pubkeys_remote.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->keys_remote.script_pubkeys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }

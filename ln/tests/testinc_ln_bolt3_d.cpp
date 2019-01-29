@@ -205,7 +205,6 @@ TEST_F(ln_bolt3_d, storage0)
     uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -213,6 +212,8 @@ TEST_F(ln_bolt3_d, storage0)
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     };
+    uint64_t I = 281474976710655;
+
 
     const uint8_t OUTPUT1[] = {
         0x7c, 0xc8, 0x54, 0xb5, 0x4e, 0x3e, 0x0d, 0xcd,
@@ -220,13 +221,14 @@ TEST_F(ln_bolt3_d, storage0)
         0x68, 0x7b, 0xe6, 0xe8, 0xdb, 0x3b, 0xe6, 0x85,
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710654, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710654, I);
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -234,12 +236,13 @@ TEST_F(ln_bolt3_d, storage0)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710653, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710653, I);
 
     const uint8_t OUTPUT3[] = {
         0x22, 0x73, 0xe2, 0x27, 0xa5, 0xb7, 0x44, 0x9b,
@@ -247,12 +250,13 @@ TEST_F(ln_bolt3_d, storage0)
         0x38, 0xb1, 0xcb, 0xf9, 0xcd, 0x7c, 0x04, 0x3a,
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710652, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710652, I);
 
     const uint8_t OUTPUT4[] = {
         0x27, 0xcd, 0xda, 0xa5, 0x62, 0x45, 0x34, 0xcb,
@@ -260,12 +264,13 @@ TEST_F(ln_bolt3_d, storage0)
         0x2a, 0xb2, 0x1e, 0x9b, 0x50, 0x6f, 0xd4, 0x99,
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710651, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710651, I);
 
     const uint8_t OUTPUT5[] = {
         0xc6, 0x57, 0x16, 0xad, 0xd7, 0xaa, 0x98, 0xba,
@@ -273,12 +278,13 @@ TEST_F(ln_bolt3_d, storage0)
         0xb1, 0x73, 0x45, 0xfe, 0x45, 0xb5, 0x5f, 0xb8,
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710650, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710650, I);
 
     const uint8_t OUTPUT6[] = {
         0x96, 0x96, 0x60, 0x04, 0x2a, 0x28, 0xf3, 0x2d,
@@ -286,12 +292,13 @@ TEST_F(ln_bolt3_d, storage0)
         0x79, 0x96, 0x2d, 0x03, 0xdb, 0x15, 0x74, 0xdf,
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710649, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710649, I);
 
     const uint8_t OUTPUT7[] = {
         0xa5, 0xa6, 0x44, 0x76, 0x12, 0x2c, 0xa0, 0x92,
@@ -299,12 +306,13 @@ TEST_F(ln_bolt3_d, storage0)
         0x0a, 0x59, 0xfc, 0x61, 0x42, 0x98, 0xe5, 0x0a,
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(281474976710648, ln_derkey_storage_get_next_index(&storage));
+    I--;
+    ASSERT_EQ(281474976710648, I);
 
     const uint8_t OUTPUT8[] = {
         0x05, 0xcd, 0xe6, 0x32, 0x3d, 0x94, 0x99, 0x33,
@@ -312,9 +320,9 @@ TEST_F(ln_bolt3_d, storage0)
         0x6d, 0x9b, 0x31, 0x44, 0x77, 0x32, 0xe3, 0x80,
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
 
@@ -375,7 +383,6 @@ TEST_F(ln_bolt3_d, storage1)
 {
     bool ret;
     uint8_t output[BTC_SZ_PRIVKEY];
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -389,6 +396,7 @@ TEST_F(ln_bolt3_d, storage1)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
 
     const uint8_t OUTPUT1[] = {
         0x02, 0xa4, 0x0c, 0x85, 0xb6, 0xf2, 0x8d, 0xa0,
@@ -396,10 +404,12 @@ TEST_F(ln_bolt3_d, storage1)
         0x2d, 0xe6, 0xd2, 0x8c, 0x10, 0x30, 0x1f, 0x8f,
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -407,10 +417,12 @@ TEST_F(ln_bolt3_d, storage1)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -419,7 +431,6 @@ TEST_F(ln_bolt3_d, storage2)
 {
     bool ret;
     uint8_t output[BTC_SZ_PRIVKEY];
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -433,6 +444,7 @@ TEST_F(ln_bolt3_d, storage2)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
 
     const uint8_t OUTPUT1[] = {
         0x02, 0xa4, 0x0c, 0x85, 0xb6, 0xf2, 0x8d, 0xa0,
@@ -440,10 +452,12 @@ TEST_F(ln_bolt3_d, storage2)
         0x2d, 0xe6, 0xd2, 0x8c, 0x10, 0x30, 0x1f, 0x8f,
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xdd, 0xdc, 0x3a, 0x8d, 0x14, 0xfd, 0xdf, 0x2b,
@@ -451,10 +465,12 @@ TEST_F(ln_bolt3_d, storage2)
         0x74, 0x93, 0x74, 0x79, 0xdd, 0x0f, 0x89, 0x30,
         0xd5, 0xeb, 0xb4, 0xab, 0x6b, 0xd8, 0x66, 0xa3,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT3[] = {
         0x22, 0x73, 0xe2, 0x27, 0xa5, 0xb7, 0x44, 0x9b,
@@ -462,10 +478,12 @@ TEST_F(ln_bolt3_d, storage2)
         0x38, 0xb1, 0xcb, 0xf9, 0xcd, 0x7c, 0x04, 0x3a,
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT4[] = {
         0x27, 0xcd, 0xda, 0xa5, 0x62, 0x45, 0x34, 0xcb,
@@ -473,10 +491,12 @@ TEST_F(ln_bolt3_d, storage2)
         0x2a, 0xb2, 0x1e, 0x9b, 0x50, 0x6f, 0xd4, 0x99,
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -485,7 +505,6 @@ TEST_F(ln_bolt3_d, storage3)
 {
     bool ret;
     uint8_t output[BTC_SZ_PRIVKEY];
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -499,6 +518,7 @@ TEST_F(ln_bolt3_d, storage3)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
 
     const uint8_t OUTPUT1[] = {
         0x02, 0xa4, 0x0c, 0x85, 0xb6, 0xf2, 0x8d, 0xa0,
@@ -506,10 +526,12 @@ TEST_F(ln_bolt3_d, storage3)
         0x2d, 0xe6, 0xd2, 0x8c, 0x10, 0x30, 0x1f, 0x8f,
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -517,10 +539,12 @@ TEST_F(ln_bolt3_d, storage3)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -529,7 +553,6 @@ TEST_F(ln_bolt3_d, storage4)
 {
     bool ret;
     uint8_t output[BTC_SZ_PRIVKEY];
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -543,6 +566,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
 
     const uint8_t OUTPUT1[] = {
         0x02, 0xa4, 0x0c, 0x85, 0xb6, 0xf2, 0x8d, 0xa0,
@@ -550,10 +574,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x2d, 0xe6, 0xd2, 0x8c, 0x10, 0x30, 0x1f, 0x8f,
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xdd, 0xdc, 0x3a, 0x8d, 0x14, 0xfd, 0xdf, 0x2b,
@@ -561,10 +587,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x74, 0x93, 0x74, 0x79, 0xdd, 0x0f, 0x89, 0x30,
         0xd5, 0xeb, 0xb4, 0xab, 0x6b, 0xd8, 0x66, 0xa3,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT3[] = {
         0xc5, 0x1a, 0x18, 0xb1, 0x3e, 0x85, 0x27, 0xe5,
@@ -572,10 +600,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x18, 0x0b, 0x7d, 0x57, 0x60, 0xb4, 0x6e, 0x94,
         0x77, 0xda, 0xe5, 0x9e, 0x87, 0xed, 0x42, 0x3a,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT4[] = {
         0xba, 0x65, 0xd7, 0xb0, 0xef, 0x55, 0xa3, 0xba,
@@ -583,10 +613,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x39, 0x4f, 0x8f, 0x13, 0x8d, 0x78, 0xa7, 0x01,
         0x16, 0x69, 0xc7, 0x9b, 0x37, 0xb9, 0x36, 0xf4,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT5[] = {
         0xc6, 0x57, 0x16, 0xad, 0xd7, 0xaa, 0x98, 0xba,
@@ -594,10 +626,12 @@ TEST_F(ln_bolt3_d, storage4)
         0xb1, 0x73, 0x45, 0xfe, 0x45, 0xb5, 0x5f, 0xb8,
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT6[] = {
         0x96, 0x96, 0x60, 0x04, 0x2a, 0x28, 0xf3, 0x2d,
@@ -605,10 +639,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x79, 0x96, 0x2d, 0x03, 0xdb, 0x15, 0x74, 0xdf,
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT7[] = {
         0xa5, 0xa6, 0x44, 0x76, 0x12, 0x2c, 0xa0, 0x92,
@@ -616,10 +652,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x0a, 0x59, 0xfc, 0x61, 0x42, 0x98, 0xe5, 0x0a,
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT8[] = {
         0x05, 0xcd, 0xe6, 0x32, 0x3d, 0x94, 0x99, 0x33,
@@ -627,10 +665,12 @@ TEST_F(ln_bolt3_d, storage4)
         0x6d, 0x9b, 0x31, 0x44, 0x77, 0x32, 0xe3, 0x80,
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -641,7 +681,6 @@ TEST_F(ln_bolt3_d, storage5)
     uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -655,6 +694,8 @@ TEST_F(ln_bolt3_d, storage5)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
+
 
     const uint8_t OUTPUT1[] = {
         0x7c, 0xc8, 0x54, 0xb5, 0x4e, 0x3e, 0x0d, 0xcd,
@@ -662,11 +703,13 @@ TEST_F(ln_bolt3_d, storage5)
         0x68, 0x7b, 0xe6, 0xe8, 0xdb, 0x3b, 0xe6, 0x85,
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -674,11 +717,13 @@ TEST_F(ln_bolt3_d, storage5)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT3[] = {
         0x22, 0x73, 0xe2, 0x27, 0xa5, 0xb7, 0x44, 0x9b,
@@ -686,11 +731,13 @@ TEST_F(ln_bolt3_d, storage5)
         0x38, 0xb1, 0xcb, 0xf9, 0xcd, 0x7c, 0x04, 0x3a,
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT4[] = {
         0x27, 0xcd, 0xda, 0xa5, 0x62, 0x45, 0x34, 0xcb,
@@ -698,11 +745,13 @@ TEST_F(ln_bolt3_d, storage5)
         0x2a, 0xb2, 0x1e, 0x9b, 0x50, 0x6f, 0xd4, 0x99,
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT5[] = {
         0x63, 0x13, 0x73, 0xad, 0x5f, 0x9e, 0xf6, 0x54,
@@ -710,11 +759,13 @@ TEST_F(ln_bolt3_d, storage5)
         0xc5, 0x67, 0xed, 0xd2, 0x43, 0x20, 0xd2, 0xfc,
         0xd6, 0x8e, 0x3c, 0xc4, 0x7e, 0x2f, 0xf6, 0xa6,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT6[] = {
         0x96, 0x96, 0x60, 0x04, 0x2a, 0x28, 0xf3, 0x2d,
@@ -722,11 +773,13 @@ TEST_F(ln_bolt3_d, storage5)
         0x79, 0x96, 0x2d, 0x03, 0xdb, 0x15, 0x74, 0xdf,
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -737,7 +790,6 @@ TEST_F(ln_bolt3_d, storage6)
     uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -751,6 +803,8 @@ TEST_F(ln_bolt3_d, storage6)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
+
 
     const uint8_t OUTPUT1[] = {
         0x7c, 0xc8, 0x54, 0xb5, 0x4e, 0x3e, 0x0d, 0xcd,
@@ -758,11 +812,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x68, 0x7b, 0xe6, 0xe8, 0xdb, 0x3b, 0xe6, 0x85,
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -770,11 +826,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT3[] = {
         0x22, 0x73, 0xe2, 0x27, 0xa5, 0xb7, 0x44, 0x9b,
@@ -782,11 +840,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x38, 0xb1, 0xcb, 0xf9, 0xcd, 0x7c, 0x04, 0x3a,
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT4[] = {
         0x27, 0xcd, 0xda, 0xa5, 0x62, 0x45, 0x34, 0xcb,
@@ -794,11 +854,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x2a, 0xb2, 0x1e, 0x9b, 0x50, 0x6f, 0xd4, 0x99,
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT5[] = {
         0x63, 0x13, 0x73, 0xad, 0x5f, 0x9e, 0xf6, 0x54,
@@ -806,11 +868,13 @@ TEST_F(ln_bolt3_d, storage6)
         0xc5, 0x67, 0xed, 0xd2, 0x43, 0x20, 0xd2, 0xfc,
         0xd6, 0x8e, 0x3c, 0xc4, 0x7e, 0x2f, 0xf6, 0xa6,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT6[] = {
         0xb7, 0xe7, 0x6a, 0x83, 0x66, 0x8b, 0xde, 0x38,
@@ -818,11 +882,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x53, 0x30, 0x43, 0x08, 0xf9, 0x89, 0x66, 0x92,
         0xf9, 0x04, 0xa2, 0x37, 0x31, 0x22, 0x4b, 0xb1,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT7[] = {
         0xa5, 0xa6, 0x44, 0x76, 0x12, 0x2c, 0xa0, 0x92,
@@ -830,11 +896,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x0a, 0x59, 0xfc, 0x61, 0x42, 0x98, 0xe5, 0x0a,
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT8[] = {
         0x05, 0xcd, 0xe6, 0x32, 0x3d, 0x94, 0x99, 0x33,
@@ -842,11 +910,13 @@ TEST_F(ln_bolt3_d, storage6)
         0x6d, 0x9b, 0x31, 0x44, 0x77, 0x32, 0xe3, 0x80,
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -857,7 +927,6 @@ TEST_F(ln_bolt3_d, storage7)
     uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -871,6 +940,8 @@ TEST_F(ln_bolt3_d, storage7)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
+
 
     const uint8_t OUTPUT1[] = {
         0x7c, 0xc8, 0x54, 0xb5, 0x4e, 0x3e, 0x0d, 0xcd,
@@ -878,11 +949,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x68, 0x7b, 0xe6, 0xe8, 0xdb, 0x3b, 0xe6, 0x85,
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -890,11 +963,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT3[] = {
         0x22, 0x73, 0xe2, 0x27, 0xa5, 0xb7, 0x44, 0x9b,
@@ -902,11 +977,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x38, 0xb1, 0xcb, 0xf9, 0xcd, 0x7c, 0x04, 0x3a,
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT4[] = {
         0x27, 0xcd, 0xda, 0xa5, 0x62, 0x45, 0x34, 0xcb,
@@ -914,11 +991,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x2a, 0xb2, 0x1e, 0x9b, 0x50, 0x6f, 0xd4, 0x99,
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT5[] = {
         0xc6, 0x57, 0x16, 0xad, 0xd7, 0xaa, 0x98, 0xba,
@@ -926,11 +1005,13 @@ TEST_F(ln_bolt3_d, storage7)
         0xb1, 0x73, 0x45, 0xfe, 0x45, 0xb5, 0x5f, 0xb8,
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT6[] = {
         0x96, 0x96, 0x60, 0x04, 0x2a, 0x28, 0xf3, 0x2d,
@@ -938,11 +1019,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x79, 0x96, 0x2d, 0x03, 0xdb, 0x15, 0x74, 0xdf,
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT7[] = {
         0xe7, 0x97, 0x1d, 0xe7, 0x36, 0xe0, 0x1d, 0xa8,
@@ -950,11 +1033,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x1d, 0xca, 0x9e, 0x32, 0x6f, 0x3a, 0x96, 0xe7,
         0x19, 0x4f, 0xe8, 0xea, 0x8a, 0xf6, 0xc0, 0xa3,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT8[] = {
         0x05, 0xcd, 0xe6, 0x32, 0x3d, 0x94, 0x99, 0x33,
@@ -962,11 +1047,13 @@ TEST_F(ln_bolt3_d, storage7)
         0x6d, 0x9b, 0x31, 0x44, 0x77, 0x32, 0xe3, 0x80,
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 
@@ -977,7 +1064,6 @@ TEST_F(ln_bolt3_d, storage8)
     uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
-    storage.next_index = 281474976710655;
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -991,6 +1077,8 @@ TEST_F(ln_bolt3_d, storage8)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
+    uint64_t I = 281474976710655;
+
 
     const uint8_t OUTPUT1[] = {
         0x7c, 0xc8, 0x54, 0xb5, 0x4e, 0x3e, 0x0d, 0xcd,
@@ -998,11 +1086,13 @@ TEST_F(ln_bolt3_d, storage8)
         0x68, 0x7b, 0xe6, 0xe8, 0xdb, 0x3b, 0xe6, 0x85,
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT2[] = {
         0xc7, 0x51, 0x8c, 0x8a, 0xe4, 0x66, 0x0e, 0xd0,
@@ -1010,11 +1100,13 @@ TEST_F(ln_bolt3_d, storage8)
         0x59, 0xc1, 0xa8, 0xb4, 0xb5, 0xbe, 0xc0, 0xc4,
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT3[] = {
         0x22, 0x73, 0xe2, 0x27, 0xa5, 0xb7, 0x44, 0x9b,
@@ -1022,11 +1114,13 @@ TEST_F(ln_bolt3_d, storage8)
         0x38, 0xb1, 0xcb, 0xf9, 0xcd, 0x7c, 0x04, 0x3a,
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT4[] = {
         0x27, 0xcd, 0xda, 0xa5, 0x62, 0x45, 0x34, 0xcb,
@@ -1034,11 +1128,13 @@ TEST_F(ln_bolt3_d, storage8)
         0x2a, 0xb2, 0x1e, 0x9b, 0x50, 0x6f, 0xd4, 0x99,
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT5[] = {
         0xc6, 0x57, 0x16, 0xad, 0xd7, 0xaa, 0x98, 0xba,
@@ -1046,11 +1142,13 @@ TEST_F(ln_bolt3_d, storage8)
         0xb1, 0x73, 0x45, 0xfe, 0x45, 0xb5, 0x5f, 0xb8,
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT6[] = {
         0x96, 0x96, 0x60, 0x04, 0x2a, 0x28, 0xf3, 0x2d,
@@ -1058,11 +1156,13 @@ TEST_F(ln_bolt3_d, storage8)
         0x79, 0x96, 0x2d, 0x03, 0xdb, 0x15, 0x74, 0xdf,
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT7[] = {
         0xa5, 0xa6, 0x44, 0x76, 0x12, 0x2c, 0xa0, 0x92,
@@ -1070,11 +1170,13 @@ TEST_F(ln_bolt3_d, storage8)
         0x0a, 0x59, 0xfc, 0x61, 0x42, 0x98, 0xe5, 0x0a,
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
-    ln_derkey_storage_create_secret(output, SEED, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED, I);
     ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
+
+    I--;
 
     const uint8_t OUTPUT8[] = {
         0xa7, 0xef, 0xbc, 0x61, 0xaa, 0xc4, 0x6d, 0x34,
@@ -1082,11 +1184,13 @@ TEST_F(ln_bolt3_d, storage8)
         0xc6, 0xa4, 0x6c, 0xa4, 0x60, 0xad, 0xdc, 0x49,
         0x00, 0x9b, 0xda, 0x87, 0x5e, 0xc8, 0x8f, 0xa4,
     };
-    ln_derkey_storage_create_secret(output, SEED_FAIL, ln_derkey_storage_get_next_index(&storage));
+    ln_derkey_storage_create_secret(output, SEED_FAIL, I);
     ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
 
-    ret = ln_derkey_storage_insert_secret(&storage, output);
+    ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
+
+    I--;
 }
 
 

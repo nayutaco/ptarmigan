@@ -181,10 +181,8 @@ static unsigned long mDebug;
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_channel_t *pChannel, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
+bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
 {
-    LOGD("BEGIN : pSeed=%p\n", pSeed);
-
     ln_noise_t noise_bak;
     void *ptr_bak;
 
@@ -224,7 +222,7 @@ bool ln_init(ln_channel_t *pChannel, const uint8_t *pSeed, const ln_anno_prm_t *
     LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_prm.fee_prop_millionths);
 
     //seed
-    ln_signer_init(pChannel, pSeed);
+    ln_signer_init(pChannel);
 
     pChannel->commit_tx_local.commit_num = 0;
     pChannel->commit_tx_remote.commit_num = 0;
@@ -671,11 +669,11 @@ void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void
             uint64_t commit_num = calc_commit_num(pChannel, pCloseTx);
 
             utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
-            bool ret = ln_derkey_storage_get_secret(pChannel->revoked_sec.buf, &pChannel->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+            bool ret = ln_derkey_remote_storage_get_secret(&pChannel->keys_remote, pChannel->revoked_sec.buf, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
             if (ret) {
                 //revoked transaction close(remote)
                 pChannel->status = LN_STATUS_CLOSE_REVOKED;
-                btc_keys_priv2pub(pChannel->pubkeys_remote.per_commitment_point, pChannel->revoked_sec.buf);
+                btc_keys_priv2pub(pChannel->keys_remote.per_commitment_point, pChannel->revoked_sec.buf);
             } else {
                 //unilateral close(remote)
                 pChannel->status = LN_STATUS_CLOSE_UNI_REMOTE;
@@ -707,20 +705,20 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, pChannel->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
-    memcpy(bak_remotecommit, pChannel->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
+    memcpy(bak_percommit, pChannel->keys_local.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_remotecommit, pChannel->keys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(pChannel,
-                pChannel->privkeys_local.per_commitment_secret,
-                pChannel->pubkeys_local.per_commitment_point);
+                pChannel->keys_local.per_commitment_secret,
+                pChannel->keys_local.per_commitment_point);
 
     //remote
-    memcpy(pChannel->pubkeys_remote.per_commitment_point,
-            pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.per_commitment_point,
+            pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_local.htlc_num);
@@ -737,13 +735,13 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     }
 
     //元に戻す
-    memcpy(pChannel->privkeys_local.per_commitment_secret,
+    memcpy(pChannel->keys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(pChannel->pubkeys_local.per_commitment_point,
-            pChannel->privkeys_local.per_commitment_secret);
-    memcpy(pChannel->pubkeys_remote.per_commitment_point,
+    btc_keys_priv2pub(pChannel->keys_local.per_commitment_point,
+            pChannel->keys_local.per_commitment_secret);
+    memcpy(pChannel->keys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
 
     LOGD("END: %d\n", ret);
@@ -763,20 +761,20 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     //復元用
     uint8_t bak_percommit[BTC_SZ_PRIVKEY];
     uint8_t bak_remotecommit[BTC_SZ_PUBKEY];
-    memcpy(bak_percommit, pChannel->privkeys_local.per_commitment_secret, sizeof(bak_percommit));
-    memcpy(bak_remotecommit, pChannel->pubkeys_remote.per_commitment_point, sizeof(bak_remotecommit));
+    memcpy(bak_percommit, pChannel->keys_local.per_commitment_secret, sizeof(bak_percommit));
+    memcpy(bak_remotecommit, pChannel->keys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
     ln_signer_create_prev_per_commit_secret(pChannel,
-                pChannel->privkeys_local.per_commitment_secret,
-                pChannel->pubkeys_local.per_commitment_point);
+                pChannel->keys_local.per_commitment_secret,
+                pChannel->keys_local.per_commitment_point);
 
     //remote
-    memcpy(pChannel->pubkeys_remote.per_commitment_point,
-            pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.per_commitment_point,
+            pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
@@ -793,13 +791,13 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     }
 
     //元に戻す
-    memcpy(pChannel->privkeys_local.per_commitment_secret,
+    memcpy(pChannel->keys_local.per_commitment_secret,
             bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(pChannel->pubkeys_local.per_commitment_point,
-            pChannel->privkeys_local.per_commitment_secret);
-    memcpy(pChannel->pubkeys_remote.per_commitment_point,
+    btc_keys_priv2pub(pChannel->keys_local.per_commitment_point,
+            pChannel->keys_local.per_commitment_secret);
+    memcpy(pChannel->keys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
 
     LOGD("END\n");
     return ret;
@@ -859,12 +857,12 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
 
     //remote per_commitment_secretの復元
     utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
-    bool ret = ln_derkey_storage_get_secret(pChannel->revoked_sec.buf, &pChannel->privkeys_remote.storage, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+    bool ret = ln_derkey_remote_storage_get_secret(&pChannel->keys_remote, pChannel->revoked_sec.buf, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
     if (!ret) {
-        LOGE("fail: ln_derkey_storage_get_secret()\n");
+        LOGE("fail: ln_derkey_remote_storage_get_secret()\n");
         abort();
     }
-    btc_keys_priv2pub(pChannel->pubkeys_remote.per_commitment_point, pChannel->revoked_sec.buf);
+    btc_keys_priv2pub(pChannel->keys_remote.per_commitment_point, pChannel->revoked_sec.buf);
     //LOGD2("  pri:");
     //DUMPD(pChannel->revoked_sec.buf, BTC_SZ_PRIVKEY);
     //LOGD2("  pub:");
@@ -874,7 +872,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     ln_signer_keys_update_force(pChannel, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
 
     //鍵の復元
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
     //commitment number(for obscured commitment number)
     //pChannel->commit_tx_remote.commit_num = commit_num;
@@ -882,8 +880,8 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
     ln_script_create_tolocal(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
-                pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_DELAYEDKEY],
+                pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 pChannel->commit_tx_remote.to_self_delay);
     utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
     btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
@@ -914,9 +912,9 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
                 ln_script_htlcinfo_script(&pChannel->p_revoked_wit[htlc_idx],
                         type,
-                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         payhash,
                         expiry);
                 utl_buf_init(&pChannel->p_revoked_vout[htlc_idx]);
@@ -1033,7 +1031,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
 
     btc_keys_t signkey;
     ln_signer_get_revoke_secret(pChannel, &signkey,
-                    pChannel->pubkeys_remote.per_commitment_point,
+                    pChannel->keys_remote.per_commitment_point,
                     pChannel->revoked_sec.buf);
     // LOGD("key-priv: ");
     // DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
@@ -1585,26 +1583,26 @@ uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
 }
 
 
-bool HIDDEN ln_update_scriptkeys(ln_channel_t *pChannel)
+bool HIDDEN ln_update_script_pubkeys(ln_channel_t *pChannel)
 {
-    if (!ln_update_scriptkeys_local(pChannel)) return false;
-    if (!ln_update_scriptkeys_remote(pChannel)) return false;
+    if (!ln_update_script_pubkeys_local(pChannel)) return false;
+    if (!ln_update_script_pubkeys_remote(pChannel)) return false;
     return true;
 }
 
 
-bool HIDDEN ln_update_scriptkeys_local(ln_channel_t *pChannel)
+bool HIDDEN ln_update_script_pubkeys_local(ln_channel_t *pChannel)
 {
-    if (!ln_derkey_update_scriptkeys(
-        &pChannel->script_pubkeys_local, &pChannel->pubkeys_local, &pChannel->pubkeys_remote)) return false;
+    if (!ln_derkey_local_update_script_pubkeys(
+        &pChannel->keys_local, &pChannel->keys_remote)) return false;
     return true;
 }
 
 
-bool HIDDEN ln_update_scriptkeys_remote(ln_channel_t *pChannel)
+bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel)
 {
-    if (!ln_derkey_update_scriptkeys(
-        &pChannel->script_pubkeys_remote, &pChannel->pubkeys_remote, &pChannel->pubkeys_local)) return false;
+    if (!ln_derkey_remote_update_script_pubkeys(
+        &pChannel->keys_remote, &pChannel->keys_local)) return false;
     return true;
 }
 
@@ -1728,8 +1726,8 @@ static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pT
 void ln_dbg_commitnum(const ln_channel_t *pChannel)
 {
     LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_privkeys_get_current_storage_index(&pChannel->privkeys_local));
-    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_storage_get_current_index(&pChannel->privkeys_remote.storage));
+    LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_storage_get_current_index(&pChannel->keys_local));
+    LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_remote_storage_get_current_index(&pChannel->keys_remote));
     LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", pChannel->commit_tx_local.commit_num);
     LOGD("remote.commit_num = %" PRIu64 "\n", pChannel->commit_tx_remote.commit_num);

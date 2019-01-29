@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-38))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-39))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -169,6 +169,21 @@
     -37: funding_local -> pubkeys_local, funding_remote -> pubkeys_remote
     -38: rename db name, dbparam_self -> dbptarm_chnl
          rename self -> channel
+    -39: DBCHANNEL_SECRET:
+             ln_channel_t::privkeys_local ->
+                 ln_channel_t::keys_local.ln_derkey_local_keys_t::secrets
+                 ln_channel_t::keys_local.ln_derkey_local_keys_t::storage_seed
+                 ln_channel_t::keys_local.ln_derkey_local_keys_t::next_storage_index
+         DBCHANNEL_VALUES:
+             ln_channel_t::privkeys_remote
+             ln_channel_t::pubkeys_remote ->
+                 ln_channel_t::keys_remote.ln_derkey_remote_keys_t::basepoints
+                 ln_channel_t::keys_remote.ln_derkey_remote_keys_t::next_storage_index
+                 ln_channel_t::keys_remote.ln_derkey_remote_keys_t::storage
+                 ln_channel_t::keys_remote.ln_derkey_remote_keys_t::per_commitment_point
+                 ln_channel_t::keys_remote.ln_derkey_remote_keys_t::prev_per_commitment_point
+             ln_channel_t::pubkeys_local -> removed
+         and the local public keys and the script pubkeys are restored after loading
  */
 
 
@@ -315,7 +330,9 @@ static MDB_txn          *mTxnAnno;
  *  @brief  ln_channel_tのsecret
  */
 static const backup_param_t DBCHANNEL_SECRET[] = {
-    M_ITEM(ln_channel_t, privkeys_local),
+    MM_ITEM(ln_channel_t, keys_local, ln_derkey_local_keys_t, secrets),             //[KEYS_01]
+    MM_ITEM(ln_channel_t, keys_local, ln_derkey_local_keys_t, storage_seed),        //[KEYS_01]
+    MM_ITEM(ln_channel_t, keys_local, ln_derkey_local_keys_t, next_storage_index),  //[KEYS_01]
 };
 
 
@@ -334,10 +351,12 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     //keys
     //
-    //[KEYS_01]priv_data --> secret
-    M_ITEM(ln_channel_t, privkeys_remote),     //[KEYS_02]
-    M_ITEM(ln_channel_t, pubkeys_local),       //[FUND_03]
-    M_ITEM(ln_channel_t, pubkeys_remote),      //[FUND_04]
+    //[KEYS_01]keys_local --> secret
+    MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, basepoints),                //[KEYS_02]
+    MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, next_storage_index),        //[KEYS_02]
+    MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, storage),                   //[KEYS_02]
+    MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, per_commitment_point),      //[KEYS_02]
+    MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, prev_per_commitment_point), //[KEYS_02]
 
     //
     //fund
@@ -458,8 +477,8 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, their_msat),
     M_ITEM(ln_channel_t, htlc_id_num),
     M_ITEM(ln_channel_t, funding_tx),
-    M_ITEM(ln_channel_t, pubkeys_local),
-    M_ITEM(ln_channel_t, pubkeys_remote),
+    M_ITEM(ln_channel_t, keys_local),
+    M_ITEM(ln_channel_t, keys_remote),
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, commit_num),
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, revoke_num),
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, commit_num),
@@ -482,9 +501,9 @@ static const struct {
         ETYPE_TXID,         //txid
         ETYPE_FUNDTXID,     //funding_local.txid
         ETYPE_FUNDTXIDX,    //funding_local.txindex
-        ETYPE_LOCALKEYS,    //funding_local.keys
-        ETYPE_REMOTEKEYS,   //funding_remote.publickeys
-        ETYPE_REMOTECOMM,   //funding_remote.prev_percommit
+        ETYPE_LOCALKEYS,    //keys_local
+        ETYPE_REMOTEKEYS,   //keys_remote
+        //ETYPE_REMOTECOMM,   //funding_remote.prev_percommit
     } type;
     int length;
     bool disp;      //true: showdbで表示する
@@ -497,9 +516,9 @@ static const struct {
     { ETYPE_UINT64U,    1, true },                  // htlc_id_num
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
-    { ETYPE_LOCALKEYS,  1, false },                 // pubkeys_local
-    { ETYPE_REMOTEKEYS, 1, false },                 // pubkeys_remote
-    { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
+    { ETYPE_LOCALKEYS,  1, false },                 // keys_local
+    { ETYPE_REMOTEKEYS, 1, false },                 // keys_remote
+    //{ ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
     { ETYPE_UINT64U,    1, true },                  // commit_tx_local.commit_num
     { ETYPE_UINT64U,    1, true },                  // commit_tx_local.revoke_num
     { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.commit_num
@@ -843,12 +862,6 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
         utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
     }
 
-    //復元データからさらに復元
-    ln_update_scriptkeys(pChannel);
-    btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
-            pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
-            pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
-
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
     //
@@ -888,7 +901,18 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
     retval = channel_secret_load(pChannel, &db);
     if (retval != 0) {
         LOGE("ERR\n");
+        goto LABEL_EXIT;
     }
+
+    //復元データからさらに復元
+    if (!ln_derkey_restore(&pChannel->keys_local, &pChannel->keys_remote)) {
+        retval = -1;
+        LOGE("ERR\n");
+        goto LABEL_EXIT;
+    }
+    btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
+            pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
+            pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -1122,11 +1146,11 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
     MDB_val         key, data;
 #ifdef M_DEBUG_KEYS
     ln_funding_tx_t funding_tx;
-    ln_derkey_pubkeys_t pubkeys_local;
-    ln_derkey_pubkeys_t pubkeys_remote;
+    ln_derkey_local_keys_t keys_local;
+    ln_derkey_remote_keys_t keys_remote;
     memset(&funding_tx, 0x00, sizeof(funding_tx));
-    memset(&pubkeys_local, 0x00, sizeof(pubkeys_local));
-    memset(&pubkeys_remote, 0x00, sizeof(pubkeys_remote));
+    memset(&keys_local, 0x00, sizeof(keys_local));
+    memset(&keys_remote, 0x00, sizeof(keys_remote));
 #endif  //M_DEBUG_KEYS
 
     for (size_t lp = 0; lp < ARRAY_SIZE(DBCHANNEL_COPY); lp++) {
@@ -1143,7 +1167,7 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
             }
             switch (DBCHANNEL_COPYIDX[lp].type) {
             case ETYPE_BYTEPTR: //const uint8_t*
-            case ETYPE_REMOTECOMM:
+            //case ETYPE_REMOTECOMM:
                 if (DBCHANNEL_COPYIDX[lp].disp) {
                     printf("\"");
                     utl_dbg_dump(stdout, p, DBCHANNEL_COPYIDX[lp].length, false);
@@ -1184,17 +1208,17 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
                 }
 #endif  //M_DEBUG_KEYS
                 break;
-            case ETYPE_LOCALKEYS: //pubkeys_local
+            case ETYPE_LOCALKEYS: //keys_local
 #ifdef M_DEBUG_KEYS
                 {
-                    memcpy(&pubkeys_local, p, sizeof(ln_derkey_pubkeys_t));
+                    memcpy(&keys_local, p, sizeof(ln_derkey_local_keys_t));
                 }
 #endif  //M_DEBUG_KEYS
                 break;
-            case ETYPE_REMOTEKEYS: //pubkeys_remote
+            case ETYPE_REMOTEKEYS: //keys_remote
 #ifdef M_DEBUG_KEYS
                 {
-                    memcpy(&pubkeys_remote, p, sizeof(ln_derkey_pubkeys_t));
+                    memcpy(&keys_remote, p, sizeof(ln_derkey_remote_keys_t));
                 }
 #endif  //M_DEBUG_KEYS
                 break;
@@ -1206,10 +1230,10 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
         }
     }
 #ifdef M_DEBUG_KEYS
-    if ( ((pubkeys_local.basepoints[0][0] == 0x02) || (pubkeys_local.basepoints[0][0] == 0x03)) &&
-         ((pubkeys_remote.basepoints[0][0] == 0x02) || (pubkeys_remote.basepoints[0][0] == 0x03))) {
+    if ( ((keys_local.basepoints[0][0] == 0x02) || (keys_local.basepoints[0][0] == 0x03)) &&
+         ((keys_remote.basepoints[0][0] == 0x02) || (keys_remote.basepoints[0][0] == 0x03))) {
         printf("\n");
-        //ln_update_scriptkeys(&local, &remote);
+        //ln_update_script_pubkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
     }
 #endif  //M_DEBUG_KEYS
@@ -3805,9 +3829,9 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
 
     // add_htlc
     memcpy(pOutChannel->cnl_add_htlc,  pInChannel->cnl_add_htlc, M_SIZE(ln_channel_t, cnl_add_htlc));
-    // scriptpubkeys
-    memcpy(&pOutChannel->script_pubkeys_local, &pInChannel->script_pubkeys_local, sizeof(ln_derkey_script_pubkeys_t));
-    memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
+    // scriptpubkeys --> keys
+    //memcpy(&pOutChannel->script_pubkeys_local, &pInChannel->script_pubkeys_local, sizeof(ln_derkey_script_pubkeys_t));
+    //memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
 
     //復元データ
     utl_buf_alloccopy(&pOutChannel->redeem_fund, pInChannel->redeem_fund.buf, pInChannel->redeem_fund.len);
@@ -3828,8 +3852,9 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
     utl_buf_free(&pOutChannel->shutdown_scriptpk_remote);
     memcpy(&pOutChannel->shutdown_scriptpk_remote, &pInChannel->shutdown_scriptpk_remote, sizeof(utl_buf_t));
 
-    //secret
-    memcpy(&pOutChannel->privkeys_local, &pInChannel->privkeys_local, sizeof(ln_derkey_local_privkeys_t));
+    //keys
+    memcpy(&pOutChannel->keys_local, &pInChannel->keys_local, sizeof(ln_derkey_local_keys_t));
+    memcpy(&pOutChannel->keys_remote, &pInChannel->keys_remote, sizeof(ln_derkey_remote_keys_t));
 }
 
 

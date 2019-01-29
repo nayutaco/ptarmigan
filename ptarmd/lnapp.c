@@ -485,7 +485,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
 
     //announcementデフォルト値
     load_announce_settings();
-    ln_init(p_channel, NULL, &mAnnoPrm, NULL);
+    ln_init(p_channel, &mAnnoPrm, NULL);
 
     ret = ln_node_search_channel(p_channel, pNodeId);
     if (!ret) {
@@ -821,10 +821,7 @@ static void *thread_main_start(void *pArg)
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
 
-    //seed作成(後でDB読込により上書きされる可能性あり)
-    uint8_t seed[LN_SZ_SEED];
-    btc_rng_rand(seed, LN_SZ_SEED);
-    ln_init(p_channel, seed, &mAnnoPrm, notify_cb);
+    ln_init(p_channel, &mAnnoPrm, notify_cb);
 
     p_conf->p_channel = p_channel;
     p_conf->ping_counter = 1;       //send soon

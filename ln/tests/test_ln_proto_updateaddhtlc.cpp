@@ -165,17 +165,15 @@ public:
     }
     static void LnInit(ln_channel_t *pChannel)
     {
-        uint8_t seed[LN_SZ_SEED];
         ln_anno_prm_t annoprm;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
         pChannel->noise.p_handshake = NULL;
-        memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
-        ln_init(pChannel, seed, &annoprm, (ln_callback_t)0x123456);
+        ln_init(pChannel, &annoprm, (ln_callback_t)0x123456);
         pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_local.htlc_minimum_msat = 0;
         pChannel->commit_tx_local.max_accepted_htlcs = 10;

@@ -154,7 +154,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
         }
         if (!ln_msg_channel_announcement_sign(
             pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
-            pChannel->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
+            pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
             sort)) {
             LOGE("fail: sign\n");
             return false;
@@ -541,18 +541,18 @@ static bool create_local_channel_announcement(ln_channel_t *pChannel)
     if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         msg.p_node_id_1 = ln_node_getid();
         msg.p_node_id_2 = pChannel->peer_node_id;
-        msg.p_bitcoin_key_1 = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
-        msg.p_bitcoin_key_2 = pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_1 = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_2 = pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
     } else {
         msg.p_node_id_1 = pChannel->peer_node_id;
         msg.p_node_id_2 = ln_node_getid();
-        msg.p_bitcoin_key_1 = pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
-        msg.p_bitcoin_key_2 = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_1 = pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING];
+        msg.p_bitcoin_key_2 = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
     }
     if (!ln_msg_channel_announcement_write(&pChannel->cnl_anno, &msg)) return false;
     return ln_msg_channel_announcement_sign(
         pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
-        pChannel->privkeys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
+        pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
         sort);
 }
 

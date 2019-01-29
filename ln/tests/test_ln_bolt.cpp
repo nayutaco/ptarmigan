@@ -34,6 +34,7 @@ extern "C" {
 #undef LOG_TAG
 #include "ln.c"
 #include "ln_derkey.c"
+#include "ln_derkey_ex.c"
 #include "ln_msg_anno.c"
 #include "ln_msg_close.c"
 #include "ln_msg_establish.c"
