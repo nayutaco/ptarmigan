@@ -882,8 +882,8 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
     ln_script_create_tolocal(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
-                pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_DELAYEDKEY],
+                pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_DELAYEDKEY],
                 pChannel->commit_tx_remote.to_self_delay);
     utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
     btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
@@ -914,9 +914,9 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
                 ln_script_htlcinfo_script(&pChannel->p_revoked_wit[htlc_idx],
                         type,
-                        pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        pChannel->commit_tx_remote.script_pubkeys.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         payhash,
                         expiry);
                 utl_buf_init(&pChannel->p_revoked_vout[htlc_idx]);
@@ -1596,7 +1596,7 @@ bool HIDDEN ln_update_scriptkeys(ln_channel_t *pChannel)
 bool HIDDEN ln_update_scriptkeys_local(ln_channel_t *pChannel)
 {
     if (!ln_derkey_update_scriptkeys(
-        &pChannel->commit_tx_local.script_pubkeys, &pChannel->pubkeys_local, &pChannel->pubkeys_remote)) return false;
+        &pChannel->script_pubkeys_local, &pChannel->pubkeys_local, &pChannel->pubkeys_remote)) return false;
     return true;
 }
 
@@ -1604,7 +1604,7 @@ bool HIDDEN ln_update_scriptkeys_local(ln_channel_t *pChannel)
 bool HIDDEN ln_update_scriptkeys_remote(ln_channel_t *pChannel)
 {
     if (!ln_derkey_update_scriptkeys(
-        &pChannel->commit_tx_remote.script_pubkeys, &pChannel->pubkeys_remote, &pChannel->pubkeys_local)) return false;
+        &pChannel->script_pubkeys_remote, &pChannel->pubkeys_remote, &pChannel->pubkeys_local)) return false;
     return true;
 }
 

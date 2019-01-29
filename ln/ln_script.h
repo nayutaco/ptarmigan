@@ -20,17 +20,29 @@
  *  under the License.
  */
 /** @file   ln_script.h
- *  @brief  [LN]スクリプト
+ *  @brief  ln_script
  */
 #ifndef LN_SCRIPT_H__
 #define LN_SCRIPT_H__
 
-#include "ln.h"
+#include "ln_derkey_ex.h"
 
 
 /**************************************************************************
  * typedefs
  **************************************************************************/
+
+/** @enum   ln_htlctype_t
+ *  @brief  HTLC種別
+ */
+typedef enum {
+    LN_HTLCTYPE_NONE,                               ///< 未設定
+    LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
+    LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
+    LN_HTLCTYPE_TOLOCAL     = 0xfe,                 ///< vout=to_local
+    LN_HTLCTYPE_TOREMOTE    = 0xff                  ///< vout=to_remote
+} ln_htlctype_t;
+
 
 /** @struct ln_script_feeinfo_t
  *  @brief  FEE情報
@@ -68,7 +80,6 @@ typedef struct {
         uint64_t            satoshi;            ///< funding satoshi
         const utl_buf_t     *p_script;          ///< funding script
     } fund;
-
     struct {
         uint64_t            satoshi;            ///< local satoshi
         const utl_buf_t     *p_script;          ///< to-local script
@@ -77,7 +88,6 @@ typedef struct {
         uint64_t            satoshi;            ///< remote satoshi
         const uint8_t       *pubkey;            ///< remote pubkey(to-remote用)
     } remote;
-
     uint64_t                obscured;           ///< Obscured Commitment Number(ln_script_calc_obscured_txnum())
     ln_script_feeinfo_t     *p_feeinfo;         ///< FEE情報
     ln_script_htlcinfo_t    **pp_htlcinfo;      ///< HTLC情報ポインタ配列(htlcinfo_num個分)

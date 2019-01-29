@@ -89,6 +89,17 @@ uint64_t ln_derkey_local_privkeys_get_next_storage_index(const ln_derkey_local_p
 }
 
 
+void HIDDEN ln_derkey_remote_privkeys_init(ln_derkey_remote_privkeys_t *pPrivKeys)
+{
+    ln_derkey_storage_init(&pPrivKeys->storage);
+}
+
+
+void HIDDEN ln_derkey_remote_privkeys_term(ln_derkey_remote_privkeys_t *pPrivKeys)
+{
+    //nothing
+}
+
 bool HIDDEN ln_derkey_update_scriptkeys(
     ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
     ln_derkey_pubkeys_t *pLocalPubKeys,

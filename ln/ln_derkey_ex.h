@@ -28,7 +28,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <btc_keys.h>
+#include "btc_keys.h"
+
+#include "ln_derkey.h"
 
 
 /********************************************************************
@@ -106,6 +108,12 @@ uint64_t ln_derkey_local_privkeys_get_current_storage_index(const ln_derkey_loca
 
 
 uint64_t ln_derkey_local_privkeys_get_next_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys);
+
+
+void HIDDEN ln_derkey_remote_privkeys_init(ln_derkey_remote_privkeys_t *pPrivKeys);
+
+
+void HIDDEN ln_derkey_remote_privkeys_term(ln_derkey_remote_privkeys_t *pPrivKeys);
 
 
 bool HIDDEN ln_derkey_update_scriptkeys(
