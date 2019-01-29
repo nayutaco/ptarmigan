@@ -157,8 +157,8 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
 
     //To-Local
     ln_script_create_tolocal(&buf_ws,
-                pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_DELAYEDKEY],
+                pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 ToSelfDelay);
 
     //HTLC info(amount)
@@ -170,9 +170,9 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     for (int lp = 0; lp < cnt; lp++) {
         ln_script_htlcinfo_script(&pp_htlcinfo[lp]->script,
                         pp_htlcinfo[lp]->type,
-                        pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         pp_htlcinfo[lp]->preimage_hash,
                         pp_htlcinfo[lp]->expiry);
     }
@@ -199,12 +199,12 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(our_msat);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(their_msat);
-    lntx_commit.remote.pubkey = pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_PUBKEY];
+    lntx_commit.remote.pubkey = pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
     lntx_commit.obscured = pChannel->obscured ^ CommitNum;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
-    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(pChannel), &pChannel->privkeys_local);
+    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(pChannel), &pChannel->keys_local);
     if (ret) {
         //2-of-2 verify
         ret = create_to_local_sign_verify(pChannel, &tx_commit, &buf_sig);
@@ -266,8 +266,8 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
 
     //To-Local
     ln_script_create_tolocal(&buf_ws,
-                pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_DELAYEDKEY],
+                pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 pChannel->commit_tx_remote.to_self_delay);
 
     //HTLC info(amount)
@@ -279,9 +279,9 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
     for (int lp = 0; lp < cnt; lp++) {
         ln_script_htlcinfo_script(&pp_htlcinfo[lp]->script,
                         pp_htlcinfo[lp]->type,
-                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         pp_htlcinfo[lp]->preimage_hash,
                         pp_htlcinfo[lp]->expiry);
 #ifdef LN_UGLY_NORMAL
@@ -318,12 +318,12 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(our_msat);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(their_msat);
-    lntx_commit.remote.pubkey = pChannel->script_pubkeys_remote.keys[LN_SCRIPT_IDX_PUBKEY];
+    lntx_commit.remote.pubkey = pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
     lntx_commit.obscured = pChannel->obscured ^ CommitNum;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
-    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(pChannel), &pChannel->privkeys_local);
+    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(pChannel), &pChannel->keys_local);
     if (ret) {
         LOGD("++++++++++++++ remote commit tx: tx_commit[%016" PRIx64 "]\n", pChannel->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
@@ -707,7 +707,7 @@ static bool create_to_local_htlcverify(const ln_channel_t *pChannel,
     bool ret = ln_script_htlctx_verify(pTx,
                 Amount,
                 NULL,
-                pChannel->script_pubkeys_local.keys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+                pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                 NULL,
                 &buf_sig,
                 pScript);

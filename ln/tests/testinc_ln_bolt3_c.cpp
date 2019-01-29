@@ -219,7 +219,7 @@ protected:
     virtual void TearDown() {
     }
 
-    static ln_derkey_local_privkeys_t    privkeys;
+    static ln_derkey_local_keys_t    local_keys;
     static btc_keys_t keys_local_funding;
     static btc_keys_t keys_local_commit;
     static uint8_t remote_funding_pubkey[BTC_SZ_PUBKEY];
@@ -244,7 +244,7 @@ public:
     }
 };
 
-ln_derkey_local_privkeys_t    ln_bolt3_c::privkeys;
+ln_derkey_local_keys_t    ln_bolt3_c::local_keys;
 btc_keys_t ln_bolt3_c::keys_local_funding;
 btc_keys_t ln_bolt3_c::keys_local_commit;
 uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];
@@ -285,7 +285,7 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_EQ(0, memcmp(keys_local_funding.pub, LOCAL_FUNDING_PUBKEY, BTC_SZ_PUBKEY));
     memcpy(remote_funding_pubkey, REMOTE_FUNDING_PUBKEY, BTC_SZ_PUBKEY);
 
-    memcpy(privkeys.secrets[LN_BASEPOINT_IDX_FUNDING], LOCAL_FUNDING_PRIVKEY, BTC_SZ_PRIVKEY);
+    memcpy(local_keys.secrets[LN_BASEPOINT_IDX_FUNDING], LOCAL_FUNDING_PRIVKEY, BTC_SZ_PRIVKEY);
 
     memcpy(keys_local_commit.priv, LOCAL_SECRETKEY, BTC_SZ_PRIVKEY);
     ret = btc_keys_priv2pub(keys_local_commit.pub, keys_local_commit.priv);
@@ -701,7 +701,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1422,7 +1422,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -2142,7 +2142,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -2801,7 +2801,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -3460,7 +3460,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4055,7 +4055,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4650,7 +4650,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5184,7 +5184,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5718,7 +5718,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6191,7 +6191,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6665,7 +6665,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6961,7 +6961,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7258,7 +7258,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7548,7 +7548,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.htlcinfo_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &privkeys);
+    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 

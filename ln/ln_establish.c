@@ -126,12 +126,12 @@ bool /*HIDDEN*/ ln_open_channel_send(
     msg.feerate_per_kw = FeeRate;
     msg.to_self_delay = pChannel->establish.estprm.to_self_delay;
     msg.max_accepted_htlcs = pChannel->establish.estprm.max_accepted_htlcs;
-    msg.p_funding_pubkey = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
-    msg.p_revocation_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION];
-    msg.p_payment_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT];
-    msg.p_delayed_payment_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_DELAYED];
-    msg.p_htlc_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_HTLC];
-    msg.p_first_per_commitment_point = pChannel->pubkeys_local.per_commitment_point;
+    msg.p_funding_pubkey = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
+    msg.p_revocation_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION];
+    msg.p_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT];
+    msg.p_delayed_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_DELAYED];
+    msg.p_htlc_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_HTLC];
+    msg.p_first_per_commitment_point = pChannel->keys_local.per_commitment_point;
     msg.channel_flags = CHANNEL_FLAGS_VALUE;
     msg.shutdown_len = 0;
     msg.p_shutdown_scriptpubkey = NULL;
@@ -180,12 +180,12 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
         return false;
     }
     memcpy(pChannel->channel_id, msg.p_temporary_channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], msg.p_funding_pubkey, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_REVOCATION], msg.p_revocation_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], msg.p_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_DELAYED], msg.p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_HTLC], msg.p_htlc_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.per_commitment_point, msg.p_first_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], msg.p_funding_pubkey, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_REVOCATION], msg.p_revocation_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], msg.p_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_DELAYED], msg.p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_HTLC], msg.p_htlc_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.per_commitment_point, msg.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
     if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
         LOGE("fail: chain_hash mismatch\n");
@@ -236,7 +236,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     pChannel->commit_tx_local.to_self_delay = msg.to_self_delay; //XXX:
 
     //copy first_per_commitment_point for the first revoke_and_ack
-    memcpy(pChannel->pubkeys_remote.prev_per_commitment_point, pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //params for funding
     pChannel->funding_sat = msg.funding_satoshis;
@@ -247,7 +247,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
 
     //generate keys
     ln_signer_create_channel_keys(pChannel);
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
 
     if (!ln_accept_channel_send(pChannel)) {
@@ -271,12 +271,12 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     msg.minimum_depth = pChannel->establish.estprm.min_depth;
     msg.to_self_delay = pChannel->establish.estprm.to_self_delay;
     msg.max_accepted_htlcs = pChannel->establish.estprm.max_accepted_htlcs;
-    msg.p_funding_pubkey = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
-    msg.p_revocation_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION];
-    msg.p_payment_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT];
-    msg.p_delayed_payment_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_DELAYED];
-    msg.p_htlc_basepoint = pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_HTLC];
-    msg.p_first_per_commitment_point = pChannel->pubkeys_local.per_commitment_point;
+    msg.p_funding_pubkey = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
+    msg.p_revocation_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION];
+    msg.p_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT];
+    msg.p_delayed_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_DELAYED];
+    msg.p_htlc_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_HTLC];
+    msg.p_first_per_commitment_point = pChannel->keys_local.per_commitment_point;
     msg.shutdown_len = 0;
     msg.p_shutdown_scriptpubkey = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
@@ -295,12 +295,12 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
 
     //obscured commitment tx number
     pChannel->obscured = ln_script_calc_obscured_txnum(
-        pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
+        pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", pChannel->obscured);
 
     //vout 2-of-2
     if (!btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
-        pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
+        pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
         M_SET_ERR(pChannel, LNERR_CREATE_2OF2, "create 2-of-2");
         return false;
     }
@@ -322,12 +322,12 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], msg.p_funding_pubkey, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_REVOCATION], msg.p_revocation_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], msg.p_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_DELAYED], msg.p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_HTLC], msg.p_htlc_basepoint, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.per_commitment_point, msg.p_first_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], msg.p_funding_pubkey, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_REVOCATION], msg.p_revocation_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], msg.p_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_DELAYED], msg.p_delayed_payment_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_HTLC], msg.p_htlc_basepoint, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.per_commitment_point, msg.p_first_per_commitment_point, BTC_SZ_PUBKEY);
 
     //temporary_channel_id
     if (!ln_check_channel_id(msg.p_temporary_channel_id, pChannel->channel_id)) {
@@ -360,10 +360,10 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     pChannel->commit_tx_local.to_self_delay = msg.to_self_delay; //XXX:
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
-    memcpy(pChannel->pubkeys_remote.prev_per_commitment_point, pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //generate keys
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
 
     //create funding_tx
@@ -374,7 +374,7 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     //obscured commitment tx number
     pChannel->obscured = ln_script_calc_obscured_txnum(
-        pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
+        pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", pChannel->obscured);
 
     //initial commit tx(Remoteが持つTo-Local)
@@ -544,7 +544,7 @@ bool /*HIDDEN*/ ln_funding_locked_send(ln_channel_t *pChannel)
 
     ln_msg_funding_locked_t msg;
     msg.p_channel_id = pChannel->channel_id;
-    msg.p_next_per_commitment_point = pChannel->pubkeys_local.per_commitment_point;
+    msg.p_next_per_commitment_point = pChannel->keys_local.per_commitment_point;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_funding_locked_write(&buf, &msg)) return false;
     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
@@ -582,17 +582,17 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
     }
 
     LOGV("prev: ");
-    DUMPV(pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
+    DUMPV(pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
     LOGV("next: ");
     DUMPV(msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
 
     //pubkeys.prev_per_commitment_pointはrevoke_and_ackでのみ更新する
-    memcpy(pChannel->pubkeys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
 
     //funding中終了
     ln_establish_free(pChannel);
 
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
@@ -632,8 +632,8 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel)
         option_data_loss_protect = true;
 
         if (pChannel->commit_tx_remote.commit_num) {
-            if (!ln_derkey_storage_get_secret(
-                your_last_per_commitment_secret, &pChannel->privkeys_remote.storage,
+            if (!ln_derkey_remote_storage_get_secret(
+                &pChannel->keys_remote, your_last_per_commitment_secret,
                 (uint64_t)(LN_SECRET_INDEX_INIT - (pChannel->commit_tx_remote.commit_num - 1)))) {
                 LOGD("no last secret\n");
                 memset(your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
@@ -721,7 +721,7 @@ bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *p
         if (msg.next_remote_revocation_number > pChannel->commit_tx_local.commit_num) { //XXX: ?
             //  AND your_last_per_commitment_secret is correct for that next_remote_revocation_number minus 1:
             uint8_t secret[BTC_SZ_PRIVKEY];
-            ln_derkey_storage_create_secret(secret, pChannel->privkeys_local._storage_seed, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
+            ln_derkey_local_storage_create_per_commitment_secret(&pChannel->keys_local, secret, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
             LOGD("secret: ");
             DUMPD(secret, BTC_SZ_PRIVKEY);
             if (memcmp(secret, msg.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
@@ -776,7 +776,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
 
     //vout 2-of-2
     btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
-                pChannel->pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
+                pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
 
     if (pChannel->establish.p_fundin != NULL) {
         //output
@@ -901,7 +901,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
 
     //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_per_commitment_secret(pChannel);
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
 
     funding.b_send = bSendTx;
     if (bSendTx) {

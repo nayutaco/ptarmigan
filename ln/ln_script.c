@@ -325,7 +325,7 @@ bool HIDDEN ln_script_committx_create(
                     utl_buf_t *pSig,
                     const ln_script_committx_t *pCmt,
                     bool Local,
-                    const ln_derkey_local_privkeys_t *pPrivKeys)
+                    const ln_derkey_local_keys_t *pKeys)
 {
     uint64_t fee_local;
     uint64_t fee_remote;
@@ -406,7 +406,7 @@ bool HIDDEN ln_script_committx_create(
     uint8_t txhash[BTC_SZ_HASH256];
     ret = btc_sw_sighash_p2wsh_wit(pTx, txhash, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
     if (ret) {
-        ret = ln_signer_p2wsh(pSig, txhash, pPrivKeys, LN_BASEPOINT_IDX_FUNDING);
+        ret = ln_signer_p2wsh(pSig, txhash, pKeys, LN_BASEPOINT_IDX_FUNDING);
     } else {
         LOGE("fail: calc sighash\n");
     }

@@ -670,12 +670,8 @@ struct ln_channel_t {
     ln_status_t                 status;                         ///< [CONN_03]状態
 
     //key storage
-    ln_derkey_local_privkeys_t  privkeys_local;                 ///< [KEYS_01]local secrets
-    ln_derkey_remote_privkeys_t privkeys_remote;                ///< [KEYS_02]remote secrets
-    ln_derkey_pubkeys_t         pubkeys_local;                  ///< [KEYS_03]local pubkeys
-    ln_derkey_pubkeys_t         pubkeys_remote;                 ///< [KEYS_04]remote pubkeys
-    ln_derkey_script_pubkeys_t  script_pubkeys_local;           ///< [KEYS_05]local script_pubkeys
-    ln_derkey_script_pubkeys_t  script_pubkeys_remote;          ///< [KEYS_06]remote script_pubkeys
+    ln_derkey_local_keys_t      keys_local;                     ///< [KEYS_01]local keys
+    ln_derkey_remote_keys_t     keys_remote;                    ///< [KEYS_02]remote keys
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
@@ -757,12 +753,11 @@ struct ln_channel_t {
  * 鍵関係を、ストレージを含めて初期化している。
  *
  * @param[in,out]       pChannel        channel info
- * @param[in]           pSeed           per-commit-secret生成用
  * @param[in]           pAnnoPrm        announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_channel_t *pChannel, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
+bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
 
 
 /** 終了
@@ -1665,13 +1660,13 @@ uint64_t ln_node_total_msat(void);
  * @note
  *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
  */
-bool HIDDEN ln_update_scriptkeys(ln_channel_t *pChannel);
+bool HIDDEN ln_update_script_pubkeys(ln_channel_t *pChannel);
 
 
-bool HIDDEN ln_update_scriptkeys_local(ln_channel_t *pChannel);
+bool HIDDEN ln_update_script_pubkeys_local(ln_channel_t *pChannel);
 
 
-bool HIDDEN ln_update_scriptkeys_remote(ln_channel_t *pChannel);
+bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel);
 
 
 /********************************************************************

@@ -287,7 +287,7 @@ LABEL_EXIT:
 //////////////////////////////////////////////////
 //
 //      https://github.com/rustyrussell/ccan/tree/master/ccan/crypto/shachain
-void HIDDEN ln_derkey_storage_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uint64_t Index)
+void HIDDEN ln_derkey_storage_create_secret(uint8_t *pSecret, const uint8_t *pSeed, uint64_t Index)
 {
     LOGD("index=%016" PRIx64 "\n", Index);
 
@@ -299,18 +299,17 @@ void HIDDEN ln_derkey_storage_create_secret(uint8_t *pPrivKey, const uint8_t *pS
     //            P = SHA256(P)
     //    return P
 
-    derive_secret(pPrivKey, pSeed, 47, Index);
+    derive_secret(pSecret, pSeed, 47, Index);
 }
 
 
 void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
 {
     memset(pStorage, 0xcc, sizeof(ln_derkey_storage_t));
-    pStorage->next_index = LN_SECRET_INDEX_INIT;
 }
 
 
-bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret)
+bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret, uint64_t Index)
 {
     //insert_secret(secret, I):
     //    B = where_to_put_secret(secret, I)
@@ -326,18 +325,17 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
     //    known[B].secret = secret
 
     uint8_t output[BTC_SZ_PRIVKEY];
-    int bit = where_to_put_secret(pStorage->next_index);
-    LOGD("I=%016" PRIx64 ", bit=%d\n", pStorage->next_index, bit);
+    int bit = where_to_put_secret(Index);
+    LOGD("I=%016" PRIx64 ", bit=%d\n", Index, bit);
     for (int lp = 0; lp < bit; lp++) {
         derive_secret(output, pSecret, bit - 1, pStorage->storage[lp].index);
         if (memcmp(output, pStorage->storage[lp].secret, BTC_SZ_PRIVKEY)) {
-            LOGE("fail: secret mismatch(I=%016" PRIx64 "), bit=%d\n", pStorage->next_index, bit);
+            LOGE("fail: secret mismatch(I=%016" PRIx64 "), bit=%d\n", Index, bit);
             return false;
         }
     }
     memcpy(pStorage->storage[bit].secret, pSecret, BTC_SZ_PRIVKEY);
-    pStorage->storage[bit].index = pStorage->next_index;
-    pStorage->next_index--;
+    pStorage->storage[bit].index = Index;
     return true;
 }
 
@@ -369,18 +367,6 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
         }
     }
     return ret;
-}
-
-
-uint64_t ln_derkey_storage_get_current_index(const ln_derkey_storage_t *pStorage)
-{
-    return pStorage->next_index + 1;
-}
-
-
-uint64_t HIDDEN ln_derkey_storage_get_next_index(const ln_derkey_storage_t *pStorage)
-{
-    return pStorage->next_index;
 }
 
 

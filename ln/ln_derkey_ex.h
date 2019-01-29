@@ -66,67 +66,149 @@
  * typedefs
  ********************************************************************/
 
+#if 0
 typedef struct {
+    //channel
     uint8_t     basepoints[LN_BASEPOINT_IDX_NUM][BTC_SZ_PUBKEY];
+
+    //commit_tx
     uint8_t     per_commitment_point[BTC_SZ_PUBKEY];
     uint8_t     prev_per_commitment_point[BTC_SZ_PUBKEY];
 } ln_derkey_pubkeys_t;
 
 
 typedef struct {
+    //channel
     uint8_t     secrets[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY];
-    uint64_t    _next_storage_index;
-    uint8_t     _storage_seed[LN_SZ_SEED];
+    uint64_t    next_storage_index;
+    uint8_t     storage_seed[LN_SZ_SEED];
+
+    //commit_tx
     uint8_t     per_commitment_secret[BTC_SZ_PRIVKEY];
 } ln_derkey_local_privkeys_t;
 
 
 typedef struct {
+    //channel & commit_tx
     ln_derkey_storage_t     storage;
 } ln_derkey_remote_privkeys_t;
 
 
 typedef struct {
+    //commit_tx
     uint8_t     keys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];
 } ln_derkey_script_pubkeys_t;
+#endif
+
+
+typedef struct {
+    //channel (priv)
+    uint8_t     secrets[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY]; //save db
+    uint8_t     storage_seed[LN_SZ_SEED]; //save db
+
+    //channel (pub)
+    uint8_t     basepoints[LN_BASEPOINT_IDX_NUM][BTC_SZ_PUBKEY];
+
+
+    //commit_tx (priv)
+    uint64_t    next_storage_index; //save db
+    uint8_t     per_commitment_secret[BTC_SZ_PRIVKEY];
+
+
+    //commit_tx (pub)
+    uint8_t     per_commitment_point[BTC_SZ_PUBKEY];
+    uint8_t     script_pubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];
+} ln_derkey_local_keys_t;
+
+
+typedef struct {
+    //channel (pub)
+    uint8_t     basepoints[LN_BASEPOINT_IDX_NUM][BTC_SZ_PUBKEY]; //save db
+
+    //channel & commit_tx (priv)
+    uint64_t    next_storage_index; //save db
+    ln_derkey_storage_t     storage; //save db
+
+    //commit_tx (pub)
+    uint8_t     per_commitment_point[BTC_SZ_PUBKEY]; //save db
+    uint8_t     prev_per_commitment_point[BTC_SZ_PUBKEY]; //save db
+    uint8_t     script_pubkeys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];
+} ln_derkey_remote_keys_t;
 
 
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-bool HIDDEN ln_derkey_local_privkeys_init(ln_derkey_local_privkeys_t *pPrivKeys, const uint8_t *pSeed);
+bool HIDDEN ln_derkey_local_init(ln_derkey_local_keys_t *pKeys);
 
 
-void HIDDEN ln_derkey_local_privkeys_term(ln_derkey_local_privkeys_t *pPrivKeys);
+void HIDDEN ln_derkey_local_term(ln_derkey_local_keys_t *pKeys);
 
 
-uint64_t ln_derkey_local_privkeys_get_prev_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys);
+bool HIDDEN ln_derkey_local_priv2pub(ln_derkey_local_keys_t *pKeys);
 
 
-uint64_t ln_derkey_local_privkeys_get_current_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys);
+bool HIDDEN ln_derkey_local_storage_update_per_commitment_point(ln_derkey_local_keys_t *pKeys);
 
 
-uint64_t ln_derkey_local_privkeys_get_next_storage_index(const ln_derkey_local_privkeys_t *pPrivKeys);
+bool HIDDEN ln_derkey_local_storage_update_per_commitment_point_force(ln_derkey_local_keys_t *pKeys, uint64_t Index);
 
 
-void HIDDEN ln_derkey_remote_privkeys_init(ln_derkey_remote_privkeys_t *pPrivKeys);
+void HIDDEN ln_derkey_local_storage_create_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint64_t Index);
 
 
-void HIDDEN ln_derkey_remote_privkeys_term(ln_derkey_remote_privkeys_t *pPrivKeys);
+uint64_t ln_derkey_local_storage_get_prev_index(const ln_derkey_local_keys_t *pKeys);
 
 
-bool HIDDEN ln_derkey_update_scriptkeys(
-    ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
-    ln_derkey_pubkeys_t *pLocalPubKeys,
-    ln_derkey_pubkeys_t *pRemotePubKeys);
+uint64_t ln_derkey_local_storage_get_current_index(const ln_derkey_local_keys_t *pKeys);
 
 
-bool HIDDEN ln_derkey_update_scriptkeys_2(
-    ln_derkey_script_pubkeys_t *pLocalScriptPubKeys,
-    ln_derkey_script_pubkeys_t *pRemoteScriptPubKeys,
-    ln_derkey_pubkeys_t *pLocalPubKeys,
-    ln_derkey_pubkeys_t *pRemotePubKeys);
+uint64_t ln_derkey_local_storage_get_next_index(const ln_derkey_local_keys_t *pKeys);
+
+
+void HIDDEN ln_derkey_remote_init(ln_derkey_remote_keys_t *pKeys);
+
+
+void HIDDEN ln_derkey_remote_term(ln_derkey_remote_keys_t *pKeys);
+
+
+void HIDDEN ln_derkey_remote_storage_init(ln_derkey_remote_keys_t *pKeys);
+
+
+bool HIDDEN ln_derkey_remote_storage_insert_per_commitment_secret(
+    ln_derkey_remote_keys_t *pKeys, const uint8_t *pSecret);
+
+
+bool HIDDEN ln_derkey_remote_storage_get_secret(
+    const ln_derkey_remote_keys_t *pKeys, uint8_t *pSecret, uint64_t Index);
+
+
+uint64_t ln_derkey_remote_storage_get_current_index(const ln_derkey_remote_keys_t *pKeys);
+
+
+uint64_t ln_derkey_remote_storage_get_next_index(const ln_derkey_remote_keys_t *pKeys);
+
+
+bool HIDDEN ln_derkey_local_update_script_pubkeys(
+    ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
+
+
+bool HIDDEN ln_derkey_remote_update_script_pubkeys(
+    ln_derkey_remote_keys_t *pRemoteKeys, ln_derkey_local_keys_t *pLocalKeys);
+
+
+bool HIDDEN ln_derkey_update_script_pubkeys(
+    ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
+
+
+bool HIDDEN ln_derkey_local_restore(ln_derkey_local_keys_t *pKeys);
+
+
+bool HIDDEN ln_derkey_remote_restore(ln_derkey_remote_keys_t *pKeys);
+
+
+bool HIDDEN ln_derkey_restore(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
 
 
 #endif /* LN_DERKEY_EX_H__ */

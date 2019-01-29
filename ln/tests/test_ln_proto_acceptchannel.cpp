@@ -165,17 +165,15 @@ public:
     }
     static void LnInit(ln_channel_t *pChannel)
     {
-        uint8_t seed[LN_SZ_SEED];
         ln_anno_prm_t annoprm;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
         pChannel->noise.p_handshake = NULL;
-        memset(seed, 1, sizeof(seed));
         annoprm.cltv_expiry_delta = 10;
         annoprm.htlc_minimum_msat = 1000;
         annoprm.fee_base_msat = 20;
         annoprm.fee_prop_millionths = 200;
-        ln_init(pChannel, seed, &annoprm, (ln_callback_t)0x123456);
+        ln_init(pChannel, &annoprm, (ln_callback_t)0x123456);
         pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_local.htlc_minimum_msat = 0;
         pChannel->commit_tx_local.max_accepted_htlcs = 10;
@@ -243,17 +241,15 @@ namespace LN_DUMMY {
 TEST_F(ln, init)
 {
     ln_channel_t channel;
-    uint8_t seed[LN_SZ_SEED];
     ln_anno_prm_t annoprm;
 
     memset(&channel, 0xcc, sizeof(channel));
     channel.noise.p_handshake = NULL;
-    memset(seed, 1, sizeof(seed));
     annoprm.cltv_expiry_delta = 10;
     annoprm.htlc_minimum_msat = 1000;
     annoprm.fee_base_msat = 20;
     annoprm.fee_prop_millionths = 200;
-    ln_init(&channel, seed, &annoprm, (ln_callback_t)0x123456);
+    ln_init(&channel, &annoprm, (ln_callback_t)0x123456);
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -326,8 +322,8 @@ TEST_F(ln, ln_accept_channel_recv_ok)
     p_fundin->amount = 500000;
 #endif
 
-    memcpy(channel.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(channel.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
@@ -403,8 +399,8 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
 
-    memcpy(channel.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(channel.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
@@ -481,8 +477,8 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
     utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
 #endif
 
-    memcpy(channel.pubkeys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
-    memcpy(channel.pubkeys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+    memcpy(channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
+    memcpy(channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);

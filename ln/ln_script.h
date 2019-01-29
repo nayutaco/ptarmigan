@@ -224,15 +224,11 @@ uint64_t HIDDEN ln_script_fee_calc(
  * @param[out]      pSig        local署名
  * @param[in]       pCmt        Commitment Transaction情報
  * @param[in]       Local       true:LocalがFEEを払う / false:RemoteがFEEを払う
- * @param[in]       pPrivKeys
+ * @param[in]       pKeys
  * @return      true:成功
  */
 bool HIDDEN ln_script_committx_create(
-                    btc_tx_t *pTx,
-                    utl_buf_t *pSig,
-                    const ln_script_committx_t *pCmt,
-                    bool Local,
-                    const ln_derkey_local_privkeys_t *pPrivKeys);
+    btc_tx_t *pTx, utl_buf_t *pSig, const ln_script_committx_t *pCmt, bool Local, const ln_derkey_local_keys_t *pKeys);
 
 
 /** Offered/Receveid HTLC Transaction作成

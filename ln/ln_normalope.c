@@ -536,7 +536,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
 
     //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_per_commitment_secret(pChannel);
-    ln_update_scriptkeys(pChannel);
+    ln_update_script_pubkeys(pChannel);
     //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
 
     //チェックOKであれば、revoke_and_ackを返す
@@ -545,14 +545,14 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     // //revokeするsecret
     // for (uint64_t index = 0; index <= pChannel->commit_tx_local.revoke_num + 1; index++) {
     //     uint8_t old_secret[BTC_SZ_PRIVKEY];
-    //     ln_derkey_storage_create_secret(old_secret, pChannel->privkeys.storage_seed, LN_SECRET_INDEX_INIT - index);
+    //     ln_derkey_remote_storage_create_secret(&pChannel->privkeys, old_secret, LN_SECRET_INDEX_INIT - index);
     //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT - index);
     //     DUMPD(old_secret, sizeof(old_secret));
     // }
 
     revack.p_channel_id = commsig.p_channel_id;
     revack.p_per_commitment_secret = prev_secret;
-    revack.p_next_per_commitment_point = pChannel->pubkeys_local.per_commitment_point;
+    revack.p_next_per_commitment_point = pChannel->keys_local.per_commitment_point;
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", pChannel->commit_tx_local.commit_num);
     ret = ln_msg_revoke_and_ack_write(&buf, &revack);
     if (ret) {
@@ -627,7 +627,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
     // uint8_t old_secret[BTC_SZ_PRIVKEY];
     // for (uint64_t index = 0; index <= pChannel->commit_tx_local.revoke_num + 1; index++) {
-    //     ret = ln_derkey_storage_get_secret(old_secret, &pChannel->privkeys_remote.storage, LN_SECRET_INDEX_INIT - index);
+    //     ret = ln_derkey_remote_storage_get_secret(&pChannel->privkeys_remote, old_secret, LN_SECRET_INDEX_INIT - index);
     //     if (ret) {
     //         uint8_t pubkey[BTC_SZ_PUBKEY];
     //         btc_keys_priv2pub(pubkey, old_secret);
@@ -668,9 +668,9 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     }
 
     //per_commitment_point更新
-    memcpy(pChannel->pubkeys_remote.prev_per_commitment_point, pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
-    memcpy(pChannel->pubkeys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
-    ln_update_scriptkeys(pChannel);
+    memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
+    memcpy(pChannel->keys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
+    ln_update_script_pubkeys(pChannel);
     //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
 
     //revoke_and_ack受信フラグ
@@ -1077,8 +1077,8 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         ln_msg_revoke_and_ack_t revack;
         revack.p_channel_id = pChannel->channel_id;
         revack.p_per_commitment_secret = prev_secret;
-        revack.p_next_per_commitment_point = pChannel->pubkeys_local.per_commitment_point;
-        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", pChannel->pubkeys_local.per_commitment_point);
+        revack.p_next_per_commitment_point = pChannel->keys_local.per_commitment_point;
+        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", pChannel->keys_local.per_commitment_point);
         bool ret = ln_msg_revoke_and_ack_write(&buf, &revack);
         if (ret) {
             ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
@@ -1508,22 +1508,22 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
  */
 static bool store_peer_percommit_secret(ln_channel_t *pChannel, const uint8_t *p_prev_secret)
 {
-    //LOGD("I=%016" PRIx64 "\n", ln_derkey_storage_get_current_index());
+    //LOGD("I=%016" PRIx64 "\n", ln_derkey_remote_storage_get_current_index()&pChannel->keys_remote);
     //DUMPD(p_prev_secret, BTC_SZ_PRIVKEY);
     uint8_t pub[BTC_SZ_PUBKEY];
     btc_keys_priv2pub(pub, p_prev_secret);
     //DUMPD(pub, BTC_SZ_PUBKEY);
-    bool ret = ln_derkey_storage_insert_secret(&pChannel->privkeys_remote.storage, p_prev_secret);
+    bool ret = ln_derkey_remote_storage_insert_per_commitment_secret(&pChannel->keys_remote, p_prev_secret);
     if (!ret) return false;
 
     //M_DB_CHANNEL_SAVE(pChannel);  //保存は呼び出し元で行う
-    LOGD("I=%016" PRIx64 "\n", ln_derkey_storage_get_current_index(&pChannel->privkeys_remote.storage));
+    LOGD("I=%016" PRIx64 "\n", ln_derkey_remote_storage_get_current_index(&pChannel->keys_remote));
 
-    //for (uint64_t idx = LN_SECRET_INDEX_INIT; idx > ln_derkey_storage_get_current_index(); idx--) {
+    //for (uint64_t idx = LN_SECRET_INDEX_INIT; idx > ln_derkey_remote_storage_get_current_index(&pChannel->keys_remote); idx--) {
     //    LOGD("I=%016" PRIx64 "\n", idx);
     //    LOGD2("  ");
     //    uint8_t sec[BTC_SZ_PRIVKEY];
-    //    ret = ln_derkey_storage_get_secret(sec, &pChannel->privkeys_remote.storage, idx);
+    //    ret = ln_derkey_remote_storage_get_secret(&pChannel->keys_remote, sec, idx);
     //    assert(ret);
     //    LOGD2("  pri:");
     //    DUMPD(sec, BTC_SZ_PRIVKEY);
