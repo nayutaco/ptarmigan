@@ -44,6 +44,7 @@
 #include "ln_derkey_ex.h"
 #include "ln_noise.h"
 #include "ln_node.h"
+#include "ln_script.h"
 
 
 #ifdef __cplusplus
@@ -292,18 +293,6 @@ typedef void (*ln_callback_t)(ln_channel_t *pChannel, ln_cb_t type, void *p_para
 /**************************************************************************
  * typedefs : HTLC
  **************************************************************************/
-
-/** @enum   ln_htlctype_t
- *  @brief  HTLC種別
- */
-typedef enum {
-    LN_HTLCTYPE_NONE,                               ///< 未設定
-    LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
-    LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
-    LN_HTLCTYPE_TOLOCAL     = 0xfe,                 ///< vout=to_local
-    LN_HTLCTYPE_TOREMOTE    = 0xff                  ///< vout=to_remote
-} ln_htlctype_t;
-
 
 /** @struct ln_fundin_t
  *  @brief  open_channelでのfund_in情報
@@ -668,7 +657,6 @@ typedef struct {
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
                                                         //      commit_tx_local:  revoke_and_ack送信後、commit_tx_local.commit_num - 1を代入
                                                         //      commit_tx_remote: revoke_and_ack受信後、pChannel->commit_tx_remote.commit_num - 1を代入
-    ln_derkey_script_pubkeys_t  script_pubkeys;         ///< script用PubKey
 } ln_commit_tx_t;
 
 
@@ -686,6 +674,8 @@ struct ln_channel_t {
     ln_derkey_remote_privkeys_t privkeys_remote;                ///< [KEYS_02]remote secrets
     ln_derkey_pubkeys_t         pubkeys_local;                  ///< [KEYS_03]local pubkeys
     ln_derkey_pubkeys_t         pubkeys_remote;                 ///< [KEYS_04]remote pubkeys
+    ln_derkey_script_pubkeys_t  script_pubkeys_local;           ///< [KEYS_05]local script_pubkeys
+    ln_derkey_script_pubkeys_t  script_pubkeys_remote;          ///< [KEYS_06]remote script_pubkeys
 
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee

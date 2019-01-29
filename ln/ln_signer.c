@@ -51,7 +51,12 @@ bool HIDDEN ln_signer_init(ln_channel_t *pChannel, const uint8_t *pSeed)
     if (!pSeed) return true;
 
     if (!ln_derkey_local_privkeys_init(&pChannel->privkeys_local, pSeed)) return false;
-    ln_derkey_storage_init(&pChannel->privkeys_remote.storage);
+    /*void*/ ln_derkey_remote_privkeys_init(&pChannel->privkeys_remote);
+    /*void*/ ln_derkey_storage_create_secret(
+        pChannel->privkeys_local.per_commitment_secret,
+        pChannel->privkeys_local._storage_seed,
+        pChannel->privkeys_local._next_storage_index);
+    pChannel->privkeys_local._next_storage_index--;
     return true;
 }
 
@@ -59,6 +64,7 @@ bool HIDDEN ln_signer_init(ln_channel_t *pChannel, const uint8_t *pSeed)
 void HIDDEN ln_signer_term(ln_channel_t *pChannel)
 {
     /*void*/ ln_derkey_local_privkeys_term(&pChannel->privkeys_local);
+    /*void*/ ln_derkey_remote_privkeys_term(&pChannel->privkeys_remote);
 }
 
 
@@ -68,17 +74,23 @@ bool HIDDEN ln_signer_create_channel_keys(ln_channel_t *pChannel)
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         if (!btc_keys_priv2pub(pChannel->pubkeys_local.basepoints[lp], pChannel->privkeys_local.secrets[lp])) return false;
     }
-
-    //for open_channel/accept_channel
-    return ln_signer_keys_update_per_commitment_secret(pChannel);
+    if (!btc_keys_priv2pub(
+        pChannel->pubkeys_local.per_commitment_point,
+        pChannel->privkeys_local.per_commitment_secret)) return false;
+    return true;
 }
 
 
 bool HIDDEN ln_signer_keys_update_per_commitment_secret(ln_channel_t *pChannel)
 {
-    if (!ln_signer_keys_update_force(pChannel, pChannel->privkeys_local._next_storage_index)) return false;
+    /*void*/ ln_derkey_storage_create_secret(
+        pChannel->privkeys_local.per_commitment_secret,
+        pChannel->privkeys_local._storage_seed,
+        pChannel->privkeys_local._next_storage_index);
     pChannel->privkeys_local._next_storage_index--;
-    LOGD("update storage_next_index = %016" PRIx64 "\n", pChannel->privkeys_local._next_storage_index);
+    if (!btc_keys_priv2pub(
+        pChannel->pubkeys_local.per_commitment_point,
+        pChannel->privkeys_local.per_commitment_secret)) return false;
     return true;
 }
 

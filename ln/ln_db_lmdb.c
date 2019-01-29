@@ -819,7 +819,7 @@ void ln_db_term(void)
 
 
 /********************************************************************
- * pChannel
+ * channel
  ********************************************************************/
 
 int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
@@ -3806,10 +3806,8 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
     // add_htlc
     memcpy(pOutChannel->cnl_add_htlc,  pInChannel->cnl_add_htlc, M_SIZE(ln_channel_t, cnl_add_htlc));
     // scriptpubkeys
-    memcpy(&pOutChannel->commit_tx_local.script_pubkeys, &pInChannel->commit_tx_local.script_pubkeys,
-                                            M_SIZE(ln_commit_tx_t, script_pubkeys));
-    memcpy(&pOutChannel->commit_tx_remote.script_pubkeys, &pInChannel->commit_tx_remote.script_pubkeys,
-                                            M_SIZE(ln_commit_tx_t, script_pubkeys));
+    memcpy(&pOutChannel->script_pubkeys_local, &pInChannel->script_pubkeys_local, sizeof(ln_derkey_script_pubkeys_t));
+    memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
 
     //復元データ
     utl_buf_alloccopy(&pOutChannel->redeem_fund, pInChannel->redeem_fund.buf, pInChannel->redeem_fund.len);

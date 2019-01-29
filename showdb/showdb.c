@@ -272,7 +272,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, pChannel->commit_tx_local.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->script_pubkeys_local.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }
@@ -301,7 +301,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         }
         printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
         printf(INDENT5 M_QQ("pub") ": \"");
-        utl_dbg_dump(stdout, pChannel->commit_tx_remote.script_pubkeys.keys[lp], BTC_SZ_PUBKEY, false);
+        utl_dbg_dump(stdout, pChannel->script_pubkeys_remote.keys[lp], BTC_SZ_PUBKEY, false);
         printf("\"\n");
         printf(INDENT4 "}");
     }

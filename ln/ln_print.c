@@ -92,8 +92,8 @@ void ln_print_keys(ln_channel_t *pChannel)
 {
     ln_derkey_pubkeys_t         *p_local_pubkeys = &pChannel->pubkeys_local;
     ln_derkey_pubkeys_t         *p_remote_pubkeys = &pChannel->pubkeys_remote;
-    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &pChannel->commit_tx_local.script_pubkeys;
-    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &pChannel->commit_tx_remote.script_pubkeys;
+    ln_derkey_script_pubkeys_t  *p_local_script_pubkeys = &pChannel->script_pubkeys_local;
+    ln_derkey_script_pubkeys_t  *p_remote_script_pubkeys = &pChannel->script_pubkeys_remote;
 
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
