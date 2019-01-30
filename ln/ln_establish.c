@@ -120,7 +120,11 @@ bool /*HIDDEN*/ ln_open_channel_send(
     msg.funding_satoshis = FundingSat;
     msg.push_msat = LN_SATOSHI2MSAT(PushSat);
     msg.dust_limit_satoshis = pChannel->establish.estprm.dust_limit_sat;
-    msg.max_htlc_value_in_flight_msat = pChannel->establish.estprm.max_htlc_value_in_flight_msat;
+    if (pChannel->establish.estprm.max_htlc_value_in_flight_msat > LN_SATOSHI2MSAT(msg.funding_satoshis)) {
+        msg.max_htlc_value_in_flight_msat = LN_SATOSHI2MSAT(msg.funding_satoshis);
+    } else {
+        msg.max_htlc_value_in_flight_msat = pChannel->establish.estprm.max_htlc_value_in_flight_msat;
+    }
     msg.channel_reserve_satoshis = pChannel->establish.estprm.channel_reserve_sat;
     msg.htlc_minimum_msat = pChannel->establish.estprm.htlc_minimum_msat;
     msg.feerate_per_kw = FeeRate;
