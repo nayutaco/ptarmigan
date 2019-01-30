@@ -91,8 +91,8 @@ static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
 
 static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pDbParam);
-static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex);
-static bool close_revoked_toremote(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex);
+static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex);
+static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex);
 static bool close_revoked_htlc(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex, int WitIndex);
 
 static void set_wallet_data(ln_db_wallet_t *pWlt, const btc_tx_t *pTx);
@@ -192,16 +192,16 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             //    LOGD("vout[%d]=%x\n", lp2, p_tx->vout[lp2].opt);
             //}
             break;
-        case LN_CLOSE_IDX_TOLOCAL:
+        case LN_CLOSE_IDX_TO_LOCAL:
             if (p_tx->vin_cnt > 0) {
                 LOGD("$$$ to_local tx ==> DB\n");
 
-                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TOLOCAL);
+                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
                 set_wallet_data(&wlt, p_tx);
                 ln_db_wallet_add(&wlt);
             }
             continue;
-        case LN_CLOSE_IDX_TOREMOTE:
+        case LN_CLOSE_IDX_TO_REMOTE:
             //LOGD("$$$ to_remote tx\n");
             continue;
         default:
@@ -652,16 +652,16 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
             const btc_tx_t *p_tx = &close_dat.p_tx[lp];
             if (lp == LN_CLOSE_IDX_COMMIT) {
                 //LOGD("$$$ commit_tx\n");
-            } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
+            } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
                 //LOGD("$$$ to_local tx\n");
-            } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+            } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
                 if (p_tx->vin_cnt > 0) {
                     LOGD("$$$ to_remote tx ==> DB\n");
 
                     uint8_t pub[BTC_SZ_PUBKEY];
                     btc_keys_priv2pub(pub, p_tx->vin[0].witness[0].buf);
 
-                    ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TOREMOTE);
+                    ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
                     set_wallet_data(&wlt, p_tx);
                     utl_buf_t witbuf[2] = {
                         { p_tx->vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
@@ -838,19 +838,19 @@ static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t 
 
         LOGD("vout[%u]=", lp);
         DUMPD(pTx->vout[lp].script.buf, pTx->vout[lp].script.len);
-        if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOLOCAL])) {
+        if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TO_LOCAL])) {
             LOGD("[%u]to_local !\n", lp);
 
-            ret = close_revoked_tolocal(pChannel, pTx, lp);
+            ret = close_revoked_to_local(pChannel, pTx, lp);
             if (ret) {
                 del = ln_revoked_cnt_dec(pChannel);
                 ln_set_revoked_confm(pChannel, confm);
             } else {
                 save = false;
             }
-        } else if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOREMOTE])) {
+        } else if (utl_buf_equal(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TO_REMOTE])) {
             LOGD("[%u]to_remote !\n", lp);
-            ret = close_revoked_toremote(pChannel, pTx, lp);
+            ret = close_revoked_to_remote(pChannel, pTx, lp);
             if (ret) {
                 save = true;
             }
@@ -904,7 +904,7 @@ static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pD
                 LOGD("-------- %d ----------\n", lp);
                 btc_tx_print(&pTx[lp]);
 
-                ret = close_revoked_tolocal(pChannel, &pTx[lp], 0);
+                ret = close_revoked_to_local(pChannel, &pTx[lp], 0);
                 btc_tx_free(&pTx[lp]);
                 if (ret) {
                     del = ln_revoked_cnt_dec(pChannel);
@@ -938,7 +938,7 @@ static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pD
 
 
 //revoked to_local output/HTLC Timeout/Success Txを取り戻す
-static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex)
+static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex)
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
@@ -946,7 +946,7 @@ static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *
 
     const utl_buf_t *p_wit = ln_revoked_wit(pChannel);
 
-    bool ret = ln_wallet_create_tolocal(pChannel, &tx,
+    bool ret = ln_wallet_create_to_local(pChannel, &tx,
                 pTx->vout[VIndex].value,
                 ln_commit_tx_remote(pChannel)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
@@ -954,7 +954,7 @@ static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *
         if (tx.vin_cnt > 0) {
             LOGD("$$$ to_local tx ==> DB\n");
 
-            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TOLOCAL);
+            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
             set_wallet_data(&wlt, &tx);
             wlt.sequence = ln_commit_tx_remote(pChannel)->to_self_delay;
             ln_db_wallet_add(&wlt);
@@ -969,20 +969,20 @@ static bool close_revoked_tolocal(const ln_channel_t *pChannel, const btc_tx_t *
 
 //revoked to_remote outputを取り戻す
 //  to_remoteはP2WPKHで支払い済みだが、bitcoindがremotekeyを知らないため、転送する
-static bool close_revoked_toremote(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex)
+static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex)
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(pTx, txid);
 
-    bool ret = ln_wallet_create_toremote(
+    bool ret = ln_wallet_create_to_remote(
                     pChannel, &tx, pTx->vout[VIndex].value,
                     txid, VIndex);
     if (ret) {
         if (tx.vin_cnt > 0) {
             LOGD("$$$ to_remote tx ==> DB\n");
 
-            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TOREMOTE);
+            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
             set_wallet_data(&wlt, &tx);
             uint8_t pub[BTC_SZ_PUBKEY];
             btc_keys_priv2pub(pub, tx.vin[0].witness[0].buf);

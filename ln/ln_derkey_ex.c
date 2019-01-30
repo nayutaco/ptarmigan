@@ -46,6 +46,21 @@
  * public functions
  **************************************************************************/
 
+bool HIDDEN ln_derkey_init(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys)
+{
+    if (!ln_derkey_local_init(pLocalKeys)) return false;
+    /*void*/ ln_derkey_remote_init(pRemoteKeys);
+    return true;
+}
+
+
+void HIDDEN ln_derkey_term(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys)
+{
+    /*void*/ ln_derkey_local_term(pLocalKeys);
+    /*void*/ ln_derkey_remote_term(pRemoteKeys);
+}
+
+
 bool HIDDEN ln_derkey_local_init(ln_derkey_local_keys_t *pKeys)
 {
     memset(pKeys, 0xcc, sizeof(ln_derkey_local_keys_t));
@@ -54,7 +69,8 @@ bool HIDDEN ln_derkey_local_init(ln_derkey_local_keys_t *pKeys)
     for (int lp = LN_BASEPOINT_IDX_FUNDING; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         if (!btc_keys_create_priv(pKeys->secrets[lp])) return false;
     }
-    /*void*/ ln_derkey_local_storage_update_per_commitment_point(pKeys);
+    if (!ln_derkey_local_priv2pub(pKeys)) return false;
+    if (!ln_derkey_local_storage_update_per_commitment_point(pKeys)) return false;
     return true;
 }
 
@@ -97,6 +113,24 @@ bool HIDDEN ln_derkey_local_storage_update_per_commitment_point_force(ln_derkey_
 void HIDDEN ln_derkey_local_storage_create_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint64_t Index)
 {
     /*void*/ ln_derkey_storage_create_secret(pSecret, pKeys->storage_seed, Index);
+}
+
+
+bool HIDDEN ln_derkey_local_storage_create_prev_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint8_t *pPerCommitPt)
+{
+    if (ln_derkey_local_storage_get_prev_index(pKeys)) {
+        /*void*/ ln_derkey_local_storage_create_per_commitment_secret(
+            pKeys, pSecret, ln_derkey_local_storage_get_prev_index(pKeys));
+        if (pPerCommitPt) {
+            if (!btc_keys_priv2pub(pPerCommitPt, pSecret)) return false;
+        }
+    } else {
+        memset(pSecret, 0x00, BTC_SZ_PRIVKEY);
+        if (pPerCommitPt) {
+            memcpy(pPerCommitPt, pKeys->per_commitment_point, BTC_SZ_PUBKEY);
+        }
+    }
+    return true;
 }
 
 

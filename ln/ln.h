@@ -108,8 +108,8 @@ extern "C" {
 
 // ln_close_force_t.p_tx, p_htlc_idxのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
-#define LN_CLOSE_IDX_TOLOCAL            (1)         ///< to_local tx
-#define LN_CLOSE_IDX_TOREMOTE           (2)         ///< to_remote tx
+#define LN_CLOSE_IDX_TO_LOCAL            (1)         ///< to_local tx
+#define LN_CLOSE_IDX_TO_REMOTE           (2)         ///< to_remote tx
 #define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
 #define LN_CLOSE_IDX_NONE               ((uint8_t)0xff)
 
@@ -123,8 +123,8 @@ extern "C" {
 #define LN_FUNDFLAG_OPENED              (1 << 7)    ///< 1:opened
 
 // revoked transaction closeされたときの pChannel->p_revoked_vout, p_revoked_witのインデックス値
-#define LN_RCLOSE_IDX_TOLOCAL           (0)         ///< to_local
-#define LN_RCLOSE_IDX_TOREMOTE          (1)         ///< to_remote
+#define LN_RCLOSE_IDX_TO_LOCAL           (0)         ///< to_local
+#define LN_RCLOSE_IDX_TO_REMOTE          (1)         ///< to_remote
 #define LN_RCLOSE_IDX_HTLC              (2)         ///< HTLC
 
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
@@ -346,8 +346,8 @@ typedef struct {
  *  @note
  *      - p_tx, p_htlc_idxの添字
  *          - commit_tx: LN_CLOSE_IDX_COMMIT
- *          - to_local output: LN_CLOSE_IDX_TOLOCAL
- *          - to_remote output: LN_CLOSE_IDX_TOREMOTE
+ *          - to_local output: LN_CLOSE_IDX_TO_LOCAL
+ *          - to_remote output: LN_CLOSE_IDX_TO_REMOTE
  *          - HTLC: LN_CLOSE_IDX_HTLC～
  */
 typedef struct {
@@ -1077,7 +1077,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
  * @param[in]           bRevoked        true:revoked transaction close対応
  * @retval  true    成功
  */
-bool ln_wallet_create_tolocal(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+bool ln_wallet_create_to_local(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
@@ -1098,7 +1098,7 @@ bool ln_wallet_create_tolocal(const ln_channel_t *pChannel, btc_tx_t *pTx, uint6
  *      - vin: pTxid:Index
  *      - vout: value, secret
  */
-bool ln_wallet_create_toremote(
+bool ln_wallet_create_to_remote(
             const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
             const uint8_t *pTxid, int Index);
 

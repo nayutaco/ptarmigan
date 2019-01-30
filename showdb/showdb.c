@@ -700,10 +700,10 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     printf(":%d\": {\n", pWallet->index);
     const char *p_type_str;
     switch (pWallet->type) {
-    case LN_DB_WALLET_TYPE_TOLOCAL:
+    case LN_DB_WALLET_TYPE_TO_LOCAL:
         p_type_str = "to_local output";
         break;
-    case LN_DB_WALLET_TYPE_TOREMOTE:
+    case LN_DB_WALLET_TYPE_TO_REMOTE:
         p_type_str = "to_remote output";
         break;
     case LN_DB_WALLET_TYPE_HTLCOUT:

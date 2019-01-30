@@ -109,11 +109,11 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
         utl_buf_t sigbuf = UTL_BUF_INIT;
         utl_buf_t script_code = UTL_BUF_INIT;
         switch (type) {
-        case LN_DB_WALLET_TYPE_TOREMOTE:
+        case LN_DB_WALLET_TYPE_TO_REMOTE:
             btc_script_p2wpkh_create_scriptcode(&script_code, p_vin->witness[1].buf);
             ret = btc_sw_sighash(&wallet.tx, txhash, lp, amount, &script_code);
             break;
-        case LN_DB_WALLET_TYPE_TOLOCAL:
+        case LN_DB_WALLET_TYPE_TO_LOCAL:
         case LN_DB_WALLET_TYPE_HTLCOUT:
             ret = btc_sw_sighash_p2wsh_wit(&wallet.tx, txhash, lp, amount,
                                                 &p_vin->witness[p_vin->wit_item_cnt-1]);

@@ -103,9 +103,6 @@ bool /*HIDDEN*/ ln_open_channel_send(
     //temporary_channel_id
     btc_rng_rand(pChannel->channel_id, LN_SZ_CHANNEL_ID);
 
-    //generate keys
-    ln_signer_create_channel_keys(pChannel);
-
 #if defined(USE_BITCOIND)
     pChannel->establish.p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));
     memcpy(pChannel->establish.p_fundin, pFundin, sizeof(ln_fundin_t));
@@ -250,7 +247,6 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     pChannel->fund_flag = (ln_fundflag_t)(((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     //generate keys
-    ln_signer_create_channel_keys(pChannel);
     ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
 
@@ -645,7 +641,7 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel)
         }
 
         uint8_t secret_buf[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_per_commit_secret(pChannel, secret_buf, my_current_per_commitment_point);
+        ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, secret_buf, my_current_per_commitment_point);
     }
 
     utl_buf_t buf = UTL_BUF_INIT;
@@ -904,7 +900,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
     // pChannel->short_channel_id = 0;
 
     //storage_next_indexデクリメントおよびper_commit_secret更新
-    ln_signer_keys_update_per_commitment_secret(pChannel);
+    ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
     ln_update_script_pubkeys(pChannel);
 
     funding.b_send = bSendTx;

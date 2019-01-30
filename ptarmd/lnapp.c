@@ -734,9 +734,9 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
                 char title[128];
                 if (lp == LN_CLOSE_IDX_COMMIT) {
                     strcpy(title, "committx");
-                } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
+                } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
                     strcpy(title, "to_local");
-                } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
                     strcpy(title, "to_remote");
                 } else {
                     snprintf(title, sizeof(title), "htlc%d", lp - LN_CLOSE_IDX_HTLC);

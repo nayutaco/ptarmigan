@@ -101,7 +101,7 @@ typedef struct {
     utl_buf_t   script;                 ///< scriptPubKey
     uint8_t     opt;                    ///< 付加情報(ln用)
                                         //      ln_script_htlctx_create()でln_htlctype_tに設定
-                                        //      ln_script_committx_create()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
+                                        //      ln_script_committx_create()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TO_LOCAL/REMOTE)に設定
 } btc_vout_t;
 
 

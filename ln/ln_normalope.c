@@ -532,10 +532,10 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     }
 
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
-    ln_signer_create_prev_per_commit_secret(pChannel, prev_secret, NULL);
+    ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
 
     //storage_next_indexデクリメントおよびper_commit_secret更新
-    ln_signer_keys_update_per_commitment_secret(pChannel);
+    ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
     ln_update_script_pubkeys(pChannel);
     //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
 
@@ -1071,7 +1071,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");
 
         uint8_t prev_secret[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_per_commit_secret(pChannel, prev_secret, NULL);
+        ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
 
         utl_buf_t buf = UTL_BUF_INIT;
         ln_msg_revoke_and_ack_t revack;

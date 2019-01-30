@@ -156,7 +156,7 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     uint64_t their_msat = pChannel->their_msat;
 
     //To-Local
-    ln_script_create_tolocal(&buf_ws,
+    ln_script_create_to_local(&buf_ws,
                 pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                 pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 ToSelfDelay);
@@ -265,7 +265,7 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
     uint64_t their_msat = pChannel->our_msat;
 
     //To-Local
-    ln_script_create_tolocal(&buf_ws,
+    ln_script_create_to_local(&buf_ws,
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 pChannel->commit_tx_remote.to_self_delay);
@@ -569,20 +569,20 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
     btc_keys_t htlckey;
 
     if (pClose != NULL) {
-        pCloseTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
+        pCloseTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TO_LOCAL];
         pCloseTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
 
         utl_push_init(&push, &pClose->tx_buf, 0);
 
         //HTLC署名用鍵
-        ln_signer_htlc_localkey(pChannel, &htlckey);
+        ln_signer_htlc_localkey(&htlckey, &pChannel->keys_local);
     } else {
         push.data = NULL;
     }
 
     for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
-        if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
+        if (htlc_idx == LN_HTLCTYPE_TO_LOCAL) {
             LOGD("+++[%d]to_local\n", vout_idx);
             ret = create_to_local_spentlocal(pChannel,
                         pCloseTxToLocal,
@@ -590,7 +590,7 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
                         pTxCommit->vout[vout_idx].value,
                         vout_idx,
                         ToSelfDelay);
-        } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
+        } else if (htlc_idx == LN_HTLCTYPE_TO_REMOTE) {
             LOGD("+++[%d]to_remote\n", vout_idx);
         } else {
             const ln_script_htlcinfo_t *p_htlcinfo = ppHtlcInfo[htlc_idx];
@@ -678,7 +678,7 @@ static bool create_to_local_spentlocal(const ln_channel_t *pChannel,
     bool ret;
     if (pTxToLocal != NULL) {
         btc_tx_t tx = BTC_TX_INIT;
-        ret = ln_wallet_create_tolocal(pChannel, &tx,
+        ret = ln_wallet_create_to_local(pChannel, &tx,
                 Amount,
                 ToSelfDelay,
                 pBufWs, pChannel->commit_tx_local.txid, VoutIdx, false);
@@ -813,7 +813,7 @@ static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
 
     // HTLC Timeout/Success Txを作った場合はそれを取り戻す準備をする
     btc_tx_txid(pTxHtlc, txid);
-    ret = ln_wallet_create_tolocal(pChannel, &tx,
+    ret = ln_wallet_create_to_local(pChannel, &tx,
                 pTxHtlc->vout[0].value,
                 ToSelfDelay,
                 pBufWs, txid, 0, false);
@@ -944,26 +944,26 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
 
     //HTLC署名用鍵
     btc_keys_t htlckey;
-    ln_signer_htlc_remotekey(pChannel, &htlckey);
+    ln_signer_htlc_remotekey(&htlckey, &pChannel->keys_local, &pChannel->keys_remote);
 
     for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
         //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
         //BIP69ソート後のtx_commit.voutからppHtlcInfo[]のindexを取得する
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
 
-        if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
+        if (htlc_idx == LN_HTLCTYPE_TO_LOCAL) {
             LOGD("---[%d]to_local\n", vout_idx);
-        } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
+        } else if (htlc_idx == LN_HTLCTYPE_TO_REMOTE) {
             LOGD("---[%d]to_remote\n", vout_idx);
             if (pClose != NULL) {
                 btc_tx_t tx = BTC_TX_INIT;
 
                 //wallet保存用のデータ作成
-                ret = ln_wallet_create_toremote(
+                ret = ln_wallet_create_to_remote(
                             pChannel, &tx, pTxCommit->vout[vout_idx].value,
                             pCommit->txid, vout_idx);
                 if (ret) {
-                    memcpy(&pClose->p_tx[LN_CLOSE_IDX_TOREMOTE], &tx, sizeof(tx));
+                    memcpy(&pClose->p_tx[LN_CLOSE_IDX_TO_REMOTE], &tx, sizeof(tx));
                     btc_tx_init(&tx);     //txはfreeさせない
                 } else {
                     LOGD("no to_remote output\n");

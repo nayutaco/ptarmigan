@@ -222,7 +222,7 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_
     LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_prm.fee_prop_millionths);
 
     //seed
-    ln_signer_init(pChannel);
+    ln_derkey_init(&pChannel->keys_local, &pChannel->keys_remote);
 
     pChannel->commit_tx_local.commit_num = 0;
     pChannel->commit_tx_remote.commit_num = 0;
@@ -237,7 +237,7 @@ void ln_term(ln_channel_t *pChannel)
 {
     channel_clear(pChannel);
 
-    ln_signer_term(pChannel);
+    ln_derkey_term(&pChannel->keys_local, &pChannel->keys_remote);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
         utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
@@ -709,9 +709,10 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     memcpy(bak_remotecommit, pChannel->keys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
-    ln_signer_create_prev_per_commit_secret(pChannel,
-                pChannel->keys_local.per_commitment_secret,
-                pChannel->keys_local.per_commitment_point);
+    ln_derkey_local_storage_create_prev_per_commitment_secret(
+        &pChannel->keys_local,
+        pChannel->keys_local.per_commitment_secret,
+        pChannel->keys_local.per_commitment_point);
 
     //remote
     memcpy(pChannel->keys_remote.per_commitment_point,
@@ -765,9 +766,10 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     memcpy(bak_remotecommit, pChannel->keys_remote.per_commitment_point, sizeof(bak_remotecommit));
 
     //local
-    ln_signer_create_prev_per_commit_secret(pChannel,
-                pChannel->keys_local.per_commitment_secret,
-                pChannel->keys_local.per_commitment_point);
+    ln_derkey_local_storage_create_prev_per_commitment_secret(
+        &pChannel->keys_local,
+        pChannel->keys_local.per_commitment_secret,
+        pChannel->keys_local.per_commitment_point);
 
     //remote
     memcpy(pChannel->keys_remote.per_commitment_point,
@@ -869,7 +871,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     //DUMPD(pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
-    ln_signer_keys_update_force(pChannel, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
+    ln_derkey_local_storage_update_per_commitment_point_force(&pChannel->keys_local, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
 
     //鍵の復元
     ln_update_script_pubkeys(pChannel);
@@ -879,14 +881,14 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
-    ln_script_create_tolocal(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
+    ln_script_create_to_local(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_LOCAL],
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 pChannel->commit_tx_remote.to_self_delay);
-    utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL]);
-    btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
+    utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL]);
+    btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_LOCAL]);
     // LOGD("calc to_local vout: ");
-    // DUMPD(pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
+    // DUMPD(pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL].buf, pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL].len);
 
     int htlc_cnt = 0;
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
@@ -895,9 +897,9 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
         if (pRevokedTx->vout[lp].script.len == BTC_SZ_WITPROG_P2WPKH) {
             //to_remote output
             LOGD("[%d]to_remote_output\n", lp);
-            utl_buf_init(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
-            utl_buf_alloccopy(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOREMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
-        } else if (utl_buf_equal(&pRevokedTx->vout[lp].script, &pChannel->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
+            utl_buf_init(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_REMOTE]);
+            utl_buf_alloccopy(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_REMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
+        } else if (utl_buf_equal(&pRevokedTx->vout[lp].script, &pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL])) {
             //to_local output
             LOGD("[%d]to_local_output\n", lp);
         } else {
@@ -987,21 +989,22 @@ bool ln_update_fee_create(ln_channel_t *pChannel, utl_buf_t *pUpdFee, uint32_t F
  * others
  ********************************************************************/
 
-bool ln_wallet_create_tolocal(const ln_channel_t *pChannel, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
+bool ln_wallet_create_to_local(const ln_channel_t *pChannel, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
     bool ret = create_basetx(pTx, Value,
                 NULL, ToSelfDelay, pTxid, Index, bRevoked);
     if (ret) {
         btc_keys_t sigkey;
-        ln_signer_tolocal_key(pChannel, &sigkey, bRevoked);
-        ret = ln_script_tolocal_wit(pTx, &sigkey, pScript, bRevoked);
+        ln_signer_to_local_key(
+            &sigkey, &pChannel->keys_local, &pChannel->keys_remote, bRevoked ? pChannel->revoked_sec.buf : NULL);
+        ret = ln_script_to_local_wit(pTx, &sigkey, pScript, bRevoked);
     }
     return ret;
 }
 
 
-bool ln_wallet_create_toremote(
+bool ln_wallet_create_to_remote(
             const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
             const uint8_t *pTxid, int Index)
 {
@@ -1009,8 +1012,8 @@ bool ln_wallet_create_toremote(
                 NULL, 0, pTxid, Index, false);
     if (ret) {
         btc_keys_t sigkey;
-        ln_signer_toremote_key(pChannel, &sigkey);
-        ln_script_toremote_wit(pTx, &sigkey);
+        ln_signer_to_remote_key(&sigkey, &pChannel->keys_local, &pChannel->keys_remote);
+        ln_script_to_remote_wit(pTx, &sigkey);
     }
 
     return ret;
@@ -1030,9 +1033,10 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;
-    ln_signer_get_revoke_secret(pChannel, &signkey,
-                    pChannel->keys_remote.per_commitment_point,
-                    pChannel->revoked_sec.buf);
+    ln_signer_revocation_privkey(
+        &signkey, &pChannel->keys_local,
+        pChannel->keys_remote.per_commitment_point,
+        pChannel->revoked_sec.buf);
     // LOGD("key-priv: ");
     // DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
     // LOGD("key-pub : ");

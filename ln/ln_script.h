@@ -39,8 +39,8 @@ typedef enum {
     LN_HTLCTYPE_NONE,                               ///< 未設定
     LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
     LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
-    LN_HTLCTYPE_TOLOCAL     = 0xfe,                 ///< vout=to_local
-    LN_HTLCTYPE_TOREMOTE    = 0xff                  ///< vout=to_remote
+    LN_HTLCTYPE_TO_LOCAL     = 0xfe,                 ///< vout=to_local
+    LN_HTLCTYPE_TO_REMOTE    = 0xff                  ///< vout=to_remote
 } ln_htlctype_t;
 
 
@@ -131,18 +131,18 @@ uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const 
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
+void HIDDEN ln_script_create_to_local(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay);
 
 
-bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
+bool HIDDEN ln_script_to_local_wit(btc_tx_t *pTx,
                     const btc_keys_t *pKey,
                     const utl_buf_t *pWitScript, bool bRevoked);
 
 
-void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
+void HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
 
 
 /** 公開鍵からscriptPubKeyを生成
