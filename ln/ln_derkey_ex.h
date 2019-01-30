@@ -66,41 +66,6 @@
  * typedefs
  ********************************************************************/
 
-#if 0
-typedef struct {
-    //channel
-    uint8_t     basepoints[LN_BASEPOINT_IDX_NUM][BTC_SZ_PUBKEY];
-
-    //commit_tx
-    uint8_t     per_commitment_point[BTC_SZ_PUBKEY];
-    uint8_t     prev_per_commitment_point[BTC_SZ_PUBKEY];
-} ln_derkey_pubkeys_t;
-
-
-typedef struct {
-    //channel
-    uint8_t     secrets[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY];
-    uint64_t    next_storage_index;
-    uint8_t     storage_seed[LN_SZ_SEED];
-
-    //commit_tx
-    uint8_t     per_commitment_secret[BTC_SZ_PRIVKEY];
-} ln_derkey_local_privkeys_t;
-
-
-typedef struct {
-    //channel & commit_tx
-    ln_derkey_storage_t     storage;
-} ln_derkey_remote_privkeys_t;
-
-
-typedef struct {
-    //commit_tx
-    uint8_t     keys[LN_SCRIPT_IDX_NUM][BTC_SZ_PUBKEY];
-} ln_derkey_script_pubkeys_t;
-#endif
-
-
 typedef struct {
     //channel (priv)
     uint8_t     secrets[LN_BASEPOINT_IDX_NUM][BTC_SZ_PRIVKEY]; //save db
@@ -140,6 +105,12 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+bool HIDDEN ln_derkey_init(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
+
+
+void HIDDEN ln_derkey_term(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
+
+
 bool HIDDEN ln_derkey_local_init(ln_derkey_local_keys_t *pKeys);
 
 
@@ -156,6 +127,15 @@ bool HIDDEN ln_derkey_local_storage_update_per_commitment_point_force(ln_derkey_
 
 
 void HIDDEN ln_derkey_local_storage_create_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint64_t Index);
+
+
+/** 1つ前のper_commit_secret取得
+ *
+ * @param[in,out]   pChannel        チャネル情報
+ * @param[out]      pSecret         1つ前のper_commitment_secret
+ * @param[in,out]   pPerCommitPt    1つ前のper_commitment_point or NULL
+ */
+bool HIDDEN ln_derkey_local_storage_create_prev_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint8_t *pPerCommitPt);
 
 
 uint64_t ln_derkey_local_storage_get_prev_index(const ln_derkey_local_keys_t *pKeys);

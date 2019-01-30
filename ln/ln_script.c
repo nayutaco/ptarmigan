@@ -98,7 +98,7 @@ uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const 
 }
 
 
-void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
+void HIDDEN ln_script_create_to_local(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay)
@@ -139,7 +139,7 @@ void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
 
 
 
-bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
+bool HIDDEN ln_script_to_local_wit(btc_tx_t *pTx,
                     const btc_keys_t *pKey,
                     const utl_buf_t *pWitScript, bool bRevoked)
 {
@@ -163,7 +163,7 @@ bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
 }
 
 
-void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_keys_t *pKey)
+void HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey)
 {
     utl_buf_t *p_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * 2);
     utl_buf_alloccopy(&p_wit[0], pKey->priv, BTC_SZ_PRIVKEY);
@@ -346,7 +346,7 @@ bool HIDDEN ln_script_committx_create(
         LOGD("    remote.pubkey: ");
         DUMPD(pCmt->remote.pubkey, BTC_SZ_PUBKEY);
         btc_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
-        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOREMOTE;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TO_REMOTE;
     } else {
         LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
@@ -354,7 +354,7 @@ bool HIDDEN ln_script_committx_create(
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
         btc_sw_add_vout_p2wsh_wit(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
-        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TO_LOCAL;
     } else {
         LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
     }
@@ -403,10 +403,10 @@ bool HIDDEN ln_script_committx_create(
 
     //署名
     bool ret;
-    uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_sw_sighash_p2wsh_wit(pTx, txhash, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
+    uint8_t sighash[BTC_SZ_HASH256];
+    ret = btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
     if (ret) {
-        ret = ln_signer_p2wsh(pSig, txhash, pKeys, LN_BASEPOINT_IDX_FUNDING);
+        ret = ln_signer_sign(pSig, sighash, pKeys, LN_BASEPOINT_IDX_FUNDING);
     } else {
         LOGE("fail: calc sighash\n");
     }
@@ -467,7 +467,7 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
     uint8_t sighash[BTC_SZ_HASH256];
     ret = btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     if (ret) {
-        ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
+        ret = ln_signer_sign_2(pLocalSig, sighash, pKeys);
     } else {
         LOGE("fail: calc sighash\n");
     }

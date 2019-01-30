@@ -43,8 +43,8 @@ extern "C" {
 #define LN_DB_CNLANNO_UPD1          'B'     ///< channel_announcement用KEYの末尾: channel_update 1
 #define LN_DB_CNLANNO_UPD2          'C'     ///< channel_announcement用KEYの末尾: channel_update 2
 
-#define LN_DB_WALLET_TYPE_TOLOCAL   ((uint8_t)1)
-#define LN_DB_WALLET_TYPE_TOREMOTE  ((uint8_t)2)
+#define LN_DB_WALLET_TYPE_TO_LOCAL   ((uint8_t)1)
+#define LN_DB_WALLET_TYPE_TO_REMOTE  ((uint8_t)2)
 #define LN_DB_WALLET_TYPE_HTLCOUT   ((uint8_t)3)
 
 #define LN_DB_WALLET_INIT(t)        { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_item_cnt*/, NULL/*p_wit*/ }
