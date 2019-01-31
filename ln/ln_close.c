@@ -122,7 +122,7 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
     }
 
     //scriptPubKey
-    if (!ln_script_scriptpkh_check(&pChannel->shutdown_scriptpk_remote)) {
+    if (!ln_script_scriptpk_check(&pChannel->shutdown_scriptpk_remote)) {
         M_SET_ERR(pChannel, LNERR_INV_PRIVKEY, "unknown scriptPubKey type");
         return false;
     }

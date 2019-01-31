@@ -2691,7 +2691,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_recv
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         uint8_t payment_hash[BTC_SZ_HASH256];
-        ln_preimage_hash_calc(payment_hash, p_fulfill->p_preimage);
+        ln_payment_hash_calc(payment_hash, p_fulfill->p_preimage);
         utl_str_bin2str(hashstr, payment_hash, BTC_SZ_HASH256);
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         utl_str_bin2str(imgstr, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
@@ -2729,7 +2729,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_re
     payroute_del(p_conf, p_fulfill->id);
 
     uint8_t hash[BTC_SZ_HASH256];
-    ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
+    ln_payment_hash_calc(hash, p_fulfill->p_preimage);
     cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
     ln_db_routeskip_work(false);

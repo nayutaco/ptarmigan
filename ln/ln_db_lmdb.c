@@ -2959,7 +2959,7 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
             *pDetect = true;
 
             uint8_t hash[BTC_SZ_HASH256];
-            ln_preimage_hash_calc(hash, pPreImg->preimage);
+            ln_payment_hash_calc(hash, pPreImg->preimage);
             LOGD("invoice hash: ");
             DUMPD(hash, BTC_SZ_HASH256);
         } else {
@@ -4694,7 +4694,7 @@ static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t 
 
     LOGD("compare preimage : ");
     DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_preimage_hash_calc(preimage_hash, pPreImage);
+    ln_payment_hash_calc(preimage_hash, pPreImage);
     if (memcmp(preimage_hash, hash, BTC_SZ_HASH256) == 0) {
         retval = mdb_cursor_del(p_cur->cursor, 0);
         LOGD("  remove from DB: %s\n", mdb_strerror(retval));
@@ -4718,7 +4718,7 @@ static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
 
     LOGD("compare preimage : ");
     DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_preimage_hash_calc(preimage_hash, pPreImage);
+    ln_payment_hash_calc(preimage_hash, pPreImage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         if (memcmp(preimage_hash, prm->add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {

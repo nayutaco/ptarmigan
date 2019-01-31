@@ -709,7 +709,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         bool detect;
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
         if (detect) {
-            ln_preimage_hash_calc(preimage_hash, preimg.preimage);
+            ln_payment_hash_calc(preimage_hash, preimg.preimage);
             cJSON *json = cJSON_CreateObject();
 
             char str_hash[BTC_SZ_HASH256 * 2 + 1];
@@ -1673,7 +1673,7 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
     ln_db_preimg_save(&preimg, NULL);
     ptarmd_preimage_unlock();
 
-    ln_preimage_hash_calc(pPayHash, preimg.preimage);
+    ln_payment_hash_calc(pPayHash, preimg.preimage);
     return 0;
 }
 

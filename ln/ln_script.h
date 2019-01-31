@@ -51,9 +51,9 @@ typedef struct {
     uint32_t        feerate_per_kw;                 ///< [IN]1000byte辺りのsatoshi
     uint64_t        dust_limit_satoshi;             ///< [IN]dust_limit_satoshi
 
-    uint64_t        htlc_success;                   ///< [CALC]HTLC success Transaction FEE
-    uint64_t        htlc_timeout;                   ///< [CALC]HTLC timeout Transaction FEE
-    uint64_t        commit;                         ///< [CALC]Commitment Transaction FEE
+    uint64_t        htlc_success_fee;               ///< [CALC]HTLC success Transaction FEE
+    uint64_t        htlc_timeout_fee;               ///< [CALC]HTLC timeout Transaction FEE
+    uint64_t        commit_fee;                     ///< [CALC]Commitment Transaction FEE
 } ln_script_fee_info_t;
 
 
@@ -61,12 +61,12 @@ typedef struct {
  *  @brief  HTLC情報
  */
 typedef struct {
-    ln_htlc_type_t          type;                   ///< HTLC種別
-    uint16_t                add_htlc_idx;           ///< 対応するpChannel->cnl_add_htlc[]のindex値
-    uint32_t                expiry;                 ///< expiry
-    uint64_t                amount_msat;            ///< amount_msat
-    const uint8_t           *preimage_hash;         ///< preimage hash
-    utl_buf_t               script;                 ///< script
+    ln_htlc_type_t  type;                           ///< HTLC種別
+    uint16_t        add_htlc_idx;                   ///< 対応するpChannel->cnl_add_htlc[]のindex値
+    uint32_t        expiry;                         ///< expiry
+    uint64_t        amount_msat;                    ///< amount_msat
+    const uint8_t   *payment_hash;                  ///< preimage hash
+    utl_buf_t       wit_script;                     ///< witness script
 } ln_script_htlc_info_t;
 
 
@@ -75,23 +75,23 @@ typedef struct {
  */
 typedef struct {
     struct {
-        const uint8_t       *txid;              ///< funding txid
-        uint32_t            txid_index;         ///< funding txid index
-        uint64_t            satoshi;            ///< funding satoshi
-        const utl_buf_t     *p_script;          ///< funding script
+        const uint8_t       *txid;                  ///< funding txid
+        uint32_t            txid_index;             ///< funding txid index
+        uint64_t            satoshi;                ///< funding satoshi
+        const utl_buf_t     *p_wit_script;          ///< funding tx witness script
     } fund;
     struct {
-        uint64_t            satoshi;            ///< local satoshi
-        const utl_buf_t     *p_script;          ///< to-local script
-    } local;
+        uint64_t            satoshi;                ///< local satoshi
+        const utl_buf_t     *p_wit_script;          ///< to-local witness script
+    } to_local;
     struct {
-        uint64_t            satoshi;            ///< remote satoshi
-        const uint8_t       *pubkey;            ///< remote pubkey(to-remote用)
-    } remote;
-    uint64_t                obscured;           ///< Obscured Commitment Number(ln_comtx_calc_obscured_commit_num_base())
-    ln_script_fee_info_t     *p_fee_info;       ///< FEE情報
-    ln_script_htlc_info_t    **pp_htlc_info;    ///< HTLC情報ポインタ配列(htlc_info_num個分)
-    uint8_t                 htlc_info_num;      ///< HTLC数
+        uint64_t            satoshi;                ///< remote satoshi
+        const uint8_t       *pubkey;                ///< remote pubkey(to-remote用)
+    } to_remote;
+    uint64_t                obscured_commit_num;    ///< Obscured Commitment Number
+    ln_script_fee_info_t     *p_fee_info;           ///< FEE情報
+    ln_script_htlc_info_t    **pp_htlc_info;        ///< HTLC情報ポインタ配列(htlc_info_num個分)
+    uint8_t                 htlc_info_num;          ///< HTLC数
 } ln_script_commit_tx_t;
 
 
@@ -114,7 +114,7 @@ typedef enum {
 
 /** To-Localスクリプト作成
  *
- * @param[out]      pBuf                生成したスクリプト
+ * @param[out]      pWitScript                生成したスクリプト
  * @param[in]       pLocalRevoKey       Local RevocationKey[33]
  * @param[in]       pLocalDelayedKey    Local Delayed Key[33]
  * @param[in]       LocalDelay          Local Delay(OP_CSV)
@@ -122,7 +122,7 @@ typedef enum {
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-void HIDDEN ln_script_create_to_local(utl_buf_t *pBuf,
+void HIDDEN ln_script_create_to_local(utl_buf_t *pWitScript,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pLocalDelayedKey,
     uint32_t LocalDelay);
@@ -146,7 +146,7 @@ void HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
  * @note
  *      - shutdownメッセージ用
  */
-bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix);
+bool HIDDEN ln_script_scriptpk_create(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix);
 
 
 /** scriptPubKeyのチェック(P2PKH/P2SH/P2WPKH/P2WSH)
@@ -156,7 +156,7 @@ bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, i
  * @note
  *      - shutdownメッセージ受信用
  */
-bool HIDDEN ln_script_scriptpkh_check(const utl_buf_t *pBuf);
+bool HIDDEN ln_script_scriptpk_check(const utl_buf_t *pBuf);
 
 
 /** HTLC情報初期化
@@ -226,7 +226,7 @@ bool HIDDEN ln_script_commit_tx_create(
  *
  * @param[out]      pTx         TX情報
  * @param[in]       Value       vout amount
- * @param[in]       pScript     vout P2WSHスクリプト
+ * @param[in]       pWitScript  vout P2WSHスクリプト
  * @param[in]       Type        pScriptタイプ(LN_HTLC_TYPE_xxx)
  * @param[in]       CltvExpiry  locktime(TypeがOffered HTLCの場合のみ)
  * @param[in]       pTxid       vin TXID
@@ -235,7 +235,7 @@ bool HIDDEN ln_script_commit_tx_create(
 void HIDDEN ln_script_htlc_tx_create(
     btc_tx_t *pTx,
     uint64_t Value,
-    const utl_buf_t *pScript,
+    const utl_buf_t *pWitScript,
     ln_htlc_type_t Type,
     uint32_t CltvExpiry,
     const uint8_t *pTxid,
