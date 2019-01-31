@@ -664,8 +664,7 @@ struct ln_channel_t {
     //funding
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
     ln_funding_tx_t             funding_tx;                     ///< [FUND_02]funding tx
-    //uint64_t                    obscured_commit_num_base;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
-    uint64_t                    obscured;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
+    uint64_t                    obscured_commit_num_base;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
     utl_buf_t                   redeem_fund;                    ///< [FUND_04]2-of-2のredeemScript
     btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_05]2-of-2のソート順(local, remoteを正順とした場合)
     btc_tx_t                    tx_funding;                     ///< [FUND_06]funding_tx

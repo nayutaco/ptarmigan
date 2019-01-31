@@ -307,7 +307,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     }
     printf("\n");
     printf(INDENT3 "},\n");
-    printf(INDENT3 M_QQ("obscured") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->obscured);
+    printf(INDENT3 M_QQ("obscured_commit_num_base") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->obscured_commit_num_base);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
     // utl_dbg_dump(stdout, pChannel->redeem_fund.buf, pChannel->redeem_fund.len, false);
     // printf("\",\n");

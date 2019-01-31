@@ -361,10 +361,10 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     //fund
     //
-    M_ITEM(ln_channel_t, fund_flag),                                               //[FUND_01]
-    M_ITEM(ln_channel_t, funding_tx),                                              //[FUND_02]
-    M_ITEM(ln_channel_t, obscured),                                                //[FUND_05]
-    M_ITEM(ln_channel_t, min_depth),                                               //[FUND_08]
+    M_ITEM(ln_channel_t, fund_flag),                                                //[FUND_01]
+    M_ITEM(ln_channel_t, funding_tx),                                               //[FUND_02]
+    M_ITEM(ln_channel_t, obscured_commit_num_base),                                 //[FUND_05]
+    M_ITEM(ln_channel_t, min_depth),                                                //[FUND_08]
     M_ITEM(ln_channel_t, funding_bhash),   //[FUNDSPV_01]
     M_ITEM(ln_channel_t, last_confirm),    //[FUNDSPV_02]
 
