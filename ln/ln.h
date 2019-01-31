@@ -723,8 +723,8 @@ struct ln_channel_t {
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
 
     //commitment transaction(local/remote)
-    ln_commit_tx_t            commit_tx_local;                   ///< [COMM_01]local commit_tx用
-    ln_commit_tx_t            commit_tx_remote;                  ///< [COMM_02]remote commit_tx用
+    ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用
+    ln_commit_tx_t              commit_tx_remote;               ///< [COMM_02]remote commit_tx用
     //commitment transaction(固有)
     uint64_t                    funding_sat;                    ///< [COMM_03]funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< [COMM_04]feerate_per_kw
