@@ -1,15 +1,5 @@
 #!/bin/sh
-
-func_upd() {
-	if [ -d $1 ]; then
-		cd $1
-		git checkout $3
-		git pull
-		cd ..
-	else
-		echo "$1" not found
-	fi
-}
+set -eu
 
 func_tag() {
 	if [ -d $1 ]; then
@@ -27,31 +17,12 @@ func_tag() {
 
 cd libs
 
-# change URL
-cd inih
-CNT=`git remote -v | grep -c nayutaco`
-if [ $CNT -ne 0 ]; then
-	git checkout master
-	git remote set-url origin https://github.com/benhoyt/inih.git
-	git fetch
-fi
-cd ..
-
-cd lmdb
-CNT=`git remote -v | grep -c nayutaco`
-if [ $CNT -ne 0 ]; then
-	git checkout mdb.master
-	git remote set-url origin https://github.com/LMDB/lmdb.git
-	git fetch
-fi
-cd ..
-
 git submodule sync
 git submodule update --init
 
-func_upd jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly
-func_upd libbase58 https://github.com/luke-jr/libbase58.git master
-func_upd libev https://github.com/enki/libev.git master
+func_tag jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly 38d15468b26b447907fbabdc061b2e08a48c3e0d
+func_tag libbase58 https://github.com/luke-jr/libbase58.git master 1cb26b5bfff6b52995a2d88a4b7e1041df589d35
+func_tag libev https://github.com/enki/libev.git master 93823e6ca699df195a6c7b8bfa6006ec40ee0003
 
 func_tag inih https://github.com/benhoyt/inih.git master refs/tags/r42
 func_tag lmdb https://github.com/LMDB/lmdb.git mdb.master refs/tags/LMDB_0.9.23

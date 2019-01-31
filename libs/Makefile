@@ -19,10 +19,19 @@ endif
 
 all: lib
 
-lib: mk_install mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl
+lib: mk_install mk_libev mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl
 
 apt: git_update mk_install mk_jsonrpc_c mk_inih mk_base58 mk_mbedtls
-	sudo apt install libboost-dev libjansson-dev libz-dev libcurl4-openssl-dev libev-dev liblmdb-dev
+	sudo apt install -y \
+			libboost-dev=1.65.1.0ubuntu1 \
+			libjansson-dev=2.11-1 \
+			zlib1g-dev=1:1.2.11.dfsg-0ubuntu2 \
+			libcurl4-openssl-dev=7.58.0-2ubuntu3.5 \
+			libev-dev=1:4.22-1 \
+			liblmdb-dev=0.9.21-1
+
+apt_remove:
+	sudo apt remove libboost-dev libjansson-dev zlib1g-dev libcurl4-openssl-dev libev-dev liblmdb-dev
 
 git_update:
 	git submodule update --init inih
@@ -36,13 +45,15 @@ mk_install:
 	@mkdir -p $(INSTALL_DIR)/lib
 	@mkdir -p $(INSTALL_DIR)/boost
 
-mk_jsonrpc_c:
+mk_libev:
 	cd libev; \
 	autoreconf -i ;\
 	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc CFLAGS="$(ADD_CFLAGS)" --disable-shared ; \
 	$(MAKE) ; \
 	$(MAKE) install ; \
 	cd ..
+
+mk_jsonrpc_c:
 	cd jsonrpc-c; \
 	autoreconf -i ; \
 	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --with-libev=$(INSTALL_DIR) --disable-shared ; \
