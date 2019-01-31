@@ -911,7 +911,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
-                ln_script_htlc_info_script(&pChannel->p_revoked_wit[htlc_idx],
+                ln_script_create_htlc(&pChannel->p_revoked_wit[htlc_idx],
                         type,
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
@@ -948,7 +948,7 @@ bool ln_wallet_create_to_local(const ln_channel_t *pChannel, btc_tx_t *pTx,uint6
         btc_keys_t sigkey;
         ln_signer_to_local_key(
             &sigkey, &pChannel->keys_local, &pChannel->keys_remote, bRevoked ? pChannel->revoked_sec.buf : NULL);
-        ret = ln_script_to_local_wit(pTx, &sigkey, pScript, bRevoked);
+        ret = ln_script_to_local_set_vin0(pTx, &sigkey, pScript, bRevoked);
     }
     return ret;
 }
@@ -963,7 +963,7 @@ bool ln_wallet_create_to_remote(
     if (ret) {
         btc_keys_t sigkey;
         ln_signer_to_remote_key(&sigkey, &pChannel->keys_local, &pChannel->keys_remote);
-        ln_script_to_remote_wit(pTx, &sigkey);
+        ln_script_to_remote_set_vin0(pTx, &sigkey);
     }
 
     return ret;

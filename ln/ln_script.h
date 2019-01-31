@@ -63,7 +63,7 @@ typedef struct {
 typedef struct {
     ln_htlc_type_t  type;                           ///< HTLC種別
     uint16_t        add_htlc_idx;                   ///< 対応するpChannel->cnl_add_htlc[]のindex値
-    uint32_t        expiry;                         ///< expiry
+    uint32_t        cltv_expiry;                    ///< cltv_expiry
     uint64_t        amount_msat;                    ///< amount_msat
     const uint8_t   *payment_hash;                  ///< preimage hash
     utl_buf_t       wit_script;                     ///< witness script
@@ -116,8 +116,8 @@ typedef enum {
  *
  * @param[out]      pWitScript                生成したスクリプト
  * @param[in]       pLocalRevoKey       Local RevocationKey[33]
- * @param[in]       pLocalDelayedKey    Local Delayed Key[33]
- * @param[in]       LocalDelay          Local Delay(OP_CSV)
+ * @param[in]       pLocaledKey         Local Delayed Key[33]
+ * @param[in]       LocalToSelfDelay    Local ToSelfDelay(OP_CSV)
  *
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
@@ -125,18 +125,18 @@ typedef enum {
 bool HIDDEN ln_script_create_to_local(
     utl_buf_t *pWitScript,
     const uint8_t *pLocalRevoKey,
-    const uint8_t *pLocalDelayedKey,
-    uint32_t LocalDelay);
+    const uint8_t *pLocaledKey,
+    uint32_t Local);
 
 
-bool HIDDEN ln_script_to_local_wit(
+bool HIDDEN ln_script_to_local_set_vin0(
     btc_tx_t *pTx,
     const btc_keys_t *pKey,
     const utl_buf_t *pWitScript,
     bool bRevoked);
 
 
-bool HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
+bool HIDDEN ln_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t *pKey);
 
 
 /** 公開鍵からscriptPubKeyを生成
@@ -184,14 +184,16 @@ void HIDDEN ln_script_htlc_info_free(ln_script_htlc_info_t *pHtlcInfo);
  * @param[in]       pLocalRevoKey       Local RevocationKey[33]
  * @param[in]       pRemoteHtlcKey      Remote htlckey[33]
  * @param[in]       pPaymentHash        payment_hash[32]
- * @param[in]       Expiry              expiry(HTLC-Success用)
+ * @param[in]       CltvExpiry          cltv_expiry(HTLC-Success用)
  */
-void HIDDEN ln_script_htlc_info_script(utl_buf_t *pScript, ln_htlc_type_t Type,
+bool HIDDEN ln_script_create_htlc(
+    utl_buf_t *pScript,
+    ln_htlc_type_t Type,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,
     const uint8_t *pPaymentHash,
-    uint32_t Expiry);
+    uint32_t CLtvExpiry);
 
 
 /** FEE計算
