@@ -39,8 +39,8 @@ typedef enum {
     LN_HTLCTYPE_NONE,                               ///< 未設定
     LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
     LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
-    LN_HTLCTYPE_TO_LOCAL     = 0xfe,                 ///< vout=to_local
-    LN_HTLCTYPE_TO_REMOTE    = 0xff                  ///< vout=to_remote
+    LN_HTLCTYPE_TO_LOCAL    = 0xfe,                 ///< vout=to_local
+    LN_HTLCTYPE_TO_REMOTE   = 0xff                  ///< vout=to_remote
 } ln_htlctype_t;
 
 
