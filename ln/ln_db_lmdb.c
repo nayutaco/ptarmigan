@@ -3008,7 +3008,7 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry)
  * [node]payment_hash
  ********************************************************************/
 
-bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry)
+bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlc_type_t Type, uint32_t Expiry)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -3052,7 +3052,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
+bool ln_db_phash_search(uint8_t *pPayHash, ln_htlc_type_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
 {
     int         retval;
     MDB_txn     *txn;
@@ -3083,7 +3083,7 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
         if ( (key.mv_size == BTC_SZ_WITPROG_P2WSH) &&
              (memcmp(key.mv_data, pVout, BTC_SZ_WITPROG_P2WSH) == 0) ) {
             uint8_t *p = (uint8_t *)data.mv_data;
-            *pType = (ln_htlctype_t)*p;
+            *pType = (ln_htlc_type_t)*p;
             memcpy(pExpiry, p + 1, sizeof(uint32_t));
             memcpy(pPayHash, p + 1 + sizeof(uint32_t), BTC_SZ_HASH256);
             found = true;
@@ -3256,7 +3256,7 @@ bool ln_db_revtx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDbParam
     utl_buf_free(&buf);
 
     key.mv_data = LNDBK_RVT;
-    data.mv_size = sizeof(ln_htlctype_t) * pChannel->revoked_num;
+    data.mv_size = sizeof(ln_htlc_type_t) * pChannel->revoked_num;
     data.mv_data = pChannel->p_revoked_type;
     retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
     if (retval != 0) {

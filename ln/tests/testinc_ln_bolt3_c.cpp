@@ -230,9 +230,9 @@ protected:
 
     static btc_tx_t tx;
     static uint8_t txid_commit[BTC_SZ_TXID];
-    static ln_script_feeinfo_t   feeinfo;
-    static ln_script_htlcinfo_t htlcinfos[5];
-    static ln_script_htlcinfo_t **pp_htlcinfos;
+    static ln_script_fee_info_t   fee_info;
+    static ln_script_htlc_info_t htlc_infos[5];
+    static ln_script_htlc_info_t **pp_htlc_infos;
 
 public:
     static void DumpBin(const uint8_t *pData, uint16_t Len)
@@ -255,9 +255,9 @@ btc_script_pubkey_order_t ln_bolt3_c::key_fund_sort;
 
 btc_tx_t ln_bolt3_c::tx;
 uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];
-ln_script_feeinfo_t   ln_bolt3_c::feeinfo;
-ln_script_htlcinfo_t ln_bolt3_c::htlcinfos[5];
-ln_script_htlcinfo_t** ln_bolt3_c::pp_htlcinfos;
+ln_script_fee_info_t   ln_bolt3_c::fee_info;
+ln_script_htlc_info_t ln_bolt3_c::htlc_infos[5];
+ln_script_htlc_info_t** ln_bolt3_c::pp_htlc_infos;
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -274,7 +274,7 @@ TEST_F(ln_bolt3_c, committx1)
     bool ret;
 
     //obscured commitment number
-    uint64_t obscured_base = ln_script_calc_obscured_txnum(LOCAL_PAYMENT_BASEPOINT, REMOTE_PAYMENT_BASEPOINT);
+    uint64_t obscured_base = ln_script_calc_obscured_commit_num_base(LOCAL_PAYMENT_BASEPOINT, REMOTE_PAYMENT_BASEPOINT);
     ASSERT_EQ(OBSCURED_NUM, obscured_base);
     obscured = obscured_base ^ COMMITMENT_NUMBER;
 
@@ -304,37 +304,37 @@ TEST_F(ln_bolt3_c, committx1)
     btc_md_sha256(preimage_hash_htlc4, PREIMAGE_HTLC4, BTC_SZ_HASH256);
 
     //fee
-    feeinfo.dust_limit_satoshi = DUST_LIMIT_SATOSHIS;
+    fee_info.dust_limit_satoshi = DUST_LIMIT_SATOSHIS;
 
     //HTLC info
-    htlcinfos[0].type = LN_HTLCTYPE_RECEIVED;
-    htlcinfos[0].expiry = EXPIRY0;
-    htlcinfos[0].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC0);
-    htlcinfos[0].preimage_hash = preimage_hash_htlc0;
+    htlc_infos[0].type = LN_HTLC_TYPE_RECEIVED;
+    htlc_infos[0].expiry = EXPIRY0;
+    htlc_infos[0].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC0);
+    htlc_infos[0].preimage_hash = preimage_hash_htlc0;
     //
-    htlcinfos[1].type = LN_HTLCTYPE_RECEIVED;
-    htlcinfos[1].expiry = EXPIRY1;
-    htlcinfos[1].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC1);
-    htlcinfos[1].preimage_hash = preimage_hash_htlc1;
+    htlc_infos[1].type = LN_HTLC_TYPE_RECEIVED;
+    htlc_infos[1].expiry = EXPIRY1;
+    htlc_infos[1].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC1);
+    htlc_infos[1].preimage_hash = preimage_hash_htlc1;
     //
-    htlcinfos[2].type = LN_HTLCTYPE_OFFERED;
-    htlcinfos[2].expiry = EXPIRY2;
-    htlcinfos[2].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC2);
-    htlcinfos[2].preimage_hash = preimage_hash_htlc2;
+    htlc_infos[2].type = LN_HTLC_TYPE_OFFERED;
+    htlc_infos[2].expiry = EXPIRY2;
+    htlc_infos[2].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC2);
+    htlc_infos[2].preimage_hash = preimage_hash_htlc2;
     //
-    htlcinfos[3].type = LN_HTLCTYPE_OFFERED;
-    htlcinfos[3].expiry = EXPIRY3;
-    htlcinfos[3].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC3);
-    htlcinfos[3].preimage_hash = preimage_hash_htlc3;
+    htlc_infos[3].type = LN_HTLC_TYPE_OFFERED;
+    htlc_infos[3].expiry = EXPIRY3;
+    htlc_infos[3].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC3);
+    htlc_infos[3].preimage_hash = preimage_hash_htlc3;
     //
-    htlcinfos[4].type = LN_HTLCTYPE_RECEIVED;
-    htlcinfos[4].expiry = EXPIRY4;
-    htlcinfos[4].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC4);
-    htlcinfos[4].preimage_hash = preimage_hash_htlc4;
+    htlc_infos[4].type = LN_HTLC_TYPE_RECEIVED;
+    htlc_infos[4].expiry = EXPIRY4;
+    htlc_infos[4].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC4);
+    htlc_infos[4].preimage_hash = preimage_hash_htlc4;
 
-    pp_htlcinfos = (ln_script_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t*) * 5);
+    pp_htlc_infos = (ln_script_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_script_htlc_info_t*) * 5);
     for (int lp = 0; lp < 5; lp++) {
-        pp_htlcinfos[lp] = &htlcinfos[lp];
+        pp_htlc_infos[lp] = &htlc_infos[lp];
     }
 }
 
@@ -349,16 +349,16 @@ TEST_F(ln_bolt3_c, committx2)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 15000;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, NULL, 0);
+    fee_info.feerate_per_kw = 15000;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, NULL, 0);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(10545, feeinfo.htlc_success);
-    ASSERT_EQ(9945, feeinfo.htlc_timeout);
-    ASSERT_EQ(10860, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(10545, fee_info.htlc_success);
+    ASSERT_EQ(9945, fee_info.htlc_timeout);
+    ASSERT_EQ(10860, fee_info.commit);
     ASSERT_EQ(10860, fee_act);
 
 
@@ -393,8 +393,8 @@ TEST_F(ln_bolt3_c, committx2)
     //vout#0:P2WKH - remote
     btc_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
     //vout#1:P2WSH - local
-    if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= feeinfo.dust_limit_satoshi + feeinfo.commit) {
-        ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf));
+    if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= fee_info.dust_limit_satoshi + fee_info.commit) {
+        ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - fee_info.commit, &ws_local_buf));
     }
 
     //input
@@ -521,16 +521,16 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     const uint64_t MSAT_LOCAL = 6988000000LL;
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
-    feeinfo.feerate_per_kw = 0;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 0;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(0, feeinfo.htlc_success);
-    ASSERT_EQ(0, feeinfo.htlc_timeout);
-    ASSERT_EQ(0, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(0, fee_info.htlc_success);
+    ASSERT_EQ(0, fee_info.htlc_timeout);
+    ASSERT_EQ(0, fee_info.commit);
     ASSERT_EQ(0, fee_act);
 
 
@@ -653,10 +653,10 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -686,7 +686,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -696,12 +696,12 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1190,27 +1190,27 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -1225,7 +1225,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -1247,16 +1247,16 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 647;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 647;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(454, feeinfo.htlc_success);
-    ASSERT_EQ(428, feeinfo.htlc_timeout);
-    ASSERT_EQ(1024, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(454, fee_info.htlc_success);
+    ASSERT_EQ(428, fee_info.htlc_timeout);
+    ASSERT_EQ(1024, fee_info.commit);
     ASSERT_EQ(1024, fee_act);
 
 
@@ -1374,10 +1374,10 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -1407,7 +1407,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -1417,12 +1417,12 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1910,27 +1910,27 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee) {
+        if (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -1945,7 +1945,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -1967,16 +1967,16 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 648;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 648;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(455, feeinfo.htlc_success);
-    ASSERT_EQ(429, feeinfo.htlc_timeout);
-    ASSERT_EQ(914, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(455, fee_info.htlc_success);
+    ASSERT_EQ(429, fee_info.htlc_timeout);
+    ASSERT_EQ(914, fee_info.commit);
     ASSERT_EQ(1914, fee_act);
 
 
@@ -2094,10 +2094,10 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -2127,7 +2127,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -2137,12 +2137,12 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -2569,27 +2569,27 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -2604,7 +2604,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -2626,16 +2626,16 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 2069;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 2069;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(1454, feeinfo.htlc_success);
-    ASSERT_EQ(1371, feeinfo.htlc_timeout);
-    ASSERT_EQ(2921, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(1454, fee_info.htlc_success);
+    ASSERT_EQ(1371, fee_info.htlc_timeout);
+    ASSERT_EQ(2921, fee_info.commit);
     ASSERT_EQ(3921, fee_act);
 
 
@@ -2753,10 +2753,10 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -2786,7 +2786,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -2796,12 +2796,12 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -3228,27 +3228,27 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -3263,7 +3263,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -3285,16 +3285,16 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 2070;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 2070;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(1455, feeinfo.htlc_success);
-    ASSERT_EQ(1372, feeinfo.htlc_timeout);
-    ASSERT_EQ(2566, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(1455, fee_info.htlc_success);
+    ASSERT_EQ(1372, fee_info.htlc_timeout);
+    ASSERT_EQ(2566, fee_info.commit);
     ASSERT_EQ(5566, fee_act);
 
 
@@ -3412,10 +3412,10 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -3445,7 +3445,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -3455,12 +3455,12 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -3823,27 +3823,27 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -3858,7 +3858,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -3880,16 +3880,16 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 2194;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 2194;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(1542, feeinfo.htlc_success);
-    ASSERT_EQ(1454, feeinfo.htlc_timeout);
-    ASSERT_EQ(2720, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(1542, fee_info.htlc_success);
+    ASSERT_EQ(1454, fee_info.htlc_timeout);
+    ASSERT_EQ(2720, fee_info.commit);
     ASSERT_EQ(5720, fee_act);
 
 
@@ -4007,10 +4007,10 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -4040,7 +4040,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -4050,12 +4050,12 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4418,27 +4418,27 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -4453,7 +4453,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -4475,16 +4475,16 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 2195;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 2195;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(1543, feeinfo.htlc_success);
-    ASSERT_EQ(1455, feeinfo.htlc_timeout);
-    ASSERT_EQ(2344, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(1543, fee_info.htlc_success);
+    ASSERT_EQ(1455, fee_info.htlc_timeout);
+    ASSERT_EQ(2344, fee_info.commit);
     ASSERT_EQ(7344, fee_act);
 
 
@@ -4602,10 +4602,10 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -4635,7 +4635,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -4645,12 +4645,12 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4952,27 +4952,27 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -4987,7 +4987,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -5009,16 +5009,16 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 3702;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 3702;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(2602, feeinfo.htlc_success);
-    ASSERT_EQ(2454, feeinfo.htlc_timeout);
-    ASSERT_EQ(3953, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(2602, fee_info.htlc_success);
+    ASSERT_EQ(2454, fee_info.htlc_timeout);
+    ASSERT_EQ(3953, fee_info.commit);
     ASSERT_EQ(8953, fee_act);
 
 
@@ -5136,10 +5136,10 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -5169,7 +5169,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -5179,12 +5179,12 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5486,27 +5486,27 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -5521,7 +5521,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -5543,16 +5543,16 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 3703;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 3703;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(2603, feeinfo.htlc_success);
-    ASSERT_EQ(2455, feeinfo.htlc_timeout);
-    ASSERT_EQ(3317, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(2603, fee_info.htlc_success);
+    ASSERT_EQ(2455, fee_info.htlc_timeout);
+    ASSERT_EQ(3317, fee_info.commit);
     ASSERT_EQ(11317, fee_act);
 
 
@@ -5670,10 +5670,10 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -5703,7 +5703,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -5713,12 +5713,12 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5960,27 +5960,27 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -5995,7 +5995,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -6017,16 +6017,16 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 4914;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 4914;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(3454, feeinfo.htlc_success);
-    ASSERT_EQ(3257, feeinfo.htlc_timeout);
-    ASSERT_EQ(4402, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(3454, fee_info.htlc_success);
+    ASSERT_EQ(3257, fee_info.htlc_timeout);
+    ASSERT_EQ(4402, fee_info.commit);
     ASSERT_EQ(12402, fee_act);
 
 
@@ -6144,10 +6144,10 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
     //to-local wscript
@@ -6176,7 +6176,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -6186,12 +6186,12 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6433,27 +6433,27 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+        uint64_t fee = (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_script_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
+            ln_script_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
-//            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_script_htlctx_sign(&tx2,
+//            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_HTLC_TYPE_OFFERED) ? "offered" : "received");
+            ret = ln_script_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
-                        &htlcinfos[lp].script);
+                        &htlc_infos[lp].script);
             ASSERT_TRUE(ret);
-            ret = ln_script_htlctx_wit(&tx2,
+            ret = ln_script_htlc_tx_wit(&tx2,
                         &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        &htlcinfos[lp].script,
-                        LN_HTLCSIGN_TIMEOUT_SUCCESS);
+                        &htlc_infos[lp].script,
+                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -6468,7 +6468,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
     }
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     utl_buf_free(&ws_buf);
     btc_tx_free(&tx2);
@@ -6490,16 +6490,16 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 4915;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 4915;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(3455, feeinfo.htlc_success);
-    ASSERT_EQ(3258, feeinfo.htlc_timeout);
-    ASSERT_EQ(3558, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(3455, fee_info.htlc_success);
+    ASSERT_EQ(3258, fee_info.htlc_timeout);
+    ASSERT_EQ(3558, fee_info.commit);
     ASSERT_EQ(15558, fee_act);
 
 
@@ -6617,10 +6617,10 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -6650,7 +6650,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -6660,12 +6660,12 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6767,7 +6767,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     btc_tx_free(&tx);
 }
@@ -6786,16 +6786,16 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 9651180;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 9651180;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(6784779, feeinfo.htlc_success);
-    ASSERT_EQ(6398732, feeinfo.htlc_timeout);
-    ASSERT_EQ(6987454, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(6784779, fee_info.htlc_success);
+    ASSERT_EQ(6398732, fee_info.htlc_timeout);
+    ASSERT_EQ(6987454, fee_info.commit);
     ASSERT_EQ(6999454, fee_act);
 
 
@@ -6913,10 +6913,10 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -6946,7 +6946,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -6956,12 +6956,12 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7063,7 +7063,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     btc_tx_free(&tx);
 }
@@ -7082,16 +7082,16 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    feeinfo.feerate_per_kw = 9651181;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 9651181;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
     printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(6784780, feeinfo.htlc_success);
-    ASSERT_EQ(6398733, feeinfo.htlc_timeout);
-    ASSERT_EQ(6987455, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(6784780, fee_info.htlc_success);
+    ASSERT_EQ(6398733, fee_info.htlc_timeout);
+    ASSERT_EQ(6987455, fee_info.commit);
 #warning これでよいのか不明(BOLTでは 7000000)
     ASSERT_EQ(6999455, fee_act);
 
@@ -7210,10 +7210,10 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -7243,7 +7243,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -7253,12 +7253,12 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7354,7 +7354,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     btc_tx_free(&tx);
 }
@@ -7372,16 +7372,16 @@ TEST_F(ln_bolt3_c, committx_commit)
     const uint64_t MSAT_LOCAL = 6988000000LL;
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
-    feeinfo.feerate_per_kw = 9651936;
-    uint64_t fee_act = ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfos, 5);
+    fee_info.feerate_per_kw = 9651936;
+    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)feeinfo.commit);
+//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit);
     printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
-//    printf("fee success=%d\n", (int)feeinfo.htlc_success);
-//    printf("fee timeout=%d\n", (int)feeinfo.htlc_timeout);
-    ASSERT_EQ(6785311, feeinfo.htlc_success);
-    ASSERT_EQ(6399233, feeinfo.htlc_timeout);
-    ASSERT_EQ(6988001, feeinfo.commit);
+//    printf("fee success=%d\n", (int)fee_info.htlc_success);
+//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout);
+    ASSERT_EQ(6785311, fee_info.htlc_success);
+    ASSERT_EQ(6399233, fee_info.htlc_timeout);
+    ASSERT_EQ(6988001, fee_info.commit);
 #warning これでよいのか不明(BOLTでは 7000000)
     ASSERT_EQ(7000001, fee_act);
 
@@ -7500,10 +7500,10 @@ TEST_F(ln_bolt3_c, committx_commit)
     };
 
     for (int lp = 0; lp < 5; lp++) {
-        ln_script_htlcinfo_script(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+        ln_script_htlc_info_script(&pp_htlc_infos[lp]->script, pp_htlc_infos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlc_infos[lp]->preimage_hash, pp_htlc_infos[lp]->expiry);
 
-        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
-        ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
+        ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlc_infos[lp].script.buf, SCRIPTS[lp].len));
+        ASSERT_EQ(SCRIPTS[lp].len, htlc_infos[lp].script.len);
     }
 
 
@@ -7533,7 +7533,7 @@ TEST_F(ln_bolt3_c, committx_commit)
 
     //tx
 
-    ln_script_committx_t lntx_commit;
+    ln_script_commit_tx_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
@@ -7543,12 +7543,12 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     lntx_commit.remote.pubkey = REMOTE_KEY;
     lntx_commit.obscured = obscured;
-    lntx_commit.p_feeinfo = &feeinfo;
-    lntx_commit.pp_htlcinfo = pp_htlcinfos;
-    lntx_commit.htlcinfo_num = 5;
+    lntx_commit.p_fee_info = &fee_info;
+    lntx_commit.pp_htlc_info = pp_htlc_infos;
+    lntx_commit.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_script_committx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_script_commit_tx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7644,7 +7644,7 @@ TEST_F(ln_bolt3_c, committx_commit)
 
 
     for (int lp = 0; lp < 5; lp++) {
-        utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
+        utl_buf_free((utl_buf_t *)&htlc_infos[lp].script);
     }
     btc_tx_free(&tx);
 }
@@ -7655,7 +7655,7 @@ TEST_F(ln_bolt3_c, fin)
     utl_buf_free(&funding2of2);
     btc_term();
 
-    UTL_DBG_FREE(pp_htlcinfos);
+    UTL_DBG_FREE(pp_htlc_infos);
 
     ASSERT_EQ(0, utl_dbg_malloc_cnt());
 }

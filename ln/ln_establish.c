@@ -294,7 +294,7 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     pChannel->commit_tx_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     //obscured commitment tx number
-    pChannel->obscured = ln_script_calc_obscured_txnum(
+    pChannel->obscured = ln_script_calc_obscured_commit_num_base(
         pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", pChannel->obscured);
 
@@ -373,7 +373,7 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     }
 
     //obscured commitment tx number
-    pChannel->obscured = ln_script_calc_obscured_txnum(
+    pChannel->obscured = ln_script_calc_obscured_commit_num_base(
         pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", pChannel->obscured);
 

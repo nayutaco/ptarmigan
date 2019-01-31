@@ -32,19 +32,19 @@
  * typedefs
  **************************************************************************/
 
-/** @enum   ln_htlctype_t
+/** @enum   ln_htlc_type_t
  *  @brief  HTLC種別
  */
 typedef enum {
-    LN_HTLCTYPE_NONE,                               ///< 未設定
-    LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
-    LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
-    LN_HTLCTYPE_TO_LOCAL    = 0xfe,                 ///< vout=to_local
-    LN_HTLCTYPE_TO_REMOTE   = 0xff                  ///< vout=to_remote
-} ln_htlctype_t;
+    LN_HTLC_TYPE_NONE,                               ///< 未設定
+    LN_HTLC_TYPE_OFFERED,                            ///< Offered HTLC
+    LN_HTLC_TYPE_RECEIVED,                           ///< Received HTLC
+    LN_HTLC_TYPE_TO_LOCAL    = 0xfe,                 ///< vout=to_local
+    LN_HTLC_TYPE_TO_REMOTE   = 0xff                  ///< vout=to_remote
+} ln_htlc_type_t;
 
 
-/** @struct ln_script_feeinfo_t
+/** @struct ln_script_fee_info_t
  *  @brief  FEE情報
  */
 typedef struct {
@@ -54,23 +54,23 @@ typedef struct {
     uint64_t        htlc_success;                   ///< [CALC]HTLC success Transaction FEE
     uint64_t        htlc_timeout;                   ///< [CALC]HTLC timeout Transaction FEE
     uint64_t        commit;                         ///< [CALC]Commitment Transaction FEE
-} ln_script_feeinfo_t;
+} ln_script_fee_info_t;
 
 
-/** @struct ln_script_htlcinfo_t
+/** @struct ln_script_htlc_info_t
  *  @brief  HTLC情報
  */
 typedef struct {
-    ln_htlctype_t           type;                   ///< HTLC種別
+    ln_htlc_type_t          type;                   ///< HTLC種別
     uint16_t                add_htlc_idx;           ///< 対応するpChannel->cnl_add_htlc[]のindex値
-    uint32_t                expiry;                 ///< Expiry
+    uint32_t                expiry;                 ///< expiry
     uint64_t                amount_msat;            ///< amount_msat
-    const uint8_t           *preimage_hash;         ///< preimageをHASH160したデータ
-    utl_buf_t               script;                 ///< スクリプト
-} ln_script_htlcinfo_t;
+    const uint8_t           *preimage_hash;         ///< preimage hash
+    utl_buf_t               script;                 ///< script
+} ln_script_htlc_info_t;
 
 
-/** @struct ln_script_committx_t
+/** @struct ln_script_commit_tx_t
  *  @brief  Commitment Transaction生成用情報
  */
 typedef struct {
@@ -88,24 +88,24 @@ typedef struct {
         uint64_t            satoshi;            ///< remote satoshi
         const uint8_t       *pubkey;            ///< remote pubkey(to-remote用)
     } remote;
-    uint64_t                obscured;           ///< Obscured Commitment Number(ln_script_calc_obscured_txnum())
-    ln_script_feeinfo_t     *p_feeinfo;         ///< FEE情報
-    ln_script_htlcinfo_t    **pp_htlcinfo;      ///< HTLC情報ポインタ配列(htlcinfo_num個分)
-    uint8_t                 htlcinfo_num;       ///< HTLC数
-} ln_script_committx_t;
+    uint64_t                obscured;           ///< Obscured Commitment Number(ln_script_calc_obscured_commit_num_base())
+    ln_script_fee_info_t     *p_fee_info;       ///< FEE情報
+    ln_script_htlc_info_t    **pp_htlc_info;    ///< HTLC情報ポインタ配列(htlc_info_num個分)
+    uint8_t                 htlc_info_num;      ///< HTLC数
+} ln_script_commit_tx_t;
 
 
-/** @struct ln_script_htlcsign_t
- *  @brief  ln_script_htlcsign_t
+/** @struct ln_script_htlc_sig_t
+ *  @brief  ln_script_htlc_sig_t
  */
 typedef enum {
-    LN_HTLCSIGN_NONE,              ///< 未設定
-    LN_HTLCSIGN_TIMEOUT_SUCCESS,   ///< HTLC Timeout/Success
-    LN_HTLCSIGN_REMOTE_OFFER,      ///< 相手が送信したcommit_txのOffered HTLC
-    LN_HTLCSIGN_REMOTE_RECV,       ///< 相手が送信したcommit_txのReceived HTLC
-    LN_HTLCSIGN_REVOKE_RECV,       ///< revoked transactionのreceived HTLC output
-    LN_HTLCSIGN_REVOKE_OFFER,      ///< revoked transactionのoffered HTLC output
-} ln_script_htlcsign_t;
+    LN_HTLC_SIG_NONE,              ///< 未設定
+    LN_HTLC_SIG_TIMEOUT_SUCCESS,   ///< HTLC Timeout/Success
+    LN_HTLC_SIG_REMOTE_OFFER,      ///< 相手が送信したcommit_txのOffered HTLC
+    LN_HTLC_SIG_REMOTE_RECV,       ///< 相手が送信したcommit_txのReceived HTLC
+    LN_HTLC_SIG_REVOKE_RECV,       ///< revoked transactionのreceived HTLC output
+    LN_HTLC_SIG_REVOKE_OFFER,      ///< revoked transactionのoffered HTLC output
+} ln_script_htlc_sig_t;
 
 
 /**************************************************************************
@@ -114,11 +114,11 @@ typedef enum {
 
 /** Obscured Commitment Number計算
  *
- * @param[in]       pOpenBasePt     payment_basepoint from open_channel
- * @param[in]       pAcceptBasePt   payment_basepoint from accept_channel
- * @return      Obscured Commitment Number
+ * @param[in]       pOpenPayBasePt     payment_basepoint from open_channel
+ * @param[in]       pAcceptPayBasePt   payment_basepoint from accept_channel
+ * @return      Obscured Commitment Number Base
  */
-uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t *pAcceptBasePt);
+uint64_t HIDDEN ln_script_calc_obscured_commit_num_base(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt);
 
 
 /** To-Localスクリプト作成
@@ -132,14 +132,14 @@ uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const 
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
 void HIDDEN ln_script_create_to_local(utl_buf_t *pBuf,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pLocalDelayedKey,
-                    uint32_t LocalDelay);
+    const uint8_t *pLocalRevoKey,
+    const uint8_t *pLocalDelayedKey,
+    uint32_t LocalDelay);
 
 
 bool HIDDEN ln_script_to_local_wit(btc_tx_t *pTx,
-                    const btc_keys_t *pKey,
-                    const utl_buf_t *pWitScript, bool bRevoked);
+    const btc_keys_t *pKey,
+    const utl_buf_t *pWitScript, bool bRevoked);
 
 
 void HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
@@ -172,14 +172,14 @@ bool HIDDEN ln_script_scriptpkh_check(const utl_buf_t *pBuf);
  *
  *
  */
-void HIDDEN ln_script_htlcinfo_init(ln_script_htlcinfo_t *pHtlcInfo);
+void HIDDEN ln_script_htlc_info_init(ln_script_htlc_info_t *pHtlcInfo);
 
 
 /** HTLC情報初期化
  *
  *
  */
-void HIDDEN ln_script_htlcinfo_free(ln_script_htlcinfo_t *pHtlcInfo);
+void HIDDEN ln_script_htlc_info_free(ln_script_htlc_info_t *pHtlcInfo);
 
 
 /** HTLC Txスクリプト生成
@@ -192,12 +192,12 @@ void HIDDEN ln_script_htlcinfo_free(ln_script_htlcinfo_t *pHtlcInfo);
  * @param[in]       pPaymentHash        payment_hash[32]
  * @param[in]       Expiry              expiry(HTLC-Success用)
  */
-void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
-                    const uint8_t *pLocalHtlcKey,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteHtlcKey,
-                    const uint8_t *pPaymentHash,
-                    uint32_t Expiry);
+void HIDDEN ln_script_htlc_info_script(utl_buf_t *pScript, ln_htlc_type_t Type,
+    const uint8_t *pLocalHtlcKey,
+    const uint8_t *pLocalRevoKey,
+    const uint8_t *pRemoteHtlcKey,
+    const uint8_t *pPaymentHash,
+    uint32_t Expiry);
 
 
 /** FEE計算
@@ -213,9 +213,9 @@ void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
  *      - pFeeInfoにfeerate_per_kwとdust_limit_satoshiを代入しておくこと
  */
 uint64_t HIDDEN ln_script_fee_calc(
-                    ln_script_feeinfo_t *pFeeInfo,
-                    const ln_script_htlcinfo_t **ppHtlcInfo,
-                    int Num);
+    ln_script_fee_info_t *pFeeInfo,
+    const ln_script_htlc_info_t **ppHtlcInfo,
+    int Num);
 
 
 /** Commitment Transaction作成
@@ -227,8 +227,8 @@ uint64_t HIDDEN ln_script_fee_calc(
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool HIDDEN ln_script_committx_create(
-    btc_tx_t *pTx, utl_buf_t *pSig, const ln_script_committx_t *pCmt, bool Local, const ln_derkey_local_keys_t *pKeys);
+bool HIDDEN ln_script_commit_tx_create(
+    btc_tx_t *pTx, utl_buf_t *pSig, const ln_script_commit_tx_t *pCmt, bool Local, const ln_derkey_local_keys_t *pKeys);
 
 
 /** Offered/Receveid HTLC Transaction作成
@@ -236,19 +236,19 @@ bool HIDDEN ln_script_committx_create(
  * @param[out]      pTx         TX情報
  * @param[in]       Value       vout amount
  * @param[in]       pScript     vout P2WSHスクリプト
- * @param[in]       Type        pScriptタイプ(LN_HTLCTYPE_xxx)
+ * @param[in]       Type        pScriptタイプ(LN_HTLC_TYPE_xxx)
  * @param[in]       CltvExpiry  locktime(TypeがOffered HTLCの場合のみ)
  * @param[in]       pTxid       vin TXID
  * @param[in]       Index       vin index
  */
-void HIDDEN ln_script_htlctx_create(
-                    btc_tx_t *pTx,
-                    uint64_t Value,
-                    const utl_buf_t *pScript,
-                    ln_htlctype_t Type,
-                    uint32_t CltvExpiry,
-                    const uint8_t *pTxid,
-                    int Index);
+void HIDDEN ln_script_htlc_tx_create(
+    btc_tx_t *pTx,
+    uint64_t Value,
+    const utl_buf_t *pScript,
+    ln_htlc_type_t Type,
+    uint32_t CltvExpiry,
+    const uint8_t *pTxid,
+    int Index);
 
 
 /** Offered/Receveid HTLC Transaction署名
@@ -263,19 +263,19 @@ void HIDDEN ln_script_htlctx_create(
  * @param[in]       HtlcSign        HTLCSIGN_xxx
  * @return      true:成功
  */
-bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
-                    utl_buf_t *pLocalSig,
-                    uint64_t Value,
-                    const btc_keys_t *pKeys,
-                    const utl_buf_t *pWitScript);
+bool HIDDEN ln_script_htlc_tx_sign(btc_tx_t *pTx,
+    utl_buf_t *pLocalSig,
+    uint64_t Value,
+    const btc_keys_t *pKeys,
+    const utl_buf_t *pWitScript);
 
-bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
-                    const utl_buf_t *pLocalSig,
-                    const btc_keys_t *pKeys,
-                    const utl_buf_t *pRemoteSig,
-                    const uint8_t *pPreImage,
-                    const utl_buf_t *pWitScript,
-                    ln_script_htlcsign_t HtlcSign);
+bool HIDDEN ln_script_htlc_tx_wit(btc_tx_t *pTx,
+    const utl_buf_t *pLocalSig,
+    const btc_keys_t *pKeys,
+    const utl_buf_t *pRemoteSig,
+    const uint8_t *pPreImage,
+    const utl_buf_t *pWitScript,
+    ln_script_htlc_sig_t HtlcSign);
 
 
 
@@ -290,12 +290,12 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
  * @param[in]       pWitScript      voutとなるスクリプト
  * @return      true:成功
  */
-bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
-                    uint64_t Value,
-                    const uint8_t *pLocalPubKey,
-                    const uint8_t *pRemotePubKey,
-                    const utl_buf_t *pLocalSig,
-                    const utl_buf_t *pRemoteSig,
-                    const utl_buf_t *pWitScript);
+bool HIDDEN ln_script_htlc_tx_verify(const btc_tx_t *pTx,
+    uint64_t Value,
+    const uint8_t *pLocalPubKey,
+    const uint8_t *pRemotePubKey,
+    const utl_buf_t *pLocalSig,
+    const utl_buf_t *pRemoteSig,
+    const utl_buf_t *pWitScript);
 
 #endif /* LN_SCRIPT_H__ */

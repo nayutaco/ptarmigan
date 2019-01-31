@@ -708,7 +708,7 @@ struct ln_channel_t {
     //revoked
     utl_buf_t                   *p_revoked_vout;                ///< [REVK_01]revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
     utl_buf_t                   *p_revoked_wit;                 ///< [REVK_02]revoked transaction close時のwitnessスクリプト
-    ln_htlctype_t               *p_revoked_type;                ///< [REVK_03]p_revoked_vout/p_revoked_witに対応するtype
+    ln_htlc_type_t               *p_revoked_type;                ///< [REVK_03]p_revoked_vout/p_revoked_witに対応するtype
     utl_buf_t                   revoked_sec;                    ///< [REVK_04]revoked transaction close時のremote per_commit_sec
     uint16_t                    revoked_num;                    ///< [REVK_05]revoked_cnt+1([0]にto_local系を入れるため)
     uint16_t                    revoked_cnt;                    ///< [REVK_06]取り戻す必要があるvout数
