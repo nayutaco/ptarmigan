@@ -121,6 +121,9 @@ typedef enum {
 uint64_t HIDDEN ln_script_calc_obscured_commit_num_base(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt);
 
 
+uint64_t HIDDEN ln_script_calc_obscured_commit_num(uint64_t ObscuredCommitNumBase, uint64_t CommitNum);
+
+
 /** To-Localスクリプト作成
  *
  * @param[out]      pBuf                生成したスクリプト
