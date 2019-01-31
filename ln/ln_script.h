@@ -88,7 +88,7 @@ typedef struct {
         uint64_t            satoshi;            ///< remote satoshi
         const uint8_t       *pubkey;            ///< remote pubkey(to-remote用)
     } remote;
-    uint64_t                obscured;           ///< Obscured Commitment Number(ln_script_calc_obscured_commit_num_base())
+    uint64_t                obscured;           ///< Obscured Commitment Number(ln_comtx_calc_obscured_commit_num_base())
     ln_script_fee_info_t     *p_fee_info;       ///< FEE情報
     ln_script_htlc_info_t    **pp_htlc_info;    ///< HTLC情報ポインタ配列(htlc_info_num個分)
     uint8_t                 htlc_info_num;      ///< HTLC数
@@ -111,18 +111,6 @@ typedef enum {
 /**************************************************************************
  * prototypes
  **************************************************************************/
-
-/** Obscured Commitment Number計算
- *
- * @param[in]       pOpenPayBasePt     payment_basepoint from open_channel
- * @param[in]       pAcceptPayBasePt   payment_basepoint from accept_channel
- * @return      Obscured Commitment Number Base
- */
-uint64_t HIDDEN ln_script_calc_obscured_commit_num_base(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt);
-
-
-uint64_t HIDDEN ln_script_calc_obscured_commit_num(uint64_t ObscuredCommitNumBase, uint64_t CommitNum);
-
 
 /** To-Localスクリプト作成
  *
