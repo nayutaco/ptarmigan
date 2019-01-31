@@ -98,6 +98,12 @@ uint64_t HIDDEN ln_script_calc_obscured_commit_num_base(const uint8_t *pOpenPayB
 }
 
 
+uint64_t HIDDEN ln_script_calc_obscured_commit_num(uint64_t ObscuredCommitNumBase, uint64_t CommitNum)
+{
+    return ObscuredCommitNumBase ^ CommitNum;
+}
+
+
 void HIDDEN ln_script_create_to_local(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
