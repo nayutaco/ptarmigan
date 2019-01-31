@@ -37,6 +37,7 @@
 #include "btc_keys.h"
 
 #include "ln_comtx_util.h"
+#include "ln_local.h"
 
 
 /**************************************************************************
@@ -80,6 +81,14 @@ uint64_t HIDDEN ln_comtx_calc_obscured_commit_num_base(const uint8_t *pOpenPayBa
 uint64_t HIDDEN ln_comtx_calc_obscured_commit_num(uint64_t ObscuredCommitNumBase, uint64_t CommitNum)
 {
     return ObscuredCommitNumBase ^ CommitNum;
+}
+
+
+uint64_t HIDDEN ln_comtx_calc_commit_num_from_tx(uint32_t Sequence, uint32_t Locktime, uint64_t ObscuredCommitNumBase)
+{
+    uint64_t commit_num = ((uint64_t)(Sequence & 0xffffff)) << 24;
+    commit_num |= (uint64_t)(Locktime & 0xffffff);
+    return commit_num ^ ObscuredCommitNumBase;
 }
 
 
