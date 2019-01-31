@@ -1048,48 +1048,6 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
  * others
  ********************************************************************/
 
-/** to_localをwalletに保存する情報作成
- *
- *  btc_tx_tフォーマットだが、blockchainに展開できるデータではない
- *      - vin: pTxid:Index, witness([0]=secret
- *      - vout: input value
- *
- * @param[in]           pChannel        channel info
- * @param[out]          pTx             生成結果
- * @param[in]           Value           vinとなるamount
- * @param[in]           ToSelfDelay     to_self_delay
- * @param[in]           pScript         送金先スクリプト
- * @param[in]           pTxid           vinとなるoutpointのtxid
- * @param[in]           Index           vinとなるoutpointのindex
- * @param[in]           bRevoked        true:revoked transaction close対応
- * @retval  true    成功
- */
-bool ln_wallet_create_to_local(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
-                const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
-
-
-/** to_remoteをwalletに保存する情報作成
- *
- *  btc_tx_tフォーマットだが、blockchainに展開できるデータではない
- *      - vin: pTxid:Index, witness([0]=secret
- *      - vout: input value
- *
- * @param[in]           pChannel        channel info
- * @param[out]          pTx             生成結果
- * @param[in]           Value           vinとなるamount
- * @param[in]           pTxid           vinとなるoutpointのtxid
- * @param[in]           Index           vinとなるoutpointのindex
- * @retval  true    成功
- * @note
- *  - 処理の都合上utl_tx_tの形を取るが、展開してはいけない
- *      - vin: pTxid:Index
- *      - vout: value, secret
- */
-bool ln_wallet_create_to_remote(
-            const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
-            const uint8_t *pTxid, int Index);
-
-
 /** revoked HTLC Txから取り戻すトランザクション作成
  *
  * @param[in]           pChannel        channel info
