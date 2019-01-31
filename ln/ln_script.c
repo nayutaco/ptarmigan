@@ -126,17 +126,21 @@ bool HIDDEN ln_script_to_local_set_vin0(
     const utl_buf_t *pWitScript,
     bool bRevoked)
 {
-    // <delayedsig>
+    // <local_delayedsig>
     // 0
-    // <script>
+    // <witness script>
 
-    const uint8_t WIT1 = 0x01;
+    // OR
+
+    // <revocation_sig>
+    // 1
+    // <witness script>
+
     const utl_buf_t key = { (CONST_CAST uint8_t *)pKey->priv, BTC_SZ_PRIVKEY };
-    const utl_buf_t wit0 = UTL_BUF_INIT;
-    const utl_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
-    const utl_buf_t *wits[] = {&key, NULL, pWitScript};
-    wits[1] = (bRevoked) ? &wit1 : &wit0;
-    if (!btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)wits, ARRAY_SIZE(wits))) return false;
+    const utl_buf_t zero = UTL_BUF_INIT;
+    const utl_buf_t one = { (CONST_CAST uint8_t *)"\x01", 1 };
+    const utl_buf_t *items[] = { &key, (bRevoked) ? &one : &zero, pWitScript };
+    if (!btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)items, ARRAY_SIZE(items))) return false;
     return true;
 }
 
