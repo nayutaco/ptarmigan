@@ -295,9 +295,9 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     pChannel->commit_tx_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     //obscured commitment tx number
-    pChannel->obscured = ln_comtx_calc_obscured_commit_num_base(
+    pChannel->obscured_commit_num_base = ln_comtx_calc_obscured_commit_num_base(
         pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
-    LOGD("obscured=0x%016" PRIx64 "\n", pChannel->obscured);
+    LOGD("obscured_commit_num_base=0x%016" PRIx64 "\n", pChannel->obscured_commit_num_base);
 
     //vout 2-of-2
     if (!btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
@@ -374,9 +374,9 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     }
 
     //obscured commitment tx number
-    pChannel->obscured = ln_comtx_calc_obscured_commit_num_base(
+    pChannel->obscured_commit_num_base = ln_comtx_calc_obscured_commit_num_base(
         pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
-    LOGD("obscured=0x%016" PRIx64 "\n", pChannel->obscured);
+    LOGD("obscured_commit_num_base=0x%016" PRIx64 "\n", pChannel->obscured_commit_num_base);
 
     //initial commit tx(Remoteが持つTo-Local)
     //  署名計算のみのため、計算後は破棄する

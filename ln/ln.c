@@ -877,8 +877,6 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     //鍵の復元
     ln_update_script_pubkeys(pChannel);
     ln_print_keys(pChannel);
-    //commitment number(for obscured commitment number)
-    //pChannel->commit_tx_remote.commit_num = commit_num;
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
@@ -1668,7 +1666,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx)
 {
-    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(pTx->vin[0].sequence, pTx->locktime, pChannel->obscured);
+    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(pTx->vin[0].sequence, pTx->locktime, pChannel->obscured_commit_num_base);
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;
 }
