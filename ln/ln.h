@@ -1104,7 +1104,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
  * @param[out]      pHash               計算結果(BTC_SZ_HASH256)
  * @param[in]       pPreImage           計算元(LN_SZ_PREIMAGE)
  */
-void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage);
+void ln_payment_hash_calc(uint8_t *pHash, const uint8_t *pPreImage);
 
 
 /** channel_announcementデータ解析

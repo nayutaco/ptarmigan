@@ -1295,7 +1295,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
         if (detect) {
             memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
-            ln_preimage_hash_calc(preimage_hash, pPreImage);
+            ln_payment_hash_calc(preimage_hash, pPreImage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, BTC_SZ_HASH256) == 0) {
                 //一致
                 LOGD("match preimage: ");

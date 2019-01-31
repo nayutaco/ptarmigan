@@ -976,7 +976,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     ln_script_fee_info_t fee_info;
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
     ln_script_fee_calc(&fee_info, NULL, 0);
-    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout : fee_info.htlc_success;
+    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
     ln_script_htlc_tx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
@@ -1030,7 +1030,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
 }
 
 
-void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
+void ln_payment_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
 {
     btc_md_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
 }
