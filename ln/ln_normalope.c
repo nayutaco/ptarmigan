@@ -700,50 +700,42 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
 {
     LOGD("BEGIN\n");
 
-    bool ret;
     ln_msg_update_fee_t msg;
     uint32_t rate;
     uint32_t old_fee;
 
-    ret = ln_msg_update_fee_read(&msg, pData, Len);
-    if (!ret) {
+    if (!ln_msg_update_fee_read(&msg, pData, Len)) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
-        goto LABEL_EXIT;
+        return false;
     }
 
-    //channel-idチェック
-    ret = ln_check_channel_id(msg.p_channel_id, pChannel->channel_id);
-    if (!ret) {
+    if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
         M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
-        goto LABEL_EXIT;
+        return false;
     }
 
     //BOLT02
     //  A receiving node:
     //    if the sender is not responsible for paying the Bitcoin fee:
     //      MUST fail the channel.
-    ret = !ln_is_funder(pChannel);
-    if (!ret) {
+    if (ln_is_funder(pChannel)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "not fundee");
-        goto LABEL_EXIT;
+        return false;
     }
 
-    ret = (msg.feerate_per_kw >= LN_FEERATE_PER_KW_MIN);
-    if (!ret) {
+    if (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw");
-        goto LABEL_EXIT;
+        return false;
     }
 
     ln_callback(pChannel, LN_CB_GET_LATEST_FEERATE, &rate);
-    ret = M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate);
-    if (!ret) {
+    if (!M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate)) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw from current");
-        goto LABEL_EXIT;
+        return false;
     }
-    ret = M_UPDATEFEE_CHK_MAX_OK(msg.feerate_per_kw, rate);
-    if (!ret) {
+    if (!M_UPDATEFEE_CHK_MAX_OK(msg.feerate_per_kw, rate)) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw from current");
-        goto LABEL_EXIT;
+        return false;
     }
 
     //feerate_per_kw更新
@@ -755,9 +747,51 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     //fee更新通知
     ln_callback(pChannel, LN_CB_UPDATE_FEE_RECV, &old_fee);
 
-LABEL_EXIT:
     LOGD("END\n");
-    return ret;
+    return true;
+}
+
+
+bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
+{
+    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
+
+    if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "no init/channel_reestablish finished");
+        return false;
+    }
+
+    //BOLT02
+    //  The node not responsible for paying the Bitcoin fee:
+    //    MUST NOT send update_fee.
+    if (!ln_is_funder(pChannel)) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "not funder");
+        return false;
+    }
+
+    if (pChannel->feerate_per_kw == FeeratePerKw) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "same feerate_per_kw");
+        return false;
+    }
+    if (FeeratePerKw < LN_FEERATE_PER_KW_MIN) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "feerate_per_kw too low");
+        return false;
+    }
+
+    ln_msg_update_fee_t msg;
+    msg.p_channel_id = pChannel->channel_id;
+    msg.feerate_per_kw = FeeratePerKw;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_update_fee_write(&buf, &msg)) {
+        LOGE("fail\n");
+        return false;
+    }
+    pChannel->feerate_per_kw = FeeratePerKw;
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+
+    LOGD("END\n");
+    return true;
 }
 
 
@@ -1753,13 +1787,10 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
         }
     }
     if (!b_comsig && ((FeeratePerKw != 0) && (pChannel->feerate_per_kw != FeeratePerKw))) {
-        utl_buf_t buf = UTL_BUF_INIT;
-        bool ret = ln_update_fee_create(pChannel, &buf, FeeratePerKw);
+        bool ret = ln_update_fee_send(pChannel, FeeratePerKw);
         if (ret) {
-            ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
             b_updfee = true;
         }
-        utl_buf_free(&buf);
     }
     if (b_comsig || b_updfee) {
         //commitment_signed送信

@@ -219,11 +219,9 @@ TEST_F(ln, create_updatefee_ok)
     ln_channel_t channel;
     LnInitSend(&channel);
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_TRUE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -235,11 +233,9 @@ TEST_F(ln, create_updatefee_noinit_send)
 
     channel.init_flag = M_INIT_FLAG_SEND | /*M_INIT_FLAG_RECV |*/ M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -251,11 +247,9 @@ TEST_F(ln, create_updatefee_noinit_recv)
 
     channel.init_flag = /*M_INIT_FLAG_SEND |*/ M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -267,11 +261,9 @@ TEST_F(ln, create_updatefee_noinit_reest_recv)
 
     channel.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND /*| M_INIT_FLAG_REEST_RECV*/;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -283,11 +275,9 @@ TEST_F(ln, create_updatefee_noinit_reest_send)
 
     channel.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV /*| M_INIT_FLAG_REEST_SEND */| M_INIT_FLAG_REEST_RECV;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -299,11 +289,9 @@ TEST_F(ln, create_updatefee_noinit_both)
 
     channel.init_flag = 0;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -315,11 +303,9 @@ TEST_F(ln, create_updatefee_fundee)
 
     channel.fund_flag = 0;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -329,11 +315,9 @@ TEST_F(ln, create_updatefee_same)
     ln_channel_t channel;
     LnInitSend(&channel);
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, channel.feerate_per_kw);
+    bool ret = ln_update_fee_send(&channel, channel.feerate_per_kw);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -343,11 +327,9 @@ TEST_F(ln, create_updatefee_low)
     ln_channel_t channel;
     LnInitSend(&channel);
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, LN_FEERATE_PER_KW_MIN);
+    bool ret = ln_update_fee_send(&channel, LN_FEERATE_PER_KW_MIN);
     ASSERT_TRUE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -357,11 +339,9 @@ TEST_F(ln, create_updatefee_toolow)
     ln_channel_t channel;
     LnInitSend(&channel);
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, LN_FEERATE_PER_KW_MIN - 1);
+    bool ret = ln_update_fee_send(&channel, LN_FEERATE_PER_KW_MIN - 1);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 
@@ -373,11 +353,9 @@ TEST_F(ln, create_updatefee_create)
 
     ln_msg_update_fee_write_fake.return_val = false;
 
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    bool ret = ln_update_fee_create(&channel, &buf_bolt, 1000);
+    bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
 
-    utl_buf_free(&buf_bolt);
     ln_term(&channel);
 }
 

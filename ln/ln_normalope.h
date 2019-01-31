@@ -323,13 +323,12 @@ bool ln_fail_htlc_set_bwd(ln_channel_t *pChannel, uint16_t Idx, const utl_buf_t 
 void ln_del_htlc_start_bwd(ln_channel_t *pChannel, uint16_t Idx);
 
 
-/** update_feeメッセージ作成
+/** send update_fee message
  *
  * @param[in,out]       pChannel        channel info
- * @param[out]          pUpdFee         生成したupdate_feeメッセージ
  * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
  */
-bool ln_update_fee_create(ln_channel_t *pChannel, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
+bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 
 
 /** channel_reestablishメッセージ交換後
