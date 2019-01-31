@@ -228,7 +228,7 @@ bool btc_script_p2wpkh_create_scriptcode(utl_buf_t *pScriptCode, const uint8_t *
 
 
 //XXX: comment
-bool btc_script_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript);
+bool btc_script_p2wsh_create_scriptpk(utl_buf_t *pScriptPk, const utl_buf_t *pWitScript);
 bool btc_script_p2wsh_create_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
 /** P2WSH署名計算で使用するScript Code取得
  *

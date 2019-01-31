@@ -205,7 +205,7 @@ bool btc_sw_is_segwit(const btc_tx_t *pTx);
 
 
 //XXX: deprecated
-// should use btc_script_p2wsh_create_scriptsig
+// should use btc_script_p2wsh_create_scriptpk
 /** witnessScriptをPubKeyHash(P2SH)変換
  *
  *

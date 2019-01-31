@@ -183,11 +183,11 @@ bool btc_script_p2sh_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf
 }
 
 
-bool btc_script_p2wsh_create_scriptsig(utl_buf_t *pScriptSig, const utl_buf_t *pWitScript)
+bool btc_script_p2wsh_create_scriptpk(utl_buf_t *pScriptPk, const utl_buf_t *pWitScript)
 {
-    if (!utl_buf_realloc(pScriptSig, 1 + 1 + BTC_SZ_HASH256)) return false;
+    if (!utl_buf_realloc(pScriptPk, 1 + 1 + BTC_SZ_HASH256)) return false;
 
-    uint8_t *p = pScriptSig->buf;
+    uint8_t *p = pScriptPk->buf;
     *p++ = 0x00;
     *p++ = (uint8_t)BTC_SZ_HASH256;
     btc_md_sha256(p, pWitScript->buf, pWitScript->len);

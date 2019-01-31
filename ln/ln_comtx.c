@@ -289,7 +289,7 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
         utl_buf_t vout = UTL_BUF_INIT;
-        btc_script_p2wsh_create_scriptsig(&vout, &pp_htlc_info[lp]->wit_script);
+        btc_script_p2wsh_create_scriptpk(&vout, &pp_htlc_info[lp]->wit_script);
         ln_db_phash_save(pp_htlc_info[lp]->payment_hash,
                         vout.buf,
                         pp_htlc_info[lp]->type,

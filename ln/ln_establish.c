@@ -858,7 +858,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
 
     //search funding vout
     utl_buf_t two_of_two = UTL_BUF_INIT;
-    btc_script_p2wsh_create_scriptsig(&two_of_two, &pChannel->redeem_fund);
+    btc_script_p2wsh_create_scriptpk(&two_of_two, &pChannel->redeem_fund);
     uint32_t lp;
     for (lp = 0; lp < pChannel->tx_funding.vout_cnt; lp++) {
         if (utl_buf_equal(&pChannel->tx_funding.vout[lp].script, &two_of_two)) break;

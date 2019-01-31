@@ -885,7 +885,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
                 pChannel->commit_tx_remote.to_self_delay);
     utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL]);
-    btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_LOCAL]);
+    btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_LOCAL]);
     // LOGD("calc to_local vout: ");
     // DUMPD(pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL].buf, pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL].len);
 
@@ -919,7 +919,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                         payhash,
                         expiry);
                 utl_buf_init(&pChannel->p_revoked_vout[htlc_idx]);
-                btc_script_p2wsh_create_scriptsig(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
+                btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
                 pChannel->p_revoked_type[htlc_idx] = type;
 
                 LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_HTLC_TYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);

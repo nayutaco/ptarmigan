@@ -59,10 +59,10 @@ bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *p
 
     if (mNativeSegwit) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        if (!btc_script_p2wsh_create_scriptsig(&vout->script, pWitScript)) return false;
+        if (!btc_script_p2wsh_create_scriptpk(&vout->script, pWitScript)) return false;
     } else {
         utl_buf_t script_sig = UTL_BUF_INIT;
-        if (!btc_script_p2wsh_create_scriptsig(&script_sig, pWitScript)) {
+        if (!btc_script_p2wsh_create_scriptpk(&script_sig, pWitScript)) {
             utl_buf_free(&script_sig);
             return false;
         }
