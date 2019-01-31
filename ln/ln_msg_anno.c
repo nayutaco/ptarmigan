@@ -962,7 +962,7 @@ bool HIDDEN ln_msg_gossip_timestamp_filter_write(utl_buf_t *pBuf, const ln_msg_g
 
     btc_buf_w_t buf_w;
     btc_buf_w_init(&buf_w, 0);
-    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_QUERY_CHANNEL_RANGE)) goto LABEL_ERROR;
+    if (!btc_buf_w_write_u16be(&buf_w, MSGTYPE_GOSSIP_TIMESTAMP_FILTER)) goto LABEL_ERROR;
     if (!btc_buf_w_write_data(&buf_w, pMsg->p_chain_hash, BTC_SZ_HASH256)) goto LABEL_ERROR;
     if (!btc_buf_w_write_u32be(&buf_w, pMsg->first_timestamp)) goto LABEL_ERROR;
     if (!btc_buf_w_write_u32be(&buf_w, pMsg->timestamp_range)) goto LABEL_ERROR;
@@ -981,7 +981,7 @@ bool HIDDEN ln_msg_gossip_timestamp_filter_read(ln_msg_gossip_timestamp_filter_t
     btc_buf_r_init(&buf_r, pData, Len);
     uint16_t type;
     if (!btc_buf_r_read_u16be(&buf_r, &type)) goto LABEL_ERROR_SYNTAX;
-    if (type != MSGTYPE_QUERY_CHANNEL_RANGE) {
+    if (type != MSGTYPE_GOSSIP_TIMESTAMP_FILTER) {
         LOGE("fail: type not match: %04x\n", type);
         return false;
     }
