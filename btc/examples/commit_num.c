@@ -9,7 +9,7 @@
 #define PTARM_SZ_PUBKEY     (33)
 
 
-static uint64_t ln_comtx_calc_obscured_commit_num_base(const uint8_t *pLocalBasePt, const uint8_t *pRemoteBasePt)
+static uint64_t ln_comtx_calc_obscured_commit_num_mask(const uint8_t *pLocalBasePt, const uint8_t *pRemoteBasePt)
 {
     uint64_t obs = 0;
     uint8_t base[32];
@@ -50,7 +50,7 @@ int main(void)
         0x3b,
     };
 
-    uint64_t obscured = ln_comtx_calc_obscured_commit_num_base(OPEN_CH_PAYMENT_BP, ACCEPT_CH_PAYMENT_BP);
+    uint64_t obscured = ln_comtx_calc_obscured_commit_num_mask(OPEN_CH_PAYMENT_BP, ACCEPT_CH_PAYMENT_BP);
 
     //commitment numberの復元
     uint64_t commit_num = ((uint64_t)(sequence & 0xffffff)) << 24;

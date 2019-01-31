@@ -1666,7 +1666,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx)
 {
-    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(pTx->vin[0].sequence, pTx->locktime, pChannel->obscured_commit_num_base);
+    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(pTx->vin[0].sequence, pTx->locktime, pChannel->obscured_commit_num_mask);
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;
 }

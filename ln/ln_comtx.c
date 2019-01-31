@@ -202,7 +202,7 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     lntx_commit.to_local.p_wit_script = &buf_ws;
     lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(their_msat);
     lntx_commit.to_remote.pubkey = pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
-    lntx_commit.obscured_commit_num = ln_comtx_calc_obscured_commit_num(pChannel->obscured_commit_num_base, CommitNum);
+    lntx_commit.obscured_commit_num = ln_comtx_calc_obscured_commit_num(pChannel->obscured_commit_num_mask, CommitNum);
     lntx_commit.p_fee_info = &fee_info;
     lntx_commit.pp_htlc_info = pp_htlc_info;
     lntx_commit.htlc_info_num = cnt;
@@ -321,7 +321,7 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
     lntx_commit.to_local.p_wit_script = &buf_ws;
     lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(their_msat);
     lntx_commit.to_remote.pubkey = pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
-    lntx_commit.obscured_commit_num = ln_comtx_calc_obscured_commit_num(pChannel->obscured_commit_num_base, CommitNum);
+    lntx_commit.obscured_commit_num = ln_comtx_calc_obscured_commit_num(pChannel->obscured_commit_num_mask, CommitNum);
     lntx_commit.p_fee_info = &fee_info;
     lntx_commit.pp_htlc_info = pp_htlc_info;
     lntx_commit.htlc_info_num = cnt;
