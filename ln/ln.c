@@ -937,55 +937,6 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
 
 
 /********************************************************************
- * Normal Operation関係
- ********************************************************************/
-
-bool ln_update_fee_create(ln_channel_t *pChannel, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
-{
-    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
-
-    bool ret;
-
-    if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "no init/channel_reestablish finished");
-        return false;
-    }
-
-    //BOLT02
-    //  The node not responsible for paying the Bitcoin fee:
-    //    MUST NOT send update_fee.
-    if (!ln_is_funder(pChannel)) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "not funder");
-        return false;
-    }
-
-    if (pChannel->feerate_per_kw == FeeratePerKw) {
-        //same
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "same feerate_per_kw");
-        return false;
-    }
-    if (FeeratePerKw < LN_FEERATE_PER_KW_MIN) {
-        //too low
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "feerate_per_kw too low");
-        return false;
-    }
-
-    ln_msg_update_fee_t msg;
-    msg.p_channel_id = pChannel->channel_id;
-    msg.feerate_per_kw = FeeratePerKw;
-    ret = ln_msg_update_fee_write(pUpdFee, &msg);
-    if (ret) {
-        pChannel->feerate_per_kw = FeeratePerKw;
-    } else {
-        LOGE("fail\n");
-    }
-
-    LOGD("END\n");
-    return ret;
-}
-
-
-/********************************************************************
  * others
  ********************************************************************/
 
