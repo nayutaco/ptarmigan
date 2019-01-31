@@ -42,6 +42,7 @@
 #include "ln_signer.h"
 #include "ln_normalope.h"
 #include "ln_local.h"
+#include "ln_wallet.h"
 #include "ln_comtx.h"
 #include "ln_comtx_util.h"
 

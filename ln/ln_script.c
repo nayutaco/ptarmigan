@@ -119,43 +119,6 @@ bool HIDDEN ln_script_create_to_local(
 }
 
 
-
-bool HIDDEN ln_script_to_local_set_vin0(
-    btc_tx_t *pTx,
-    const btc_keys_t *pKey,
-    const utl_buf_t *pWitScript,
-    bool bRevoked)
-{
-    // <local_delayedsig>
-    // 0
-    // <witness script>
-
-    // OR
-
-    // <revocation_sig>
-    // 1
-    // <witness script>
-
-    const utl_buf_t key = { (CONST_CAST uint8_t *)pKey->priv, BTC_SZ_PRIVKEY };
-    const utl_buf_t zero = UTL_BUF_INIT;
-    const utl_buf_t one = { (CONST_CAST uint8_t *)"\x01", 1 };
-    const utl_buf_t *items[] = { &key, (bRevoked) ? &one : &zero, pWitScript };
-    if (!btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)items, ARRAY_SIZE(items))) return false;
-    return true;
-}
-
-
-bool HIDDEN ln_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t *pKey)
-{
-    utl_buf_t *p_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * 2);
-    if (!utl_buf_alloccopy(&p_wit[0], pKey->priv, BTC_SZ_PRIVKEY)) return false;
-    if (!utl_buf_alloccopy(&p_wit[1], pKey->pub, BTC_SZ_PUBKEY)) return false;
-    pTx->vin[0].wit_item_cnt = 2;
-    pTx->vin[0].witness = p_wit;
-    return true;
-}
-
-
 bool HIDDEN ln_script_scriptpk_create(utl_buf_t *pScriptPk, const utl_buf_t *pPub, int Pref)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];

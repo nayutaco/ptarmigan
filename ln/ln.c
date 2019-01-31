@@ -120,7 +120,6 @@ typedef bool (*pRecvFunc_t)(ln_channel_t *pChannel,const uint8_t *pData, uint16_
  **************************************************************************/
 
 static void channel_clear(ln_channel_t *pChannel);
-static bool create_basetx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime, const uint8_t *pTxid, int Index, bool bRevoked);
 static void close_alloc(ln_close_force_t *pClose, int Num);
 static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx);
 
@@ -939,37 +938,6 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
  * others
  ********************************************************************/
 
-bool ln_wallet_create_to_local(const ln_channel_t *pChannel, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
-                const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
-{
-    bool ret = create_basetx(pTx, Value,
-                NULL, ToSelfDelay, pTxid, Index, bRevoked);
-    if (ret) {
-        btc_keys_t sigkey;
-        ln_signer_to_local_key(
-            &sigkey, &pChannel->keys_local, &pChannel->keys_remote, bRevoked ? pChannel->revoked_sec.buf : NULL);
-        ret = ln_script_to_local_set_vin0(pTx, &sigkey, pScript, bRevoked);
-    }
-    return ret;
-}
-
-
-bool ln_wallet_create_to_remote(
-            const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
-            const uint8_t *pTxid, int Index)
-{
-    bool ret = create_basetx(pTx, Value,
-                NULL, 0, pTxid, Index, false);
-    if (ret) {
-        btc_keys_t sigkey;
-        ln_signer_to_remote_key(&sigkey, &pChannel->keys_local, &pChannel->keys_remote);
-        ln_script_to_remote_set_vin0(pTx, &sigkey);
-    }
-
-    return ret;
-}
-
-
 bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
@@ -1606,26 +1574,6 @@ static void channel_clear(ln_channel_t *pChannel)
 /********************************************************************
  * Transaction作成
  ********************************************************************/
-
-static bool create_basetx(btc_tx_t *pTx,
-                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
-                const uint8_t *pTxid, int Index, bool bRevoked)
-{
-    //vout
-    btc_vout_t* vout = btc_tx_add_vout(pTx, Value);
-    if (pScriptPk != NULL) {
-        utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
-    }
-
-    //vin
-    btc_tx_add_vin(pTx, pTxid, Index);
-    if (!bRevoked) {
-        pTx->vin[0].sequence = LockTime;
-    }
-
-    return true;
-}
-
 
 bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id)
 {

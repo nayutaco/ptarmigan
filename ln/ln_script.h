@@ -129,16 +129,6 @@ bool HIDDEN ln_script_create_to_local(
     uint32_t Local);
 
 
-bool HIDDEN ln_script_to_local_set_vin0(
-    btc_tx_t *pTx,
-    const btc_keys_t *pKey,
-    const utl_buf_t *pWitScript,
-    bool bRevoked);
-
-
-bool HIDDEN ln_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t *pKey);
-
-
 /** 公開鍵からscriptPubKeyを生成
  *
  * @param[out]      pScriptPk

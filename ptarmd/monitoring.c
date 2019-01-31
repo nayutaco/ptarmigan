@@ -34,6 +34,7 @@
 #include "utl_log.h"
 
 #include "ln_msg_anno.h"
+#include "ln_wallet.h"
 
 #include "ptarmd.h"
 #include "p2p_svr.h"
