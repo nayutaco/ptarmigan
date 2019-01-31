@@ -55,9 +55,8 @@
 
 #define M_ANNO_FLAG_SEND                    (0x01)          ///< announcement_signatures送信済み
 #define M_ANNO_FLAG_RECV                    (0x02)          ///< announcement_signatures受信済み
-//#define LN_ANNO_FLAG_END
 
-#define M_UPDCNL_TIMERANGE                  (uint32_t)(60 * 60)     //1hour
+#define M_UPDCNL_TIMERANGE                  ((uint32_t)(60 * 60))   //1hour
 
 
 /**************************************************************************
@@ -364,7 +363,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 
 bool HIDDEN ln_channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    //always return ture
+    //always return true
     //don't close the channel
 
     /*ignore*/channel_update_recv(pChannel, pData, Len);
@@ -377,7 +376,7 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
     ln_msg_channel_update_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), LN_CNLUPD_CHFLAGS_DISABLE)) return false;
-    ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(pChannel));
+    (void)ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(pChannel));
     utl_buf_free(&buf);
     return true;
 }
@@ -386,7 +385,16 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
 bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
 {
     (void)pChannel;
-    return false;
+
+    utl_buf_t buf = UTL_BUF_INIT;
+    ln_msg_query_short_channel_ids_t msg;
+    msg.p_chain_hash = ln_genesishash_get();
+    msg.len = 0;
+    msg.p_encoded_short_ids = NULL;
+    if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
@@ -399,33 +407,40 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
 }
 
 
-bool ln_reply_short_channel_ids_recv_send(ln_channel_t *pChannel)
+bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_query_short_channel_ids_t *pMsg)
 {
-    (void)pChannel;
-    return false;
+    (void)pChannel; (void)pMsg;
+
+    utl_buf_t buf = UTL_BUF_INIT;
+    ln_msg_query_short_channel_ids_t msg;
+    msg.p_chain_hash = ln_genesishash_get();
+    msg.len = 0;
+    msg.p_encoded_short_ids = NULL;
+    if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
 bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     (void)pChannel;
+
     ln_msg_reply_short_channel_ids_end_t msg;
     ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len);
     return true;
 }
 
 
-bool ln_query_channel_range_send(ln_channel_t *pChannel)
+bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, uint32_t Num)
 {
     ln_msg_query_channel_range_t msg;
     msg.p_chain_hash = ln_genesishash_get();
-    msg.first_blocknum = 0;
-    msg.number_of_blocks = 0xffffffff;
+    msg.first_blocknum = FirstBlock;
+    msg.number_of_blocks = Num;
     utl_buf_t buf = UTL_BUF_INIT;
-    if(!ln_msg_query_channel_range_write(&buf, &msg)) {
-        LOGE("fail: create query_channel_range\n");
-        return false;
-    }
+    if (!ln_msg_query_channel_range_write(&buf, &msg)) return false;
     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
@@ -434,17 +449,28 @@ bool ln_query_channel_range_send(ln_channel_t *pChannel)
 
 bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)pChannel;
     ln_msg_query_channel_range_t msg;
     ln_msg_query_channel_range_read(&msg, pData, Len);
-    return true;
+    return ln_reply_channel_range_send(pChannel, &msg);
 }
 
 
-bool ln_reply_channel_range_send(ln_channel_t *pChannel)
+bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_channel_range_t *pMsg)
 {
-    (void)pChannel;
-    return false;
+    (void)pChannel; (void)pMsg;
+    ln_msg_reply_channel_range_t msg;
+    msg.p_chain_hash = pMsg->p_chain_hash;
+    msg.first_blocknum = 0;
+    msg.number_of_blocks = 0;
+    msg.complete = 1;
+    uint8_t zero = 0;
+    msg.len = (uint16_t)sizeof(zero);
+    msg.p_encoded_short_ids = &zero;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_reply_channel_range_write(&buf, &msg)) return false;
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
