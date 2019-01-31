@@ -58,6 +58,7 @@
 #include "ln_onion.h"
 #include "ln_script.h"
 #include "ln_comtx.h"
+#include "ln_comtx_util.h"
 #include "ln_derkey.h"
 #include "ln_signer.h"
 #include "ln_local.h"
@@ -1667,9 +1668,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx)
 {
-    uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
-    commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
-    commit_num ^= pChannel->obscured;
+    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(pTx->vin[0].sequence, pTx->locktime, pChannel->obscured);
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;
 }
