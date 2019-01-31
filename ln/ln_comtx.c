@@ -170,13 +170,13 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
 
     //HTLC info(script)
     for (int lp = 0; lp < cnt; lp++) {
-        ln_script_htlc_info_script(&pp_htlc_info[lp]->wit_script,
+        ln_script_create_htlc(&pp_htlc_info[lp]->wit_script,
                         pp_htlc_info[lp]->type,
                         pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
                         pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                         pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         pp_htlc_info[lp]->payment_hash,
-                        pp_htlc_info[lp]->expiry);
+                        pp_htlc_info[lp]->cltv_expiry);
     }
 
     LOGD("-------\n");
@@ -279,13 +279,13 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
 
     //HTLC info(script)
     for (int lp = 0; lp < cnt; lp++) {
-        ln_script_htlc_info_script(&pp_htlc_info[lp]->wit_script,
+        ln_script_create_htlc(&pp_htlc_info[lp]->wit_script,
                         pp_htlc_info[lp]->type,
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
                         pp_htlc_info[lp]->payment_hash,
-                        pp_htlc_info[lp]->expiry);
+                        pp_htlc_info[lp]->cltv_expiry);
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
         utl_buf_t vout = UTL_BUF_INIT;
@@ -293,7 +293,7 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
         ln_db_phash_save(pp_htlc_info[lp]->payment_hash,
                         vout.buf,
                         pp_htlc_info[lp]->type,
-                        pp_htlc_info[lp]->expiry);
+                        pp_htlc_info[lp]->cltv_expiry);
         utl_buf_free(&vout);
 #endif  //LN_UGLY_NORMAL
     }
@@ -459,7 +459,7 @@ static void create_to_local_htlc_info_amount(const ln_channel_t *pChannel,
                     LOGE("unknown flag: %04x\n", p_htlc->stat.bits);
                 }
                 ppHtlcInfo[cnt]->add_htlc_idx = idx;
-                ppHtlcInfo[cnt]->expiry = p_htlc->cltv_expiry;
+                ppHtlcInfo[cnt]->cltv_expiry = p_htlc->cltv_expiry;
                 ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
                 ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_sha256;
 
@@ -605,7 +605,7 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
                         pTxCommit->vout[vout_idx].value - fee_sat,
                         pBufWs,
                         p_htlc_info->type,
-                        p_htlc_info->expiry,
+                        p_htlc_info->cltv_expiry,
                         pChannel->commit_tx_local.txid, vout_idx);
 
             if ((pHtlcSigs != NULL) && (HtlcSigsNum != 0)) {
@@ -884,7 +884,7 @@ static void create_to_remote_htlc_info(const ln_channel_t *pChannel,
                     LOGE("unknown flag: %04x\n", p_htlc->stat.bits);
                 }
                 ppHtlcInfo[cnt]->add_htlc_idx = idx;
-                ppHtlcInfo[cnt]->expiry = p_htlc->cltv_expiry;
+                ppHtlcInfo[cnt]->cltv_expiry = p_htlc->cltv_expiry;
                 ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
                 ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_sha256;
 
@@ -1068,7 +1068,7 @@ static bool create_to_remote_spenthtlc(
 
     LOGD("---HTLC[%d]\n", VoutIdx);
     ln_script_htlc_tx_create(&tx, pTxCommit->vout[VoutIdx].value - Fee, pBufWs,
-                pHtlcInfo->type, pHtlcInfo->expiry,
+                pHtlcInfo->type, pHtlcInfo->cltv_expiry,
                 pCommit->txid, VoutIdx);
 
     uint8_t preimage[LN_SZ_PREIMAGE];
@@ -1118,7 +1118,7 @@ static bool create_to_remote_spenthtlc(
             utl_buf_free(&tx.vout[0].script);
             //wit[0]に署名用秘密鍵を設定しておく(wallet用)
             utl_buf_t buf_key = { (CONST_CAST uint8_t *)pHtlcKey->priv, BTC_SZ_PRIVKEY };
-            tx.locktime = pHtlcInfo->expiry;
+            tx.locktime = pHtlcInfo->cltv_expiry;
             ret = ln_script_htlc_tx_wit(&tx,
                 &buf_key,
                 pHtlcKey,

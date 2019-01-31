@@ -57,21 +57,21 @@
  * prototypes
  ********************************************************************/
 
-static bool create_script_offered(
+static bool create_offered_htlc(
     utl_buf_t *pWitScript,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
-    const uint8_t *pLocalPreImageHash160,
+    const uint8_t *pPaymentHash,
     const uint8_t *pRemoteHtlcKey);
 
 
-static bool create_script_received(
+static bool create_received_htlc(
     utl_buf_t *pWitScript,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,
-    const uint8_t *pRemotePreImageHash160,
-    uint32_t RemoteExpiry);
+    const uint8_t *pPaymentHash,
+    uint32_t CltvExpiry);
 
 
 /**************************************************************************
@@ -82,11 +82,8 @@ bool HIDDEN ln_script_create_to_local(
     utl_buf_t *pWitScript,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pLocalDelayedKey,
-    uint32_t LocalDelay)
+    uint32_t LocalToSelfDelay)
 {
-    utl_push_t push;
-
-    //local script
     //    OP_IF
     //        # Penalty transaction
     //        <revocationkey>
@@ -97,11 +94,13 @@ bool HIDDEN ln_script_create_to_local(
     //        <local_delayedkey>
     //    OP_ENDIF
     //    OP_CHECKSIG
-    if (!utl_push_init(&push, pWitScript, 77)) return false;        //to_self_delayが2byteの場合
+
+    utl_push_t push;
+    if (!utl_push_init(&push, pWitScript, 77)) return false;    //to_self_delayが2byteの場合
     if (!utl_push_data(&push, BTC_OP_IF BTC_OP_SZ_PUBKEY, 2)) return false;
     if (!utl_push_data(&push, pLocalRevoKey, BTC_SZ_PUBKEY)) return false;
     if (!utl_push_data(&push, BTC_OP_ELSE, 1)) return false;
-    if (!utl_push_value(&push, LocalDelay)) return false;
+    if (!utl_push_value(&push, LocalToSelfDelay)) return false;
     if (!utl_push_data(&push, BTC_OP_CSV BTC_OP_DROP BTC_OP_SZ_PUBKEY, 3)) return false;
     if (!utl_push_data(&push, pLocalDelayedKey, BTC_SZ_PUBKEY)) return false;
     if (!utl_push_data(&push, BTC_OP_ENDIF BTC_OP_CHECKSIG, 2)) return false;
@@ -110,18 +109,18 @@ bool HIDDEN ln_script_create_to_local(
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
     btc_script_print(pWitScript->buf, pWitScript->len);
-    utl_buf_t prog = UTL_BUF_INIT;
-    if (!btc_script_p2wsh_create_scriptpk(&prog, pWitScript)) return false;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!btc_script_p2wsh_create_scriptpk(&buf, pWitScript)) return false;
     LOGD("vout: ");
-    DUMPD(prog.buf, prog.len);
-    utl_buf_free(&prog);
+    DUMPD(buf.buf, buf.len);
+    utl_buf_free(&buf);
 #endif  //M_DBG_VERBOSE
     return true;
 }
 
 
 
-bool HIDDEN ln_script_to_local_wit(
+bool HIDDEN ln_script_to_local_set_vin0(
     btc_tx_t *pTx,
     const btc_keys_t *pKey,
     const utl_buf_t *pWitScript,
@@ -130,24 +129,19 @@ bool HIDDEN ln_script_to_local_wit(
     // <delayedsig>
     // 0
     // <script>
+
     const uint8_t WIT1 = 0x01;
     const utl_buf_t key = { (CONST_CAST uint8_t *)pKey->priv, BTC_SZ_PRIVKEY };
     const utl_buf_t wit0 = UTL_BUF_INIT;
     const utl_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
-    const utl_buf_t *wits[] = {
-        &key,
-        NULL,
-        pWitScript
-    };
+    const utl_buf_t *wits[] = {&key, NULL, pWitScript};
     wits[1] = (bRevoked) ? &wit1 : &wit0;
-
-    bool ret = btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)wits, ARRAY_SIZE(wits));
-
-    return ret;
+    if (!btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)wits, ARRAY_SIZE(wits))) return false;
+    return true;
 }
 
 
-bool HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey)
+bool HIDDEN ln_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t *pKey)
 {
     utl_buf_t *p_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * 2);
     if (!utl_buf_alloccopy(&p_wit[0], pKey->priv, BTC_SZ_PRIVKEY)) return false;
@@ -181,36 +175,29 @@ bool HIDDEN ln_script_scriptpk_create(utl_buf_t *pScriptPk, const utl_buf_t *pPu
 
 bool HIDDEN ln_script_scriptpk_check(const utl_buf_t *pScriptPk)
 {
-    bool ret = false;
     const uint8_t *p = pScriptPk->buf;
-
     switch (pScriptPk->len) {
     case 25:
         //P2PKH
         //  OP_DUP OP_HASH160 20 [20-bytes] OP_EQUALVERIFY OP_CHECKSIG
-        ret = (p[0] == OP_DUP) && (p[1] == OP_HASH160) && (p[2] == BTC_SZ_HASH160) &&
-                (p[23] == OP_EQUALVERIFY) && (p[24] == OP_CHECKSIG);
-        break;
+        return (p[0] == OP_DUP) && (p[1] == OP_HASH160) && (p[2] == BTC_SZ_HASH160) && (p[23] == OP_EQUALVERIFY) && (p[24] == OP_CHECKSIG);
     case 23:
         //P2SH
         //  OP_HASH160 20 20-bytes OP_EQUAL
-        ret = (p[0] == OP_HASH160) && (p[1] == BTC_SZ_HASH160) && (p[22] == OP_EQUAL);
-        break;
+        return (p[0] == OP_HASH160) && (p[1] == BTC_SZ_HASH160) && (p[22] == OP_EQUAL);
     case 22:
         //P2WPKH
         //  OP_0 20 20-bytes
-        ret = (p[0] == OP_0) && (p[1] == BTC_SZ_HASH160);
-        break;
+        return (p[0] == OP_0) && (p[1] == BTC_SZ_HASH160);
     case 34:
         //P2WSH
         //  OP_0 32 32-bytes
-        ret = (p[0] == OP_0) && (p[1] == BTC_SZ_HASH256);
+        return (p[0] == OP_0) && (p[1] == BTC_SZ_HASH256);
         break;
     default:
         ;
     }
-
-    return ret;
+    return false;
 }
 
 
@@ -218,7 +205,7 @@ void HIDDEN ln_script_htlc_info_init(ln_script_htlc_info_t *pHtlcInfo)
 {
     pHtlcInfo->type = LN_HTLC_TYPE_NONE;
     pHtlcInfo->add_htlc_idx = (uint16_t)-1;
-    pHtlcInfo->expiry = 0;
+    pHtlcInfo->cltv_expiry = 0;
     pHtlcInfo->amount_msat = 0;
     pHtlcInfo->payment_hash = NULL;
     utl_buf_init(&pHtlcInfo->wit_script);
@@ -231,39 +218,26 @@ void HIDDEN ln_script_htlc_info_free(ln_script_htlc_info_t *pHtlcInfo)
 }
 
 
-void HIDDEN ln_script_htlc_info_script(
-    utl_buf_t *pScript,
+bool HIDDEN ln_script_create_htlc(
+    utl_buf_t *pWitScript,
     ln_htlc_type_t Type,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,
     const uint8_t *pPaymentHash,
-    uint32_t Expiry)
+    uint32_t CltvExpiry)
 {
-    uint8_t hash[BTC_SZ_HASH160];
-    btc_md_ripemd160(hash, pPaymentHash, BTC_SZ_HASH256);
-
     switch (Type) {
     case LN_HTLC_TYPE_OFFERED:
-        //offered
-        create_script_offered(pScript,
-                    pLocalHtlcKey,
-                    pLocalRevoKey,
-                    hash,
-                    pRemoteHtlcKey);
-        break;
+        return create_offered_htlc(
+            pWitScript, pLocalHtlcKey, pLocalRevoKey, pPaymentHash, pRemoteHtlcKey);
     case LN_HTLC_TYPE_RECEIVED:
-        //received
-        create_script_received(pScript,
-                    pLocalHtlcKey,
-                    pLocalRevoKey,
-                    pRemoteHtlcKey,
-                    hash,
-                    Expiry);
-        break;
+        return create_received_htlc(
+            pWitScript, pLocalHtlcKey, pLocalRevoKey, pRemoteHtlcKey, pPaymentHash, CltvExpiry);
     default:
-        break;
+        ;
     }
+    return false;
 }
 
 
@@ -617,25 +591,22 @@ bool HIDDEN ln_script_htlc_tx_verify(
 
 /** Offered HTLCスクリプト作成
  *
- * @param[out]      pWitScript                    生成したスクリプト
+ * @param[out]      pWitScript              生成したスクリプト
  * @param[in]       pLocalHtlcKey           Local htlcey[33]
  * @param[in]       pLocalRevoKey           Local RevocationKey[33]
- * @param[in]       pLocalPreImageHash160   Local payment-preimage-hash[20]
+ * @param[in]       pPaymentHash            payment_hash[32]
  * @param[in]       pRemoteHtlcKey          Remote htlckey[33]
  *
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-static bool create_script_offered(
+static bool create_offered_htlc(
     utl_buf_t *pWitScript,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
-    const uint8_t *pLocalPreImageHash160,
+    const uint8_t *pPaymentHash,
     const uint8_t *pRemoteHtlcKey)
 {
-    utl_push_t push;
-    uint8_t hash[BTC_SZ_HASH160];
-
     //offered HTLC script
     //    OP_DUP OP_HASH160 <HASH160(remote revocationkey)> OP_EQUAL
     //    OP_IF
@@ -651,8 +622,9 @@ static bool create_script_offered(
     //            OP_CHECKSIG
     //        OP_ENDIF
     //    OP_ENDIF
-    //
-    // payment-hash: payment-preimageをSHA256
+
+    utl_push_t push;
+    uint8_t hash[BTC_SZ_HASH160];
     if (!utl_push_init(&push, pWitScript, 133)) return false;
     if (!utl_push_data(&push, BTC_OP_DUP BTC_OP_HASH160 BTC_OP_SZ20, 3)) return false;
     btc_md_hash160(hash, pLocalRevoKey, BTC_SZ_PUBKEY);
@@ -662,7 +634,8 @@ static bool create_script_offered(
     if (!utl_push_data(&push, BTC_OP_SWAP BTC_OP_SIZE BTC_OP_SZ1 BTC_OP_SZ32 BTC_OP_EQUAL BTC_OP_NOTIF BTC_OP_DROP BTC_OP_2 BTC_OP_SWAP BTC_OP_SZ_PUBKEY, 10)) return false;
     if (!utl_push_data(&push, pLocalHtlcKey, BTC_SZ_PUBKEY)) return false;
     if (!utl_push_data(&push, BTC_OP_2 BTC_OP_CHECKMULTISIG BTC_OP_ELSE BTC_OP_HASH160 BTC_OP_SZ20, 5)) return false;
-    if (!utl_push_data(&push, pLocalPreImageHash160, BTC_SZ_HASH160)) return false;
+    btc_md_ripemd160(hash, pPaymentHash, BTC_SZ_HASH256);
+    if (!utl_push_data(&push, hash, BTC_SZ_HASH160)) return false;
     if (!utl_push_data(&push, BTC_OP_EQUALVERIFY BTC_OP_CHECKSIG BTC_OP_ENDIF BTC_OP_ENDIF, 4)) return false;
     if (!utl_push_trim(&push)) return false;
 
@@ -670,32 +643,30 @@ static bool create_script_offered(
     LOGD("script:\n");
     btc_script_print(pWitScript->buf, pWitScript->len);
 #endif  //M_DBG_VERBOSE
+    return true;
 }
 
 
 /** Received HTLCスクリプト作成
  *
- * @param[out]      pWitScript                    生成したスクリプト
+ * @param[out]      pWitScript              生成したスクリプト
  * @param[in]       pLocalHtlcKey           Local htlckey[33]
  * @param[in]       pLocalRevoKey           Local RevocationKey[33]
  * @param[in]       pRemoteHtlcKey          Remote htlckey[33]
- * @param[in]       pRemotePreImageHash160  Remote payment-preimage-hash[20]
- * @param[in]       RemoteExpiry            Expiry
+ * @param[in]       pPaymentHash            payment_hash[32]
+ * @param[in]       CltvExpiry              cltv_expiry
  *
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-static bool create_script_received(
+static bool create_received_htlc(
     utl_buf_t *pWitScript,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,
-    const uint8_t *pRemotePreImageHash160,
-    uint32_t RemoteExpiry)
+    const uint8_t *pPaymentHash,
+    uint32_t CltvExpiry)
 {
-    utl_push_t push;
-    uint8_t hash[BTC_SZ_HASH160];
-
     //received HTLC script
     //    OP_DUP OP_HASH160 <HASH160(revocationkey)> OP_EQUAL
     //    OP_IF
@@ -712,8 +683,9 @@ static bool create_script_received(
     //            OP_CHECKSIG
     //        OP_ENDIF
     //    OP_ENDIF
-    //
-    // payment-hash: payment-preimageをSHA256
+
+    utl_push_t push;
+    uint8_t hash[BTC_SZ_HASH160];
     if (!utl_push_init(&push, pWitScript, 138)) return false;
     if (!utl_push_data(&push, BTC_OP_DUP BTC_OP_HASH160 BTC_OP_SZ20, 3)) return false;
     btc_md_hash160(hash, pLocalRevoKey, BTC_SZ_PUBKEY);
@@ -721,11 +693,12 @@ static bool create_script_received(
     if (!utl_push_data(&push, BTC_OP_EQUAL BTC_OP_IF BTC_OP_CHECKSIG BTC_OP_ELSE BTC_OP_SZ_PUBKEY, 5)) return false;
     if (!utl_push_data(&push, pRemoteHtlcKey, BTC_SZ_PUBKEY)) return false;
     if (!utl_push_data(&push, BTC_OP_SWAP BTC_OP_SIZE BTC_OP_SZ1 BTC_OP_SZ32 BTC_OP_EQUAL BTC_OP_IF BTC_OP_HASH160 BTC_OP_SZ20, 8)) return false;
-    if (!utl_push_data(&push, pRemotePreImageHash160, BTC_SZ_HASH160)) return false;
+    btc_md_ripemd160(hash, pPaymentHash, BTC_SZ_HASH256);
+    if (!utl_push_data(&push, hash, BTC_SZ_HASH160)) return false;
     if (!utl_push_data(&push, BTC_OP_EQUALVERIFY BTC_OP_2 BTC_OP_SWAP BTC_OP_SZ_PUBKEY, 4)) return false;
     if (!utl_push_data(&push, pLocalHtlcKey, BTC_SZ_PUBKEY)) return false;
     if (!utl_push_data(&push, BTC_OP_2 BTC_OP_CHECKMULTISIG BTC_OP_ELSE BTC_OP_DROP, 4)) return false;
-    if (!utl_push_value(&push, RemoteExpiry)) return false;
+    if (!utl_push_value(&push, CltvExpiry)) return false;
     if (!utl_push_data(&push, BTC_OP_CLTV BTC_OP_DROP BTC_OP_CHECKSIG BTC_OP_ENDIF BTC_OP_ENDIF, 5)) return false;
     if (!utl_push_trim(&push)) return false;
 
@@ -735,4 +708,5 @@ static bool create_script_received(
     //LOGD("revocation=");
     //DUMPD(pLocalRevoKey, BTC_SZ_PUBKEY);
 #endif  //M_DBG_VERBOSE
+    return true;
 }
