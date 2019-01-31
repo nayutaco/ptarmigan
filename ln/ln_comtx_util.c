@@ -56,7 +56,7 @@
  * public functions
  **************************************************************************/
 
-uint64_t HIDDEN ln_comtx_calc_obscured_commit_num_base(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt)
+uint64_t HIDDEN ln_comtx_calc_obscured_commit_num_mask(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt)
 {
     uint64_t obs = 0;
     uint8_t base[32];
