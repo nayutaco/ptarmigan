@@ -21,7 +21,9 @@ all: lib
 
 lib: mk_install mk_libev mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl
 
-apt: git_update mk_install mk_jsonrpc_c mk_inih mk_base58 mk_mbedtls
+apt: git_update mk_install apt_install mk_jsonrpc_c mk_inih mk_base58 mk_mbedtls
+
+apt_install:
 	sudo apt install -y \
 			libboost-dev=1.65.1.0ubuntu1 \
 			libjansson-dev=2.11-1 \
