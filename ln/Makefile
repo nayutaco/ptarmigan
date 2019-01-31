@@ -39,6 +39,7 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 C_SOURCE_FILES += $(PRJ_PATH)/ln.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_script.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_comtx.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln_comtx_util.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_derkey.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_derkey_ex.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg.c

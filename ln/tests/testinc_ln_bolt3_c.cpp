@@ -274,7 +274,7 @@ TEST_F(ln_bolt3_c, committx1)
     bool ret;
 
     //obscured commitment number
-    uint64_t obscured_base = ln_script_calc_obscured_commit_num_base(LOCAL_PAYMENT_BASEPOINT, REMOTE_PAYMENT_BASEPOINT);
+    uint64_t obscured_base = ln_comtx_calc_obscured_commit_num_base(LOCAL_PAYMENT_BASEPOINT, REMOTE_PAYMENT_BASEPOINT);
     ASSERT_EQ(OBSCURED_NUM, obscured_base);
     obscured = obscured_base ^ COMMITMENT_NUMBER;
 

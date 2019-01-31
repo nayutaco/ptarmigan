@@ -42,6 +42,7 @@ extern "C" {
 #include "ln_establish.c"
 #include "ln_node.c"
 #include "ln_onion.c"
+#include "ln_comtx_util.c"
 #include "ln_script.c"
 #include "ln_noise.c"
 #include "ln_signer.c"

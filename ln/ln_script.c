@@ -39,6 +39,7 @@
 #include "ln_script.h"
 #include "ln_signer.h"
 #include "ln_local.h"
+#include "ln_comtx_util.h"
 
 //#define M_DBG_VERBOSE
 
@@ -49,8 +50,6 @@
 #define M_FEE_HTLCSUCCESS           (703ULL)
 #define M_FEE_HTLCTIMEOUT           (663ULL)
 #define M_FEE_COMMIT_HTLC           (172ULL)
-
-#define M_OBSCURED_TX_LEN           (6)
 
 
 /********************************************************************
@@ -75,34 +74,6 @@ static void create_script_received(utl_buf_t *pBuf,
 /**************************************************************************
  * public functions
  **************************************************************************/
-
-uint64_t HIDDEN ln_script_calc_obscured_commit_num_base(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt)
-{
-    uint64_t obs = 0;
-    uint8_t base[32];
-    mbedtls_sha256_context ctx;
-
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pOpenPayBasePt, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pAcceptPayBasePt, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, base);
-    mbedtls_sha256_free(&ctx);
-
-    for (int lp = 0; lp < M_OBSCURED_TX_LEN; lp++) {
-        obs <<= 8;
-        obs |= base[sizeof(base) - M_OBSCURED_TX_LEN + lp];
-    }
-
-    return obs;
-}
-
-
-uint64_t HIDDEN ln_script_calc_obscured_commit_num(uint64_t ObscuredCommitNumBase, uint64_t CommitNum)
-{
-    return ObscuredCommitNumBase ^ CommitNum;
-}
-
 
 void HIDDEN ln_script_create_to_local(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,

@@ -5,11 +5,11 @@
 #include "mbedtls/sha256.h"
 #include "mbedtls/md.h"
 
-#define M_OBSCURED_TX_LEN   (6)
+#define M_SZ_OBSCURED_COMMIT_NUM   (6)
 #define PTARM_SZ_PUBKEY     (33)
 
 
-static uint64_t ln_script_calc_obscured_commit_num_base(const uint8_t *pLocalBasePt, const uint8_t *pRemoteBasePt)
+static uint64_t ln_comtx_calc_obscured_commit_num_base(const uint8_t *pLocalBasePt, const uint8_t *pRemoteBasePt)
 {
     uint64_t obs = 0;
     uint8_t base[32];
@@ -22,9 +22,9 @@ static uint64_t ln_script_calc_obscured_commit_num_base(const uint8_t *pLocalBas
     mbedtls_sha256_finish(&ctx, base);
     mbedtls_sha256_free(&ctx);
 
-    for (int lp = 0; lp < M_OBSCURED_TX_LEN; lp++) {
+    for (int lp = 0; lp < M_SZ_OBSCURED_COMMIT_NUM; lp++) {
         obs <<= 8;
-        obs |= base[sizeof(base) - M_OBSCURED_TX_LEN + lp];
+        obs |= base[sizeof(base) - M_SZ_OBSCURED_COMMIT_NUM + lp];
     }
 
     return obs;
@@ -50,7 +50,7 @@ int main(void)
         0x3b,
     };
 
-    uint64_t obscured = ln_script_calc_obscured_commit_num_base(OPEN_CH_PAYMENT_BP, ACCEPT_CH_PAYMENT_BP);
+    uint64_t obscured = ln_comtx_calc_obscured_commit_num_base(OPEN_CH_PAYMENT_BP, ACCEPT_CH_PAYMENT_BP);
 
     //commitment numberの復元
     uint64_t commit_num = ((uint64_t)(sequence & 0xffffff)) << 24;
