@@ -76,7 +76,7 @@ static void create_script_received(utl_buf_t *pBuf,
  * public functions
  **************************************************************************/
 
-uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t *pAcceptBasePt)
+uint64_t HIDDEN ln_script_calc_obscured_commit_num_base(const uint8_t *pOpenPayBasePt, const uint8_t *pAcceptPayBasePt)
 {
     uint64_t obs = 0;
     uint8_t base[32];
@@ -84,8 +84,8 @@ uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const 
 
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pOpenBasePt, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pAcceptBasePt, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pOpenPayBasePt, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pAcceptPayBasePt, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, base);
     mbedtls_sha256_free(&ctx);
 
@@ -232,9 +232,9 @@ bool HIDDEN ln_script_scriptpkh_check(const utl_buf_t *pBuf)
 }
 
 
-void HIDDEN ln_script_htlcinfo_init(ln_script_htlcinfo_t *pHtlcInfo)
+void HIDDEN ln_script_htlc_info_init(ln_script_htlc_info_t *pHtlcInfo)
 {
-    pHtlcInfo->type = LN_HTLCTYPE_NONE;
+    pHtlcInfo->type = LN_HTLC_TYPE_NONE;
     pHtlcInfo->add_htlc_idx = (uint16_t)-1;
     pHtlcInfo->expiry = 0;
     pHtlcInfo->amount_msat = 0;
@@ -243,13 +243,13 @@ void HIDDEN ln_script_htlcinfo_init(ln_script_htlcinfo_t *pHtlcInfo)
 }
 
 
-void HIDDEN ln_script_htlcinfo_free(ln_script_htlcinfo_t *pHtlcInfo)
+void HIDDEN ln_script_htlc_info_free(ln_script_htlc_info_t *pHtlcInfo)
 {
     utl_buf_free(&pHtlcInfo->script);
 }
 
 
-void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
+void HIDDEN ln_script_htlc_info_script(utl_buf_t *pScript, ln_htlc_type_t Type,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pRemoteHtlcKey,
@@ -260,7 +260,7 @@ void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
     btc_md_ripemd160(hash160, pPaymentHash, BTC_SZ_HASH256);
 
     switch (Type) {
-    case LN_HTLCTYPE_OFFERED:
+    case LN_HTLC_TYPE_OFFERED:
         //offered
         create_script_offered(pScript,
                     pLocalHtlcKey,
@@ -268,7 +268,7 @@ void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
                     hash160,
                     pRemoteHtlcKey);
         break;
-    case LN_HTLCTYPE_RECEIVED:
+    case LN_HTLC_TYPE_RECEIVED:
         //received
         create_script_received(pScript,
                     pLocalHtlcKey,
@@ -284,8 +284,8 @@ void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
 
 
 uint64_t HIDDEN ln_script_fee_calc(
-                    ln_script_feeinfo_t *pFeeInfo,
-                    const ln_script_htlcinfo_t **ppHtlcInfo,
+                    ln_script_fee_info_t *pFeeInfo,
+                    const ln_script_htlc_info_t **ppHtlcInfo,
                     int Num)
 {
     pFeeInfo->htlc_success = M_FEE_HTLCSUCCESS * pFeeInfo->feerate_per_kw / 1000;
@@ -295,14 +295,14 @@ uint64_t HIDDEN ln_script_fee_calc(
 
     for (int lp = 0; lp < Num; lp++) {
         switch (ppHtlcInfo[lp]->type) {
-        case LN_HTLCTYPE_OFFERED:
+        case LN_HTLC_TYPE_OFFERED:
             if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pFeeInfo->dust_limit_satoshi + pFeeInfo->htlc_timeout) {
                 pFeeInfo->commit += M_FEE_COMMIT_HTLC;
             } else {
                 dusts += LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat);
             }
             break;
-        case LN_HTLCTYPE_RECEIVED:
+        case LN_HTLC_TYPE_RECEIVED:
             if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pFeeInfo->dust_limit_satoshi + pFeeInfo->htlc_success) {
                 pFeeInfo->commit += M_FEE_COMMIT_HTLC;
             } else {
@@ -320,10 +320,10 @@ uint64_t HIDDEN ln_script_fee_calc(
 }
 
 
-bool HIDDEN ln_script_committx_create(
+bool HIDDEN ln_script_commit_tx_create(
                     btc_tx_t *pTx,
                     utl_buf_t *pSig,
-                    const ln_script_committx_t *pCmt,
+                    const ln_script_commit_tx_t *pCmt,
                     bool Local,
                     const ln_derkey_local_keys_t *pKeys)
 {
@@ -332,60 +332,60 @@ bool HIDDEN ln_script_committx_create(
     //commitment txのFEEはfunderが払う
     //  Base commitment transaction fees are extracted from the funder's amount; if that amount is insufficient, the entire amount of the funder's output is used.
     if (Local) {
-        fee_local = pCmt->p_feeinfo->commit;
+        fee_local = pCmt->p_fee_info->commit;
         fee_remote = 0;
     } else {
         fee_local = 0;
-        fee_remote = pCmt->p_feeinfo->commit;
+        fee_remote = pCmt->p_fee_info->commit;
     }
 
     //output
     //  P2WPKH - remote
-    if (pCmt->remote.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_remote) {
+    if (pCmt->remote.satoshi >= pCmt->p_fee_info->dust_limit_satoshi + fee_remote) {
         LOGD("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
         LOGD("    remote.pubkey: ");
         DUMPD(pCmt->remote.pubkey, BTC_SZ_PUBKEY);
         btc_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
-        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TO_REMOTE;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLC_TYPE_TO_REMOTE;
     } else {
-        LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
+        LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_fee_info->dust_limit_satoshi, fee_remote);
     }
     //  P2WSH - local
-    if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
+    if (pCmt->local.satoshi >= pCmt->p_fee_info->dust_limit_satoshi + fee_local) {
         LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
         btc_sw_add_vout_p2wsh_wit(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
-        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TO_LOCAL;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLC_TYPE_TO_LOCAL;
     } else {
-        LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
+        LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_fee_info->dust_limit_satoshi, fee_local);
     }
     //  HTLCs
-    for (int lp = 0; lp < pCmt->htlcinfo_num; lp++) {
+    for (int lp = 0; lp < pCmt->htlc_info_num; lp++) {
         uint64_t fee;
-        uint64_t output_sat = LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat);
+        uint64_t output_sat = LN_MSAT2SATOSHI(pCmt->pp_htlc_info[lp]->amount_msat);
         LOGD("lp=%d\n", lp);
-        switch (pCmt->pp_htlcinfo[lp]->type) {
-        case LN_HTLCTYPE_OFFERED:
-            fee = pCmt->p_feeinfo->htlc_timeout;
+        switch (pCmt->pp_htlc_info[lp]->type) {
+        case LN_HTLC_TYPE_OFFERED:
+            fee = pCmt->p_fee_info->htlc_timeout;
             LOGD("  HTLC: offered=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
             break;
-        case LN_HTLCTYPE_RECEIVED:
-            fee = pCmt->p_feeinfo->htlc_success;
+        case LN_HTLC_TYPE_RECEIVED:
+            fee = pCmt->p_fee_info->htlc_success;
             LOGD("  HTLC: received=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
             break;
         default:
-            LOGD("  HTLC: type=%d ???\n", pCmt->pp_htlcinfo[lp]->type);
+            LOGD("  HTLC: type=%d ???\n", pCmt->pp_htlc_info[lp]->type);
             fee = 0;
             break;
         }
-        if (output_sat >= pCmt->p_feeinfo->dust_limit_satoshi + fee) {
+        if (output_sat >= pCmt->p_fee_info->dust_limit_satoshi + fee) {
             btc_sw_add_vout_p2wsh_wit(pTx,
                     output_sat,
-                    &pCmt->pp_htlcinfo[lp]->script);
+                    &pCmt->pp_htlc_info[lp]->script);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
-            LOGD("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
-            //btc_script_print(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
+            LOGD("scirpt.len=%d\n", pCmt->pp_htlc_info[lp]->script.len);
+            //btc_script_print(pCmt->pp_htlc_info[lp]->script.buf, pCmt->pp_htlc_info[lp]->script.len);
         } else {
-            LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n", output_sat, pCmt->p_feeinfo->dust_limit_satoshi, fee);
+            LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n", output_sat, pCmt->p_fee_info->dust_limit_satoshi, fee);
         }
     }
 
@@ -415,11 +415,11 @@ bool HIDDEN ln_script_committx_create(
 }
 
 
-void HIDDEN ln_script_htlctx_create(
+void HIDDEN ln_script_htlc_tx_create(
                     btc_tx_t *pTx,
                     uint64_t Value,
                     const utl_buf_t *pScript,
-                    ln_htlctype_t Type,
+                    ln_htlc_type_t Type,
                     uint32_t CltvExpiry,
                     const uint8_t *pTxid,
                     int Index)
@@ -428,12 +428,12 @@ void HIDDEN ln_script_htlctx_create(
     btc_sw_add_vout_p2wsh_wit(pTx, Value, pScript);
     pTx->vout[0].opt = (uint8_t)Type;
     switch (Type) {
-    case LN_HTLCTYPE_RECEIVED:
+    case LN_HTLC_TYPE_RECEIVED:
         //HTLC-success
         LOGD("HTLC Success\n");
         pTx->locktime = 0;
         break;
-    case LN_HTLCTYPE_OFFERED:
+    case LN_HTLC_TYPE_OFFERED:
         //HTLC-timeout
         LOGD("HTLC Timeout\n");
         pTx->locktime = CltvExpiry;
@@ -450,7 +450,7 @@ void HIDDEN ln_script_htlctx_create(
 }
 
 
-bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
+bool HIDDEN ln_script_htlc_tx_sign(btc_tx_t *pTx,
                     utl_buf_t *pLocalSig,
                     uint64_t Value,
                     const btc_keys_t *pKeys,
@@ -475,19 +475,19 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
 }
 
 
-bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
+bool HIDDEN ln_script_htlc_tx_wit(btc_tx_t *pTx,
                     const utl_buf_t *pLocalSig,
                     const btc_keys_t *pKeys,
                     const utl_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const utl_buf_t *pWitScript,
-                    ln_script_htlcsign_t HtlcSign)
+                    ln_script_htlc_sig_t HtlcSign)
 {
     const utl_buf_t wit0 = UTL_BUF_INIT;
     const utl_buf_t **pp_wits = NULL;
     int wits_num = 0;
     switch (HtlcSign) {
-    case LN_HTLCSIGN_TIMEOUT_SUCCESS:
+    case LN_HTLC_SIG_TIMEOUT_SUCCESS:
         if (pRemoteSig != NULL) {
             // 0
             // <remotesig>
@@ -512,7 +512,7 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
         LOGD("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
         break;
 
-    case LN_HTLCSIGN_REMOTE_OFFER:
+    case LN_HTLC_SIG_REMOTE_OFFER:
         {
             // <remotesig>
             // <payment-preimage>
@@ -535,7 +535,7 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
         LOGD("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
         break;
 
-    case LN_HTLCSIGN_REMOTE_RECV:
+    case LN_HTLC_SIG_REMOTE_RECV:
         {
             // <remotesig>
             // 0
@@ -551,8 +551,8 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
         LOGD("Received HTLC sign: wits_num=%d\n", wits_num);
         break;
 
-    case LN_HTLCSIGN_REVOKE_RECV:
-    case LN_HTLCSIGN_REVOKE_OFFER:
+    case LN_HTLC_SIG_REVOKE_RECV:
+    case LN_HTLC_SIG_REVOKE_OFFER:
         {
             // <revocation_sig>
             // <revocationkey>
@@ -580,7 +580,7 @@ bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
 
 
 //署名の検証だけであれば、hashを計算して、署名と公開鍵を与えればよい
-bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
+bool HIDDEN ln_script_htlc_tx_verify(const btc_tx_t *pTx,
                     uint64_t Value,
                     const uint8_t *pLocalPubKey,
                     const uint8_t *pRemotePubKey,
