@@ -122,41 +122,44 @@ typedef enum {
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-void HIDDEN ln_script_create_to_local(utl_buf_t *pWitScript,
+bool HIDDEN ln_script_create_to_local(
+    utl_buf_t *pWitScript,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pLocalDelayedKey,
     uint32_t LocalDelay);
 
 
-bool HIDDEN ln_script_to_local_wit(btc_tx_t *pTx,
+bool HIDDEN ln_script_to_local_wit(
+    btc_tx_t *pTx,
     const btc_keys_t *pKey,
-    const utl_buf_t *pWitScript, bool bRevoked);
+    const utl_buf_t *pWitScript,
+    bool bRevoked);
 
 
-void HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
+bool HIDDEN ln_script_to_remote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
 
 
 /** 公開鍵からscriptPubKeyを生成
  *
- * @param[out]      pBuf
+ * @param[out]      pScriptPk
  * @param[in]       pPub        公開鍵 or witnessScript
- * @param[in]       Prefix      BTC_PREF_xxx
+ * @param[in]       Pref        BTC_PREF_xxx
  * @retval      true    成功
  * @retval      false   Prefix範囲外
  * @note
  *      - shutdownメッセージ用
  */
-bool HIDDEN ln_script_scriptpk_create(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix);
+bool HIDDEN ln_script_scriptpk_create(utl_buf_t *pScriptPk, const utl_buf_t *pPub, int Pref);
 
 
 /** scriptPubKeyのチェック(P2PKH/P2SH/P2WPKH/P2WSH)
  *
- * @param[in]       pBuf
+ * @param[in]       pScriptPk
  * @retval      true    チェックOK
  * @note
  *      - shutdownメッセージ受信用
  */
-bool HIDDEN ln_script_scriptpk_check(const utl_buf_t *pBuf);
+bool HIDDEN ln_script_scriptpk_check(const utl_buf_t *pScriptPk);
 
 
 /** HTLC情報初期化
@@ -254,20 +257,22 @@ void HIDDEN ln_script_htlc_tx_create(
  * @param[in]       HtlcSign        HTLCSIGN_xxx
  * @return      true:成功
  */
-bool HIDDEN ln_script_htlc_tx_sign(btc_tx_t *pTx,
+bool HIDDEN ln_script_htlc_tx_sign(
+    btc_tx_t *pTx,
     utl_buf_t *pLocalSig,
     uint64_t Value,
     const btc_keys_t *pKeys,
     const utl_buf_t *pWitScript);
 
-bool HIDDEN ln_script_htlc_tx_wit(btc_tx_t *pTx,
+
+bool HIDDEN ln_script_htlc_tx_wit(
+    btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const btc_keys_t *pKeys,
     const utl_buf_t *pRemoteSig,
     const uint8_t *pPreImage,
     const utl_buf_t *pWitScript,
     ln_script_htlc_sig_t HtlcSign);
-
 
 
 /** Offered/Receveid HTLC Transaction署名verify
@@ -288,5 +293,6 @@ bool HIDDEN ln_script_htlc_tx_verify(const btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const utl_buf_t *pRemoteSig,
     const utl_buf_t *pWitScript);
+
 
 #endif /* LN_SCRIPT_H__ */
