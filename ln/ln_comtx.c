@@ -45,6 +45,7 @@
 #include "ln_wallet.h"
 #include "ln_comtx.h"
 #include "ln_comtx_util.h"
+#include "ln_htlctx.h"
 
 
 /**************************************************************************
@@ -802,7 +803,7 @@ static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
                 (ret_img) ? preimage : NULL,
                 NULL,
                 &pHtlcInfo->wit_script,
-                LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
     }
     utl_buf_free(&buf_remote_sig);
     utl_buf_free(&buf_local_sig);
@@ -1076,7 +1077,7 @@ static bool create_to_remote_spenthtlc(
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
     bool b_save = false;        //true: pTxHtlcs[HtlcNum]に残したい
-    ln_htlctx_sig_type_t htlcsign = LN_HTLC_SIG_TIMEOUT_SUCCESS;
+    ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_TIMEOUT_SUCCESS;
     if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) {
         //remoteのoffered=自分のreceivedなのでpreimageを所持している可能性がある
         ret_img = search_preimage(preimage, pPayHash, bClosing);
@@ -1094,13 +1095,13 @@ static bool create_to_remote_spenthtlc(
                 (ret_img) ? preimage : NULL,
                 NULL,
                 &pHtlcInfo->wit_script,
-                LN_HTLC_SIG_REMOTE_OFFER);
-            htlcsign = LN_HTLC_SIG_NONE;
+                LN_HTLCTX_SIG_REMOTE_OFFER);
+            htlcsign = LN_HTLCTX_SIG_NONE;
         } else if (!ret_img) {
             //preimageがないためHTLCを解くことができない
             //  --> 署名はしてpTxHtlcs[HtlcNum]に残す
             LOGD("[offered]no preimage\n");
-            //htlcsign = LN_HTLC_SIG_NONE;
+            //htlcsign = LN_HTLCTX_SIG_NONE;
             b_save = true;
             ret = true;
         } else {
@@ -1127,13 +1128,13 @@ static bool create_to_remote_spenthtlc(
                 NULL,
                 NULL,
                 &pHtlcInfo->wit_script,
-                LN_HTLC_SIG_REMOTE_RECV);
-            htlcsign = LN_HTLC_SIG_NONE;
+                LN_HTLCTX_SIG_REMOTE_RECV);
+            htlcsign = LN_HTLCTX_SIG_NONE;
         }
     }
 
     //署名
-    if (htlcsign != LN_HTLC_SIG_NONE) {
+    if (htlcsign != LN_HTLCTX_SIG_NONE) {
         utl_buf_t buf_localsig = UTL_BUF_INIT;
         ret = ln_htlctx_sign(&tx,
                     &buf_localsig,

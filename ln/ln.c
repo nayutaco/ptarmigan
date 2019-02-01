@@ -63,6 +63,7 @@
 #include "ln_signer.h"
 #include "ln_local.h"
 #include "ln_msg.h"
+#include "ln_htlctx.h"
 
 #define M_DBG_VERBOSE
 
@@ -960,20 +961,20 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     // LOGD("key-pub : ");
     // DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
-    ln_htlctx_sig_type_t htlcsign = LN_HTLC_SIG_NONE;
+    ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_NONE;
     switch (pChannel->p_revoked_type[WitIndex]) {
     case LN_COMTX_OUTPUT_TYPE_OFFERED:
-        htlcsign = LN_HTLC_SIG_REVOKE_OFFER;
+        htlcsign = LN_HTLCTX_SIG_REVOKE_OFFER;
         break;
     case LN_COMTX_OUTPUT_TYPE_RECEIVED:
-        htlcsign = LN_HTLC_SIG_REVOKE_RECV;
+        htlcsign = LN_HTLCTX_SIG_REVOKE_RECV;
         break;
     default:
         LOGD("index=%d, %d\n", WitIndex, pChannel->p_revoked_type[WitIndex]);
         assert(0);
     }
     bool ret;
-    if (htlcsign != LN_HTLC_SIG_NONE) {
+    if (htlcsign != LN_HTLCTX_SIG_NONE) {
         utl_buf_t buf_sig = UTL_BUF_INIT;
         ret = ln_htlctx_sign(pTx,
                 &buf_sig,
