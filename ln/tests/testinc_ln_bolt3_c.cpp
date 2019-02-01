@@ -350,16 +350,16 @@ TEST_F(ln_bolt3_c, committx2)
 
 
     fee_info.feerate_per_kw = 15000;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, NULL, 0);
+    ln_script_base_fee_calc(&fee_info, NULL, 0);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(10545, fee_info.htlc_success_fee);
     ASSERT_EQ(9945, fee_info.htlc_timeout_fee);
     ASSERT_EQ(10860, fee_info.commit_fee);
-    ASSERT_EQ(10860, fee_act);
+    ASSERT_EQ(10860, fee_info._rough_actual_fee);
 
 
     //to-local wscript
@@ -522,16 +522,16 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
     fee_info.feerate_per_kw = 0;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(0, fee_info.htlc_success_fee);
     ASSERT_EQ(0, fee_info.htlc_timeout_fee);
     ASSERT_EQ(0, fee_info.commit_fee);
-    ASSERT_EQ(0, fee_act);
+    ASSERT_EQ(0, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -1248,16 +1248,16 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
 
     fee_info.feerate_per_kw = 647;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(454, fee_info.htlc_success_fee);
     ASSERT_EQ(428, fee_info.htlc_timeout_fee);
     ASSERT_EQ(1024, fee_info.commit_fee);
-    ASSERT_EQ(1024, fee_act);
+    ASSERT_EQ(1024, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -1968,16 +1968,16 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
 
     fee_info.feerate_per_kw = 648;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(455, fee_info.htlc_success_fee);
     ASSERT_EQ(429, fee_info.htlc_timeout_fee);
     ASSERT_EQ(914, fee_info.commit_fee);
-    ASSERT_EQ(1914, fee_act);
+    ASSERT_EQ(1914, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -2627,16 +2627,16 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
 
     fee_info.feerate_per_kw = 2069;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(1454, fee_info.htlc_success_fee);
     ASSERT_EQ(1371, fee_info.htlc_timeout_fee);
     ASSERT_EQ(2921, fee_info.commit_fee);
-    ASSERT_EQ(3921, fee_act);
+    ASSERT_EQ(3921, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -3286,16 +3286,16 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
 
     fee_info.feerate_per_kw = 2070;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(1455, fee_info.htlc_success_fee);
     ASSERT_EQ(1372, fee_info.htlc_timeout_fee);
     ASSERT_EQ(2566, fee_info.commit_fee);
-    ASSERT_EQ(5566, fee_act);
+    ASSERT_EQ(5566, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -3881,16 +3881,16 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
 
     fee_info.feerate_per_kw = 2194;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(1542, fee_info.htlc_success_fee);
     ASSERT_EQ(1454, fee_info.htlc_timeout_fee);
     ASSERT_EQ(2720, fee_info.commit_fee);
-    ASSERT_EQ(5720, fee_act);
+    ASSERT_EQ(5720, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -4476,16 +4476,16 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
 
     fee_info.feerate_per_kw = 2195;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(1543, fee_info.htlc_success_fee);
     ASSERT_EQ(1455, fee_info.htlc_timeout_fee);
     ASSERT_EQ(2344, fee_info.commit_fee);
-    ASSERT_EQ(7344, fee_act);
+    ASSERT_EQ(7344, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -5010,16 +5010,16 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
 
     fee_info.feerate_per_kw = 3702;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(2602, fee_info.htlc_success_fee);
     ASSERT_EQ(2454, fee_info.htlc_timeout_fee);
     ASSERT_EQ(3953, fee_info.commit_fee);
-    ASSERT_EQ(8953, fee_act);
+    ASSERT_EQ(8953, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -5544,16 +5544,16 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
 
     fee_info.feerate_per_kw = 3703;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(2603, fee_info.htlc_success_fee);
     ASSERT_EQ(2455, fee_info.htlc_timeout_fee);
     ASSERT_EQ(3317, fee_info.commit_fee);
-    ASSERT_EQ(11317, fee_act);
+    ASSERT_EQ(11317, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -6018,16 +6018,16 @@ TEST_F(ln_bolt3_c, committx3max_commit)
 
 
     fee_info.feerate_per_kw = 4914;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(3454, fee_info.htlc_success_fee);
     ASSERT_EQ(3257, fee_info.htlc_timeout_fee);
     ASSERT_EQ(4402, fee_info.commit_fee);
-    ASSERT_EQ(12402, fee_act);
+    ASSERT_EQ(12402, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -6491,16 +6491,16 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
 
     fee_info.feerate_per_kw = 4915;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(3455, fee_info.htlc_success_fee);
     ASSERT_EQ(3258, fee_info.htlc_timeout_fee);
     ASSERT_EQ(3558, fee_info.commit_fee);
-    ASSERT_EQ(15558, fee_act);
+    ASSERT_EQ(15558, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -6787,16 +6787,16 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
 
     fee_info.feerate_per_kw = 9651180;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(6784779, fee_info.htlc_success_fee);
     ASSERT_EQ(6398732, fee_info.htlc_timeout_fee);
     ASSERT_EQ(6987454, fee_info.commit_fee);
-    ASSERT_EQ(6999454, fee_act);
+    ASSERT_EQ(6999454, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -7083,17 +7083,18 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
 
     fee_info.feerate_per_kw = 9651181;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(6784780, fee_info.htlc_success_fee);
     ASSERT_EQ(6398733, fee_info.htlc_timeout_fee);
     ASSERT_EQ(6987455, fee_info.commit_fee);
-#warning これでよいのか不明(BOLTでは 7000000)
-    ASSERT_EQ(6999455, fee_act);
+    //XXX: the actual fee is 7000000 but trimmed to_local/to_remote is currently not added
+    //ASSERT_EQ(7000000, actual_fee);
+    ASSERT_EQ(6999455, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -7373,17 +7374,18 @@ TEST_F(ln_bolt3_c, committx_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
     fee_info.feerate_per_kw = 9651936;
-    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
+    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
 //    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
 //    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
     ASSERT_EQ(6785311, fee_info.htlc_success_fee);
     ASSERT_EQ(6399233, fee_info.htlc_timeout_fee);
     ASSERT_EQ(6988001, fee_info.commit_fee);
-#warning これでよいのか不明(BOLTでは 7000000)
-    ASSERT_EQ(7000001, fee_act);
+    //XXX: the actual fee is 7000000??? but trimmed to_local/to_remote is currently not added
+    //  but there is a shortage of the fund
+    ASSERT_EQ(7000001, fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
