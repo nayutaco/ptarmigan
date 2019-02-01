@@ -80,7 +80,7 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlc_info_t **ppHtlcInfo,
-                    const ln_script_fee_info_t *pFeeInfo,
+                    const ln_script_base_fee_info_t *pFeeInfo,
                     uint32_t ToSelfDelay);
 static bool create_to_local_spentlocal(const ln_channel_t *pChannel,
                     btc_tx_t *pTxToLocal,
@@ -115,7 +115,7 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlc_info_t **ppHtlcInfo,
-                    const ln_script_fee_info_t *pFeeInfo);
+                    const ln_script_base_fee_info_t *pFeeInfo);
 static bool create_to_remote_spenthtlc(
                     ln_commit_tx_t *pCommit,
                     btc_tx_t *pTxHtlcs,
@@ -152,7 +152,7 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     bool ret;
     utl_buf_t buf_ws = UTL_BUF_INIT;
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_script_fee_info_t fee_info;
+    ln_script_base_fee_info_t fee_info;
     ln_script_commit_tx_t lntx_commit;
     btc_tx_t tx_commit = BTC_TX_INIT;
     uint64_t our_msat = pChannel->our_msat;
@@ -191,7 +191,7 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     //FEE
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
     fee_info.dust_limit_satoshi = DustLimitSat;
-    ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_info, cnt);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_info, cnt);
 
     //commitment transaction
     LOGD("local commitment_number=%" PRIu64 "\n", CommitNum);
@@ -261,7 +261,7 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
     bool ret;
     utl_buf_t buf_ws = UTL_BUF_INIT;
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_script_fee_info_t fee_info;
+    ln_script_base_fee_info_t fee_info;
     ln_script_commit_tx_t lntx_commit;
     btc_tx_t tx_commit = BTC_TX_INIT;
     uint64_t our_msat = pChannel->their_msat;
@@ -310,7 +310,7 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
     //FEE
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
     fee_info.dust_limit_satoshi = pCommit->dust_limit_sat;
-    ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_info, cnt);
+    ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_info, cnt);
 
     //commitment transaction
     LOGD("remote commitment_number=%" PRIu64 "\n", CommitNum);
@@ -561,7 +561,7 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlc_info_t **ppHtlcInfo,
-                    const ln_script_fee_info_t *pFeeInfo,
+                    const ln_script_base_fee_info_t *pFeeInfo,
                     uint32_t ToSelfDelay)
 {
     bool ret = true;
@@ -932,7 +932,7 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlc_info_t **ppHtlcInfo,
-                    const ln_script_fee_info_t *pFeeInfo)
+                    const ln_script_base_fee_info_t *pFeeInfo)
 {
     bool ret = true;
     uint16_t htlc_num = 0;

@@ -85,7 +85,7 @@ extern "C" {
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
 #define LN_FUNDSAT_MIN                  (1000)      ///< minimum funding_sat(BOLTに規定はない)
 
-#define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
+#define LN_FEE_COMMIT_BASE_WEIGHT       (724ULL)    ///< commit_tx base weight for the fee calculation
 
 // ln_htlcflag_t.addhtlc
 #define LN_ADDHTLC_NONE                 (0x00)
