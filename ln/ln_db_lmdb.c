@@ -476,7 +476,8 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, our_msat),
     M_ITEM(ln_channel_t, their_msat),
     M_ITEM(ln_channel_t, htlc_id_num),
-    M_ITEM(ln_channel_t, funding_tx),
+    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),
+    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),
     M_ITEM(ln_channel_t, keys_local),
     M_ITEM(ln_channel_t, keys_remote),
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, commit_num),
@@ -514,11 +515,10 @@ static const struct {
     { ETYPE_UINT64U,    1, true },                  // our_msat
     { ETYPE_UINT64U,    1, true },                  // their_msat
     { ETYPE_UINT64U,    1, true },                  // htlc_id_num
-    { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_local.txid
-    { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
+    { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_txid
+    { ETYPE_FUNDTXIDX,  1, true },                  // funding_txindex
     { ETYPE_LOCALKEYS,  1, false },                 // keys_local
     { ETYPE_REMOTEKEYS, 1, false },                 // keys_remote
-    //{ ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
     { ETYPE_UINT64U,    1, true },                  // commit_tx_local.commit_num
     { ETYPE_UINT64U,    1, true },                  // commit_tx_local.revoke_num
     { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.commit_num
@@ -571,6 +571,7 @@ static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_item_load(ln_channel_t *pChannel, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
 static int channel_item_save(const ln_channel_t *pChannel, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
 static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
+static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_cursor_close(lmdb_cursor_t *pCur);
 static void channel_addhtlc_dbname(char *pDbName, int num);
@@ -939,16 +940,9 @@ bool ln_db_channel_save(const ln_channel_t *pChannel)
         return false;
     }
 
-    retval = MDB_TXN_BEGIN(mpDbChannel, NULL, 0, &db.txn);
-    if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
-
-    retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
+    retval = channel_db_open(&db, dbname, 0, MDB_CREATE);
     if (retval != 0) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1094,16 +1088,9 @@ bool ln_db_channel_load_status(ln_channel_t *pChannel)
         return false;
     }
 
-    retval = MDB_TXN_BEGIN(mpDbChannel, NULL, MDB_RDONLY, &db.txn);
-    if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
-
-    retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
+    retval = channel_db_open(&db, dbname, MDB_RDONLY, 0);
     if (retval != 0) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1291,18 +1278,11 @@ bool ln_db_secret_save(ln_channel_t *pChannel)
     ln_lmdb_db_t    db;
     char            dbname[M_SZ_DBNAME_LEN + 1];
 
-    retval = MDB_TXN_BEGIN(mpDbChannel, NULL, 0, &db.txn);
-    if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_SECRET, M_PREFIX_LEN);
-    retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
+    retval = channel_db_open(&db, dbname, 0, MDB_CREATE);
     if (retval != 0) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
 
@@ -3619,15 +3599,9 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType)
     int             retval;
     ln_lmdb_db_t    db;
 
-    retval = MDB_TXN_BEGIN(mpDbChannel, NULL, MDB_RDONLY, &db.txn);
+    retval = channel_db_open(&db, M_DBI_VERSION, MDB_RDONLY, 0);
     if (retval != 0) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
-    if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
 
@@ -4084,6 +4058,20 @@ static int channel_item_save(const ln_channel_t *pChannel, const backup_param_t 
     int             retval;
     MDB_val         key, data;
 
+    ln_lmdb_db_t *p_bak_dbparam = pDb;
+    ln_lmdb_db_t db;
+    if (p_bak_dbparam == NULL) {
+        char            dbname[M_SZ_DBNAME_LEN + 1];
+        utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
+        memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
+        int retval = channel_db_open(&db, dbname, 0, 0);
+        if (retval != 0) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+        pDb = &db;
+    }
+
     key.mv_size = strlen(pBackupParam->name);
     key.mv_data = (CONST_CAST char*)pBackupParam->name;
     data.mv_size = pBackupParam->datalen;
@@ -4093,6 +4081,14 @@ static int channel_item_save(const ln_channel_t *pChannel, const backup_param_t 
         LOGE("fail: %s(%s)\n", mdb_strerror(retval), pBackupParam->name);
     }
 
+LABEL_EXIT:
+    if (p_bak_dbparam == NULL) {
+        if (retval == 0) {
+            MDB_TXN_COMMIT(db.txn);
+        } else {
+            MDB_TXN_ABORT(db.txn);
+        }
+    }
     return retval;
 }
 
@@ -4126,6 +4122,27 @@ static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
 }
 
 
+static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb)
+{
+    int             retval;
+
+    retval = MDB_TXN_BEGIN(mpDbChannel, NULL, OptTxn, &pDb->txn);
+    if (retval != 0) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(pDb->txn, pDbName, OptDb, &pDb->dbi);
+    if (retval != 0) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(pDb->txn);
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return retval;
+}
+
+
 /**
  *
  * @param[out]      pCur
@@ -4137,15 +4154,9 @@ static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable)
     int             opt;
 
     opt = (bWritable) ? 0 : MDB_RDONLY;
-    retval = MDB_TXN_BEGIN(mpDbChannel, NULL, opt, &pCur->txn);
+    retval = channel_db_open((ln_lmdb_db_t *)pCur, NULL, opt, 0);
     if (retval != 0) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = mdb_dbi_open(pCur->txn, NULL, 0, &pCur->dbi);
-    if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
         goto LABEL_EXIT;
     }
     retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);

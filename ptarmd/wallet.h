@@ -9,9 +9,9 @@
  * @param[out]      pAmount         pAddrへ送金するamount[satoshis]
  * @param[in]       bToSend         true:送金を行う / false:amountだけ求める
  * @param[in]       pAddr           送金先アドレス
- * @param[in]       FeeratePerKb    feerate per 1000byte
+ * @param[in]       FeeratePerKw    feerate_per_kw
  */
-bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const char *pAddr, uint32_t FeeratePerKb);
+bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const char *pAddr, uint32_t FeeratePerKw);
 
 
 bool wallet_to_ptarm(void);

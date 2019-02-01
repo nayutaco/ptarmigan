@@ -69,6 +69,10 @@ void monitor_disable_autoconn(bool bDisable);
 void monitor_set_feerate_per_kw(uint32_t FeeratePerKw);
 
 
+bool monitor_btc_getblockcount(int32_t *pBlkCnt);
+uint32_t monitor_btc_feerate_per_kw(void);
+
+
 /** Unilateral Close(自分が展開)
  *
  * @param[in,out]       pChannel    チャネル情報

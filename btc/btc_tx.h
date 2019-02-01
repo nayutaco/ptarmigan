@@ -484,6 +484,16 @@ bool btc_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw);
 uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
 
 
+/** weight取得
+ *
+ * @param[in]   pData
+ * @param[in]   Len
+ * @retval  != 0    weight
+ * @retval  == 0    エラー
+ */
+uint32_t btc_tx_get_weight_raw(const uint8_t *pData, uint32_t Len);
+
+
 /** トランザクションをBIP69に従ってソートする
  *
  * @param[in,out]   pTx     処理対象のトランザクション

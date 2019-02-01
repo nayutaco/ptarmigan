@@ -82,14 +82,16 @@
  ********************************************************************/
 
 /** @struct     nodefaillist_t
- *  @brief      接続失敗peer情報リスト
+ *  @brief      connect_fail peer information list
+ *  @note
+ *      - use for reject node reconnect
  */
 typedef struct nodefaillist_t {
     LIST_ENTRY(nodefaillist_t) list;
 
-    uint8_t     node_id[BTC_SZ_PUBKEY];
-    char        ipaddr[SZ_IPV4_LEN + 1];
-    uint16_t    port;
+    uint8_t     node_id[BTC_SZ_PUBKEY];         // peer node_id
+    char        ipaddr[SZ_IPV4_LEN + 1];        // IP address
+    uint16_t    port;                           // port number
 } nodefaillist_t;
 LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
 
@@ -516,34 +518,6 @@ const char *ptarmd_error_cstr(int ErrCode)
     }
 
     return p_str;
-}
-
-
-uint32_t ptarmd_get_latest_feerate_kw(void)
-{
-    //estimate fee
-    uint32_t feerate_kw;
-    uint64_t feerate_kb = 0;
-    bool ret = btcrpc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
-    if (ret) {
-        feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
-        if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
-            // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
-            //      https://github.com/ElementsProject/lightning/issues/1443
-            //      https://github.com/ElementsProject/lightning/issues/1391
-            //LOGD("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
-            feerate_kw = LN_FEERATE_PER_KW_MIN;
-        }
-        LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
-    } else if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
-        LOGD("regtest\n");
-        feerate_kw = LN_FEERATE_PER_KW;
-    } else {
-        LOGE("fail: estimatefee\n");
-        feerate_kw = 0;
-    }
-
-    return feerate_kw;
 }
 
 

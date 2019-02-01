@@ -388,6 +388,10 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
 
 bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
+    if (Blks == 0) {
+        return false;
+    }
+
     bool ret;
     int32_t height;
     ret = btcrpc_getblockcount(&height);
@@ -402,12 +406,17 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
         }
     }
 
+    LOGD("Blks=%" PRIu32 ", ret=%d\n", Blks, ret);
     return ret;
 }
 
 
 bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout)
 {
+    if (Blks == 0) {
+        return false;
+    }
+
     bool ret;
     int32_t height;
     ret = btcrpc_getblockcount(&height);

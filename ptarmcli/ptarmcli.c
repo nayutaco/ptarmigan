@@ -840,16 +840,27 @@ static void optfunc_walletback(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
-    int to_send = 0;
-    if ((optarg != NULL) && (optarg[0] != '\0')) {
-        to_send = atoi(optarg);
+    uint32_t to_send = 0;
+    uint32_t feerate_per_kw = 0;
+    if (optarg != NULL) {
+        const char *p = strtok(optarg, ",");
+        (void)utl_str_scan_u32(&to_send, p);
+        p = strtok(NULL, ",");
+        if (p != NULL) {
+            (void)utl_str_scan_u32(&feerate_per_kw, p);
+        }
+    }
+    if ((feerate_per_kw != 0) && (feerate_per_kw < LN_FEERATE_PER_KW_MIN)) {
+        strcpy(mErrStr, "feerate_per_kw too low");
+        *pOption = M_OPTIONS_ERR;
+        return;
     }
 
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "walletback") M_NEXT
-            M_QQ("params") ":[ %d ]"
-        "}", to_send);
+            M_QQ("params") ":[ %" PRIu32 ", %" PRIu32 " ]"
+        "}", to_send, feerate_per_kw);
 
     *pOption = M_OPTIONS_EXEC;
 }

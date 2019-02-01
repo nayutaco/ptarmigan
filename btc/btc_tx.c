@@ -633,6 +633,16 @@ bool btc_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw)
 
 uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 {
+    //(旧format*3 + 新format) / 4を切り上げ
+    uint32_t weight = btc_tx_get_weight_raw(pData, Len);
+    uint32_t vsize = (weight + 3) / 4;
+    LOGD("vsize=%" PRIu32 "\n", vsize);
+    return vsize;
+}
+
+
+uint32_t btc_tx_get_weight_raw(const uint8_t *pData, uint32_t Len)
+{
     //segwit判定
     bool segwit;
     uint8_t mark = pData[4];
@@ -646,7 +656,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
     //https://bitcoincore.org/ja/segwit_wallet_dev/#transaction-fee-estimation
     uint32_t len;
     if (segwit) {
-        //(旧format*3 + 新format) / 4を切り上げ
+        //旧format*3 + 新format
         //  旧: nVersion            |txins|txouts        |nLockTime
         //  新: nVersion|marker|flag|txins|txouts|witness|nLockTime
         btc_tx_t txold = BTC_TX_INIT;
@@ -666,13 +676,13 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 
         uint32_t fmt_old = txbuf_old.len;
         uint32_t fmt_new = Len;
-        len = (fmt_old * 3 + fmt_new + 3) / 4;
+        len = fmt_old * 3 + fmt_new;
     } else {
-        len = Len;
+        len = Len * 4;
     }
 
 LABEL_EXIT:
-    LOGD("vbyte=%" PRIu32 "\n", len);
+    LOGD("weight=%" PRIu32 "\n", len);
     return len;
 }
 
