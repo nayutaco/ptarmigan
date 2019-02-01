@@ -214,7 +214,7 @@ bool HIDDEN ln_script_create_htlc(
 }
 
 
-uint64_t HIDDEN ln_script_base_fee_calc(
+void HIDDEN ln_script_base_fee_calc(
     ln_script_base_fee_info_t *pBaseFeeInfo,
     const ln_script_htlc_info_t **ppHtlcInfo,
     int Num)
@@ -248,7 +248,12 @@ uint64_t HIDDEN ln_script_base_fee_calc(
     pBaseFeeInfo->commit_fee = commit_fee_weight * pBaseFeeInfo->feerate_per_kw / 1000;
     LOGD("pBaseFeeInfo->commit_fee= %" PRIu64 "(feerate_per_kw=%" PRIu32 ")\n", pBaseFeeInfo->commit_fee, pBaseFeeInfo->feerate_per_kw);
 
-    return (commit_fee_weight * pBaseFeeInfo->feerate_per_kw + dust_msat) / 1000;
+
+    //XXX: probably not correct
+    //  the base fee should be added after it has been calculated (after being divided by 1000)
+    //pBaseFeeInfo->_rough_actual_fee = (commit_fee_weight * pBaseFeeInfo->feerate_per_kw + dust_msat) / 1000;
+
+    pBaseFeeInfo->_rough_actual_fee = pBaseFeeInfo->commit_fee + dust_msat / 1000;
 }
 
 

@@ -54,6 +54,7 @@ typedef struct {
     uint64_t        htlc_success_fee;               ///< [CALC]HTLC success Transaction FEE
     uint64_t        htlc_timeout_fee;               ///< [CALC]HTLC timeout Transaction FEE
     uint64_t        commit_fee;                     ///< [CALC]Commitment Transaction FEE
+    uint64_t        _rough_actual_fee;              ///< [CALC] XXX: this is not actual fee. Trimmed to_local/to_remote are not reflected
 } ln_script_base_fee_info_t;
 
 
@@ -197,7 +198,7 @@ bool HIDDEN ln_script_create_htlc(
  * @note
  *      - pFeeInfoにfeerate_per_kwとdust_limit_satoshiを代入しておくこと
  */
-uint64_t HIDDEN ln_script_base_fee_calc(
+void HIDDEN ln_script_base_fee_calc(
     ln_script_base_fee_info_t *pBaseFeeInfo,
     const ln_script_htlc_info_t **ppHtlcInfo,
     int Num);
