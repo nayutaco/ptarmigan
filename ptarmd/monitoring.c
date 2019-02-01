@@ -49,7 +49,8 @@
  * macro
  **************************************************************************/
 
-#define M_WAIT_MON_SEC                  (30)        ///< 監視周期[sec]
+#define M_WAIT_START_SEC                (10)        ///< monitoring start[sec]
+#define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
 
 
 /**************************************************************************
@@ -57,10 +58,25 @@
  **************************************************************************/
 
 typedef struct {
+    //global
     uint32_t    feerate_per_kw;         ///< feerate_per_kw
     int32_t     height;                 ///< current block height
+
+    //work: each channel
     uint32_t    confm;                  ///< funding_tx confirmation
 } monparam_t;
+
+
+/** @struct     monchanlist_t
+ *  @brief      monitoring channel list
+ */
+typedef struct monchanlist_t {
+    LIST_ENTRY(monchanlist_t) list;
+
+    uint8_t     channel_id[LN_SZ_CHANNEL_ID];   // monitoring channel_id
+    uint32_t    last_check_confm;               // last confirmation btcrpc_search_outpoint()
+} monchanlist_t;
+LIST_HEAD(monchanlisthead_t, monchanlist_t);
 
 
 /**************************************************************************
@@ -70,6 +86,8 @@ typedef struct {
 static volatile bool        mMonitoring;                ///< true:監視thread継続
 static bool                 mDisableAutoConn;           ///< true:channelのある他nodeへの自動接続停止
 static uint32_t             mFeeratePerKw;              ///< 0:estimate fee / !0:use this value
+static monparam_t           mMonParam;
+static struct monchanlisthead_t mMonChanListHead;
 
 
 /********************************************************************
@@ -88,7 +106,7 @@ static bool close_unilateral_local_received(bool spent);
 
 static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam);
 static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
-static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num);
+static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num);
 
 static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pDbParam);
@@ -97,6 +115,12 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
 static bool close_revoked_htlc(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex, int WitIndex);
 
 static void set_wallet_data(ln_db_wallet_t *pWlt, const btc_tx_t *pTx);
+
+static uint32_t get_latest_feerate_kw(void);
+static bool update_btc_values(void);
+
+static bool monchanlist_search(monchanlist_t **ppList, const uint8_t *pChannelId, bool bRemove);
+static void monchanlist_add(monchanlist_t *pList);
 
 
 /**************************************************************************
@@ -110,28 +134,29 @@ void *monitor_thread_start(void *pArg)
     LOGD("[THREAD]monitor initialize\n");
 
     mMonitoring = true;
+    update_btc_values();
+
+    for (int lp = 0; lp < M_WAIT_START_SEC; lp++) {
+        sleep(1);
+        if (!mMonitoring) {
+            break;
+        }
+    }
 
     while (mMonitoring) {
-        //ループ解除まで時間が長くなるので、短くチェックする
+        LOGD("$$$----begin\n");
+        bool ret = update_btc_values();
+        if (ret) {
+            ln_db_channel_search(monfunc, &mMonParam);
+        }
+        LOGD("$$$----end\n");
+
         for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
             sleep(1);
             if (!mMonitoring) {
+                LOGD("stop monitoring\n");
                 break;
             }
-        }
-
-        monparam_t param;
-        if (mFeeratePerKw == 0) {
-            param.feerate_per_kw = ptarmd_get_latest_feerate_kw();
-        } else {
-            param.feerate_per_kw = mFeeratePerKw;
-        }
-        if (param.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
-            param.feerate_per_kw = 0;
-        }
-        bool ret = btcrpc_getblockcount(&param.height);
-        if (ret) {
-            ln_db_channel_search(monfunc, &param);
         }
     }
     LOGD("[exit]monitor thread\n");
@@ -157,6 +182,22 @@ void monitor_set_feerate_per_kw(uint32_t FeeratePerKw)
 {
     LOGD("feerate_per_kw: %" PRIu32 " --> %" PRIu32 "\n", mFeeratePerKw, FeeratePerKw);
     mFeeratePerKw = FeeratePerKw;
+}
+
+
+bool monitor_btc_getblockcount(int32_t *pBlkCnt)
+{
+    if (mMonParam.height > 0) {
+        *pBlkCnt = mMonParam.height;
+        return true;
+    }
+    return false;
+}
+
+
+uint32_t monitor_btc_feerate_per_kw(void)
+{
+    return mMonParam.feerate_per_kw;
 }
 
 
@@ -188,7 +229,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
 
         switch (lp) {
         case LN_CLOSE_IDX_COMMIT:
-            //LOGD("$$$ commit_tx\n");
+            LOGD("$$$ commit_tx\n");
             //for (int lp2 = 0; lp2 < p_tx->vout_cnt; lp2++) {
             //    LOGD("vout[%d]=%x\n", lp2, p_tx->vout[lp2].opt);
             //}
@@ -203,7 +244,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             }
             continue;
         case LN_CLOSE_IDX_TO_REMOTE:
-            //LOGD("$$$ to_remote tx\n");
+            LOGD("$$$ to_remote tx\n");
             continue;
         default:
             LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
@@ -216,7 +257,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             continue;
         }
 
-        //自分のtxを展開済みかチェック
+        //check own tx is broadcasted
         uint8_t txid[BTC_SZ_TXID];
         btc_tx_txid(p_tx, txid);
         LOGD("txid[%d]= ", lp);
@@ -227,7 +268,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             continue;
         }
 
-        //各close_dat.p_tx[]のINPUT展開済みチェック
+        //check each close_dat.p_tx[] INPUT is broadcasted
         bool unspent;
         bool ret = btcrpc_check_unspent(
                             ln_their_node_id(pChannel),
@@ -244,7 +285,6 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         LOGD("       index: %d\n", p_tx->vin[0].index);
         LOGD("         --> unspent[%d]=%d\n", lp, unspent);
 
-        //ln_script_htlc_tx_create()後だから、OFFERED/RECEIVEDがわかる
         bool send_req = false;
         switch (p_tx->vout[0].opt) {
         case LN_HTLC_TYPE_OFFERED:
@@ -259,7 +299,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             break;
         }
         if (!unspent) {
-            //INPUTがspentになってwalletに残っていたら削除する
+            //delete from wallet DB if INPUT is SPENT
             ln_db_wallet_del(p_tx->vin[0].txid, p_tx->vin[0].index);
         }
 
@@ -267,7 +307,10 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             LOGD("sendreq[%d]: ", lp);
             const btc_tx_t *p_htlctx = (const btc_tx_t *)close_dat.tx_buf.buf;
             int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
-            close_unilateral_local_sendreq(&del, p_tx, p_htlctx, num);
+            bool ret = close_unilateral_local_sendreq(&del, p_tx, p_htlctx, num);
+            if (ret && (lp == LN_CLOSE_IDX_COMMIT)) {
+                ln_close_change_stat(pChannel, p_tx, pDbParam);
+            }
         }
     }
 
@@ -396,7 +439,16 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_
     LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(pChannel));
     if (stat <= LN_STATUS_CLOSE_SPENT) {
         //update status
-        ret = btcrpc_search_outpoint(&close_tx, p_prm->confm, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+        monchanlist_t *p_list = NULL;
+        ret = monchanlist_search(&p_list, ln_channel_id(pChannel), false);
+        if (!ret) {
+            p_list = (monchanlist_t *)UTL_DBG_MALLOC(sizeof(monchanlist_t));
+            memcpy(p_list->channel_id, ln_channel_id(pChannel), LN_SZ_CHANNEL_ID);
+            p_list->last_check_confm = 0;
+            monchanlist_add(p_list);
+        }
+        ret = btcrpc_search_outpoint(&close_tx, p_prm->confm - p_list->last_check_confm, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+        p_list->last_check_confm = p_prm->confm;
         if (ret || (stat == LN_STATUS_NORMAL)) {
             //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
             ln_close_change_stat(pChannel, &close_tx, p_db_param);
@@ -447,6 +499,10 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_
         del = close_revoked_after(pChannel, p_prm->confm, p_db_param);
     }
     btc_tx_free(&close_tx);
+
+    if (del) {
+        (void)monchanlist_search(NULL, ln_channel_id(pChannel), true);
+    }
 
     return del;
 }
@@ -789,7 +845,7 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
 }
 
 
-static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num)
+static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num)
 {
     utl_buf_t buf = UTL_BUF_INIT;
     uint8_t txid[BTC_SZ_TXID];
@@ -816,6 +872,8 @@ static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
         *pDel = false;
         LOGE("fail: broadcast\n");
     }
+
+    return ret;
 }
 
 
@@ -1036,4 +1094,82 @@ static void set_wallet_data(ln_db_wallet_t *pWlt, const btc_tx_t *pTx)
     pWlt->locktime = pTx->locktime;
     pWlt->wit_item_cnt = pTx->vin[0].wit_item_cnt;
     pWlt->p_wit = pTx->vin[0].witness;
+}
+
+
+/** 最新のfeerate_per_kw取得
+ *
+ * @return      bitcoind estimatesmartfeeから算出したfeerate_per_kw(取得失敗=0)
+ * @note
+ *      - #LN_FEERATE_PER_KW_MIN未満になる場合、#LN_FEERATE_PER_KW_MINを返す
+ */
+static uint32_t get_latest_feerate_kw(void)
+{
+    //estimate fee
+    uint32_t feerate_kw;
+    uint64_t feerate_kb = 0;
+    bool ret = btcrpc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
+    if (ret) {
+        feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
+        if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
+            // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
+            //      https://github.com/ElementsProject/lightning/issues/1443
+            //      https://github.com/ElementsProject/lightning/issues/1391
+            //LOGD("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
+            feerate_kw = LN_FEERATE_PER_KW_MIN;
+        }
+        LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
+    } else if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
+        LOGD("regtest\n");
+        feerate_kw = LN_FEERATE_PER_KW;
+    } else {
+        LOGE("fail: estimatefee\n");
+        feerate_kw = 0;
+    }
+
+    return feerate_kw;
+}
+
+
+static bool update_btc_values(void)
+{
+    if (mFeeratePerKw == 0) {
+        mMonParam.feerate_per_kw = get_latest_feerate_kw();
+    } else {
+        mMonParam.feerate_per_kw = mFeeratePerKw;
+    }
+    if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+        mMonParam.feerate_per_kw = 0;
+    }
+    bool ret = btcrpc_getblockcount(&mMonParam.height);
+    return ret;
+}
+
+
+static bool monchanlist_search(monchanlist_t **ppList, const uint8_t *pChannelId, bool bRemove)
+{
+    bool detect = false;
+    monchanlist_t *p = LIST_FIRST(&mMonChanListHead);
+    while (p != NULL) {
+        if (memcmp(p->channel_id, pChannelId, LN_SZ_CHANNEL_ID) == 0) {
+            if (!bRemove) {
+                *ppList = p;
+            } else {
+                LOGD("remove from list\n");
+                LIST_REMOVE(p, list);
+                UTL_DBG_FREE(p);
+            }
+            detect = true;
+            break;
+        }
+        p = LIST_NEXT(p, list);
+    }
+
+    return detect;
+}
+
+
+static void monchanlist_add(monchanlist_t *pList)
+{
+    LIST_INSERT_HEAD(&mMonChanListHead, pList, list);
 }

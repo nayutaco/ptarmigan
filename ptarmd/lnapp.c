@@ -885,6 +885,7 @@ static void *thread_main_start(void *pArg)
     //p_conf->node_idがchannel情報を持っているかどうか。
     //持っている場合、p_channelにDBから読み込みまで行われている。
     detect = ln_node_search_channel(p_channel, p_conf->node_id);
+    LOGD("$$$ channel status=%d\n", ln_status_get(p_channel));
     if (detect && ln_status_is_closing(p_channel)) {
         LOGD("$$$ closing channel: %016" PRIx64 "\n", ln_short_channel_id(p_channel));
         goto LABEL_SHUTDOWN;
@@ -1448,7 +1449,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
-            feerate_kw = ptarmd_get_latest_feerate_kw();
+            feerate_kw = monitor_btc_feerate_per_kw();
         } else {
             feerate_kw = pFunding->feerate_per_kw;
         }
@@ -3058,10 +3059,11 @@ static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param)
     (void)p_conf;
 
     int32_t *p_height = (int32_t *)p_param;
-    bool ret = btcrpc_getblockcount(p_height);
+    bool ret = monitor_btc_getblockcount(p_height);
     if (ret) {
         LOGD("block count=%" PRId32 "\n", *p_height);
     } else {
+        LOGE("fail: get block count\n");
         *p_height = 0;
     }
 }

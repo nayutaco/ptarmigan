@@ -394,11 +394,11 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 #ifdef DEVELOPER_MODE
     //blockcount
     int32_t blockcnt;
-    bool ret = btcrpc_getblockcount(&blockcnt);
+    bool ret = monitor_btc_getblockcount(&blockcnt);
     if (ret) {
         cJSON_AddItemToObject(result, "block_count", cJSON_CreateNumber(blockcnt));
     } else {
-        LOGE("fail btcrpc_getblockcount()\n");
+        LOGE("fail getblockcount()\n");
     }
 #endif
 
@@ -763,7 +763,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
     LOGD("$$$: [JSONRPC]PAY\n");
 
     //blockcount
-    ret = btcrpc_getblockcount(&blockcnt);
+    ret = monitor_btc_getblockcount(&blockcnt);
     if (!ret) {
         index = -1;
         goto LABEL_EXIT;
@@ -952,7 +952,7 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     //blockcount
-    ret = btcrpc_getblockcount(&blockcnt);
+    ret = monitor_btc_getblockcount(&blockcnt);
     if (!ret) {
         err = RPCERR_BLOCKCHAIN;
         goto LABEL_EXIT;
@@ -1336,7 +1336,7 @@ static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id
     LOGD("$$$ [JSONRPC]estimatefundingfee\n");
 
     if (feerate_per_kw == 0) {
-        feerate_per_kw = ptarmd_get_latest_feerate_kw();
+        feerate_per_kw = monitor_btc_feerate_per_kw();
     }
     if (feerate_per_kw == 0) {
         ctx->error_code = RPCERR_BLOCKCHAIN;
@@ -1365,13 +1365,20 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     bool ret;
     cJSON *result = NULL;
     bool tosend = false;
+    uint32_t feerate_per_kw = 0;
 
     LOGD("$$$ [JSONRPC]walletback\n");
 
     if (params != NULL) {
-        cJSON *json = cJSON_GetArrayItem(params, 0);
+        cJSON *json;
+        json = cJSON_GetArrayItem(params, 0);
         if (json && (json->type == cJSON_Number)) {
             tosend = (json->valueint != 0);
+        }
+        json = cJSON_GetArrayItem(params, 1);
+        if (json && (json->type == cJSON_Number)) {
+            feerate_per_kw = (uint32_t)json->valueu64;
+            LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_per_kw);
         }
     }
 
@@ -1382,15 +1389,12 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
         return NULL;
     }
-    uint64_t feerate;
-    ret = btcrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
-    if (!ret) {
-        feerate = 5000;
-    }
-
     char *p_result = NULL;
     uint64_t vout_amount = 0;
-    ret = wallet_from_ptarm(&p_result, &vout_amount, tosend, addr, (uint32_t)feerate);
+    if (feerate_per_kw == 0) {
+        feerate_per_kw = monitor_btc_feerate_per_kw();
+    }
+    ret = wallet_from_ptarm(&p_result, &vout_amount, tosend, addr, feerate_per_kw);
     if (ret) {
         result = cJSON_CreateObject();
         cJSON_AddItemToObject(result, "txid", cJSON_CreateString(p_result));
@@ -1627,7 +1631,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 
     uint32_t feerate_per_kw = pFund->feerate_per_kw;
     if (feerate_per_kw == 0) {
-        feerate_per_kw = ptarmd_get_latest_feerate_kw();
+        feerate_per_kw = monitor_btc_feerate_per_kw();
     }
     if (feerate_per_kw == 0) {
         return RPCERR_BLOCKCHAIN;

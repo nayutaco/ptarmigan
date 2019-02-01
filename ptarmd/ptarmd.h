@@ -399,15 +399,6 @@ void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...);
 const char *ptarmd_error_cstr(int ErrCode);
 
 
-/** 最新のfeerate_per_kw取得
- *
- * @return      bitcoind estimatesmartfeeから算出したfeerate_per_kw(取得失敗=0)
- * @note
- *      - #LN_FEERATE_PER_KW_MIN未満になる場合、#LN_FEERATE_PER_KW_MINを返す
- */
-uint32_t ptarmd_get_latest_feerate_kw(void);
-
-
 #ifdef __cplusplus
 }
 #endif
