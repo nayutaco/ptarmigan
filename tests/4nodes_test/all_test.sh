@@ -81,9 +81,15 @@ echo st5 start
 sleep 5 # XXX: TODO
 echo st5 end
 
+echo check proc count start
+PROC_COUNT=`ps -C ptarmd | grep ptarmd | wc -l`
+test $PROC_COUNT == 4
+echo check proc count end
+
 echo clean start
 ./clean.sh
 echo clean end
+
 
 END=`date +%s`
 ELAPSED=`expr $END - $START` 
