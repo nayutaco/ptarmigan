@@ -230,7 +230,7 @@ protected:
 
     static btc_tx_t tx;
     static uint8_t txid_commit[BTC_SZ_TXID];
-    static ln_script_fee_info_t   fee_info;
+    static ln_script_base_fee_info_t   fee_info;
     static ln_script_htlc_info_t htlc_infos[5];
     static ln_script_htlc_info_t **pp_htlc_infos;
 
@@ -255,7 +255,7 @@ btc_script_pubkey_order_t ln_bolt3_c::key_fund_sort;
 
 btc_tx_t ln_bolt3_c::tx;
 uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];
-ln_script_fee_info_t   ln_bolt3_c::fee_info;
+ln_script_base_fee_info_t   ln_bolt3_c::fee_info;
 ln_script_htlc_info_t ln_bolt3_c::htlc_infos[5];
 ln_script_htlc_info_t** ln_bolt3_c::pp_htlc_infos;
 
@@ -350,7 +350,7 @@ TEST_F(ln_bolt3_c, committx2)
 
 
     fee_info.feerate_per_kw = 15000;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, NULL, 0);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, NULL, 0);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -522,7 +522,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
     fee_info.feerate_per_kw = 0;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -1248,7 +1248,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
 
     fee_info.feerate_per_kw = 647;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -1968,7 +1968,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
 
     fee_info.feerate_per_kw = 648;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -2627,7 +2627,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
 
     fee_info.feerate_per_kw = 2069;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -3286,7 +3286,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
 
     fee_info.feerate_per_kw = 2070;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -3881,7 +3881,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
 
     fee_info.feerate_per_kw = 2194;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -4476,7 +4476,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
 
     fee_info.feerate_per_kw = 2195;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -5010,7 +5010,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
 
     fee_info.feerate_per_kw = 3702;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -5544,7 +5544,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
 
     fee_info.feerate_per_kw = 3703;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -6018,7 +6018,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
 
 
     fee_info.feerate_per_kw = 4914;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -6491,7 +6491,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
 
     fee_info.feerate_per_kw = 4915;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -6787,7 +6787,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
 
     fee_info.feerate_per_kw = 9651180;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
 //    printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -7083,7 +7083,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
 
     fee_info.feerate_per_kw = 9651181;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
     printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);
@@ -7373,7 +7373,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
     fee_info.feerate_per_kw = 9651936;
-    uint64_t fee_act = ln_script_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
+    uint64_t fee_act = ln_script_base_fee_calc(&fee_info, (const ln_script_htlc_info_t **)pp_htlc_infos, 5);
 
 //    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
     printf("actual fee_committx=%llu\n", (unsigned long long)fee_act);

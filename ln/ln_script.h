@@ -44,8 +44,8 @@ typedef enum {
 } ln_htlc_type_t;
 
 
-/** @struct ln_script_fee_info_t
- *  @brief  FEE情報
+/** @struct ln_script_base_fee_info_t
+ *  @brief  base fee info
  */
 typedef struct {
     uint32_t        feerate_per_kw;                 ///< [IN]1000byte辺りのsatoshi
@@ -54,7 +54,7 @@ typedef struct {
     uint64_t        htlc_success_fee;               ///< [CALC]HTLC success Transaction FEE
     uint64_t        htlc_timeout_fee;               ///< [CALC]HTLC timeout Transaction FEE
     uint64_t        commit_fee;                     ///< [CALC]Commitment Transaction FEE
-} ln_script_fee_info_t;
+} ln_script_base_fee_info_t;
 
 
 /** @struct ln_script_htlc_info_t
@@ -89,7 +89,7 @@ typedef struct {
         const uint8_t       *pubkey;                ///< remote pubkey(to-remote用)
     } to_remote;
     uint64_t                obscured_commit_num;    ///< Obscured Commitment Number
-    ln_script_fee_info_t     *p_fee_info;           ///< FEE情報
+    ln_script_base_fee_info_t     *p_fee_info;           ///< FEE情報
     ln_script_htlc_info_t    **pp_htlc_info;        ///< HTLC情報ポインタ配列(htlc_info_num個分)
     uint8_t                 htlc_info_num;          ///< HTLC数
 } ln_script_commit_tx_t;
@@ -186,20 +186,19 @@ bool HIDDEN ln_script_create_htlc(
     uint32_t CLtvExpiry);
 
 
-/** FEE計算
+/** calc base fee
  *
  * feerate_per_kw, dust_limit_satoshiおよびHTLC情報から、HTLCおよびcommit txのFEEを算出する。
  *
- * @param[in,out]   pFeeInfo    FEE情報
- * @param[in]       ppHtlcInfo  HTLC情報ポインタ配列
- * @param[in]       Num         HTLC数
- * @return      actual FEE
+ * @param[in,out]   pBaseFeeInfo    FEE情報
+ * @param[in]       ppHtlcInfo      HTLC情報ポインタ配列
+ * @param[in]       Num             HTLC数
  *
  * @note
  *      - pFeeInfoにfeerate_per_kwとdust_limit_satoshiを代入しておくこと
  */
-uint64_t HIDDEN ln_script_fee_calc(
-    ln_script_fee_info_t *pFeeInfo,
+uint64_t HIDDEN ln_script_base_fee_calc(
+    ln_script_base_fee_info_t *pBaseFeeInfo,
     const ln_script_htlc_info_t **ppHtlcInfo,
     int Num);
 

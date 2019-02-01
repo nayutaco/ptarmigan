@@ -941,9 +941,9 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
 bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
-    ln_script_fee_info_t fee_info;
+    ln_script_base_fee_info_t fee_info;
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
-    ln_script_fee_calc(&fee_info, NULL, 0);
+    ln_script_base_fee_calc(&fee_info, NULL, 0);
     uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
@@ -1232,7 +1232,7 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw)
 
 uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw)
 {
-    return (LN_FEE_COMMIT_BASE * FeeratePerKw / 1000);
+    return (LN_FEE_COMMIT_BASE_WEIGHT * FeeratePerKw / 1000);
 }
 
 
@@ -1244,7 +1244,7 @@ bool ln_is_shutdown_sent(const ln_channel_t *pChannel)
 
 uint64_t ln_closing_signed_initfee(const ln_channel_t *pChannel)
 {
-    return (LN_FEE_COMMIT_BASE * pChannel->feerate_per_kw / 1000);
+    return (LN_FEE_COMMIT_BASE_WEIGHT * pChannel->feerate_per_kw / 1000);
 }
 
 

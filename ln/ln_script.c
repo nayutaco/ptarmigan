@@ -48,9 +48,9 @@
  **************************************************************************/
 
 //https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#fee-calculation
-#define M_FEE_HTLC_TIMEOUT          (663ULL)
-#define M_FEE_HTLC_SUCCESS          (703ULL)
-#define M_FEE_COMMIT_HTLC           (172ULL)
+#define M_FEE_HTLC_TIMEOUT_WEIGHT           (663ULL)
+#define M_FEE_HTLC_SUCCESS_WEIGHT           (703ULL)
+#define M_FEE_COMMIT_HTLC_WEIGHT            (172ULL)
 
 
 /********************************************************************
@@ -96,26 +96,32 @@ bool HIDDEN ln_script_create_to_local(
     //    OP_CHECKSIG
 
     utl_push_t push;
-    if (!utl_push_init(&push, pWitScript, 77)) return false;    //to_self_delayが2byteの場合
-    if (!utl_push_data(&push, BTC_OP_IF BTC_OP_SZ_PUBKEY, 2)) return false;
-    if (!utl_push_data(&push, pLocalRevoKey, BTC_SZ_PUBKEY)) return false;
-    if (!utl_push_data(&push, BTC_OP_ELSE, 1)) return false;
-    if (!utl_push_value(&push, LocalToSelfDelay)) return false;
-    if (!utl_push_data(&push, BTC_OP_CSV BTC_OP_DROP BTC_OP_SZ_PUBKEY, 3)) return false;
-    if (!utl_push_data(&push, pLocalDelayedKey, BTC_SZ_PUBKEY)) return false;
-    if (!utl_push_data(&push, BTC_OP_ENDIF BTC_OP_CHECKSIG, 2)) return false;
-    if (!utl_push_trim(&push)) return false;
+    if (!utl_push_init(&push, pWitScript, 77)) goto LABEL_ERROR;    //to_self_delayが2byteの場合
+    if (!utl_push_data(&push, BTC_OP_IF BTC_OP_SZ_PUBKEY, 2)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, pLocalRevoKey, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_ELSE, 1)) goto LABEL_ERROR;
+    if (!utl_push_value(&push, LocalToSelfDelay)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_CSV BTC_OP_DROP BTC_OP_SZ_PUBKEY, 3)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, pLocalDelayedKey, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_ENDIF BTC_OP_CHECKSIG, 2)) goto LABEL_ERROR;
+    if (!utl_push_trim(&push)) goto LABEL_ERROR;
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
-    LOGD("script:\n");
-    btc_script_print(pWitScript->buf, pWitScript->len);
-    utl_buf_t buf = UTL_BUF_INIT;
-    if (!btc_script_p2wsh_create_scriptpk(&buf, pWitScript)) return false;
-    LOGD("vout: ");
-    DUMPD(buf.buf, buf.len);
-    utl_buf_free(&buf);
+    {
+        LOGD("script:\n");
+        btc_script_print(pWitScript->buf, pWitScript->len);
+        utl_buf_t buf = UTL_BUF_INIT;
+        if (!btc_script_p2wsh_create_scriptpk(&buf, pWitScript)) goto LABEL_ERROR;
+        LOGD("vout: ");
+        DUMPD(buf.buf, buf.len);
+        utl_buf_free(&buf);
+    }
 #endif  //M_DBG_VERBOSE
     return true;
+
+LABEL_ERROR:
+    utl_buf_free(pWitScript);
+    return false;
 }
 
 
@@ -208,40 +214,41 @@ bool HIDDEN ln_script_create_htlc(
 }
 
 
-uint64_t HIDDEN ln_script_fee_calc(
-    ln_script_fee_info_t *pFeeInfo,
+uint64_t HIDDEN ln_script_base_fee_calc(
+    ln_script_base_fee_info_t *pBaseFeeInfo,
     const ln_script_htlc_info_t **ppHtlcInfo,
     int Num)
 {
-    pFeeInfo->htlc_success_fee = M_FEE_HTLC_SUCCESS * pFeeInfo->feerate_per_kw / 1000;
-    pFeeInfo->htlc_timeout_fee = M_FEE_HTLC_TIMEOUT * pFeeInfo->feerate_per_kw / 1000;
-    pFeeInfo->commit_fee = LN_FEE_COMMIT_BASE;
-    uint64_t dusts = 0;
+    pBaseFeeInfo->htlc_success_fee = M_FEE_HTLC_SUCCESS_WEIGHT * pBaseFeeInfo->feerate_per_kw / 1000;
+    pBaseFeeInfo->htlc_timeout_fee = M_FEE_HTLC_TIMEOUT_WEIGHT * pBaseFeeInfo->feerate_per_kw / 1000;
+    pBaseFeeInfo->commit_fee = 0;
+    uint64_t commit_fee_weight = LN_FEE_COMMIT_BASE_WEIGHT;
+    uint64_t dust_msat = 0;
 
     for (int lp = 0; lp < Num; lp++) {
         switch (ppHtlcInfo[lp]->type) {
         case LN_HTLC_TYPE_OFFERED:
-            if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pFeeInfo->dust_limit_satoshi + pFeeInfo->htlc_timeout_fee) {
-                pFeeInfo->commit_fee += M_FEE_COMMIT_HTLC;
+            if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pBaseFeeInfo->dust_limit_satoshi + pBaseFeeInfo->htlc_timeout_fee) {
+                commit_fee_weight += M_FEE_COMMIT_HTLC_WEIGHT;
             } else {
-                dusts += LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat);
+                dust_msat += ppHtlcInfo[lp]->amount_msat;
             }
             break;
         case LN_HTLC_TYPE_RECEIVED:
-            if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pFeeInfo->dust_limit_satoshi + pFeeInfo->htlc_success_fee) {
-                pFeeInfo->commit_fee += M_FEE_COMMIT_HTLC;
+            if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pBaseFeeInfo->dust_limit_satoshi + pBaseFeeInfo->htlc_success_fee) {
+                commit_fee_weight += M_FEE_COMMIT_HTLC_WEIGHT;
             } else {
-                dusts += LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat);
+                dust_msat += ppHtlcInfo[lp]->amount_msat;
             }
             break;
         default:
             break;
         }
     }
-    pFeeInfo->commit_fee = pFeeInfo->commit_fee * pFeeInfo->feerate_per_kw / 1000;
-    LOGD("pFeeInfo->commit_fee= %" PRIu64 "(feerate_per_kw=%" PRIu32 ")\n", pFeeInfo->commit_fee, pFeeInfo->feerate_per_kw);
+    pBaseFeeInfo->commit_fee = commit_fee_weight * pBaseFeeInfo->feerate_per_kw / 1000;
+    LOGD("pBaseFeeInfo->commit_fee= %" PRIu64 "(feerate_per_kw=%" PRIu32 ")\n", pBaseFeeInfo->commit_fee, pBaseFeeInfo->feerate_per_kw);
 
-    return pFeeInfo->commit_fee + dusts;
+    return (commit_fee_weight * pBaseFeeInfo->feerate_per_kw + dust_msat) / 1000;
 }
 
 
@@ -592,25 +599,29 @@ static bool create_offered_htlc(
 
     utl_push_t push;
     uint8_t hash[BTC_SZ_HASH160];
-    if (!utl_push_init(&push, pWitScript, 133)) return false;
-    if (!utl_push_data(&push, BTC_OP_DUP BTC_OP_HASH160 BTC_OP_SZ20, 3)) return false;
+    if (!utl_push_init(&push, pWitScript, 133)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_DUP BTC_OP_HASH160 BTC_OP_SZ20, 3)) goto LABEL_ERROR;
     btc_md_hash160(hash, pLocalRevoKey, BTC_SZ_PUBKEY);
-    if (!utl_push_data(&push, hash, BTC_SZ_HASH160)) return false;
-    if (!utl_push_data(&push, BTC_OP_EQUAL BTC_OP_IF BTC_OP_CHECKSIG BTC_OP_ELSE BTC_OP_SZ_PUBKEY, 5)) return false;
-    if (!utl_push_data(&push, pRemoteHtlcKey, BTC_SZ_PUBKEY)) return false;
-    if (!utl_push_data(&push, BTC_OP_SWAP BTC_OP_SIZE BTC_OP_SZ1 BTC_OP_SZ32 BTC_OP_EQUAL BTC_OP_NOTIF BTC_OP_DROP BTC_OP_2 BTC_OP_SWAP BTC_OP_SZ_PUBKEY, 10)) return false;
-    if (!utl_push_data(&push, pLocalHtlcKey, BTC_SZ_PUBKEY)) return false;
-    if (!utl_push_data(&push, BTC_OP_2 BTC_OP_CHECKMULTISIG BTC_OP_ELSE BTC_OP_HASH160 BTC_OP_SZ20, 5)) return false;
+    if (!utl_push_data(&push, hash, BTC_SZ_HASH160)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_EQUAL BTC_OP_IF BTC_OP_CHECKSIG BTC_OP_ELSE BTC_OP_SZ_PUBKEY, 5)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, pRemoteHtlcKey, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_SWAP BTC_OP_SIZE BTC_OP_SZ1 BTC_OP_SZ32 BTC_OP_EQUAL BTC_OP_NOTIF BTC_OP_DROP BTC_OP_2 BTC_OP_SWAP BTC_OP_SZ_PUBKEY, 10)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, pLocalHtlcKey, BTC_SZ_PUBKEY)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_2 BTC_OP_CHECKMULTISIG BTC_OP_ELSE BTC_OP_HASH160 BTC_OP_SZ20, 5)) goto LABEL_ERROR;
     btc_md_ripemd160(hash, pPaymentHash, BTC_SZ_HASH256);
-    if (!utl_push_data(&push, hash, BTC_SZ_HASH160)) return false;
-    if (!utl_push_data(&push, BTC_OP_EQUALVERIFY BTC_OP_CHECKSIG BTC_OP_ENDIF BTC_OP_ENDIF, 4)) return false;
-    if (!utl_push_trim(&push)) return false;
+    if (!utl_push_data(&push, hash, BTC_SZ_HASH160)) goto LABEL_ERROR;
+    if (!utl_push_data(&push, BTC_OP_EQUALVERIFY BTC_OP_CHECKSIG BTC_OP_ENDIF BTC_OP_ENDIF, 4)) goto LABEL_ERROR;
+    if (!utl_push_trim(&push)) goto LABEL_ERROR;
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
     btc_script_print(pWitScript->buf, pWitScript->len);
 #endif  //M_DBG_VERBOSE
     return true;
+
+LABEL_ERROR:
+    utl_buf_free(pWitScript);
+    return false;
 }
 
 
