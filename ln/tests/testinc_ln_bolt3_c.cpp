@@ -1210,7 +1210,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -1930,7 +1930,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -2589,7 +2589,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -3248,7 +3248,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -3843,7 +3843,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -4438,7 +4438,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -4972,7 +4972,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -5506,7 +5506,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -5980,7 +5980,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -6453,7 +6453,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLC_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);

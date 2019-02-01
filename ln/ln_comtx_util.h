@@ -30,6 +30,10 @@
 
 #include "utl_common.h"
 
+#include "btc_sw.h"
+
+#include "ln_derkey_ex.h"
+
 //XXX: unit test
 
 
@@ -50,6 +54,74 @@
 
 
 /********************************************************************
+ * typedefs
+ ********************************************************************/
+
+/** @enum   ln_comtx_output_type_t
+ *  @brief  commitment transaction output type
+ */
+typedef enum {
+    LN_COMTX_OUTPUT_TYPE_NONE,                              ///< 未設定
+    LN_COMTX_OUTPUT_TYPE_OFFERED,                           ///< Offered HTLC
+    LN_COMTX_OUTPUT_TYPE_RECEIVED,                          ///< Received HTLC
+    LN_COMTX_OUTPUT_TYPE_TO_LOCAL    = UINT16_MAX - 1,      ///< vout=to_local
+    LN_COMTX_OUTPUT_TYPE_TO_REMOTE   = UINT16_MAX,          ///< vout=to_remote
+} ln_comtx_output_type_t;
+
+
+/** @struct ln_comtx_base_fee_info_t
+ *  @brief  base fee info
+ */
+typedef struct {
+    uint32_t        feerate_per_kw;                 ///< [IN]1000byte辺りのsatoshi
+    uint64_t        dust_limit_satoshi;             ///< [IN]dust_limit_satoshi
+
+    uint64_t        htlc_success_fee;               ///< [CALC]HTLC success Transaction FEE
+    uint64_t        htlc_timeout_fee;               ///< [CALC]HTLC timeout Transaction FEE
+    uint64_t        commit_fee;                     ///< [CALC]Commitment Transaction FEE
+    uint64_t        _rough_actual_fee;              ///< [CALC] XXX: this is not actual fee. Trimmed to_local/to_remote are not reflected
+} ln_comtx_base_fee_info_t;
+
+
+/** @struct ln_comtx_htlc_info_t
+ *  @brief  HTLC情報
+ */
+typedef struct {
+    ln_comtx_output_type_t  type;                   ///< HTLC種別
+    uint16_t        add_htlc_idx;                   ///< 対応するpChannel->cnl_add_htlc[]のindex値
+    uint32_t        cltv_expiry;                    ///< cltv_expiry
+    uint64_t        amount_msat;                    ///< amount_msat
+    const uint8_t   *payment_hash;                  ///< preimage hash
+    utl_buf_t       wit_script;                     ///< witness script
+} ln_comtx_htlc_info_t;
+
+
+/** @struct ln_comtx_t
+ *  @brief  Commitment Transaction生成用情報
+ */
+typedef struct {
+    struct {
+        const uint8_t       *txid;                  ///< funding txid
+        uint32_t            txid_index;             ///< funding txid index
+        uint64_t            satoshi;                ///< funding satoshi
+        const utl_buf_t     *p_wit_script;          ///< funding tx witness script
+    } fund;
+    struct {
+        uint64_t            satoshi;                ///< local satoshi
+        const utl_buf_t     *p_wit_script;          ///< to-local witness script
+    } to_local;
+    struct {
+        uint64_t            satoshi;                ///< remote satoshi
+        const uint8_t       *pubkey;                ///< remote pubkey(to-remote用)
+    } to_remote;
+    uint64_t                obscured_commit_num;    ///< Obscured Commitment Number
+    ln_comtx_base_fee_info_t   *p_base_fee_info;    ///< base fee info
+    ln_comtx_htlc_info_t    **pp_htlc_info;         ///< HTLC情報ポインタ配列(htlc_info_num個分)
+    uint16_t                htlc_info_num;          ///< HTLC数
+} ln_comtx_t;
+
+
+/********************************************************************
  * prototypes
  ********************************************************************/
 
@@ -66,6 +138,50 @@ uint64_t HIDDEN ln_comtx_calc_obscured_commit_num(uint64_t ObscuredCommitNumBase
 
 
 uint64_t HIDDEN ln_comtx_calc_commit_num_from_tx(uint32_t Sequence, uint32_t Locktime, uint64_t ObscuredCommitNumBase);
+
+
+/** HTLC情報初期化
+ *
+ *
+ */
+void HIDDEN ln_comtx_htlc_info_init(ln_comtx_htlc_info_t *pHtlcInfo);
+
+
+/** HTLC情報初期化
+ *
+ *
+ */
+void HIDDEN ln_comtx_htlc_info_free(ln_comtx_htlc_info_t *pHtlcInfo);
+
+
+/** calc base fee
+ *
+ * feerate_per_kw, dust_limit_satoshiおよびHTLC情報から、HTLCおよびcommit txのFEEを算出する。
+ *
+ * @param[in,out]   pBaseFeeInfo    FEE情報
+ * @param[in]       ppHtlcInfo      HTLC情報ポインタ配列
+ * @param[in]       Num             HTLC数
+ *
+ * @note
+ *      - pFeeInfoにfeerate_per_kwとdust_limit_satoshiを代入しておくこと
+ */
+void HIDDEN ln_comtx_base_fee_calc(
+    ln_comtx_base_fee_info_t *pBaseFeeInfo,
+    const ln_comtx_htlc_info_t **ppHtlcInfo,
+    int Num);
+
+
+/** Commitment Transaction作成
+ *
+ * @param[out]      pTx         TX情報
+ * @param[out]      pSig        local署名
+ * @param[in]       pCommitTx   Commitment Transaction情報
+ * @param[in]       ToLocalIsFounder  true:to_local is funder / false:to_remote is funder
+ * @param[in]       pLocalKeys
+ * @return      true:成功
+ */
+bool HIDDEN ln_comtx_create(
+    btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_t *pCommitTx, bool ToLocalIsFounder, const ln_derkey_local_keys_t *pLocalKeys);
 
 
 #endif /* LN_COMTX_EX_H__ */
