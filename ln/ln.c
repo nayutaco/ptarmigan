@@ -903,7 +903,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
         } else {
             //HTLC Tx
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
-            ln_htlc_type_t type;
+            ln_comtx_output_type_t type;
             uint8_t payhash[BTC_SZ_HASH256];
             uint32_t expiry;
             bool srch = ln_db_phash_search(payhash, &type, &expiry,
@@ -921,7 +921,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                 btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
                 pChannel->p_revoked_type[htlc_idx] = type;
 
-                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_HTLC_TYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
+                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
                 htlc_cnt++;
             } else {
                 LOGD("[%d]not detect\n", lp);
@@ -941,13 +941,13 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
 bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
-    ln_script_base_fee_info_t fee_info;
+    ln_comtx_base_fee_info_t fee_info;
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
-    ln_script_base_fee_calc(&fee_info, NULL, 0);
-    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_HTLC_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+    ln_comtx_base_fee_calc(&fee_info, NULL, 0);
+    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
-    ln_script_htlc_tx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
+    ln_htlctx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;
@@ -960,12 +960,12 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     // LOGD("key-pub : ");
     // DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
-    ln_script_htlc_sig_t htlcsign = LN_HTLC_SIG_NONE;
+    ln_htlctx_sig_type_t htlcsign = LN_HTLC_SIG_NONE;
     switch (pChannel->p_revoked_type[WitIndex]) {
-    case LN_HTLC_TYPE_OFFERED:
+    case LN_COMTX_OUTPUT_TYPE_OFFERED:
         htlcsign = LN_HTLC_SIG_REVOKE_OFFER;
         break;
-    case LN_HTLC_TYPE_RECEIVED:
+    case LN_COMTX_OUTPUT_TYPE_RECEIVED:
         htlcsign = LN_HTLC_SIG_REVOKE_RECV;
         break;
     default:
@@ -975,17 +975,17 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     bool ret;
     if (htlcsign != LN_HTLC_SIG_NONE) {
         utl_buf_t buf_sig = UTL_BUF_INIT;
-        ret = ln_script_htlc_tx_sign(pTx,
+        ret = ln_htlctx_sign(pTx,
                 &buf_sig,
                 Value,
                 &signkey,
                 &pChannel->p_revoked_wit[WitIndex]);
         if (ret) {
-            ret = ln_script_htlc_tx_wit(pTx,
+            ret = ln_htlctx_set_vin(pTx,
                 &buf_sig,
+                NULL,
+                NULL,
                 &signkey,
-                NULL,
-                NULL,
                 &pChannel->p_revoked_wit[WitIndex],
                 htlcsign);
         }
@@ -1417,11 +1417,11 @@ void HIDDEN ln_revoked_buf_alloc(ln_channel_t *pChannel)
 
     pChannel->p_revoked_vout = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pChannel->revoked_num);
     pChannel->p_revoked_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pChannel->revoked_num);
-    pChannel->p_revoked_type = (ln_htlc_type_t *)UTL_DBG_MALLOC(sizeof(ln_htlc_type_t) * pChannel->revoked_num);
+    pChannel->p_revoked_type = (ln_comtx_output_type_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_output_type_t) * pChannel->revoked_num);
     for (int lp = 0; lp < pChannel->revoked_num; lp++) {
         utl_buf_init(&pChannel->p_revoked_vout[lp]);
         utl_buf_init(&pChannel->p_revoked_wit[lp]);
-        pChannel->p_revoked_type[lp] = LN_HTLC_TYPE_NONE;
+        pChannel->p_revoked_type[lp] = LN_COMTX_OUTPUT_TYPE_NONE;
     }
 }
 

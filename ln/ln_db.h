@@ -683,23 +683,23 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
  *
  * @param[in]       pPayHash        保存するpayment_hash
  * @param[in]       pVout           pPayHashを含むvoutスクリプトを#btc_script_p2wsh_create_scriptpk()した結果。大きさはLNL_SZ_WITPROG_WSH。
- * @param[in]       Type            pVout先のHTLC種別(LN_HTLC_TYPE_OFFERED / LN_HTLC_TYPE_RECEIVED)
+ * @param[in]       Type            pVout先のHTLC種別(LN_COMTX_OUTPUT_TYPE_OFFERED / LN_COMTX_OUTPUT_TYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
  * @retval  true
  */
-bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlc_type_t Type, uint32_t Expiry);
+bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_comtx_output_type_t Type, uint32_t Expiry);
 
 
 /** payment_hash検索
  *
  * @param[out]      pPayHash        保存するpayment_hash
- * @param[out]      pType           pVoutのHTLC種別(LN_HTLC_TYPE_OFFERED / LN_HTLC_TYPE_RECEIVED)
+ * @param[out]      pType           pVoutのHTLC種別(LN_COMTX_OUTPUT_TYPE_OFFERED / LN_COMTX_OUTPUT_TYPE_RECEIVED)
  * @param[out]      pExpiry         Expiry
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
  * @retval  true
  */
-bool ln_db_phash_search(uint8_t *pPayHash, ln_htlc_type_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
+bool ln_db_phash_search(uint8_t *pPayHash, ln_comtx_output_type_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
 
 #endif  //LN_UGLY_NORMAL
 

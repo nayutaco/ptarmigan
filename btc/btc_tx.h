@@ -99,9 +99,10 @@ typedef struct {
 typedef struct {
     uint64_t    value;                  ///< value[単位:satoshi]
     utl_buf_t   script;                 ///< scriptPubKey
-    uint8_t     opt;                    ///< 付加情報(ln用)
-                                        //      ln_script_htlc_tx_create()でln_htlc_type_tに設定
-                                        //      ln_script_commit_tx_create()でln_tx_cmt_t.pp_htlc_info[]のindex値(or LN_HTLC_TYPE_TO_LOCAL/REMOTE)に設定
+    uint16_t    opt;                    ///< 付加情報(ln用)
+                                        //  ln_htlctx_create()でln_comtx_output_type_tに設定
+                                        //  ln_comtx_create()でln_tx_cmt_t.pp_htlc_info[]のindex値
+                                        //  (or LN_COMTX_OUTPUT_TYPE_TO_LOCAL/REMOTE)に設定
 } btc_vout_t;
 
 
