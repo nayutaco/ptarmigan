@@ -187,6 +187,10 @@ clean:
 	$(RM) $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME) .Depend
 	$(MAKE) -C tests clean
 
+lcov:
+	lcov -c -d $(OBJECT_DIRECTORY) -o $(OBJECT_DIRECTORY)/lcov.info
+	genhtml -o $(OBJECT_DIRECTORY)/lcovhtml $(OBJECT_DIRECTORY)/lcov.info
+
 test:
 	$(MAKE) -C tests
 	$(MAKE) -C tests exec

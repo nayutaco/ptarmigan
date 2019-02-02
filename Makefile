@@ -80,6 +80,11 @@ lib_clean:
 git_subs:
 	git submodule update --init --recursive
 
+lcov:
+	$(RM) -r ptarmd/_build/lcovhtml ptarmd/_build/lcov.info
+	lcov -c -d utl/_build -d btc/_build -d ln/_build -d ptarmd/_build -o ptarmd/_build/lcov.info
+	genhtml -o ptarmd/_build/lcovhtml ptarmd/_build/lcov.info
+
 test:
 	$(MAKE) -C gtest
 	$(MAKE) -C utl test
