@@ -3513,12 +3513,7 @@ bool ln_db_wallet_del(const uint8_t *pTxid, uint32_t Index)
 
     retval = wallet_db_open(&db, M_DBI_WALLET, 0, 0);
     if (retval != 0) {
-        if (retval == MDB_NOTFOUND) {
-            //not need drop
-            retval = 0;
-        } else {
-            LOGE("ERR: %s\n", mdb_strerror(retval));
-        }
+        LOGE("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
 
