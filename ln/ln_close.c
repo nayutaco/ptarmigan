@@ -293,7 +293,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
  * @param[in]   FeeSat
  * @param[in]   bVerify     true:verifyを行う
  * @note
- *      - INPUT: 2-of-2(順番はpChannel->key_fund_sort)
+ *      - INPUT: 2-of-2(順番はpChannel->funding_tx.key_order)
  *          - 自分：pChannel->commit_tx_remote.signature
  *          - 相手：pChannel->commit_tx_local.signature
  *      - OUTPUT:
@@ -347,7 +347,7 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
-    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_sat, &pChannel->redeem_fund)) {
+    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_sat, &pChannel->funding_tx.wit_script)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
@@ -366,7 +366,7 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
         utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
 
         btc_sig_rs2der(&buf_sig_from_remote, pChannel->commit_tx_local.signature);
-        ln_comtx_set_vin_p2wsh_2of2(pTx, 0, pChannel->key_fund_sort, &buf_sig, &buf_sig_from_remote, &pChannel->redeem_fund);
+        ln_comtx_set_vin_p2wsh_2of2(pTx, 0, pChannel->funding_tx.key_order, &buf_sig, &buf_sig_from_remote, &pChannel->funding_tx.wit_script);
         utl_buf_free(&buf_sig_from_remote);
 
         //verify
