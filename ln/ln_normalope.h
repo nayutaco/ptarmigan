@@ -108,10 +108,10 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc)
  *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
         ((htlc)->stat.flag.updsend == 1) && \
@@ -123,10 +123,10 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
@@ -135,12 +135,12 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc)
  *  @brief  remote commit_tx作成時、相手のamountから差し引く
  *  @note
- *    - #LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER()も差し引く対象になる
+ *    - #LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV()も差し引く対象になる
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
@@ -156,10 +156,10 @@
     ( \
         ( \
             ( \
-                LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) && \
+                LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) && \
                 ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) \
             ) || \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) \
+            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
         ) && \
         ((htlc)->stat.flag.comsend == 0) \
     )
@@ -221,10 +221,10 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc)
  *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.updsend == 0) && \
@@ -233,22 +233,22 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.updsend == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc)
  *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc) \
     ( \
-        LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) && \
+        LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
@@ -259,8 +259,8 @@
 #define LN_HTLC_WILL_COMSIG_RECV(htlc) \
     ( \
         ( \
-            LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) || \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
+            LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) || \
+            LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) \
         ) && \
         ((htlc)->stat.flag.comsend == 0) \
     )
