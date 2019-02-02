@@ -4126,6 +4126,7 @@ static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, i
 {
     int             retval;
 
+    pDb->txn = NULL;
     retval = MDB_TXN_BEGIN(mpDbChannel, NULL, OptTxn, &pDb->txn);
     if (retval != 0) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
