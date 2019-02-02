@@ -181,8 +181,8 @@ extern "C" {
 // 0x40: update_fulfill_htlcを戻すときに相手が見つからない
 #define LN_DBG_FULFILL_BWD() ((ln_debug_get() & 0x40) == 0)
 
-#define M_DB_CHANNEL_SAVE(pChannel) { bool ret = ln_db_channel_save(pChannel); LOGD("ln_db_channel_save()=%d\n", ret); }
-#define M_DB_SECRET_SAVE(pChannel)  { bool ret = ln_db_secret_save(pChannel); LOGD("ln_db_secret_save()=%d\n", ret); }
+#define M_DB_CHANNEL_SAVE(pChannel) { bool ret = ln_db_channel_save(pChannel); LOGD("ln_db_channel_save()=%d\n", ret); if (!ret) { abort();} }
+#define M_DB_SECRET_SAVE(pChannel)  { bool ret = ln_db_secret_save(pChannel); LOGD("ln_db_secret_save()=%d\n", ret); if (!ret) { abort();} }
 
 #if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
