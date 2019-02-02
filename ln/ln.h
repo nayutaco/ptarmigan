@@ -636,7 +636,7 @@ typedef struct {
     uint16_t            to_self_delay;                  ///< to_self_delay
     uint16_t            max_accepted_htlcs;             ///< max_accepted_htlcs
 
-    uint8_t             signature[LN_SZ_SIGNATURE];     ///< 署名
+    uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< remote's signature
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
     uint8_t             txid[BTC_SZ_TXID];              ///< txid

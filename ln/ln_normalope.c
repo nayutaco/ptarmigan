@@ -481,13 +481,13 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     uint8_t bak_sig[LN_SZ_SIGNATURE];
     utl_buf_t buf = UTL_BUF_INIT;
 
-    memcpy(bak_sig, pChannel->commit_tx_local.signature, LN_SZ_SIGNATURE);
+    memcpy(bak_sig, pChannel->commit_tx_local.remote_sig, LN_SZ_SIGNATURE);
     ret = ln_msg_commitment_signed_read(&commsig, pData, Len);
     if (!ret) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         goto LABEL_EXIT;
     }
-    memcpy(pChannel->commit_tx_local.signature, commsig.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_tx_local.remote_sig, commsig.p_signature, LN_SZ_SIGNATURE);
 
     ret = ln_check_channel_id(commsig.p_channel_id, pChannel->channel_id);
     if (!ret) {
@@ -587,7 +587,7 @@ LABEL_EXIT:
     } else {
         //戻す
         LOGE("fail: restore signature\n");
-        memcpy(pChannel->commit_tx_local.signature, bak_sig, LN_SZ_SIGNATURE);
+        memcpy(pChannel->commit_tx_local.remote_sig, bak_sig, LN_SZ_SIGNATURE);
     }
 
     LOGD("END\n");
@@ -1857,7 +1857,7 @@ static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig
 
     ln_msg_commitment_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
-    msg.p_signature = pChannel->commit_tx_remote.signature;     //相手commit_txに行った自分の署名
+    msg.p_signature = pChannel->commit_tx_remote.remote_sig;     //相手commit_txに行った自分の署名
     msg.num_htlcs = pChannel->commit_tx_remote.htlc_num;
     msg.p_htlc_signature = p_htlc_sigs;
     ret = ln_msg_commitment_signed_write(pCommSig, &msg);
