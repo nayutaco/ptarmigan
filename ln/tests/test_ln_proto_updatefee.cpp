@@ -191,7 +191,7 @@ public:
         pChannel->our_msat = 1000000;
         pChannel->their_msat = 1000000;
         btc_tx_init(&pChannel->tx_funding);
-        utl_buf_init(&pChannel->redeem_fund);
+        utl_buf_init(&pChannel->funding_tx.wit_script);
         pChannel->p_callback = LnCallbackType;
         memcpy(pChannel->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     }

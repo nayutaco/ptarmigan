@@ -228,7 +228,7 @@ bool HIDDEN ln_comtx_create_local(
     comtx.fund.txid = ln_funding_txid(pChannel);
     comtx.fund.txid_index = ln_funding_txindex(pChannel);
     comtx.fund.satoshi = pChannel->funding_sat;
-    comtx.fund.p_wit_script = &pChannel->redeem_fund;
+    comtx.fund.p_wit_script = &pChannel->funding_tx.wit_script;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(our_msat);
     comtx.to_local.p_wit_script = &buf_ws;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(their_msat);
@@ -353,7 +353,7 @@ bool ln_comtx_create_remote(
     comtx.fund.txid = ln_funding_txid(pChannel);
     comtx.fund.txid_index = ln_funding_txindex(pChannel);
     comtx.fund.satoshi = pChannel->funding_sat;
-    comtx.fund.p_wit_script = &pChannel->redeem_fund;
+    comtx.fund.p_wit_script = &pChannel->funding_tx.wit_script;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(our_msat);
     comtx.to_local.p_wit_script = &buf_ws;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(their_msat);
@@ -479,12 +479,12 @@ static bool create_local_verify_sig(
     //署名追加
     btc_sig_rs2der(&buf_sig_from_remote, pChannel->commit_tx_local.signature);
     ln_comtx_set_vin_p2wsh_2of2(
-        pTxCommit, 0, pChannel->key_fund_sort, pBufSig, &buf_sig_from_remote, &pChannel->redeem_fund);
+        pTxCommit, 0, pChannel->funding_tx.key_order, pBufSig, &buf_sig_from_remote, &pChannel->funding_tx.wit_script);
     LOGD("++++++++++++++ local commit tx: [%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
     // verify
-    btc_script_p2wsh_create_scriptcode(&script_code, &pChannel->redeem_fund);
+    btc_script_p2wsh_create_scriptcode(&script_code, &pChannel->funding_tx.wit_script);
     ret = btc_sw_sighash(pTxCommit, sighash, 0, pChannel->funding_sat, &script_code);
     if (ret) {
         ret = btc_sw_verify_p2wsh_2of2(

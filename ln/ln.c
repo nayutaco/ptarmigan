@@ -196,7 +196,7 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_
 
     utl_buf_init(&pChannel->shutdown_scriptpk_local);
     utl_buf_init(&pChannel->shutdown_scriptpk_remote);
-    utl_buf_init(&pChannel->redeem_fund);
+    utl_buf_init(&pChannel->funding_tx.wit_script);
     utl_buf_init(&pChannel->cnl_anno);
     utl_buf_init(&pChannel->revoked_sec);
     pChannel->p_revoked_vout = NULL;
@@ -1144,7 +1144,7 @@ uint32_t ln_funding_txindex(const ln_channel_t *pChannel)
 
 const utl_buf_t *ln_funding_redeem(const ln_channel_t *pChannel)
 {
-    return &pChannel->redeem_fund;
+    return &pChannel->funding_tx.wit_script;
 }
 
 
@@ -1547,7 +1547,7 @@ static void channel_clear(ln_channel_t *pChannel)
 {
     utl_buf_free(&pChannel->shutdown_scriptpk_local);
     utl_buf_free(&pChannel->shutdown_scriptpk_remote);
-    utl_buf_free(&pChannel->redeem_fund);
+    utl_buf_free(&pChannel->funding_tx.wit_script);
     utl_buf_free(&pChannel->cnl_anno);
     utl_buf_free(&pChannel->revoked_sec);
     ln_revoked_buf_free(pChannel);

@@ -300,7 +300,7 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     LOGD("obscured_commit_num_mask=0x%016" PRIx64 "\n", pChannel->obscured_commit_num_mask);
 
     //vout 2-of-2
-    if (!btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
+    if (!btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
         pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
         M_SET_ERR(pChannel, LNERR_CREATE_2OF2, "create 2-of-2");
         return false;
@@ -444,7 +444,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
         //処理の都合上、voutの位置を調整している
         btc_tx_add_vout(&pChannel->tx_funding, 0);
     }
-    btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->redeem_fund);
+    btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->funding_tx.wit_script);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
     btc_tx_add_vin(&pChannel->tx_funding, ln_funding_txid(pChannel), 0);
 
@@ -785,14 +785,14 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     btc_tx_free(&pChannel->tx_funding);
 
     //vout 2-of-2
-    btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
+    btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
                 pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
 
     if (pChannel->establish.p_fundin != NULL) {
         //output
         ln_funding_set_txindex(pChannel, M_FUNDING_INDEX);      //TODO: vout#0は2-of-2、vout#1はchangeにしている
         //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->redeem_fund);
+        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->funding_tx.wit_script);
 
         //vout#1:P2WPKH - change(amountは後で代入)
         btc_tx_add_vout_spk(&pChannel->tx_funding, (uint64_t)-1, &pChannel->establish.p_fundin->change_spk);
@@ -838,7 +838,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //for SPV
         //fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
         //その代わり、ln_funding_txindex(pChannel)は固定値にならない。
-        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->redeem_fund);
+        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->funding_tx.wit_script);
         btc_tx_add_vin(&pChannel->tx_funding, ln_funding_txid(pChannel), 0); //dummy
     }
 
@@ -867,7 +867,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
 
     //search funding vout
     utl_buf_t two_of_two = UTL_BUF_INIT;
-    btc_script_p2wsh_create_scriptpk(&two_of_two, &pChannel->redeem_fund);
+    btc_script_p2wsh_create_scriptpk(&two_of_two, &pChannel->funding_tx.wit_script);
     uint32_t lp;
     for (lp = 0; lp < pChannel->tx_funding.vout_cnt; lp++) {
         if (utl_buf_equal(&pChannel->tx_funding.vout[lp].script, &two_of_two)) break;

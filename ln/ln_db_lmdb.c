@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-39))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-40))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -184,6 +184,7 @@
                  ln_channel_t::keys_remote.ln_derkey_remote_keys_t::prev_per_commitment_point
              ln_channel_t::pubkeys_local -> removed
          and the local public keys and the script pubkeys are restored after loading
+    -40: save only txid and txindex in ln_funding_tx_t
  */
 
 
@@ -365,9 +366,10 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //fund
     //
     M_ITEM(ln_channel_t, fund_flag),                                                //[FUND_01]
-    M_ITEM(ln_channel_t, funding_tx),                                               //[FUND_02]
-    M_ITEM(ln_channel_t, obscured_commit_num_mask),                                 //[FUND_05]
-    M_ITEM(ln_channel_t, min_depth),                                                //[FUND_08]
+    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),                       //[FUND_02]
+    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),                    //[FUND_02]
+    M_ITEM(ln_channel_t, obscured_commit_num_mask),                                 //[FUND_03]
+    M_ITEM(ln_channel_t, min_depth),                                                //[FUND_06]
     M_ITEM(ln_channel_t, funding_bhash),   //[FUNDSPV_01]
     M_ITEM(ln_channel_t, last_confirm),    //[FUNDSPV_02]
 
@@ -943,9 +945,12 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
         LOGE("ERR\n");
         goto LABEL_EXIT;
     }
-    btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
-            pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
-            pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
+    if (!btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
+        pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
+        retval = -1;
+        LOGE("ERR\n");
+        goto LABEL_EXIT;
+    }
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -3749,8 +3754,8 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
     //memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
 
     //復元データ
-    utl_buf_alloccopy(&pOutChannel->redeem_fund, pInChannel->redeem_fund.buf, pInChannel->redeem_fund.len);
-    pOutChannel->key_fund_sort = pInChannel->key_fund_sort;
+    utl_buf_alloccopy(&pOutChannel->funding_tx.wit_script, pInChannel->funding_tx.wit_script.buf, pInChannel->funding_tx.wit_script.len);
+    pOutChannel->funding_tx.key_order = pInChannel->funding_tx.key_order;
 
 
     //可変サイズ(shallow copy)
