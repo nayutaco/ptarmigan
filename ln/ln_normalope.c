@@ -679,10 +679,10 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
         if ( LN_HTLC_ENABLE(p_htlc) &&
-             ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
-               LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
-               LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ||
-               LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc)) ){
+             ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
+               LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
+               LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ||
+               LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc)) ){
             LOGD(" [%d]revrecv=1\n", idx);
             p_htlc->stat.flag.revrecv = 1;
         }
@@ -1806,10 +1806,10 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                 for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
                     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
                     if ( LN_HTLC_ENABLE(p_htlc) &&
-                        ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
-                        LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
-                        LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ||
-                        LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ) ) {
+                        ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ) ) {
                         LOGD(" [%d]comsend=1\n", idx);
                         p_htlc->stat.flag.comsend = 1;
                     }

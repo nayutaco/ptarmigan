@@ -884,10 +884,10 @@ static void create_remote_htlc_info_amount(
         const ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
             bool htlcadd = false;
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(p_htlc)) {
+            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc)) {
                 *pTheirMsat -= p_htlc->amount_msat;
 
-                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc)) {
+                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc)) {
                     LOGD("addhtlc_offer\n");
                     htlcadd = true;
                 } else {
@@ -895,10 +895,10 @@ static void create_remote_htlc_info_amount(
                     *pOurMsat += p_htlc->amount_msat;
                 }
             }
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc)) {
+            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(p_htlc)) {
                 *pOurMsat -= p_htlc->amount_msat;
 
-                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc)) {
+                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc)) {
                     LOGD("addhtlc_recv\n");
                     htlcadd = true;
                 } else {
