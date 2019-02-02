@@ -538,7 +538,7 @@ static const backup_param_t DBHTLC_VALUES[] = {
     M_ITEM(ln_update_add_htlc_t, id),
     M_ITEM(ln_update_add_htlc_t, amount_msat),
     M_ITEM(ln_update_add_htlc_t, cltv_expiry),
-    M_ITEM(ln_update_add_htlc_t, payment_sha256),
+    M_ITEM(ln_update_add_htlc_t, payment_hash),
     //buf_payment_preimage --> HTLC buf
     //buf_onion_reason --> HTLC buf
     M_ITEM(ln_update_add_htlc_t, stat),
@@ -4709,7 +4709,7 @@ static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
     ln_payment_hash_calc(preimage_hash, pPreImage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (memcmp(preimage_hash, prm->add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
+        if (memcmp(preimage_hash, prm->add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {
             //一致
             int retval = mdb_cursor_del(p_cur->cursor, 0);
             LOGD("  remove from DB: %s\n", mdb_strerror(retval));

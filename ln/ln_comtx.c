@@ -66,71 +66,79 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
-static void create_to_local_htlc_info_amount(const ln_channel_t *pChannel,
-                    ln_comtx_htlc_info_t **ppHtlcInfo,
-                    uint16_t *pCnt,
-                    uint64_t *pOurMsat,
-                    uint64_t *pTheirMsat);
-static bool create_to_local_sign_verify(const ln_channel_t *pChannel,
-                    btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufSig);
-static bool create_to_local_spent(ln_channel_t *pChannel,
-                    ln_close_force_t *pClose,
-                    const uint8_t *pHtlcSigs,
-                    uint8_t HtlcSigsNum,
-                    const btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t **ppHtlcInfo,
-                    const ln_comtx_base_fee_info_t *pFeeInfo,
-                    uint32_t ToSelfDelay);
-static bool create_to_local_spentlocal(const ln_channel_t *pChannel,
-                    btc_tx_t *pTxToLocal,
-                    const utl_buf_t *pBufWs,
-                    uint64_t Amount,
-                    uint32_t VoutIdx,
-                    uint32_t ToSelfDelay);
-static bool create_to_local_htlcverify(const ln_channel_t *pChannel,
-                    btc_tx_t *pTx,
-                    const uint8_t *pHtlcSig,
-                    const utl_buf_t *pScript,
-                    uint64_t Amount);
-static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
-                    btc_tx_t *pCloseTxHtlc,
-                    btc_tx_t *pTxHtlc,
-                    utl_push_t *pPush,
-                    uint64_t Amount,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t *pHtlcInfo,
-                    const btc_keys_t *pHtlcKey,
-                    uint32_t ToSelfDelay);
+static void create_local_htlc_info_amount(
+    const ln_channel_t *pChannel,
+    ln_comtx_htlc_info_t **ppHtlcInfo,
+    uint16_t *pCnt,
+    uint64_t *pOurMsat,
+    uint64_t *pTheirMsat);
+static bool create_to_local_sign_verify(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufSig);
+static bool create_to_local_spent(
+    ln_channel_t *pChannel,
+    ln_close_force_t *pClose,
+    const uint8_t *pHtlcSigs,
+    uint8_t HtlcSigsNum,
+    const btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t **ppHtlcInfo,
+    const ln_comtx_base_fee_info_t *pFeeInfo,
+    uint32_t ToSelfDelay);
+static bool create_to_local_spentlocal(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pTxToLocal,
+    const utl_buf_t *pBufWs,
+    uint64_t Amount,
+    uint32_t VoutIdx,
+    uint32_t ToSelfDelay);
+static bool create_to_local_htlcverify(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pTx,
+    const uint8_t *pHtlcSig,
+    const utl_buf_t *pScript,
+    uint64_t Amount);
+static bool create_to_local_spenthtlc(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pCloseTxHtlc,
+    btc_tx_t *pTxHtlc,
+    utl_push_t *pPush,
+    uint64_t Amount,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t *pHtlcInfo,
+    const btc_keys_t *pHtlcKey,
+    uint32_t ToSelfDelay);
 
-static void create_to_remote_htlc_info(const ln_channel_t *pChannel,
-                    ln_comtx_htlc_info_t **ppHtlcInfo,
-                    uint16_t *pCnt,
-                    uint64_t *pOurMsat,
-                    uint64_t *pTheirMsat);
-static bool create_to_remote_spent(const ln_channel_t *pChannel,
-                    ln_commit_tx_t *pCommit,
-                    ln_close_force_t *pClose,
-                    uint8_t *pHtlcSigs,
-                    const btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t **ppHtlcInfo,
-                    const ln_comtx_base_fee_info_t *pFeeInfo);
+static void create_remote_htlc_info_amount(
+    const ln_channel_t *pChannel,
+    ln_comtx_htlc_info_t **ppHtlcInfo,
+    uint16_t *pCnt,
+    uint64_t *pOurMsat,
+    uint64_t *pTheirMsat);
+static bool create_to_remote_spent(
+    const ln_channel_t *pChannel,
+    ln_commit_tx_t *pCommit,
+    ln_close_force_t *pClose,
+    uint8_t *pHtlcSigs,
+    const btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t **ppHtlcInfo,
+    const ln_comtx_base_fee_info_t *pFeeInfo);
 static bool create_to_remote_spenthtlc(
-                    ln_commit_tx_t *pCommit,
-                    btc_tx_t *pTxHtlcs,
-                    uint8_t *pHtlcSigs,
-                    const btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t *pHtlcInfo,
-                    const btc_keys_t *pHtlcKey,
-                    const utl_buf_t *pBufRemoteSig,
-                    uint64_t Fee,
-                    uint8_t HtlcNum,
-                    uint32_t VoutIdx,
-                    const uint8_t *pPayHash,
-                    bool bClosing);
+    ln_commit_tx_t *pCommit,
+    btc_tx_t *pTxHtlcs,
+    uint8_t *pHtlcSigs,
+    const btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t *pHtlcInfo,
+    const btc_keys_t *pHtlcKey,
+    const utl_buf_t *pBufRemoteSig,
+    uint64_t Fee,
+    uint8_t HtlcNum,
+    uint32_t VoutIdx,
+    const uint8_t *pPayHash,
+    bool bClosing);
 
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing);
 static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
@@ -140,47 +148,54 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
  * public functions
  ********************************************************************/
 
-bool ln_comtx_create_to_local(ln_channel_t *pChannel,
-                    ln_close_force_t *pClose,
-                    const uint8_t *pHtlcSigs,
-                    uint8_t HtlcSigsNum,
-                    uint64_t CommitNum,
-                    uint32_t ToSelfDelay,
-                    uint64_t DustLimitSat)
+bool HIDDEN ln_comtx_create_local(
+    ln_channel_t *pChannel,
+    ln_close_force_t *pClose,
+    const uint8_t *pHtlcSigs,
+    uint8_t HtlcSigsNum,
+    uint64_t CommitNum,
+    uint32_t ToSelfDelay,
+    uint64_t DustLimitSat)
 {
     LOGD("BEGIN\n");
 
-    bool ret;
+    bool ret = false;
+
     utl_buf_t buf_ws = UTL_BUF_INIT;
     utl_buf_t buf_sig = UTL_BUF_INIT;
+    btc_tx_t tx_commit = BTC_TX_INIT;
+    uint16_t cnt = 0;
+
     ln_comtx_base_fee_info_t fee_info;
     ln_comtx_t lntx_commit;
-    btc_tx_t tx_commit = BTC_TX_INIT;
     uint64_t our_msat = pChannel->our_msat;
     uint64_t their_msat = pChannel->their_msat;
+    ln_comtx_htlc_info_t **pp_htlc_info = 0;
 
-    //To-Local
-    ln_script_create_to_local(&buf_ws,
-                pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
-                ToSelfDelay);
+    //to_local
+    if (!ln_script_create_to_local(
+        &buf_ws,
+        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
+        ToSelfDelay)) goto LABEL_EXIT;
 
     //HTLC info(amount)
-    ln_comtx_htlc_info_t **pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
-    uint16_t cnt = 0;
-    create_to_local_htlc_info_amount(pChannel, pp_htlc_info, &cnt, &our_msat, &their_msat);
+    pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
+    create_local_htlc_info_amount(pChannel, pp_htlc_info, &cnt, &our_msat, &their_msat);
 
     //HTLC info(script)
     for (int lp = 0; lp < cnt; lp++) {
-        ln_script_create_htlc(&pp_htlc_info[lp]->wit_script,
-                        pp_htlc_info[lp]->type,
-                        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
-                        pp_htlc_info[lp]->payment_hash,
-                        pp_htlc_info[lp]->cltv_expiry);
+        ln_script_create_htlc(
+            &pp_htlc_info[lp]->wit_script,
+            pp_htlc_info[lp]->type,
+            pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+            pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+            pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+            pp_htlc_info[lp]->payment_hash,
+            pp_htlc_info[lp]->cltv_expiry);
     }
 
+    //print amount
     LOGD("-------\n");
     LOGD("our_msat   %" PRIu64 " --> %" PRIu64 "\n", pChannel->our_msat, our_msat);
     LOGD("their_msat %" PRIu64 " --> %" PRIu64 "\n", pChannel->their_msat, their_msat);
@@ -189,7 +204,7 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     }
     LOGD("-------\n");
 
-    //FEE
+    //fee
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
     fee_info.dust_limit_satoshi = DustLimitSat;
     ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_info, cnt);
@@ -208,94 +223,100 @@ bool ln_comtx_create_to_local(ln_channel_t *pChannel,
     lntx_commit.p_base_fee_info = &fee_info;
     lntx_commit.pp_htlc_info = pp_htlc_info;
     lntx_commit.htlc_info_num = cnt;
-    ret = ln_comtx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(pChannel), &pChannel->keys_local);
-    if (ret) {
-        //2-of-2 verify
-        ret = create_to_local_sign_verify(pChannel, &tx_commit, &buf_sig);
-    } else {
+    if (!ln_comtx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(pChannel), &pChannel->keys_local)) {
         LOGE("fail\n");
+        goto LABEL_EXIT;
     }
-    if (ret) {
-        ret = btc_tx_txid(&tx_commit, pChannel->commit_tx_local.txid);
-        LOGD("local commit_txid: ");
-        TXIDD(pChannel->commit_tx_local.txid);
+    //2-of-2 verify
+    if (!create_to_local_sign_verify(pChannel, &tx_commit, &buf_sig)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
     }
-    if (ret) {
-        ret = create_to_local_spent(pChannel,
-                    pClose,
-                    pHtlcSigs,
-                    HtlcSigsNum,
-                    &tx_commit,
-                    &buf_ws,
-                    (const ln_comtx_htlc_info_t **)pp_htlc_info,
-                    &fee_info,
-                    ToSelfDelay);
-    }
+    if (!btc_tx_txid(&tx_commit, pChannel->commit_tx_local.txid)) goto LABEL_EXIT;
+    LOGD("local commit_txid: ");
+    TXIDD(pChannel->commit_tx_local.txid);
+    if (!create_to_local_spent(
+        pChannel,
+        pClose,
+        pHtlcSigs,
+        HtlcSigsNum,
+        &tx_commit,
+        &buf_ws,
+        (const ln_comtx_htlc_info_t **)pp_htlc_info,
+        &fee_info,
+        ToSelfDelay)) goto LABEL_EXIT;
 
-    LOGD("free: ret=%d\n", ret);
-    utl_buf_free(&buf_ws);
-    for (int lp = 0; lp < cnt; lp++) {
-        ln_comtx_htlc_info_free(pp_htlc_info[lp]);
-        UTL_DBG_FREE(pp_htlc_info[lp]);
-    }
-    UTL_DBG_FREE(pp_htlc_info);
-
-    utl_buf_free(&buf_sig);
-    if (pClose != NULL) {
+    if (pClose) {
         memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(btc_tx_t));
     } else {
         btc_tx_free(&tx_commit);
     }
 
+    ret = true;
+
+LABEL_EXIT:
+    utl_buf_free(&buf_ws);
+    utl_buf_free(&buf_sig);
+    if (pp_htlc_info) {
+        for (int lp = 0; lp < cnt; lp++) {
+            ln_comtx_htlc_info_free(pp_htlc_info[lp]);
+            UTL_DBG_FREE(pp_htlc_info[lp]);
+        }
+        UTL_DBG_FREE(pp_htlc_info);
+    }
     return ret;
 }
 
 
-bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
-                    ln_commit_tx_t *pCommit,
-                    ln_close_force_t *pClose,
-                    uint8_t **ppHtlcSigs,
-                    uint64_t CommitNum)
+bool ln_comtx_create_remote(
+    const ln_channel_t *pChannel,
+    ln_commit_tx_t *pCommit,
+    ln_close_force_t *pClose,
+    uint8_t **ppHtlcSigs,
+    uint64_t CommitNum)
 {
     LOGD("BEGIN\n");
 
     bool ret;
     utl_buf_t buf_ws = UTL_BUF_INIT;
     utl_buf_t buf_sig = UTL_BUF_INIT;
+    btc_tx_t tx_commit = BTC_TX_INIT;
+    uint16_t cnt = 0;
+
     ln_comtx_base_fee_info_t fee_info;
     ln_comtx_t lntx_commit;
-    btc_tx_t tx_commit = BTC_TX_INIT;
     uint64_t our_msat = pChannel->their_msat;
     uint64_t their_msat = pChannel->our_msat;
 
     //To-Local
-    ln_script_create_to_local(&buf_ws,
-                pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
-                pChannel->commit_tx_remote.to_self_delay);
+    ln_script_create_to_local(
+        &buf_ws,
+        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
+        pChannel->commit_tx_remote.to_self_delay);
 
     //HTLC info(amount)
     ln_comtx_htlc_info_t **pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
-    uint16_t cnt = 0;    //commit_txのvout数
-    create_to_remote_htlc_info(pChannel, pp_htlc_info, &cnt, &our_msat, &their_msat);
+    create_remote_htlc_info_amount(pChannel, pp_htlc_info, &cnt, &our_msat, &their_msat);
 
     //HTLC info(script)
     for (int lp = 0; lp < cnt; lp++) {
         ln_script_create_htlc(&pp_htlc_info[lp]->wit_script,
-                        pp_htlc_info[lp]->type,
-                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-                        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
-                        pp_htlc_info[lp]->payment_hash,
-                        pp_htlc_info[lp]->cltv_expiry);
+        pp_htlc_info[lp]->type,
+        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+        pp_htlc_info[lp]->payment_hash,
+        pp_htlc_info[lp]->cltv_expiry);
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
         utl_buf_t vout = UTL_BUF_INIT;
         btc_script_p2wsh_create_scriptpk(&vout, &pp_htlc_info[lp]->wit_script);
-        ln_db_phash_save(pp_htlc_info[lp]->payment_hash,
-                        vout.buf,
-                        pp_htlc_info[lp]->type,
-                        pp_htlc_info[lp]->cltv_expiry);
+        ln_db_phash_save(
+            pp_htlc_info[lp]->payment_hash,
+            vout.buf,
+            pp_htlc_info[lp]->type,
+            pp_htlc_info[lp]->cltv_expiry);
         utl_buf_free(&vout);
 #endif  //LN_UGLY_NORMAL
     }
@@ -351,13 +372,14 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
                 p_htlc_sigs = *ppHtlcSigs;
             }
         }
-        ret = create_to_remote_spent(pChannel,
-                    pCommit,
-                    pClose,
-                    p_htlc_sigs,
-                    &tx_commit, &buf_ws,
-                    (const ln_comtx_htlc_info_t **)pp_htlc_info,
-                    &fee_info);
+        ret = create_to_remote_spent(
+            pChannel,
+            pCommit,
+            pClose,
+            p_htlc_sigs,
+            &tx_commit, &buf_ws,
+            (const ln_comtx_htlc_info_t **)pp_htlc_info,
+            &fee_info);
     }
 
     LOGD("free: ret=%d\n", ret);
@@ -379,34 +401,30 @@ bool ln_comtx_create_to_remote(const ln_channel_t *pChannel,
 }
 
 
-bool ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_script_pubkey_order_t Sort,
-                    const utl_buf_t *pSig1,
-                    const utl_buf_t *pSig2,
-                    const utl_buf_t *pWit2of2)
+bool ln_comtx_set_vin_p2wsh_2of2(
+    btc_tx_t *pTx,
+    int Index,
+    btc_script_pubkey_order_t Sort,
+    const utl_buf_t *pSig1,
+    const utl_buf_t *pSig2,
+    const utl_buf_t *pWitScript)
 {
     // 0
     // <sig1>
     // <sig2>
     // <script>
-    const utl_buf_t wit0 = UTL_BUF_INIT;
-    const utl_buf_t *wits[] = {
-        &wit0,
-        NULL,
-        NULL,
-        pWit2of2
-    };
+    const utl_buf_t zero = UTL_BUF_INIT;
+    const utl_buf_t *wit_items[] = { &zero, NULL, NULL, pWitScript };
     if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
-        wits[1] = pSig1;
-        wits[2] = pSig2;
+        wit_items[1] = pSig1;
+        wit_items[2] = pSig2;
     } else {
-        wits[1] = pSig2;
-        wits[2] = pSig1;
+        wit_items[1] = pSig2;
+        wit_items[2] = pSig1;
     }
 
-    bool ret;
-
-    ret = btc_sw_set_vin_p2wsh(pTx, Index, (const utl_buf_t **)wits, 4);
-    return ret;
+    if (!btc_sw_set_vin_p2wsh(pTx, Index, (const utl_buf_t **)wit_items, ARRAY_SIZE(wit_items))) return false;
+    return true;
 }
 
 
@@ -414,11 +432,12 @@ bool ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_script_pubkey_ord
  * private functions
  ********************************************************************/
 
-static void create_to_local_htlc_info_amount(const ln_channel_t *pChannel,
-                    ln_comtx_htlc_info_t **ppHtlcInfo,
-                    uint16_t *pCnt,
-                    uint64_t *pOurMsat,
-                    uint64_t *pTheirMsat)
+static void create_local_htlc_info_amount(
+    const ln_channel_t *pChannel,
+    ln_comtx_htlc_info_t **ppHtlcInfo,
+    uint16_t *pCnt,
+    uint64_t *pOurMsat,
+    uint64_t *pTheirMsat)
 {
     uint16_t cnt = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -450,6 +469,7 @@ static void create_to_local_htlc_info_amount(const ln_channel_t *pChannel,
             if (htlcadd) {
                 ppHtlcInfo[cnt] = (ln_comtx_htlc_info_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t));
                 ln_comtx_htlc_info_init(ppHtlcInfo[cnt]);
+                //
                 switch (p_htlc->stat.flag.addhtlc) {
                 case LN_ADDHTLC_RECV:
                     ppHtlcInfo[cnt]->type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
@@ -463,7 +483,7 @@ static void create_to_local_htlc_info_amount(const ln_channel_t *pChannel,
                 ppHtlcInfo[cnt]->add_htlc_idx = idx;
                 ppHtlcInfo[cnt]->cltv_expiry = p_htlc->cltv_expiry;
                 ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
-                ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_sha256;
+                ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_hash;
 
                 LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
                 cnt++;
@@ -483,9 +503,10 @@ static void create_to_local_htlc_info_amount(const ln_channel_t *pChannel,
  * @param[in]       pBufSig     相手の署名
  * @retval  true    成功
  */
-static bool create_to_local_sign_verify(const ln_channel_t *pChannel,
-                    btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufSig)
+static bool create_to_local_sign_verify(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufSig)
 {
     LOGD("local verify\n");
 
@@ -555,15 +576,16 @@ static bool create_to_local_sign_verify(const ln_channel_t *pChannel,
  * @param[in]       ToSelfDelay
  * @retval  true    成功
  */
-static bool create_to_local_spent(ln_channel_t *pChannel,
-                    ln_close_force_t *pClose,
-                    const uint8_t *pHtlcSigs,
-                    uint8_t HtlcSigsNum,
-                    const btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t **ppHtlcInfo,
-                    const ln_comtx_base_fee_info_t *pFeeInfo,
-                    uint32_t ToSelfDelay)
+static bool create_to_local_spent(
+    ln_channel_t *pChannel,
+    ln_close_force_t *pClose,
+    const uint8_t *pHtlcSigs,
+    uint8_t HtlcSigsNum,
+    const btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t **ppHtlcInfo,
+    const ln_comtx_base_fee_info_t *pFeeInfo,
+    uint32_t ToSelfDelay)
 {
     bool ret = true;
     uint16_t htlc_num = 0;
@@ -588,12 +610,13 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
         uint16_t htlc_idx = pTxCommit->vout[vout_idx].opt;
         if (htlc_idx == LN_COMTX_OUTPUT_TYPE_TO_LOCAL) {
             LOGD("+++[%d]to_local\n", vout_idx);
-            ret = create_to_local_spentlocal(pChannel,
-                        pCloseTxToLocal,
-                        pBufWs,
-                        pTxCommit->vout[vout_idx].value,
-                        vout_idx,
-                        ToSelfDelay);
+            ret = create_to_local_spentlocal(
+                pChannel,
+                pCloseTxToLocal,
+                pBufWs,
+                pTxCommit->vout[vout_idx].value,
+                vout_idx,
+                ToSelfDelay);
         } else if (htlc_idx == LN_COMTX_OUTPUT_TYPE_TO_REMOTE) {
             LOGD("+++[%d]to_remote\n", vout_idx);
         } else {
@@ -603,21 +626,23 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
             assert(pTxCommit->vout[vout_idx].value >= pFeeInfo->dust_limit_satoshi + fee_sat);
 
             btc_tx_t tx = BTC_TX_INIT;
-            ln_htlctx_create(&tx,
-                        pTxCommit->vout[vout_idx].value - fee_sat,
-                        pBufWs,
-                        p_htlc_info->type,
-                        p_htlc_info->cltv_expiry,
-                        pChannel->commit_tx_local.txid, vout_idx);
+            ln_htlctx_create(
+                &tx,
+                pTxCommit->vout[vout_idx].value - fee_sat,
+                pBufWs,
+                p_htlc_info->type,
+                p_htlc_info->cltv_expiry,
+                pChannel->commit_tx_local.txid, vout_idx);
 
             if ((pHtlcSigs != NULL) && (HtlcSigsNum != 0)) {
                 //HTLC署名があるなら、verify
                 //  - commitment_signed受信
-                ret = create_to_local_htlcverify(pChannel,
-                            &tx,
-                            pHtlcSigs + htlc_num * LN_SZ_SIGNATURE,
-                            &p_htlc_info->wit_script,
-                            pTxCommit->vout[vout_idx].value);
+                ret = create_to_local_htlcverify(
+                    pChannel,
+                    &tx,
+                    pHtlcSigs + htlc_num * LN_SZ_SIGNATURE,
+                    &p_htlc_info->wit_script,
+                    pTxCommit->vout[vout_idx].value);
                 if (ret) {
                     //OKなら各HTLCに保持
                     //  相手がunilateral closeした後に送信しなかったら、この署名を使う
@@ -628,15 +653,16 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
             } else if (pClose != NULL) {
                 //unilateral closeデータを作成
                 //  - unilateral close要求
-                ret = create_to_local_spenthtlc(pChannel,
-                                &pCloseTxHtlcs[htlc_num],
-                                &tx,
-                                &push,
-                                pTxCommit->vout[vout_idx].value,
-                                pBufWs,
-                                p_htlc_info,
-                                &htlckey,
-                                ToSelfDelay);
+                ret = create_to_local_spenthtlc(
+                    pChannel,
+                    &pCloseTxHtlcs[htlc_num],
+                    &tx,
+                    &push,
+                    pTxCommit->vout[vout_idx].value,
+                    pBufWs,
+                    p_htlc_info,
+                    &htlckey,
+                    ToSelfDelay);
                 if (ret) {
                     pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
                 } else {
@@ -672,20 +698,23 @@ static bool create_to_local_spent(ln_channel_t *pChannel,
  * @note
  *  - pTxToLocalはbtc_tx_tフォーマットだが、blockchainに展開できるデータではない
  */
-static bool create_to_local_spentlocal(const ln_channel_t *pChannel,
-                    btc_tx_t *pTxToLocal,
-                    const utl_buf_t *pBufWs,
-                    uint64_t Amount,
-                    uint32_t VoutIdx,
-                    uint32_t ToSelfDelay)
+static bool create_to_local_spentlocal(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pTxToLocal,
+    const utl_buf_t *pBufWs,
+    uint64_t Amount,
+    uint32_t VoutIdx,
+    uint32_t ToSelfDelay)
 {
     bool ret;
     if (pTxToLocal != NULL) {
         btc_tx_t tx = BTC_TX_INIT;
-        ret = ln_wallet_create_to_local(pChannel, &tx,
-                Amount,
-                ToSelfDelay,
-                pBufWs, pChannel->commit_tx_local.txid, VoutIdx, false);
+        ret = ln_wallet_create_to_local(
+            pChannel,
+            &tx,
+            Amount,
+            ToSelfDelay,
+            pBufWs, pChannel->commit_tx_local.txid, VoutIdx, false);
         if (ret) {
             memcpy(pTxToLocal, &tx, sizeof(tx));
             btc_tx_init(&tx);     //txはfreeさせない
@@ -699,23 +728,24 @@ static bool create_to_local_spentlocal(const ln_channel_t *pChannel,
 }
 
 
-static bool create_to_local_htlcverify(const ln_channel_t *pChannel,
-                    btc_tx_t *pTx,
-                    const uint8_t *pHtlcSig,
-                    const utl_buf_t *pScript,
-                    uint64_t Amount)
+static bool create_to_local_htlcverify(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pTx,
+    const uint8_t *pHtlcSig,
+    const utl_buf_t *pScript,
+    uint64_t Amount)
 {
     utl_buf_t buf_sig = UTL_BUF_INIT;
     btc_sig_rs2der(&buf_sig, pHtlcSig);
 
     bool ret = ln_htlctx_verify(
-                pTx,
-                Amount,
-                NULL,
-                NULL,
-                pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
-                &buf_sig,
-                pScript);
+        pTx,
+        Amount,
+        NULL,
+        NULL,
+        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+        &buf_sig,
+        pScript);
     utl_buf_free(&buf_sig);
     if (ret) {
         M_DBG_PRINT_TX2(pTx);
@@ -723,7 +753,6 @@ static bool create_to_local_htlcverify(const ln_channel_t *pChannel,
         LOGE("fail: verify vout\n");
         btc_tx_free(pTx);
     }
-
     return ret;
 }
 
@@ -749,15 +778,16 @@ static bool create_to_local_htlcverify(const ln_channel_t *pChannel,
  * @param[in]       ToSelfDelay
  * @retval  true    成功
  */
-static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
-                    btc_tx_t *pCloseTxHtlc,
-                    btc_tx_t *pTxHtlc,
-                    utl_push_t *pPush,
-                    uint64_t Amount,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t *pHtlcInfo,
-                    const btc_keys_t *pHtlcKey,
-                    uint32_t ToSelfDelay)
+static bool create_to_local_spenthtlc(
+    const ln_channel_t *pChannel,
+    btc_tx_t *pCloseTxHtlc,
+    btc_tx_t *pTxHtlc,
+    utl_push_t *pPush,
+    uint64_t Amount,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t *pHtlcInfo,
+    const btc_keys_t *pHtlcKey,
+    uint32_t ToSelfDelay)
 {
     bool ret;
     utl_buf_t buf_local_sig = UTL_BUF_INIT;
@@ -767,21 +797,22 @@ static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
     bool ret_img;
     uint8_t txid[BTC_SZ_TXID];
 
-    btc_sig_rs2der(&buf_remote_sig,
-                pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature);
+    btc_sig_rs2der(
+        &buf_remote_sig, pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature);
 
     if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) {
         //Receivedであればpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage,
-                        pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].payment_sha256,
-                        true);
+        ret_img = search_preimage(
+            preimage,
+            pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].payment_hash,
+            true);
         LOGD("[received]have preimage=%s\n", (ret_img) ? "yes" : "NO");
     } else {
         ret_img = false;
         LOGD("[offered]\n");
     }
     if ( ((pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) && ret_img) ||
-            (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ) {
+        (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ) {
         //継続
     } else {
         LOGD("skip create HTLC tx\n");
@@ -791,19 +822,21 @@ static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
     }
 
     //署名:HTLC Success/Timeout Transaction
-    ret = ln_htlctx_sign(pTxHtlc,
-                &buf_local_sig,
-                Amount,
-                pHtlcKey,
-                &pHtlcInfo->wit_script);
+    ret = ln_htlctx_sign(
+        pTxHtlc,
+        &buf_local_sig,
+        Amount,
+        pHtlcKey,
+        &pHtlcInfo->wit_script);
     if (ret) {
-        ret = ln_htlctx_set_vin(pTxHtlc,
-                &buf_local_sig,
-                &buf_remote_sig,
-                (ret_img) ? preimage : NULL,
-                NULL,
-                &pHtlcInfo->wit_script,
-                LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+        ret = ln_htlctx_set_vin(
+            pTxHtlc,
+            &buf_local_sig,
+            &buf_remote_sig,
+            (ret_img) ? preimage : NULL,
+            NULL,
+            &pHtlcInfo->wit_script,
+            LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
     }
     utl_buf_free(&buf_remote_sig);
     utl_buf_free(&buf_local_sig);
@@ -818,10 +851,12 @@ static bool create_to_local_spenthtlc(const ln_channel_t *pChannel,
 
     // HTLC Timeout/Success Txを作った場合はそれを取り戻す準備をする
     btc_tx_txid(pTxHtlc, txid);
-    ret = ln_wallet_create_to_local(pChannel, &tx,
-                pTxHtlc->vout[0].value,
-                ToSelfDelay,
-                pBufWs, txid, 0, false);
+    ret = ln_wallet_create_to_local(
+        pChannel,
+        &tx,
+        pTxHtlc->vout[0].value,
+        ToSelfDelay,
+        pBufWs, txid, 0, false);
     if (ret) {
         LOGD("*** HTLC out Tx ***\n");
         M_DBG_PRINT_TX2(&tx);
@@ -839,11 +874,12 @@ LABEL_EXIT:
 }
 
 
-static void create_to_remote_htlc_info(const ln_channel_t *pChannel,
-                    ln_comtx_htlc_info_t **ppHtlcInfo,
-                    uint16_t *pCnt,
-                    uint64_t *pOurMsat,
-                    uint64_t *pTheirMsat)
+static void create_remote_htlc_info_amount(
+    const ln_channel_t *pChannel,
+    ln_comtx_htlc_info_t **ppHtlcInfo,
+    uint16_t *pCnt,
+    uint64_t *pOurMsat,
+    uint64_t *pTheirMsat)
 {
     uint16_t cnt = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -889,7 +925,7 @@ static void create_to_remote_htlc_info(const ln_channel_t *pChannel,
                 ppHtlcInfo[cnt]->add_htlc_idx = idx;
                 ppHtlcInfo[cnt]->cltv_expiry = p_htlc->cltv_expiry;
                 ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
-                ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_sha256;
+                ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_hash;
 
                 LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
                 cnt++;
@@ -898,7 +934,6 @@ static void create_to_remote_htlc_info(const ln_channel_t *pChannel,
             }
         }
     }
-
     *pCnt = cnt;
 }
 
@@ -927,14 +962,15 @@ static void create_to_remote_htlc_info(const ln_channel_t *pChannel,
  * @param[in]       pFeeInfo
  * @retval  true    成功
  */
-static bool create_to_remote_spent(const ln_channel_t *pChannel,
-                    ln_commit_tx_t *pCommit,
-                    ln_close_force_t *pClose,
-                    uint8_t *pHtlcSigs,
-                    const btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t **ppHtlcInfo,
-                    const ln_comtx_base_fee_info_t *pFeeInfo)
+static bool create_to_remote_spent(
+    const ln_channel_t *pChannel,
+    ln_commit_tx_t *pCommit,
+    ln_close_force_t *pClose,
+    uint8_t *pHtlcSigs,
+    const btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t **ppHtlcInfo,
+    const ln_comtx_base_fee_info_t *pFeeInfo)
 {
     bool ret = true;
     uint16_t htlc_num = 0;
@@ -965,8 +1001,7 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
 
                 //wallet保存用のデータ作成
                 ret = ln_wallet_create_to_remote(
-                            pChannel, &tx, pTxCommit->vout[vout_idx].value,
-                            pCommit->txid, vout_idx);
+                    pChannel, &tx, pTxCommit->vout[vout_idx].value, pCommit->txid, vout_idx);
                 if (ret) {
                     memcpy(&pClose->p_tx[LN_CLOSE_IDX_TO_REMOTE], &tx, sizeof(tx));
                     btc_tx_init(&tx);     //txはfreeさせない
@@ -978,23 +1013,23 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
             }
         } else {
             const ln_comtx_htlc_info_t *p_htlc_info = ppHtlcInfo[htlc_idx];
-            const uint8_t *p_payhash = pChannel->cnl_add_htlc[p_htlc_info->add_htlc_idx].payment_sha256;
+            const uint8_t *p_payhash = pChannel->cnl_add_htlc[p_htlc_info->add_htlc_idx].payment_hash;
             uint64_t fee_sat = (p_htlc_info->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? pFeeInfo->htlc_timeout_fee : pFeeInfo->htlc_success_fee;
             if (pTxCommit->vout[vout_idx].value >= pFeeInfo->dust_limit_satoshi + fee_sat) {
                 ret = create_to_remote_spenthtlc(
-                                pCommit,
-                                pTxHtlcs,
-                                pHtlcSigs,
-                                pTxCommit,
-                                pBufWs,
-                                p_htlc_info,
-                                &htlckey,
-                                &buf_remotesig,
-                                fee_sat,
-                                htlc_num,
-                                vout_idx,
-                                p_payhash,
-                                (pClose != NULL));
+                    pCommit,
+                    pTxHtlcs,
+                    pHtlcSigs,
+                    pTxCommit,
+                    pBufWs,
+                    p_htlc_info,
+                    &htlckey,
+                    &buf_remotesig,
+                    fee_sat,
+                    htlc_num,
+                    vout_idx,
+                    p_payhash,
+                    (pClose != NULL));
                 if (ret) {
                     if (pClose != NULL) {
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
@@ -1007,8 +1042,7 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
                 htlc_num++;
             } else {
                 LOGD("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
-                            vout_idx, pTxCommit->vout[vout_idx].value,
-                            pFeeInfo->dust_limit_satoshi + fee_sat);
+                    vout_idx, pTxCommit->vout[vout_idx].value, pFeeInfo->dust_limit_satoshi + fee_sat);
             }
         }
     }
@@ -1052,19 +1086,19 @@ static bool create_to_remote_spent(const ln_channel_t *pChannel,
  * @retval  true    成功
  */
 static bool create_to_remote_spenthtlc(
-                    ln_commit_tx_t *pCommit,
-                    btc_tx_t *pTxHtlcs,
-                    uint8_t *pHtlcSigs,
-                    const btc_tx_t *pTxCommit,
-                    const utl_buf_t *pBufWs,
-                    const ln_comtx_htlc_info_t *pHtlcInfo,
-                    const btc_keys_t *pHtlcKey,
-                    const utl_buf_t *pBufRemoteSig,
-                    uint64_t Fee,
-                    uint8_t HtlcNum,
-                    uint32_t VoutIdx,
-                    const uint8_t *pPayHash,
-                    bool bClosing)
+    ln_commit_tx_t *pCommit,
+    btc_tx_t *pTxHtlcs,
+    uint8_t *pHtlcSigs,
+    const btc_tx_t *pTxCommit,
+    const utl_buf_t *pBufWs,
+    const ln_comtx_htlc_info_t *pHtlcInfo,
+    const btc_keys_t *pHtlcKey,
+    const utl_buf_t *pBufRemoteSig,
+    uint64_t Fee,
+    uint8_t HtlcNum,
+    uint32_t VoutIdx,
+    const uint8_t *pPayHash,
+    bool bClosing)
 {
     bool ret = false;
     btc_tx_t tx = BTC_TX_INIT;
@@ -1202,9 +1236,8 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bC
     prm.image = pPreImage;
     prm.hash = pPayHash;
     prm.b_closing = bClosing;
-    bool ret = ln_db_preimg_search(search_preimage_func, &prm);
-
-    return ret;
+    if (!ln_db_preimg_search(search_preimage_func, &prm)) return false;
+    return true;
 }
 
 

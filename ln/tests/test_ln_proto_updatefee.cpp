@@ -65,7 +65,7 @@ FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_comtx
 FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
 
-FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_msg_update_fee_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_msg_update_fee_t *, const uint8_t *, uint16_t );
@@ -101,12 +101,12 @@ protected:
         RESET_FAKE(ln_db_preimg_search)
         RESET_FAKE(ln_db_preimg_set_expiry)
 
-        RESET_FAKE(ln_comtx_create_to_remote)
+        RESET_FAKE(ln_comtx_create_remote)
 
         RESET_FAKE(ln_msg_update_fee_write)
         RESET_FAKE(ln_msg_update_fee_read)
 
-        ln_comtx_create_to_remote_fake.return_val = true;
+        ln_comtx_create_remote_fake.return_val = true;
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, true);
     }

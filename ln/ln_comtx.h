@@ -28,7 +28,7 @@
 #include "ln.h"
 
 
-/** 自分用commitment transaction作成
+/** create local commitment transaction
  *
  * 自分用(自分が送信することができる)commit_txの署名および受信署名のverifyを行う。
  * また、unilateral closeする際に必要となるデータを作成する。
@@ -46,22 +46,23 @@
  *
  * @param[in,out]       pChannel
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
- * @param[in]           pHtlcSigs         commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
- * @param[in]           HtlcSigsNum       pHtlcSigsの署名数
+ * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
+ * @param[in]           HtlcSigsNum         pHtlcSigsの署名数
  * @param[in]           CommitNum           計算に使用するcommitment_number
- * @param[in]           ToSelfDelay       remoteのToSelfDelay
- * @param[in]           DustLimitSat      localのDustLimitSat
+ * @param[in]           ToSelfDelay         remoteのToSelfDelay
+ * @param[in]           DustLimitSat        localのDustLimitSat
  * @retval      true    成功
  * @note
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
-bool HIDDEN ln_comtx_create_to_local(ln_channel_t *pChannel,
-                    ln_close_force_t *pClose,
-                    const uint8_t *pHtlcSigs,
-                    uint8_t HtlcSigsNum,
-                    uint64_t CommitNum,
-                    uint32_t ToSelfDelay,
-                    uint64_t DustLimitSat);
+bool HIDDEN ln_comtx_create_local(
+    ln_channel_t *pChannel,
+    ln_close_force_t *pClose,
+    const uint8_t *pHtlcSigs,
+    uint8_t HtlcSigsNum,
+    uint64_t CommitNum,
+    uint32_t ToSelfDelay,
+    uint64_t DustLimitSat);
 
 
 /** 相手用 commitment transaction作成
@@ -84,14 +85,15 @@ bool HIDDEN ln_comtx_create_to_local(ln_channel_t *pChannel,
  *
  * @param[in,out]       pChannel
  * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
- * @param[out]          ppHtlcSigs        commitment_signed送信用署名(NULLの場合は代入しない)
+ * @param[out]          ppHtlcSigs          commitment_signed送信用署名(NULLの場合は代入しない)
  * @retval  true    成功
  */
-bool HIDDEN ln_comtx_create_to_remote(const ln_channel_t *pChannel,
-                    ln_commit_tx_t *pCommit,
-                    ln_close_force_t *pClose,
-                    uint8_t **ppHtlcSigs,
-                    uint64_t CommitNum);
+bool HIDDEN ln_comtx_create_remote(
+    const ln_channel_t *pChannel,
+    ln_commit_tx_t *pCommit,
+    ln_close_force_t *pClose,
+    uint8_t **ppHtlcSigs,
+    uint64_t CommitNum);
 
 
 /** P2WSH署名 - 2-of-2 トランザクション更新
@@ -101,18 +103,21 @@ bool HIDDEN ln_comtx_create_to_remote(const ln_channel_t *pChannel,
  * @param[in]       Sort
  * @param[in]       pSig1
  * @param[in]       pSig2
- * @param[in]       pWit2of2
- * @return      true:成功
+ * @param[in]       pWitScript
+ * @retval          true        success
  *
  * @note
  *      - pTx
  *      - #btc_script_2of2_create_redeem_sorted()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
  *          例えば、先に自分のデータ、後に相手のデータ、など。
  */
-bool HIDDEN ln_comtx_set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_script_pubkey_order_t Sort,
-                    const utl_buf_t *pSig1,
-                    const utl_buf_t *pSig2,
-                    const utl_buf_t *pWit2of2);
+bool HIDDEN ln_comtx_set_vin_p2wsh_2of2(
+    btc_tx_t *pTx,
+    int Index,
+    btc_script_pubkey_order_t Sort,
+    const utl_buf_t *pSig1,
+    const utl_buf_t *pSig2,
+    const utl_buf_t *pWitScript);
 
 
 #endif /* LN_COMTX_H__ */

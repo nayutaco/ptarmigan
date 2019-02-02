@@ -381,7 +381,7 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //initial commit tx(Remoteが持つTo-Local)
     //  署名計算のみのため、計算後は破棄する
     //  HTLCは存在しないため、計算省略
-    if (!ln_comtx_create_to_remote(pChannel, &pChannel->commit_tx_remote,
+    if (!ln_comtx_create_remote(pChannel, &pChannel->commit_tx_remote,
         NULL, NULL, //close無し、署名作成無し
         0)) {
         //XXX:
@@ -452,9 +452,14 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     //  initial commit tx(自分が持つTo-Local)
     //    to_self_delayは自分の値(open_channel)を使う
     //    HTLCは存在しない
-    if (!ln_comtx_create_to_local(pChannel,
-        NULL, NULL, 0,  //closeもHTLC署名も無し
-        0, pChannel->commit_tx_local.to_self_delay, pChannel->commit_tx_local.dust_limit_sat)) {
+    if (!ln_comtx_create_local( //closeもHTLC署名も無し
+        pChannel,
+        NULL,
+        NULL,
+        0,
+        0,
+        pChannel->commit_tx_local.to_self_delay,
+        pChannel->commit_tx_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -462,7 +467,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    if (!ln_comtx_create_to_remote(pChannel, &pChannel->commit_tx_remote,
+    if (!ln_comtx_create_remote(pChannel, &pChannel->commit_tx_remote,
         NULL, NULL,     //close無し、署名作成無し
         0)) {
         LOGE("fail: create_to_remote\n");
@@ -524,9 +529,13 @@ bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //initial commit tx(自分が持つTo-Local)
     //  to_self_delayは相手の値(accept_channel)を使う
     //  HTLCは存在しない
-    if (!ln_comtx_create_to_local(pChannel,
-        NULL, NULL, 0,      //closeもHTLC署名も無し
-        0, pChannel->commit_tx_local.to_self_delay, pChannel->commit_tx_local.dust_limit_sat)) {
+    if (!ln_comtx_create_local(pChannel, //closeもHTLC署名も無し
+        NULL,
+        NULL,
+        0,
+        0,
+        pChannel->commit_tx_local.to_self_delay,
+        pChannel->commit_tx_local.dust_limit_sat)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
