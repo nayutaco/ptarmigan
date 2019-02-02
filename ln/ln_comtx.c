@@ -66,6 +66,17 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+//common
+static void create_htlc_info_amount(
+    const ln_channel_t *pChannel,
+    ln_comtx_htlc_info_t **ppHtlcInfo,
+    uint16_t *pCnt,
+    uint64_t *pOurMsat,
+    uint64_t *pTheirMsat,
+    bool bLocal);
+
+
+//local
 static void create_local_htlc_info_amount(
     const ln_channel_t *pChannel,
     ln_comtx_htlc_info_t **ppHtlcInfo,
@@ -110,6 +121,8 @@ static bool create_local_spent_htlc(
     const btc_keys_t *pHtlcKey,
     uint32_t ToSelfDelay);
 
+
+//remote
 static void create_remote_htlc_info_amount(
     const ln_channel_t *pChannel,
     ln_comtx_htlc_info_t **ppHtlcInfo,
@@ -439,60 +452,7 @@ static void create_local_htlc_info_amount(
     uint64_t *pOurMsat,
     uint64_t *pTheirMsat)
 {
-    uint16_t cnt = 0;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        const ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc)) {
-            bool htlcadd = false;
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(p_htlc)) {
-                *pOurMsat -= p_htlc->amount_msat;
-
-                if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
-                    LOGD("addhtlc_offer\n");
-                    htlcadd = true;
-                } else {
-                    LOGD("delhtlc_offer\n");
-                    *pTheirMsat += p_htlc->amount_msat;
-                }
-            }
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(p_htlc)) {
-                *pTheirMsat -= p_htlc->amount_msat;
-
-                if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
-                    LOGD("addhtlc_recv\n");
-                    htlcadd = true;
-                } else {
-                    LOGD("delhtlc_recv\n");
-                    *pOurMsat += p_htlc->amount_msat;
-                }
-            }
-            if (htlcadd) {
-                ppHtlcInfo[cnt] = (ln_comtx_htlc_info_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t));
-                ln_comtx_htlc_info_init(ppHtlcInfo[cnt]);
-                //
-                switch (p_htlc->stat.flag.addhtlc) {
-                case LN_ADDHTLC_RECV:
-                    ppHtlcInfo[cnt]->type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
-                    break;
-                case LN_ADDHTLC_OFFER:
-                    ppHtlcInfo[cnt]->type = LN_COMTX_OUTPUT_TYPE_OFFERED;
-                    break;
-                default:
-                    LOGE("unknown flag: %04x\n", p_htlc->stat.bits);
-                }
-                ppHtlcInfo[cnt]->add_htlc_idx = idx;
-                ppHtlcInfo[cnt]->cltv_expiry = p_htlc->cltv_expiry;
-                ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
-                ppHtlcInfo[cnt]->payment_hash = p_htlc->payment_hash;
-
-                LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
-                cnt++;
-            } else {
-                LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
-            }
-        }
-    }
-    *pCnt = cnt;
+    create_htlc_info_amount(pChannel, ppHtlcInfo, pCnt, pOurMsat, pTheirMsat, true);
 }
 
 
@@ -879,43 +839,53 @@ static void create_remote_htlc_info_amount(
     uint64_t *pOurMsat,
     uint64_t *pTheirMsat)
 {
+    create_htlc_info_amount(pChannel, ppHtlcInfo, pCnt, pOurMsat, pTheirMsat, false);
+}
+
+static void create_htlc_info_amount(
+    const ln_channel_t *pChannel,
+    ln_comtx_htlc_info_t **ppHtlcInfo,
+    uint16_t *pCnt,
+    uint64_t *pOurMsat,
+    uint64_t *pTheirMsat,
+    bool bLocal)
+{
     uint16_t cnt = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         const ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
             bool htlcadd = false;
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc)) {
-                *pTheirMsat -= p_htlc->amount_msat;
+            if (LN_HTLC_ENABLE_ADDHTLC_OFFER(p_htlc, bLocal) || LN_HTLC_ENABLE_FULFILL_OFFER(p_htlc, bLocal)) {
+                *pOurMsat -= p_htlc->amount_msat;
 
-                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc)) {
+                if (LN_HTLC_ENABLE_ADDHTLC_OFFER(p_htlc, bLocal)) {
                     LOGD("addhtlc_offer\n");
                     htlcadd = true;
                 } else {
                     LOGD("delhtlc_offer\n");
-                    *pOurMsat += p_htlc->amount_msat;
+                    *pTheirMsat += p_htlc->amount_msat;
                 }
             }
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(p_htlc)) {
-                *pOurMsat -= p_htlc->amount_msat;
+            if (LN_HTLC_ENABLE_ADDHTLC_RECV(p_htlc, bLocal) || LN_HTLC_ENABLE_FULFILL_RECV(p_htlc, bLocal)) {
+                *pTheirMsat -= p_htlc->amount_msat;
 
-                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc)) {
+                if (LN_HTLC_ENABLE_ADDHTLC_RECV(p_htlc, bLocal)) {
                     LOGD("addhtlc_recv\n");
                     htlcadd = true;
                 } else {
                     LOGD("delhtlc_recv\n");
-                    *pTheirMsat += p_htlc->amount_msat;
+                    *pOurMsat += p_htlc->amount_msat;
                 }
             }
             if (htlcadd) {
                 ppHtlcInfo[cnt] = (ln_comtx_htlc_info_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t));
                 ln_comtx_htlc_info_init(ppHtlcInfo[cnt]);
-                //OFFEREDとRECEIVEDが逆になる
                 switch (p_htlc->stat.flag.addhtlc) {
                 case LN_ADDHTLC_RECV:
-                    ppHtlcInfo[cnt]->type = LN_COMTX_OUTPUT_TYPE_OFFERED;
+                    ppHtlcInfo[cnt]->type = bLocal ? LN_COMTX_OUTPUT_TYPE_RECEIVED : LN_COMTX_OUTPUT_TYPE_OFFERED;
                     break;
                 case LN_ADDHTLC_OFFER:
-                    ppHtlcInfo[cnt]->type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
+                    ppHtlcInfo[cnt]->type = bLocal ? LN_COMTX_OUTPUT_TYPE_OFFERED : LN_COMTX_OUTPUT_TYPE_RECEIVED;
                     break;
                 default:
                     LOGE("unknown flag: %04x\n", p_htlc->stat.bits);

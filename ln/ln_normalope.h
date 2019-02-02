@@ -266,6 +266,22 @@
     )
 
 
+#define LN_HTLC_ENABLE_ADDHTLC_OFFER(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(htlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc))
+
+
+#define LN_HTLC_ENABLE_FULFILL_OFFER(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc))
+
+
+#define LN_HTLC_ENABLE_ADDHTLC_RECV(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc))
+
+
+#define LN_HTLC_ENABLE_FULFILL_RECV(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc))
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
