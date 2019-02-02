@@ -429,7 +429,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].amount_msat);
             printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", pChannel->cnl_add_htlc[lp].cltv_expiry);
             printf(INDENT5 M_QQ("payhash") ": \"");
-            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
+            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].payment_hash, BTC_SZ_HASH256, false);
             printf("\",\n");
             printf(INDENT5 M_QQ("preimage") ": \"");
             utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf, pChannel->cnl_add_htlc[lp].buf_payment_preimage.len, false);
@@ -437,7 +437,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             uint8_t sha[BTC_SZ_HASH256];
             btc_md_sha256(sha, pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf, pChannel->cnl_add_htlc[lp].buf_payment_preimage.len);
             printf(INDENT5 M_QQ("preimage_check") ": ");
-            if (memcmp(sha, pChannel->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
+            if (memcmp(sha, pChannel->cnl_add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {
                 printf(M_QQ("OK") ",\n");
             } else {
                 printf(M_QQ("NG") ",\n");

@@ -73,7 +73,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_write, utl_buf_t *, const ln_msg_fu
 FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, const uint8_t *, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
-FAKE_VALUE_FUNC(bool, ln_comtx_create_to_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,9 +99,9 @@ protected:
         RESET_FAKE(ln_msg_funding_created_read)
         RESET_FAKE(ln_msg_funding_signed_write)
         RESET_FAKE(ln_msg_funding_signed_read)
-        RESET_FAKE(ln_comtx_create_to_remote)
+        RESET_FAKE(ln_comtx_create_remote)
 
-        ln_comtx_create_to_remote_fake.return_val = true;
+        ln_comtx_create_remote_fake.return_val = true;
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, true);
     }
@@ -195,7 +195,7 @@ namespace LN_UPDATE_ADD_HTLC_A {
     // id: 0
     // amount_msat: 100000
     // cltv_expiry: 447
-    // payment_sha256: af06689876eb2016cd66e8e654f2e7fcf8b652d2ba300fb7263b5d9e859b4f98
+    // payment_hash: af06689876eb2016cd66e8e654f2e7fcf8b652d2ba300fb7263b5d9e859b4f98
     // onion_route: 000293dfc14c38d769f33422f2c6b453e38a6d9b24a1eb24940ad0a74387...
     const char WIF[] = "cVmfTVJVbkNZTf6EtPnvdcuG4EUSy1TmbmmcWFW3dA25H4J2sZ4P";
     const uint8_t PEER_NODE_ID[] = {

@@ -726,11 +726,14 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_local.htlc_num);
 
     //local commit_tx
-    bool ret = ln_comtx_create_to_local(pChannel,
-                pClose, NULL, 0,        //closeのみ(HTLC署名無し)
-                pChannel->commit_tx_local.commit_num,
-                pChannel->commit_tx_local.to_self_delay,
-                pChannel->commit_tx_local.dust_limit_sat);
+    bool ret = ln_comtx_create_local( //closeのみ(HTLC署名無し)
+        pChannel,
+        pClose,
+        NULL,
+        0,
+        pChannel->commit_tx_local.commit_num,
+        pChannel->commit_tx_local.to_self_delay,
+        pChannel->commit_tx_local.dust_limit_sat);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
@@ -784,7 +787,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_remote.htlc_num);
 
     //remote commit_tx
-    bool ret = ln_comtx_create_to_remote(pChannel,
+    bool ret = ln_comtx_create_remote(pChannel,
                 &pChannel->commit_tx_remote,
                 pClose, NULL,
                 pChannel->commit_tx_remote.commit_num);
