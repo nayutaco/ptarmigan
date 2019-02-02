@@ -968,8 +968,8 @@ bool ln_db_channel_save(const ln_channel_t *pChannel)
         }
     }
     if (retval != 0) {
-        LOGE("fail: channel_id is 0\n");
-        return false;
+        LOGE("fail through: channel_id is 0\n");
+        return true;
     }
 
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
