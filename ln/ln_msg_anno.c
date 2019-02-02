@@ -282,11 +282,11 @@ static void channel_announcement_print(const ln_msg_channel_announcement_t *pMsg
 
 bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const uint8_t *pBtcPrivKey, btc_script_pubkey_order_t Order)
 {
-    uint16_t offset_preimg = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+    uint16_t offset_preimage = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
     uint16_t offset_sig = (Order == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? 0 : LN_SZ_SIGNATURE;
 
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_hash256(hash, pData + offset_preimg, Len - offset_preimg);
+    btc_md_hash256(hash, pData + offset_preimage, Len - offset_preimage);
     if (!ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash)) {
         LOGE("fail: sign node\n");
         return false;

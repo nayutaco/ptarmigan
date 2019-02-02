@@ -637,11 +637,11 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
                         LOGD("backwind preimage: ");
                         DUMPD(p_buf->buf, p_buf->len);
 
-                        ln_db_preimg_t preimg;
-                        memcpy(preimg.preimage, p_buf->buf, LN_SZ_PREIMAGE);
-                        preimg.amount_msat = 0;
-                        preimg.expiry = UINT32_MAX;
-                        ln_db_preimg_save(&preimg, pDbParam);
+                        ln_db_preimage_t preimage;
+                        memcpy(preimage.preimage, p_buf->buf, LN_SZ_PREIMAGE);
+                        preimage.amount_msat = 0;
+                        preimage.expiry = UINT32_MAX;
+                        ln_db_preimage_save(&preimage, pDbParam);
                     } else {
                         assert(0);
                     }
@@ -824,11 +824,11 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
                     LOGD("backwind preimage: ");
                     DUMPD(p_buf->buf, p_buf->len);
 
-                    ln_db_preimg_t preimg;
-                    memcpy(preimg.preimage, p_buf->buf, LN_SZ_PREIMAGE);
-                    preimg.amount_msat = 0;
-                    preimg.expiry = UINT32_MAX;
-                    ln_db_preimg_save(&preimg, pDbParam);
+                    ln_db_preimage_t preimage;
+                    memcpy(preimage.preimage, p_buf->buf, LN_SZ_PREIMAGE);
+                    preimage.amount_msat = 0;
+                    preimage.expiry = UINT32_MAX;
+                    ln_db_preimage_save(&preimage, pDbParam);
                 } else {
                     assert(0);
                 }

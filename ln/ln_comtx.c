@@ -59,7 +59,7 @@ typedef struct {
     uint8_t         *image;             ///< [out]preimage
     const uint8_t   *hash;              ///< [in]payment_hash
     bool            b_closing;          ///< true:一致したexpiryをUINT32_MAXに変更する
-} preimg_t;
+} preimage_t;
 
 
 /********************************************************************
@@ -1230,11 +1230,11 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bC
     // LOGD("pPayHash(%d)=", bClosing);
     // DUMPD(pPayHash, BTC_SZ_HASH256);
 
-    preimg_t prm;
+    preimage_t prm;
     prm.image = pPreImage;
     prm.hash = pPayHash;
     prm.b_closing = bClosing;
-    if (!ln_db_preimg_search(search_preimage_func, &prm)) return false;
+    if (!ln_db_preimage_search(search_preimage_func, &prm)) return false;
     return true;
 }
 
@@ -1248,7 +1248,7 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
 {
     (void)Amount; (void)Expiry;
 
-    preimg_t *prm = (preimg_t *)p_param;
+    preimage_t *prm = (preimage_t *)p_param;
     uint8_t payment_hash[BTC_SZ_HASH256];
     bool ret = false;
 
@@ -1262,7 +1262,7 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
         memcpy(prm->image, pPreImage, LN_SZ_PREIMAGE);
         if ((prm->b_closing) && (Expiry != UINT32_MAX)) {
             //期限切れによる自動削除をしない
-            ln_db_preimg_set_expiry(p_db_param, UINT32_MAX);
+            ln_db_preimage_set_expiry(p_db_param, UINT32_MAX);
         }
         ret = true;
     }

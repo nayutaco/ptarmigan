@@ -77,7 +77,7 @@ typedef enum {
 } ln_db_cur_t;
 
 
-/** @typedef    ln_db_preimg_t
+/** @typedef    ln_db_preimage_t
  *  @brief      preimage/invoice
  */
 typedef struct {
@@ -85,7 +85,7 @@ typedef struct {
     uint64_t    amount_msat;
     uint64_t    creation_time;
     uint32_t    expiry;
-} ln_db_preimg_t;
+} ln_db_preimage_t;
 
 
 /** @typedef    ln_db_wallet_t
@@ -124,16 +124,16 @@ typedef struct {
 typedef bool (*ln_db_func_cmp_t)(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 
 
-/** @typedef    ln_db_func_preimg_t
- *  @brief      比較関数(#ln_db_preimg_search())
+/** @typedef    ln_db_func_preimage_t
+ *  @brief      比較関数(#ln_db_preimage_search())
  *
  * @param[in]       pChannel        channel from DB
  * @param[in]       p_db_param      DB情報(ln_dbで使用する)
- * @param[in]       p_param         #ln_db_preimg_search()に渡したデータポインタ
+ * @param[in]       p_param         #ln_db_preimage_search()に渡したデータポインタ
  * @retval  true    比較終了
  * @retval  false   比較継続
  */
-typedef bool (*ln_db_func_preimg_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+typedef bool (*ln_db_func_preimage_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 
 /** @typedef    ln_db_func_wallet_t
@@ -614,7 +614,7 @@ bool ln_db_invoice_drop(void);
  * @param[in,out]   pDb
  * @retval  true
  */
-bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb);
+bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb);
 
 
 /** preimage削除
@@ -622,7 +622,7 @@ bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb);
  * @param[in]       pPreImage
  * @retval  true
  */
-bool ln_db_preimg_del(const uint8_t *pPreImage);
+bool ln_db_preimage_del(const uint8_t *pPreImage);
 
 
 /** preimage検索
@@ -631,7 +631,7 @@ bool ln_db_preimg_del(const uint8_t *pPreImage);
  * @param[in,out]   p_param
  * @retval  true    pFuncがtrueを返した(その時点で検索を中断している)
  */
-bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param);
+bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *p_param);
 
 
 /** preimage削除(payment_hash検索)
@@ -639,7 +639,7 @@ bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param);
  * @param[in]       pPreImageHash
  * @retval  true
  */
-bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash);
+bool ln_db_preimage_del_hash(const uint8_t *pPreImageHash);
 
 
 /** preimage cursorオープン
@@ -647,7 +647,7 @@ bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash);
  * @param[in,out]   ppCur
  * @retval  true
  */
-bool ln_db_preimg_cur_open(void **ppCur);
+bool ln_db_preimage_cur_open(void **ppCur);
 
 
 /** preimage cursorクローズ
@@ -655,7 +655,7 @@ bool ln_db_preimg_cur_open(void **ppCur);
  * @param[in]       pCur
  * @retval  true
  */
-void ln_db_preimg_cur_close(void *pCur);
+void ln_db_preimage_cur_close(void *pCur);
 
 
 /** preimage取得
@@ -665,13 +665,13 @@ void ln_db_preimg_cur_close(void *pCur);
  * @param[out]      pPreImg
  * @retval  true        エラーでは無い
  */
-bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg);
+bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreImg);
 
 
 /** preimage expiry更新
  *
  */
-bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
+bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry);
 
 
 #ifdef LN_UGLY_NORMAL
