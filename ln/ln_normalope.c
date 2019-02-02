@@ -1285,18 +1285,18 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
     bool ret;
 
     //preimage検索
-    ln_db_preimg_t preimg;
+    ln_db_preimage_t preimage;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
-    preimg.amount_msat = (uint64_t)-1;
-    preimg.expiry = 0;
+    preimage.amount_msat = (uint64_t)-1;
+    preimage.expiry = 0;
     void *p_cur;
-    ret = ln_db_preimg_cur_open(&p_cur);
+    ret = ln_db_preimage_cur_open(&p_cur);
     while (ret) {
         bool detect;
-        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
+        ret = ln_db_preimage_cur_get(p_cur, &detect, &preimage);     //from invoice
         if (detect) {
-            memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
+            memcpy(pPreImage, preimage.preimage, LN_SZ_PREIMAGE);
             ln_payment_hash_calc(preimage_hash, pPreImage);
             if (memcmp(preimage_hash, pAddHtlc->payment_hash, BTC_SZ_HASH256) == 0) {
                 //一致
@@ -1306,7 +1306,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
             }
         }
     }
-    ln_db_preimg_cur_close(p_cur);
+    ln_db_preimage_cur_close(p_cur);
 
     if (!ret) {
         //C1. if the payment hash has already been paid:
@@ -1323,8 +1323,8 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
 
     //C2. if the amount paid is less than the amount expected:
     //      incorrect_payment_amount
-    if (pAddHtlc->amount_msat < preimg.amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, preimg.amount_msat);
+    if (pAddHtlc->amount_msat < preimage.amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, preimage.amount_msat);
         ret = false;
         utl_push_u16be(pPushReason, LNONION_INCORR_PAY_AMT);
         //no data
@@ -1334,8 +1334,8 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
 
     //C4. if the amount paid is more than twice the amount expected:
     //      incorrect_payment_amount
-    if (preimg.amount_msat * 2 < pAddHtlc->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, preimg.amount_msat * 2, pDataOut->amt_to_forward);
+    if (preimage.amount_msat * 2 < pAddHtlc->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, preimage.amount_msat * 2, pDataOut->amt_to_forward);
         ret = false;
         utl_push_u16be(pPushReason, LNONION_INCORR_PAY_AMT);
         //no data
@@ -1596,7 +1596,7 @@ static void clear_htlc(ln_update_add_htlc_t *p_htlc)
             dbg_htlcflag_delhtlc_str(p_htlc->stat.flag.delhtlc),
             dbg_htlcflag_delhtlc_str(p_htlc->stat.flag.fin_delhtlc));
 
-    ln_db_preimg_del(p_htlc->buf_payment_preimage.buf);
+    ln_db_preimage_del(p_htlc->buf_payment_preimage.buf);
     utl_buf_free(&p_htlc->buf_payment_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_free(&p_htlc->buf_shared_secret);

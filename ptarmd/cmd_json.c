@@ -697,33 +697,33 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *result = NULL;
     uint8_t preimage_hash[BTC_SZ_HASH256];
-    ln_db_preimg_t preimg;
+    ln_db_preimage_t preimage;
     void *p_cur;
     bool ret;
 
     LOGD("$$$: [JSONRPC]listinvoice\n");
 
     result = cJSON_CreateArray();
-    ret = ln_db_preimg_cur_open(&p_cur);
+    ret = ln_db_preimage_cur_open(&p_cur);
     while (ret) {
         bool detect;
-        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
+        ret = ln_db_preimage_cur_get(p_cur, &detect, &preimage);
         if (detect) {
-            ln_payment_hash_calc(preimage_hash, preimg.preimage);
+            ln_payment_hash_calc(preimage_hash, preimage.preimage);
             cJSON *json = cJSON_CreateObject();
 
             char str_hash[BTC_SZ_HASH256 * 2 + 1];
             utl_str_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             cJSON_AddItemToObject(json, "hash", cJSON_CreateString(str_hash));
-            cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(preimg.amount_msat));
+            cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(preimage.amount_msat));
             char time[UTL_SZ_TIME_FMT_STR + 1];
-            cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(utl_time_fmt(time, preimg.creation_time)));
-            if (preimg.expiry != UINT32_MAX) {
-                cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(preimg.expiry));
+            cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(utl_time_fmt(time, preimage.creation_time)));
+            if (preimage.expiry != UINT32_MAX) {
+                cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(preimage.expiry));
                 // ln_r_field_t *p_r_field = NULL;
                 // uint8_t r_fieldnum = 0;
                 // create_bolt11_r_field(&p_r_field, &r_fieldnum);
-                // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, p_r_field, r_fieldnum, LN_MIN_FINAL_CLTV_EXPIRY);
+                // char *p_invoice = create_bolt11(preimage_hash, preimage.amount_msat, preimage.expiry, p_r_field, r_fieldnum, LN_MIN_FINAL_CLTV_EXPIRY);
                 // if (p_invoice != NULL) {
                 //     cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
                 //     UTL_DBG_FREE(p_invoice);
@@ -735,7 +735,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON_AddItemToArray(result, json);
         }
     }
-    ln_db_preimg_cur_close(p_cur);
+    ln_db_preimage_cur_close(p_cur);
 
     return result;
 }
@@ -1666,18 +1666,18 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
 {
     LOGD("invoice\n");
 
-    ln_db_preimg_t preimg;
+    ln_db_preimage_t preimage;
 
-    btc_rng_rand(preimg.preimage, LN_SZ_PREIMAGE);
+    btc_rng_rand(preimage.preimage, LN_SZ_PREIMAGE);
 
     ptarmd_preimage_lock();
-    preimg.amount_msat = AmountMsat;
-    preimg.expiry = LN_INVOICE_EXPIRY;
-    preimg.creation_time = 0;
-    ln_db_preimg_save(&preimg, NULL);
+    preimage.amount_msat = AmountMsat;
+    preimage.expiry = LN_INVOICE_EXPIRY;
+    preimage.creation_time = 0;
+    ln_db_preimage_save(&preimage, NULL);
     ptarmd_preimage_unlock();
 
-    ln_payment_hash_calc(pPayHash, preimg.preimage);
+    ln_payment_hash_calc(pPayHash, preimage.preimage);
     return 0;
 }
 
@@ -1692,9 +1692,9 @@ static int cmd_eraseinvoice_proc(const uint8_t *pPayHash)
     bool ret;
 
     if (pPayHash != NULL) {
-        ret = ln_db_preimg_del_hash(pPayHash);
+        ret = ln_db_preimage_del_hash(pPayHash);
     } else {
-        ret = ln_db_preimg_del(NULL);
+        ret = ln_db_preimage_del(NULL);
     }
     if (!ret) {
         return RPCERR_INVOICE_ERASE;

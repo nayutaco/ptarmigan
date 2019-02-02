@@ -54,16 +54,16 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
 
-FAKE_VOID_FUNC(ln_db_preimg_cur_close, void *);
+FAKE_VOID_FUNC(ln_db_preimage_cur_close, void *);
 FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, uint8_t);
-FAKE_VALUE_FUNC(bool, ln_db_preimg_del, const uint8_t *);
-FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_open, void **);
-FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_get, void *, bool *, ln_db_preimg_t *);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_del, const uint8_t *);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_open, void **);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_comtx_output_type_t, uint32_t);
-FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
-FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 
 FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, uint8_t **, uint64_t);
 
@@ -90,16 +90,16 @@ class ln: public testing::Test {
 protected:
     virtual void SetUp() {
         //utl_log_init_stderr();
-        RESET_FAKE(ln_db_preimg_cur_close)
+        RESET_FAKE(ln_db_preimage_cur_close)
         RESET_FAKE(ln_db_annocnlupd_load)
-        RESET_FAKE(ln_db_preimg_del)
-        RESET_FAKE(ln_db_preimg_cur_open)
-        RESET_FAKE(ln_db_preimg_cur_get)
+        RESET_FAKE(ln_db_preimage_del)
+        RESET_FAKE(ln_db_preimage_cur_open)
+        RESET_FAKE(ln_db_preimage_cur_get)
         RESET_FAKE(ln_db_channel_search)
         RESET_FAKE(ln_db_channel_search_readonly)
         RESET_FAKE(ln_db_phash_save)
-        RESET_FAKE(ln_db_preimg_search)
-        RESET_FAKE(ln_db_preimg_set_expiry)
+        RESET_FAKE(ln_db_preimage_search)
+        RESET_FAKE(ln_db_preimage_set_expiry)
 
         RESET_FAKE(ln_comtx_create_remote)
 

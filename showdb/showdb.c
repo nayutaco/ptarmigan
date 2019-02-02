@@ -993,21 +993,21 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 
         bool ret = true;
         while (ret) {
-            ln_db_preimg_t preimg;
+            ln_db_preimage_t preimage;
             bool detect;
-            ret = ln_db_preimg_cur_get(&cur, &detect, &preimg);
+            ret = ln_db_preimage_cur_get(&cur, &detect, &preimage);
             if (detect) {
                 if (cnt4) {
                     printf(",");
                 }
                 printf("{\n");
                 printf(INDENT1 "\"");
-                utl_dbg_dump(stdout, preimg.preimage, LN_SZ_PREIMAGE, false);
+                utl_dbg_dump(stdout, preimage.preimage, LN_SZ_PREIMAGE, false);
                 printf("\",\n");
-                printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimg.amount_msat);
-                printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimg.expiry);
+                printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimage.amount_msat);
+                printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimage.expiry);
                 char time[UTL_SZ_TIME_FMT_STR + 1];
-                printf(INDENT1 M_QQ("creation") ": %s\n", utl_time_fmt(time, preimg.creation_time));
+                printf(INDENT1 M_QQ("creation") ": %s\n", utl_time_fmt(time, preimage.creation_time));
                 printf("}");
                 cnt4++;
             }

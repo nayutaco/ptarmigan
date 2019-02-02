@@ -289,7 +289,7 @@ typedef struct {
 } nodeinfo_t;
 
 
-/** @typedef    preimg_info_t
+/** @typedef    preimage_info_t
  *  @brief      [preimage]に保存するpreimage情報
  */
 typedef struct {
@@ -298,15 +298,15 @@ typedef struct {
     uint32_t expiry;            ///< expiry[sec]
                                 //      0: 3600s=1h(BOLT#11のデフォルト値)
                                 //      UINT32_MAX: expiryによる自動削除禁止
-} preimg_info_t;
+} preimage_info_t;
 
 
-/** #ln_db_channel_del_prm()用(ln_db_preimg_search)
+/** #ln_db_channel_del_prm()用(ln_db_preimage_search)
  *
  */
 typedef struct {
     const ln_update_add_htlc_t  *add_htlc;
-} preimg_close_t;
+} preimage_close_t;
 
 
 /********************************************************************
@@ -595,10 +595,10 @@ static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId);
 static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId);
 static void anno_del_prune(void);
 
-static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
-static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
-static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
-static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+static bool preimage_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
+static void preimage_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
+static bool preimage_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+static bool preimage_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 static int wallet_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
@@ -1018,9 +1018,9 @@ bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param)
     MDB_TXN_CHECK_CHANNEL(p_cur->txn);
 
     //add_htlcと関連するpreimage削除
-    preimg_close_t prm;
+    preimage_close_t prm;
     prm.add_htlc = pChannel->cnl_add_htlc;
-    ln_db_preimg_search(preimg_close_func, &prm);
+    ln_db_preimage_search(preimage_close_func, &prm);
 
     //add_htlc
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
@@ -2747,19 +2747,19 @@ LABEL_EXIT:
  * [node]payment preimage
  ********************************************************************/
 
-bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb)
+bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb)
 {
     bool ret;
     ln_lmdb_db_t db;
     MDB_val key, data;
     MDB_txn *txn = NULL;
-    preimg_info_t info;
+    preimage_info_t info;
 
     if (pDb != NULL) {
         txn = ((ln_lmdb_db_t *)pDb)->txn;
         MDB_TXN_CHECK_NODE(txn);
     }
-    ret = preimg_open(&db, txn);
+    ret = preimage_open(&db, txn);
     if (!ret) {
         LOGE("fail\n");
         return false;
@@ -2779,19 +2779,19 @@ bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb)
         LOGE("ERR: %s\n", mdb_strerror(retval));
     }
 
-    preimg_close(&db, txn);
+    preimage_close(&db, txn);
 
     return retval == 0;
 }
 
 
-bool ln_db_preimg_del(const uint8_t *pPreImage)
+bool ln_db_preimage_del(const uint8_t *pPreImage)
 {
     bool ret;
     int retval = -1;
     ln_lmdb_db_t db;
 
-    ret = preimg_open(&db, NULL);
+    ret = preimage_open(&db, NULL);
     if (!ret) {
         LOGE("fail: open\n");
         goto LABEL_EXIT;
@@ -2815,43 +2815,43 @@ bool ln_db_preimg_del(const uint8_t *pPreImage)
         LOGE("ERR: %s\n", mdb_strerror(retval));
     }
 
-    preimg_close(&db, NULL);
+    preimage_close(&db, NULL);
 
 LABEL_EXIT:
     return retval == 0;
 }
 
 
-bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param)
+bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *p_param)
 {
     void *p_cur;
-    bool ret = ln_db_preimg_cur_open(&p_cur);
+    bool ret = ln_db_preimage_cur_open(&p_cur);
     while (ret) {
-        ln_db_preimg_t preimg;
+        ln_db_preimage_t preimage;
         bool detect;
-        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
+        ret = ln_db_preimage_cur_get(p_cur, &detect, &preimage);
         if (detect) {
-            ret = (*pFunc)(preimg.preimage, preimg.amount_msat, preimg.expiry, p_cur, p_param);
+            ret = (*pFunc)(preimage.preimage, preimage.amount_msat, preimage.expiry, p_cur, p_param);
             if (ret) {
                 break;
             }
             ret = true;
         }
     }
-    ln_db_preimg_cur_close(p_cur);
+    ln_db_preimage_cur_close(p_cur);
 
     return ret;
 }
 
 
-bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash)
+bool ln_db_preimage_del_hash(const uint8_t *pPreImageHash)
 {
-    bool ret = ln_db_preimg_search(preimg_del_func, (CONST_CAST uint8_t *)pPreImageHash);
+    bool ret = ln_db_preimage_search(preimage_del_func, (CONST_CAST uint8_t *)pPreImageHash);
     return ret;
 }
 
 
-bool ln_db_preimg_cur_open(void **ppCur)
+bool ln_db_preimage_cur_open(void **ppCur)
 {
     int         retval;
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)UTL_DBG_MALLOC(sizeof(lmdb_cursor_t));
@@ -2877,7 +2877,7 @@ LABEL_EXIT:
 }
 
 
-void ln_db_preimg_cur_close(void *pCur)
+void ln_db_preimage_cur_close(void *pCur)
 {
     if (pCur != NULL) {
         lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
@@ -2890,7 +2890,7 @@ void ln_db_preimg_cur_close(void *pCur)
 }
 
 
-bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
+bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreImg)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
@@ -2900,7 +2900,7 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
     *pDetect = false;
 
     if ((retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
+        preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
         pPreImg->expiry = p_info->expiry;
@@ -2926,7 +2926,7 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
 }
 
 
-bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry)
+bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
@@ -2934,15 +2934,15 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry)
 
     retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_GET_CURRENT);
     if (retval == 0) {
-        preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
+        preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
 
-        preimg_info_t info;
+        preimage_info_t info;
         memcpy(&info, p_info, data.mv_size);
         info.expiry = Expiry;
         data.mv_data = &info;
-        data.mv_size = sizeof(preimg_info_t);
+        data.mv_size = sizeof(preimage_info_t);
         retval = mdb_cursor_put(p_cur->cursor, &key, &data, MDB_CURRENT);
     }
     if (retval == 0) {
@@ -4634,7 +4634,7 @@ static void anno_del_prune(void)
  * private functions: preimage
  ********************************************************************/
 
-static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn)
+static bool preimage_open(ln_lmdb_db_t *p_db, MDB_txn *txn)
 {
     int retval;
 
@@ -4659,7 +4659,7 @@ LABEL_EXIT:
 }
 
 
-static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
+static void preimage_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
 {
     if (txn == NULL) {
         MDB_TXN_COMMIT(p_db->txn);
@@ -4667,11 +4667,11 @@ static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
 }
 
 
-/** #ln_db_preimg_del_hash()用処理関数
+/** #ln_db_preimage_del_hash()用処理関数
  *
  * SHA256(preimage)がpayment_hashと一致した場合にDBから削除する。
  */
-static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+static bool preimage_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
 {
     (void)Amount; (void)Expiry;
 
@@ -4696,12 +4696,12 @@ static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t 
  *
  * SHA256(preimage)がpayment_hashと一致した場合、DBから削除する。
  */
-static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+static bool preimage_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
 {
     (void)Amount; (void)Expiry;
 
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
-    preimg_close_t *prm = (preimg_close_t *)p_param;
+    preimage_close_t *prm = (preimage_close_t *)p_param;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
     LOGD("compare preimage : ");

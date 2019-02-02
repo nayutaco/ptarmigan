@@ -307,13 +307,13 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 
     btc_buf_w_t buf_w;
     btc_buf_w_t buf_w_r_field;
-    btc_buf_w_t buf_w_preimg;
+    btc_buf_w_t buf_w_preimage;
 
     *pp_invoice = NULL;
 
     btc_buf_w_init(&buf_w, 0);
     btc_buf_w_init(&buf_w_r_field, 0);
-    btc_buf_w_init(&buf_w_preimg, 0);
+    btc_buf_w_init(&buf_w_preimage, 0);
 
     char hrp[M_SZ_PREFIX_MAX + M_UINT64_MAX_DIGIT + 1]; //prefix | amount | multiplier
 
@@ -425,10 +425,10 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     //hash
     // data: 5bits data -> 8 bits data
     // and hashed
-    if (!btc_buf_w_write_data(&buf_w_preimg, hrp, strlen(hrp))) goto LABEL_EXIT;
-    if (!write_convert_bits_5to8(&buf_w_preimg, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), true)) goto LABEL_EXIT;
+    if (!btc_buf_w_write_data(&buf_w_preimage, hrp, strlen(hrp))) goto LABEL_EXIT;
+    if (!write_convert_bits_5to8(&buf_w_preimage, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), true)) goto LABEL_EXIT;
     uint8_t hash[BTC_SZ_HASH256];
-    btc_md_sha256(hash, btc_buf_w_get_data(&buf_w_preimg), btc_buf_w_get_len(&buf_w_preimg));
+    btc_md_sha256(hash, btc_buf_w_get_data(&buf_w_preimage), btc_buf_w_get_len(&buf_w_preimage));
 
     //signature
     uint8_t sign[BTC_SZ_SIGN_RS + 1]; //with recovery id
@@ -450,7 +450,7 @@ LABEL_EXIT:
     if (!ret) UTL_DBG_FREE(*pp_invoice);
     btc_buf_w_free(&buf_w);
     btc_buf_w_free(&buf_w_r_field);
-    btc_buf_w_free(&buf_w_preimg);
+    btc_buf_w_free(&buf_w_preimage);
     return ret;
 }
 
@@ -556,8 +556,8 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     uint8_t *p_data = NULL;
     size_t data_len;
 
-    uint8_t *p_preimg = NULL;
-    size_t preimg_len;
+    uint8_t *p_preimage = NULL;
+    size_t preimage_len;
 
     const uint8_t *p_tag;
     const uint8_t *p_sig;
@@ -576,8 +576,8 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_data = (uint8_t *)UTL_DBG_MALLOC(tmp_len);
     if (!p_data) goto LABEL_EXIT;
 
-    p_preimg = (uint8_t *)UTL_DBG_MALLOC(tmp_len);
-    if (!p_preimg) goto LABEL_EXIT;
+    p_preimage = (uint8_t *)UTL_DBG_MALLOC(tmp_len);
+    if (!p_preimage) goto LABEL_EXIT;
 
     data_len = tmp_len;
     if (!btc_bech32_decode(hrp, sizeof(hrp), p_data, &data_len, invoice, true)) goto LABEL_EXIT;
@@ -610,10 +610,10 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_sig = p_data + data_len - M_SZ_SIG_5BIT_BYTE;
 
     //hash
-    preimg_len = strlen(hrp);
-    strncpy((char *)p_preimg, (const char *)hrp, preimg_len);
-    if (!btc_convert_bits(p_preimg, &preimg_len, 8, p_data, data_len - M_SZ_SIG_5BIT_BYTE, 5, true)) goto LABEL_EXIT;
-    btc_md_sha256(hash, p_preimg, preimg_len);
+    preimage_len = strlen(hrp);
+    strncpy((char *)p_preimage, (const char *)hrp, preimage_len);
+    if (!btc_convert_bits(p_preimage, &preimage_len, 8, p_data, data_len - M_SZ_SIG_5BIT_BYTE, 5, true)) goto LABEL_EXIT;
+    btc_md_sha256(hash, p_preimage, preimage_len);
 
     //signature
     if (!btc_convert_bits(sig, &sig_len, 8, p_sig, M_SZ_SIG_5BIT_BYTE, 5, false)) goto LABEL_EXIT;
@@ -643,7 +643,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
 
 LABEL_EXIT:
     if (p_data) UTL_DBG_FREE(p_data);
-    if (p_preimg) UTL_DBG_FREE(p_preimg);
+    if (p_preimage) UTL_DBG_FREE(p_preimage);
     if (ret) {
         *pp_invoice_data = p_invoice_data;
     } else {
