@@ -182,7 +182,7 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     utl_buf_t buf = UTL_BUF_INIT;
     msg.p_channel_id = pChannel->channel_id;
     msg.fee_satoshis = pChannel->close_fee_sat;
-    msg.p_signature = pChannel->commit_tx_remote.signature;
+    msg.p_signature = pChannel->commit_tx_remote.remote_sig;
     if (!ln_msg_closing_signed_write(&buf, &msg)) {
         LOGE("fail: create closeing_signed\n");
         return false;
@@ -210,7 +210,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(pChannel->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_tx_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
     if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
@@ -294,8 +294,8 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
  * @param[in]   bVerify     true:verifyを行う
  * @note
  *      - INPUT: 2-of-2(順番はpChannel->funding_tx.key_order)
- *          - 自分：pChannel->commit_tx_remote.signature
- *          - 相手：pChannel->commit_tx_local.signature
+ *          - 自分：pChannel->commit_tx_remote.remote_sig
+ *          - 相手：pChannel->commit_tx_local.remote_sig
  *      - OUTPUT:
  *          - 自分：pChannel->shutdown_scriptpk_local, pChannel->our_msat / 1000
  *          - 相手：pChannel->shutdown_scriptpk_remote, pChannel->their_msat / 1000
@@ -359,13 +359,13 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
     }
 
     //送信用署名
-    btc_sig_der2rs(pChannel->commit_tx_remote.signature, buf_sig.buf, buf_sig.len);
+    btc_sig_der2rs(pChannel->commit_tx_remote.remote_sig, buf_sig.buf, buf_sig.len);
 
     //署名追加
     if (bVerify) {
         utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
 
-        btc_sig_rs2der(&buf_sig_from_remote, pChannel->commit_tx_local.signature);
+        btc_sig_rs2der(&buf_sig_from_remote, pChannel->commit_tx_local.remote_sig);
         ln_comtx_set_vin_p2wsh_2of2(pTx, 0, pChannel->funding_tx.key_order, &buf_sig, &buf_sig_from_remote, &pChannel->funding_tx.wit_script);
         utl_buf_free(&buf_sig_from_remote);
 

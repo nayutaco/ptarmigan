@@ -405,7 +405,7 @@ bool HIDDEN ln_funding_created_send(ln_channel_t *pChannel)
     msg.p_temporary_channel_id = pChannel->channel_id;
     msg.p_funding_txid = ln_funding_txid(pChannel);
     msg.funding_output_index = ln_funding_txindex(pChannel);
-    msg.p_signature = pChannel->commit_tx_remote.signature;
+    msg.p_signature = pChannel->commit_tx_remote.remote_sig;
     ln_msg_funding_created_write(&buf, &msg);
     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
@@ -428,7 +428,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
         return false;
     }
     ln_funding_set_txid(pChannel, msg.p_funding_txid);
-    memcpy(pChannel->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_tx_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
 
     //temporary_channel_id
     if (!ln_check_channel_id(msg.p_temporary_channel_id, pChannel->channel_id)) {
@@ -491,7 +491,7 @@ bool HIDDEN ln_funding_signed_send(ln_channel_t *pChannel)
 {
     ln_msg_funding_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
-    msg.p_signature = pChannel->commit_tx_remote.signature;
+    msg.p_signature = pChannel->commit_tx_remote.remote_sig;
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_funding_signed_write(&buf, &msg);
     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
@@ -517,7 +517,7 @@ bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(pChannel->commit_tx_local.signature, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_tx_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
     ln_channel_id_calc(pChannel->channel_id, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
