@@ -309,9 +309,9 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
     printf(INDENT3 M_QQ("obscured_commit_num_mask") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->obscured_commit_num_mask);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
-    // utl_dbg_dump(stdout, pChannel->redeem_fund.buf, pChannel->redeem_fund.len, false);
+    // utl_dbg_dump(stdout, pChannel->funding_tx.wit_script.buf, pChannel->funding_tx.wit_script.len, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (pChannel->key_fund_sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
+    printf(INDENT3 M_QQ("key_order_of_fundtx") ": " M_QQ("%s") ",\n", (pChannel->funding_tx.key_order == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
     printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", pChannel->min_depth);
 
     //announce

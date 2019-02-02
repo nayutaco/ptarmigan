@@ -943,7 +943,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
         LOGE("ERR\n");
         goto LABEL_EXIT;
     }
-    btc_script_2of2_create_redeem_sorted(&pChannel->redeem_fund, &pChannel->key_fund_sort,
+    btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
             pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
             pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
 
@@ -3749,8 +3749,8 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
     //memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
 
     //復元データ
-    utl_buf_alloccopy(&pOutChannel->redeem_fund, pInChannel->redeem_fund.buf, pInChannel->redeem_fund.len);
-    pOutChannel->key_fund_sort = pInChannel->key_fund_sort;
+    utl_buf_alloccopy(&pOutChannel->funding_tx.wit_script, pInChannel->funding_tx.wit_script.buf, pInChannel->funding_tx.wit_script.len);
+    pOutChannel->funding_tx.key_order = pInChannel->funding_tx.key_order;
 
 
     //可変サイズ(shallow copy)

@@ -618,8 +618,10 @@ typedef struct {
  *  @brief  自ノードfunding情報
  */
 typedef struct {
-    uint8_t     txid[BTC_SZ_TXID];              ///< funding-tx TXID
-    uint16_t    txindex;                        ///< funding-tx index
+    uint8_t                     txid[BTC_SZ_TXID];      ///< funding-tx TXID
+    uint16_t                    txindex;                ///< funding-tx index
+    utl_buf_t                   wit_script;             ///< Witness Script of vout (2-of-2)
+    btc_script_pubkey_order_t   key_order;              ///< key order of 2-of-2
 } ln_funding_tx_t;
 
 
@@ -665,8 +667,6 @@ struct ln_channel_t {
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
     ln_funding_tx_t             funding_tx;                     ///< [FUND_02]funding tx
     uint64_t                    obscured_commit_num_mask;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
-    utl_buf_t                   redeem_fund;                    ///< [FUND_04]2-of-2のredeemScript
-    btc_script_pubkey_order_t   key_fund_sort;                  ///< [FUND_05]2-of-2のソート順(local, remoteを正順とした場合)
     btc_tx_t                    tx_funding;                     ///< [FUND_06]funding_tx
     ln_establish_t              establish;                      ///< [FUND_07]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_08]minimum_depth
@@ -695,7 +695,7 @@ struct ln_channel_t {
     //revoked
     utl_buf_t                   *p_revoked_vout;                ///< [REVK_01]revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
     utl_buf_t                   *p_revoked_wit;                 ///< [REVK_02]revoked transaction close時のwitnessスクリプト
-    ln_comtx_output_type_t               *p_revoked_type;                ///< [REVK_03]p_revoked_vout/p_revoked_witに対応するtype
+    ln_comtx_output_type_t      *p_revoked_type;                ///< [REVK_03]p_revoked_vout/p_revoked_witに対応するtype
     utl_buf_t                   revoked_sec;                    ///< [REVK_04]revoked transaction close時のremote per_commit_sec
     uint16_t                    revoked_num;                    ///< [REVK_05]revoked_cnt+1([0]にto_local系を入れるため)
     uint16_t                    revoked_cnt;                    ///< [REVK_06]取り戻す必要があるvout数
