@@ -978,22 +978,21 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     }
     bool ret;
     if (htlcsign != LN_HTLCTX_SIG_NONE) {
-        utl_buf_t buf_sig = UTL_BUF_INIT;
-        ret = ln_htlctx_sign(pTx,
-                &buf_sig,
+        uint8_t sig[LN_SZ_SIGNATURE];
+        ret = ln_htlctx_sign_rs(pTx,
+                sig,
                 Value,
                 &signkey,
                 &pChannel->p_revoked_wit[WitIndex]);
         if (ret) {
-            ret = ln_htlctx_set_vin(pTx,
-                &buf_sig,
+            ret = ln_htlctx_set_vin_rs(pTx,
+                sig,
                 NULL,
                 NULL,
                 &signkey,
                 &pChannel->p_revoked_wit[WitIndex],
                 htlcsign);
         }
-        utl_buf_free(&buf_sig);
     } else {
         ret = false;
     }

@@ -215,7 +215,7 @@ static bool analyze_tagged_field(btc_buf_r_t *p_parts, ln_invoice_t **pp_invoice
     if (!p_data) return false;
 
     switch (type) {
-    //p (1): data_length 52. 256-bit SHA256 payment_hash. Preimage of this provides proof of payment
+    //p (1): data_length 52. 256-bit SHA256 payment_hash. PreImage of this provides proof of payment
     case 1:
         if (data_length != 52) break;
         tmp_len = 0;

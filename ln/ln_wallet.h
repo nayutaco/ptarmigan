@@ -28,8 +28,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "ln_htlctx.h"
 #include "ln.h"
-
 //XXX: unit test
 
 /********************************************************************
@@ -83,6 +83,14 @@ bool HIDDEN ln_wallet_script_to_local_set_vin0(
 
 
 bool HIDDEN ln_wallet_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t *pKey);
+
+
+bool HIDDEN ln_wallet_htlctx_set_vin(
+    btc_tx_t *pTx,
+    const uint8_t *pHtlcPrivKey,
+    const uint8_t *pPreImage,
+    const utl_buf_t *pWitScript,
+    ln_htlctx_sig_type_t HtlcSigType);
 
 
 #endif /* LN_WALLET_H__ */

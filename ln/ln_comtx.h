@@ -90,7 +90,7 @@ bool HIDDEN ln_comtx_create_local(
  */
 bool HIDDEN ln_comtx_create_remote(
     const ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommit,
+    ln_commit_tx_t *pCommitRemote,
     ln_close_force_t *pClose,
     uint8_t **ppHtlcSigs,
     uint64_t CommitNum);
@@ -100,7 +100,7 @@ bool HIDDEN ln_comtx_create_remote(
  *
  * @param[in,out]   pTx         TX情報
  * @param[in]       Index
- * @param[in]       Sort
+ * @param[in]       KeyOrder
  * @param[in]       pSig1
  * @param[in]       pSig2
  * @param[in]       pWitScript
@@ -111,12 +111,21 @@ bool HIDDEN ln_comtx_create_remote(
  *      - #btc_script_2of2_create_redeem_sorted()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
  *          例えば、先に自分のデータ、後に相手のデータ、など。
  */
-bool HIDDEN ln_comtx_set_vin_p2wsh_2of2(
+bool ln_comtx_set_vin_p2wsh_2of2(
     btc_tx_t *pTx,
     int Index,
-    btc_script_pubkey_order_t Sort,
+    btc_script_pubkey_order_t KeyOrder,
     const utl_buf_t *pSig1,
     const utl_buf_t *pSig2,
+    const utl_buf_t *pWitScript);
+
+
+bool ln_comtx_set_vin_p2wsh_2of2_rs(
+    btc_tx_t *pTx,
+    int Index,
+    btc_script_pubkey_order_t KeyOrder,
+    const uint8_t *pSig1,
+    const uint8_t *pSig2,
     const utl_buf_t *pWitScript);
 
 

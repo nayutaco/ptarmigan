@@ -86,8 +86,8 @@ static bool create_local_htlc_info_and_amount(
 static bool create_local_set_vin0_and_verify(
     const ln_channel_t *pChannel,
     btc_tx_t *pTxCommit,
-    const utl_buf_t *pSigLocalDer,
-    const uint8_t *pSigRemoteRs);
+    const uint8_t *pSigLocal,
+    const uint8_t *pSigRemote);
 static bool create_local_spent(
     ln_channel_t *pChannel,
     ln_close_force_t *pClose,
@@ -147,7 +147,7 @@ static bool create_remote_spent_htlc(
     const utl_buf_t *pBufWs,
     const ln_comtx_htlc_info_t *pHtlcInfo,
     const btc_keys_t *pHtlcKey,
-    const utl_buf_t *pBufRemoteSig,
+    const uint8_t *pRemoteSig,
     uint64_t Fee,
     uint8_t HtlcNum,
     uint32_t VoutIdx,
@@ -177,7 +177,7 @@ bool HIDDEN ln_comtx_create_local(
 
     ln_comtx_htlc_info_t **pp_htlc_info = 0;
     utl_buf_t buf_ws = UTL_BUF_INIT;
-    utl_buf_t buf_sig = UTL_BUF_INIT;
+    uint8_t local_sig[LN_SZ_SIGNATURE];
     btc_tx_t tx_commit = BTC_TX_INIT;
     uint16_t cnt = 0;
 
@@ -238,12 +238,12 @@ bool HIDDEN ln_comtx_create_local(
     comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_info;
     comtx.htlc_info_num = cnt;
-    if (!ln_comtx_create(&tx_commit, &buf_sig, &comtx, ln_is_funder(pChannel), &pChannel->keys_local)) {
+    if (!ln_comtx_create_rs(&tx_commit, local_sig, &comtx, ln_is_funder(pChannel), &pChannel->keys_local)) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
     //2-of-2 verify
-    if (!create_local_set_vin0_and_verify(pChannel, &tx_commit, &buf_sig, pChannel->commit_tx_local.remote_sig)) {
+    if (!create_local_set_vin0_and_verify(pChannel, &tx_commit, local_sig, pChannel->commit_tx_local.remote_sig)) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
@@ -271,7 +271,6 @@ bool HIDDEN ln_comtx_create_local(
 
 LABEL_EXIT:
     utl_buf_free(&buf_ws);
-    utl_buf_free(&buf_sig);
     if (pp_htlc_info) {
         for (int lp = 0; lp < cnt; lp++) {
             ln_comtx_htlc_info_free(pp_htlc_info[lp]);
@@ -285,7 +284,7 @@ LABEL_EXIT:
 
 bool ln_comtx_create_remote(
     const ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommit,
+    ln_commit_tx_t *pCommitRemote,
     ln_close_force_t *pClose,
     uint8_t **ppHtlcSigs,
     uint64_t CommitNum)
@@ -294,7 +293,6 @@ bool ln_comtx_create_remote(
 
     bool ret;
     utl_buf_t buf_ws = UTL_BUF_INIT;
-    utl_buf_t buf_sig = UTL_BUF_INIT;
     btc_tx_t tx_commit = BTC_TX_INIT;
     uint16_t cnt = 0;
 
@@ -346,7 +344,7 @@ bool ln_comtx_create_remote(
 
     //FEE
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
-    fee_info.dust_limit_satoshi = pCommit->dust_limit_sat;
+    fee_info.dust_limit_satoshi = pCommitRemote->dust_limit_sat;
     ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_info, cnt);
 
     //commitment transaction
@@ -363,19 +361,14 @@ bool ln_comtx_create_remote(
     comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_info;
     comtx.htlc_info_num = cnt;
-    ret = ln_comtx_create(&tx_commit, &buf_sig, &comtx, !ln_is_funder(pChannel), &pChannel->keys_local); //XXX:
+    ret = ln_comtx_create_rs(&tx_commit, pCommitRemote->remote_sig, &comtx, !ln_is_funder(pChannel), &pChannel->keys_local); //XXX:
     if (ret) {
         LOGD("++++++++++++++ remote commit tx: tx_commit[%016" PRIx64 "]\n", pChannel->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
 
-        ret = btc_tx_txid(&tx_commit, pCommit->txid);
+        ret = btc_tx_txid(&tx_commit, pCommitRemote->txid);
         LOGD("remote commit_txid: ");
-        TXIDD(pCommit->txid);
-    }
-
-    if (ret) { //XXX:
-        //送信用 commitment_signed.signature
-        btc_sig_der2rs(pCommit->remote_sig, buf_sig.buf, buf_sig.len);
+        TXIDD(pCommitRemote->txid);
     }
 
     if (ret) {
@@ -389,7 +382,7 @@ bool ln_comtx_create_remote(
         }
         ret = create_remote_spent(
             pChannel,
-            pCommit,
+            pCommitRemote,
             pClose,
             p_htlc_sigs,
             &tx_commit, &buf_ws,
@@ -405,7 +398,6 @@ bool ln_comtx_create_remote(
     }
     UTL_DBG_FREE(pp_htlc_info);
 
-    utl_buf_free(&buf_sig);
     if (pClose != NULL) { //XXX:
         memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(btc_tx_t));
     } else {
@@ -419,7 +411,7 @@ bool ln_comtx_create_remote(
 bool ln_comtx_set_vin_p2wsh_2of2(
     btc_tx_t *pTx,
     int Index,
-    btc_script_pubkey_order_t Sort,
+    btc_script_pubkey_order_t KeyOrder,
     const utl_buf_t *pSig1,
     const utl_buf_t *pSig2,
     const utl_buf_t *pWitScript)
@@ -428,18 +420,42 @@ bool ln_comtx_set_vin_p2wsh_2of2(
     // <sig1>
     // <sig2>
     // <script>
+
     const utl_buf_t zero = UTL_BUF_INIT;
     const utl_buf_t *wit_items[] = { &zero, NULL, NULL, pWitScript };
-    if (Sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
+    if (KeyOrder == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         wit_items[1] = pSig1;
         wit_items[2] = pSig2;
     } else {
         wit_items[1] = pSig2;
         wit_items[2] = pSig1;
     }
-
     if (!btc_sw_set_vin_p2wsh(pTx, Index, (const utl_buf_t **)wit_items, ARRAY_SIZE(wit_items))) return false;
     return true;
+}
+
+
+bool ln_comtx_set_vin_p2wsh_2of2_rs(
+    btc_tx_t *pTx,
+    int Index,
+    btc_script_pubkey_order_t KeyOrder,
+    const uint8_t *pSig1,
+    const uint8_t *pSig2,
+    const utl_buf_t *pWitScript)
+{
+    bool ret = false;
+    utl_buf_t sig_der_1 = UTL_BUF_INIT;
+    utl_buf_t sig_der_2 = UTL_BUF_INIT;
+    if (!btc_sig_rs2der(&sig_der_1, pSig1)) goto LABEL_EXIT;
+    if (!btc_sig_rs2der(&sig_der_2, pSig2)) goto LABEL_EXIT;
+    if (!ln_comtx_set_vin_p2wsh_2of2(pTx, Index, KeyOrder, &sig_der_1, &sig_der_2, pWitScript)) goto LABEL_EXIT;
+
+    ret = true;
+
+LABEL_EXIT:
+    utl_buf_free(&sig_der_1);
+    utl_buf_free(&sig_der_2);
+    return ret;
 }
 
 
@@ -469,20 +485,18 @@ static bool create_local_htlc_info_and_amount(
 static bool create_local_set_vin0_and_verify(
     const ln_channel_t *pChannel,
     btc_tx_t *pTxCommit,
-    const utl_buf_t *pSigLocalDer,
-    const uint8_t *pSigRemoteRs)
+    const uint8_t *pSigLocal,
+    const uint8_t *pSigRemote)
 {
     LOGD("local verify\n");
 
     bool ret = false;
-    utl_buf_t sig_remote_der = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
     uint8_t sighash[BTC_SZ_HASH256];
 
-    //署名追加
-    if (!btc_sig_rs2der(&sig_remote_der, pSigRemoteRs)) goto LABEL_EXIT;
-    if (!ln_comtx_set_vin_p2wsh_2of2(
-        pTxCommit, 0, pChannel->funding_tx.key_order, pSigLocalDer, &sig_remote_der, &pChannel->funding_tx.wit_script)) goto LABEL_EXIT;
+    //set vin[0]
+    if (!ln_comtx_set_vin_p2wsh_2of2_rs(
+        pTxCommit, 0, pChannel->funding_tx.key_order, pSigLocal, pSigRemote, &pChannel->funding_tx.wit_script)) goto LABEL_EXIT;
     LOGD("++++++++++++++ local commit tx: [%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
@@ -494,7 +508,6 @@ static bool create_local_set_vin0_and_verify(
     ret = true;
 
 LABEL_EXIT:
-    utl_buf_free(&sig_remote_der);
     utl_buf_free(&script_code);
     return ret;
 }
@@ -751,15 +764,11 @@ static bool create_local_spent_htlc(
     uint32_t ToSelfDelay)
 {
     bool ret;
-    utl_buf_t buf_local_sig = UTL_BUF_INIT;
-    utl_buf_t buf_remote_sig = UTL_BUF_INIT;
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
     uint8_t txid[BTC_SZ_TXID];
-
-    btc_sig_rs2der(
-        &buf_remote_sig, pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature);
+    uint8_t local_sig[LN_SZ_SIGNATURE];
 
     if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) {
         //Receivedであればpreimageを所持している可能性がある
@@ -783,24 +792,22 @@ static bool create_local_spent_htlc(
     }
 
     //署名:HTLC Success/Timeout Transaction
-    ret = ln_htlctx_sign(
+    ret = ln_htlctx_sign_rs(
         pTxHtlc,
-        &buf_local_sig,
+        local_sig,
         Amount,
         pHtlcKey,
         &pHtlcInfo->wit_script);
     if (ret) {
-        ret = ln_htlctx_set_vin(
+        ret = ln_htlctx_set_vin_rs(
             pTxHtlc,
-            &buf_local_sig,
-            &buf_remote_sig,
+            local_sig,
+            pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature,
             (ret_img) ? preimage : NULL,
             NULL,
             &pHtlcInfo->wit_script,
             LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
     }
-    utl_buf_free(&buf_remote_sig);
-    utl_buf_free(&buf_local_sig);
     if (!ret) {
         LOGE("fail: sign_htlc_tx: vout\n");
         goto LABEL_EXIT;
@@ -958,9 +965,6 @@ static bool create_remote_spent(
         pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
     }
 
-    utl_buf_t buf_remotesig = UTL_BUF_INIT;
-    btc_sig_rs2der(&buf_remotesig, pChannel->commit_tx_local.remote_sig);
-
     //HTLC署名用鍵
     btc_keys_t htlckey;
     ln_signer_htlc_remotekey(&htlckey, &pChannel->keys_local, &pChannel->keys_remote);
@@ -1002,7 +1006,7 @@ static bool create_remote_spent(
                     pBufWs,
                     p_htlc_info,
                     &htlckey,
-                    &buf_remotesig,
+                    pChannel->commit_tx_local.remote_sig,
                     fee_sat,
                     htlc_num,
                     vout_idx,
@@ -1024,8 +1028,6 @@ static bool create_remote_spent(
             }
         }
     }
-    utl_buf_free(&buf_remotesig);
-
     pCommit->htlc_num = htlc_num;
 
     return ret;
@@ -1055,7 +1057,7 @@ static bool create_remote_spent(
  * @param[in]       pBufWs
  * @param[in]       pHtlcInfo
  * @param[in]       pHtlcKey
- * @param[in]       pBufRemoteSig
+ * @param[in]       pRemoteSig
  * @param[in]       Fee
  * @param[in]       HtlcNum
  * @param[in]       VoutIdx
@@ -1071,7 +1073,7 @@ static bool create_remote_spent_htlc(
     const utl_buf_t *pBufWs,
     const ln_comtx_htlc_info_t *pHtlcInfo,
     const btc_keys_t *pHtlcKey,
-    const utl_buf_t *pBufRemoteSig,
+    const uint8_t *pRemoteSig,
     uint64_t Fee,
     uint8_t HtlcNum,
     uint32_t VoutIdx,
@@ -1098,14 +1100,11 @@ static bool create_remote_spent_htlc(
             //offeredかつpreimageがあるので、即時使用可能
 
             utl_buf_free(&tx.vout[0].script);
-            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-            utl_buf_t buf_key = { (CONST_CAST uint8_t *)pHtlcKey->priv, BTC_SZ_PRIVKEY };
             tx.locktime = 0;
-            ret = ln_htlctx_set_vin(&tx,
-                &buf_key,
-                NULL,
+            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+            ret = ln_wallet_htlctx_set_vin(&tx,
+                pHtlcKey->priv,
                 (ret_img) ? preimage : NULL,
-                NULL,
                 &pHtlcInfo->wit_script,
                 LN_HTLCTX_SIG_REMOTE_OFFER);
             htlcsign = LN_HTLCTX_SIG_NONE;
@@ -1131,13 +1130,10 @@ static bool create_remote_spent_htlc(
             //  -->署名はしないがpTxHtlcs[HtlcNum]に残したい
 
             utl_buf_free(&tx.vout[0].script);
-            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-            utl_buf_t buf_key = { (CONST_CAST uint8_t *)pHtlcKey->priv, BTC_SZ_PRIVKEY };
             tx.locktime = pHtlcInfo->cltv_expiry;
-            ret = ln_htlctx_set_vin(&tx,
-                &buf_key,
-                NULL,
-                NULL,
+            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+            ret = ln_wallet_htlctx_set_vin(&tx,
+                pHtlcKey->priv,
                 NULL,
                 &pHtlcInfo->wit_script,
                 LN_HTLCTX_SIG_REMOTE_RECV);
@@ -1147,25 +1143,24 @@ static bool create_remote_spent_htlc(
 
     //署名
     if (htlcsign != LN_HTLCTX_SIG_NONE) {
-        utl_buf_t buf_localsig = UTL_BUF_INIT;
-        ret = ln_htlctx_sign(&tx,
-                    &buf_localsig,
+        uint8_t local_sig[LN_SZ_SIGNATURE];
+        ret = ln_htlctx_sign_rs(&tx,
+                    local_sig,
                     pTxCommit->vout[VoutIdx].value,
                     pHtlcKey,
                     &pHtlcInfo->wit_script);
         if (ret && (pHtlcSigs != NULL)) {
-            btc_sig_der2rs(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, buf_localsig.buf, buf_localsig.len);
+            memcpy(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, local_sig, LN_SZ_SIGNATURE);
         }
         if (ret) {
-            ret = ln_htlctx_set_vin(&tx,
-                    &buf_localsig,
-                    pBufRemoteSig,
+            ret = ln_htlctx_set_vin_rs(&tx,
+                    local_sig,
+                    pRemoteSig,
                     (ret_img) ? preimage : NULL,
                     NULL,
                     &pHtlcInfo->wit_script,
                     htlcsign);
         }
-        utl_buf_free(&buf_localsig);
         if (!ret) {
             LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
             goto LABEL_EXIT;
