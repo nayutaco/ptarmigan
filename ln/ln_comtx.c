@@ -154,8 +154,8 @@ static bool create_remote_spent_htlc(
     const uint8_t *pPayHash,
     bool bClosing);
 
-static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing);
-static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPayHash, bool bClosing);
+static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 
 /********************************************************************
@@ -1191,12 +1191,12 @@ LABEL_EXIT:
 
 /** payment_hashと一致するpreimage検索
  *
- * @param[out]      pPreImage
+ * @param[out]      pPreimage
  * @param[in]       pPayHash        payment_hash
  * @param[in]       bClosing        true:一致したexpiryをUINT32_MAXに変更する
  * @retval  true    検索成功
  */
-static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing)
+static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPayHash, bool bClosing)
 {
     if (!LN_DBG_MATCH_PREIMAGE()) {
         LOGE("DBG: HTLC preimage mismatch\n");
@@ -1206,7 +1206,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bC
     // DUMPD(pPayHash, BTC_SZ_HASH256);
 
     preimage_t prm;
-    prm.image = pPreImage;
+    prm.image = pPreimage;
     prm.hash = pPayHash;
     prm.b_closing = bClosing;
     if (!ln_db_preimage_search(search_preimage_func, &prm)) return false;
@@ -1219,7 +1219,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bC
  * SHA256(preimage)がpayment_hashと一致した場合にtrueを返す。
  * bClosingがtrueの場合、該当するpreimageのexpiryをUINT32_MAXにする(自動削除させないため)。
  */
-static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
 {
     (void)Amount; (void)Expiry;
 
@@ -1228,13 +1228,13 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
     bool ret = false;
 
     //LOGD("compare preimage : ");
-    //DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_payment_hash_calc(payment_hash, pPreImage);
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    ln_payment_hash_calc(payment_hash, pPreimage);
     if (memcmp(payment_hash, prm->hash, BTC_SZ_HASH256) == 0) {
         //一致
         //LOGD("preimage match!: ");
-        //DUMPD(pPreImage, LN_SZ_PREIMAGE);
-        memcpy(prm->image, pPreImage, LN_SZ_PREIMAGE);
+        //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+        memcpy(prm->image, pPreimage, LN_SZ_PREIMAGE);
         if ((prm->b_closing) && (Expiry != UINT32_MAX)) {
             //期限切れによる自動削除をしない
             ln_db_preimage_set_expiry(p_db_param, UINT32_MAX);

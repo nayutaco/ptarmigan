@@ -117,7 +117,7 @@ bool HIDDEN ln_htlctx_set_vin(
     btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const utl_buf_t *pRemoteSig,
-    const uint8_t *pPreImage,
+    const uint8_t *pPreimage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,
     ln_htlctx_sig_type_t HtlcSigType)
@@ -134,8 +134,8 @@ bool HIDDEN ln_htlctx_set_vin(
             // <witness script>
             const utl_buf_t zero = UTL_BUF_INIT;
             utl_buf_t preimage = UTL_BUF_INIT;
-            if (pPreImage) {
-                preimage.buf = (CONST_CAST uint8_t *)pPreImage;
+            if (pPreimage) {
+                preimage.buf = (CONST_CAST uint8_t *)pPreimage;
                 preimage.len = LN_SZ_PREIMAGE;
             }
             const utl_buf_t *wit_items[] = { &zero, pRemoteSig, pLocalSig, &preimage, pWitScript };
@@ -149,9 +149,9 @@ bool HIDDEN ln_htlctx_set_vin(
             // <payment-preimage>
             // <witness script>
             assert(pLocalSig);
-            assert(pPreImage);
+            assert(pPreimage);
             utl_buf_t preimage = UTL_BUF_INIT;
-            preimage.buf = (CONST_CAST uint8_t *)pPreImage;
+            preimage.buf = (CONST_CAST uint8_t *)pPreimage;
             preimage.len = LN_SZ_PREIMAGE;
             const utl_buf_t *wit_items[] = { pLocalSig, &preimage, pWitScript };
             LOGD("Offered HTLC + preimage sign: wit_item_num=%d\n", ARRAY_SIZE(wit_items));
@@ -197,7 +197,7 @@ bool HIDDEN ln_htlctx_set_vin_rs(
     btc_tx_t *pTx,
     const uint8_t *pLocalSig,
     const uint8_t *pRemoteSig,
-    const uint8_t *pPreImage,
+    const uint8_t *pPreimage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,
     ln_htlctx_sig_type_t HtlcSigType)
@@ -220,7 +220,7 @@ bool HIDDEN ln_htlctx_set_vin_rs(
         pTx,
         p_local_sig,
         p_remote_sig,
-        pPreImage,
+        pPreimage,
         pRevoKeys,
         pWitScript,
         HtlcSigType)) goto LABEL_EXIT;

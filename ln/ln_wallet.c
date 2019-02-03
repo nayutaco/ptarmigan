@@ -145,7 +145,7 @@ bool HIDDEN ln_wallet_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t 
 bool HIDDEN ln_wallet_htlctx_set_vin(
     btc_tx_t *pTx,
     const uint8_t *pHtlcPrivKey,
-    const uint8_t *pPreImage,
+    const uint8_t *pPreimage,
     const utl_buf_t *pWitScript,
     ln_htlctx_sig_type_t HtlcSigType)
 {
@@ -157,8 +157,8 @@ bool HIDDEN ln_wallet_htlctx_set_vin(
             // <witness script>
             const utl_buf_t htlc_privkey = { (CONST_CAST uint8_t *)pHtlcPrivKey, BTC_SZ_PRIVKEY };
             utl_buf_t preimage = UTL_BUF_INIT;
-            if (pPreImage) {
-                preimage.buf = (CONST_CAST uint8_t *)pPreImage;
+            if (pPreimage) {
+                preimage.buf = (CONST_CAST uint8_t *)pPreimage;
                 preimage.len = LN_SZ_PREIMAGE;
             }
             const utl_buf_t *wit_items[] = { &htlc_privkey, &preimage, pWitScript };

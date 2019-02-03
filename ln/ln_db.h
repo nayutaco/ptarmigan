@@ -133,7 +133,7 @@ typedef bool (*ln_db_func_cmp_t)(ln_channel_t *pChannel, void *p_db_param, void 
  * @retval  true    比較終了
  * @retval  false   比較継続
  */
-typedef bool (*ln_db_func_preimage_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+typedef bool (*ln_db_func_preimage_t)(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 
 /** @typedef    ln_db_func_wallet_t
@@ -619,10 +619,10 @@ bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb);
 
 /** preimage削除
  *
- * @param[in]       pPreImage
+ * @param[in]       pPreimage
  * @retval  true
  */
-bool ln_db_preimage_del(const uint8_t *pPreImage);
+bool ln_db_preimage_del(const uint8_t *pPreimage);
 
 
 /** preimage検索
@@ -636,10 +636,10 @@ bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *p_param);
 
 /** preimage削除(payment_hash検索)
  *
- * @param[in]       pPreImageHash
+ * @param[in]       pPreimageHash
  * @retval  true
  */
-bool ln_db_preimage_del_hash(const uint8_t *pPreImageHash);
+bool ln_db_preimage_del_hash(const uint8_t *pPreimageHash);
 
 
 /** preimage cursorオープン

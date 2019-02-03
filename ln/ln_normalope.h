@@ -345,10 +345,10 @@ void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t Idx);
  *
  * @param[in,out]       pChannel        channel info
  * @param[in]           Idx             設定するHTLCの内部管理index値
- * @param[in]           pPreImage       payment_preimage
+ * @param[in]           pPreimage       payment_preimage
  * @retval      true    成功
  */
-bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pPreImage);
+bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pPreimage);
 
 
 /** update_fail_htlc設定
