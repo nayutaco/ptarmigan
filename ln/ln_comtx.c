@@ -620,7 +620,7 @@ static bool create_local_spent(
                 if (ret) {
                     //OKなら各HTLCに保持
                     //  相手がunilateral closeした後に送信しなかったら、この署名を使う
-                    memcpy(pChannel->cnl_add_htlc[p_htlc_info->add_htlc_idx].signature, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+                    memcpy(pChannel->cnl_add_htlc[p_htlc_info->add_htlc_idx].remote_sig, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
                 } else {
                     break;
                 }
@@ -802,7 +802,7 @@ static bool create_local_spent_htlc(
         ret = ln_htlctx_set_vin_rs(
             pTxHtlc,
             local_sig,
-            pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature,
+            pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].remote_sig,
             (ret_img) ? preimage : NULL,
             NULL,
             &pHtlcInfo->wit_script,

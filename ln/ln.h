@@ -418,7 +418,7 @@ typedef struct {
                                                     //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
     uint16_t        next_idx;
     //fulfillで戻す
-    uint8_t     signature[LN_SZ_SIGNATURE];         ///< 受信した最新のHTLC署名
+    uint8_t     remote_sig[LN_SZ_SIGNATURE];        ///< 受信した最新のHTLC署名
                                                     //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
                                                     //      origin/final node: == 0
