@@ -599,8 +599,8 @@ static void anno_del_prune(void);
 
 static bool preimage_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimage_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
-static bool preimage_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
-static bool preimage_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+static bool preimage_del_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+static bool preimage_close_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 static int wallet_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
@@ -2790,7 +2790,7 @@ bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb)
 }
 
 
-bool ln_db_preimage_del(const uint8_t *pPreImage)
+bool ln_db_preimage_del(const uint8_t *pPreimage)
 {
     bool ret;
     int retval = -1;
@@ -2802,13 +2802,13 @@ bool ln_db_preimage_del(const uint8_t *pPreImage)
         goto LABEL_EXIT;
     }
 
-    if (pPreImage != NULL) {
+    if (pPreimage != NULL) {
         MDB_val key;
 
         LOGD("remove: ");
-        DUMPD(pPreImage, LN_SZ_PREIMAGE);
+        DUMPD(pPreimage, LN_SZ_PREIMAGE);
         key.mv_size = LN_SZ_PREIMAGE;
-        key.mv_data = (CONST_CAST uint8_t *)pPreImage;
+        key.mv_data = (CONST_CAST uint8_t *)pPreimage;
         retval = mdb_del(db.txn, db.dbi, &key, NULL);
     } else {
         LOGD("remove all\n");
@@ -2849,9 +2849,9 @@ bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *p_param)
 }
 
 
-bool ln_db_preimage_del_hash(const uint8_t *pPreImageHash)
+bool ln_db_preimage_del_hash(const uint8_t *pPreimageHash)
 {
-    bool ret = ln_db_preimage_search(preimage_del_func, (CONST_CAST uint8_t *)pPreImageHash);
+    bool ret = ln_db_preimage_search(preimage_del_func, (CONST_CAST uint8_t *)pPreimageHash);
     return ret;
 }
 
@@ -4676,7 +4676,7 @@ static void preimage_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
  *
  * SHA256(preimage)がpayment_hashと一致した場合にDBから削除する。
  */
-static bool preimage_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+static bool preimage_del_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
 {
     (void)Amount; (void)Expiry;
 
@@ -4686,8 +4686,8 @@ static bool preimage_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
     int retval = MDB_NOTFOUND;
 
     LOGD("compare preimage : ");
-    DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_payment_hash_calc(preimage_hash, pPreImage);
+    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    ln_payment_hash_calc(preimage_hash, pPreimage);
     if (memcmp(preimage_hash, hash, BTC_SZ_HASH256) == 0) {
         retval = mdb_cursor_del(p_cur->cursor, 0);
         LOGD("  remove from DB: %s\n", mdb_strerror(retval));
@@ -4701,7 +4701,7 @@ static bool preimage_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
  *
  * SHA256(preimage)がpayment_hashと一致した場合、DBから削除する。
  */
-static bool preimage_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+static bool preimage_close_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
 {
     (void)Amount; (void)Expiry;
 
@@ -4710,8 +4710,8 @@ static bool preimage_close_func(const uint8_t *pPreImage, uint64_t Amount, uint3
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
     LOGD("compare preimage : ");
-    DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_payment_hash_calc(preimage_hash, pPreImage);
+    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    ln_payment_hash_calc(preimage_hash, pPreimage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         if (memcmp(preimage_hash, prm->add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {

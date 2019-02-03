@@ -100,7 +100,7 @@ LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
  * static variables
  ********************************************************************/
 
-static pthread_mutex_t              mMuxPreImage;
+static pthread_mutex_t              mMuxPreimage;
 static struct nodefaillisthead_t    mNodeFailListHead;
 static bool                         mRunning;
 static ln_establish_prm_t           mEstablishPrm;
@@ -182,7 +182,7 @@ int ptarmd_start(uint16_t RpcPort)
         fclose(fp);
     }
 
-    pthread_mutex_init(&mMuxPreImage, NULL);
+    pthread_mutex_init(&mMuxPreimage, NULL);
 
     load_channel_settings();
     btcrpc_set_creationhash(ln_creationhash_get());
@@ -274,13 +274,13 @@ void ptarmd_stop(void)
 
 void ptarmd_preimage_lock(void)
 {
-    pthread_mutex_lock(&mMuxPreImage);
+    pthread_mutex_lock(&mMuxPreimage);
 }
 
 
 void ptarmd_preimage_unlock(void)
 {
-    pthread_mutex_unlock(&mMuxPreImage);
+    pthread_mutex_unlock(&mMuxPreimage);
 }
 
 

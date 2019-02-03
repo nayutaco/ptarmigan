@@ -87,7 +87,7 @@ static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_
 static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len);
 static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_add_htlc_t *p_htlc);
 static bool check_recv_add_htlc_bolt4_common(ln_channel_t *pChannel, utl_push_t *pPushReason);
-static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc, uint8_t *pPreImage, int32_t Height);
+static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc, uint8_t *pPreimage, int32_t Height);
 static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc,int32_t Height);
 static bool store_peer_percommit_secret(ln_channel_t *pChannel, const uint8_t *p_prev_secret);
 static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc);
@@ -936,7 +936,7 @@ void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t Idx)
 }
 
 
-bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pPreImage)
+bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pPreimage)
 {
     LOGD("BEGIN\n");
 
@@ -947,7 +947,7 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pP
     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
 
     clear_htlc_comrevflag(p_htlc, LN_DELHTLC_FULFILL);
-    utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreImage, LN_SZ_PREIMAGE);
+    utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreimage, LN_SZ_PREIMAGE);
     M_DB_CHANNEL_SAVE(pChannel);
     LOGD("pChannel->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].stat.bits);
     dbg_htlcflag(&pChannel->cnl_add_htlc[Idx].stat.flag);
@@ -1271,7 +1271,7 @@ static bool check_recv_add_htlc_bolt4_common(ln_channel_t *pChannel, utl_push_t 
  * @param[out]          pDataOut        onion packetデコード結果
  * @param[out]          pPushReason     error reason
  * @param[in,out]       pAddHtlc        activeなpChannel->cnl_add_htlc[Index]
- * @param[out]          pPreImage       pAddHtlc->payment_hashに該当するpreimage
+ * @param[out]          pPreimage       pAddHtlc->payment_hashに該当するpreimage
  * @param[in]           Height          current block height
  * @retval  true    成功
  */
@@ -1279,7 +1279,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
                     ln_hop_dataout_t *pDataOut,
                     utl_push_t *pPushReason,
                     ln_update_add_htlc_t *pAddHtlc,
-                    uint8_t *pPreImage,
+                    uint8_t *pPreimage,
                     int32_t Height)
 {
     bool ret;
@@ -1296,12 +1296,12 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
         bool detect;
         ret = ln_db_preimage_cur_get(p_cur, &detect, &preimage);     //from invoice
         if (detect) {
-            memcpy(pPreImage, preimage.preimage, LN_SZ_PREIMAGE);
-            ln_payment_hash_calc(preimage_hash, pPreImage);
+            memcpy(pPreimage, preimage.preimage, LN_SZ_PREIMAGE);
+            ln_payment_hash_calc(preimage_hash, pPreimage);
             if (memcmp(preimage_hash, pAddHtlc->payment_hash, BTC_SZ_HASH256) == 0) {
                 //一致
                 LOGD("match preimage: ");
-                DUMPD(pPreImage, LN_SZ_PREIMAGE);
+                DUMPD(pPreimage, LN_SZ_PREIMAGE);
                 break;
             }
         }

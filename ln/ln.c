@@ -1001,9 +1001,9 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
 }
 
 
-void ln_payment_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
+void ln_payment_hash_calc(uint8_t *pHash, const uint8_t *pPreimage)
 {
-    btc_md_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
+    btc_md_sha256(pHash, pPreimage, LN_SZ_PREIMAGE);
 }
 
 

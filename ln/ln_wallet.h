@@ -88,7 +88,7 @@ bool HIDDEN ln_wallet_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t 
 bool HIDDEN ln_wallet_htlctx_set_vin(
     btc_tx_t *pTx,
     const uint8_t *pHtlcPrivKey,
-    const uint8_t *pPreImage,
+    const uint8_t *pPreimage,
     const utl_buf_t *pWitScript,
     ln_htlctx_sig_type_t HtlcSigType);
 
