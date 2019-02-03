@@ -127,7 +127,7 @@ static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id);
 #endif
 
-static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx);
+static int cmd_connect_proc(const peer_conn_t *pConn);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
 static int cmd_stop_proc(void);
 static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jrpc_context *ctx);
@@ -335,7 +335,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("$$$: [JSONRPC]connect\n");
 
-    err = cmd_connect_proc(&conn, ctx);
+    err = cmd_connect_proc(&conn);
 
 LABEL_EXIT:
     if (err == 0) {
@@ -365,7 +365,11 @@ static cJSON *cmd_connect_nores(jrpc_context *ctx, cJSON *params, cJSON *id)
         return NULL;
     }
 
-    (void)cmd_connect_proc(&conn, ctx);
+    int err = cmd_connect_proc(&conn);
+    if (err != 0) {
+        ctx->error_code = err;
+        ctx->error_message = error_str_cjson(err);
+    }
     return NULL;
 }
 
@@ -1521,16 +1525,14 @@ LABEL_EXIT:
  * @param[in,out]   ctx
  * @retval  エラーコード
  */
-static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
+static int cmd_connect_proc(const peer_conn_t *pConn)
 {
     LOGD("connect\n");
 
     int err;
     bool ret = p2p_cli_start(pConn, &err);
     if (!ret) {
-        ctx->error_code = err;
-        ctx->error_message = error_str_cjson(err);
-        return RPCERR_CONNECT;
+        return err;
     }
 
     //チェック
