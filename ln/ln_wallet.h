@@ -46,7 +46,7 @@
  * @param[out]          pTx             生成結果
  * @param[in]           Value           vinとなるamount
  * @param[in]           ToSelfDelay     to_self_delay
- * @param[in]           pScript         送金先スクリプト
+ * @param[in]           pWitScript      送金先スクリプト
  * @param[in]           pTxid           vinとなるoutpointのtxid
  * @param[in]           Index           vinとなるoutpointのindex
  * @param[in]           bRevoked        true:revoked transaction close対応
@@ -54,7 +54,7 @@
  */
 bool ln_wallet_create_to_local(
     const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
-    const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
+    const utl_buf_t *pWitScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
 /** to_remoteをwalletに保存する情報作成
