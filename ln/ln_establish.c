@@ -149,7 +149,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
     pChannel->commit_tx_local.max_accepted_htlcs = msg.max_accepted_htlcs;
     pChannel->our_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
     pChannel->their_msat = msg.push_msat;
-    pChannel->funding_sat = msg.funding_satoshis;
+    pChannel->funding_tx.funding_satoshis = msg.funding_satoshis;
     pChannel->feerate_per_kw = msg.feerate_per_kw;
 
     pChannel->commit_tx_remote.to_self_delay = msg.to_self_delay; //XXX:
@@ -241,7 +241,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //params for funding
-    pChannel->funding_sat = msg.funding_satoshis;
+    pChannel->funding_tx.funding_satoshis = msg.funding_satoshis;
     pChannel->feerate_per_kw = msg.feerate_per_kw;
     pChannel->our_msat = msg.push_msat;
     pChannel->their_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
@@ -444,7 +444,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
         //処理の都合上、voutの位置を調整している
         btc_tx_add_vout(&pChannel->tx_funding, 0);
     }
-    btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->funding_tx.wit_script);
+    btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
     btc_tx_add_vin(&pChannel->tx_funding, ln_funding_txid(pChannel), 0);
 
@@ -792,7 +792,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //output
         ln_funding_set_txindex(pChannel, M_FUNDING_INDEX);      //TODO: vout#0は2-of-2、vout#1はchangeにしている
         //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->funding_tx.wit_script);
+        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
 
         //vout#1:P2WPKH - change(amountは後で代入)
         btc_tx_add_vout_spk(&pChannel->tx_funding, (uint64_t)-1, &pChannel->establish.p_fundin->change_spk);
@@ -825,12 +825,12 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     #warning issue #344: nested in BIP16 size
         uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, pChannel->feerate_per_kw);
         LOGD("fee=%" PRIu64 "\n", fee);
-        if (pChannel->establish.p_fundin->amount >= pChannel->funding_sat + fee) {
-            pChannel->tx_funding.vout[1].value = pChannel->establish.p_fundin->amount - pChannel->funding_sat - fee;
+        if (pChannel->establish.p_fundin->amount >= pChannel->funding_tx.funding_satoshis + fee) {
+            pChannel->tx_funding.vout[1].value = pChannel->establish.p_fundin->amount - pChannel->funding_tx.funding_satoshis - fee;
         } else {
             LOGE("fail: amount too short:\n");
             LOGD("    amount=%" PRIu64 "\n", pChannel->establish.p_fundin->amount);
-            LOGD("    funding_satoshis=%" PRIu64 "\n", pChannel->funding_sat);
+            LOGD("    funding_satoshis=%" PRIu64 "\n", pChannel->funding_tx.funding_satoshis);
             LOGD("    fee=%" PRIu64 "\n", fee);
             return false;
         }
@@ -838,7 +838,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //for SPV
         //fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
         //その代わり、ln_funding_txindex(pChannel)は固定値にならない。
-        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_sat, &pChannel->funding_tx.wit_script);
+        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
         btc_tx_add_vin(&pChannel->tx_funding, ln_funding_txid(pChannel), 0); //dummy
     }
 

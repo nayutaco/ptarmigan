@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-40))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-41))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -185,6 +185,8 @@
              ln_channel_t::pubkeys_local -> removed
          and the local public keys and the script pubkeys are restored after loading
     -40: save only txid and txindex in ln_funding_tx_t
+    -41: add `funding_tx_t::funding_satoshis`
+         rm `ln_channel_t::funding_sat`
  */
 
 
@@ -368,6 +370,7 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     M_ITEM(ln_channel_t, fund_flag),                                                //[FUND_01]
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),                       //[FUND_02]
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),                    //[FUND_02]
+    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, funding_satoshis),           //[FUND_02]
     M_ITEM(ln_channel_t, obscured_commit_num_mask),                                 //[FUND_03]
     M_ITEM(ln_channel_t, min_depth),                                                //[FUND_06]
     M_ITEM(ln_channel_t, funding_bhash),   //[FUNDSPV_01]
@@ -446,8 +449,7 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, htlc_num),                      //[COMM_02]
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, commit_num),                    //[COMM_02]
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, revoke_num),                    //[COMM_02]
-    M_ITEM(ln_channel_t, funding_sat),                                                      //[COMM_03]
-    M_ITEM(ln_channel_t, feerate_per_kw),                                                   //[COMM_04]
+    M_ITEM(ln_channel_t, feerate_per_kw),                                                   //[COMM_03]
 
     //
     //nois

@@ -346,7 +346,7 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
-    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_sat, &pChannel->funding_tx.wit_script)) {
+    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;

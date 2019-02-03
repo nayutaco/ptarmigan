@@ -314,7 +314,7 @@ TEST_F(ln, ln_accept_channel_recv_ok)
     channel.commit_tx_local.dust_limit_sat = 10000;
     channel.commit_tx_local.channel_reserve_sat = 800;
     memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    channel.funding_sat = 100000;
+    channel.funding_tx.funding_satoshis = 100000;
 
 #ifdef USE_BITCOIND
     channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
@@ -392,7 +392,7 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
     channel.commit_tx_local.dust_limit_sat = 10000;    //★
     channel.commit_tx_local.channel_reserve_sat = 800;
     memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    channel.funding_sat = 100000;
+    channel.funding_tx.funding_satoshis = 100000;
 
 #ifdef USE_BITCOIND
     channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
@@ -470,7 +470,7 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
     channel.commit_tx_local.dust_limit_sat = 10000;
     channel.commit_tx_local.channel_reserve_sat = 800;    //★
     memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
-    channel.funding_sat = 100000;
+    channel.funding_tx.funding_satoshis = 100000;
 
 #ifdef USE_BITCOIND
     channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
