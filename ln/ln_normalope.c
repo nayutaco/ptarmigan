@@ -2174,10 +2174,12 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
     ln_htlcflag_t bak_flag = pChannel->cnl_add_htlc[Idx].stat.flag;
     pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_UPDSEND;
     uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
-    bool ret = ln_comtx_create_remote(pChannel,
-                &dummy_remote,
-                NULL, &p_htlc_sigs,
-                pChannel->commit_tx_remote.commit_num + 1);
+    bool ret = ln_comtx_create_remote(
+        pChannel,
+        &dummy_remote,
+        NULL,
+        &p_htlc_sigs,
+        pChannel->commit_tx_remote.commit_num + 1);
     pChannel->cnl_add_htlc[Idx].stat.flag = bak_flag;
     if (!ret) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
