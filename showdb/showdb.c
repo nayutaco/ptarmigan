@@ -222,7 +222,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     //amount
     printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", pChannel->our_msat);
     printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", pChannel->their_msat);
-    printf(INDENT3 M_QQ("funding_sat") ": %" PRIu64 ",\n", pChannel->funding_sat);
+    printf(INDENT3 M_QQ("funding_satoshis") ": %" PRIu64 ",\n", pChannel->funding_tx.funding_satoshis);
     printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", pChannel->feerate_per_kw);
 
     //status

@@ -200,14 +200,14 @@ bool HIDDEN ln_comtx_create_local(
 
     //HTLC info(script)
     for (int lp = 0; lp < cnt; lp++) {
-        ln_script_create_htlc(
+        if (!ln_script_create_htlc(
             &pp_htlc_info[lp]->wit_script,
             pp_htlc_info[lp]->type,
             pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
             pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
             pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
             pp_htlc_info[lp]->payment_hash,
-            pp_htlc_info[lp]->cltv_expiry);
+            pp_htlc_info[lp]->cltv_expiry)) goto LABEL_EXIT;
     }
 
     //print amount
@@ -228,7 +228,7 @@ bool HIDDEN ln_comtx_create_local(
     LOGD("local commitment_number=%" PRIu64 "\n", CommitNum);
     comtx.fund.txid = ln_funding_txid(pChannel);
     comtx.fund.txid_index = ln_funding_txindex(pChannel);
-    comtx.fund.satoshi = pChannel->funding_sat;
+    comtx.fund.satoshi = pChannel->funding_tx.funding_satoshis;
     comtx.fund.p_wit_script = &pChannel->funding_tx.wit_script;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(our_msat);
     comtx.to_local.p_wit_script = &buf_ws;
@@ -351,7 +351,7 @@ bool ln_comtx_create_remote(
     LOGD("remote commitment_number=%" PRIu64 "\n", CommitNum);
     comtx.fund.txid = ln_funding_txid(pChannel);
     comtx.fund.txid_index = ln_funding_txindex(pChannel);
-    comtx.fund.satoshi = pChannel->funding_sat;
+    comtx.fund.satoshi = pChannel->funding_tx.funding_satoshis;
     comtx.fund.p_wit_script = &pChannel->funding_tx.wit_script;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(our_msat);
     comtx.to_local.p_wit_script = &buf_ws;
@@ -491,6 +491,7 @@ static bool create_local_set_vin0_and_verify(
     LOGD("local verify\n");
 
     bool ret = false;
+
     utl_buf_t script_code = UTL_BUF_INIT;
     uint8_t sighash[BTC_SZ_HASH256];
 
@@ -500,10 +501,10 @@ static bool create_local_set_vin0_and_verify(
     LOGD("++++++++++++++ local commit tx: [%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
-    // verify
+    //verify
     if (!btc_script_p2wsh_create_scriptcode(&script_code, &pChannel->funding_tx.wit_script)) goto LABEL_EXIT;
-    if (!btc_sw_sighash(pTxCommit, sighash, 0, pChannel->funding_sat, &script_code)) goto LABEL_EXIT;
-    if (!btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash, &pChannel->tx_funding.vout[ln_funding_txindex(pChannel)].script)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(pTxCommit, sighash, 0, pChannel->funding_tx.funding_satoshis, &script_code)) goto LABEL_EXIT;
+    if (!btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash, &pChannel->tx_funding.vout[pChannel->funding_tx.txindex].script)) goto LABEL_EXIT;
 
     ret = true;
 

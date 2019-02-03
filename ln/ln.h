@@ -622,6 +622,7 @@ typedef struct {
     uint16_t                    txindex;                ///< funding-tx index
     utl_buf_t                   wit_script;             ///< Witness Script of vout (2-of-2)
     btc_script_pubkey_order_t   key_order;              ///< key order of 2-of-2
+    uint64_t                    funding_satoshis;       ///< funding_satoshis
 } ln_funding_tx_t;
 
 
@@ -713,8 +714,7 @@ struct ln_channel_t {
     ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用
     ln_commit_tx_t              commit_tx_remote;               ///< [COMM_02]remote commit_tx用
     //commitment transaction(固有)
-    uint64_t                    funding_sat;                    ///< [COMM_03]funding_satoshis
-    uint32_t                    feerate_per_kw;                 ///< [COMM_04]feerate_per_kw
+    uint32_t                    feerate_per_kw;                 ///< [COMM_03]feerate_per_kw
 
     //noise protocol
     ln_noise_t                  noise;                          ///< [NOIS_01]noise protocol
