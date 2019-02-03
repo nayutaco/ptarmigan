@@ -203,7 +203,7 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_
     pChannel->p_revoked_wit = NULL;
     pChannel->p_revoked_type = NULL;
 
-    btc_tx_init(&pChannel->tx_funding);
+    btc_tx_init(&pChannel->funding_tx.tx_data);
     btc_tx_init(&pChannel->tx_closing);
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -548,8 +548,8 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
     bool ret = create_funding_tx(dummy, false);
     uint64_t fee = 0;
     if (ret) {
-        dummy->tx_funding.vin[0].script.buf = zero;
-        dummy->tx_funding.vin[0].script.len = 23;
+        dummy->funding_tx.tx_data.vin[0].script.buf = zero;
+        dummy->funding_tx.tx_data.vin[0].script.len = 23;
 
 
         utl_buf_t wit[2];
@@ -559,20 +559,20 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
         wit[0].len = 72;
         wit[1].buf = zero;
         wit[1].len = 33;
-        dummy->tx_funding.vin[0].wit_item_cnt = 2;
-        dummy->tx_funding.vin[0].witness = wit;
+        dummy->funding_tx.tx_data.vin[0].wit_item_cnt = 2;
+        dummy->funding_tx.tx_data.vin[0].witness = wit;
 
-        M_DBG_PRINT_TX(&dummy->tx_funding);
+        M_DBG_PRINT_TX(&dummy->funding_tx.tx_data);
         uint64_t sum = 0;
-        for (uint32_t lp = 0; lp < dummy->tx_funding.vout_cnt; lp++) {
-            sum += dummy->tx_funding.vout[lp].value;
+        for (uint32_t lp = 0; lp < dummy->funding_tx.tx_data.vout_cnt; lp++) {
+            sum += dummy->funding_tx.tx_data.vout[lp].value;
         }
         fee = 0xffffffffffffffff - sum;
 
-        dummy->tx_funding.vin[0].script.buf = NULL;
-        dummy->tx_funding.vin[0].script.len = 0;
-        dummy->tx_funding.vin[0].wit_item_cnt = 0;
-        dummy->tx_funding.vin[0].witness = NULL;
+        dummy->funding_tx.tx_data.vin[0].script.buf = NULL;
+        dummy->funding_tx.tx_data.vin[0].script.len = 0;
+        dummy->funding_tx.tx_data.vin[0].wit_item_cnt = 0;
+        dummy->funding_tx.tx_data.vin[0].witness = NULL;
     } else {
         LOGE("fail: create_funding_tx()\n");
     }
@@ -1167,7 +1167,7 @@ bool ln_is_funding(const ln_channel_t *pChannel)
 
 const btc_tx_t *ln_funding_tx(const ln_channel_t *pChannel)
 {
-    return &pChannel->tx_funding;
+    return &pChannel->funding_tx.tx_data;
 }
 
 
@@ -1551,7 +1551,7 @@ static void channel_clear(ln_channel_t *pChannel)
     utl_buf_free(&pChannel->revoked_sec);
     ln_revoked_buf_free(pChannel);
 
-    btc_tx_free(&pChannel->tx_funding);
+    btc_tx_free(&pChannel->funding_tx.tx_data);
     btc_tx_free(&pChannel->tx_closing);
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {

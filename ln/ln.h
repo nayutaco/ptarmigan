@@ -623,6 +623,7 @@ typedef struct {
     utl_buf_t                   wit_script;             ///< Witness Script of vout (2-of-2)
     btc_script_pubkey_order_t   key_order;              ///< key order of 2-of-2
     uint64_t                    funding_satoshis;       ///< funding_satoshis
+    btc_tx_t                    tx_data;                ///< funding_tx
 } ln_funding_tx_t;
 
 
@@ -668,9 +669,8 @@ struct ln_channel_t {
     ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
     ln_funding_tx_t             funding_tx;                     ///< [FUND_02]funding tx
     uint64_t                    obscured_commit_num_mask;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
-    btc_tx_t                    tx_funding;                     ///< [FUND_06]funding_tx
-    ln_establish_t              establish;                      ///< [FUND_07]Establishワーク領域
-    uint32_t                    min_depth;                      ///< [FUND_08]minimum_depth
+    ln_establish_t              establish;                      ///< [FUND_04]Establishワーク領域
+    uint32_t                    min_depth;                      ///< [FUND_05]minimum_depth
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 

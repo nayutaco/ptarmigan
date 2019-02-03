@@ -439,14 +439,14 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     ln_funding_set_txindex(pChannel, msg.funding_output_index);
 
     //署名チェック用
-    btc_tx_free(&pChannel->tx_funding);
+    btc_tx_free(&pChannel->funding_tx.tx_data);
     for (uint32_t lp = 0; lp < ln_funding_txindex(pChannel); lp++) {
         //処理の都合上、voutの位置を調整している
-        btc_tx_add_vout(&pChannel->tx_funding, 0);
+        btc_tx_add_vout(&pChannel->funding_tx.tx_data, 0);
     }
-    btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
+    btc_sw_add_vout_p2wsh_wit(&pChannel->funding_tx.tx_data, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
-    btc_tx_add_vin(&pChannel->tx_funding, ln_funding_txid(pChannel), 0);
+    btc_tx_add_vin(&pChannel->funding_tx.tx_data, ln_funding_txid(pChannel), 0);
 
     //署名チェック
     //  initial commit tx(自分が持つTo-Local)
@@ -782,7 +782,7 @@ static bool check_peer_node(ln_channel_t *pChannel)
  */
 static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
 {
-    btc_tx_free(&pChannel->tx_funding);
+    btc_tx_free(&pChannel->funding_tx.tx_data);
 
     //vout 2-of-2
     btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
@@ -792,18 +792,18 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //output
         ln_funding_set_txindex(pChannel, M_FUNDING_INDEX);      //TODO: vout#0は2-of-2、vout#1はchangeにしている
         //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
+        btc_sw_add_vout_p2wsh_wit(&pChannel->funding_tx.tx_data, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
 
         //vout#1:P2WPKH - change(amountは後で代入)
-        btc_tx_add_vout_spk(&pChannel->tx_funding, (uint64_t)-1, &pChannel->establish.p_fundin->change_spk);
+        btc_tx_add_vout_spk(&pChannel->funding_tx.tx_data, (uint64_t)-1, &pChannel->establish.p_fundin->change_spk);
 
         //input
         //vin#0
-        btc_tx_add_vin(&pChannel->tx_funding, pChannel->establish.p_fundin->txid, pChannel->establish.p_fundin->index);
+        btc_tx_add_vin(&pChannel->funding_tx.tx_data, pChannel->establish.p_fundin->txid, pChannel->establish.p_fundin->index);
 
         //FEE計算
         // LEN+署名(72) + LEN+公開鍵(33)
-        //  この時点では、pChannel->tx_funding に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
+        //  この時点では、pChannel->funding_tx.tx_data に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
         //  feeを決めるためにvsizeを算出したいが、
         //
         //      version:4
@@ -826,7 +826,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, pChannel->feerate_per_kw);
         LOGD("fee=%" PRIu64 "\n", fee);
         if (pChannel->establish.p_fundin->amount >= pChannel->funding_tx.funding_satoshis + fee) {
-            pChannel->tx_funding.vout[1].value = pChannel->establish.p_fundin->amount - pChannel->funding_tx.funding_satoshis - fee;
+            pChannel->funding_tx.tx_data.vout[1].value = pChannel->establish.p_fundin->amount - pChannel->funding_tx.funding_satoshis - fee;
         } else {
             LOGE("fail: amount too short:\n");
             LOGD("    amount=%" PRIu64 "\n", pChannel->establish.p_fundin->amount);
@@ -838,15 +838,15 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //for SPV
         //fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
         //その代わり、ln_funding_txindex(pChannel)は固定値にならない。
-        btc_sw_add_vout_p2wsh_wit(&pChannel->tx_funding, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
-        btc_tx_add_vin(&pChannel->tx_funding, ln_funding_txid(pChannel), 0); //dummy
+        btc_sw_add_vout_p2wsh_wit(&pChannel->funding_tx.tx_data, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
+        btc_tx_add_vin(&pChannel->funding_tx.tx_data, ln_funding_txid(pChannel), 0); //dummy
     }
 
     //sign
     if (!bSign) return true; //not sign
 
     ln_cb_funding_sign_t param;
-    param.p_tx =  &pChannel->tx_funding;
+    param.p_tx =  &pChannel->funding_tx.tx_data;
     if (pChannel->establish.p_fundin != NULL) {
         param.amount = pChannel->establish.p_fundin->amount;
     } else {
@@ -855,27 +855,27 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     ln_callback(pChannel, LN_CB_SIGN_FUNDINGTX_REQ, &param);
     if (!param.ret) {
         LOGE("fail: signature\n");
-        btc_tx_free(&pChannel->tx_funding);
+        btc_tx_free(&pChannel->funding_tx.tx_data);
         return false;
     }
 
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(&pChannel->tx_funding, txid);
+    btc_tx_txid(&pChannel->funding_tx.tx_data, txid);
     ln_funding_set_txid(pChannel, txid);
     LOGD("***** funding_tx *****\n");
-    M_DBG_PRINT_TX(&pChannel->tx_funding);
+    M_DBG_PRINT_TX(&pChannel->funding_tx.tx_data);
 
     //search funding vout
     utl_buf_t two_of_two = UTL_BUF_INIT;
     btc_script_p2wsh_create_scriptpk(&two_of_two, &pChannel->funding_tx.wit_script);
     uint32_t lp;
-    for (lp = 0; lp < pChannel->tx_funding.vout_cnt; lp++) {
-        if (utl_buf_equal(&pChannel->tx_funding.vout[lp].script, &two_of_two)) break;
+    for (lp = 0; lp < pChannel->funding_tx.tx_data.vout_cnt; lp++) {
+        if (utl_buf_equal(&pChannel->funding_tx.tx_data.vout[lp].script, &two_of_two)) break;
     }
     utl_buf_free(&two_of_two);
-    if (lp == pChannel->tx_funding.vout_cnt) {
+    if (lp == pChannel->funding_tx.tx_data.vout_cnt) {
         //not found
-        btc_tx_free(&pChannel->tx_funding);
+        btc_tx_free(&pChannel->funding_tx.tx_data);
         return false;
     }
     ln_funding_set_txindex(pChannel, lp);
@@ -915,7 +915,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
 
     funding.b_send = bSendTx;
     if (bSendTx) {
-        funding.p_tx_funding = &pChannel->tx_funding;
+        funding.p_tx_funding = &pChannel->funding_tx.tx_data;
     }
     funding.b_result = false;
     ln_callback(pChannel, LN_CB_FUNDINGTX_WAIT, &funding);

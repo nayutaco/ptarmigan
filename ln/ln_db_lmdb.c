@@ -923,7 +923,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
         }
     }
 
-    btc_tx_read(&pChannel->tx_funding, buf_funding.buf, buf_funding.len);
+    btc_tx_read(&pChannel->funding_tx.tx_data, buf_funding.buf, buf_funding.len);
     utl_buf_free(&buf_funding);
     UTL_DBG_FREE(p_dbscript_keys);
 
@@ -3762,9 +3762,9 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
 
     //可変サイズ(shallow copy)
 
-    //tx_funding
-    btc_tx_free(&pOutChannel->tx_funding);
-    memcpy(&pOutChannel->tx_funding, &pInChannel->tx_funding, sizeof(btc_tx_t));
+    //funding_tx.tx_data
+    btc_tx_free(&pOutChannel->funding_tx.tx_data);
+    memcpy(&pOutChannel->funding_tx.tx_data, &pInChannel->funding_tx.tx_data, sizeof(btc_tx_t));
 
     //shutdown_scriptpk_local
     utl_buf_free(&pOutChannel->shutdown_scriptpk_local);
@@ -3981,7 +3981,7 @@ static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
-    btc_tx_write(&pChannel->tx_funding, &buf_funding);
+    btc_tx_write(&pChannel->funding_tx.tx_data, &buf_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)UTL_DBG_MALLOC(sizeof(backup_buf_t) * M_CHANNEL_BUFS);
     int index = 0;

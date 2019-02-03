@@ -363,7 +363,7 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
         //verify
         if (!btc_sw_verify_p2wsh_2of2(
-            pTx, 0, sighash, &pChannel->tx_funding.vout[ln_funding_txindex(pChannel)].script)) {
+            pTx, 0, sighash, &pChannel->funding_tx.tx_data.vout[ln_funding_txindex(pChannel)].script)) {
             btc_tx_free(pTx);
             LOGD("fail: verify\n");
             return false;
