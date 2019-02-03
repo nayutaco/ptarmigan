@@ -504,7 +504,7 @@ static bool create_local_set_vin0_and_verify(
     //verify
     if (!btc_script_p2wsh_create_scriptcode(&script_code, &pChannel->funding_tx.wit_script)) goto LABEL_EXIT;
     if (!btc_sw_sighash(pTxCommit, sighash, 0, pChannel->funding_tx.funding_satoshis, &script_code)) goto LABEL_EXIT;
-    if (!btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash, &pChannel->tx_funding.vout[pChannel->funding_tx.txindex].script)) goto LABEL_EXIT;
+    if (!btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash, &pChannel->funding_tx.tx_data.vout[pChannel->funding_tx.txindex].script)) goto LABEL_EXIT;
 
     ret = true;
 

@@ -190,7 +190,7 @@ public:
         pChannel->feerate_per_kw = 500;
         pChannel->our_msat = 1000000;
         pChannel->their_msat = 1000000;
-        btc_tx_init(&pChannel->tx_funding);
+        btc_tx_init(&pChannel->funding_tx.tx_data);
         utl_buf_init(&pChannel->funding_tx.wit_script);
         pChannel->p_callback = LnCallbackType;
         memcpy(pChannel->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
