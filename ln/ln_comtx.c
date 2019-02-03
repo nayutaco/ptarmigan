@@ -84,8 +84,8 @@ static bool create_local_htlc_info_and_amount(
     uint64_t *pOurMsat,
     uint64_t *pTheirMsat);
 static bool create_local_set_vin0_and_verify(
-    const ln_channel_t *pChannel,
     btc_tx_t *pTxCommit,
+    const ln_funding_tx_t *pFundTx,
     const uint8_t *pSigLocal,
     const uint8_t *pSigRemote);
 static bool create_local_spent(
@@ -243,7 +243,7 @@ bool HIDDEN ln_comtx_create_local(
         goto LABEL_EXIT;
     }
     //2-of-2 verify
-    if (!create_local_set_vin0_and_verify(pChannel, &tx_commit, local_sig, pChannel->commit_tx_local.remote_sig)) {
+    if (!create_local_set_vin0_and_verify(&tx_commit, &pChannel->funding_tx, local_sig, pChannel->commit_tx_local.remote_sig)) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
@@ -476,15 +476,15 @@ static bool create_local_htlc_info_and_amount(
 
 /** set vin[0] and verify sigs
  *
- * @param[in,out]   pChannel
  * @param[in,out]   pTxCommit   [in]commit_tx(署名無し) / [out]commit_tx(署名あり)
+ * @param[in]       pFundTx
  * @param[in]       pSigLocal
  * @param[in]       pSigRemote
  * @retval  true    成功
  */
 static bool create_local_set_vin0_and_verify(
-    const ln_channel_t *pChannel,
     btc_tx_t *pTxCommit,
+    const ln_funding_tx_t *pFundTx,
     const uint8_t *pSigLocal,
     const uint8_t *pSigRemote)
 {
@@ -497,14 +497,14 @@ static bool create_local_set_vin0_and_verify(
 
     //set vin[0]
     if (!ln_comtx_set_vin_p2wsh_2of2_rs(
-        pTxCommit, 0, pChannel->funding_tx.key_order, pSigLocal, pSigRemote, &pChannel->funding_tx.wit_script)) goto LABEL_EXIT;
-    LOGD("++++++++++++++ local commit tx: [%016" PRIx64 "]\n", pChannel->short_channel_id);
+        pTxCommit, 0, pFundTx->key_order, pSigLocal, pSigRemote, &pFundTx->wit_script)) goto LABEL_EXIT;
+    //  LOGD("++++++++++++++ local commit tx: [%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
     //verify
-    if (!btc_script_p2wsh_create_scriptcode(&script_code, &pChannel->funding_tx.wit_script)) goto LABEL_EXIT;
-    if (!btc_sw_sighash(pTxCommit, sighash, 0, pChannel->funding_tx.funding_satoshis, &script_code)) goto LABEL_EXIT;
-    if (!btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash, &pChannel->funding_tx.tx_data.vout[pChannel->funding_tx.txindex].script)) goto LABEL_EXIT;
+    if (!btc_script_p2wsh_create_scriptcode(&script_code, &pFundTx->wit_script)) goto LABEL_EXIT;
+    if (!btc_sw_sighash(pTxCommit, sighash, 0, pFundTx->funding_satoshis, &script_code)) goto LABEL_EXIT;
+    if (!btc_sw_verify_p2wsh_2of2(pTxCommit, 0, sighash, &pFundTx->tx_data.vout[pFundTx->txindex].script)) goto LABEL_EXIT;
 
     ret = true;
 
