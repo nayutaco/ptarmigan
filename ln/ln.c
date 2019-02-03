@@ -731,9 +731,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
         pClose,
         NULL,
         0,
-        pChannel->commit_tx_local.commit_num,
-        pChannel->commit_tx_local.to_self_delay,
-        pChannel->commit_tx_local.dust_limit_sat);
+        pChannel->commit_tx_local.commit_num);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);

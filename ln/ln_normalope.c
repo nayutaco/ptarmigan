@@ -501,9 +501,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
         NULL,
         commsig.p_htlc_signature,
         commsig.num_htlcs,  //HTLC署名のみ(closeなし)
-        pChannel->commit_tx_local.commit_num + 1,
-        pChannel->commit_tx_local.to_self_delay,
-        pChannel->commit_tx_local.dust_limit_sat);
+        pChannel->commit_tx_local.commit_num + 1);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         goto LABEL_EXIT;

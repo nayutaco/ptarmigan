@@ -167,9 +167,7 @@ bool HIDDEN ln_comtx_create_local(
     ln_close_force_t *pClose,
     const uint8_t *pHtlcSigs,
     uint8_t HtlcSigsNum,
-    uint64_t CommitNum,
-    uint32_t ToSelfDelay,
-    uint64_t DustLimitSat)
+    uint64_t CommitNum)
 {
     LOGD("BEGIN\n");
 
@@ -191,7 +189,7 @@ bool HIDDEN ln_comtx_create_local(
         &buf_ws,
         pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
         pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
-        ToSelfDelay)) return false;
+        pChannel->commit_tx_local.to_self_delay)) return false;
 
     //HTLC info(amount)
     pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
@@ -221,7 +219,7 @@ bool HIDDEN ln_comtx_create_local(
 
     //fee
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
-    fee_info.dust_limit_satoshi = DustLimitSat;
+    fee_info.dust_limit_satoshi = pChannel->commit_tx_local.dust_limit_sat;
     ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_info, cnt);
 
     //commitment transaction
@@ -259,7 +257,7 @@ bool HIDDEN ln_comtx_create_local(
         &buf_ws,
         (const ln_comtx_htlc_info_t **)pp_htlc_info,
         &fee_info,
-        ToSelfDelay)) goto LABEL_EXIT;
+        pChannel->commit_tx_local.to_self_delay)) goto LABEL_EXIT;
 
     if (pClose) {
         memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(btc_tx_t));

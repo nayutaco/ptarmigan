@@ -457,9 +457,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
         NULL,
         NULL,
         0,
-        0,
-        pChannel->commit_tx_local.to_self_delay,
-        pChannel->commit_tx_local.dust_limit_sat)) {
+        0)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -533,9 +531,7 @@ bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         NULL,
         NULL,
         0,
-        0,
-        pChannel->commit_tx_local.to_self_delay,
-        pChannel->commit_tx_local.dust_limit_sat)) {
+        0)) {
         LOGE("fail: create_to_local\n");
         return false;
     }

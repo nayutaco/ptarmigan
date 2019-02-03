@@ -49,8 +49,6 @@
  * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           HtlcSigsNum         pHtlcSigsの署名数
  * @param[in]           CommitNum           計算に使用するcommitment_number
- * @param[in]           ToSelfDelay         remoteのToSelfDelay
- * @param[in]           DustLimitSat        localのDustLimitSat
  * @retval      true    成功
  * @note
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
@@ -60,9 +58,7 @@ bool HIDDEN ln_comtx_create_local(
     ln_close_force_t *pClose,
     const uint8_t *pHtlcSigs,
     uint8_t HtlcSigsNum,
-    uint64_t CommitNum,
-    uint32_t ToSelfDelay,
-    uint64_t DustLimitSat);
+    uint64_t CommitNum);
 
 
 /** 相手用 commitment transaction作成
