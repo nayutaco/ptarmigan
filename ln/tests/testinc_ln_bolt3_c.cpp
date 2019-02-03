@@ -226,7 +226,7 @@ protected:
 
     static uint64_t obscured;
     static utl_buf_t funding2of2;
-    static btc_script_pubkey_order_t key_fund_sort;
+    static btc_script_pubkey_order_t key_order;
 
     static btc_tx_t tx;
     static uint8_t txid_commit[BTC_SZ_TXID];
@@ -251,7 +251,7 @@ uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];
 
 uint64_t ln_bolt3_c::obscured;
 utl_buf_t ln_bolt3_c::funding2of2;
-btc_script_pubkey_order_t ln_bolt3_c::key_fund_sort;
+btc_script_pubkey_order_t ln_bolt3_c::key_order;
 
 btc_tx_t ln_bolt3_c::tx;
 uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];
@@ -293,7 +293,7 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_EQ(0, memcmp(keys_local_commit.pub, LOCAL_KEY, BTC_SZ_PUBKEY));
 
     //input script
-    ret = btc_script_2of2_create_redeem_sorted(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
+    ret = btc_script_2of2_create_redeem_sorted(&funding2of2, &key_order, keys_local_funding.pub, remote_funding_pubkey);
     ASSERT_TRUE(ret);
 
     //preimage-hash
@@ -441,7 +441,7 @@ TEST_F(ln_bolt3_c, committx2)
     ASSERT_EQ(sizeof(LOCAL_SIGNATURE), buf_sig_local.len);
 
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -686,22 +686,22 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -731,7 +731,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -1407,22 +1407,22 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1452,7 +1452,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -2127,22 +2127,22 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -2173,7 +2173,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -2786,22 +2786,22 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -2832,7 +2832,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -3445,22 +3445,22 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -3491,7 +3491,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -4040,22 +4040,22 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4086,7 +4086,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -4635,22 +4635,22 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4681,7 +4681,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -5169,22 +5169,22 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5215,7 +5215,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -5703,22 +5703,22 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5749,7 +5749,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6176,22 +6176,22 @@ TEST_F(ln_bolt3_c, committx3max_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6222,7 +6222,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6650,22 +6650,22 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6696,7 +6696,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6946,22 +6946,22 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6992,7 +6992,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -7244,22 +7244,22 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7290,7 +7290,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -7535,22 +7535,22 @@ TEST_F(ln_bolt3_c, committx_commit)
 
     //tx
 
-    ln_comtx_t lntx_commit;
-    lntx_commit.fund.txid = TXID_FUND;
-    lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
-    lntx_commit.fund.p_wit_script = &funding2of2;
-    lntx_commit.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    lntx_commit.to_local.p_wit_script = &ws_local_buf;
-    lntx_commit.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
-    lntx_commit.to_remote.pubkey = REMOTE_KEY;
-    lntx_commit.obscured_commit_num = obscured;
-    lntx_commit.p_base_fee_info = &fee_info;
-    lntx_commit.pp_htlc_info = pp_htlc_infos;
-    lntx_commit.htlc_info_num = 5;
+    ln_comtx_t comtx;
+    comtx.fund.txid = TXID_FUND;
+    comtx.fund.txid_index = TXID_FUND_INDEX;
+    comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
+    comtx.fund.p_wit_script = &funding2of2;
+    comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
+    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
+    comtx.to_remote.pubkey = REMOTE_KEY;
+    comtx.obscured_commit_num = obscured;
+    comtx.p_base_fee_info = &fee_info;
+    comtx.pp_htlc_info = pp_htlc_infos;
+    comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &lntx_commit, true, &local_keys);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7581,7 +7581,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     };
     utl_buf_t buf_sig_remote = UTL_BUF_INIT;
     utl_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
+    ret = ln_comtx_set_vin_p2wsh_2of2(&tx, 0, key_order,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);

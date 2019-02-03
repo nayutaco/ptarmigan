@@ -184,4 +184,8 @@ bool HIDDEN ln_comtx_create(
     btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_t *pCommitTx, bool ToLocalIsFounder, const ln_derkey_local_keys_t *pLocalKeys);
 
 
+bool HIDDEN ln_comtx_create_rs(
+    btc_tx_t *pTx, uint8_t *pSig, const ln_comtx_t *pCommitTx, bool ToLocalIsFounder, const ln_derkey_local_keys_t *pLocalKeys);
+
+
 #endif /* LN_COMTX_EX_H__ */

@@ -81,7 +81,7 @@ bool HIDDEN ln_htlctx_create(
 /** Offered/Receveid HTLC Transaction署名
  *
  * @param[in,out]   pTx
- * @param[out]      pLocalSig       署名
+ * @param[out]      pSig            signature
  * @param[in]       Value           INPUTのamount
  * @param[in]       pKeys           CommitTxのlocal署名用
  * @param[in]       pRemoteSig      commit_tx相手からの署名
@@ -92,7 +92,15 @@ bool HIDDEN ln_htlctx_create(
  */
 bool HIDDEN ln_htlctx_sign(
     btc_tx_t *pTx,
-    utl_buf_t *pLocalSig,
+    utl_buf_t *pSig,
+    uint64_t Value,
+    const btc_keys_t *pKeys,
+    const utl_buf_t *pWitScript);
+
+
+bool HIDDEN ln_htlctx_sign_rs(
+    btc_tx_t *pTx,
+    uint8_t *pSig,
     uint64_t Value,
     const btc_keys_t *pKeys,
     const utl_buf_t *pWitScript);
@@ -102,6 +110,16 @@ bool HIDDEN ln_htlctx_set_vin(
     btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const utl_buf_t *pRemoteSig,
+    const uint8_t *pPreImage,
+    const btc_keys_t *pRevoKeys,
+    const utl_buf_t *pWitScript,
+    ln_htlctx_sig_type_t HtlcSigType);
+
+
+bool HIDDEN ln_htlctx_set_vin_rs(
+    btc_tx_t *pTx,
+    const uint8_t *pLocalSig,
+    const uint8_t *pRemoteSig,
     const uint8_t *pPreImage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,

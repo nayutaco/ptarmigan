@@ -47,15 +47,15 @@ static bool get_privkey(
  * public functions
  **************************************************************************/
 
-bool HIDDEN ln_signer_sign(utl_buf_t *pSig, const uint8_t *pSigHash, const ln_derkey_local_keys_t *pKey, int Index)
+bool HIDDEN ln_signer_sign_rs(uint8_t *pSig, const uint8_t *pSigHash, const ln_derkey_local_keys_t *pKey, int Index)
 {
-    return btc_sig_sign(pSig, pSigHash, pKey->secrets[Index]);
+    return btc_sig_sign_rs(pSig, pSigHash, pKey->secrets[Index]);
 }
 
 
-bool HIDDEN ln_signer_sign_2(utl_buf_t *pSig, const uint8_t *pSigHash, const btc_keys_t *pKey)
+bool HIDDEN ln_signer_sign_rs_2(uint8_t *pSig, const uint8_t *pSigHash, const btc_keys_t *pKey)
 {
-    return btc_sig_sign(pSig, pSigHash, pKey->priv);
+    return btc_sig_sign_rs(pSig, pSigHash, pKey->priv);
 }
 
 
@@ -77,12 +77,6 @@ LABEL_EXIT:
     utl_buf_free(&sigbuf);
     utl_buf_free(&script_code);
     return ret;
-}
-
-
-bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pSigHash, const ln_derkey_local_keys_t *pLocalKeys, int Index)
-{
-    return btc_sig_sign_rs(pRS, pSigHash, pLocalKeys->secrets[Index]);
 }
 
 

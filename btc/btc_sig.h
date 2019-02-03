@@ -155,7 +155,7 @@ bool btc_sig_der2rs(uint8_t *pRs, const uint8_t *pDer, uint32_t Len);
  * @note
  *      - append a sig hash type (SIGHASH_ALL)
  */
-bool btc_sig_rs2der(utl_buf_t *pRs, const uint8_t *pDer);
+bool btc_sig_rs2der(utl_buf_t *pDer, const uint8_t *pRs);
 
 
 #ifdef __cplusplus

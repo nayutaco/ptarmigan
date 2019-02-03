@@ -313,7 +313,6 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
     uint64_t fee_local;
     uint64_t fee_remote;
     btc_vout_t *vout;
-    utl_buf_t buf_sig = UTL_BUF_INIT;
 
     //BOLT#3: feeはfundedの方から引く
     if (ln_is_funder(pChannel)) {
@@ -352,22 +351,15 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
         btc_tx_free(pTx);
         return false;
     }
-    if (!ln_signer_sign(&buf_sig, sighash, &pChannel->keys_local, LN_BASEPOINT_IDX_FUNDING)) {
+    if (!ln_signer_sign_rs(pChannel->commit_tx_remote.remote_sig, sighash, &pChannel->keys_local, LN_BASEPOINT_IDX_FUNDING)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
     }
 
-    //送信用署名
-    btc_sig_der2rs(pChannel->commit_tx_remote.remote_sig, buf_sig.buf, buf_sig.len);
-
-    //署名追加
+    //set vin[0]
     if (bVerify) {
-        utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
-
-        btc_sig_rs2der(&buf_sig_from_remote, pChannel->commit_tx_local.remote_sig);
-        ln_comtx_set_vin_p2wsh_2of2(pTx, 0, pChannel->funding_tx.key_order, &buf_sig, &buf_sig_from_remote, &pChannel->funding_tx.wit_script);
-        utl_buf_free(&buf_sig_from_remote);
+        ln_comtx_set_vin_p2wsh_2of2_rs(pTx, 0, pChannel->funding_tx.key_order, pChannel->commit_tx_remote.remote_sig, pChannel->commit_tx_local.remote_sig, &pChannel->funding_tx.wit_script);
 
         //verify
         if (!btc_sw_verify_p2wsh_2of2(
@@ -379,7 +371,6 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
     } else {
         LOGD("no verify\n");
     }
-    utl_buf_free(&buf_sig);
 
     LOGD("+++++++++++++ closing_tx[%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(pTx);

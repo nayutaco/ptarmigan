@@ -55,6 +55,7 @@
 
 #include "btc_sw.h"
 
+#include "ln_local.h"
 #include "ln_signer.h"
 #include "ln_wallet.h"
 
@@ -137,6 +138,51 @@ bool HIDDEN ln_wallet_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t 
     if (!utl_buf_alloccopy(&p_wit_items[1], pKey->pub, BTC_SZ_PUBKEY)) return false;
     pTx->vin[0].wit_item_cnt = 2;
     pTx->vin[0].witness = p_wit_items;
+    return true;
+}
+
+
+bool HIDDEN ln_wallet_htlctx_set_vin(
+    btc_tx_t *pTx,
+    const uint8_t *pHtlcPrivKey,
+    const uint8_t *pPreImage,
+    const utl_buf_t *pWitScript,
+    ln_htlctx_sig_type_t HtlcSigType)
+{
+    switch (HtlcSigType) {
+    case LN_HTLCTX_SIG_REMOTE_OFFER:
+        {
+            // <remotehtlcsig> BUT set htlc private key (NOT BOLT)
+            // <payment-preimage> BUT optional (NOT BOLT)
+            // <witness script>
+            const utl_buf_t htlc_privkey = { (CONST_CAST uint8_t *)pHtlcPrivKey, BTC_SZ_PRIVKEY };
+            utl_buf_t preimage = UTL_BUF_INIT;
+            if (pPreImage) {
+                preimage.buf = (CONST_CAST uint8_t *)pPreImage;
+                preimage.len = LN_SZ_PREIMAGE;
+            }
+            const utl_buf_t *wit_items[] = { &htlc_privkey, &preimage, pWitScript };
+            LOGD("Offered HTLC + preimage sign: wit_item_num=%d\n", ARRAY_SIZE(wit_items));
+            if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
+        }
+        break;
+    case LN_HTLCTX_SIG_REMOTE_RECV:
+        {
+            // <remotehtlcsig> BUT set htlc private key (NOT BOLT)
+            // 0
+            // <witness script>
+            const utl_buf_t htlc_privkey = { (CONST_CAST uint8_t *)pHtlcPrivKey, BTC_SZ_PRIVKEY };
+            const utl_buf_t zero = UTL_BUF_INIT;
+            const utl_buf_t *wit_items[] = { &htlc_privkey, &zero, pWitScript};
+            LOGD("Received HTLC sign: wit_item_num=%d\n", ARRAY_SIZE(wit_items));
+            if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
+        }
+        break;
+    default:
+        LOGD("HtlcSigType=%d\n", (int)HtlcSigType);
+        assert(0);
+        return false;
+    }
     return true;
 }
 

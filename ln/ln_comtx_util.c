@@ -159,8 +159,18 @@ void HIDDEN ln_comtx_base_fee_calc(
 
 
 bool HIDDEN ln_comtx_create(
+    btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_t *pCommitTx, bool ToLocalIsFounder, const ln_derkey_local_keys_t *pLocalKeys)
+{
+    uint8_t sig[LN_SZ_SIGNATURE];
+    if (!ln_comtx_create_rs(pTx, sig, pCommitTx, ToLocalIsFounder, pLocalKeys)) return false;
+    if (!btc_sig_rs2der(pSig, sig)) return false;
+    return true;
+}
+
+
+bool HIDDEN ln_comtx_create_rs(
     btc_tx_t *pTx,
-    utl_buf_t *pSig,
+    uint8_t *pSig,
     const ln_comtx_t *pCommitTx,
     bool ToLocalIsFounder,
     const ln_derkey_local_keys_t *pLocalKeys)
@@ -234,7 +244,7 @@ bool HIDDEN ln_comtx_create(
         LOGE("fail: calc sighash\n");
         return false;
     }
-    if (!ln_signer_sign(pSig, sighash, pLocalKeys, LN_BASEPOINT_IDX_FUNDING)) {
+    if (!ln_signer_sign_rs(pSig, sighash, pLocalKeys, LN_BASEPOINT_IDX_FUNDING)) {
         LOGE("fail: calc sighash\n");
         return false;
     }

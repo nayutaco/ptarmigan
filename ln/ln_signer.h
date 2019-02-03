@@ -42,9 +42,9 @@
  * @param[in]       Index
  * @return      true:成功
  * @note
- *      - 中身は #btc_sig_sign()
+ *      - 中身は #btc_sig_sign_rs()
  */
-bool HIDDEN ln_signer_sign(utl_buf_t *pSig, const uint8_t *pSigHash, const ln_derkey_local_keys_t *pLocalKeys, int Index);
+bool HIDDEN ln_signer_sign_rs(uint8_t *pSig, const uint8_t *pSigHash, const ln_derkey_local_keys_t *pLocalKeys, int Index);
 
 
 /** sign
@@ -54,9 +54,9 @@ bool HIDDEN ln_signer_sign(utl_buf_t *pSig, const uint8_t *pSigHash, const ln_de
  * @param[in]       pKey
  * @return      true:成功
  * @note
- *      - 中身は #btc_sig_sign()
+ *      - 中身は #btc_sig_sign_rs()
  */
-bool HIDDEN ln_signer_sign_2(utl_buf_t *pSig, const uint8_t *pSigHash, const btc_keys_t *pKey);
+bool HIDDEN ln_signer_sign_rs_2(uint8_t *pSig, const uint8_t *pSigHash, const btc_keys_t *pKey);
 
 
 /** P2WPKH署名
@@ -70,19 +70,6 @@ bool HIDDEN ln_signer_sign_2(utl_buf_t *pSig, const uint8_t *pSigHash, const btc
  *      - #btc_init()の設定で署名する
  */
 bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKey);
-
-
-/** 署名(R/S)
- *
- * @param[out]      pRS         署名結果
- * @param[in]       pSigHash     ハッシュ値
- * @param[in]       pLocalKeys
- * @param[in]       Index
- * @return      true:成功
- * @note
- *      - #btc_init()の設定で署名する
- */
-bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pSigHash, const ln_derkey_local_keys_t *pLocalKeys, int Index);
 
 
 /** to_local script署名用鍵取得
