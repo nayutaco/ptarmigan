@@ -344,16 +344,12 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         utl_str_bin2str(mPeerNodeId, peer.node_id, BTC_SZ_PUBKEY);
         *pOption = M_OPTIONS_CONN;
     } else if (optlen >= (BTC_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
-        // <pubkey>@<ipaddr>:<port>
-        // (33 * 2)@x.x.x.x:x
-        int results = sscanf(optarg, "%66s@%" SZ_IPV4_LEN_STR "[^:]:%" SCNu16,
-            mPeerNodeId,
-            mPeerAddr,
-            &mPeerPort);
-        // printf("id: %s\n", mPeerNodeId);
-        // printf("addr: %s\n", mPeerAddr);
-        // printf("port: %" PRIu16 "\n", mPeerPort);
-        if (results == 3) {
+        ln_node_conn_t node_conn;
+        bool dec_ret = ln_node_addr_dec(&node_conn, optarg);
+        if (dec_ret) {
+            utl_str_bin2str(mPeerNodeId, node_conn.node_id, BTC_SZ_PUBKEY);
+            strcpy(mPeerAddr, node_conn.addr);
+            mPeerPort = node_conn.port;
             *pConn = true;
             *pOption = M_OPTIONS_CONN;
         } else {
@@ -361,7 +357,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
             *pOption = M_OPTIONS_HELP;
         }
     } else if (optlen == BTC_SZ_PUBKEY * 2) {
-        //node_idを直で指定した可能性あり(connectとしては使用できない)
+        //node_idだけ指定した可能性あり(connectとしては使用できない)
         strcpy(mPeerAddr, "0.0.0.0");
         mPeerPort = 0;
         strcpy(mPeerNodeId, optarg);

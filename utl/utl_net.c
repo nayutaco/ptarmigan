@@ -51,9 +51,9 @@ static inline bool ipv4_addr_is_subset(const uint8_t addr[4], uint8_t mask_bit_n
 
 bool utl_net_ipv4_addr_is_routable(const uint8_t* addr)
 {
-    struct addrblock {
-        uint8_t addr[4];
-        uint8_t mask_bit_num;
+    const struct addrblock {
+        const uint8_t addr[4];
+        const uint8_t mask_bit_num;
     } reserved[] = {
         {{0, 0, 0, 0}, 8},
         {{10, 0, 0, 0}, 8},

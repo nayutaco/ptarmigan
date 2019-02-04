@@ -66,6 +66,7 @@
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_channel_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_connect_conf(void* user, const char* section, const char* name, const char* value);
 
 
 /**************************************************************************
@@ -165,6 +166,22 @@ bool conf_channel_load(const char *pConfFile, channel_conf_t *pChannConf)
 {
     if (ini_parse(pConfFile, handler_channel_conf, pChannConf) != 0) {
         //LOGE("fail channel parse[%s]", pConfFile);
+        return false;
+    }
+
+    return true;
+}
+
+
+void conf_connect_init(connect_conf_t *pConnConf)
+{
+    memset(pConnConf, 0, sizeof(connect_conf_t));
+}
+
+
+bool conf_connect_load(const char *pConfFile, connect_conf_t *pConnConf)
+{
+    if (ini_parse(pConfFile, handler_connect_conf, pConnConf) != 0) {
         return false;
     }
 
@@ -295,3 +312,24 @@ static int handler_channel_conf(void* user, const char* section, const char* nam
     return 1;
 }
 
+
+static int handler_connect_conf(void* user, const char* section, const char* name, const char* value)
+{
+    (void)section;
+
+    connect_conf_t* pconfig = (connect_conf_t *)user;
+
+    if (strncmp(name, "node", 4) == 0) {
+        int num = 0;
+        num = (int)strtol(name + 4, NULL, 10);
+        if ((0 <= num) && (num < PTARMD_CONNLIST_MAX)) {
+            strncpy(pconfig->conn_str[num], value, SZ_NODECONN_STR);
+            pconfig->conn_str[num][SZ_NODECONN_STR] = '\0';
+        } else {
+            //through
+        }
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}

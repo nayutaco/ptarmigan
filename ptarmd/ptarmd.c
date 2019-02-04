@@ -534,7 +534,7 @@ static void load_channel_settings(void)
     channel_conf_t econf;
 
     conf_channel_init(&econf);
-    (void)conf_channel_load("channel.conf", &econf);
+    (void)conf_channel_load(FNAME_CONF_CHANNEL, &econf);
     mEstablishPrm.dust_limit_sat = econf.dust_limit_sat;
     mEstablishPrm.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
     mEstablishPrm.channel_reserve_sat = econf.channel_reserve_sat;

@@ -29,8 +29,10 @@
 #include <time.h>
 #include <assert.h>
 
+#include "utl_addr.h"
 #include "utl_dbg.h"
 #include "utl_net.h"
+#include "utl_str.h"
 #include "utl_time.h"
 
 #include "btc_crypto.h"
@@ -219,6 +221,42 @@ uint64_t ln_node_total_msat(void)
     uint64_t amount = 0;
     ln_db_channel_search_readonly(comp_func_total_msat, &amount);
     return amount;
+}
+
+
+bool ln_node_addr_dec(ln_node_conn_t *pNodeConn, const char *pConnStr)
+{
+    // <pubkey>@<ipaddr>:<port>
+    // (33 * 2)@x.x.x.x:x
+    char node_id_str[BTC_SZ_PUBKEY * 2 + 1] = "";
+    int port = -1;
+    int results = sscanf(pConnStr, "%66s@%15[^:]:%d", node_id_str, pNodeConn->addr, &port);
+    if ( (results != 3) ||
+         (strlen(node_id_str) != BTC_SZ_PUBKEY * 2) ||
+         (strlen(pNodeConn->addr) < 7) ||
+         (port <= 0) || (0x10000 <= port) ) {
+        LOGE("fail: invalid string(%s)\n", pConnStr);
+        return false;
+    }
+    uint8_t baddr[4];
+    if (!utl_addr_ipv4_str2bin(baddr, pNodeConn->addr)) {
+        LOGE("fail\n");
+        return false;
+    }
+    if (!utl_net_ipv4_addr_is_routable(baddr)) {
+        LOGE("fail\n");
+        return false;
+    }
+    if (!utl_str_str2bin(pNodeConn->node_id, BTC_SZ_PUBKEY, node_id_str)) {
+        LOGE("fail\n");
+        return false;
+    }
+    if (!btc_keys_check_pub(pNodeConn->node_id)) {
+        LOGE("fail\n");
+        return false;
+    }
+    pNodeConn->port = (uint16_t)port;
+    return true;
 }
 
 

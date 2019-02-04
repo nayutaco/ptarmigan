@@ -40,6 +40,9 @@ bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf);
 void conf_channel_init(channel_conf_t *pEstConf);
 bool conf_channel_load(const char *pConfFile, channel_conf_t *pEstConf);
 
+void conf_connect_init(connect_conf_t *pConnConf);
+bool conf_connect_load(const char *pConfFile, connect_conf_t *pConnConf);
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

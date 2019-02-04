@@ -13,6 +13,7 @@ TEST_TARGET_SRC += \
 	test_ln_bolt.cpp \
 	test_ln_htlcflag.cpp \
 	test_ln.cpp \
+	test_ln_node.cpp \
 	test_ln_proto_init.cpp \
 	test_ln_proto_openchannel.cpp \
 	test_ln_proto_acceptchannel.cpp \
