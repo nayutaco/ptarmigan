@@ -113,7 +113,7 @@ bool HIDDEN ln_htlctx_sign_rs(
 }
 
 
-bool HIDDEN ln_htlctx_set_vin(
+bool HIDDEN ln_htlctx_set_vin0(
     btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const utl_buf_t *pRemoteSig,
@@ -193,7 +193,7 @@ bool HIDDEN ln_htlctx_set_vin(
 }
 
 
-bool HIDDEN ln_htlctx_set_vin_rs(
+bool HIDDEN ln_htlctx_set_vin0_rs(
     btc_tx_t *pTx,
     const uint8_t *pLocalSig,
     const uint8_t *pRemoteSig,
@@ -216,7 +216,7 @@ bool HIDDEN ln_htlctx_set_vin_rs(
         p_remote_sig = &remote_sig;
     }
 
-    if (!ln_htlctx_set_vin(
+    if (!ln_htlctx_set_vin0(
         pTx,
         p_local_sig,
         p_remote_sig,

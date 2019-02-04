@@ -828,7 +828,7 @@ static bool create_local_spent_htlc(
         pHtlcKey,
         &pHtlcInfo->wit_script);
     if (ret) {
-        ret = ln_htlctx_set_vin_rs(
+        ret = ln_htlctx_set_vin0_rs(
             pTxHtlc,
             local_sig,
             pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].remote_sig,
@@ -1140,7 +1140,7 @@ static bool create_remote_spent_htlc__with_htlc_sigs(
         memcpy(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, local_sig, LN_SZ_SIGNATURE);
     }
     if (ret) {
-        ret = ln_htlctx_set_vin_rs(&tx,
+        ret = ln_htlctx_set_vin0_rs(&tx,
                 local_sig,
                 pRemoteSig,
                 (ret_img) ? preimage : NULL,
@@ -1274,7 +1274,7 @@ static bool create_remote_spent_htlc__with_tx_htlcs( //close
                     pHtlcKey,
                     &pHtlcInfo->wit_script);
         if (ret) {
-            ret = ln_htlctx_set_vin_rs(&tx,
+            ret = ln_htlctx_set_vin0_rs(&tx,
                     local_sig,
                     pRemoteSig,
                     (ret_img) ? preimage : NULL,
@@ -1381,7 +1381,7 @@ static bool create_remote_spent_htlc__none(
     //署名
     uint8_t local_sig[LN_SZ_SIGNATURE];
     if (!ln_htlctx_sign_rs(&tx, local_sig, pTxCommit->vout[VoutIdx].value, pHtlcKey, &pHtlcInfo->wit_script)) goto LABEL_EXIT;
-    if (!ln_htlctx_set_vin_rs(&tx, local_sig, pRemoteSig, (ret_img) ? preimage : NULL,
+    if (!ln_htlctx_set_vin0_rs(&tx, local_sig, pRemoteSig, (ret_img) ? preimage : NULL,
         NULL, &pHtlcInfo->wit_script, htlcsign)) {
         LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
         goto LABEL_EXIT;
