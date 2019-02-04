@@ -132,7 +132,7 @@ static bool create_remote_htlc_info_and_amount(
     uint64_t *pTheirMsat);
 static bool create_remote_spent(
     const ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommit,
+    ln_commit_tx_t *pCommitRemote,
     ln_close_force_t *pClose,
     uint8_t *pHtlcSigs,
     const btc_tx_t *pTxCommit,
@@ -140,19 +140,16 @@ static bool create_remote_spent(
     const ln_comtx_htlc_info_t **ppHtlcInfo,
     const ln_comtx_base_fee_info_t *pFeeInfo);
 static bool create_remote_spent_htlc(
-    ln_commit_tx_t *pCommit,
-    btc_tx_t *pTxHtlcs,
-    uint8_t *pHtlcSigs,
+    ln_commit_tx_t *pCommitRemote,
+    btc_tx_t *pTxHtlc,
+    uint8_t *pHtlcSig,
     const btc_tx_t *pTxCommit,
     const utl_buf_t *pWitScript,
     const ln_comtx_htlc_info_t *pHtlcInfo,
     const btc_keys_t *pHtlcKey,
-    const uint8_t *pRemoteSig,
     uint64_t Fee,
-    uint8_t HtlcNum,
     uint32_t VoutIdx,
-    const uint8_t *pPayHash,
-    bool bClosing);
+    const uint8_t *pPayHash);
 
 static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPayHash, bool bClosing);
 static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
@@ -978,7 +975,7 @@ LABEL_ERROR:
  */
 static bool create_remote_spent(
     const ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommit,
+    ln_commit_tx_t *pCommitRemote,
     ln_close_force_t *pClose,
     uint8_t *pHtlcSigs,
     const btc_tx_t *pTxCommit,
@@ -1012,7 +1009,7 @@ static bool create_remote_spent(
 
                 //wallet保存用のデータ作成
                 ret = ln_wallet_create_to_remote(
-                    pChannel, &tx, pTxCommit->vout[vout_idx].value, pCommit->txid, vout_idx);
+                    pChannel, &tx, pTxCommit->vout[vout_idx].value, pCommitRemote->txid, vout_idx);
                 if (ret) {
                     memcpy(&pClose->p_tx[LN_CLOSE_IDX_TO_REMOTE], &tx, sizeof(tx));
                     btc_tx_init(&tx);     //txはfreeさせない
@@ -1028,19 +1025,16 @@ static bool create_remote_spent(
             uint64_t fee_sat = (p_htlc_info->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? pFeeInfo->htlc_timeout_fee : pFeeInfo->htlc_success_fee;
             if (pTxCommit->vout[vout_idx].value >= pFeeInfo->dust_limit_satoshi + fee_sat) {
                 ret = create_remote_spent_htlc(
-                    pCommit,
-                    pTxHtlcs,
-                    pHtlcSigs,
+                    pCommitRemote,
+                    pTxHtlcs ? &pTxHtlcs[htlc_num] : NULL,
+                    pHtlcSigs ? &pHtlcSigs[htlc_num] : NULL,
                     pTxCommit,
                     pWitScript,
                     p_htlc_info,
                     &htlckey,
-                    pChannel->commit_tx_local.remote_sig,
                     fee_sat,
-                    htlc_num,
                     vout_idx,
-                    p_payhash,
-                    (pClose != NULL));
+                    p_payhash);
                 if (ret) {
                     if (pClose != NULL) {
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
@@ -1057,105 +1051,52 @@ static bool create_remote_spent(
             }
         }
     }
-    pCommit->htlc_num = htlc_num;
+    pCommitRemote->htlc_num = htlc_num;
 
     return ret;
 }
 
 
-/** remote HTLCからの送金先情報作成
+/** create HTLC sigs in remote comitment transaction
  *
- *  1. HTLC tx作成
- *  2. HTLC Success txを作成する予定にする
- *  3. HTLC種別での分岐
- *      3.1 [offered HTLC]preimage検索
- *          - [close && 検索成功]
- *              - preimageがあるofferedなので、即時broadcast可能tx作成にする
- *      3.2 [else]
- *          - [close]
- *              - HTLC Timeout tx作成にする
- *  4. HTLC tx署名
- *  5. [close]
- *      5.1. [(offered HTLC && preimageあり) || received HTLC]
- *          -# 署名したHTLC txを処理結果にコピー
- *
- * @param[in,out]   pChannel
- * @param[out]      pHtlcSigs     HTLC署名
+ * @param[in]       pCommitRemote
+ * @param[out]      pHtlcSig        HTLC署名
  * @param[in]       pTxCommit
  * @param[in]       pWitScript
  * @param[in]       pHtlcInfo
  * @param[in]       pHtlcKey
- * @param[in]       pRemoteSig
  * @param[in]       Fee
- * @param[in]       HtlcNum
  * @param[in]       VoutIdx
- * @param[in]       pPayHash
- * @param[in]       bClosing        true:close処理
  * @retval  true    成功
  */
-static bool create_remote_spent_htlc__with_htlc_sigs(
-    ln_commit_tx_t *pCommit,
-    uint8_t *pHtlcSigs,
+static bool create_remote_spent_htlc__with_htlc_sig(
+    ln_commit_tx_t *pCommitRemote,
+    uint8_t *pHtlcSig,
     const btc_tx_t *pTxCommit,
     const utl_buf_t *pWitScript,
     const ln_comtx_htlc_info_t *pHtlcInfo,
     const btc_keys_t *pHtlcKey,
-    const uint8_t *pRemoteSig,
     uint64_t Fee,
-    uint8_t HtlcNum,
-    uint32_t VoutIdx,
-    const uint8_t *pPayHash,
-    bool bClosing)
+    uint32_t VoutIdx)
 {
     bool ret = false;
-    btc_tx_t tx = BTC_TX_INIT;
 
     LOGD("---HTLC[%d]\n", VoutIdx);
+    btc_tx_t tx = BTC_TX_INIT;
     if (!ln_htlctx_create(
         &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScript, pHtlcInfo->type,
-        pHtlcInfo->cltv_expiry, pCommit->txid, VoutIdx)) goto LABEL_EXIT;
+        pHtlcInfo->cltv_expiry, pCommitRemote->txid, VoutIdx)) goto LABEL_EXIT;
 
-    uint8_t preimage[LN_SZ_PREIMAGE];
-    bool ret_img;
-    ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_TIMEOUT_SUCCESS;
-    if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) { //remote's offered, HTLC success
-        ret_img = search_preimage(preimage, pPayHash, bClosing);
-        if (ret_img) {
-            LOGD("[offered]only sign\n");
-        } else {
-            LOGD("[offered]no preimage\n");
-        }
-    } else { //remote's received, HTLC timeout
-        LOGD("[received]\n");
-        ret_img = false;
-    }
-
-    uint8_t local_sig[LN_SZ_SIGNATURE];
-    ret = ln_htlctx_sign_rs(&tx,
-                local_sig,
-                pTxCommit->vout[VoutIdx].value,
-                pHtlcKey,
-                &pHtlcInfo->wit_script);
-    if (ret) {
-        memcpy(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, local_sig, LN_SZ_SIGNATURE);
-    }
-    if (ret) {
-        ret = ln_htlctx_set_vin0_rs(&tx,
-                local_sig,
-                pRemoteSig,
-                (ret_img) ? preimage : NULL,
-                NULL,
-                &pHtlcInfo->wit_script,
-                htlcsign);
-    }
-    if (!ret) {
+    if (!ln_htlctx_sign_rs(
+        &tx, pHtlcSig, pTxCommit->vout[VoutIdx].value, pHtlcKey, &pHtlcInfo->wit_script)) {
         LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
         goto LABEL_EXIT;
     }
 
+    ret = true;
+
 LABEL_EXIT:
     btc_tx_free(&tx);
-
     return ret;
 }
 
@@ -1176,252 +1117,84 @@ LABEL_EXIT:
  *      5.1. [(offered HTLC && preimageあり) || received HTLC]
  *          -# 署名したHTLC txを処理結果にコピー
  *
- * @param[in,out]   pChannel
- * @param[out]      pTxHtlcs        Close処理結果のHTLC tx配列(末尾に追加)
+ * @param[in]       pCommitRemote
+ * @param[out]      pTxHtlc         Close処理結果のHTLC tx
  * @param[in]       pTxCommit
  * @param[in]       pWitScript
  * @param[in]       pHtlcInfo
  * @param[in]       pHtlcKey
- * @param[in]       pRemoteSig
  * @param[in]       Fee
- * @param[in]       HtlcNum
  * @param[in]       VoutIdx
  * @param[in]       pPayHash
- * @param[in]       bClosing        true:close処理
  * @retval  true    成功
  */
-static bool create_remote_spent_htlc__with_tx_htlcs( //close
-    ln_commit_tx_t *pCommit,
-    btc_tx_t *pTxHtlcs,
+static bool create_remote_spent_htlc__with_tx_htlc( //close
+    ln_commit_tx_t *pCommitRemote,
+    btc_tx_t *pTxHtlc,
     const btc_tx_t *pTxCommit,
     const utl_buf_t *pWitScript,
     const ln_comtx_htlc_info_t *pHtlcInfo,
     const btc_keys_t *pHtlcKey,
-    const uint8_t *pRemoteSig,
     uint64_t Fee,
-    uint8_t HtlcNum,
     uint32_t VoutIdx,
-    const uint8_t *pPayHash,
-    bool bClosing)
+    const uint8_t *pPayHash)
 {
-    bool ret = false;
-    btc_tx_t tx = BTC_TX_INIT;
-
     LOGD("---HTLC[%d]\n", VoutIdx);
-    ln_htlctx_create(&tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScript,
-                pHtlcInfo->type, pHtlcInfo->cltv_expiry,
-                pCommit->txid, VoutIdx);
+    btc_tx_t tx = BTC_TX_INIT;
+    if (!ln_htlctx_create(
+        &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScript,
+        pHtlcInfo->type, pHtlcInfo->cltv_expiry, pCommitRemote->txid, VoutIdx)) return false;
 
-    uint8_t preimage[LN_SZ_PREIMAGE];
-    bool ret_img;
-    bool b_save = false;        //true: pTxHtlcs[HtlcNum]に残したい
-    ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_TIMEOUT_SUCCESS;
     if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) {
-        //remoteのoffered=自分のreceivedなのでpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, pPayHash, bClosing);
-        if (ret_img && (pTxHtlcs != NULL)) {
+        uint8_t preimage[LN_SZ_PREIMAGE];
+        if (search_preimage(preimage, pPayHash, true)) {
             LOGD("[offered]have preimage\n");
-            //offeredかつpreimageがあるので、即時使用可能
-
             utl_buf_free(&tx.vout[0].script);
             tx.locktime = 0;
-            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-            ret = ln_wallet_htlctx_set_vin0(&tx,
-                pHtlcKey->priv,
-                (ret_img) ? preimage : NULL,
-                &pHtlcInfo->wit_script,
-                LN_HTLCTX_SIG_REMOTE_OFFER);
-            htlcsign = LN_HTLCTX_SIG_NONE; //XXX:
-        } else if (!ret_img) {
-            //preimageがないためHTLCを解くことができない
-            //  --> 署名はしてpTxHtlcs[HtlcNum]に残す
-            LOGD("[offered]no preimage\n");
-            //htlcsign = LN_HTLCTX_SIG_NONE;
-            b_save = true;
-            ret = true;
+            if (!ln_wallet_htlctx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+                &tx, pHtlcKey->priv, preimage, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_REMOTE_OFFER)) goto LABEL_ERROR;
         } else {
-            //署名のみ作成(commitment_signed用)
-            LOGD("[offered]only sign\n");
-            ret = true;
+            LOGD("[offered]no preimage\n");
         }
     } else {
-        //remoteのreceived=自分がofferedしているでtimeoutしたら取り戻す
         LOGD("[received]\n");
-
-        ret_img = false;
-        if (pTxHtlcs != NULL) {
-            //タイムアウト待ち
-            //  -->署名はしないがpTxHtlcs[HtlcNum]に残したい
-
-            utl_buf_free(&tx.vout[0].script);
-            tx.locktime = pHtlcInfo->cltv_expiry;
-            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-            ret = ln_wallet_htlctx_set_vin0(&tx,
-                pHtlcKey->priv,
-                NULL,
-                &pHtlcInfo->wit_script,
-                LN_HTLCTX_SIG_REMOTE_RECV);
-            htlcsign = LN_HTLCTX_SIG_NONE;
-        }
+        utl_buf_free(&tx.vout[0].script);
+        tx.locktime = pHtlcInfo->cltv_expiry;
+        if (!ln_wallet_htlctx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+            &tx, pHtlcKey->priv, NULL, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_REMOTE_RECV)) goto LABEL_ERROR;
     }
 
-    //署名
-    if (htlcsign != LN_HTLCTX_SIG_NONE) {
-        uint8_t local_sig[LN_SZ_SIGNATURE];
-        ret = ln_htlctx_sign_rs(&tx,
-                    local_sig,
-                    pTxCommit->vout[VoutIdx].value,
-                    pHtlcKey,
-                    &pHtlcInfo->wit_script);
-        if (ret) {
-            ret = ln_htlctx_set_vin0_rs(&tx,
-                    local_sig,
-                    pRemoteSig,
-                    (ret_img) ? preimage : NULL,
-                    NULL,
-                    &pHtlcInfo->wit_script,
-                    htlcsign);
-        }
-        if (!ret) {
-            LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
-            goto LABEL_EXIT;
-        }
-    }
+    memcpy(pTxHtlc, &tx, sizeof(tx));
+    return true;
 
-    if (pTxHtlcs != NULL) {
-        if ( ((pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) && ret_img) ||
-                (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) ||
-                b_save ) {
-            LOGD("create HTLC tx[%d]\n", HtlcNum);
-            memcpy(&pTxHtlcs[HtlcNum], &tx, sizeof(tx));
-            btc_tx_init(&tx);     //txはfreeさせない(pTxHtlcsに任せる)
-        } else {
-            LOGD("skip create HTLC tx[%d]\n", HtlcNum);
-            btc_tx_init(&pTxHtlcs[HtlcNum]);
-        }
-    }
-
-LABEL_EXIT:
+LABEL_ERROR:
     btc_tx_free(&tx);
-
-    return ret;
-}
-
-
-/** remote HTLCからの送金先情報作成
- *
- *  1. HTLC tx作成
- *  2. HTLC Success txを作成する予定にする
- *  3. HTLC種別での分岐
- *      3.1 [offered HTLC]preimage検索
- *          - [close && 検索成功]
- *              - preimageがあるofferedなので、即時broadcast可能tx作成にする
- *      3.2 [else]
- *          - [close]
- *              - HTLC Timeout tx作成にする
- *  4. HTLC tx署名
- *  5. [close]
- *      5.1. [(offered HTLC && preimageあり) || received HTLC]
- *          -# 署名したHTLC txを処理結果にコピー
- *
- * @param[in,out]   pChannel
- * @param[in]       pTxCommit
- * @param[in]       pWitScript
- * @param[in]       pHtlcInfo
- * @param[in]       pHtlcKey
- * @param[in]       pRemoteSig
- * @param[in]       Fee
- * @param[in]       HtlcNum
- * @param[in]       VoutIdx
- * @param[in]       pPayHash
- * @param[in]       bClosing        true:close処理
- * @retval  true    成功
- */
-static bool create_remote_spent_htlc__none(
-    ln_commit_tx_t *pCommit,
-    const btc_tx_t *pTxCommit,
-    const utl_buf_t *pWitScript,
-    const ln_comtx_htlc_info_t *pHtlcInfo,
-    const btc_keys_t *pHtlcKey,
-    const uint8_t *pRemoteSig,
-    uint64_t Fee,
-    uint32_t VoutIdx,
-    const uint8_t *pPayHash,
-    bool bClosing)
-{
-    bool ret = false;
-    btc_tx_t tx = BTC_TX_INIT;
-
-    LOGD("---HTLC[%d]\n", VoutIdx);
-    ln_htlctx_create(&tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScript,
-                pHtlcInfo->type, pHtlcInfo->cltv_expiry,
-                pCommit->txid, VoutIdx);
-
-    uint8_t preimage[LN_SZ_PREIMAGE];
-    bool ret_img;
-    ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_TIMEOUT_SUCCESS;
-    if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_OFFERED) {
-        //remoteのoffered=自分のreceivedなのでpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, pPayHash, bClosing);
-        if (!ret_img) {
-            //preimageがないためHTLCを解くことができない
-            //  --> 署名はしてpTxHtlcs[HtlcNum]に残す
-            LOGD("[offered]no preimage\n");
-            //htlcsign = LN_HTLCTX_SIG_NONE;
-        } else {
-            //署名のみ作成(commitment_signed用) ///////////////??????????????????????
-            LOGD("[offered]only sign\n");
-        }
-    } else {
-        //remoteのreceived=自分がofferedしているでtimeoutしたら取り戻す
-        LOGD("[received]\n");
-        ret_img = false;
-    }
-
-    //署名
-    uint8_t local_sig[LN_SZ_SIGNATURE];
-    if (!ln_htlctx_sign_rs(&tx, local_sig, pTxCommit->vout[VoutIdx].value, pHtlcKey, &pHtlcInfo->wit_script)) goto LABEL_EXIT;
-    if (!ln_htlctx_set_vin0_rs(&tx, local_sig, pRemoteSig, (ret_img) ? preimage : NULL,
-        NULL, &pHtlcInfo->wit_script, htlcsign)) {
-        LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
-        goto LABEL_EXIT;
-    }
-
-LABEL_EXIT:
-    btc_tx_free(&tx);
-    return ret;
+    return false;
 }
 
 
 static bool create_remote_spent_htlc(
-    ln_commit_tx_t *pCommit,
-    btc_tx_t *pTxHtlcs,
-    uint8_t *pHtlcSigs,
+    ln_commit_tx_t *pCommitRemote,
+    btc_tx_t *pTxHtlc,
+    uint8_t *pHtlcSig,
     const btc_tx_t *pTxCommit,
     const utl_buf_t *pWitScript,
     const ln_comtx_htlc_info_t *pHtlcInfo,
     const btc_keys_t *pHtlcKey,
-    const uint8_t *pRemoteSig,
     uint64_t Fee,
-    uint8_t HtlcNum,
     uint32_t VoutIdx,
-    const uint8_t *pPayHash,
-    bool bClosing)
+    const uint8_t *pPayHash)
 {
-    if (pHtlcSigs) {
-        return create_remote_spent_htlc__with_htlc_sigs(
-            pCommit, pHtlcSigs, pTxCommit, pWitScript, pHtlcInfo, 
-            pHtlcKey, pRemoteSig, Fee, HtlcNum, VoutIdx, pPayHash, bClosing);
-    } else if (pTxHtlcs) {
-        return create_remote_spent_htlc__with_tx_htlcs(
-            pCommit, pTxHtlcs, pTxCommit, pWitScript, pHtlcInfo,
-            pHtlcKey, pRemoteSig, Fee, HtlcNum, VoutIdx, pPayHash, bClosing);
-    } else {
-        return create_remote_spent_htlc__none(
-            pCommit, pTxCommit, pWitScript, pHtlcInfo,
-            pHtlcKey, pRemoteSig, Fee, VoutIdx, pPayHash, bClosing);
-
+    if (pHtlcSig) {
+        return create_remote_spent_htlc__with_htlc_sig(
+            pCommitRemote, pHtlcSig, pTxCommit, pWitScript, pHtlcInfo, 
+            pHtlcKey, Fee, VoutIdx);
+    } else if (pTxHtlc) {
+        return create_remote_spent_htlc__with_tx_htlc(
+            pCommitRemote, pTxHtlc, pTxCommit, pWitScript, pHtlcInfo,
+            pHtlcKey, Fee, VoutIdx, pPayHash);
     }
+    return true;
 }
 
 
