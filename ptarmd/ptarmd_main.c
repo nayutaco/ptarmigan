@@ -51,7 +51,7 @@
  * prototypes
  ********************************************************************/
 
-static void reset_getopt();
+static void reset_getopt(void);
 static void sig_set_catch_sigs(sigset_t *pSigSet);
 static void *sig_handler_start(void *pArg);
 
@@ -260,7 +260,7 @@ LABEL_EXIT:
  * private functions
  ********************************************************************/
 
-static void reset_getopt()
+static void reset_getopt(void)
 {
     //optreset = 1;
     //optind = 1;

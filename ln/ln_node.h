@@ -53,8 +53,18 @@ typedef struct {
     btc_keys_t          keys;                           ///< node鍵
     uint8_t             features;                       ///< localfeatures
     char                alias[LN_SZ_ALIAS_STR + 1];     ///< ノード名(\0 terminate)
-    ln_node_addr_t       addr;                           ///< ノードアドレス
+    ln_node_addr_t      addr;                           ///< ノードアドレス
 } ln_node_t;
+
+
+/** @struct ln_node_conn_t
+ *  @brief  node connection info
+ */
+typedef struct {
+    uint8_t             node_id[BTC_SZ_PUBKEY];
+    char                addr[LN_ADDR_DESC_ADDR_LEN_MAX];
+    uint16_t            port;
+} ln_node_conn_t;
 
 
 /********************************************************************
@@ -88,5 +98,14 @@ bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
  * @retval  true    検索成功 
  */
 bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId);
+
+
+/** decode node connection string
+ * 
+ * @param[out]  pNodeConn       decoded info
+ * @param[in]   pConnStr        connection string(<NODE_ID>@<IPADDR>:<PORT>)
+ * @retval  true    success
+ */
+bool ln_node_addr_dec(ln_node_conn_t *pNodeConn, const char *pConnStr);
 
 #endif /* LN_NODE_H__ */

@@ -49,7 +49,7 @@
  * macro
  **************************************************************************/
 
-#define M_WAIT_START_SEC                (10)        ///< monitoring start[sec]
+#define M_WAIT_START_SEC                (5)         ///< monitoring start[sec]
 #define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
 
 
@@ -94,12 +94,13 @@ static struct monchanlisthead_t mMonChanListHead;
  * prototypes
  ********************************************************************/
 
+static void connect_nodelist(void);
 static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 
 static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_param);
 static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_param);
 static bool channel_reconnect(ln_channel_t *pChannel);
-static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
+static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 static bool close_unilateral_local_received(bool spent);
@@ -136,12 +137,15 @@ void *monitor_thread_start(void *pArg)
     mMonitoring = true;
     update_btc_values();
 
+    //wait for accept user command before reconnect
     for (int lp = 0; lp < M_WAIT_START_SEC; lp++) {
         sleep(1);
         if (!mMonitoring) {
             break;
         }
     }
+
+    connect_nodelist();
 
     while (mMonitoring) {
         LOGD("$$$----begin\n");
@@ -327,11 +331,42 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
  * private functions
  ********************************************************************/
 
+/** node connection with connlist.conf
+ *
+ *  connecting nodes at startup according to node list.
+ */
+static void connect_nodelist(void)
+{
+    connect_conf_t *p_conf = (connect_conf_t *)UTL_DBG_MALLOC(sizeof(connect_conf_t));
+    conf_connect_init(p_conf);
+    bool bconf = conf_connect_load(FNAME_CONF_CONNLIST, p_conf);
+    if (!bconf) {
+        LOGD("not connect list\n");
+        return;
+    }
+    for (int lp = 0; lp < PTARMD_CONNLIST_MAX; lp++) {
+        if (p_conf->conn_str[lp][0] != '\0') {
+            ln_node_conn_t node_conn;
+            bool ret = ln_node_addr_dec(&node_conn, p_conf->conn_str[lp]);
+            if (ret) {
+                char node_id_str[BTC_SZ_PUBKEY * 2 + 1];
+                utl_str_bin2str(node_id_str, node_conn.node_id, BTC_SZ_PUBKEY);
+                node_connect_ipv4(node_conn.node_id, node_conn.addr, node_conn.port);
+            } else {
+                LOGE("fail: %s\n", p_conf->conn_str[lp]);
+            }
+        }
+    }
+    UTL_DBG_FREE(p_conf);
+}
+
+
 /** 監視処理(#ln_db_channel_search()のコールバック)
  *
  * @param[in,out]   pChannel    チャネル情報
  * @param[in,out]   p_db_param  DB情報
  * @param[in,out]   p_param     パラメータ(未使用)
+ * @return  false(always)
  */
 static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
@@ -575,13 +610,13 @@ static bool channel_reconnect(ln_channel_t *pChannel)
 
     for (size_t lp = 0; lp < ARRAY_SIZE(conn_addr); lp++) {
         if (!conn_addr[lp].port) continue;
-        if (channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port)) {
+        if (node_connect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port)) {
             //success
             break;
         }
         //if not default port, try default port
         if (conn_addr[lp].port == LN_PORT_DEFAULT) continue;
-        if (channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, LN_PORT_DEFAULT)) {
+        if (node_connect_ipv4(p_node_id, conn_addr[lp].ipaddr, LN_PORT_DEFAULT)) {
             //success
             break;
         }
@@ -591,7 +626,7 @@ static bool channel_reconnect(ln_channel_t *pChannel)
 }
 
 
-static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
+static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 {
     int retval = -1;
     bool ret = ptarmd_nodefail_get(
@@ -599,7 +634,6 @@ static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, 
                     LN_ADDR_DESC_TYPE_IPV4, false);
     if (!ret) {
         //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
-        LOGD("try connect: %s:%d\n", pIpAddr, Port);
         retval = cmd_json_connect(pNodeId, pIpAddr, Port);
         LOGD("retval=%d\n", retval);
     }

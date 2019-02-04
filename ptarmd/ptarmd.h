@@ -50,15 +50,22 @@ extern "C" {
  * macros
  ********************************************************************/
 
+#define PTARMD_CONNLIST_MAX         (5)         ///< connect_conf_t list max nodes
+
 #define SZ_RPC_USER                 (64)        ///< RPCUSER
 #define SZ_RPC_PASSWD               (64)        ///< RPCPASSWORD
 #define SZ_RPC_URL                  (256)       ///< URL
 
 #define SZ_IPV4_LEN                 INET_ADDRSTRLEN     ///< IPv4長
 #define SZ_IPV4_LEN_STR             "15"                ///< IPv4長(sprintf用)
-#define SZ_CONN_STR                 (INET6_ADDRSTRLEN + 1 + 5)   ///< <IP len>:<port>
+#define SZ_CONN_STR                 (INET6_ADDRSTRLEN + 1 + 5)   ///< <IP addr>:<port>
+#define SZ_NODECONN_STR             (BTC_SZ_HASH256 * 2 + 1 + SZ_CONN_STR)  ///< <node_id>@<IP addr>:<port>
 
 #define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
+
+#define FNAME_CONF_ANNO             "anno.conf"
+#define FNAME_CONF_CHANNEL          "channel.conf"
+#define FNAME_CONF_CONNLIST         "connlist.conf"
 
 #define FNAME_LOGDIR                "logs"
 #define FNAME_CONN_LOG              FNAME_LOGDIR "/connect.log"
@@ -250,6 +257,14 @@ typedef struct {
 
     uint8_t     localfeatures;                      ///< init.localfeatures
 } channel_conf_t;
+
+
+/** @struct     connect_conf_t
+ *  @brief      connect node list
+ */
+typedef struct {
+    char        conn_str[PTARMD_CONNLIST_MAX][SZ_NODECONN_STR + 1];
+} connect_conf_t;
 
 
 /** @struct bwd_proc_fulfill_t

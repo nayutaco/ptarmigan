@@ -179,7 +179,9 @@ void cmd_json_start(uint16_t Port)
 {
     int ret = jrpc_server_init(&mJrpc, Port);
     if (ret != 0) {
-        fprintf(stderr, "ERR: cannot start JSON-RPC event loop\n");
+        const char *p_err = "ERR: cannot start JSON-RPC event loop\n";
+        fprintf(stderr, "%s", p_err);
+        LOGE("%s", p_err);
         ptarmd_stop();
         return;
     }
@@ -239,6 +241,7 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 
     bool ret = p2p_cli_connect_test(pIpAddr, Port);
     if (!ret) {
+        LOGE("fail: connect test\n");
         return -1;
     }
 

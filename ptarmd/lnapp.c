@@ -3218,7 +3218,7 @@ static void load_announce_settings(void)
 {
     anno_conf_t aconf;
     conf_anno_init(&aconf);
-    (void)conf_anno_load("anno.conf", &aconf);
+    (void)conf_anno_load(FNAME_CONF_ANNO, &aconf);
     mAnnoPrm.cltv_expiry_delta = aconf.cltv_expiry_delta;
     mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
     mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
