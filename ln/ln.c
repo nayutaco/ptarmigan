@@ -983,7 +983,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
                 &signkey,
                 &pChannel->p_revoked_wit[WitIndex]);
         if (ret) {
-            ret = ln_htlctx_set_vin_rs(pTx,
+            ret = ln_htlctx_set_vin0_rs(pTx,
                 sig,
                 NULL,
                 NULL,
