@@ -499,7 +499,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     ret = ln_comtx_create_local(
         pChannel,
         NULL,
-        commsig.p_htlc_signature,
+        (const uint8_t (*)[LN_SZ_SIGNATURE])commsig.p_htlc_signature,
         commsig.num_htlcs,  //HTLC署名のみ(closeなし)
         pChannel->commit_tx_local.commit_num + 1);
     if (!ret) {
@@ -1840,7 +1840,7 @@ static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig
     }
 
     //相手に送る署名を作成
-    uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
+    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;    //必要があればcreate_to_remote()でMALLOC()する
     ret = ln_comtx_create_remote(pChannel,
                 &pChannel->commit_tx_remote,
                 NULL, &p_htlc_sigs,
@@ -1857,7 +1857,7 @@ static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig
     msg.p_channel_id = pChannel->channel_id;
     msg.p_signature = pChannel->commit_tx_remote.remote_sig;     //相手commit_txに行った自分の署名
     msg.num_htlcs = pChannel->commit_tx_remote.htlc_num;
-    msg.p_htlc_signature = p_htlc_sigs;
+    msg.p_htlc_signature = (uint8_t *)p_htlc_sigs;
     ret = ln_msg_commitment_signed_write(pCommSig, &msg);
     UTL_DBG_FREE(p_htlc_sigs);
 
@@ -2173,7 +2173,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
     memcpy(&dummy_remote, &pChannel->commit_tx_remote, sizeof(dummy_remote));
     ln_htlcflag_t bak_flag = pChannel->cnl_add_htlc[Idx].stat.flag;
     pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_UPDSEND;
-    uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
+    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;    //必要があればcreate_to_remote()でMALLOC()する
     bool ret = ln_comtx_create_remote(
         pChannel,
         &dummy_remote,

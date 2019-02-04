@@ -56,8 +56,8 @@
 bool HIDDEN ln_comtx_create_local(
     ln_channel_t *pChannel,
     ln_close_force_t *pClose,
-    const uint8_t *pHtlcSigs,
-    uint8_t HtlcSigsNum,
+    const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
+    uint16_t HtlcSigsNum,
     uint64_t CommitNum);
 
 
@@ -88,7 +88,7 @@ bool HIDDEN ln_comtx_create_remote(
     const ln_channel_t *pChannel,
     ln_commit_tx_t *pCommitRemote,
     ln_close_force_t *pClose,
-    uint8_t **ppHtlcSigs,
+    uint8_t (**ppHtlcSigs)[LN_SZ_SIGNATURE],
     uint64_t CommitNum);
 
 
