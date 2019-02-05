@@ -28,7 +28,7 @@ FAKE_VALUE_FUNC(bool, btcrpc_is_tx_broadcasted, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_check_unspent, const uint8_t*, bool*, uint64_t*, const uint8_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, btcrpc_getnewaddress, char*);
 FAKE_VALUE_FUNC(bool, btcrpc_estimatefee, uint64_t*, int);
-FAKE_VALUE_FUNC(int, ptarmd_start, uint16_t);
+FAKE_VALUE_FUNC(int, ptarmd_start, uint16_t, , const ln_node_t *);
 // FAKE_VALUE_FUNC(bool, ptarmd_transfer_channel, uint64_t, rcvidle_cmd_t, utl_buf_t*);
 FAKE_VALUE_FUNC(lnapp_conf_t*, ptarmd_search_connected_cnl, uint64_t);
 FAKE_VALUE_FUNC(lnapp_conf_t*, ptarmd_search_transferable_cnl, uint64_t);

@@ -32,6 +32,10 @@
  * macros
  ********************************************************************/
 
+#define LN_NODE_ADDR_INIT               { LN_ADDR_DESC_TYPE_NONE, "", 0}
+#define LN_NODE_INIT                    { {{0},{0}}, "", {0}, LN_NODE_ADDR_INIT }
+
+
 /********************************************************************
  * typedefs
  ********************************************************************/
@@ -51,8 +55,8 @@ typedef struct {
  */
 typedef struct {
     btc_keys_t          keys;                           ///< node鍵
-    uint8_t             features;                       ///< localfeatures
     char                alias[LN_SZ_ALIAS_STR + 1];     ///< ノード名(\0 terminate)
+    uint8_t             color[LN_SZ_RGB_COLOR];         ///< RGB
     ln_node_addr_t      addr;                           ///< ノードアドレス
 } ln_node_t;
 

@@ -4805,8 +4805,8 @@ LABEL_EXIT:
  * @param[in,out]   pDb
  * @param[out]      pVer
  * @param[out]      pWif
- * @param[out]      pNodeName
- * @param[out]      pPort
+ * @param[in,out]   pNodeName       [in]setting name(default:"") [out]set name
+ * @param[in,out]   pPort           [in]setting value [out]set value
  * @retval  0   DBバージョン一致
  */
 static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis)

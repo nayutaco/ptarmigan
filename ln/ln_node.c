@@ -98,27 +98,13 @@ const ln_node_addr_t *ln_node_addr(void)
 }
 
 
-void ln_node_addr_set(const ln_node_addr_t *pAddr)
-{
-    memcpy(&mNode.addr, pAddr, sizeof(ln_node_addr_t));
-}
-
-
 const char *ln_node_alias(void)
 {
     return mNode.alias;
 }
 
 
-void ln_node_alias_set(const char *pAlias)
-{
-    strncpy(mNode.alias, pAlias, LN_SZ_ALIAS_STR);
-    mNode.alias[LN_SZ_ALIAS_STR] = '\0';
-    LOGD("alias: %s\n", mNode.alias);
-}
-
-
-bool ln_node_init(uint8_t Features)
+bool ln_node_init(const ln_node_t *pNode)
 {
     bool ret = false;
     char wif[BTC_SZ_WIF_STR_MAX + 1];
@@ -129,8 +115,12 @@ bool ln_node_init(uint8_t Features)
     ln_msg_node_announcement_t msg;
     ln_msg_node_announcement_addresses_t addrs;
 
-    mNode.features = Features;
+    LOGD("alias: %s\n", pNode->alias);
+    LOGD("color: %02x%02x%02x\n", pNode->color[0], pNode->color[1], pNode->color[2]);
+    LOGD("addr type: %d\n", pNode->addr.type);
+    LOGD("port: %d\n", pNode->addr.port);
 
+    memcpy(&mNode, pNode, sizeof(ln_node_t));
     if (!ln_db_init(wif, mNode.alias, &mNode.addr.port, true)) {
         LOGE("fail: db init\n");
         goto LABEL_EXIT;
@@ -142,17 +132,21 @@ bool ln_node_init(uint8_t Features)
     {
         uint8_t dummy_signature[LN_SZ_SIGNATURE];
         uint8_t alias[LN_SZ_ALIAS_STR] = {0};
-        uint8_t rgb_color[LN_SZ_RGB_COLOR] = {0};
         memset(dummy_signature, 0xcc, sizeof(dummy_signature));
         strncpy((char *)alias, mNode.alias, LN_SZ_ALIAS_STR);
 
-        if ((mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addr)) {
-            addrs.addresses[0].type = mNode.addr.type;
-            addrs.addresses[0].p_addr = mNode.addr.addr;
-            addrs.addresses[0].port = mNode.addr.port;
-            addrs.num = 1;
+        if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {
+            if (utl_net_ipv4_addr_is_routable(mNode.addr.addr)) {
+                addrs.addresses[0].type = mNode.addr.type;
+                addrs.addresses[0].p_addr = mNode.addr.addr;
+                addrs.addresses[0].port = mNode.addr.port;
+                addrs.num = 1;
+            } else {
+                LOGE("fail: not routable address\n");
+                return false;
+            }
         } else {
-            LOGD("no IP address or not routable address\n");
+            LOGD("no IP address\n");
             addrs.num = 0;
         }
         if (!ln_msg_node_announcement_addresses_write(&buf_addrs, &addrs)) goto LABEL_EXIT;
@@ -162,7 +156,7 @@ bool ln_node_init(uint8_t Features)
         msg.p_features = NULL;
         msg.timestamp = (uint32_t)utl_time_time();
         msg.p_node_id = mNode.keys.pub;
-        msg.p_rgb_color = rgb_color;
+        msg.p_rgb_color = mNode.color;
         msg.p_alias = alias;
         msg.addrlen = buf_addrs.len;
         msg.p_addresses = buf_addrs.buf;
@@ -434,7 +428,6 @@ static void print_node(void)
     // utl_dbg_dump(stdout, mNode.keys.priv, BTC_SZ_PRIVKEY, true);
     printf("node_id: ");
     utl_dbg_dump(stdout, mNode.keys.pub, BTC_SZ_PUBKEY, true);
-    printf("features= %02x\n", mNode.features);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);
     if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {

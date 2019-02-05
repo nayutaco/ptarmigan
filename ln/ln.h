@@ -1547,23 +1547,24 @@ bool ln_cnlupd_enable(const ln_msg_channel_update_t *pCnlUpd);
  * @return      node address info
  */
 const ln_node_addr_t *ln_node_addr(void);
-void ln_node_addr_set(const ln_node_addr_t *pAddr);
 
 
 /** get node alias
  * 
  */
 const char *ln_node_alias(void);
-void ln_node_alias_set(const char *pAlias);
 
 
 const uint8_t *ln_node_getid(void);
 
-/** ノード情報初期化
- *
- * @param[in]       Features        ?
+/** initialize node
+ * 
+ * @param[in]   pNode       initialize data
+ * 
+ * @note
+ *      - pNode->keys not used
  */
-bool ln_node_init(uint8_t Features);
+bool ln_node_init(const ln_node_t *pNode);
 
 
 /** ノード情報終了

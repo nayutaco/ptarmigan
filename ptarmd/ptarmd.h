@@ -300,7 +300,7 @@ typedef struct lnapp_conf_t lnapp_conf_t;
 /** start
  *
  */
-int ptarmd_start(uint16_t RpcPort);
+int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode);
 
 
 /** stop all threads
