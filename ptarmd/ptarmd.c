@@ -148,7 +148,7 @@ static void set_channels(void);
 int ptarmd_start(uint16_t RpcPort)
 {
     bool bret;
-    ln_node_addr_t *p_addr = ln_node_addr();
+    const ln_node_addr_t *p_addr = ln_node_addr();
 
     mkdir(FNAME_LOGDIR, 0755);
 
@@ -162,9 +162,7 @@ int ptarmd_start(uint16_t RpcPort)
     }
 
     //peer config出力(内部テストで使用している)
-    char fname[256];
-    sprintf(fname, FNAME_FMT_NODECONF, ln_node_alias());
-    FILE *fp = fopen(fname, "w");
+    FILE *fp = fopen(FNAME_FMT_NODECONF, "w");
     if (fp) {
 
         if (p_addr->type == LN_ADDR_DESC_TYPE_IPV4) {

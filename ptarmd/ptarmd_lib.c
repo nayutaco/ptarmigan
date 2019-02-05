@@ -22,6 +22,7 @@
 /** @file   ptarmd_lib.c
  *  @brief  ptarmd entry point for library
  */
+#if 0   //NOW NOT MAINTAIN
 #include <stdio.h>
 #include <pthread.h>
 #include <signal.h>
@@ -170,3 +171,4 @@ static void *sig_handler_start(void *pArg)
     }
     return NULL;
 }
+#endif
