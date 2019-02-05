@@ -122,6 +122,26 @@ TEST_F(ln, ln_node_addr_dec_ok2)
 }
 
 
+TEST_F(ln, ln_node_addr_dec_localhost)
+{
+    const char CONN_STR[] = "03694d1090cbaef885bcdf56ce47e78b62e130b929107d32f501b1628c4e01bd53@127.0.0.1:65535";
+    const uint8_t CONN_NODE[] = {
+        0x03, 0x69, 0x4d, 0x10, 0x90, 0xcb, 0xae, 0xf8, 0x85, 0xbc, 0xdf, 0x56, 0xce, 0x47, 0xe7, 0x8b,
+        0x62, 0xe1, 0x30, 0xb9, 0x29, 0x10, 0x7d, 0x32, 0xf5, 0x01, 0xb1, 0x62, 0x8c, 0x4e, 0x01, 0xbd,
+        0x53,
+    };
+
+    ln_node_conn_t conn;
+
+    memset(&conn, 0, sizeof(conn));
+    bool ret = ln_node_addr_dec(&conn, CONN_STR);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(CONN_NODE, conn.node_id, BTC_SZ_PUBKEY));
+    ASSERT_STREQ("127.0.0.1", conn.addr);
+    ASSERT_EQ(65535, conn.port);
+}
+
+
 TEST_F(ln, ln_node_addr_dec_ng_key)
 {
     // "0369..." --> "0469..."
@@ -135,7 +155,7 @@ TEST_F(ln, ln_node_addr_dec_ng_key)
 }
 
 
-TEST_F(ln, ln_node_addr_dec_ng_addr1)
+TEST_F(ln, ln_node_addr_dec_skip_addr1)
 {
     const char CONN_STR[] = "03694d1090cbaef885bcdf56ce47e78b62e130b929107d32f501b1628c4e01bd53"
                             "@0.0.0.0:65535";
@@ -144,11 +164,11 @@ TEST_F(ln, ln_node_addr_dec_ng_addr1)
 
     memset(&conn, 0, sizeof(conn));
     bool ret = ln_node_addr_dec(&conn, CONN_STR);
-    ASSERT_FALSE(ret);
+    ASSERT_TRUE(ret);
 }
 
 
-TEST_F(ln, ln_node_addr_dec_ng_addr2)
+TEST_F(ln, ln_node_addr_dec_skip_addr2)
 {
     const char CONN_STR[] = "03694d1090cbaef885bcdf56ce47e78b62e130b929107d32f501b1628c4e01bd53"
                             "@255.255.255.255:65535";
@@ -157,7 +177,7 @@ TEST_F(ln, ln_node_addr_dec_ng_addr2)
 
     memset(&conn, 0, sizeof(conn));
     bool ret = ln_node_addr_dec(&conn, CONN_STR);
-    ASSERT_FALSE(ret);
+    ASSERT_TRUE(ret);
 }
 
 
