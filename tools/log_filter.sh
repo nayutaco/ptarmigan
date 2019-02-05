@@ -6,10 +6,11 @@ PRJ_HOME=$SCRIPT_DIR/../
 
 (
 cd $PRJ_HOME
-cat tests/4nodes_test/node_*/logs/log | grep fail | \
+cat tests/4nodes_test/node_*/logs/log | grep -e \/E -e fail\: | \
     grep -v \
         -e "not real value" \
         -e "channel_id is 0" \
-        -e "timeout(len=0, reqLen=18)"
+        -e "recv_peer]fail: timeout(" \
+        -e "already connected"
 cd -
 )
