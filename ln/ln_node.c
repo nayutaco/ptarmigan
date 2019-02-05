@@ -92,15 +92,29 @@ const uint8_t *ln_node_getid(void)
 }
 
 
-ln_node_addr_t *ln_node_addr(void)
+const ln_node_addr_t *ln_node_addr(void)
 {
     return &mNode.addr;
 }
 
 
-char *ln_node_alias(void)
+void ln_node_addr_set(const ln_node_addr_t *pAddr)
+{
+    memcpy(&mNode.addr, pAddr, sizeof(ln_node_addr_t));
+}
+
+
+const char *ln_node_alias(void)
 {
     return mNode.alias;
+}
+
+
+void ln_node_alias_set(const char *pAlias)
+{
+    strncpy(mNode.alias, pAlias, LN_SZ_ALIAS_STR);
+    mNode.alias[LN_SZ_ALIAS_STR] = '\0';
+    LOGD("alias: %s\n", mNode.alias);
 }
 
 
@@ -123,7 +137,6 @@ bool ln_node_init(uint8_t Features)
     }
 
     if (!btc_keys_wif2keys(&mNode.keys, &chain, wif)) goto LABEL_EXIT;
-    print_node();
 
     //create new
     {
@@ -139,6 +152,7 @@ bool ln_node_init(uint8_t Features)
             addrs.addresses[0].port = mNode.addr.port;
             addrs.num = 1;
         } else {
+            LOGD("no IP address or not routable address\n");
             addrs.num = 0;
         }
         if (!ln_msg_node_announcement_addresses_write(&buf_addrs, &addrs)) goto LABEL_EXIT;

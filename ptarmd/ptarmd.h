@@ -72,7 +72,7 @@ extern "C" {
 #define FNAME_EVENT_LOG             FNAME_LOGDIR "/event.log"
 #define FNAME_CHANNEL_LOG           FNAME_LOGDIR "/chan_%s.log"
 #define FNAME_INVOICE_LOG           FNAME_LOGDIR "/invoice_%s.log"
-#define FNAME_FMT_NODECONF          "ptarm_%s.conf"
+#define FNAME_FMT_NODECONF          "ptarm_nodeinfo.conf"
 
 //need update ptarmd_error_cstr()
 #define RPCERR_ERROR                (-10000)

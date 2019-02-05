@@ -793,11 +793,6 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
         uint8_t pub[BTC_SZ_PUBKEY];
         ln_node_create_key(pWif, pub);
 
-        char nodename[LN_SZ_ALIAS_STR + 1];
-        if (pNodeName == NULL) {
-            pNodeName = nodename;
-            nodename[0] = '\0';
-        }
         if (strlen(pNodeName) == 0) {
             sprintf(pNodeName, "node_%02x%02x%02x%02x%02x%02x",
                         pub[0], pub[1], pub[2], pub[3], pub[4], pub[5]);
@@ -4850,7 +4845,7 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
     bool update = false;
     memcpy(&nodeinfo, (const nodeinfo_t*)data.mv_data, data.mv_size);
     strcpy(pWif, nodeinfo.wif);
-    if ((pNodeName[0] != '\0') && (strcmp(nodeinfo.name, pNodeName) == 0)) {
+    if ((pNodeName[0] != '\0') && (strcmp(nodeinfo.name, pNodeName) != 0)) {
         //update
         strncpy(nodeinfo.name, pNodeName, sizeof(nodeinfo.name));
         update = true;

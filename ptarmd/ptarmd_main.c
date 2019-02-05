@@ -64,8 +64,8 @@ int main(int argc, char *argv[])
 {
     bool bret;
     rpc_conf_t rpc_conf;
-    ln_node_addr_t *p_addr;
-    char *p_alias;
+    ln_node_addr_t addr;
+    bool upd_addr = false;
     int opt;
     uint16_t my_rpcport = 0;
 
@@ -90,9 +90,6 @@ int main(int argc, char *argv[])
     }
     reset_getopt();
 
-    p_addr = ln_node_addr();
-    p_alias = ln_node_alias();
-
 #ifdef ENABLE_PLOG_TO_STDOUT
     utl_log_init_stdout();
 #else
@@ -115,8 +112,8 @@ int main(int argc, char *argv[])
     }
 
     conf_btcrpc_init(&rpc_conf);
-    p_addr->type = LN_ADDR_DESC_TYPE_NONE;
-    p_addr->port = 0;
+    addr.type = LN_ADDR_DESC_TYPE_NONE;
+    addr.port = 0;
 
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
@@ -126,12 +123,12 @@ int main(int argc, char *argv[])
         //    break;
         case 'p':
             //port num
-            p_addr->port = (uint16_t)atoi(optarg);
+            addr.port = (uint16_t)atoi(optarg);
+            upd_addr = true;
             break;
         case 'n':
             //node name(alias)
-            strncpy(p_alias, optarg, LN_SZ_ALIAS_STR);
-            p_alias[LN_SZ_ALIAS_STR] = '\0';
+            ln_node_alias_set(optarg);
             break;
         case 'a':
             //ip address
@@ -139,10 +136,11 @@ int main(int argc, char *argv[])
                 uint8_t ipbin[LN_ADDR_DESC_ADDR_LEN_IPV4];
                 bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
                 if (addrret) {
-                    p_addr->type = LN_ADDR_DESC_TYPE_IPV4;
-                    memcpy(p_addr->addr, ipbin, sizeof(ipbin));
+                    addr.type = LN_ADDR_DESC_TYPE_IPV4;
+                    memcpy(addr.addr, ipbin, sizeof(ipbin));
                     LOGD("ipv4=");
-                    DUMPD(p_addr->addr, sizeof(p_addr->addr));
+                    DUMPD(addr.addr, sizeof(addr.addr));
+                    upd_addr = true;
                 } else {
                     LOGE("fail: ipv4(%s)\n", optarg);
                 }
@@ -185,6 +183,10 @@ int main(int argc, char *argv[])
         default:
             break;
         }
+    }
+
+    if (upd_addr) {
+        ln_node_addr_set(&addr);
     }
 
 #if defined(USE_BITCOIND)

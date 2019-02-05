@@ -1542,14 +1542,19 @@ bool ln_cnlupd_enable(const ln_msg_channel_update_t *pCnlUpd);
  * NODE
  ********************************************************************/
 
-/** ノードアドレス取得
+/** get node address
  *
- * @return      ノードアドレス(非const)
+ * @return      node address info
  */
-ln_node_addr_t *ln_node_addr(void);
+const ln_node_addr_t *ln_node_addr(void);
+void ln_node_addr_set(const ln_node_addr_t *pAddr);
 
 
-char *ln_node_alias(void);
+/** get node alias
+ * 
+ */
+const char *ln_node_alias(void);
+void ln_node_alias_set(const char *pAlias);
 
 
 const uint8_t *ln_node_getid(void);
