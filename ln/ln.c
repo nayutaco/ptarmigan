@@ -723,7 +723,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     ln_update_script_pubkeys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_local.htlc_num);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_local.htlc_output_num);
 
     //local commit_tx
     bool ret = ln_comtx_create_local( //closeのみ(HTLC署名無し)
@@ -782,7 +782,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     ln_print_keys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_remote.htlc_num);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_remote.htlc_output_num);
 
     //remote commit_tx
     bool ret = ln_comtx_create_remote(pChannel,

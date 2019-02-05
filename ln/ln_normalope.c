@@ -1183,8 +1183,10 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 
     //追加した結果が自分のmax_accepted_htlcsより多くなるなら、チャネルを失敗させる。
     //  if a sending node adds more than its max_accepted_htlcs HTLCs to its local commitment transaction
-    if (pChannel->commit_tx_local.max_accepted_htlcs < pChannel->commit_tx_local.htlc_num) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d", pChannel->commit_tx_local.htlc_num);
+    //XXX: bug
+    //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
+    if (pChannel->commit_tx_local.max_accepted_htlcs < pChannel->commit_tx_local.htlc_output_num) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d", pChannel->commit_tx_local.htlc_output_num);
         return false;
     }
 
@@ -1856,7 +1858,7 @@ static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig
     ln_msg_commitment_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.p_signature = pChannel->commit_tx_remote.remote_sig;     //相手commit_txに行った自分の署名
-    msg.num_htlcs = pChannel->commit_tx_remote.htlc_num;
+    msg.num_htlcs = pChannel->commit_tx_remote.htlc_output_num;
     msg.p_htlc_signature = (uint8_t *)p_htlc_sigs;
     ret = ln_msg_commitment_signed_write(pCommSig, &msg);
     UTL_DBG_FREE(p_htlc_sigs);
@@ -1907,9 +1909,11 @@ static bool check_create_add_htlc(
     }
 
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
-    if (pChannel->commit_tx_remote.max_accepted_htlcs <= pChannel->commit_tx_remote.htlc_num) {
+    //XXX: bug
+    //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
+    if (pChannel->commit_tx_remote.max_accepted_htlcs <= pChannel->commit_tx_remote.htlc_output_num) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d <= %d",
-                    pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.htlc_num);
+                    pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.htlc_output_num);
         goto LABEL_EXIT;
     }
 
