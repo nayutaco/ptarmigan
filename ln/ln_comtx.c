@@ -113,9 +113,8 @@ static bool create_local_verify_htlc(
     uint64_t Amount);
 static bool create_local_spent_htlc(
     const ln_channel_t *pChannel,
-    btc_tx_t *pCloseTxHtlc,
     btc_tx_t *pTxHtlc,
-    utl_push_t *pWalletInfos,
+    btc_tx_t *pTxSpend,
     uint64_t Amount,
     const utl_buf_t *pWitScriptToLocal,
     const ln_comtx_htlc_info_t *pHtlcInfo,
@@ -574,22 +573,31 @@ static bool create_local_spent__close(
             LOGD("+++[%d]%s HTLC\n", vout_idx, (p_htlc_info->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
             assert(pTxCommit->vout[vout_idx].value >= pFeeInfo->dust_limit_satoshi + fee_sat);
 
-            btc_tx_t tx = BTC_TX_INIT;
+            btc_tx_t htlc_tx = BTC_TX_INIT;
             if (!ln_htlctx_create(
-                &tx, (pTxCommit->vout[vout_idx].value - fee_sat), pWitScriptToLocal,
+                &htlc_tx, (pTxCommit->vout[vout_idx].value - fee_sat), pWitScriptToLocal,
                 p_htlc_info->type, p_htlc_info->cltv_expiry, pChannel->commit_tx_local.txid, vout_idx)) {
-                btc_tx_free(&tx);
+                btc_tx_free(&htlc_tx);
                 return false;
             }
+            btc_tx_t spend_tx = BTC_TX_INIT;
             if (!create_local_spent_htlc(
-                pChannel, &pCloseTxHtlcs[htlc_num], &tx, &wallet_infos, pTxCommit->vout[vout_idx].value,
+                pChannel, &htlc_tx, &spend_tx, pTxCommit->vout[vout_idx].value,
                 pWitScriptToLocal, p_htlc_info, &htlckey, ToSelfDelay)) {
                 LOGE("fail: sign vout[%d]\n", vout_idx);
-                btc_tx_free(&tx);
+                btc_tx_free(&htlc_tx);
+                btc_tx_free(&spend_tx);
+                return false;
+            }
+            //return `htlc_tx` and `spend_tx` to the caller
+            memcpy(&pCloseTxHtlcs[htlc_num], &htlc_tx, sizeof(btc_tx_t));
+            btc_tx_init(&htlc_tx); //force reset
+            if (!utl_push_data(&wallet_infos, &spend_tx, sizeof(btc_tx_t))) {
+                btc_tx_free(&spend_tx);
                 return false;
             }
             pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
-            btc_tx_free(&tx);
+            btc_tx_init(&spend_tx); //force reset
             htlc_num++;
         }
     }
@@ -767,7 +775,7 @@ static bool create_local_verify_htlc(
  * @param[in,out]   pChannel
  * @param[out]      pCloseTxHtlcs   処理結果のHTLC tx配列(末尾に追加)
  * @param[in,out]   pTxHtlc         [in]処理中のHTLC tx(署名無し) / [out]HTLC tx(署名あり)
- * @param[out]      pWalletInfos           HTLC txから取り戻すtxのwallet情報
+ * @param[out]      pTxSpend        a spending tx for the htlc tx (wallet info)
  * @param[in]       Amount
  * @param[in]       pWitScriptToLocal
  * @param[in]       pHtlcInfo
@@ -777,9 +785,8 @@ static bool create_local_verify_htlc(
  */
 static bool create_local_spent_htlc(
     const ln_channel_t *pChannel,
-    btc_tx_t *pCloseTxHtlc,
     btc_tx_t *pTxHtlc,
-    utl_push_t *pWalletInfos,
+    btc_tx_t *pTxSpend,
     uint64_t Amount,
     const utl_buf_t *pWitScriptToLocal,
     const ln_comtx_htlc_info_t *pHtlcInfo,
@@ -821,27 +828,17 @@ static bool create_local_spent_htlc(
     }
     M_DBG_PRINT_TX2(pTxHtlc);
 
-    //return the htlc tx to the caller
-    memcpy(pCloseTxHtlc, pTxHtlc, sizeof(btc_tx_t));
+    uint8_t txid[BTC_SZ_TXID];
+    if (!btc_tx_txid(pTxHtlc, txid)) return false;
 
     //create spending tx for the htlc tx (same as one for `to_tocal` output)
-    uint8_t txid[BTC_SZ_TXID];
-    btc_tx_t tx = BTC_TX_INIT;
-    if (!btc_tx_txid(pTxHtlc, txid)) return false;
     if (!ln_wallet_create_to_local(
-        pChannel, &tx, pTxHtlc->vout[0].value, ToSelfDelay, pWitScriptToLocal, txid, 0, false)) {
-        btc_tx_free(&tx);
+        pChannel, pTxSpend, pTxHtlc->vout[0].value, ToSelfDelay, pWitScriptToLocal, txid, 0, false)) {
         //XXX: return true;
         return false;
     }
     LOGD("*** HTLC out Tx ***\n");
-    M_DBG_PRINT_TX2(&tx);
-
-    btc_tx_init(pTxHtlc); //force reset
-    if (!utl_push_data(pWalletInfos, &tx, sizeof(btc_tx_t))) {
-        btc_tx_free(&tx);
-        return false;
-    }
+    M_DBG_PRINT_TX2(pTxSpend);
     return true;
 }
 
@@ -887,6 +884,9 @@ static bool create_htlc_info_and_amount(
             LOGD("delhtlc_recv\n");
             *pOurMsat += p_htlc->amount_msat;
             *pTheirMsat -= p_htlc->amount_msat;
+        } else {
+            assert(0);
+            goto LABEL_ERROR;
         }
 
         if (!htlcadd) {
@@ -1196,23 +1196,18 @@ static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint
     (void)Amount; (void)Expiry;
 
     preimage_t *prm = (preimage_t *)p_param;
-    uint8_t payment_hash[BTC_SZ_HASH256];
-    bool ret = false;
 
     //LOGD("compare preimage : ");
     //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    uint8_t payment_hash[BTC_SZ_HASH256];
     ln_payment_hash_calc(payment_hash, pPreimage);
-    if (memcmp(payment_hash, prm->hash, BTC_SZ_HASH256) == 0) {
-        //一致
-        //LOGD("preimage match!: ");
-        //DUMPD(pPreimage, LN_SZ_PREIMAGE);
-        memcpy(prm->image, pPreimage, LN_SZ_PREIMAGE);
-        if ((prm->b_closing) && (Expiry != UINT32_MAX)) {
-            //期限切れによる自動削除をしない
-            ln_db_preimage_set_expiry(p_db_param, UINT32_MAX);
-        }
-        ret = true;
+    if (memcmp(payment_hash, prm->hash, BTC_SZ_HASH256)) return false;
+    //LOGD("preimage match!: ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    memcpy(prm->image, pPreimage, LN_SZ_PREIMAGE);
+    if (prm->b_closing && Expiry != UINT32_MAX) {
+        //期限切れによる自動削除をしない
+        ln_db_preimage_set_expiry(p_db_param, UINT32_MAX); //XXX:
     }
-
-    return ret;
+    return true;
 }
