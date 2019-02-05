@@ -1,7 +1,7 @@
 INSTALL_DIR = $(CURDIR)/install
 include ./options.mak
 
-.PHONY: build install btconly clean full full_btconly distclean update lib lib_clean git_subs test test_clean test-integration
+.PHONY: build install btconly clean full full_btconly distclean update lib lib_clean git_subs test test_clean test-integration test-i
 
 default: build install
 
@@ -102,4 +102,5 @@ test_clean:
 	$(MAKE) -C btc/examples clean
 
 test-integration:
+test-i:
 	cd tests/4nodes_test; timeout 200 ./all_test.sh
