@@ -159,10 +159,10 @@ void HIDDEN ln_comtx_base_fee_calc(
 
 
 bool HIDDEN ln_comtx_create(
-    btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_t *pCommitTx, bool ToLocalIsFounder, const ln_derkey_local_keys_t *pLocalKeys)
+    btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_t *pCommitTxTrimmed, const ln_derkey_local_keys_t *pLocalKeys)
 {
     uint8_t sig[LN_SZ_SIGNATURE];
-    if (!ln_comtx_create_rs(pTx, sig, pCommitTx, ToLocalIsFounder, pLocalKeys)) return false;
+    if (!ln_comtx_create_rs(pTx, sig, pCommitTxTrimmed, pLocalKeys)) return false;
     if (!btc_sig_rs2der(pSig, sig)) return false;
     return true;
 }
@@ -171,84 +171,125 @@ bool HIDDEN ln_comtx_create(
 bool HIDDEN ln_comtx_create_rs(
     btc_tx_t *pTx,
     uint8_t *pSig,
-    const ln_comtx_t *pCommitTx,
-    bool ToLocalIsFounder,
+    const ln_comtx_t *pCommitTxTrimmed,
     const ln_derkey_local_keys_t *pLocalKeys)
 {
-    uint64_t fee_local = ToLocalIsFounder ? pCommitTx->p_base_fee_info->commit_fee : 0;
-    uint64_t fee_remote = ToLocalIsFounder ? 0 : pCommitTx->p_base_fee_info->commit_fee;
+    assert(pCommitTxTrimmed->b_trimmed);
 
     //output
 
     //  to_local (P2WSH)
-    if (pCommitTx->to_local.satoshi >= pCommitTx->p_base_fee_info->dust_limit_satoshi + fee_local) {
-        LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCommitTx->to_local.satoshi, fee_local);
-        if (!btc_sw_add_vout_p2wsh_wit(pTx, pCommitTx->to_local.satoshi - fee_local, pCommitTx->to_local.p_wit_script)) return false;
+    if (pCommitTxTrimmed->to_local.satoshi) {
+        if (!btc_sw_add_vout_p2wsh_wit(
+            pTx, pCommitTxTrimmed->to_local.satoshi, pCommitTxTrimmed->to_local.p_wit_script)) return false;
         pTx->vout[pTx->vout_cnt - 1].opt = LN_COMTX_OUTPUT_TYPE_TO_LOCAL;
-    } else {
-        LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCommitTx->to_local.satoshi, pCommitTx->p_base_fee_info->dust_limit_satoshi, fee_local);
     }
 
     //  to_remote (P2WPKH)
-    if (pCommitTx->to_remote.satoshi >= pCommitTx->p_base_fee_info->dust_limit_satoshi + fee_remote) {
-        LOGD("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCommitTx->to_remote.satoshi, fee_remote);
-        LOGD("    remote.pubkey: ");
-        DUMPD(pCommitTx->to_remote.pubkey, BTC_SZ_PUBKEY);
-        if (!btc_sw_add_vout_p2wpkh_pub(pTx, pCommitTx->to_remote.satoshi - fee_remote, pCommitTx->to_remote.pubkey)) return false;
+    if (pCommitTxTrimmed->to_remote.satoshi) {
+        if (!btc_sw_add_vout_p2wpkh_pub(
+            pTx, pCommitTxTrimmed->to_remote.satoshi, pCommitTxTrimmed->to_remote.pubkey)) return false;
         pTx->vout[pTx->vout_cnt - 1].opt = LN_COMTX_OUTPUT_TYPE_TO_REMOTE;
-    } else {
-        LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCommitTx->to_remote.satoshi, pCommitTx->p_base_fee_info->dust_limit_satoshi, fee_remote);
     }
 
     //  HTLCs
-    for (uint16_t lp = 0; lp < pCommitTx->htlc_info_num; lp++) {
-        uint64_t fee;
-        uint64_t output_sat = LN_MSAT2SATOSHI(pCommitTx->pp_htlc_info[lp]->amount_msat);
-        LOGD("lp=%d\n", lp);
-        switch (pCommitTx->pp_htlc_info[lp]->type) {
-        case LN_COMTX_OUTPUT_TYPE_OFFERED:
-            fee = pCommitTx->p_base_fee_info->htlc_timeout_fee;
-            LOGD("  HTLC: offered=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
-            break;
-        case LN_COMTX_OUTPUT_TYPE_RECEIVED:
-            fee = pCommitTx->p_base_fee_info->htlc_success_fee;
-            LOGD("  HTLC: received=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
-            break;
-        default:
-            LOGE("  HTLC: type=%d ???\n", pCommitTx->pp_htlc_info[lp]->type);
-            return false;
-        }
-        if (output_sat >= pCommitTx->p_base_fee_info->dust_limit_satoshi + fee) {
-            if (!btc_sw_add_vout_p2wsh_wit(pTx, output_sat, &pCommitTx->pp_htlc_info[lp]->wit_script)) return false;
-            pTx->vout[pTx->vout_cnt - 1].opt = lp;
-            LOGD("scirpt.len=%d\n", pCommitTx->pp_htlc_info[lp]->wit_script.len);
-            //btc_script_print(pCommitTx->pp_htlc_info[lp]->wit_script.buf, pCommitTx->pp_htlc_info[lp]->wit_script.len);
-        } else {
-            LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n", output_sat, pCommitTx->p_base_fee_info->dust_limit_satoshi, fee);
-        }
+    for (uint16_t lp = 0; lp < pCommitTxTrimmed->htlc_info_num; lp++) {
+        if (!pCommitTxTrimmed->pp_htlc_info[lp]->amount_msat) continue; //trimmed
+        if (!btc_sw_add_vout_p2wsh_wit(
+            pTx, LN_MSAT2SATOSHI(pCommitTxTrimmed->pp_htlc_info[lp]->amount_msat),
+            &pCommitTxTrimmed->pp_htlc_info[lp]->wit_script)) return false;
+        pTx->vout[pTx->vout_cnt - 1].opt = lp;
     }
 
     //input
-    btc_vin_t *vin = btc_tx_add_vin(pTx, pCommitTx->fund.txid, pCommitTx->fund.txid_index);
-    vin->sequence = LN_SEQUENCE(pCommitTx->obscured_commit_num);
+    btc_vin_t *vin = btc_tx_add_vin(pTx, pCommitTxTrimmed->fund.txid, pCommitTxTrimmed->fund.txid_index);
+    vin->sequence = LN_SEQUENCE(pCommitTxTrimmed->obscured_commit_num);
 
     //locktime
-    pTx->locktime = LN_LOCKTIME(pCommitTx->obscured_commit_num);
+    pTx->locktime = LN_LOCKTIME(pCommitTxTrimmed->obscured_commit_num);
 
     //sort vin/vout
     btc_tx_sort_bip69(pTx);
 
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
-    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pCommitTx->fund.satoshi, pCommitTx->fund.p_wit_script)) {
+    if (!btc_sw_sighash_p2wsh_wit(
+        pTx, sighash, 0, pCommitTxTrimmed->fund.satoshi, pCommitTxTrimmed->fund.p_wit_script)) {
         LOGE("fail: calc sighash\n");
         return false;
     }
     if (!ln_signer_sign_rs(pSig, sighash, pLocalKeys, LN_BASEPOINT_IDX_FUNDING)) {
-        LOGE("fail: calc sighash\n");
+        LOGE("fail: sign\n");
         return false;
     }
     return true;
+}
+
+
+void HIDDEN ln_comtx_sub_fee_and_trim_outputs(ln_comtx_t *pCommitTx, ln_comtx_base_fee_info_t *pBaseFeeInfo, bool ToLocalIsFounder)
+{
+    uint64_t fee_local = ToLocalIsFounder ? pBaseFeeInfo->commit_fee : 0;
+    uint64_t fee_remote = ToLocalIsFounder ? 0 : pBaseFeeInfo->commit_fee;
+
+    //to_local
+    if (pCommitTx->to_local.satoshi >= pBaseFeeInfo->dust_limit_satoshi + fee_local) {
+        LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCommitTx->to_local.satoshi, fee_local);
+        pCommitTx->to_local.satoshi -= fee_local; //sub fee
+    } else {
+        LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n",
+            pCommitTx->to_local.satoshi, pBaseFeeInfo->dust_limit_satoshi, fee_local);
+        pCommitTx->to_local.satoshi = 0; //trimmed
+    }
+
+    //to_remote
+    if (pCommitTx->to_remote.satoshi >= pBaseFeeInfo->dust_limit_satoshi + fee_remote) {
+        LOGD("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCommitTx->to_remote.satoshi, fee_remote);
+        pCommitTx->to_remote.satoshi -= fee_remote; //sub fee
+    } else {
+        LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n",
+            pCommitTx->to_remote.satoshi, pBaseFeeInfo->dust_limit_satoshi, fee_remote);
+        pCommitTx->to_remote.satoshi = 0; //trimmed
+    }
+
+    //HTLCs
+    for (uint16_t lp = 0; lp < pCommitTx->htlc_info_num; lp++) {
+        uint64_t output_sat = LN_MSAT2SATOSHI(pCommitTx->pp_htlc_info[lp]->amount_msat);
+        uint64_t fee;
+        LOGD("lp=%d\n", lp);
+        switch (pCommitTx->pp_htlc_info[lp]->type) {
+        case LN_COMTX_OUTPUT_TYPE_OFFERED:
+            fee = pBaseFeeInfo->htlc_timeout_fee;
+            LOGD("  HTLC: offered=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
+            break;
+        case LN_COMTX_OUTPUT_TYPE_RECEIVED:
+            fee = pBaseFeeInfo->htlc_success_fee;
+            LOGD("  HTLC: received=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
+            break;
+        default:
+            LOGE("  HTLC: type=%d ???\n", pCommitTx->pp_htlc_info[lp]->type);
+            assert(0);
+        }
+        if (output_sat >=  pBaseFeeInfo->dust_limit_satoshi + fee) {
+            LOGD("scirpt.len=%d\n", pCommitTx->pp_htlc_info[lp]->wit_script.len);
+            //btc_script_print(pCommitTx->pp_htlc_info[lp]->wit_script.buf, pCommitTx->pp_htlc_info[lp]->wit_script.len);
+        } else {
+            LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n",
+                output_sat, pBaseFeeInfo->dust_limit_satoshi, fee);
+            pCommitTx->pp_htlc_info[lp]->amount_msat = 0; //trimmed
+        }
+    }
+    pCommitTx->b_trimmed = true;
+}
+
+
+uint16_t HIDDEN ln_comtx_get_htlc_output_num(ln_comtx_t *pCommitTxTrimmed)
+{
+    uint16_t htlc_output_num = 0;
+    for (uint16_t lp = 0; lp < pCommitTxTrimmed->htlc_info_num; lp++) {
+        if (!pCommitTxTrimmed->pp_htlc_info[lp]->amount_msat) continue; //trimmed
+        htlc_output_num++;
+    }
+    return htlc_output_num;
 }
 
 
