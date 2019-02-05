@@ -243,10 +243,10 @@ bool ln_node_addr_dec(ln_node_conn_t *pNodeConn, const char *pConnStr)
         LOGE("fail\n");
         return false;
     }
-    if (!utl_net_ipv4_addr_is_routable(baddr)) {
-        LOGE("fail\n");
-        return false;
-    }
+    // if (!utl_net_ipv4_addr_is_routable(baddr)) {
+    //     LOGE("fail\n");
+    //     return false;
+    // }
     if (!utl_str_str2bin(pNodeConn->node_id, BTC_SZ_PUBKEY, node_id_str)) {
         LOGE("fail\n");
         return false;
