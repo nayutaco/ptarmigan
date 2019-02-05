@@ -214,12 +214,13 @@ static const uint8_t *PREIMAGES[] = {
 class ln_bolt3_c: public testing::Test {
 protected:
     virtual void SetUp() {
+        htlc_infos_init(); //restore trimmed
     }
 
     virtual void TearDown() {
     }
 
-    static ln_derkey_local_keys_t    local_keys;
+    static ln_derkey_local_keys_t local_keys;
     static btc_keys_t keys_local_funding;
     static btc_keys_t keys_local_commit;
     static uint8_t remote_funding_pubkey[BTC_SZ_PUBKEY];
@@ -230,9 +231,37 @@ protected:
 
     static btc_tx_t tx;
     static uint8_t txid_commit[BTC_SZ_TXID];
-    static ln_comtx_base_fee_info_t   fee_info;
+    static ln_comtx_base_fee_info_t base_fee_info;
     static ln_comtx_htlc_info_t htlc_infos[5];
     static ln_comtx_htlc_info_t **pp_htlc_infos;
+
+    static void htlc_infos_init()
+    {
+        htlc_infos[0].type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
+        htlc_infos[0].cltv_expiry = EXPIRY0;
+        htlc_infos[0].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC0);
+        htlc_infos[0].payment_hash = payment_hash_htlc0;
+        //
+        htlc_infos[1].type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
+        htlc_infos[1].cltv_expiry = EXPIRY1;
+        htlc_infos[1].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC1);
+        htlc_infos[1].payment_hash = payment_hash_htlc1;
+        //
+        htlc_infos[2].type = LN_COMTX_OUTPUT_TYPE_OFFERED;
+        htlc_infos[2].cltv_expiry = EXPIRY2;
+        htlc_infos[2].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC2);
+        htlc_infos[2].payment_hash = payment_hash_htlc2;
+        //
+        htlc_infos[3].type = LN_COMTX_OUTPUT_TYPE_OFFERED;
+        htlc_infos[3].cltv_expiry = EXPIRY3;
+        htlc_infos[3].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC3);
+        htlc_infos[3].payment_hash = payment_hash_htlc3;
+        //
+        htlc_infos[4].type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
+        htlc_infos[4].cltv_expiry = EXPIRY4;
+        htlc_infos[4].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC4);
+        htlc_infos[4].payment_hash = payment_hash_htlc4;
+    }
 
 public:
     static void DumpBin(const uint8_t *pData, uint16_t Len)
@@ -255,7 +284,7 @@ btc_script_pubkey_order_t ln_bolt3_c::key_order;
 
 btc_tx_t ln_bolt3_c::tx;
 uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];
-ln_comtx_base_fee_info_t   ln_bolt3_c::fee_info;
+ln_comtx_base_fee_info_t   ln_bolt3_c::base_fee_info;
 ln_comtx_htlc_info_t ln_bolt3_c::htlc_infos[5];
 ln_comtx_htlc_info_t** ln_bolt3_c::pp_htlc_infos;
 
@@ -304,34 +333,9 @@ TEST_F(ln_bolt3_c, committx1)
     btc_md_sha256(payment_hash_htlc4, PREIMAGE_HTLC4, BTC_SZ_HASH256);
 
     //fee
-    fee_info.dust_limit_satoshi = DUST_LIMIT_SATOSHIS;
+    base_fee_info.dust_limit_satoshi = DUST_LIMIT_SATOSHIS;
 
     //HTLC info
-    htlc_infos[0].type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
-    htlc_infos[0].cltv_expiry = EXPIRY0;
-    htlc_infos[0].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC0);
-    htlc_infos[0].payment_hash = payment_hash_htlc0;
-    //
-    htlc_infos[1].type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
-    htlc_infos[1].cltv_expiry = EXPIRY1;
-    htlc_infos[1].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC1);
-    htlc_infos[1].payment_hash = payment_hash_htlc1;
-    //
-    htlc_infos[2].type = LN_COMTX_OUTPUT_TYPE_OFFERED;
-    htlc_infos[2].cltv_expiry = EXPIRY2;
-    htlc_infos[2].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC2);
-    htlc_infos[2].payment_hash = payment_hash_htlc2;
-    //
-    htlc_infos[3].type = LN_COMTX_OUTPUT_TYPE_OFFERED;
-    htlc_infos[3].cltv_expiry = EXPIRY3;
-    htlc_infos[3].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC3);
-    htlc_infos[3].payment_hash = payment_hash_htlc3;
-    //
-    htlc_infos[4].type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
-    htlc_infos[4].cltv_expiry = EXPIRY4;
-    htlc_infos[4].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC4);
-    htlc_infos[4].payment_hash = payment_hash_htlc4;
-
     pp_htlc_infos = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * 5);
     for (int lp = 0; lp < 5; lp++) {
         pp_htlc_infos[lp] = &htlc_infos[lp];
@@ -349,17 +353,17 @@ TEST_F(ln_bolt3_c, committx2)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 15000;
-    ln_comtx_base_fee_calc(&fee_info, NULL, 0);
+    base_fee_info.feerate_per_kw = 15000;
+    ln_comtx_base_fee_calc(&base_fee_info, NULL, 0);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(10545, fee_info.htlc_success_fee);
-    ASSERT_EQ(9945, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(10860, fee_info.commit_fee);
-    ASSERT_EQ(10860, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(10545, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(9945, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(10860, base_fee_info.commit_fee);
+    ASSERT_EQ(10860, base_fee_info._rough_actual_fee);
 
 
     //to-local wscript
@@ -393,8 +397,8 @@ TEST_F(ln_bolt3_c, committx2)
     //vout#0:P2WKH - remote
     btc_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
     //vout#1:P2WSH - local
-    if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= fee_info.dust_limit_satoshi + fee_info.commit_fee) {
-        ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - fee_info.commit_fee, &ws_local_buf));
+    if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= base_fee_info.dust_limit_satoshi + base_fee_info.commit_fee) {
+        ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - base_fee_info.commit_fee, &ws_local_buf));
     }
 
     //input
@@ -521,17 +525,17 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     const uint64_t MSAT_LOCAL = 6988000000LL;
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
-    fee_info.feerate_per_kw = 0;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 0;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(0, fee_info.htlc_success_fee);
-    ASSERT_EQ(0, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(0, fee_info.commit_fee);
-    ASSERT_EQ(0, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(0, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(0, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(0, base_fee_info.commit_fee);
+    ASSERT_EQ(0, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -696,12 +700,12 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1190,9 +1194,9 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -1247,17 +1251,17 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 647;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 647;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(454, fee_info.htlc_success_fee);
-    ASSERT_EQ(428, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(1024, fee_info.commit_fee);
-    ASSERT_EQ(1024, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(454, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(428, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(1024, base_fee_info.commit_fee);
+    ASSERT_EQ(1024, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -1417,12 +1421,12 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1910,9 +1914,9 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee) {
+        if (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -1967,17 +1971,17 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 648;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 648;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(455, fee_info.htlc_success_fee);
-    ASSERT_EQ(429, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(914, fee_info.commit_fee);
-    ASSERT_EQ(1914, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(455, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(429, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(914, base_fee_info.commit_fee);
+    ASSERT_EQ(1914, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -2137,12 +2141,12 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -2569,9 +2573,9 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -2626,17 +2630,17 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 2069;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 2069;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(1454, fee_info.htlc_success_fee);
-    ASSERT_EQ(1371, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(2921, fee_info.commit_fee);
-    ASSERT_EQ(3921, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(1454, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(1371, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(2921, base_fee_info.commit_fee);
+    ASSERT_EQ(3921, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -2796,12 +2800,12 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -3228,9 +3232,9 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -3285,17 +3289,17 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 2070;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 2070;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(1455, fee_info.htlc_success_fee);
-    ASSERT_EQ(1372, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(2566, fee_info.commit_fee);
-    ASSERT_EQ(5566, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(1455, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(1372, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(2566, base_fee_info.commit_fee);
+    ASSERT_EQ(5566, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -3455,12 +3459,12 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -3823,9 +3827,9 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -3880,17 +3884,17 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 2194;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 2194;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(1542, fee_info.htlc_success_fee);
-    ASSERT_EQ(1454, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(2720, fee_info.commit_fee);
-    ASSERT_EQ(5720, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(1542, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(1454, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(2720, base_fee_info.commit_fee);
+    ASSERT_EQ(5720, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -4050,12 +4054,12 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4418,9 +4422,9 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -4475,17 +4479,17 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 2195;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 2195;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(1543, fee_info.htlc_success_fee);
-    ASSERT_EQ(1455, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(2344, fee_info.commit_fee);
-    ASSERT_EQ(7344, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(1543, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(1455, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(2344, base_fee_info.commit_fee);
+    ASSERT_EQ(7344, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -4645,12 +4649,12 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -4952,9 +4956,9 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -5009,17 +5013,17 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 3702;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 3702;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(2602, fee_info.htlc_success_fee);
-    ASSERT_EQ(2454, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(3953, fee_info.commit_fee);
-    ASSERT_EQ(8953, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(2602, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(2454, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(3953, base_fee_info.commit_fee);
+    ASSERT_EQ(8953, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -5179,12 +5183,12 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5486,9 +5490,9 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -5543,17 +5547,17 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 3703;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 3703;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(2603, fee_info.htlc_success_fee);
-    ASSERT_EQ(2455, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(3317, fee_info.commit_fee);
-    ASSERT_EQ(11317, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(2603, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(2455, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(3317, base_fee_info.commit_fee);
+    ASSERT_EQ(11317, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -5713,12 +5717,12 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -5960,9 +5964,9 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -6017,17 +6021,17 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 4914;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 4914;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(3454, fee_info.htlc_success_fee);
-    ASSERT_EQ(3257, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(4402, fee_info.commit_fee);
-    ASSERT_EQ(12402, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(3454, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(3257, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(4402, base_fee_info.commit_fee);
+    ASSERT_EQ(12402, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -6186,12 +6190,12 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6433,9 +6437,9 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
 
     utl_buf_t local_sig = UTL_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
-        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+        uint64_t fee = (htlc_infos[lp].type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? base_fee_info.htlc_timeout_fee : base_fee_info.htlc_success_fee;
         index = VOUTS[lp];
-        if ((index >= 0) && (tx.vout[index].value >= fee_info.dust_limit_satoshi + fee)) {
+        if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
             ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
@@ -6490,17 +6494,17 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 4915;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 4915;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(3455, fee_info.htlc_success_fee);
-    ASSERT_EQ(3258, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(3558, fee_info.commit_fee);
-    ASSERT_EQ(15558, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(3455, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(3258, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(3558, base_fee_info.commit_fee);
+    ASSERT_EQ(15558, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -6660,12 +6664,12 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -6786,17 +6790,17 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 9651180;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 9651180;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-//    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(6784779, fee_info.htlc_success_fee);
-    ASSERT_EQ(6398732, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(6987454, fee_info.commit_fee);
-    ASSERT_EQ(6999454, fee_info._rough_actual_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+//    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(6784779, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(6398732, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(6987454, base_fee_info.commit_fee);
+    ASSERT_EQ(6999454, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -6956,12 +6960,12 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7082,19 +7086,19 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
 
-    fee_info.feerate_per_kw = 9651181;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 9651181;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(6784780, fee_info.htlc_success_fee);
-    ASSERT_EQ(6398733, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(6987455, fee_info.commit_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(6784780, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(6398733, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(6987455, base_fee_info.commit_fee);
     //XXX: the actual fee is 7000000 but trimmed to_local/to_remote is currently not added
     //ASSERT_EQ(7000000, actual_fee);
-    ASSERT_EQ(6999455, fee_info._rough_actual_fee);
+    ASSERT_EQ(6999455, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -7254,12 +7258,12 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 
@@ -7373,19 +7377,19 @@ TEST_F(ln_bolt3_c, committx_commit)
     const uint64_t MSAT_LOCAL = 6988000000LL;
     const uint64_t MSAT_REMOTE = 3000000000LL;
 
-    fee_info.feerate_per_kw = 9651936;
-    ln_comtx_base_fee_calc(&fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
+    base_fee_info.feerate_per_kw = 9651936;
+    ln_comtx_base_fee_calc(&base_fee_info, (const ln_comtx_htlc_info_t **)pp_htlc_infos, 5);
 
-//    printf("base fee_committx=%llu\n", (unsigned long long)fee_info.commit_fee);
-    printf("actual fee_committx=%llu\n", (unsigned long long)fee_info._rough_actual_fee);
-//    printf("fee success=%d\n", (int)fee_info.htlc_success_fee);
-//    printf("fee timeout=%d\n", (int)fee_info.htlc_timeout_fee);
-    ASSERT_EQ(6785311, fee_info.htlc_success_fee);
-    ASSERT_EQ(6399233, fee_info.htlc_timeout_fee);
-    ASSERT_EQ(6988001, fee_info.commit_fee);
+//    printf("base fee_committx=%llu\n", (unsigned long long)base_fee_info.commit_fee);
+    printf("actual fee_committx=%llu\n", (unsigned long long)base_fee_info._rough_actual_fee);
+//    printf("fee success=%d\n", (int)base_fee_info.htlc_success_fee);
+//    printf("fee timeout=%d\n", (int)base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(6785311, base_fee_info.htlc_success_fee);
+    ASSERT_EQ(6399233, base_fee_info.htlc_timeout_fee);
+    ASSERT_EQ(6988001, base_fee_info.commit_fee);
     //XXX: the actual fee is 7000000??? but trimmed to_local/to_remote is currently not added
     //  but there is a shortage of the fund
-    ASSERT_EQ(7000001, fee_info._rough_actual_fee);
+    ASSERT_EQ(7000001, base_fee_info._rough_actual_fee);
 
 
     ///////////////////////////////////////
@@ -7545,12 +7549,12 @@ TEST_F(ln_bolt3_c, committx_commit)
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
-    comtx.p_base_fee_info = &fee_info;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, true, &local_keys);
+    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
 

@@ -360,8 +360,8 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_EQ(1000000, channel.our_msat);
     ASSERT_EQ(1000000, channel.their_msat);
     ASSERT_EQ(1, channel.htlc_id_num);
-    ASSERT_EQ(0, channel.commit_tx_local.htlc_num);
-    ASSERT_EQ(0, channel.commit_tx_remote.htlc_num);
+    ASSERT_EQ(0, channel.commit_tx_local.htlc_output_num);
+    ASSERT_EQ(0, channel.commit_tx_remote.htlc_output_num);
 
     ln_term(&channel);
 }
@@ -418,8 +418,8 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_EQ(1000000, channel.our_msat);
     ASSERT_EQ(1000000, channel.their_msat);
     ASSERT_EQ(1, channel.htlc_id_num);
-    ASSERT_EQ(0, channel.commit_tx_local.htlc_num);
-    ASSERT_EQ(0, channel.commit_tx_remote.htlc_num);
+    ASSERT_EQ(0, channel.commit_tx_local.htlc_output_num);
+    ASSERT_EQ(0, channel.commit_tx_remote.htlc_output_num);
 
     utl_buf_free(&add);
     ln_term(&channel);
@@ -491,8 +491,8 @@ TEST_F(ln, update_add_htlc_recv1)
     ASSERT_EQ(1000000, channel.our_msat);
     ASSERT_EQ(1000000, channel.their_msat);
     ASSERT_EQ(0, channel.htlc_id_num);
-    ASSERT_EQ(0, channel.commit_tx_local.htlc_num);
-    ASSERT_EQ(0, channel.commit_tx_remote.htlc_num);
+    ASSERT_EQ(0, channel.commit_tx_local.htlc_output_num);
+    ASSERT_EQ(0, channel.commit_tx_remote.htlc_output_num);
 
     ln_term(&channel);
 }
@@ -565,8 +565,8 @@ TEST_F(ln, update_add_htlc_recv2)
     ASSERT_EQ(1000000, channel.our_msat);
     ASSERT_EQ(1000000, channel.their_msat);
     ASSERT_EQ(0, channel.htlc_id_num);
-    ASSERT_EQ(0, channel.commit_tx_local.htlc_num);
-    ASSERT_EQ(0, channel.commit_tx_remote.htlc_num);
+    ASSERT_EQ(0, channel.commit_tx_local.htlc_output_num);
+    ASSERT_EQ(0, channel.commit_tx_remote.htlc_output_num);
 
     ln_term(&channel);
 }
@@ -617,8 +617,8 @@ TEST_F(ln, update_add_htlc_recv3)
     ASSERT_EQ(1000000, channel.our_msat);
     ASSERT_EQ(1000000, channel.their_msat);
     ASSERT_EQ(0, channel.htlc_id_num);
-    ASSERT_EQ(0, channel.commit_tx_local.htlc_num);
-    ASSERT_EQ(0, channel.commit_tx_remote.htlc_num);
+    ASSERT_EQ(0, channel.commit_tx_local.htlc_output_num);
+    ASSERT_EQ(0, channel.commit_tx_remote.htlc_output_num);
 
     ln_term(&channel);
 }

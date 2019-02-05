@@ -108,8 +108,8 @@ extern "C" {
 
 // ln_close_force_t.p_tx, p_htlc_idxのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
-#define LN_CLOSE_IDX_TO_LOCAL            (1)         ///< to_local tx
-#define LN_CLOSE_IDX_TO_REMOTE           (2)         ///< to_remote tx
+#define LN_CLOSE_IDX_TO_LOCAL           (1)         ///< to_local tx
+#define LN_CLOSE_IDX_TO_REMOTE          (2)         ///< to_remote tx
 #define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
 #define LN_CLOSE_IDX_NONE               ((uint8_t)0xff)
 
@@ -642,7 +642,7 @@ typedef struct {
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
     uint8_t             txid[BTC_SZ_TXID];              ///< txid
-    uint16_t            htlc_num;                       ///< commit_tx中のHTLC数
+    uint16_t            htlc_output_num;                ///< commit_tx中のHTLC数
     uint64_t            commit_num;                     ///< commitment_number
                                                         //      commit_tx_local:  commitment_signed受信後、インクリメント
                                                         //      commit_tx_remote: commitment_signed送信後、インクリメント
