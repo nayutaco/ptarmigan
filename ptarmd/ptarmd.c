@@ -145,26 +145,24 @@ static void set_channels(void);
  * entry point
  ********************************************************************/
 
-int ptarmd_start(uint16_t RpcPort)
+int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
 {
     bool bret;
-    const ln_node_addr_t *p_addr = ln_node_addr();
 
     mkdir(FNAME_LOGDIR, 0755);
 
-    p2p_cli_init();
-
-    //node情報読込み
-    bret = ln_node_init(0);
+    bret = ln_node_init(pNode);
     if (!bret) {
         fprintf(stderr, "fail: node init\n");
         return -2;
     }
+    const ln_node_addr_t *p_addr = ln_node_addr();
+
+    p2p_cli_init();
 
     //peer config出力(内部テストで使用している)
     FILE *fp = fopen(FNAME_FMT_NODECONF, "w");
     if (fp) {
-
         if (p_addr->type == LN_ADDR_DESC_TYPE_IPV4) {
             fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
                         p_addr->addr[0],

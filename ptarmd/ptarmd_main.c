@@ -30,6 +30,7 @@
 #define LOG_TAG     "ptarmd_main"
 #include "utl_log.h"
 #include "utl_addr.h"
+#include "utl_net.h"
 
 #include "ptarmd.h"
 #include "conf.h"
@@ -64,12 +65,12 @@ int main(int argc, char *argv[])
 {
     bool bret;
     rpc_conf_t rpc_conf;
-    ln_node_addr_t addr;
-    bool upd_addr = false;
+    ln_node_t node = LN_NODE_INIT;
     int opt;
     uint16_t my_rpcport = 0;
 
     const struct option OPTIONS[] = {
+        { "color", required_argument, NULL, 'C' },
         { "rpcport", required_argument, NULL, 'P' },
         { 0, 0, 0, 0 }
     };
@@ -112,8 +113,6 @@ int main(int argc, char *argv[])
     }
 
     conf_btcrpc_init(&rpc_conf);
-    addr.type = LN_ADDR_DESC_TYPE_NONE;
-    addr.port = 0;
 
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
@@ -123,26 +122,34 @@ int main(int argc, char *argv[])
         //    break;
         case 'p':
             //port num
-            addr.port = (uint16_t)atoi(optarg);
-            upd_addr = true;
+            node.addr.port = (uint16_t)atoi(optarg);
             break;
         case 'n':
             //node name(alias)
-            ln_node_alias_set(optarg);
+            if (strlen(optarg) > LN_SZ_ALIAS_STR) {
+                fprintf(stderr, "fail(-n): alias too long\n");
+                return -1;
+            }
+            strncpy(node.alias, optarg, LN_SZ_ALIAS_STR);
+            node.alias[LN_SZ_ALIAS_STR] = '\0';
             break;
         case 'a':
             //ip address
             {
                 uint8_t ipbin[LN_ADDR_DESC_ADDR_LEN_IPV4];
                 bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
-                if (addrret) {
-                    addr.type = LN_ADDR_DESC_TYPE_IPV4;
-                    memcpy(addr.addr, ipbin, sizeof(ipbin));
+                if (!addrret) {
+                    fprintf(stderr, "fail(-a): invalid address format\n");
+                    return -1;
+                }
+                node.addr.type = LN_ADDR_DESC_TYPE_IPV4;
+                memcpy(node.addr.addr, ipbin, sizeof(ipbin));
+                if (utl_net_ipv4_addr_is_routable(node.addr.addr)) {
                     LOGD("ipv4=");
-                    DUMPD(addr.addr, sizeof(addr.addr));
-                    upd_addr = true;
+                    DUMPD(node.addr.addr, sizeof(node.addr.addr));
                 } else {
-                    LOGE("fail: ipv4(%s)\n", optarg);
+                    fprintf(stderr, "fail(-a): not routable address\n");
+                    return -1;
                 }
             }
             break;
@@ -177,16 +184,22 @@ int main(int argc, char *argv[])
             bret = ln_db_reset();
             fprintf(stderr, "db_reset: %d\n", bret);
             return 0;
+        case 'C':
+            bret = false;
+            if (strlen(optarg) == 6) {
+                bret = utl_str_str2bin(node.color, sizeof(node.color), optarg);
+            }
+            if (!bret) {
+                fprintf(stderr, "fail: invalid color(%s).\n", optarg);
+                return -1;
+            }
+            break;
         case 'h':
             //help
             goto LABEL_EXIT;
         default:
             break;
         }
-    }
-
-    if (upd_addr) {
-        ln_node_addr_set(&addr);
     }
 
 #if defined(USE_BITCOIND)
@@ -232,7 +245,7 @@ int main(int argc, char *argv[])
     LOGD("start bitcoin testnet/regtest\n");
 #endif
 
-    ptarmd_start(my_rpcport);
+    ptarmd_start(my_rpcport, &node);
 
     return 0;
 
@@ -241,8 +254,8 @@ LABEL_EXIT:
     fprintf(stderr, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "\t\t-h : help\n");
-    fprintf(stderr, "\t\t-p PORT : node port(default: 9735)\n");
-    fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
+    fprintf(stderr, "\t\t-p PORT : node port(default: 9735 or previous saved)\n");
+    fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\" or previous saved)\n");
 #if defined(USE_BITCOIND)
     fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
@@ -252,6 +265,7 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t-r REGTEST\n");
 #endif
     fprintf(stderr, "\t\t-d DIR_PATH : change working directory\n");
+    fprintf(stderr, "\t\t--color RRGGBB : node color(default: 000000)\n");
     fprintf(stderr, "\t\t--rpcport PORT : JSON-RPC port(default: node port+1)\n");
     fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
