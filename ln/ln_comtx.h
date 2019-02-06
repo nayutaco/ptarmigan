@@ -26,6 +26,7 @@
 #define LN_COMTX_H__
 
 #include "ln.h"
+#include "ln_comtx_util.h"
 
 
 /** create local commitment transaction
@@ -45,7 +46,7 @@
  *   5. メモリ解放
  *
  * @param[in,out]       pChannel
- * @param[in,out]       pCommitTxInfo
+ * @param[in,out]       pCommitTx
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
  * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           HtlcSigsNum         pHtlcSigsの署名数
@@ -55,10 +56,23 @@
  */
 bool HIDDEN ln_comtx_create_local(
     ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommitTxInfo,
+    ln_commit_tx_t *pCommitTx,
     ln_close_force_t *pClose,
     const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
     uint16_t HtlcSigsNum);
+
+
+/** create local commitment transaction info
+ *
+ * @param[in,out]       pComTxInfo
+ * @param[in,out]       pCommitTx
+ * @param[in,out]       pChannel
+ * @retval              true        success
+ */
+bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_commit_tx_t *pCommitTx, const ln_channel_t *pChannel);
+
+
+void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
 
 
 /** 相手用 commitment transaction作成
