@@ -20,7 +20,74 @@
  *  under the License.
  */
 /** @file   ln_db_lmdb.h
- *  @brief  showdb用
+ *  @brief  for LMDB implementation
+ *  @note
+ *      - environment/dbi
+ *          -# dbptarm_chnl
+ *              -# "CN" + channel_id
+ *              -# "SE" + channel_id
+ *              -# "HT" + channel_id + "ddd"(0〜LN_HTLC_MAX-1)
+ *              -# "RV" + channel_id
+ *              -# "cn" + channel_id
+ *              -# "version"
+ *          -# dbptarm_anno
+ *              -# "channel_anno"
+ *                  - key: short_channel_id + SUFFIX
+ *                  - data: timestamp + announcement packet
+ *                      - SUFFIX='A': channel_announcement
+ *                      - SUFFIX='B': channel_update(lower node_id)
+ *                      - SUFFIX='C': channel_update(upper node_id)
+ *                  - usage: save announcement packet.
+ *              -# "channel_annoinfo"
+ *                  - key: short_channel_id + SUFFIX("A" or "B" or "C")
+ *                  - data: receiving/sending node_ids
+ *                  - usage: check already sent.
+ *              -# "node_anno"
+ *                  - key: node_id
+ *                  - data: timestamp + node_announcement packet
+ *                  - usage: save node_announcement packet(including own node)
+ *                  - memo: skip if "chananno_recv" not registered.
+ *              -# "node_annoinfo"
+ *                  - key: node_id
+ *                  - data: receiving/sending node_ids
+ *                  - usage: check already sent.
+ *              -# "chananno_recv"
+ *                  - key: node_id(channel_announcement's node_id_1 and node_id_2)
+ *                  - data: (none)
+ *                  - usage: save node_announcement packet if exist node_id.
+ *                          this db save on receiving channel_announcement.
+ *              -# "annoown"
+ *                  - key: channel_id(own node)
+ *                  - data: (none)
+ *                  - usage: for check our channel or not.
+ *          -# dbptarm_node
+ *              -# "route_skip"
+ *                  - key: short_channel_id
+ *                  - data: (none)=permanently skip, 0x01=temporary skip, 0x02=routing low priority
+ *                  - usage: ignore route if exists and data == skip.
+ *              -# "route_invoice"
+ *                  - key: payment_hash
+ *                  - data: BOLT11 string + additional amount_msat
+ *                  - usage: save at start payment. drop at fail all retry.
+ *              -# "preimage"
+ *                  - key: preimage
+ *                  - data: amount_msat + creation timestamp + expiry block
+ *                  - usage: save created invoice
+ *              -# "payhash"
+ *                  - key: vout script
+ *                  - data: HTLC type + expiry + payment_hash
+ *                  - usage: for revoked transaction close. is this need yet?
+ *          -# dbptarm_walt
+ *              -# "wallet"
+ *                  - key: outpoint(txid + index)
+ *                  - data:
+ *                      - [0]: type
+ *                      - [1-8]: amount
+ *                      - [9-12]: sequence
+ *                      - [13-16]: locktime
+ *                      - [17]: data num
+ *                      - [18-]: len + data
+ *                  - usage: closed output for `emptywallet`.
  */
 #ifndef LN_DB_LMDB_H__
 #define LN_DB_LMDB_H__
