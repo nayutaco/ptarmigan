@@ -45,20 +45,20 @@
  *   5. メモリ解放
  *
  * @param[in,out]       pChannel
+ * @param[in,out]       pCommitTxInfo
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
  * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           HtlcSigsNum         pHtlcSigsの署名数
- * @param[in]           CommitNum           計算に使用するcommitment_number
  * @retval      true    成功
  * @note
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
 bool HIDDEN ln_comtx_create_local(
     ln_channel_t *pChannel,
+    ln_commit_tx_t *pCommitTxInfo,
     ln_close_force_t *pClose,
     const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
-    uint16_t HtlcSigsNum,
-    uint64_t CommitNum);
+    uint16_t HtlcSigsNum);
 
 
 /** 相手用 commitment transaction作成
@@ -80,6 +80,7 @@ bool HIDDEN ln_comtx_create_local(
  *   5. メモリ解放
  *
  * @param[in,out]       pChannel
+ * @param[in,out]       pCommitRemote
  * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
  * @param[out]          ppHtlcSigs          commitment_signed送信用署名(NULLの場合は代入しない)
  * @retval  true    成功
@@ -88,8 +89,7 @@ bool HIDDEN ln_comtx_create_remote(
     const ln_channel_t *pChannel,
     ln_commit_tx_t *pCommitRemote,
     ln_close_force_t *pClose,
-    uint8_t (**ppHtlcSigs)[LN_SZ_SIGNATURE],
-    uint64_t CommitNum);
+    uint8_t (**ppHtlcSigs)[LN_SZ_SIGNATURE]);
 
 
 /** P2WSH署名 - 2-of-2 トランザクション更新

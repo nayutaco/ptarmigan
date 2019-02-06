@@ -475,34 +475,28 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
 {
     LOGD("BEGIN\n");
 
-    bool ret;
+    bool ret = false;
     ln_msg_commitment_signed_t commsig;
     ln_msg_revoke_and_ack_t revack;
-    uint8_t bak_sig[LN_SZ_SIGNATURE];
     utl_buf_t buf = UTL_BUF_INIT;
+    ln_commit_tx_t new_commit_tx = pChannel->commit_tx_local;
 
-    memcpy(bak_sig, pChannel->commit_tx_local.remote_sig, LN_SZ_SIGNATURE);
-    ret = ln_msg_commitment_signed_read(&commsig, pData, Len);
-    if (!ret) {
+    if (!ln_msg_commitment_signed_read(&commsig, pData, Len)) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         goto LABEL_EXIT;
     }
-    memcpy(pChannel->commit_tx_local.remote_sig, commsig.p_signature, LN_SZ_SIGNATURE);
+    memcpy(new_commit_tx.remote_sig, commsig.p_signature, LN_SZ_SIGNATURE);
 
-    ret = ln_check_channel_id(commsig.p_channel_id, pChannel->channel_id);
-    if (!ret) {
+    if (!ln_check_channel_id(commsig.p_channel_id, pChannel->channel_id)) {
         M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
         goto LABEL_EXIT;
     }
 
     //署名チェック＋保存: To-Local
-    ret = ln_comtx_create_local(
-        pChannel,
-        NULL,
-        (const uint8_t (*)[LN_SZ_SIGNATURE])commsig.p_htlc_signature,
-        commsig.num_htlcs,  //HTLC署名のみ(closeなし)
-        pChannel->commit_tx_local.commit_num + 1);
-    if (!ret) {
+    new_commit_tx.commit_num++;
+    if (!ln_comtx_create_local( //HTLC署名のみ(closeなし)
+        pChannel, &new_commit_tx, NULL,
+        (const uint8_t (*)[LN_SZ_SIGNATURE])commsig.p_htlc_signature, commsig.num_htlcs)) {
         LOGE("fail: create_to_local\n");
         goto LABEL_EXIT;
     }
@@ -533,11 +527,8 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
 
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
     ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
-
-    //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
     ln_update_script_pubkeys(pChannel);
-    //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
 
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信
@@ -553,41 +544,36 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     revack.p_channel_id = commsig.p_channel_id;
     revack.p_per_commitment_secret = prev_secret;
     revack.p_next_per_commitment_point = pChannel->keys_local.per_commitment_point;
-    LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", pChannel->commit_tx_local.commit_num);
-    ret = ln_msg_revoke_and_ack_write(&buf, &revack);
-    if (ret) {
-        //revoke_and_ack send flag
-        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-            ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-            if ( LN_HTLC_ENABLE(p_htlc) &&
-                ( LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) ||
-                  LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) ||
-                  LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) ||
-                  LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc) ) ){
-                LOGD(" [%d]revsend=1\n", idx);
-                p_htlc->stat.flag.revsend = 1;
-            }
-        }
-        ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
-        utl_buf_free(&buf);
-    } else {
-        LOGE("fail: ln_msg_revoke_and_ack_create\n");
+    if (!ln_msg_revoke_and_ack_write(&buf, &revack)) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
     }
+    //revoke_and_ack send flag
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
+        if ( LN_HTLC_ENABLE(p_htlc) &&
+            ( LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) ||
+              LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) ||
+              LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) ||
+              LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc) ) ){
+            LOGD(" [%d]revsend=1\n", idx);
+            p_htlc->stat.flag.revsend = 1;
+        }
+    }
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+
+    ret = true;
 
 LABEL_EXIT:
     if (ret) {
-        //revoke_and_ackを返せた場合だけ保存することにする
-        pChannel->commit_tx_local.revoke_num = pChannel->commit_tx_local.commit_num;
-        pChannel->commit_tx_local.commit_num++;
+        //revoke_and_ackを返せた場合だけ保存することにする XXX: ???
+        new_commit_tx.revoke_num++;
+        pChannel->commit_tx_local = new_commit_tx;
         M_DBG_COMMITNUM(pChannel);
         M_DB_SECRET_SAVE(pChannel);
         M_DB_CHANNEL_SAVE(pChannel);
-    } else {
-        //戻す
-        LOGE("fail: restore signature\n");
-        memcpy(pChannel->commit_tx_local.remote_sig, bak_sig, LN_SZ_SIGNATURE);
     }
-
     LOGD("END\n");
     return ret;
 }
@@ -1834,37 +1820,37 @@ static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig
 {
     LOGD("BEGIN\n");
 
-    bool ret;
-
     if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "no init finished");
         return false;
     }
 
     //相手に送る署名を作成
-    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;    //必要があればcreate_to_remote()でMALLOC()する
-    ret = ln_comtx_create_remote(pChannel,
-                &pChannel->commit_tx_remote,
-                NULL, &p_htlc_sigs,
-                pChannel->commit_tx_remote.commit_num + 1);
-    if (!ret) {
+    ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
+    new_commit_tx.commit_num++;
+    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
+    if (!ln_comtx_create_remote(
+        pChannel, &new_commit_tx, NULL, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx");
         return false;
     }
 
-    //commitment_signedを受信していないと想定してはいけないようなので、ここでインクリメントする。
-    pChannel->commit_tx_remote.commit_num++;
+    //commitment_signedを受信していないと想定してはいけないようなのでupdate
+    pChannel->commit_tx_remote = new_commit_tx;
 
     ln_msg_commitment_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.p_signature = pChannel->commit_tx_remote.remote_sig;     //相手commit_txに行った自分の署名
     msg.num_htlcs = pChannel->commit_tx_remote.htlc_output_num;
     msg.p_htlc_signature = (uint8_t *)p_htlc_sigs;
-    ret = ln_msg_commitment_signed_write(pCommSig, &msg);
+    if (!ln_msg_commitment_signed_write(pCommSig, &msg)) {
+        M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commitment_signed");
+        return false;
+    }
     UTL_DBG_FREE(p_htlc_sigs);
 
     LOGD("END\n");
-    return ret;
+    return true;
 }
 
 
@@ -2173,17 +2159,13 @@ static void fail_malformed_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail,
 
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
 {
-    ln_commit_tx_t dummy_remote;
-    memcpy(&dummy_remote, &pChannel->commit_tx_remote, sizeof(dummy_remote));
+    ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
+    new_commit_tx.commit_num++;
     ln_htlcflag_t bak_flag = pChannel->cnl_add_htlc[Idx].stat.flag;
     pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_UPDSEND;
-    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;    //必要があればcreate_to_remote()でMALLOC()する
+    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
     bool ret = ln_comtx_create_remote(
-        pChannel,
-        &dummy_remote,
-        NULL,
-        &p_htlc_sigs,
-        pChannel->commit_tx_remote.commit_num + 1);
+        pChannel, &new_commit_tx, NULL, &p_htlc_sigs);
     pChannel->cnl_add_htlc[Idx].stat.flag = bak_flag;
     if (!ret) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
