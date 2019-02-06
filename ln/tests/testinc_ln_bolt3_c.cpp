@@ -690,21 +690,23 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -1411,21 +1413,23 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -2131,21 +2135,23 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -2790,21 +2796,23 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -3449,21 +3457,23 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -4044,21 +4054,23 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -4639,21 +4651,23 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -5173,21 +5187,23 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -5707,21 +5723,23 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -6180,21 +6198,23 @@ TEST_F(ln_bolt3_c, committx3max_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -6654,21 +6674,23 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -6950,21 +6972,23 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -7248,21 +7272,23 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -7539,21 +7565,23 @@ TEST_F(ln_bolt3_c, committx_commit)
 
     //tx
 
-    ln_comtx_t comtx;
+    ln_comtx_info_t comtx;
     comtx.fund.txid = TXID_FUND;
     comtx.fund.txid_index = TXID_FUND_INDEX;
     comtx.fund.satoshi = BTC_MBTC2SATOSHI(100);
     comtx.fund.p_wit_script = &funding2of2;
     comtx.to_local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
-    comtx.to_local.p_wit_script = &ws_local_buf;
+    comtx.to_local.wit_script = ws_local_buf;
     comtx.to_remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
     comtx.htlc_info_num = 5;
+    comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
-    ln_comtx_sub_fee_and_trim_outputs(&comtx, &base_fee_info, true);
+    ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
+    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 

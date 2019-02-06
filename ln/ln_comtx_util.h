@@ -20,10 +20,10 @@
  *  under the License.
  */
 /** @file   ln_comtx_util.h
- *  @brief  ln_comtx_ex
+ *  @brief  ln_comtx_util
  */
-#ifndef LN_COMTX_EX_H__
-#define LN_COMTX_EX_H__
+#ifndef LN_COMTX_INFO_H__
+#define LN_COMTX_INFO_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -40,9 +40,6 @@
 /********************************************************************
  * macros
  ********************************************************************/
-
-#define LN_COMTX_INIT   {{0, 0, 0, 0}, {0, 0}, {0, 0}, 0, 0, 0, 0};
-
 
 /** @def    LN_SEQUENCE(obs)
  *  @brief  obscured commitment numberから<sequence>算出
@@ -99,29 +96,31 @@ typedef struct {
 } ln_comtx_htlc_info_t;
 
 
-/** @struct ln_comtx_t
+/** @struct ln_comtx_info_t
  *  @brief  Commitment Transaction生成用情報
  */
 typedef struct {
     struct {
-        const uint8_t       *txid;                  ///< funding txid
-        uint32_t            txid_index;             ///< funding txid index
-        uint64_t            satoshi;                ///< funding satoshi
-        const utl_buf_t     *p_wit_script;          ///< funding tx witness script
+        const uint8_t           *txid;                  ///< funding txid
+        uint32_t                txid_index;             ///< funding txid index
+        uint64_t                satoshi;                ///< funding satoshi
+        const utl_buf_t         *p_wit_script;          ///< funding tx witness script
     } fund;
     struct {
-        uint64_t            satoshi;                ///< local satoshi
-        const utl_buf_t     *p_wit_script;          ///< to-local witness script
+        uint64_t                satoshi;                ///< local satoshi
+        utl_buf_t               wit_script;             ///< to-local witness script
     } to_local;
     struct {
-        uint64_t            satoshi;                ///< remote satoshi
-        const uint8_t       *pubkey;                ///< remote pubkey(to-remote用)
+        uint64_t                satoshi;                ///< remote satoshi
+        const uint8_t           *pubkey;                ///< remote pubkey(to-remote用)
     } to_remote;
-    uint64_t                obscured_commit_num;    ///< Obscured Commitment Number
-    ln_comtx_htlc_info_t    **pp_htlc_info;         ///< HTLC infos
-    uint16_t                htlc_info_num;          ///< num of HTLC infos
-    bool                    b_trimmed;              ///< trimmed?
-} ln_comtx_t;
+    uint64_t                    obscured_commit_num;    ///< Obscured Commitment Number
+    ln_comtx_htlc_info_t        **pp_htlc_info;         ///< HTLC infos
+    uint16_t                    htlc_info_num;          ///< num of HTLC infos
+    uint16_t                    htlc_output_num;        ///< num of HTLC (non-trimmed) outputs
+    ln_comtx_base_fee_info_t    base_fee_info;
+    bool                        b_trimmed;              ///< trimmed?
+} ln_comtx_info_t;
 
 
 /********************************************************************
@@ -178,23 +177,22 @@ void HIDDEN ln_comtx_base_fee_calc(
  *
  * @param[out]      pTx         TX情報
  * @param[out]      pSig        local署名
- * @param[in]       pCommitTxTrimmed    Commitment Transaction情報
+ * @param[in]       pComTxInfoTrimmed   Commitment Transaction情報
  * @param[in]       pLocalKeys
  * @return      true:成功
  */
 bool HIDDEN ln_comtx_create(
-    btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_t *pCommitTxTrimmed, const ln_derkey_local_keys_t *pLocalKeys);
+    btc_tx_t *pTx, utl_buf_t *pSig, const ln_comtx_info_t *pComTxInfoTrimmed, const ln_derkey_local_keys_t *pLocalKeys);
 
 
 bool HIDDEN ln_comtx_create_rs(
-    btc_tx_t *pTx, uint8_t *pSig, const ln_comtx_t *pCommitTxTrimmed, const ln_derkey_local_keys_t *pLocalKeys);
+    btc_tx_t *pTx, uint8_t *pSig, const ln_comtx_info_t *pComTxInfoTrimmed, const ln_derkey_local_keys_t *pLocalKeys);
 
 
-void HIDDEN ln_comtx_sub_fee_and_trim_outputs(
-    ln_comtx_t *pCommitTx, ln_comtx_base_fee_info_t *pBaseFeeInfo, bool ToLocalIsFounder);
+void HIDDEN ln_comtx_info_sub_fee_and_trim_outputs(ln_comtx_info_t *pComTxInfo, bool ToLocalIsFounder);
 
 
-uint16_t HIDDEN ln_comtx_get_htlc_output_num(ln_comtx_t *pCommitTxTrimmed);
+uint16_t HIDDEN ln_comtx_info_get_htlc_output_num(ln_comtx_info_t *pComTxInfoTrimmed);
 
 
-#endif /* LN_COMTX_EX_H__ */
+#endif /* LN_COMTX_INFO_H__ */
