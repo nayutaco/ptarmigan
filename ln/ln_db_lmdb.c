@@ -2245,9 +2245,7 @@ bool ln_db_annoown_check(uint64_t ShortChannelId)
         key.mv_data = (uint8_t *)&ShortChannelId;
         retval = mdb_get(mTxnAnno, db.dbi, &key, &data);
     } else {
-        if (retval == MDB_NOTFOUND) {
-            LOGD("not have annoown: %016" PRIx64 "\n", ShortChannelId);
-        } else {
+        if (retval != MDB_NOTFOUND) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
         }
     }
