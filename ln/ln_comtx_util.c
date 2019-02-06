@@ -228,6 +228,8 @@ bool HIDDEN ln_comtx_create_rs(
 
 void HIDDEN ln_comtx_sub_fee_and_trim_outputs(ln_comtx_t *pCommitTx, ln_comtx_base_fee_info_t *pBaseFeeInfo, bool ToLocalIsFounder)
 {
+    assert(!pCommitTx->b_trimmed);
+
     uint64_t fee_local = ToLocalIsFounder ? pBaseFeeInfo->commit_fee : 0;
     uint64_t fee_remote = ToLocalIsFounder ? 0 : pBaseFeeInfo->commit_fee;
 

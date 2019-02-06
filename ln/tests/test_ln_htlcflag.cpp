@@ -73,7 +73,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, c
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
-FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, fake_sig_t **, uint64_t);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, fake_sig_t **);
 
 ////////////////////////////////////////////////////////////////////////
 

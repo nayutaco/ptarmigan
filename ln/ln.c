@@ -727,11 +727,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
 
     //local commit_tx
     bool ret = ln_comtx_create_local( //closeのみ(HTLC署名無し)
-        pChannel,
-        pClose,
-        NULL,
-        0,
-        pChannel->commit_tx_local.commit_num);
+        pChannel, &pChannel->commit_tx_local, pClose, NULL, 0);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
@@ -785,22 +781,17 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_remote.htlc_output_num);
 
     //remote commit_tx
-    bool ret = ln_comtx_create_remote(pChannel,
-                &pChannel->commit_tx_remote,
-                pClose, NULL,
-                pChannel->commit_tx_remote.commit_num);
+    bool ret = ln_comtx_create_remote(
+        pChannel, &pChannel->commit_tx_remote, pClose, NULL);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
     }
 
     //元に戻す
-    memcpy(pChannel->keys_local.per_commitment_secret,
-            bak_percommit, sizeof(bak_percommit));
-    btc_keys_priv2pub(pChannel->keys_local.per_commitment_point,
-            pChannel->keys_local.per_commitment_secret);
-    memcpy(pChannel->keys_remote.per_commitment_point,
-            bak_remotecommit, sizeof(bak_remotecommit));
+    memcpy(pChannel->keys_local.per_commitment_secret, bak_percommit, sizeof(bak_percommit));
+    btc_keys_priv2pub(pChannel->keys_local.per_commitment_point, pChannel->keys_local.per_commitment_secret);
+    memcpy(pChannel->keys_remote.per_commitment_point, bak_remotecommit, sizeof(bak_remotecommit));
     ln_update_script_pubkeys(pChannel);
 
     LOGD("END\n");
