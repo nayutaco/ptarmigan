@@ -309,6 +309,18 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode);
 void ptarmd_stop(void);
 
 
+/** get execute path from OS and cache.
+ *
+ */
+bool ptarmd_execpath_set(void);
+
+
+/**
+ * 
+ */
+const char *ptarmd_execpath_get(void);
+
+
 /** ノード内転送
  *
  */

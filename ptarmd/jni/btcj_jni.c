@@ -3,8 +3,6 @@
 #include <jni.h>
 #include <inttypes.h>
 #include <string.h>
-#include <libgen.h>
-#include <linux/limits.h>
 #include "btcj_jni.h"
 
 #define LOG_TAG     "btcj_jni"
@@ -55,7 +53,6 @@ static btcj_buf_t* jbarray2buf(jbyteArray jbarray);
 static jobject bufs2list(const btcj_buf_t *bufs);
 static btcj_buf_t* list2bufs(jobject list);
 static inline void _check_exception(JNIEnv *env);
-static bool get_execpath(char *path, size_t dest_len);
 
 
 const struct {
@@ -120,10 +117,10 @@ const struct {
 bool btcj_init(btc_block_chain_t Gen)
 {
     jclass cls;
-    char exepath[PATH_MAX];
     char optjar[PATH_MAX];
-    get_execpath(exepath, sizeof(exepath));
-    snprintf(optjar, sizeof(optjar), "-Djava.class.path=%s/jar/slf4j-simple-1.7.25.jar:%s/jar/bitcoinj-ptarmigan-dev.jar:%s/jar/bcprov-jdk15on-160.jar", exepath, exepath, exepath);
+    snprintf(optjar, sizeof(optjar),
+        "-Djava.class.path=%s/jar/bitcoinj-ptarmigan-dev.jar",
+                ptarmd_execpath_get());
     LOGD("optjar=%s\n", optjar);
 
     JavaVMOption opt[1];
@@ -712,16 +709,4 @@ static inline void _check_exception(JNIEnv *env)
         abort();
         (*env)->ExceptionClear(env);
     }
-}
-
-//https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
-static bool get_execpath(char *path, size_t dest_len)
-{
-    ssize_t buff_len;
-    if((buff_len = readlink("/proc/self/exe", path, dest_len - 1)) != -1) {
-        //printf("readlink=%s\n", path);
-        path[buff_len] = '\0';
-        dirname(path);
-    }
-    return buff_len != -1;
 }
