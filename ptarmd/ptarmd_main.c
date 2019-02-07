@@ -75,6 +75,12 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
+    bret = ptarmd_execpath_set();
+    if (!bret) {
+        fprintf(stderr, "fail: %s\n", ptarmd_execpath_get());
+        exit(-1);
+    }
+
     //`d` option is used to change working directory.
     // It is done at the beginning of this process.
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {

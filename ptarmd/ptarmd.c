@@ -48,6 +48,8 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <pthread.h>
+
+#include <libgen.h>
 #include <linux/limits.h>
 
 #define LOG_TAG     "ptarmd"
@@ -74,7 +76,7 @@
  * macros
  **************************************************************************/
 
-#define M_SCRIPT_DIR            "./script/"
+#define M_SCRIPT_DIR            "script"
 
 
 /********************************************************************
@@ -108,27 +110,27 @@ static ln_establish_prm_t           mEstablishPrm;
 
 static const char *kSCRIPT[] = {
     //PTARMD_EVT_STARTED
-    M_SCRIPT_DIR "started.sh",
+    "started.sh",
     //PTARMD_EVT_ERROR
-    M_SCRIPT_DIR "error.sh",
+    "error.sh",
     //PTARMD_EVT_CONNECTED
-    M_SCRIPT_DIR "connected.sh",
+    "connected.sh",
     //PTARMD_EVT_DISCONNECTED
-    M_SCRIPT_DIR "disconnected.sh",
+    "disconnected.sh",
     //PTARMD_EVT_ESTABLISHED
-    M_SCRIPT_DIR "established.sh",
+    "established.sh",
     //PTARMD_EVT_PAYMENT,
-    M_SCRIPT_DIR "payment.sh",
+    "payment.sh",
     //PTARMD_EVT_FORWARD,
-    M_SCRIPT_DIR "forward.sh",
+    "forward.sh",
     //PTARMD_EVT_FULFILL,
-    M_SCRIPT_DIR "fulfill.sh",
+    "fulfill.sh",
     //PTARMD_EVT_FAIL,
-    M_SCRIPT_DIR "fail.sh",
+    "fail.sh",
     //PTARMD_EVT_HTLCCHANGED,
-    M_SCRIPT_DIR "htlcchanged.sh",
+    "htlcchanged.sh",
     //PTARMD_EVT_CLOSED
-    M_SCRIPT_DIR "closed.sh"
+    "closed.sh"
 };
 
 
@@ -139,6 +141,13 @@ static const char *kSCRIPT[] = {
 static void load_channel_settings(void);
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static void set_channels(void);
+
+
+/********************************************************************
+ * prototypes
+ ********************************************************************/
+
+static char gExecPath[PATH_MAX];
 
 
 /********************************************************************
@@ -246,6 +255,24 @@ void ptarmd_stop(void)
         p2p_cli_stop_all();
         monitor_stop();
     }
+}
+
+
+//https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
+bool ptarmd_execpath_set(void)
+{
+    ssize_t buff_len;
+    if((buff_len = readlink("/proc/self/exe", gExecPath, sizeof(gExecPath) - 1)) != -1) {
+        gExecPath[buff_len] = '\0';
+        dirname(gExecPath);
+    }
+    return buff_len != -1;
+}
+
+
+const char *ptarmd_execpath_get(void)
+{
+    return gExecPath;
 }
 
 
@@ -417,14 +444,18 @@ const ln_establish_prm_t *ptarmd_get_establishprm(void)
  */
 void ptarmd_call_script(ptarmd_event_t event, const char *param)
 {
-    LOGD("event=0x%02x\n", (int)event);
-
     struct stat buf;
-    int ret = stat(kSCRIPT[event], &buf);
+    char script[PATH_MAX];
+
+    snprintf(script, sizeof(script), "%s/" M_SCRIPT_DIR "/%s",
+                    ptarmd_execpath_get(),
+                    kSCRIPT[event]);
+    LOGD("event=0x%02x(%s)\n", (int)event, script);
+    int ret = stat(script, &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        size_t sclen = strlen(kSCRIPT[event]) + 64 + strlen(param);
+        size_t sclen = strlen(script) + 64 + strlen(param);
         char *cmdline = (char *)UTL_DBG_MALLOC(sclen);    //UTL_DBG_FREE: この中   //+64は余裕を持たせている
-        snprintf(cmdline, sclen, "%s %s", kSCRIPT[event], param);
+        snprintf(cmdline, sclen, "%s %s", script, param);
         LOGD("cmdline: %s\n", cmdline);
         system(cmdline);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
