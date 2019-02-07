@@ -59,7 +59,7 @@
  *              -# "annoown"
  *                  - key: channel_id(own node)
  *                  - data: (none)
- *                  - usage: for check our channel or not.
+ *                  - usage: for check local channel or not.
  *          -# dbptarm_node
  *              -# "route_skip"
  *                  - key: short_channel_id

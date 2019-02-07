@@ -186,8 +186,8 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
             }
         }
         printf("\n" INDENT3 "],\n");
-        printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", pChannel->our_msat - offered);
-        printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", pChannel->their_msat - received);
+        printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", pChannel->local_msat - offered);
+        printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 "\n", pChannel->remote_msat - received);
         printf(INDENT2 "}");
     }
 }
@@ -220,8 +220,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
 
     //amount
-    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", pChannel->our_msat);
-    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", pChannel->their_msat);
+    printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", pChannel->local_msat);
+    printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 ",\n", pChannel->remote_msat);
     printf(INDENT3 M_QQ("funding_satoshis") ": %" PRIu64 ",\n", pChannel->funding_tx.funding_satoshis);
     printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", pChannel->feerate_per_kw);
 

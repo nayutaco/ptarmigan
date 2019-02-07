@@ -588,7 +588,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
 
     const uint8_t *p_bhash;
     p_bhash = ln_funding_blockhash(pChannel);
-    btcrpc_set_channel(ln_their_node_id(pChannel),
+    btcrpc_set_channel(ln_remote_node_id(pChannel),
             ln_short_channel_id(pChannel),
             ln_funding_txid(pChannel),
             ln_funding_txindex(pChannel),
