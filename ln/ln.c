@@ -1094,15 +1094,15 @@ bool ln_status_is_closing(const ln_channel_t *pChannel)
 }
 
 
-uint64_t ln_our_msat(const ln_channel_t *pChannel)
+uint64_t ln_local_msat(const ln_channel_t *pChannel)
 {
-    return pChannel->our_msat;
+    return pChannel->local_msat;
 }
 
 
-uint64_t ln_their_msat(const ln_channel_t *pChannel)
+uint64_t ln_remote_msat(const ln_channel_t *pChannel)
 {
-    return pChannel->their_msat;
+    return pChannel->remote_msat;
 }
 
 
@@ -1347,7 +1347,7 @@ bool ln_open_channel_announce(const ln_channel_t *pChannel)
 }
 
 
-const uint8_t *ln_their_node_id(const ln_channel_t *pChannel)
+const uint8_t *ln_remote_node_id(const ln_channel_t *pChannel)
 {
     return pChannel->peer_node_id;
 }

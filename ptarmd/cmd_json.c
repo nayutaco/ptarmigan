@@ -396,7 +396,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
-    cJSON_AddNumber64ToObject(result, "total_our_msat", total_amount);
+    cJSON_AddNumber64ToObject(result, "total_local_msat", total_amount);
 
 #ifdef DEVELOPER_MODE
     //blockcount
@@ -2092,7 +2092,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
         *prm->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
 
         ln_r_field_t *pfield = *prm->pp_field + *prm->p_fieldnum;
-        memcpy(pfield->node_id, ln_their_node_id(pChannel), BTC_SZ_PUBKEY);
+        memcpy(pfield->node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY);
         pfield->short_channel_id = ln_short_channel_id(pChannel);
         pfield->fee_base_msat = msg.fee_base_msat;
         pfield->fee_prop_millionths = msg.fee_proportional_millionths;
@@ -2183,7 +2183,7 @@ static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void
 
     getcommittx_t *prm = (getcommittx_t *)p_param;
 
-    if (memcmp(prm->p_nodeid, ln_their_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
+    if (memcmp(prm->p_nodeid, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
         lnapp_conf_t appconf;
         appconf.p_channel = pChannel;
         lnapp_get_committx(&appconf, prm->result, prm->b_local);

@@ -418,8 +418,8 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //norm
     //
     M_ITEM(ln_channel_t, htlc_id_num),          //[NORM_01]
-    M_ITEM(ln_channel_t, our_msat),             //[NORM_02]
-    M_ITEM(ln_channel_t, their_msat),           //[NORM_03]
+    M_ITEM(ln_channel_t, local_msat),           //[NORM_02]
+    M_ITEM(ln_channel_t, remote_msat),          //[NORM_03]
     M_ITEM(ln_channel_t, channel_id),           //[NORM_04]
     M_ITEM(ln_channel_t, short_channel_id),     //[NORM_05]
     //[NORM_06]cnl_add_htlc --> HTLC
@@ -480,8 +480,8 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, peer_node_id),
     M_ITEM(ln_channel_t, channel_id),
     M_ITEM(ln_channel_t, short_channel_id),
-    M_ITEM(ln_channel_t, our_msat),
-    M_ITEM(ln_channel_t, their_msat),
+    M_ITEM(ln_channel_t, local_msat),
+    M_ITEM(ln_channel_t, remote_msat),
     M_ITEM(ln_channel_t, htlc_id_num),
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),
@@ -519,8 +519,8 @@ static const struct {
     { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },      // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64X,    1, true },                  // short_channel_id
-    { ETYPE_UINT64U,    1, true },                  // our_msat
-    { ETYPE_UINT64U,    1, true },                  // their_msat
+    { ETYPE_UINT64U,    1, true },                  // local_msat
+    { ETYPE_UINT64U,    1, true },                  // remote_msat
     { ETYPE_UINT64U,    1, true },                  // htlc_id_num
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_txindex

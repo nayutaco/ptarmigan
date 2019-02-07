@@ -275,7 +275,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         //check each close_dat.p_tx[] INPUT is broadcasted
         bool unspent;
         bool ret = btcrpc_check_unspent(
-                            ln_their_node_id(pChannel),
+                            ln_remote_node_id(pChannel),
                             &unspent, NULL,
                             p_tx->vin[0].txid, p_tx->vin[0].index);
         if (!ret) {
@@ -381,7 +381,7 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *p_param)
         ret = true;
         unspent = false;
     } else {
-        ret = btcrpc_check_unspent(ln_their_node_id(pChannel), &unspent, NULL, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+        ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
     }
     if (ret && !unspent) {
         //funding_tx SPENT
@@ -400,7 +400,7 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *p_param)
             LOGE("fail: del channel: ");
             DUMPD(ln_channel_id(pChannel), LN_SZ_CHANNEL_ID);
         }
-        btcrpc_del_channel(ln_their_node_id(pChannel));
+        btcrpc_del_channel(ln_remote_node_id(pChannel));
     }
 
     return false;
@@ -442,7 +442,7 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_d
         ln_last_conf_set(pChannel, p_prm->confm);
         ln_db_channel_save_lastconf(pChannel, p_db_param);
 
-        btcrpc_set_channel(ln_their_node_id(pChannel),
+        btcrpc_set_channel(ln_remote_node_id(pChannel),
                 ln_short_channel_id(pChannel),
                 ln_funding_txid(pChannel),
                 ln_funding_txindex(pChannel),
@@ -546,7 +546,7 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_
 
 static bool channel_reconnect(ln_channel_t *pChannel)
 {
-    const uint8_t *p_node_id = ln_their_node_id(pChannel);
+    const uint8_t *p_node_id = ln_remote_node_id(pChannel);
     struct {
         char ipaddr[SZ_IPV4_LEN + 1];
         uint16_t port;
@@ -772,7 +772,7 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
                 } else if (p_tx->vin[0].wit_item_cnt > 0) {
                     //INPUT spent check
                     bool unspent;
-                    bool ret = btcrpc_check_unspent(ln_their_node_id(pChannel), &unspent, NULL,
+                    bool ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL,
                                     p_tx->vin[0].txid, p_tx->vin[0].index);
                     if (ret && !unspent) {
                         LOGD("already spent\n");
@@ -834,7 +834,7 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
         LOGD("origin/hop node\n");
 
         bool unspent;
-        bool ret = btcrpc_check_unspent(ln_their_node_id(pChannel), &unspent, NULL,
+        bool ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL,
                         pCloseDat->p_tx[lp].vin[0].txid, pCloseDat->p_tx[lp].vin[0].index);
         if (ret && !unspent) {
             LOGD("already spent\n");

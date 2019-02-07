@@ -1162,8 +1162,8 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 
     //送信側が現在のfeerate_per_kwで支払えないようなamount_msatの場合、チャネルを失敗させる。
     //  receiving an amount_msat that the sending node cannot afford at the current feerate_per_kw
-    if (pChannel->their_msat < p_htlc->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "their_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->their_msat, p_htlc->amount_msat);
+    if (pChannel->remote_msat < p_htlc->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->remote_msat, p_htlc->amount_msat);
         return false;
     }
 
@@ -1612,10 +1612,10 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
             //         dbg_htlcflag_delhtlc_str(p_flag->fin_delhtlc));
             if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc送信側
-                //pChannel->our_msat -= p_htlc->amount_msat;
+                //pChannel->local_msat -= p_htlc->amount_msat;
             } else if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc受信側
-                //pChannel->their_msat -= p_htlc->amount_msat;
+                //pChannel->remote_msat -= p_htlc->amount_msat;
 
                 //ADD_HTLC転送
                 if (p_htlc->next_short_channel_id != 0) {
@@ -1644,8 +1644,8 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
                 case LN_ADDHTLC_OFFER:
                     //DEL_HTLC後: update_add_htlc送信側
                     if (p_flag->delhtlc == LN_DELHTLC_FULFILL) {
-                        pChannel->our_msat -= p_htlc->amount_msat;
-                        pChannel->their_msat += p_htlc->amount_msat;
+                        pChannel->local_msat -= p_htlc->amount_msat;
+                        pChannel->remote_msat += p_htlc->amount_msat;
                     } else if ((p_flag->delhtlc != LN_DELHTLC_NONE) && (p_htlc->prev_short_channel_id != 0)) {
                         LOGD("backward fail_htlc!\n");
 
@@ -1667,8 +1667,8 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
                 case LN_ADDHTLC_RECV:
                     //DEL_HTLC後: update_add_htlc受信側
                     if (p_flag->delhtlc == LN_DELHTLC_FULFILL) {
-                        pChannel->our_msat += p_htlc->amount_msat;
-                        pChannel->their_msat -= p_htlc->amount_msat;
+                        pChannel->local_msat += p_htlc->amount_msat;
+                        pChannel->remote_msat -= p_htlc->amount_msat;
                     }
                     break;
                 default:
@@ -1881,16 +1881,16 @@ static bool check_create_add_htlc(
     }
 
     //相手が指定したchannel_reserve_satは残しておく必要あり
-    if (pChannel->our_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "our_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
-                    pChannel->our_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
+    if (pChannel->local_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "local_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
+                    pChannel->local_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
         goto LABEL_EXIT;
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
-    if (pChannel->our_msat < amount_msat + close_fee_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "our_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
-                    pChannel->our_msat, amount_msat, close_fee_msat);
+    if (pChannel->local_msat < amount_msat + close_fee_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "local_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
+                    pChannel->local_msat, amount_msat, close_fee_msat);
         goto LABEL_EXIT;
     }
 

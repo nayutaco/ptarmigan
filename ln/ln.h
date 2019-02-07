@@ -704,8 +704,8 @@ struct ln_channel_t {
 
     //msg:normal operation
     uint64_t                    htlc_id_num;                    ///< [NORM_01]update_add_htlcで使うidの管理
-    uint64_t                    our_msat;                       ///< [NORM_02]自分の持ち分
-    uint64_t                    their_msat;                     ///< [NORM_03]相手の持ち分
+    uint64_t                    local_msat;                     ///< [NORM_02]自分の持ち分
+    uint64_t                    remote_msat;                    ///< [NORM_03]相手の持ち分
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_04]channel_id
     uint64_t                    short_channel_id;               ///< [NORM_05]short_channel_id
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
@@ -1140,20 +1140,20 @@ ln_status_t ln_status_get(const ln_channel_t *pChannel);
 bool ln_status_is_closing(const ln_channel_t *pChannel);
 
 
-/** our_msat取得
+/** local_msat取得
  *
  * @param[in]           pChannel        channel info
  * @return      自channelのmilli satoshi
  */
-uint64_t ln_our_msat(const ln_channel_t *pChannel);
+uint64_t ln_local_msat(const ln_channel_t *pChannel);
 
 
-/** their_msat取得
+/** remote_msat取得
  *
  * @param[in]           pChannel        channel info
  * @return      他channelのmilli satoshi
  */
-uint64_t ln_their_msat(const ln_channel_t *pChannel);
+uint64_t ln_remote_msat(const ln_channel_t *pChannel);
 
 
 void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid);
@@ -1478,7 +1478,7 @@ bool ln_open_channel_announce(const ln_channel_t *pChannel);
  * @param[in]           pChannel        channel info
  * @return      自channelの他node_id
  */
-const uint8_t *ln_their_node_id(const ln_channel_t *pChannel);
+const uint8_t *ln_remote_node_id(const ln_channel_t *pChannel);
 
 
 /** cltv_expiry_delta取得
@@ -1594,9 +1594,9 @@ bool ln_node_search_channel(ln_channel_t *pChannel, const uint8_t *pNodeId);
 bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *pNodeAnnoBuf, const uint8_t *pNodeId);
 
 
-/** nodeが所有しているour_msatの合計
+/** nodeが所有しているlocal_msatの合計
  *
- * @return  our_msatの合計[msatoshis]
+ * @return  local_msatの合計[msatoshis]
  */
 uint64_t ln_node_total_msat(void);
 

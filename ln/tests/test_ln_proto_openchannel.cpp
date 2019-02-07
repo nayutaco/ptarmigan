@@ -182,8 +182,8 @@ public:
         pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_remote.htlc_minimum_msat = 0;
         pChannel->commit_tx_remote.max_accepted_htlcs = 10;
-        pChannel->our_msat = 1000000;
-        pChannel->their_msat = 1000000;
+        pChannel->local_msat = 1000000;
+        pChannel->remote_msat = 1000000;
         btc_tx_init(&pChannel->funding_tx.tx_data);
         utl_buf_init(&pChannel->funding_tx.wit_script);
         pChannel->p_callback = LnCallbackType;

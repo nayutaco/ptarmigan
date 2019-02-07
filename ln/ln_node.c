@@ -347,7 +347,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
 
 /** #ln_node_total_msat()処理関数
  *
- * our_msatの総額を求める。
+ * local_msatの総額を求める。
  *
  * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
@@ -358,8 +358,8 @@ static bool comp_func_total_msat(ln_channel_t *pChannel, void *p_db_param, void 
     (void)p_db_param;
     uint64_t *p_amount = (uint64_t *)p_param;
 
-    //LOGD("our_msat:%" PRIu64 "\n", ln_our_msat(pChannel));
-    *p_amount += ln_our_msat(pChannel);
+    //LOGD("local_msat:%" PRIu64 "\n", ln_local_msat(pChannel));
+    *p_amount += ln_local_msat(pChannel);
     return false;
 }
 
@@ -379,7 +379,7 @@ static bool comp_func_srch_nodeid(ln_channel_t *pChannel, void *p_db_param, void
     comp_param_srcnodeid_t *p_srch = (comp_param_srcnodeid_t *)p_param;
     bool ret = (ln_short_channel_id(pChannel) == p_srch->short_channel_id);
     if (ret) {
-        memcpy(p_srch->p_node_id, ln_their_node_id(pChannel), BTC_SZ_PUBKEY);
+        memcpy(p_srch->p_node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY);
         ln_term(pChannel);
     }
     return ret;

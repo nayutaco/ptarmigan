@@ -197,7 +197,7 @@ static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
-    if (!ln_db_annocnl_save(&buf, msg.short_channel_id, ln_their_node_id(pChannel), msg.p_node_id_1, msg.p_node_id_2)) {
+    if (!ln_db_annocnl_save(&buf, msg.short_channel_id, ln_remote_node_id(pChannel), msg.p_node_id_1, msg.p_node_id_2)) {
         LOGE("fail: save\n");
         return false;
     }
@@ -239,7 +239,7 @@ static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData,
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
-    if (!ln_db_annonod_save(&buf, &msg, ln_their_node_id(pChannel))) {
+    if (!ln_db_annonod_save(&buf, &msg, ln_remote_node_id(pChannel))) {
         LOGE("fail: save\n");
         return false;
     }
@@ -278,7 +278,7 @@ bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel)
     }
 
     if (pChannel->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
-        //we have exchanged our announcement signatures
+        //we have exchanged local announcement signatures
         //save for broadcasting
         ln_cb_update_annodb_t db;
         db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
@@ -348,7 +348,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
-    if (!ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(pChannel))) {
+    if (!ln_db_annocnlupd_save(&buf, &msg, ln_remote_node_id(pChannel))) {
         LOGE("fail: save\n");
         return false;
     }
@@ -376,7 +376,7 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
     ln_msg_channel_update_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), LN_CNLUPD_CHFLAGS_DISABLE)) return false;
-    (void)ln_db_annocnlupd_save(&buf, &msg, ln_their_node_id(pChannel));
+    (void)ln_db_annocnlupd_save(&buf, &msg, ln_remote_node_id(pChannel));
     utl_buf_free(&buf);
     return true;
 }
@@ -524,7 +524,7 @@ static void proc_announcement_signatures(ln_channel_t *pChannel)
 
         //channel_announcement
         if (ln_db_annocnl_save(
-            &pChannel->cnl_anno, pChannel->short_channel_id, NULL, ln_their_node_id(pChannel), ln_node_getid())) {
+            &pChannel->cnl_anno, pChannel->short_channel_id, NULL, ln_remote_node_id(pChannel), ln_node_getid())) {
             utl_buf_free(&pChannel->cnl_anno);
         } else {
             LOGE("fail\n");
