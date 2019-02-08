@@ -46,6 +46,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 #include <unistd.h>
 #include <pthread.h>
 
@@ -446,9 +447,16 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
 {
     struct stat buf;
     char script[PATH_MAX];
+    char path[PATH_MAX];
 
+    errno = 0;
+    getcwd(path, sizeof(path));
+    if (errno != 0) {
+        LOGE("fail: getcwd()\n");
+        return;
+    }
     snprintf(script, sizeof(script), "%s/" M_SCRIPT_DIR "/%s",
-                    ptarmd_execpath_get(),
+                    path,
                     kSCRIPT[event]);
     LOGD("event=0x%02x(%s)\n", (int)event, script);
     int ret = stat(script, &buf);
