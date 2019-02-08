@@ -61,6 +61,12 @@
 
 #define M_RPCERR_FREESTRING     (-1)        //no error_str_cjson() or strdup_cjson()
 
+/** @def    M_RFIELD_AMOUNT
+ *  @brief  invoice r-field add amount satisfied channel if defined.
+ *  @note   if not defined, r-field add not announcement channel
+ */
+#define M_RFIELD_AMOUNT
+
 
 /********************************************************************
  * macros functions
@@ -79,7 +85,8 @@ typedef struct {
 
 
 typedef struct {
-    ln_r_field_t     **pp_field;
+    ln_r_field_t    **pp_field;
+    uint64_t        amount_msat;
     uint8_t         *p_fieldnum;
 } r_field_prm_t;
 
@@ -163,7 +170,7 @@ static char *create_bolt11(
                 const ln_r_field_t *pRField,
                 uint8_t RFieldNum,
                 uint32_t MinFinalCltvExpiry);
-static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum);
+static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, uint64_t AmountMsat);
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void *p_param);
@@ -623,7 +630,7 @@ LABEL_EXIT:
     if (err == 0) {
         ln_r_field_t *p_r_field = NULL;
         uint8_t r_fieldnum = 0;
-        create_bolt11_r_field(&p_r_field, &r_fieldnum);
+        create_bolt11_r_field(&p_r_field, &r_fieldnum, amount_msat);
         char *p_invoice = create_bolt11(preimage_hash, amount_msat,
                             LN_INVOICE_EXPIRY, p_r_field, r_fieldnum,
                             min_final_cltv_expiry);
@@ -636,6 +643,11 @@ LABEL_EXIT:
             cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
             cJSON_AddItemToObject(result, "amount_msat", cJSON_CreateNumber64(amount_msat));
             cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
+#ifdef M_RFIELD_AMOUNT
+            if (r_fieldnum == 0) {
+                cJSON_AddItemToObject(result, "note", cJSON_CreateString("no payable-amount channel"));
+            }
+#endif  //M_RFIELD_AMOUNT
 
             UTL_DBG_FREE(p_invoice);
         } else {
@@ -2045,14 +2057,14 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
 }
 
 
-/** not public channel情報からr field情報を作成
+/** create invoice r-field
  *
  * channel_announcementする前や、channel_announcementしない場合、invoiceのr fieldに経路情報を追加することで、
  * announcementしていない部分の経路を知らせることができる。
  * ただ、その経路は自分へ向いているため、channelの相手が送信するchannel_updateの情報を追加することになる。
  * 現在接続していなくても、送金時には接続している可能性があるため、r fieldに追加する。
  */
-static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum)
+static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, uint64_t AmountMsat)
 {
     r_field_prm_t prm;
 
@@ -2060,6 +2072,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum)
     *pRFieldNum = 0;
 
     prm.pp_field = ppRField;
+    prm.amount_msat = AmountMsat;
     prm.p_fieldnum = pRFieldNum;
     ln_db_channel_search_readonly(comp_func_cnl, &prm);
 
@@ -2087,7 +2100,13 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_channel_update_t msg;
     ret = ln_channel_update_get_peer(pChannel, &buf, &msg);
+#ifdef M_RFIELD_AMOUNT
+    LOGD("remote amount: %" PRIu64 "\n", ln_remote_msat(pChannel));
+    if (ret && (ln_remote_payable_msat(pChannel) >= prm->amount_msat)) {
+        LOGD("invoice: add r-field(%" PRIx64 ")\n", ln_short_channel_id(pChannel));
+#else
     if (ret && !ln_is_announced(pChannel)) {
+#endif
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_r_field_t);
         *prm->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
 
