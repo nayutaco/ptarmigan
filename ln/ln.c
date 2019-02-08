@@ -1106,6 +1106,28 @@ uint64_t ln_remote_msat(const ln_channel_t *pChannel)
 }
 
 
+uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
+{
+    uint64_t remote_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat);
+    if (pChannel->local_msat > remote_reserve_msat) {
+        return pChannel->local_msat - remote_reserve_msat;
+    } else {
+        return 0;
+    }
+}
+
+
+uint64_t ln_remote_payable_msat(const ln_channel_t *pChannel)
+{
+    uint64_t local_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_local.channel_reserve_sat);
+    if (pChannel->remote_msat > local_reserve_msat) {
+        return pChannel->remote_msat - local_reserve_msat;
+    } else {
+        return 0;
+    }
+}
+
+
 void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid)
 {
     memcpy(pChannel->funding_tx.txid, pTxid, BTC_SZ_TXID);
