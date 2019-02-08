@@ -72,10 +72,10 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc)
  *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(htlc) \
+#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) &&\
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) &&\
@@ -85,23 +85,23 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc)
  *  @brief
  *    - commitment_signed受信時、local commit_tx作成に含む
  */
-#define LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc) \
+#define LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc)
  *  @brief  local commit_tx作成時、自分のamountから差し引く
  *  @note
- *    - #LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER()も差し引く対象になる
+ *    - #LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND()も差し引く対象になる
  */
-#define LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(htlc) \
+#define LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
@@ -149,10 +149,10 @@
     )
 
 
-/** @def    LN_HTLC_WILL_COMSIG_OFFER(htlc)
+/** @def    LN_HTLC_WILL_COMSIG_SEND(htlc)
  *  @brief  commitment_signedを送信できる(update_add_htlc送信側)
  */
-#define LN_HTLC_WILL_COMSIG_OFFER(htlc) \
+#define LN_HTLC_WILL_COMSIG_SEND(htlc) \
     ( \
         ( \
             ( \
@@ -221,10 +221,10 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc)
  *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.updsend == 0) && \
@@ -233,22 +233,22 @@
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.updsend == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc)
  *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc) \
     ( \
-        LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) && \
+        LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
@@ -259,19 +259,19 @@
 #define LN_HTLC_WILL_COMSIG_RECV(htlc) \
     ( \
         ( \
-            LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) || \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) \
+            LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) || \
+            LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
         ) && \
         ((htlc)->stat.flag.comsend == 0) \
     )
 
 
-#define LN_HTLC_ENABLE_ADDHTLC_OFFER(htlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(htlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc))
+#define LN_HTLC_ENABLE_ADDHTLC_SEND(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc))
 
 
-#define LN_HTLC_ENABLE_FULFILL_OFFER(htlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc))
+#define LN_HTLC_ENABLE_FULFILL_SEND(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc))
 
 
 #define LN_HTLC_ENABLE_ADDHTLC_RECV(htlc, b_local) \
