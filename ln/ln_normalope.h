@@ -67,8 +67,7 @@
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
-        ((htlc)->stat.flag.updsend == 0) && \
-        ((htlc)->stat.flag.updwait == 0) \
+        ((htlc)->stat.flag.updsend == 0) \
     )
 
 
@@ -77,10 +76,10 @@
  */
 #define LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) &&\
-        ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) &&\
-        ((htlc)->stat.flag.updsend == 1) &&\
-        ((htlc)->stat.flag.comsend == 1) &&\
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
+        ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
+        ((htlc)->stat.flag.updsend == 1) && \
+        ((htlc)->stat.flag.comsend == 1) && \
         ((htlc)->stat.flag.revrecv == 1) \
     )
 
@@ -176,8 +175,7 @@
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-        ((htlc)->stat.flag.updsend == 0) && \
-        ((htlc)->stat.flag.updwait == 0) \
+        ((htlc)->stat.flag.updsend == 0) \
     )
 
 

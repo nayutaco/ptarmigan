@@ -369,8 +369,7 @@ typedef struct {
     unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
     unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
                                         //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
-    unsigned        updwait     : 1;    ///< 1:update message received
-    unsigned        Reserved    : 4;
+    unsigned        Reserved    : 5;
 } ln_htlcflag_t;
 
 #define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, delhtlc
