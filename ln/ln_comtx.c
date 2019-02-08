@@ -935,9 +935,6 @@ static bool create_htlc_info_and_amount(
             LOGD("delhtlc_recv\n");
             *pOurMsat += p_htlc->amount_msat;
             *pTheirMsat -= p_htlc->amount_msat;
-        } else {
-            assert(0);
-            goto LABEL_ERROR;
         }
 
         if (!htlcadd) {
