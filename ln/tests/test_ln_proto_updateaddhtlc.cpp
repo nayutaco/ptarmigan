@@ -345,8 +345,8 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_EQ(prev_schid, channel.cnl_add_htlc[0].prev_short_channel_id);
     ASSERT_EQ(prev_idx, channel.cnl_add_htlc[0].prev_idx);
     //
-    ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(&channel.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
+    ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
@@ -403,8 +403,8 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_EQ(prev_schid, channel.cnl_add_htlc[0].prev_short_channel_id);
     ASSERT_EQ(prev_idx, channel.cnl_add_htlc[0].prev_idx);
     //
-    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&channel.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
@@ -476,8 +476,8 @@ TEST_F(ln, update_add_htlc_recv1)
     // ASSERT_EQ(0, channel.cnl_add_htlc[0].prev_short_channel_id);
     // ASSERT_EQ(0, channel.cnl_add_htlc[0].prev_idx);
     //
-    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&channel.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
@@ -549,8 +549,8 @@ TEST_F(ln, update_add_htlc_recv2)
     // ASSERT_EQ(0, channel.cnl_add_htlc[0].prev_short_channel_id);
     // ASSERT_EQ(0, channel.cnl_add_htlc[0].prev_idx);
     //
-    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&channel.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
@@ -601,8 +601,8 @@ TEST_F(ln, update_add_htlc_recv3)
     // ASSERT_EQ(0, channel.cnl_add_htlc[0].prev_short_channel_id);
     // ASSERT_EQ(0, channel.cnl_add_htlc[0].prev_idx);
     //
-    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&channel.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
