@@ -60,17 +60,6 @@
 #define LN_HTLC_ENABLE(htlc)    (!LN_HTLC_EMPTY(htlc))
 
 
-/** @def    LN_HTLC_WILL_ADDHTLC(htlc)
- *  @brief  update_add_htlc送信予定
- */
-#define LN_HTLC_WILL_ADDHTLC(htlc) \
-    ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
-        ((htlc)->stat.flag.updsend == 0) \
-    )
-
-
 /** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc)
  *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc送信側)
  */
@@ -78,32 +67,65 @@
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
-        ((htlc)->stat.flag.updsend == 1) && \
-        ((htlc)->stat.flag.comsend == 1) && \
         ((htlc)->stat.flag.revrecv == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc)
+/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc)
  *  @brief
  *    - commitment_signed受信時、local commit_tx作成に含む
  */
-#define LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
+#define LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc)
+/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc)
  *  @brief  local commit_tx作成時、自分のamountから差し引く
  *  @note
  *    - #LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND()も差し引く対象になる
  */
-#define LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) \
+#define LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
+    )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc)
+ *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) \
+    ( \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
+        !( /*NOT*/ \
+            ((htlc)->stat.flag.updsend == 1) && \
+            ((htlc)->stat.flag.revrecv == 1) \
+        ) \
+    )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc)
+ *  @brief  local commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
+    ( \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
+        ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
+        ((htlc)->stat.flag.revrecv == 1) \
+    )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc)
+ *  @brief  local commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) \
+    ( \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
+        ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
+        ((htlc)->stat.flag.revrecv == 1) \
     )
 
 
@@ -116,106 +138,32 @@
         ((htlc)->stat.flag.updsend == 1) && \
         !( /*NOT*/ \
             ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-            ((htlc)->stat.flag.comrecv == 1) && \
             ((htlc)->stat.flag.revsend == 1) \
         ) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-        ((htlc)->stat.flag.comrecv == 1) && \
         ((htlc)->stat.flag.revsend == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc)
  *  @brief  remote commit_tx作成時、相手のamountから差し引く
  *  @note
  *    - #LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV()も差し引く対象になる
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
-        ((htlc)->stat.flag.comrecv == 1) && \
         ((htlc)->stat.flag.revsend == 1) \
-    )
-
-
-/** @def    LN_HTLC_WILL_COMSIG_SEND(htlc)
- *  @brief  commitment_signedを送信できる(update_add_htlc送信側)
- */
-#define LN_HTLC_WILL_COMSIG_SEND(htlc) \
-    ( \
-        ( \
-            ( \
-                LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) && \
-                ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) \
-            ) || \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
-        ) && \
-        ((htlc)->stat.flag.comsend == 0) \
-    )
-
-
-/** @def    LN_HTLC_WILL_DELHTLC(htlc)
- *  @brief  update_fulfill/fail/fail_malformed_htlc送信予定
- *  @note
- *      - update_fulfill_htlc: #LN_HTLC_IS_FULFILL()がtrue
- *      - update_fail_malformed_htlc: #LN_HTLC_IS_MALFORMED()がtrue
- *      - update_fail_htlc: それ以外
- */
-#define LN_HTLC_WILL_DELHTLC(htlc) \
-    ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-        ((htlc)->stat.flag.updsend == 0) \
-    )
-
-
-/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc)
- *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc受信側)
- */
-#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) \
-    ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        !( /*NOT*/ \
-            ((htlc)->stat.flag.updsend == 1) && \
-            ((htlc)->stat.flag.comsend == 1) && \
-            ((htlc)->stat.flag.revrecv == 1) \
-        ) \
-    )
-
-
-/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc)
- *  @brief  local commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
- */
-#define LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) \
-    ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((htlc)->stat.flag.delhtlc != 0) && \
-        ((htlc)->stat.flag.updsend == 1) && \
-        ((htlc)->stat.flag.comsend == 1) && \
-        ((htlc)->stat.flag.revrecv == 1) \
-    )
-
-
-/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc)
- *  @brief  local commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
- */
-#define LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc) \
-    ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
-        ((htlc)->stat.flag.updsend == 1) && \
-        ((htlc)->stat.flag.comsend == 1) && \
-        ((htlc)->stat.flag.revrecv == 1) \
     )
 
 
@@ -226,41 +174,89 @@
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.updsend == 0) && \
-        ((htlc)->stat.flag.comrecv == 1) && \
         ((htlc)->stat.flag.revsend == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
     ( \
         ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((htlc)->stat.flag.updsend == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc)
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc)
  *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc) \
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc) \
     ( \
-        LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
+        ((htlc)->stat.flag.updsend == 1) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
 
-/** @def    LN_HTLC_WILL_COMSIG_RECV(htlc)
- *  @brief  commitment_signedを送信できる(update_add_htlc受信側)
+/** @def    LN_HTLC_WILL_ADDHTLC_SEND(htlc)
+ *  @brief  update_add_htlc送信予定
  */
-#define LN_HTLC_WILL_COMSIG_RECV(htlc) \
+#define LN_HTLC_WILL_ADDHTLC_SEND(htlc) \
+    ( \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
+        ((htlc)->stat.flag.updsend == 0) \
+    )
+
+
+/** @def    LN_HTLC_WILL_DELHTLC_SEND(htlc)
+ *  @brief  update_fulfill/fail/fail_malformed_htlc送信予定
+ *  @note
+ *      - update_fulfill_htlc: #LN_HTLC_IS_FULFILL()がtrue
+ *      - update_fail_malformed_htlc: #LN_HTLC_IS_MALFORMED()がtrue
+ *      - update_fail_htlc: それ以外
+ */
+#define LN_HTLC_WILL_DELHTLC_SEND(htlc) \
+    ( \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
+        ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
+        ((htlc)->stat.flag.updsend == 0) \
+    )
+
+
+/** @def    LN_HTLC_WILL_COMSIG_SEND_OFFERED_HTLC(htlc)
+ *  @brief  commitment_signedを送信できる(update_add_htlc送信側)
+ */
+#define LN_HTLC_WILL_COMSIG_SEND_OFFERED_HTLC(htlc) \
     ( \
         ( \
-            LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) || \
+            ( \
+                LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) && \
+                ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) \
+            ) || \
             LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
         ) && \
         ((htlc)->stat.flag.comsend == 0) \
+    )
+
+
+/** @def    LN_HTLC_WILL_COMSIG_SEND_RECEIVED_HTLC(htlc)
+ *  @brief  commitment_signedを送信できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_WILL_COMSIG_SEND_RECEIVED_HTLC(htlc) \
+    ( \
+        ( \
+            LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) || \
+            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
+        ) && \
+        ((htlc)->stat.flag.comsend == 0) \
+    )
+
+
+#define LN_HTLC_WILL_COMSIG_SEND(htlc) \
+    ( \
+        LN_HTLC_WILL_COMSIG_SEND_OFFERED_HTLC(htlc) || \
+        LN_HTLC_WILL_COMSIG_SEND_RECEIVED_HTLC(htlc) \
     )
 
 
@@ -268,17 +264,37 @@
     ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc))
 
 
-#define LN_HTLC_ENABLE_FULFILL_SEND(htlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc))
+#define LN_HTLC_ENABLE_FULFILL_RECV(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc))
 
 
 #define LN_HTLC_ENABLE_ADDHTLC_RECV(htlc, b_local) \
     ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc))
 
 
-#define LN_HTLC_ENABLE_FULFILL_RECV(htlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc))
+#define LN_HTLC_ENABLE_FULFILL_SEND(htlc, b_local) \
+    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc))
 
+
+//test
+#define LN_HTLC_TEST_EXCLUSIVENESS(htlc) ( \
+        !( /*NOT*/ \
+            LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) && \
+            LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) \
+        ) && \
+        !( /*NOT*/ \
+            LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) && \
+            LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
+        ) && \
+        !( /*NOT*/ \
+            LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) && \
+            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
+        ) && \
+        !( /*NOT*/ \
+            LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) && \
+            LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
+        ) \
+    )
 
 /********************************************************************
  * prototypes

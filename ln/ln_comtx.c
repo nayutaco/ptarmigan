@@ -923,7 +923,7 @@ static bool create_htlc_info_and_amount(
             LOGD("addhtlc_offer\n");
             htlcadd = true;
             *pOurMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_ENABLE_FULFILL_SEND(p_htlc, bLocal)) {
+        } else if (LN_HTLC_ENABLE_FULFILL_RECV(p_htlc, bLocal)) {
             LOGD("delhtlc_offer\n");
             *pOurMsat -= p_htlc->amount_msat;
             *pTheirMsat += p_htlc->amount_msat;
@@ -931,7 +931,7 @@ static bool create_htlc_info_and_amount(
             LOGD("addhtlc_recv\n");
             htlcadd = true;
             *pTheirMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_ENABLE_FULFILL_RECV(p_htlc, bLocal)) {
+        } else if (LN_HTLC_ENABLE_FULFILL_SEND(p_htlc, bLocal)) {
             LOGD("delhtlc_recv\n");
             *pOurMsat += p_htlc->amount_msat;
             *pTheirMsat -= p_htlc->amount_msat;
