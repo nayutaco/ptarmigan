@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
     mTcpSend = true;
     mInitRouteSync[0] = '\0';
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:l::q::f:i:e:mp:r:R:x::wg::s:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -375,11 +375,16 @@ static void optfunc_getinfo(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
-    snprintf(mBuf, BUFFER_SIZE,
-        "{"
-            M_STR("method", "getinfo") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+    strncpy(mBuf,
+        "{" M_STR("method", "getinfo") M_NEXT M_QQ("params") ":[",
+        BUFFER_SIZE);
+    if ((optarg != NULL) && (strlen(optarg) > 0)) {
+        int level = atoi(optarg);
+        if (level != 0) {
+            strncat(mBuf, optarg, BUFFER_SIZE);
+        }
+    }
+    strncat(mBuf, "]}", BUFFER_SIZE);
 
     *pOption = M_OPTIONS_EXEC;
 }

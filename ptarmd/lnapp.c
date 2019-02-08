@@ -225,13 +225,18 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
-static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 
 static void send_queue_push(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 static void send_queue_flush(lnapp_conf_t *p_conf);
 static void send_queue_clear(lnapp_conf_t *p_conf);
 
 static bool getnewaddress(utl_buf_t *pBuf);
+static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
+
+static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result);
+static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result);
+static void show_channel_funding(const lnapp_conf_t *pAppConf, cJSON *result);
+static void show_channel_connonly(const lnapp_conf_t *pAppConf, cJSON *result);
 
 static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const char *msg, int line);
 
@@ -552,143 +557,17 @@ void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char
     cJSON_AddItemToObject(result, "role", cJSON_CreateString(pSvrCli));
 
     if (p_channel && ln_short_channel_id(p_channel)) {
-        char str[256];
-
-        const char *p_status = ln_status_string(p_channel);
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
-
-        //peer node_id
-        utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
-        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-        //channel_id
-        utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
-        cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
-        //short_channel_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
-        cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str_sci));
-        //funding_tx
-        utl_str_bin2str_rev(str, ln_funding_txid(p_channel), BTC_SZ_TXID);
-        cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
-        cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_channel)));
-        //confirmation
-        uint32_t confirm;
-        bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_channel));
-        if (b_get) {
-            cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-        }
-        //feerate_per_kw
-        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
-
-        //local
-        cJSON *local = cJSON_CreateObject();
-        //local_msat
-        cJSON_AddItemToObject(local, "msatoshi", cJSON_CreateNumber64(ln_local_msat(p_channel)));
-        //commit_num(local)
-        cJSON_AddItemToObject(local, "commit_num", cJSON_CreateNumber(ln_commit_tx_local(p_channel)->commit_num));
-        //htlc_output_num(local)
-        cJSON_AddItemToObject(local, "htlc_output_num", cJSON_CreateNumber(ln_commit_tx_local(p_channel)->htlc_output_num));
-        cJSON_AddItemToObject(result, "local", local);
-
-        //remote
-        cJSON *remote = cJSON_CreateObject();
-        //remote_msat
-        cJSON_AddItemToObject(remote, "msatoshi", cJSON_CreateNumber64(ln_remote_msat(p_channel)));
-        //commit_num(remote)
-        cJSON_AddItemToObject(remote, "commit_num", cJSON_CreateNumber(ln_commit_tx_remote(p_channel)->commit_num));
-        //htlc_output_num(remote)
-        cJSON_AddItemToObject(remote, "htlc_output_num", cJSON_CreateNumber(ln_commit_tx_remote(p_channel)->htlc_output_num));
-        cJSON_AddItemToObject(result, "remote", remote);
-
-        //XXX: bug
-        //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-        if (ln_commit_tx_local(p_channel)->htlc_output_num != 0) {
-            cJSON *htlcs = cJSON_CreateArray();
-            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-                const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(p_channel, lp);
-                if (LN_HTLC_ENABLE(p_htlc)) {
-                    cJSON *htlc = cJSON_CreateObject();
-                    const char *p_type;
-                    switch (p_htlc->stat.flag.addhtlc) {
-                    case LN_ADDHTLC_OFFER:
-                        p_type = "offered";
-                        break;
-                    case LN_ADDHTLC_RECV:
-                        p_type = "received";
-                        break;
-                    case LN_ADDHTLC_NONE:
-                    default:
-                        p_type = "unknown";
-                        break;
-                    }
-                    cJSON_AddItemToObject(htlc, "type", cJSON_CreateString(p_type));
-                    cJSON_AddItemToObject(htlc, "htlc id", cJSON_CreateNumber64(p_htlc->id));
-                    cJSON_AddItemToObject(htlc, "amount_msat", cJSON_CreateNumber(p_htlc->amount_msat));
-                    cJSON_AddItemToObject(htlc, "cltv_expiry", cJSON_CreateNumber(p_htlc->cltv_expiry));
-                    if (p_htlc->prev_short_channel_id != 0) {
-                        if (p_htlc->prev_short_channel_id == UINT64_MAX) {
-                            cJSON_AddItemToObject(htlc, "role", cJSON_CreateString("final node"));
-                        } else {
-                            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-                            ln_short_channel_id_string(str_sci, p_htlc->prev_short_channel_id);
-                            cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
-                        }
-                    }
-                    cJSON_AddItemToArray(htlcs, htlc);
-                }
-            }
-            cJSON_AddItemToObject(result, "htlc", htlcs);
-        }
+        show_channel_have_chan(pAppConf, result);
     } else if (p_channel && pAppConf->funding_waiting) {
-        char str[256];
-
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
-
-        //peer node_id
-        utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
-        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-        //channel_id
-        utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
-        cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
-        //funding_tx
-        utl_str_bin2str_rev(str, ln_funding_txid(p_channel), BTC_SZ_TXID);
-        cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
-        cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_channel)));
-        //confirmation
-        uint32_t confirm;
-        bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_channel));
-        if (b_get) {
-            cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-        }
-        //minimum_depth
-        cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(p_channel)));
-        //feerate_per_kw
-        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
+        show_channel_fundwait(pAppConf, result);
     } else if (p_channel && ln_is_funding(p_channel)) {
-        char str[256];
-
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
-
-        //peer node_id
-        utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
-        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+        show_channel_funding(pAppConf, result);
     } else if (btc_keys_check_pub(pAppConf->node_id)) {
-        char str[256];
-
-        const char *p_conn;
-        if (lnapp_is_inited(pAppConf)) {
-            p_conn = "connected";
-        } else {
-            p_conn = "wait_connection";
-        }
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
-
-        //peer node_id
-        utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
-        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+        show_channel_connonly(pAppConf, result);
     } else {
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
+
     if ((pAppConf->err != 0) && (pAppConf->p_errstr != NULL)) {
         cJSON_AddItemToObject(result, "last_app_errmsg", cJSON_CreateString(pAppConf->p_errstr));
     }
@@ -3596,6 +3475,156 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 #endif
 }
 
+
+static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
+{
+    ln_channel_t *p_channel = pAppConf->p_channel;
+    char str[256];
+
+    const char *p_status = ln_status_string(p_channel);
+    cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
+
+    //peer node_id
+    utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+    //channel_id
+    utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
+    cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
+    //short_channel_id
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
+    cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str_sci));
+    //funding_tx
+    utl_str_bin2str_rev(str, ln_funding_txid(p_channel), BTC_SZ_TXID);
+    cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
+    cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_channel)));
+    //confirmation
+    uint32_t confirm;
+    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_channel));
+    if (b_get) {
+        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+    }
+    //feerate_per_kw
+    cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
+
+    //local
+    cJSON *local = cJSON_CreateObject();
+    //local_msat
+    cJSON_AddItemToObject(local, "msatoshi", cJSON_CreateNumber64(ln_local_msat(p_channel)));
+    //commit_num(local)
+    cJSON_AddItemToObject(local, "commit_num", cJSON_CreateNumber(ln_commit_tx_local(p_channel)->commit_num));
+    //htlc_output_num(local)
+    cJSON_AddItemToObject(local, "htlc_output_num", cJSON_CreateNumber(ln_commit_tx_local(p_channel)->htlc_output_num));
+    cJSON_AddItemToObject(result, "local", local);
+
+    //remote
+    cJSON *remote = cJSON_CreateObject();
+    //remote_msat
+    cJSON_AddItemToObject(remote, "msatoshi", cJSON_CreateNumber64(ln_remote_msat(p_channel)));
+    //commit_num(remote)
+    cJSON_AddItemToObject(remote, "commit_num", cJSON_CreateNumber(ln_commit_tx_remote(p_channel)->commit_num));
+    //htlc_output_num(remote)
+    cJSON_AddItemToObject(remote, "htlc_output_num", cJSON_CreateNumber(ln_commit_tx_remote(p_channel)->htlc_output_num));
+    cJSON_AddItemToObject(result, "remote", remote);
+
+    //XXX: bug
+    //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
+    if (ln_commit_tx_local(p_channel)->htlc_output_num != 0) {
+        cJSON *htlcs = cJSON_CreateArray();
+        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+            const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(p_channel, lp);
+            if (LN_HTLC_ENABLE(p_htlc)) {
+                cJSON *htlc = cJSON_CreateObject();
+                const char *p_type;
+                switch (p_htlc->stat.flag.addhtlc) {
+                case LN_ADDHTLC_OFFER:
+                    p_type = "offered";
+                    break;
+                case LN_ADDHTLC_RECV:
+                    p_type = "received";
+                    break;
+                case LN_ADDHTLC_NONE:
+                default:
+                    p_type = "unknown";
+                    break;
+                }
+                cJSON_AddItemToObject(htlc, "type", cJSON_CreateString(p_type));
+                cJSON_AddItemToObject(htlc, "htlc id", cJSON_CreateNumber64(p_htlc->id));
+                cJSON_AddItemToObject(htlc, "amount_msat", cJSON_CreateNumber(p_htlc->amount_msat));
+                cJSON_AddItemToObject(htlc, "cltv_expiry", cJSON_CreateNumber(p_htlc->cltv_expiry));
+                if (p_htlc->prev_short_channel_id != 0) {
+                    if (p_htlc->prev_short_channel_id == UINT64_MAX) {
+                        cJSON_AddItemToObject(htlc, "role", cJSON_CreateString("final node"));
+                    } else {
+                        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+                        ln_short_channel_id_string(str_sci, p_htlc->prev_short_channel_id);
+                        cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
+                    }
+                }
+                cJSON_AddItemToArray(htlcs, htlc);
+            }
+        }
+        cJSON_AddItemToObject(result, "htlc", htlcs);
+    }
+}
+
+
+static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result)
+{
+    ln_channel_t *p_channel = pAppConf->p_channel;
+    char str[256];
+
+    cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
+
+    //peer node_id
+    utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+    //channel_id
+    utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
+    cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
+    //funding_tx
+    utl_str_bin2str_rev(str, ln_funding_txid(p_channel), BTC_SZ_TXID);
+    cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
+    cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_channel)));
+    //confirmation
+    uint32_t confirm;
+    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_channel));
+    if (b_get) {
+        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+    }
+    //minimum_depth
+    cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(p_channel)));
+    //feerate_per_kw
+    cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
+}
+
+
+static void show_channel_funding(const lnapp_conf_t *pAppConf, cJSON *result)
+{
+    cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
+
+    //peer node_id
+    char str[256];
+    utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+}
+
+
+static void show_channel_connonly(const lnapp_conf_t *pAppConf, cJSON *result)
+{
+    const char *p_conn;
+    if (lnapp_is_inited(pAppConf)) {
+        p_conn = "connected";
+    } else {
+        p_conn = "wait_connection";
+    }
+    cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
+
+    //peer node_id
+    char str[256];
+    utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+}
 
 /** ln_channel_t内容表示(デバッグ用)
  *

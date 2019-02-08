@@ -391,8 +391,15 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)ctx; (void)params; (void)id;
 
+    cJSON *json;
+    int level = 0;
     cJSON *result = cJSON_CreateObject();
     cJSON *result_peer = cJSON_CreateArray();
+
+    json = cJSON_GetArrayItem(params, 0);
+    if ((json != NULL) && (json->type == cJSON_Number)) {
+        level = json->valueint;
+    }
 
     uint64_t total_amount = ln_node_total_msat();
 
@@ -404,6 +411,10 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddNumber64ToObject(result, "total_local_msat", total_amount);
+
+    if (level == 1) {
+        return result;
+    }
 
 #ifdef DEVELOPER_MODE
     //blockcount
