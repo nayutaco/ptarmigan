@@ -919,11 +919,11 @@ static bool create_htlc_info_and_amount(
         if (!LN_HTLC_ENABLE(p_htlc)) continue;
 
         bool htlcadd = false;
-        if (LN_HTLC_ENABLE_ADDHTLC_OFFER(p_htlc, bLocal)) {
+        if (LN_HTLC_ENABLE_ADDHTLC_SEND(p_htlc, bLocal)) {
             LOGD("addhtlc_offer\n");
             htlcadd = true;
             *pOurMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_ENABLE_FULFILL_OFFER(p_htlc, bLocal)) {
+        } else if (LN_HTLC_ENABLE_FULFILL_SEND(p_htlc, bLocal)) {
             LOGD("delhtlc_offer\n");
             *pOurMsat -= p_htlc->amount_msat;
             *pTheirMsat += p_htlc->amount_msat;

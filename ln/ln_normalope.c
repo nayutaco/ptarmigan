@@ -516,9 +516,9 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
         if ( LN_HTLC_ENABLE(p_htlc) &&
-             ( LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) ||
+             ( LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(p_htlc) ||
                LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) ||
-               LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) ||
+               LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(p_htlc) ||
                LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc) ) ) {
             LOGD(" [%d]comrecv=1\n", idx);
             p_htlc->stat.flag.comrecv = 1;
@@ -552,9 +552,9 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
         if ( LN_HTLC_ENABLE(p_htlc) &&
-            ( LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) ||
+            ( LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(p_htlc) ||
               LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) ||
-              LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) ||
+              LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(p_htlc) ||
               LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc) ) ){
             LOGD(" [%d]revsend=1\n", idx);
             p_htlc->stat.flag.revsend = 1;
@@ -664,9 +664,9 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
         if ( LN_HTLC_ENABLE(p_htlc) &&
              ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
-               LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
+               LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(p_htlc) ||
                LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ||
-               LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc)) ){
+               LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(p_htlc)) ){
             LOGD(" [%d]revrecv=1\n", idx);
             p_htlc->stat.flag.revrecv = 1;
         }
@@ -1610,7 +1610,7 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
             //         p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend,
             //         p_htlc->next_short_channel_id, p_htlc->next_idx,
             //         dbg_htlcflag_delhtlc_str(p_flag->fin_delhtlc));
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
+            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc送信側
                 //pChannel->local_msat -= p_htlc->amount_msat;
             } else if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
@@ -1755,7 +1755,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                             break;
                         }
                     }
-                } else if (LN_HTLC_WILL_COMSIG_OFFER(p_htlc) ||
+                } else if (LN_HTLC_WILL_COMSIG_SEND(p_htlc) ||
                             LN_HTLC_WILL_COMSIG_RECV(p_htlc)) {
                     //commitment_signed送信可能
                     b_comsig = true;
@@ -1793,9 +1793,9 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
                     if ( LN_HTLC_ENABLE(p_htlc) &&
                         ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) ||
-                        LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) ||
+                        LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(p_htlc) ||
                         LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc) ||
-                        LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ) ) {
+                        LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(p_htlc) ) ) {
                         LOGD(" [%d]comsend=1\n", idx);
                         p_htlc->stat.flag.comsend = 1;
                     }
