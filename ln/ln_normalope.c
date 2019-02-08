@@ -67,7 +67,7 @@
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
 
 /// update_add_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+#define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
 
 /// update_fulfill_htlc+commitment_signed送信直後
 #define M_HTLCFLAG_BITS_FULFILLHTLC     (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
@@ -117,7 +117,7 @@ static inline const char *dbg_htlcflag_addhtlc_str(int addhtlc)
 {
     switch (addhtlc) {
     case LN_ADDHTLC_NONE: return "NONE";
-    case LN_ADDHTLC_OFFER: return "OFFER";
+    case LN_ADDHTLC_SEND: return "SEND";
     case LN_ADDHTLC_RECV: return "RECV";
     default: return "unknown";
     }
@@ -385,7 +385,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
         LOGD("HTLC%d: id=%" PRIu64 ", flag=%04x: ", idx, pChannel->cnl_add_htlc[idx].id, pChannel->cnl_add_htlc[idx].stat.bits);
         DUMPD(pChannel->cnl_add_htlc[idx].payment_hash, BTC_SZ_HASH256);
         if ( (pChannel->cnl_add_htlc[idx].id == msg.id) &&
-             (pChannel->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_OFFER) ) {
+             (pChannel->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_SEND) ) {
             if (memcmp(sha256, pChannel->cnl_add_htlc[idx].payment_hash, BTC_SZ_HASH256) == 0) {
                 p_htlc = &pChannel->cnl_add_htlc[idx];
             } else {
@@ -444,7 +444,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfail_htlcは、Offered HTLCについてチェックする
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if ( (p_htlc->stat.flag.addhtlc == LN_ADDHTLC_OFFER) &&
+        if ( (p_htlc->stat.flag.addhtlc == LN_ADDHTLC_SEND) &&
              (p_htlc->id == msg.id)) {
             //id一致
             clear_htlc_comrevflag(p_htlc, LN_DELHTLC_FAIL);
@@ -816,7 +816,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
         // BOLT#02
         //  if the sha256_of_onion in update_fail_malformed_htlc doesn't match the onion it sent:
         //      MAY retry or choose an alternate error response.
-        if ( (p_htlc->stat.flag.addhtlc == LN_ADDHTLC_OFFER) &&
+        if ( (p_htlc->stat.flag.addhtlc == LN_ADDHTLC_SEND) &&
              (p_htlc->id == msg.id)) {
             //id一致
             clear_htlc_comrevflag(p_htlc, LN_DELHTLC_MALFORMED);
@@ -874,7 +874,7 @@ bool ln_add_htlc_set(ln_channel_t *pChannel,
                     pPacket, AmountMsat, CltvValue, pPaymentHash,
                     PrevShortChannelId, PrevIdx, pSharedSecrets);
     if (ret) {
-        pChannel->cnl_add_htlc[idx].stat.flag.addhtlc = LN_ADDHTLC_OFFER;
+        pChannel->cnl_add_htlc[idx].stat.flag.addhtlc = LN_ADDHTLC_SEND;
     }
 
     return ret;
@@ -915,7 +915,7 @@ bool ln_add_htlc_set_fwd(ln_channel_t *pChannel,
 void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t Idx)
 {
     LOGD("forwarded HTLC\n");
-    pChannel->cnl_add_htlc[Idx].stat.flag.addhtlc = LN_ADDHTLC_OFFER;
+    pChannel->cnl_add_htlc[Idx].stat.flag.addhtlc = LN_ADDHTLC_SEND;
     dbg_htlcflag(&pChannel->cnl_add_htlc[Idx].stat.flag);
 }
 
@@ -1180,7 +1180,7 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
     //      adds more than its max_htlc_value_in_flight_msat worth of offered HTLCs to its local commitment transaction
     uint64_t max_htlc_value_in_flight_msat = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (pChannel->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_OFFER) {
+        if (pChannel->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_SEND) {
             max_htlc_value_in_flight_msat += pChannel->cnl_add_htlc[idx].amount_msat;
         }
     }
@@ -1641,7 +1641,7 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
             } else {
                 //DEL_HTLC後
                 switch (p_flag->addhtlc) {
-                case LN_ADDHTLC_OFFER:
+                case LN_ADDHTLC_SEND:
                     //DEL_HTLC後: update_add_htlc送信側
                     if (p_flag->delhtlc == LN_DELHTLC_FULFILL) {
                         pChannel->local_msat -= p_htlc->amount_msat;
@@ -1913,7 +1913,7 @@ static bool check_create_add_htlc(
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (pChannel->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_OFFER) {
+        if (pChannel->cnl_add_htlc[idx].stat.flag.addhtlc == LN_ADDHTLC_SEND) {
             max_htlc_value_in_flight_msat += pChannel->cnl_add_htlc[idx].amount_msat;
         }
     }
@@ -2162,7 +2162,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
     ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
     new_commit_tx.commit_num++;
     ln_htlcflag_t bak_flag = pChannel->cnl_add_htlc[Idx].stat.flag;
-    pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_UPDSEND;
+    pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLCFLAG_SFT_UPDSEND;
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
     bool ret = ln_comtx_create_remote(
         pChannel, &new_commit_tx, NULL, &p_htlc_sigs);

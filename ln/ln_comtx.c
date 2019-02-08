@@ -948,7 +948,7 @@ static bool create_htlc_info_and_amount(
         case LN_ADDHTLC_RECV:
             p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_RECEIVED : LN_COMTX_OUTPUT_TYPE_OFFERED;
             break;
-        case LN_ADDHTLC_OFFER:
+        case LN_ADDHTLC_SEND:
             p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_OFFERED : LN_COMTX_OUTPUT_TYPE_RECEIVED;
             break;
         default:
