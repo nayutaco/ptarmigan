@@ -167,7 +167,7 @@ TEST_F(ln_htlcflag, htlcflag_macro_offer_fulfill)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
-    p_flag->addhtlc = LN_ADDHTLC_OFFER;
+    p_flag->addhtlc = LN_ADDHTLC_SEND;
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(p_htlc));
@@ -392,7 +392,7 @@ TEST_F(ln_htlcflag, htlcflag_macro_offer_fail)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
-    p_flag->addhtlc = LN_ADDHTLC_OFFER;
+    p_flag->addhtlc = LN_ADDHTLC_SEND;
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(p_htlc));
@@ -1067,7 +1067,7 @@ TEST_F(ln_htlcflag, htlcflag_offer_timeout)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     p_htlc->cltv_expiry = 100;
-    p_flag->addhtlc = LN_ADDHTLC_OFFER;
+    p_flag->addhtlc = LN_ADDHTLC_SEND;
     p_flag->updsend = true;
     p_flag->comsend = true;
     p_flag->revrecv = true;
@@ -1127,7 +1127,7 @@ TEST_F(ln_htlcflag, htlcflag_bitmask)
     } stat;
 
     stat.bits = 0;
-    stat.flag.addhtlc = LN_ADDHTLC_OFFER;
+    stat.flag.addhtlc = LN_ADDHTLC_SEND;
     stat.flag.delhtlc = LN_DELHTLC_FULFILL;
     stat.flag.updsend = true;
     stat.flag.comsend = true;
@@ -1136,7 +1136,7 @@ TEST_F(ln_htlcflag, htlcflag_bitmask)
     stat.flag.revsend = true;
     stat.flag.fin_delhtlc = LN_DELHTLC_FULFILL;
 
-    ASSERT_EQ(LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLCFLAG_MASK_HTLC);
+    ASSERT_EQ(LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLCFLAG_MASK_HTLC);
     ASSERT_TRUE(stat.bits & LN_HTLCFLAG_MASK_UPDSEND);
     ASSERT_EQ(LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND, stat.bits & LN_HTLCFLAG_MASK_COMSIG);
     ASSERT_EQ(LN_HTLCFLAG_SFT_FINDELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLCFLAG_MASK_FINDELHTLC);

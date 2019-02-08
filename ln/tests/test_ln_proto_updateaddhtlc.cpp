@@ -349,7 +349,7 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_OFFER, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(0, p_flag->updsend);
     ASSERT_EQ(0, p_flag->comsend);
@@ -407,7 +407,7 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&channel.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_OFFER, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(1, p_flag->updsend);
     ASSERT_EQ(0, p_flag->comsend);

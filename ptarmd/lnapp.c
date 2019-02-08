@@ -3537,7 +3537,7 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
                 cJSON *htlc = cJSON_CreateObject();
                 const char *p_type;
                 switch (p_htlc->stat.flag.addhtlc) {
-                case LN_ADDHTLC_OFFER:
+                case LN_ADDHTLC_SEND:
                     p_type = "offered";
                     break;
                 case LN_ADDHTLC_RECV:

@@ -65,7 +65,7 @@
  */
 #define LN_HTLC_WILL_ADDHTLC(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
         ((htlc)->stat.flag.updsend == 0) && \
         ((htlc)->stat.flag.updwait == 0) \
@@ -77,7 +77,7 @@
  */
 #define LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) &&\
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) &&\
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) &&\
         ((htlc)->stat.flag.updsend == 1) &&\
         ((htlc)->stat.flag.comsend == 1) &&\
@@ -91,7 +91,7 @@
  */
 #define LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) \
     )
 
@@ -103,7 +103,7 @@
  */
 #define LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
@@ -113,7 +113,7 @@
  */
 #define LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.updsend == 1) && \
         !( /*NOT*/ \
             ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
@@ -128,7 +128,7 @@
  */
 #define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
         ((htlc)->stat.flag.comrecv == 1) && \
         ((htlc)->stat.flag.revsend == 1) \
@@ -142,7 +142,7 @@
  */
 #define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc) \
     ( \
-        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_OFFER) && \
+        ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((htlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
         ((htlc)->stat.flag.comrecv == 1) && \
         ((htlc)->stat.flag.revsend == 1) \

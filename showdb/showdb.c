@@ -166,7 +166,7 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
                 }
                 const char *p_dir = NULL;
                 switch (pChannel->cnl_add_htlc[lp].stat.flag.addhtlc) {
-                case LN_ADDHTLC_OFFER:
+                case LN_ADDHTLC_SEND:
                     p_dir = "Offered";
                     offered += pChannel->cnl_add_htlc[lp].amount_msat;
                     break;
@@ -354,7 +354,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             printf(INDENT5 M_QQ("type") ": \"");
             if (pChannel->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
                 printf("final node");
-            } else if ((pChannel->cnl_add_htlc[lp].prev_short_channel_id == 0) && (pChannel->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_OFFER)) {
+            } else if ((pChannel->cnl_add_htlc[lp].prev_short_channel_id == 0) && (pChannel->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_SEND)) {
                 //prev_short_channel_idが0になる
                 //      - origin node
                 //      - update_add_htlcの受信側
@@ -375,7 +375,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             case LN_ADDHTLC_NONE:
                 p_str_addhtlc = "---";
                 break;
-            case LN_ADDHTLC_OFFER:
+            case LN_ADDHTLC_SEND:
                 p_str_addhtlc = "Offered";
                 break;
             case LN_ADDHTLC_RECV:

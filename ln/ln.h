@@ -89,7 +89,7 @@ extern "C" {
 
 // ln_htlcflag_t.addhtlc
 #define LN_ADDHTLC_NONE                 (0x00)
-#define LN_ADDHTLC_OFFER                (0x01)      ///< Offered HTLC
+#define LN_ADDHTLC_SEND                 (0x01)      ///< Offered HTLC
 #define LN_ADDHTLC_RECV                 (0x02)      ///< Received HTLC
 
 // ln_htlcflag_t.delhtlc, fin_delhtlc
@@ -360,7 +360,7 @@ typedef struct {
  *      - uint16_tとunionする場合がある
  */
 typedef struct {
-    unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_OFFER/RECV
+    unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_SEND/RECV
     unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/MALFORMED
     unsigned        updsend     : 1;    ///< 1:update message sent
     unsigned        comsend     : 1;    ///< 1:commitment_signed sent
@@ -390,7 +390,7 @@ typedef struct {
 #define LN_HTLCFLAG_SFT_REVSEND         ((uint16_t)1 << 8)
 #define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
 #define LN_HTLCFLAG_SFT_UPDRECV         ((uint16_t)1 << 11)
-#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER))
+#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND))
 
 
 /** @struct     ln_update_add_htlc_t
@@ -414,7 +414,7 @@ typedef struct {
         uint16_t        bits;
         ln_htlcflag_t   flag;                       ///< LN_HTLC_FLAG_xxx
     } stat;
-    uint64_t        next_short_channel_id;          ///< flag.addhtlc == OFFER
+    uint64_t        next_short_channel_id;          ///< flag.addhtlc == SEND
                                                     //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
     uint16_t        next_idx;
     //fulfillで戻す
@@ -1380,7 +1380,7 @@ const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uin
  * @param[in]           pChannel        channel info
  * @retval      true    Timeoutしている
  * @note
- *      - addhtlc == OFFERED
+ *      - addhtlc == SEND
  *      - delhtlc == none
  *      - updsend == true
  *      - comsend, revrecv, comrecv, revsend == true
