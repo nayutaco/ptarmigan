@@ -587,7 +587,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     int err = RPCERR_PARSE;
     cJSON *json;
-    uint64_t amount = 0;
+    uint64_t amount_msat = 0;
     cJSON *result = NULL;
     int index = 0;
     uint32_t min_final_cltv_expiry;
@@ -596,11 +596,11 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    //amount
+    //amount_msat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        amount = json->valueu64;
-        LOGD("amount=%" PRIu64 "\n", amount);
+        amount_msat = json->valueu64;
+        LOGD("amount_msat=%" PRIu64 "\n", amount_msat);
     } else {
         goto LABEL_EXIT;
     }
@@ -617,14 +617,14 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     LOGD("$$$: [JSONRPC]invoice\n");
 
     uint8_t preimage_hash[BTC_SZ_HASH256];
-    err = cmd_invoice_proc(preimage_hash, amount);
+    err = cmd_invoice_proc(preimage_hash, amount_msat);
 
 LABEL_EXIT:
     if (err == 0) {
         ln_r_field_t *p_r_field = NULL;
         uint8_t r_fieldnum = 0;
         create_bolt11_r_field(&p_r_field, &r_fieldnum);
-        char *p_invoice = create_bolt11(preimage_hash, amount,
+        char *p_invoice = create_bolt11(preimage_hash, amount_msat,
                             LN_INVOICE_EXPIRY, p_r_field, r_fieldnum,
                             min_final_cltv_expiry);
 
@@ -634,7 +634,7 @@ LABEL_EXIT:
             utl_str_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             result = cJSON_CreateObject();
             cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
-            cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
+            cJSON_AddItemToObject(result, "amount_msat", cJSON_CreateNumber64(amount_msat));
             cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
 
             UTL_DBG_FREE(p_invoice);
