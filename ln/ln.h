@@ -1140,20 +1140,40 @@ ln_status_t ln_status_get(const ln_channel_t *pChannel);
 bool ln_status_is_closing(const ln_channel_t *pChannel);
 
 
-/** local_msat取得
+/** get local_msat
  *
  * @param[in]           pChannel        channel info
- * @return      自channelのmilli satoshi
+ * @return      local m-satoshi
  */
 uint64_t ln_local_msat(const ln_channel_t *pChannel);
 
 
-/** remote_msat取得
+/** get remote_msat
  *
  * @param[in]           pChannel        channel info
- * @return      他channelのmilli satoshi
+ * @return      remote m-satoshi
  */
 uint64_t ln_remote_msat(const ln_channel_t *pChannel);
+
+
+/** get payable local msat
+ * 
+ * (local msat) - (remote channel_reserve_sat)
+ * 
+ * @param[in]           pChannel        channel info
+ * @return      local payable m-satoshi
+ */
+uint64_t ln_local_payable_msat(const ln_channel_t *pChannel);
+
+
+/** get payable remote msat
+ * 
+ * (remote msat) - (local channel_reserve_sat)
+ * 
+ * @param[in]           pChannel        channel info
+ * @return      remote payable m-satoshi
+ */
+uint64_t ln_remote_payable_msat(const ln_channel_t *pChannel);
 
 
 void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid);
