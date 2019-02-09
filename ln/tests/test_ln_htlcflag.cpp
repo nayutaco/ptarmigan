@@ -1135,7 +1135,7 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 
-    p_flag->Reserved = 1;
+    p_flag->reserved = 1;
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 }
