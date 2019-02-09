@@ -67,16 +67,16 @@
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
 
 /// update_add_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+#define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
 
 /// update_fulfill_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_FULFILLHTLC     (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+#define M_HTLCFLAG_BITS_FULFILLHTLC     (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
 
 /// update_fail_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_FAILHTLC        (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_FAIL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+#define M_HTLCFLAG_BITS_FAILHTLC        (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_FAIL) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
 
 /// update_fail_malformed_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_MALFORMEDHTLC   (LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_MALFORMED) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+#define M_HTLCFLAG_BITS_MALFORMEDHTLC   (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_MALFORMED) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
 
 
 /**************************************************************************
@@ -1029,7 +1029,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
             if (LN_HTLC_ENABLE(p_htlc)) {
                 utl_buf_t buf = UTL_BUF_INIT;
-                switch (p_htlc->stat.bits & ~LN_HTLCFLAG_MASK_FINDELHTLC) {
+                switch (p_htlc->stat.bits & ~LN_HTLC_FLAG_MASK_FINDELHTLC) {
                 case M_HTLCFLAG_BITS_ADDHTLC:
                     //update_add_htlc送信
                     LOGD("resend: update_add_htlc\n");
@@ -1690,10 +1690,10 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
 {
     bool b_comsiging = false;   //true: commitment_signed〜revoke_and_ackの途中
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if ( ( ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG1) == 0) ||
-               ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG1) == LN_HTLCFLAG_MASK_COMSIG1) ) &&
-             ( ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG2) == 0) ||
-               ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG2) == LN_HTLCFLAG_MASK_COMSIG2) ) ) {
+        if ( ( ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLC_FLAG_MASK_COMSIG1) == 0) ||
+               ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLC_FLAG_MASK_COMSIG1) == LN_HTLC_FLAG_MASK_COMSIG1) ) &&
+             ( ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLC_FLAG_MASK_COMSIG2) == 0) ||
+               ((pChannel->cnl_add_htlc[idx].stat.bits & LN_HTLC_FLAG_MASK_COMSIG2) == LN_HTLC_FLAG_MASK_COMSIG2) ) ) {
             //[send commitment_signed] && [recv revoke_and_ack] or NONE
             //  &&
             //[recv commitment_signed] && [send revoke_and_ack] or NONE
@@ -2145,7 +2145,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
     ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
     new_commit_tx.commit_num++;
     ln_htlc_flag_t bak_flag = pChannel->cnl_add_htlc[Idx].stat.flag;
-    pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLCFLAG_SFT_UPDSEND;
+    pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLC_FLAG_SFT_UPDSEND;
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
     bool ret = ln_comtx_create_remote(
         pChannel, &new_commit_tx, NULL, &p_htlc_sigs);
