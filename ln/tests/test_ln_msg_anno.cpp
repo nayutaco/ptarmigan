@@ -460,3 +460,55 @@ TEST_F(ln, gossip_timestamp_filter)
     ASSERT_EQ(LN_DUMMY::timestamp_range, msg.timestamp_range);
     utl_buf_free(&buf);
 }
+
+
+TEST_F(ln, gossip_encoded_short_ids_none)
+{
+    bool ret;
+
+    const uint8_t ENCODED_IDS[] = {
+        0x00
+    };
+
+    utl_buf_t enc = UTL_BUF_INIT;
+    ret = ln_msg_gossip_ids_encode(&enc, NULL, 0);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(sizeof(ENCODED_IDS), enc.len);
+    ASSERT_EQ(0, memcmp(ENCODED_IDS, enc.buf, sizeof(ENCODED_IDS)));
+    utl_buf_free(&enc);
+
+    uint64_t *p_short_ids = NULL;
+    size_t num = 0;
+    ret = ln_msg_gossip_ids_decode(&p_short_ids, &num, ENCODED_IDS, sizeof(ENCODED_IDS));
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, num);
+    UTL_DBG_FREE(p_short_ids);
+}
+
+
+TEST_F(ln, gossip_encoded_short_ids1)
+{
+    bool ret;
+
+    const uint64_t DECODED_IDS[] = {
+        0x123456789abcdef0
+    };
+    const uint8_t ENCODED_IDS[] = {
+        0x00, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0
+    };
+
+    utl_buf_t enc = UTL_BUF_INIT;
+    ret = ln_msg_gossip_ids_encode(&enc, DECODED_IDS, sizeof(DECODED_IDS) / sizeof(uint64_t));
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(sizeof(ENCODED_IDS), enc.len);
+    ASSERT_EQ(0, memcmp(ENCODED_IDS, enc.buf, sizeof(ENCODED_IDS)));
+    utl_buf_free(&enc);
+
+    uint64_t *p_short_ids = NULL;
+    size_t num = 0;
+    ret = ln_msg_gossip_ids_decode(&p_short_ids, &num, ENCODED_IDS, sizeof(ENCODED_IDS));
+    ASSERT_TRUE(ret);
+    ASSERT_EQ((sizeof(DECODED_IDS) / sizeof(uint64_t)), num);
+    ASSERT_EQ(0, memcmp(DECODED_IDS, p_short_ids, sizeof(DECODED_IDS)));
+    UTL_DBG_FREE(p_short_ids);
+}

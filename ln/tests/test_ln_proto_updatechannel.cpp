@@ -229,7 +229,7 @@ namespace CHANUPD {
 class ln: public testing::Test {
 protected:
     virtual void SetUp() {
-        utl_log_init_stderr();
+        //utl_log_init_stderr();
         RESET_FAKE(ln_db_preimage_cur_close)
         RESET_FAKE(ln_db_annocnlupd_load)
         RESET_FAKE(ln_db_preimage_del)
