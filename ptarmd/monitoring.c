@@ -189,10 +189,10 @@ void monitor_set_feerate_per_kw(uint32_t FeeratePerKw)
 }
 
 
-bool monitor_btc_getblockcount(int32_t *pBlkCnt)
+bool monitor_btc_getblockcount(int32_t *pBlockCount)
 {
     if (mMonParam.height > 0) {
-        *pBlkCnt = mMonParam.height;
+        *pBlockCount = mMonParam.height;
         return true;
     }
     return false;

@@ -49,10 +49,10 @@ void btcrpc_term(void);
 
 /** [bitcoin IF]getblockcount
  *
- * @param[out]  *pBlkCnt    current block count
+ * @param[out]  *pBlockCount    current block count
  * @retval  true        success
  */
-bool btcrpc_getblockcount(int32_t *pBlkCnt);
+bool btcrpc_getblockcount(int32_t *pBlockCount);
 
 
 /** [bitcoin IF]get genesis blockhash
