@@ -190,7 +190,7 @@ void btcrpc_term(void)
 }
 
 
-bool btcrpc_getblockcount(int32_t *pBlkCnt)
+bool btcrpc_getblockcount(int32_t *pBlockCount)
 {
     bool retval = false;
     bool ret;
@@ -200,7 +200,7 @@ bool btcrpc_getblockcount(int32_t *pBlkCnt)
 
     ret = getblockcount_rpc(&p_root, &p_result, &p_json);
     if (ret && json_is_integer(p_result)) {
-        *pBlkCnt = (int32_t)json_integer_value(p_result);
+        *pBlockCount = (int32_t)json_integer_value(p_result);
         retval = true;
     } else {
         LOGE("fail: getblockcount_rpc\n");

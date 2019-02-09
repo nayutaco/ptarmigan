@@ -1338,7 +1338,7 @@ const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uin
  *      - fin_delhtlc == none
  *      - cltv_expiry <= current blockcount
  */
-bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlkCnt);
+bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlockCount);
 
 
 /** トランザクションがHTLC Success Txの場合、preimageを取得

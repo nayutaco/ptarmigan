@@ -31,7 +31,7 @@
 //XXX: unit test
 
 /**************************************************************************
- * macro
+ * macros
  **************************************************************************/
 
 // ln_htlc_flag_t.addhtlc
@@ -74,7 +74,7 @@ typedef struct {
 #define LN_HTLC_FLAG_MASK_COMSIG1        (0x0060)    ///< comsend, revrecv
 #define LN_HTLC_FLAG_MASK_COMSIG2        (0x0180)    ///< comrecv, revsend
 #define LN_HTLC_FLAG_MASK_COMSIG         ((LN_HTLC_FLAG_MASK_COMSIG1 | LN_HTLC_FLAG_MASK_COMSIG2))    ///< comsned, revrecv, comrecv, revsend
-#define LN_HTLC_FLAG_MASK_FIN_DELHTLC     (0x0600)    ///< fin_delhtlc
+#define LN_HTLC_FLAG_MASK_FIN_DELHTLC    (0x0600)    ///< fin_delhtlc
 #define LN_HTLC_FLAG_MASK_ALL            (LN_HTLC_FLAG_MASK_FIN_DELHTLC | LN_HTLC_FLAG_MASK_COMSIG | LN_HTLC_FLAG_MASK_UPDSEND | LN_HTLC_FLAG_MASK_HTLC)
 #define LN_HTLC_FLAG_SFT_ADDHTLC(a)      ((uint16_t)(a))
 #define LN_HTLC_FLAG_SFT_DELHTLC(a)      ((uint16_t)(a) << 2)
@@ -337,28 +337,34 @@ typedef struct {
     ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc))
 
 
-#define LN_HTLC_ENABLE_LOCAL_SOME_UPDATE(htlc) ( \
-    ( \
-        LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) || \
-        LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) || \
-        LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) || \
-        LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
-    ) \
+#define LN_HTLC_ENABLE_LOCAL_SOME_UPDATE(htlc) \
+( \
+    LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) || \
+    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) || \
+    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) || \
+    LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
 )
 
 
-#define LN_HTLC_ENABLE_REMOTE_SOME_UPDATE(htlc) ( \
-    ( \
-        LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) || \
-        LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) || \
-        LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) || \
-        LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
-    ) \
+#define LN_HTLC_ENABLE_REMOTE_SOME_UPDATE(htlc) \
+( \
+    LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) || \
+    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) || \
+    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) || \
+    LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
+)
+
+
+#define LN_HTLC_IS_COMSIGING(htlc) \
+( \
+    ((htlc)->stat.flag.comsend && !(htlc)->stat.flag.revrecv) || \
+    ((htlc)->stat.flag.comrecv && !(htlc)->stat.flag.revsend) \
 )
 
 
 //test
-#define LN_HTLC_TEST_EXCLUSIVENESS(htlc) ( \
+#define LN_HTLC_TEST_EXCLUSIVENESS(htlc) \
+( \
         !( /*NOT*/ \
             LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) && \
             LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) \

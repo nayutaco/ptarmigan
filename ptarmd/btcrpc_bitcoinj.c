@@ -363,17 +363,17 @@ void btcrpc_set_creationhash(const uint8_t *pHash)
 }
 
 
-bool btcrpc_getblockcount(int32_t *pBlkCnt)
+bool btcrpc_getblockcount(int32_t *pBlockCount)
 {
     LOGD_BTCTRACE("\n");
 
     getblockcount_t prm;
-    prm.p_cnt = pBlkCnt;
+    prm.p_cnt = pBlockCount;
     prm.p_hash = NULL;
     call_jni(METHOD_PTARM_GETBLOCKCOUNT, &prm);
 
     if (prm.ret) {
-        LOGD_BTCRESULT("getblockcount=%d\n", *pBlkCnt);
+        LOGD_BTCRESULT("getblockcount=%d\n", *pBlockCount);
     } else {
         LOGD_BTCFAIL("fail\n");
     }
