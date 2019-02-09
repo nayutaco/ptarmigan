@@ -66,18 +66,6 @@
 #define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 5))
 
-/// update_add_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
-
-/// update_fulfill_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_FULFILLHTLC     (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
-
-/// update_fail_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_FAILHTLC        (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_FAIL) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
-
-/// update_fail_malformed_htlc+commitment_signed送信直後
-#define M_HTLCFLAG_BITS_MALFORMEDHTLC   (LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_RECV) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_MALFORMED) | LN_HTLC_FLAG_SFT_UPDSEND | LN_HTLC_FLAG_SFT_COMSEND)
-
 
 /**************************************************************************
  * prototypes
@@ -1029,31 +1017,20 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
             if (LN_HTLC_ENABLE(p_htlc)) {
                 utl_buf_t buf = UTL_BUF_INIT;
-                switch (p_htlc->stat.bits & ~LN_HTLC_FLAG_MASK_FIN_DELHTLC) {
-                case M_HTLCFLAG_BITS_ADDHTLC:
-                    //update_add_htlc送信
+                if (LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(p_htlc)) {
+                    //XXX: the order of id should be considered?
                     LOGD("resend: update_add_htlc\n");
                     p_htlc->p_channel_id = pChannel->channel_id;
                     (void)msg_update_add_htlc_write(&buf, p_htlc);
-                    break;
-                case M_HTLCFLAG_BITS_FULFILLHTLC:
-                    //update_fulfill_htlc送信
+                } else if (LN_HTLC_JUST_SEND_FULFILL_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fulfill_htlc\n");
                     fulfill_htlc_create(pChannel, &buf, idx);
-                    break;
-                case M_HTLCFLAG_BITS_FAILHTLC:
-                    //update_fail_htlc送信
+                } else if (LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_htlc\n");
                     fail_htlc_create(pChannel, &buf, idx);
-                    break;
-                case M_HTLCFLAG_BITS_MALFORMEDHTLC:
-                    //update_fail_malformed_htlc送信
+                } else if (LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_malformed_htlc\n");
                     fail_malformed_htlc_create(pChannel, &buf, idx);
-                    break;
-                default:
-                    //none
-                    break;
                 }
                 if (buf.len > 0) {
                     p_htlc->stat.flag.comsend = 0;
