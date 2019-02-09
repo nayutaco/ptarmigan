@@ -276,6 +276,26 @@
     ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(htlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(htlc))
 
 
+#define LN_HTLC_ENABLE_LOCAL_SOME_UPDATE(htlc) ( \
+    ( \
+        LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(htlc) || \
+        LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) || \
+        LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) || \
+        LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(htlc) \
+    ) \
+)
+
+
+#define LN_HTLC_ENABLE_REMOTE_SOME_UPDATE(htlc) ( \
+    ( \
+        LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(htlc) || \
+        LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) || \
+        LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) || \
+        LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(htlc) \
+    ) \
+)
+
+
 //test
 #define LN_HTLC_TEST_EXCLUSIVENESS(htlc) ( \
         !( /*NOT*/ \

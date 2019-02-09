@@ -348,7 +348,7 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
+    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(0, p_flag->updsend);
@@ -406,7 +406,7 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
+    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(1, p_flag->updsend);
@@ -479,7 +479,7 @@ TEST_F(ln, update_add_htlc_recv1)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
+    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(LN_DELHTLC_FULFILL, p_flag->fin_delhtlc);
@@ -552,7 +552,7 @@ TEST_F(ln, update_add_htlc_recv2)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
+    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(LN_DELHTLC_FAIL, p_flag->fin_delhtlc);
@@ -604,7 +604,7 @@ TEST_F(ln, update_add_htlc_recv3)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlcflag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
+    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(LN_DELHTLC_MALFORMED, p_flag->fin_delhtlc);

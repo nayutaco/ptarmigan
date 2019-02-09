@@ -77,7 +77,7 @@ FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx
 
 ////////////////////////////////////////////////////////////////////////
 
-class ln_htlcflag: public testing::Test {
+class ln_htlc_flag: public testing::Test {
 protected:
     virtual void SetUp() {
         //utl_log_init_stderr();
@@ -158,13 +158,13 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
-TEST_F(ln_htlcflag, htlcflag_macro_offer_fulfill)
+TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
 {
     ln_channel_t channel;
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
     p_flag->addhtlc = LN_ADDHTLC_SEND;
@@ -394,13 +394,13 @@ TEST_F(ln_htlcflag, htlcflag_macro_offer_fulfill)
 }
 
 
-TEST_F(ln_htlcflag, htlcflag_macro_offer_fail)
+TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
 {
     ln_channel_t channel;
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
     p_flag->addhtlc = LN_ADDHTLC_SEND;
@@ -630,13 +630,13 @@ TEST_F(ln_htlcflag, htlcflag_macro_offer_fail)
 }
 
 
-TEST_F(ln_htlcflag, htlcflag_macro_recv_fulfill)
+TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
 {
     ln_channel_t channel;
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc受信
     p_flag->addhtlc = LN_ADDHTLC_RECV;
@@ -855,13 +855,13 @@ TEST_F(ln_htlcflag, htlcflag_macro_recv_fulfill)
 }
 
 
-TEST_F(ln_htlcflag, htlcflag_macro_recv_fail)
+TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
 {
     ln_channel_t channel;
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc受信
     p_flag->addhtlc = LN_ADDHTLC_RECV;
@@ -1080,13 +1080,13 @@ TEST_F(ln_htlcflag, htlcflag_macro_recv_fail)
 }
 
 
-TEST_F(ln_htlcflag, htlcflag_offer_timeout)
+TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
 {
     ln_channel_t channel;
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
 
     p_htlc->cltv_expiry = 100;
     p_flag->addhtlc = LN_ADDHTLC_SEND;
@@ -1141,11 +1141,11 @@ TEST_F(ln_htlcflag, htlcflag_offer_timeout)
 }
 
 
-TEST_F(ln_htlcflag, htlcflag_bitmask)
+TEST_F(ln_htlc_flag, htlc_flag_bitmask)
 {
     union {
         uint16_t        bits;
-        ln_htlcflag_t   flag;
+        ln_htlc_flag_t   flag;
     } stat;
 
     stat.bits = 0;

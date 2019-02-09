@@ -87,12 +87,12 @@ extern "C" {
 
 #define LN_FEE_COMMIT_BASE_WEIGHT       (724ULL)    ///< commit_tx base weight for the fee calculation
 
-// ln_htlcflag_t.addhtlc
+// ln_htlc_flag_t.addhtlc
 #define LN_ADDHTLC_NONE                 (0x00)
 #define LN_ADDHTLC_SEND                 (0x01)      ///< Offered HTLC
 #define LN_ADDHTLC_RECV                 (0x02)      ///< Received HTLC
 
-// ln_htlcflag_t.delhtlc, fin_delhtlc
+// ln_htlc_flag_t.delhtlc, fin_delhtlc
 #define LN_DELHTLC_NONE                 (0x00)
 #define LN_DELHTLC_FULFILL              (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
 #define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
@@ -196,8 +196,8 @@ extern "C" {
 #define M_DBG_COMMITHTLC
 #ifdef M_DBG_COMMITHTLC
 #define M_DBG_COMMITNUM(pChannel) { LOGD("----- debug commit_num -----\n"); ln_dbg_commitnum(pChannel); }
-#define M_DBG_HTLCFLAG(htlc) dbg_htlcflag(htlc)
-#define M_DBG_HTLCFLAGALL(pChannel) dbg_htlcflagall(pChannel)
+#define M_DBG_HTLCFLAG(htlc) dbg_htlc_flag(htlc)
+#define M_DBG_HTLCFLAGALL(pChannel) dbg_htlc_flag_all(pChannel)
 #else
 #define M_DBG_COMMITNUM(pChannel)   //none
 #define M_DBG_HTLCFLAG(htlc)        //none
@@ -354,7 +354,7 @@ typedef struct {
  * typedefs : Normal Operation
  **************************************************************************/
 
-/** @struct ln_htlcflag_t
+/** @struct ln_htlc_flag_t
  *  @brief  HTLC管理フラグ
  *  @note
  *      - uint16_tとunionする場合がある
@@ -370,7 +370,7 @@ typedef struct {
     unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
                                         //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
     unsigned        Reserved    : 5;
-} ln_htlcflag_t;
+} ln_htlc_flag_t;
 
 #define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, delhtlc
 #define LN_HTLCFLAG_MASK_UPDSEND    (0x0010)    ///< updsend
@@ -411,7 +411,7 @@ typedef struct {
     //inner
     union {
         uint16_t        bits;
-        ln_htlcflag_t   flag;                       ///< LN_HTLC_FLAG_xxx
+        ln_htlc_flag_t   flag;                       ///< LN_HTLC_FLAG_xxx
     } stat;
     uint64_t        next_short_channel_id;          ///< flag.addhtlc == SEND
                                                     //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
