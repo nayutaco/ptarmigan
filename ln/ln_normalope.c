@@ -1029,7 +1029,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
             if (LN_HTLC_ENABLE(p_htlc)) {
                 utl_buf_t buf = UTL_BUF_INIT;
-                switch (p_htlc->stat.bits & ~LN_HTLC_FLAG_MASK_FINDELHTLC) {
+                switch (p_htlc->stat.bits & ~LN_HTLC_FLAG_MASK_FIN_DELHTLC) {
                 case M_HTLCFLAG_BITS_ADDHTLC:
                     //update_add_htlc送信
                     LOGD("resend: update_add_htlc\n");
