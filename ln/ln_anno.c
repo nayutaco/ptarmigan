@@ -457,13 +457,15 @@ bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
 
 bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_channel_range_t *pMsg)
 {
+#warning GQUERY TEST(no channel data)
     (void)pChannel; (void)pMsg;
     ln_msg_reply_channel_range_t msg;
     msg.p_chain_hash = pMsg->p_chain_hash;
     msg.first_blocknum = 0;
     msg.number_of_blocks = 0;
     msg.complete = 1;
-    uint8_t zero = 0;
+    //encoded_short_ids need encode type
+    uint8_t zero = LN_GOSSIPQUERY_ENCODE_NONE;
     msg.len = (uint16_t)sizeof(zero);
     msg.p_encoded_short_ids = &zero;
     utl_buf_t buf = UTL_BUF_INIT;

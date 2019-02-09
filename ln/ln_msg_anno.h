@@ -38,6 +38,10 @@
 // channel_update.message_flags
 #define LN_CHANNEL_UPDATE_MSGFLAGS_OPTION_CHANNEL_HTLC_MAX      (0x01)      ///< b0: option_channel_htlc_max
 
+// Message Queries
+#define LN_GOSSIPQUERY_ENCODE_NONE	    (0x00)
+#define LN_GOSSIPQUERY_ENCODE_ZLIB	    (0x01)
+
 
 /**************************************************************************
  * typedefs
@@ -520,14 +524,26 @@ bool HIDDEN ln_msg_gossip_timestamp_filter_read(ln_msg_gossip_timestamp_filter_t
 
 /** decode encoded_short_ids
  *
+ * @param[out]     pEncodedIds          encoded short_channel_id (utl_buf_free() after used)
+ * @param[in]      pShortChannelIds     short_ids
+ * @param[in]      Num                  num of pShortChannelIds
+ * @retval      true    success
+ * @attention
+ *      - pEncodedIds is allocated by this function.
+ */
+bool HIDDEN ln_msg_gossip_ids_encode(utl_buf_t *pEncodedIds, const uint64_t *pShortChannelIds, size_t Num);
+
+
+/** decode encoded_short_ids
+ *
  * @param[out]     ppShortChannelIds       decoded short_channel_id (free() after used)
- * @param[out]     pSz                     num of ppShortChannelIds
+ * @param[out]     pNum                    num of ppShortChannelIds
  * @param[in]      pData                   encoded_short_ids
  * @param[in]      Len                     pData length
  * @retval      true    success
  * @attention
  *      - ppShortChannelIds is allocated by this function.
  */
-bool HIDDEN ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const uint8_t *pData, size_t Len);
+bool HIDDEN ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pNum, const uint8_t *pData, size_t Len);
 
 #endif /* LN_MSG_ANNO_H__ */

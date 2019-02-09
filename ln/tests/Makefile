@@ -5,7 +5,7 @@ CXX=g++
 MK := mkdir
 RM := rm -rf
 
-TEST_TARGET_SRC += \
+ TEST_TARGET_SRC += \
 	test_ln_proto_updatechannel.cpp \
 	test_ln_msg_close.cpp \
 	test_ln_msg_normalope.cpp \
@@ -20,6 +20,13 @@ TEST_TARGET_SRC += \
 	test_ln_proto_updateaddhtlc.cpp \
 	test_ln_proto_updatefee.cpp \
 	test_ln_bech32.cpp
+
+# TEST_TARGET_SRC += \
+# 	test_ln_msg_anno_gossip.cpp
+
+# #remove -lz
+# TEST_TARGET_SRC += \
+# 	test_ln_msg_anno_gossip_zlib.cpp
 
 include ../../options.mak
 
@@ -46,7 +53,7 @@ CXXFLAGS += -I../../libs/install/include
 CXXFLAGS += -I../../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-protector -D_FORTIFY_SOURCE=1
-LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58
+LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58 -lz
 LDFLAGS  += -Wl,--gc-sections
 
 

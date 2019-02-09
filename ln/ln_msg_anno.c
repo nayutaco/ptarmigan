@@ -51,6 +51,8 @@
  * macros
  ********************************************************************/
 
+#define M_ZLIB_CHUNK	        (1024)
+
 #ifdef DEVELOPER_MODE
 #define DBG_PRINT_READ_CNL
 #define DBG_PRINT_READ_NOD
@@ -63,7 +65,6 @@
 #define DBG_PRINT_READ_SIG
 #define DBG_PRINT_WRITE_GQUERY
 #define DBG_PRINT_READ_GQUERY
-
 
 /********************************************************************
  * typedefs
@@ -1014,25 +1015,95 @@ static void gossip_timestamp_filter_print(const ln_msg_gossip_timestamp_filter_t
 }
 
 
-bool ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const uint8_t *pData, size_t Len)
+bool ln_msg_gossip_ids_encode(utl_buf_t *pEncodedIds, const uint64_t *pShortChannelIds, size_t Num)
 {
     bool ret = true;
+    size_t sz_short_ids = sizeof(uint64_t) * Num;
 
-    if ((*pData != 0x00) && (*pData != 0x01)) {
-        LOGE("fail: invalid encode type\n");
-        return false;
+    utl_buf_alloc(pEncodedIds, 1);
+    if (sz_short_ids <= M_ZLIB_CHUNK) {
+        pEncodedIds->buf[0] = LN_GOSSIPQUERY_ENCODE_NONE;
+    } else {
+        pEncodedIds->buf[0] = LN_GOSSIPQUERY_ENCODE_ZLIB;
+    }
+    if (Num == 0) {
+        return true;
     }
 
+    //create big-endian short_channel_ids
+    uint8_t *p_short_ids = (uint8_t *)UTL_DBG_MALLOC(sz_short_ids);
+    for (size_t lp = 0; lp < Num; lp++) {
+        utl_int_unpack_u64be(p_short_ids + sizeof(uint64_t) * lp, pShortChannelIds[lp]);
+    }
+
+    if (sz_short_ids <= M_ZLIB_CHUNK) {
+        //copy
+        utl_buf_realloc(pEncodedIds, 1 + sz_short_ids);
+        memcpy(pEncodedIds->buf + 1, p_short_ids, sz_short_ids);
+    } else {
+        //zlib
+        int retval;
+        size_t blk;
+        z_stream zstm;
+        uint8_t *buf_out = (uint8_t *)UTL_DBG_MALLOC(M_ZLIB_CHUNK);
+
+        zstm.zalloc = Z_NULL;
+        zstm.zfree = Z_NULL;
+        zstm.opaque = Z_NULL;
+        retval = deflateInit(&zstm, Z_BEST_COMPRESSION);
+        if (retval != Z_OK) {
+            LOGE("retval=%d\n", retval);
+            ret = false;
+            goto LABEL_ERR_INIT;
+        }
+
+        blk = (sz_short_ids + M_ZLIB_CHUNK - 1) / M_ZLIB_CHUNK;
+        zstm.next_in = p_short_ids;
+        for (size_t lp = 0; lp < blk; lp++) {
+            zstm.avail_in = (lp != blk - 1) ? M_ZLIB_CHUNK : sz_short_ids - M_ZLIB_CHUNK * lp;
+            do {
+                zstm.avail_out = M_ZLIB_CHUNK;
+                zstm.next_out = buf_out;
+                retval = deflate(&zstm, (lp != blk - 1) ? Z_NO_FLUSH : Z_FINISH);
+                if (retval == Z_STREAM_ERROR) {
+                    LOGE("retval=%d\n", retval);
+                    ret = false;
+                    goto LABEL_ERR;
+                }
+                size_t szadd = M_ZLIB_CHUNK - zstm.avail_out;
+                uint32_t sz = pEncodedIds->len;
+                utl_buf_realloc(pEncodedIds, pEncodedIds->len + szadd);
+                memcpy(pEncodedIds->buf + sz, buf_out, szadd);
+            } while (zstm.avail_out == 0);
+        }
+
+LABEL_ERR:
+        deflateEnd(&zstm);
+LABEL_ERR_INIT:
+        UTL_DBG_FREE(buf_out);
+    }
+    if (!ret) {
+        utl_buf_free(pEncodedIds);
+    }
+    UTL_DBG_FREE(p_short_ids);
+
+    return ret;
+}
+
+
+bool ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pNum, const uint8_t *pData, size_t Len)
+{
+    bool ret = true;
     uint8_t encode = *pData;
     uint8_t *p_decoded = NULL;
     size_t decoded_len = 0;
     pData++;
     Len--;
 
-    if (encode == 0x00) {
+    if (encode == LN_GOSSIPQUERY_ENCODE_NONE) {
         p_decoded = (uint8_t *)pData;
         decoded_len = Len;
-    } else if (encode == 0x01) {
+    } else if (encode == LN_GOSSIPQUERY_ENCODE_ZLIB) {
         int retval;
         z_stream zstm;
         uint8_t *buf_out = (uint8_t *)UTL_DBG_MALLOC(Len);
@@ -1040,9 +1111,12 @@ bool ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const u
         zstm.zalloc = Z_NULL;
         zstm.zfree = Z_NULL;
         zstm.opaque = Z_NULL;
-
         retval = inflateInit(&zstm);
-        assert(retval == Z_OK);
+        if (retval != Z_OK) {
+            LOGE("retval=%d\n", retval);
+            ret = false;
+            goto LABEL_ERR_INIT;
+        }
 
         zstm.next_in = (uint8_t *)pData;
         zstm.avail_in = Len;
@@ -1051,6 +1125,7 @@ bool ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const u
             zstm.next_out = buf_out;
             retval = inflate(&zstm, Z_NO_FLUSH);
             if (retval == Z_STREAM_ERROR) {
+                LOGE("retval=%d\n", retval);
                 UTL_DBG_FREE(p_decoded);
                 p_decoded = NULL;
                 ret = false;
@@ -1058,14 +1133,17 @@ bool ln_msg_gossip_ids_decode(uint64_t **ppShortChannelIds, size_t *pSz, const u
             }
             if (Len - zstm.avail_out > 0) {
                 p_decoded = (uint8_t *)UTL_DBG_REALLOC(p_decoded, decoded_len + Len - zstm.avail_out);
-                assert (p_decoded != NULL);
                 memcpy(p_decoded + decoded_len, buf_out, Len - zstm.avail_out);
                 decoded_len += Len - zstm.avail_out;
             }
         } while (zstm.avail_out == 0);
 LABEL_ERR:
         inflateEnd(&zstm);
+LABEL_ERR_INIT:
         UTL_DBG_FREE(buf_out);
+    } else {
+        LOGE("fail: invalid encode type\n");
+        ret = false;
     }
 
     if (p_decoded != NULL) {
@@ -1073,20 +1151,12 @@ LABEL_ERR:
         uint64_t *p_short_channel_ids = (uint64_t *)UTL_DBG_MALLOC(ids * sizeof(uint64_t));
         const uint8_t *p = p_decoded;
         for (size_t lp = 0; lp < ids; lp++) {
-            p_short_channel_ids[lp] =
-                ((uint64_t)*p << 56) |
-                ((uint64_t)*(p + 1) << 48) |
-                ((uint64_t)*(p + 2) << 40) |
-                ((uint64_t)*(p + 3) << 32) |
-                ((uint64_t)*(p + 4) << 24) |
-                ((uint64_t)*(p + 5) << 16) |
-                ((uint64_t)*(p + 6) <<  8) |
-                 (uint64_t)*(p + 7);
+            p_short_channel_ids[lp] = utl_int_pack_u64be(p);
             //LOGD("[%ld]%" PRIx64 "\n", lp, p_short_channel_ids[lp]);
             p += 8;
         }
         *ppShortChannelIds = p_short_channel_ids;
-        *pSz = ids;
+        *pNum = ids;
         if (encode == 0x01) {
             UTL_DBG_FREE(p_decoded);
         }
