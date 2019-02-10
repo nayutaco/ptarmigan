@@ -390,12 +390,20 @@ typedef struct {
 //update_fulfill_htlc+commitment_signed送信直後
 #define LN_HTLC_JUST_SEND_FULFILL_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_FULFILL)
 
+
 //update_fail_htlc+commitment_signed送信直後
 #define LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_FAIL)
+
 
 //update_fail_malformed_htlc+commitment_signed送信直後
 #define LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_MALFORMED)
 
+
+#define LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(pHtlc) { \
+    memset(&(pHtlc)->stat.flag, 0x00,  sizeof((pHtlc)->stat.flag)); \
+    (pHtlc)->stat.flag.addhtlc = LN_ADDHTLC_SEND; \
+    (pHtlc)->stat.flag.updsend = 1; \
+}
 
 //test
 #define LN_HTLC_TEST_EXCLUSIVENESS(pHtlc) \
