@@ -411,6 +411,33 @@ typedef struct {
     )
 
 
+/**************************************************************************
+ * static inline
+ **************************************************************************/
+
+static inline const char *ln_htlc_flags_addhtlc_str(int addhtlc)
+{
+    switch (addhtlc) {
+    case LN_ADDHTLC_NONE: return "NONE";
+    case LN_ADDHTLC_SEND: return "SEND";
+    case LN_ADDHTLC_RECV: return "RECV";
+    default: return "unknown";
+    }
+}
+
+
+static inline const char *ln_htlc_flags_delhtlc_str(int delhtlc)
+{
+    switch (delhtlc) {
+    case LN_DELHTLC_NONE: return "NONE";
+    case LN_DELHTLC_FULFILL: return "FULFILL";
+    case LN_DELHTLC_FAIL: return "FAIL";
+    case LN_DELHTLC_MALFORMED: return "MALFORMED";
+    default: return "unknown";
+    }
+}
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
