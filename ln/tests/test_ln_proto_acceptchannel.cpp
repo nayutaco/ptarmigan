@@ -15,6 +15,7 @@ extern "C" {
 #include "../../utl/utl_time.c"
 #include "../../utl/utl_int.c"
 #include "../../utl/utl_str.c"
+#include "../../utl/utl_mem.c"
 #undef LOG_TAG
 #include "../../btc/btc.c"
 #include "../../btc/btc_buf.c"
@@ -255,7 +256,7 @@ TEST_F(ln, init)
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ASSERT_EQ(0, channel.cnl_add_htlc[idx].stat.bits);
+        ASSERT_TRUE(utl_mem_is_all_zero(&channel.cnl_add_htlc[idx].flags, sizeof(ln_htlc_flags_t)));
     }
     ASSERT_TRUE(DumpCheck(&channel.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
     ASSERT_TRUE(DumpCheck(&channel.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));

@@ -34,12 +34,12 @@
  * macros
  **************************************************************************/
 
-// ln_htlc_flag_t.addhtlc
+// ln_htlc_flags_t.addhtlc
 #define LN_ADDHTLC_NONE                 (0x00)
 #define LN_ADDHTLC_SEND                 (0x01)      ///< Offered HTLC
 #define LN_ADDHTLC_RECV                 (0x02)      ///< Received HTLC
 
-// ln_htlc_flag_t.delhtlc, fin_delhtlc
+// ln_htlc_flags_t.delhtlc, fin_delhtlc
 #define LN_DELHTLC_NONE                 (0x00)
 #define LN_DELHTLC_FULFILL              (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
 #define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
@@ -50,7 +50,7 @@
  * typedefs
  ********************************************************************/
 
-/** @struct ln_htlc_flag_t
+/** @struct ln_htlc_flags_t
  *  @brief  HTLC管理フラグ
  *  @note
  *      - uint16_tとunionする場合がある
@@ -63,10 +63,10 @@ typedef struct {
     unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
     unsigned        comrecv     : 1;    ///< 1:commitment_signed received
     unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
-    unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
+    unsigned        fin_delhtlc : 2;    ///< flags.addhtlc == RECV
                                         //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
     unsigned        reserved    : 5;
-} ln_htlc_flag_t;
+} ln_htlc_flags_t;
 
 
 /**************************************************************************
@@ -80,7 +80,7 @@ typedef struct {
  */
 #define LN_HTLC_EMPTY(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_NONE) && \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_NONE) && \
         ((pHtlc)->amount_msat == 0) \
     )
 
@@ -91,7 +91,7 @@ typedef struct {
  *          update_add_htlc受信時に転送先にパラメータを全部設定して待たせておき、
  *          revoke_and_ackが完了してから指示だけを出すようにしたかった。
  */
-//#define LN_HTLC_ENABLED(pHtlc)    ((pHtlc)->stat.flag.addhtlc != LN_ADDHTLC_NONE)
+//#define LN_HTLC_ENABLED(pHtlc)    ((pHtlc)->flags.addhtlc != LN_ADDHTLC_NONE)
 #define LN_HTLC_ENABLED(pHtlc)    (!LN_HTLC_EMPTY(pHtlc))
 
 
@@ -100,9 +100,9 @@ typedef struct {
  */
 #define LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
-        ((pHtlc)->stat.flag.revrecv == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) && \
+        ((pHtlc)->flags.revrecv == 1) \
     )
 
 
@@ -112,8 +112,8 @@ typedef struct {
  */
 #define LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) \
     )
 
 
@@ -124,8 +124,8 @@ typedef struct {
  */
 #define LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
 
@@ -134,10 +134,10 @@ typedef struct {
  */
 #define LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
         !( /*NOT*/ \
-            ((pHtlc)->stat.flag.updsend == 1) && \
-            ((pHtlc)->stat.flag.revrecv == 1) \
+            ((pHtlc)->flags.updsend == 1) && \
+            ((pHtlc)->flags.revrecv == 1) \
         ) \
     )
 
@@ -147,9 +147,9 @@ typedef struct {
  */
 #define LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-        ((pHtlc)->stat.flag.revrecv == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) && \
+        ((pHtlc)->flags.revrecv == 1) \
     )
 
 
@@ -158,9 +158,9 @@ typedef struct {
  */
 #define LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
-        ((pHtlc)->stat.flag.revrecv == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) && \
+        ((pHtlc)->flags.revrecv == 1) \
     )
 
 
@@ -169,11 +169,11 @@ typedef struct {
  */
 #define LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.updsend == 1) && \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.updsend == 1) && \
         !( /*NOT*/ \
-            ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-            ((pHtlc)->stat.flag.revsend == 1) \
+            ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) && \
+            ((pHtlc)->flags.revsend == 1) \
         ) \
     )
 
@@ -183,9 +183,9 @@ typedef struct {
  */
 #define LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-        ((pHtlc)->stat.flag.revsend == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) && \
+        ((pHtlc)->flags.revsend == 1) \
     )
 
 
@@ -196,9 +196,9 @@ typedef struct {
  */
 #define LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
-        ((pHtlc)->stat.flag.revsend == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) && \
+        ((pHtlc)->flags.revsend == 1) \
     )
 
 
@@ -207,9 +207,9 @@ typedef struct {
  */
 #define LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((pHtlc)->stat.flag.updsend == 0) && \
-        ((pHtlc)->stat.flag.revsend == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.updsend == 0) && \
+        ((pHtlc)->flags.revsend == 1) \
     )
 
 
@@ -218,8 +218,8 @@ typedef struct {
  */
 #define LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((pHtlc)->stat.flag.updsend == 1) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.updsend == 1) \
     )
 
 
@@ -228,9 +228,9 @@ typedef struct {
  */
 #define LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((pHtlc)->stat.flag.updsend == 1) && \
-        ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.updsend == 1) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
 
@@ -239,8 +239,8 @@ typedef struct {
  */
 #define LN_HTLC_WILL_ADDHTLC_SEND(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-        ((pHtlc)->stat.flag.updsend == 0) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.updsend == 0) \
     )
 
 
@@ -249,9 +249,9 @@ typedef struct {
  */
 #define LN_HTLC_WILL_DELHTLC_SEND(pHtlc) \
     ( \
-        ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-        ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
-        ((pHtlc)->stat.flag.updsend == 0) \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) && \
+        ((pHtlc)->flags.updsend == 0) \
     )
 
 
@@ -263,11 +263,11 @@ typedef struct {
         ( \
             ( \
                 LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) && \
-                ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) \
+                ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) \
             ) || \
             LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
         ) && \
-        ((pHtlc)->stat.flag.comsend == 0) \
+        ((pHtlc)->flags.comsend == 0) \
     )
 
 
@@ -280,7 +280,7 @@ typedef struct {
             LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) || \
             LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) \
         ) && \
-        ((pHtlc)->stat.flag.comsend == 0) \
+        ((pHtlc)->flags.comsend == 0) \
     )
 
 
@@ -327,33 +327,33 @@ typedef struct {
 
 #define LN_HTLC_COMSIGING(pHtlc) \
 ( \
-    ((pHtlc)->stat.flag.comsend && !(pHtlc)->stat.flag.revrecv) || \
-    ((pHtlc)->stat.flag.comrecv && !(pHtlc)->stat.flag.revsend) \
+    ((pHtlc)->flags.comsend && !(pHtlc)->flags.revrecv) || \
+    ((pHtlc)->flags.comrecv && !(pHtlc)->flags.revsend) \
 )
 
 
 //update_add_htlc+commitment_signed送信直後
 #define LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(pHtlc) \
 ( \
-    ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-    ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
-    ((pHtlc)->stat.flag.updsend == 1) && \
-    ((pHtlc)->stat.flag.comsend == 1) && \
-    ((pHtlc)->stat.flag.revrecv == 0) && \
-    ((pHtlc)->stat.flag.comrecv == 0) && \
-    ((pHtlc)->stat.flag.revsend == 0) \
+    ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+    ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) && \
+    ((pHtlc)->flags.updsend == 1) && \
+    ((pHtlc)->flags.comsend == 1) && \
+    ((pHtlc)->flags.revrecv == 0) && \
+    ((pHtlc)->flags.comrecv == 0) && \
+    ((pHtlc)->flags.revsend == 0) \
 )
 
 
 #define LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, Delhtlc) \
 ( \
-    ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
-    ((pHtlc)->stat.flag.delhtlc == Delhtlc) && \
-    ((pHtlc)->stat.flag.updsend == 1) && \
-    ((pHtlc)->stat.flag.comsend == 1) && \
-    ((pHtlc)->stat.flag.revrecv == 0) && \
-    ((pHtlc)->stat.flag.comrecv == 0) && \
-    ((pHtlc)->stat.flag.revsend == 0) \
+    ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+    ((pHtlc)->flags.delhtlc == Delhtlc) && \
+    ((pHtlc)->flags.updsend == 1) && \
+    ((pHtlc)->flags.comsend == 1) && \
+    ((pHtlc)->flags.revrecv == 0) && \
+    ((pHtlc)->flags.comrecv == 0) && \
+    ((pHtlc)->flags.revsend == 0) \
 )
 
 
@@ -370,22 +370,22 @@ typedef struct {
 
 
 #define LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(pHtlc) { \
-    memset(&(pHtlc)->stat.flag, 0x00,  sizeof((pHtlc)->stat.flag)); \
-    (pHtlc)->stat.flag.addhtlc = LN_ADDHTLC_SEND; \
-    (pHtlc)->stat.flag.updsend = 1; \
+    memset(&(pHtlc)->flags, 0x00,  sizeof((pHtlc)->flags)); \
+    (pHtlc)->flags.addhtlc = LN_ADDHTLC_SEND; \
+    (pHtlc)->flags.updsend = 1; \
 }
 
 
 //XXX: probably the condition is wrong
 #define LN_HTLC_TIMEOUT_CHECK_NEEDED(pHtlc) ( \
-    ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
-    ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
-    ((pHtlc)->stat.flag.updsend == 1) && \
-    ((pHtlc)->stat.flag.comsend == 1) && \
-    ((pHtlc)->stat.flag.revrecv == 1) && \
-    ((pHtlc)->stat.flag.comrecv == 1) && \
-    ((pHtlc)->stat.flag.revsend == 1) && \
-    ((pHtlc)->stat.flag.fin_delhtlc == LN_DELHTLC_NONE) \
+    ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+    ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) && \
+    ((pHtlc)->flags.updsend == 1) && \
+    ((pHtlc)->flags.comsend == 1) && \
+    ((pHtlc)->flags.revrecv == 1) && \
+    ((pHtlc)->flags.comrecv == 1) && \
+    ((pHtlc)->flags.revsend == 1) && \
+    ((pHtlc)->flags.fin_delhtlc == LN_DELHTLC_NONE) \
 )
 
 
@@ -414,6 +414,8 @@ typedef struct {
 /********************************************************************
  * prototypes
  ********************************************************************/
+
+//uint32_t ln_htlc_flags2u32(ln_htlc_flags_t Flags);
 
 
 #endif /* LN_HTLC_H__ */

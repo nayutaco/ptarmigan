@@ -348,14 +348,14 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
-    ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(0, p_flag->updsend);
-    ASSERT_EQ(0, p_flag->comsend);
-    ASSERT_EQ(0, p_flag->revrecv);
-    ASSERT_EQ(0, p_flag->comrecv);
-    ASSERT_EQ(0, p_flag->revsend);
+    ln_htlc_flags_t *p_flags = &channel.cnl_add_htlc[0].flags;
+    ASSERT_EQ(LN_ADDHTLC_SEND, p_flags->addhtlc);
+    ASSERT_EQ(0, p_flags->delhtlc);
+    ASSERT_EQ(0, p_flags->updsend);
+    ASSERT_EQ(0, p_flags->comsend);
+    ASSERT_EQ(0, p_flags->revrecv);
+    ASSERT_EQ(0, p_flags->comrecv);
+    ASSERT_EQ(0, p_flags->revsend);
 
     ASSERT_EQ(1000000, channel.local_msat);
     ASSERT_EQ(1000000, channel.remote_msat);
@@ -406,14 +406,14 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_SEND, p_flag->addhtlc);
-    ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(1, p_flag->updsend);
-    ASSERT_EQ(0, p_flag->comsend);
-    ASSERT_EQ(0, p_flag->revrecv);
-    ASSERT_EQ(0, p_flag->comrecv);
-    ASSERT_EQ(0, p_flag->revsend);
+    ln_htlc_flags_t *p_flags = &channel.cnl_add_htlc[0].flags;
+    ASSERT_EQ(LN_ADDHTLC_SEND, p_flags->addhtlc);
+    ASSERT_EQ(0, p_flags->delhtlc);
+    ASSERT_EQ(1, p_flags->updsend);
+    ASSERT_EQ(0, p_flags->comsend);
+    ASSERT_EQ(0, p_flags->revrecv);
+    ASSERT_EQ(0, p_flags->comrecv);
+    ASSERT_EQ(0, p_flags->revsend);
 
     ASSERT_EQ(1000000, channel.local_msat);
     ASSERT_EQ(1000000, channel.remote_msat);
@@ -479,14 +479,14 @@ TEST_F(ln, update_add_htlc_recv1)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
-    ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(LN_DELHTLC_FULFILL, p_flag->fin_delhtlc);
-    ASSERT_EQ(0, p_flag->comsend);
-    ASSERT_EQ(0, p_flag->revrecv);
-    ASSERT_EQ(0, p_flag->comrecv);
-    ASSERT_EQ(0, p_flag->revsend);
+    ln_htlc_flags_t *p_flags = &channel.cnl_add_htlc[0].flags;
+    ASSERT_EQ(LN_ADDHTLC_RECV, p_flags->addhtlc);
+    ASSERT_EQ(0, p_flags->delhtlc);
+    ASSERT_EQ(LN_DELHTLC_FULFILL, p_flags->fin_delhtlc);
+    ASSERT_EQ(0, p_flags->comsend);
+    ASSERT_EQ(0, p_flags->revrecv);
+    ASSERT_EQ(0, p_flags->comrecv);
+    ASSERT_EQ(0, p_flags->revsend);
 
     ASSERT_EQ(1000000, channel.local_msat);
     ASSERT_EQ(1000000, channel.remote_msat);
@@ -552,15 +552,15 @@ TEST_F(ln, update_add_htlc_recv2)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
-    ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(LN_DELHTLC_FAIL, p_flag->fin_delhtlc);
-    ASSERT_EQ(0, p_flag->updsend);
-    ASSERT_EQ(0, p_flag->comsend);
-    ASSERT_EQ(0, p_flag->revrecv);
-    ASSERT_EQ(0, p_flag->comrecv);
-    ASSERT_EQ(0, p_flag->revsend);
+    ln_htlc_flags_t *p_flags = &channel.cnl_add_htlc[0].flags;
+    ASSERT_EQ(LN_ADDHTLC_RECV, p_flags->addhtlc);
+    ASSERT_EQ(0, p_flags->delhtlc);
+    ASSERT_EQ(LN_DELHTLC_FAIL, p_flags->fin_delhtlc);
+    ASSERT_EQ(0, p_flags->updsend);
+    ASSERT_EQ(0, p_flags->comsend);
+    ASSERT_EQ(0, p_flags->revrecv);
+    ASSERT_EQ(0, p_flags->comrecv);
+    ASSERT_EQ(0, p_flags->revsend);
 
     ASSERT_EQ(1000000, channel.local_msat);
     ASSERT_EQ(1000000, channel.remote_msat);
@@ -604,15 +604,15 @@ TEST_F(ln, update_add_htlc_recv3)
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(&channel.cnl_add_htlc[0]));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(&channel.cnl_add_htlc[0]));
     //
-    ln_htlc_flag_t *p_flag = &channel.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
-    ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(LN_DELHTLC_MALFORMED, p_flag->fin_delhtlc);
-    ASSERT_EQ(0, p_flag->updsend);
-    ASSERT_EQ(0, p_flag->comsend);
-    ASSERT_EQ(0, p_flag->revrecv);
-    ASSERT_EQ(0, p_flag->comrecv);
-    ASSERT_EQ(0, p_flag->revsend);
+    ln_htlc_flags_t *p_flags = &channel.cnl_add_htlc[0].flags;
+    ASSERT_EQ(LN_ADDHTLC_RECV, p_flags->addhtlc);
+    ASSERT_EQ(0, p_flags->delhtlc);
+    ASSERT_EQ(LN_DELHTLC_MALFORMED, p_flags->fin_delhtlc);
+    ASSERT_EQ(0, p_flags->updsend);
+    ASSERT_EQ(0, p_flags->comsend);
+    ASSERT_EQ(0, p_flags->revrecv);
+    ASSERT_EQ(0, p_flags->comrecv);
+    ASSERT_EQ(0, p_flags->revsend);
 
     ASSERT_EQ(1000000, channel.local_msat);
     ASSERT_EQ(1000000, channel.remote_msat);
