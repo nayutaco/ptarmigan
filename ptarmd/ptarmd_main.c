@@ -91,6 +91,9 @@ int main(int argc, char *argv[])
                 return -1;
             }
             break;
+        case '?':
+            //invalid option
+            return -1;
         default:
             break;
         }
