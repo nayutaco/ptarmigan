@@ -98,33 +98,6 @@ static void dbg_htlc_flag_all(const ln_channel_t *pChannel);
 
 
 /**************************************************************************
- * static inline
- **************************************************************************/
-
-static inline const char *dbg_htlc_flag_addhtlc_str(int addhtlc)
-{
-    switch (addhtlc) {
-    case LN_ADDHTLC_NONE: return "NONE";
-    case LN_ADDHTLC_SEND: return "SEND";
-    case LN_ADDHTLC_RECV: return "RECV";
-    default: return "unknown";
-    }
-}
-
-
-static inline const char *dbg_htlc_flag_delhtlc_str(int delhtlc)
-{
-    switch (delhtlc) {
-    case LN_DELHTLC_NONE: return "NONE";
-    case LN_DELHTLC_FULFILL: return "FULFILL";
-    case LN_DELHTLC_FAIL: return "FAIL";
-    case LN_DELHTLC_MALFORMED: return "MALFORMED";
-    default: return "unknown";
-    }
-}
-
-
-/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -1544,8 +1517,8 @@ static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc)
 static void clear_htlc(ln_update_add_htlc_t *p_htlc)
 {
     LOGD("DELHTLC=%s, FIN_DELHTLC=%s\n",
-            dbg_htlc_flag_delhtlc_str(p_htlc->flags.delhtlc),
-            dbg_htlc_flag_delhtlc_str(p_htlc->flags.fin_delhtlc));
+            ln_htlc_flags_delhtlc_str(p_htlc->flags.delhtlc),
+            ln_htlc_flags_delhtlc_str(p_htlc->flags.fin_delhtlc));
 
     ln_db_preimage_del(p_htlc->buf_payment_preimage.buf);
     utl_buf_free(&p_htlc->buf_payment_preimage);
@@ -1569,12 +1542,12 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
             ln_htlc_flags_t *p_flags = &p_htlc->flags;
             // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
             //         idx,
-            //         dbg_htlc_flag_addhtlc_str(p_flags->addhtlc),
-            //         dbg_htlc_flag_delhtlc_str(p_flags->delhtlc),
+            //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
+            //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
             //         p_flags->updsend,
             //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
             //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-            //         dbg_htlc_flag_delhtlc_str(p_flags->fin_delhtlc));
+            //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
             if (LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc送信側
                 //pChannel->local_msat -= p_htlc->amount_msat;
@@ -1682,12 +1655,12 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                 ln_htlc_flags_t *p_flags = &p_htlc->flags;
                 // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
                 //         idx,
-                //         dbg_htlc_flag_addhtlc_str(p_flags->addhtlc),
-                //         dbg_htlc_flag_delhtlc_str(p_flags->delhtlc),
+                //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
+                //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
                 //         p_flags->updsend,
                 //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
                 //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-                //         dbg_htlc_flag_delhtlc_str(p_flags->fin_delhtlc));
+                //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
                 utl_buf_t buf = UTL_BUF_INIT;
                 if (LN_HTLC_WILL_ADDHTLC_SEND(p_htlc)) {
                     //update_add_htlc送信
@@ -2131,7 +2104,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
 static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags)
 {
     LOGD("        addhtlc=%s, delhtlc=%s\n",
-            dbg_htlc_flag_addhtlc_str(p_flags->addhtlc), dbg_htlc_flag_delhtlc_str(p_flags->delhtlc));
+            ln_htlc_flags_addhtlc_str(p_flags->addhtlc), ln_htlc_flags_delhtlc_str(p_flags->delhtlc));
     LOGD("        updsend=%d\n",
             p_flags->updsend);
     LOGD("        comsend=%d, revrecv=%d\n",
@@ -2139,7 +2112,7 @@ static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags)
     LOGD("        comrecv=%d revsend=%d\n",
             p_flags->comrecv, p_flags->revsend);
     LOGD("        fin_del=%s\n",
-            dbg_htlc_flag_delhtlc_str(p_flags->fin_delhtlc));
+            ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
 }
 
 static void dbg_htlc_flag_all(const ln_channel_t *pChannel)
