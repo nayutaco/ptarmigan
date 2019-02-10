@@ -71,8 +71,8 @@ static bool create_htlc_info_and_amount(
     const ln_update_add_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
-    uint64_t *pOurMsat,
-    uint64_t *pTheirMsat,
+    uint64_t *pLocalMsat,
+    uint64_t *pRemoteMsat,
     bool bLocal);
 
 
@@ -81,8 +81,8 @@ static bool create_local_htlc_info_and_amount(
     const ln_update_add_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
-    uint64_t *pOurMsat,
-    uint64_t *pTheirMsat);
+    uint64_t *pLocalMsat,
+    uint64_t *pRemoteMsat);
 static bool create_local_set_vin0_and_verify(
     btc_tx_t *pTxCommit,
     const ln_funding_tx_t *pFundTx,
@@ -138,8 +138,8 @@ static bool create_remote_htlc_info_and_amount(
     const ln_update_add_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
-    uint64_t *pOurMsat,
-    uint64_t *pTheirMsat);
+    uint64_t *pLocalMsat,
+    uint64_t *pRemoteMsat);
 static bool create_remote_spent__with_close(
     const ln_channel_t *pChannel,
     const ln_commit_tx_t *pCommitTx,
@@ -557,10 +557,10 @@ static bool create_local_htlc_info_and_amount(
     const ln_update_add_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
-    uint64_t *pOurMsat,
-    uint64_t *pTheirMsat)
+    uint64_t *pLocalMsat,
+    uint64_t *pRemoteMsat)
 {
-    return create_htlc_info_and_amount(pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pOurMsat, pTheirMsat, true);
+    return create_htlc_info_and_amount(pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, true);
 }
 
 
@@ -898,10 +898,10 @@ static bool create_remote_htlc_info_and_amount(
     const ln_update_add_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
-    uint64_t *pOurMsat,
-    uint64_t *pTheirMsat)
+    uint64_t *pLocalMsat,
+    uint64_t *pRemoteMsat)
 {
-    return create_htlc_info_and_amount(pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pOurMsat, pTheirMsat, false);
+    return create_htlc_info_and_amount(pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, false);
 }
 
 
@@ -909,8 +909,8 @@ static bool create_htlc_info_and_amount(
     const ln_update_add_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
-    uint64_t *pOurMsat,
-    uint64_t *pTheirMsat,
+    uint64_t *pLocalMsat,
+    uint64_t *pRemoteMsat,
     bool bLocal)
 {
     *pHtlcInfoCnt = 0;
@@ -922,19 +922,19 @@ static bool create_htlc_info_and_amount(
         if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_htlc, bLocal)) {
             LOGD("addhtlc_offer\n");
             htlcadd = true;
-            *pOurMsat -= p_htlc->amount_msat;
+            *pLocalMsat -= p_htlc->amount_msat;
         } else if (LN_HTLC_FULFILL_RECV_ENABLED(p_htlc, bLocal)) {
             LOGD("delhtlc_offer\n");
-            *pOurMsat -= p_htlc->amount_msat;
-            *pTheirMsat += p_htlc->amount_msat;
+            *pLocalMsat -= p_htlc->amount_msat;
+            *pRemoteMsat += p_htlc->amount_msat;
         } else if (LN_HTLC_ADDHTLC_RECV_ENABLED(p_htlc, bLocal)) {
             LOGD("addhtlc_recv\n");
             htlcadd = true;
-            *pTheirMsat -= p_htlc->amount_msat;
+            *pRemoteMsat -= p_htlc->amount_msat;
         } else if (LN_HTLC_FULFILL_SEND_ENABLED(p_htlc, bLocal)) {
             LOGD("delhtlc_recv\n");
-            *pOurMsat += p_htlc->amount_msat;
-            *pTheirMsat -= p_htlc->amount_msat;
+            *pLocalMsat += p_htlc->amount_msat;
+            *pRemoteMsat -= p_htlc->amount_msat;
         }
 
         if (!htlcadd) {
