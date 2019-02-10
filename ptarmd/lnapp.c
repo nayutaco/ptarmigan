@@ -3533,7 +3533,7 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
         cJSON *htlcs = cJSON_CreateArray();
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
             const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(p_channel, lp);
-            if (LN_HTLC_ENABLE(p_htlc)) {
+            if (LN_HTLC_ENABLED(p_htlc)) {
                 cJSON *htlc = cJSON_CreateObject();
                 const char *p_type;
                 switch (p_htlc->stat.flag.addhtlc) {
@@ -3638,7 +3638,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
         LOGD("remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
             const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, lp);
-            if (LN_HTLC_ENABLE(p_htlc)) {
+            if (LN_HTLC_ENABLED(p_htlc)) {
                 LOGD("  HTLC[%d]\n", lp);
                 LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
                 LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);

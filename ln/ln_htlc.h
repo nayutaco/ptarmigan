@@ -110,21 +110,21 @@ typedef struct {
         ((pHtlc)->amount_msat == 0) \
     )
 
-/** @def    LN_HTLC_ENABLE(pHtlc)
+/** @def    LN_HTLC_ENABLED(pHtlc)
  *  @brief  ln_update_add_htlc_tとして有効
  *  @note
  *      - (amount_msat != 0)で判定していたが、update_add_htlcの転送の場合、
  *          update_add_htlc受信時に転送先にパラメータを全部設定して待たせておき、
  *          revoke_and_ackが完了してから指示だけを出すようにしたかった。
  */
-//#define LN_HTLC_ENABLE(pHtlc)    ((pHtlc)->stat.flag.addhtlc != LN_ADDHTLC_NONE)
-#define LN_HTLC_ENABLE(pHtlc)    (!LN_HTLC_EMPTY(pHtlc))
+//#define LN_HTLC_ENABLED(pHtlc)    ((pHtlc)->stat.flag.addhtlc != LN_ADDHTLC_NONE)
+#define LN_HTLC_ENABLED(pHtlc)    (!LN_HTLC_EMPTY(pHtlc))
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(pHtlc)
+/** @def    LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc)
  *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(pHtlc) \
+#define LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
@@ -132,33 +132,33 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(pHtlc)
+/** @def    LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc)
  *  @brief
  *    - commitment_signed受信時、local commit_tx作成に含む
  */
-#define LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(pHtlc) \
+#define LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(pHtlc)
+/** @def    LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc)
  *  @brief  local commit_tx作成時、自分のamountから差し引く
  *  @note
- *    - #LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND()も差し引く対象になる
+ *    - #LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED()も差し引く対象になる
  */
-#define LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(pHtlc) \
+#define LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(pHtlc)
+/** @def    LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc)
  *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(pHtlc) \
+#define LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         !( /*NOT*/ \
@@ -168,10 +168,10 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(pHtlc)
+/** @def    LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc)
  *  @brief  local commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(pHtlc) \
+#define LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
@@ -179,10 +179,10 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(pHtlc)
+/** @def    LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc)
  *  @brief  local commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(pHtlc) \
+#define LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
@@ -190,10 +190,10 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(pHtlc)
+/** @def    LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(pHtlc) \
+#define LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->stat.flag.updsend == 1) && \
@@ -204,10 +204,10 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(pHtlc)
+/** @def    LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc送信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(pHtlc) \
+#define LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->stat.flag.delhtlc != LN_DELHTLC_NONE) && \
@@ -215,12 +215,12 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(pHtlc)
+/** @def    LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc)
  *  @brief  remote commit_tx作成時、相手のamountから差し引く
  *  @note
- *    - #LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV()も差し引く対象になる
+ *    - #LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED()も差し引く対象になる
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(pHtlc) \
+#define LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_FULFILL) && \
@@ -228,10 +228,10 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(pHtlc)
+/** @def    LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(pHtlc) \
+#define LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->stat.flag.updsend == 0) && \
@@ -239,20 +239,20 @@ typedef struct {
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(pHtlc)
+/** @def    LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(pHtlc) \
+#define LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->stat.flag.updsend == 1) \
     )
 
 
-/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(pHtlc)
+/** @def    LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
-#define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(pHtlc) \
+#define LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc) \
     ( \
         ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->stat.flag.updsend == 1) && \
@@ -292,10 +292,10 @@ typedef struct {
     ( \
         ( \
             ( \
-                LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(pHtlc) && \
+                LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) && \
                 ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) \
             ) || \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(pHtlc) \
+            LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
         ) && \
         ((pHtlc)->stat.flag.comsend == 0) \
     )
@@ -307,8 +307,8 @@ typedef struct {
 #define LN_HTLC_WILL_COMSIG_SEND_RECEIVED_HTLC(pHtlc) \
     ( \
         ( \
-            LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(pHtlc) || \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(pHtlc) \
+            LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) || \
+            LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) \
         ) && \
         ((pHtlc)->stat.flag.comsend == 0) \
     )
@@ -321,37 +321,37 @@ typedef struct {
     )
 
 
-#define LN_HTLC_ENABLE_ADDHTLC_SEND(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(pHtlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(pHtlc))
+#define LN_HTLC_ADDHTLC_SEND_ENABLED(pHtlc, b_local) \
+    ((b_local) ? LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc))
 
 
-#define LN_HTLC_ENABLE_FULFILL_RECV(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(pHtlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(pHtlc))
+#define LN_HTLC_FULFILL_RECV_ENABLED(pHtlc, b_local) \
+    ((b_local) ? LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc))
 
 
-#define LN_HTLC_ENABLE_ADDHTLC_RECV(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(pHtlc) : LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(pHtlc))
+#define LN_HTLC_ADDHTLC_RECV_ENABLED(pHtlc, b_local) \
+    ((b_local) ? LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc))
 
 
-#define LN_HTLC_ENABLE_FULFILL_SEND(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_ENABLE_LOCAL_FULFILL_SEND(pHtlc) : LN_HTLC_ENABLE_REMOTE_FULFILL_SEND(pHtlc))
+#define LN_HTLC_FULFILL_SEND_ENABLED(pHtlc, b_local) \
+    ((b_local) ? LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc))
 
 
-#define LN_HTLC_ENABLE_LOCAL_SOME_UPDATE(pHtlc) \
+#define LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(pHtlc) \
 ( \
-    LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(pHtlc) || \
-    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(pHtlc) || \
-    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(pHtlc) || \
-    LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(pHtlc) \
+    LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) || \
+    LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) || \
+    LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) || \
+    LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) \
 )
 
 
-#define LN_HTLC_ENABLE_REMOTE_SOME_UPDATE(pHtlc) \
+#define LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(pHtlc) \
 ( \
-    LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(pHtlc) || \
-    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(pHtlc) || \
-    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(pHtlc) || \
-    LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(pHtlc) \
+    LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) || \
+    LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) || \
+    LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) || \
+    LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
 )
 
 
@@ -401,20 +401,20 @@ typedef struct {
 #define LN_HTLC_TEST_EXCLUSIVENESS(pHtlc) \
 ( \
         !( /*NOT*/ \
-            LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(pHtlc) && \
-            LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(pHtlc) \
+            LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) && \
+            LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) \
         ) && \
         !( /*NOT*/ \
-            LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(pHtlc) && \
-            LN_HTLC_ENABLE_LOCAL_DELHTLC_SEND(pHtlc) \
+            LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) && \
+            LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) \
         ) && \
         !( /*NOT*/ \
-            LN_HTLC_ENABLE_REMOTE_ADDHTLC_SEND(pHtlc) && \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(pHtlc) \
+            LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) && \
+            LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) \
         ) && \
         !( /*NOT*/ \
-            LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(pHtlc) && \
-            LN_HTLC_ENABLE_REMOTE_DELHTLC_SEND(pHtlc) \
+            LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) && \
+            LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
         ) \
     )
 
