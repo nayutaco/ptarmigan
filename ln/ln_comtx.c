@@ -944,7 +944,7 @@ static bool create_htlc_info_and_amount(
 
         ln_comtx_htlc_info_t *p_info = (ln_comtx_htlc_info_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t));
         ln_comtx_htlc_info_init(p_info);
-        switch (p_htlc->stat.flag.addhtlc) {
+        switch (p_htlc->flags.addhtlc) {
         case LN_ADDHTLC_RECV:
             p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_RECEIVED : LN_COMTX_OUTPUT_TYPE_OFFERED;
             break;
@@ -952,7 +952,7 @@ static bool create_htlc_info_and_amount(
             p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_OFFERED : LN_COMTX_OUTPUT_TYPE_RECEIVED;
             break;
         default:
-            LOGE("unknown flag: %04x\n", p_htlc->stat.bits);
+            LOGE("unknown flags: %04x\n", p_htlc->flags);
             assert(0);
             UTL_DBG_FREE(p_info);
             goto LABEL_ERROR;
