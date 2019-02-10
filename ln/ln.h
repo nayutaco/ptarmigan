@@ -361,21 +361,18 @@ typedef struct {
                                                     //  update_fail_htlc
                                                     //      len:  reason
     //inner
-    union {
-        uint16_t        bits;
-        ln_htlc_flag_t   flag;                       ///< LN_HTLC_FLAG_xxx
-    } stat;
-    uint64_t        next_short_channel_id;          ///< flag.addhtlc == SEND
+    ln_htlc_flags_t     flags;                      ///< LN_HTLC_FLAG_xxx
+    uint64_t            next_short_channel_id;      ///< flags.addhtlc == SEND
                                                     //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
-    uint16_t        next_idx;
+    uint16_t            next_idx;
     //fulfillで戻す
-    uint8_t     remote_sig[LN_SZ_SIGNATURE];        ///< 受信した最新のHTLC署名
+    uint8_t             remote_sig[LN_SZ_SIGNATURE];///< 受信した最新のHTLC署名
                                                     //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
-    uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
+    uint64_t            prev_short_channel_id;      ///< 転送元short_channel_id
                                                     //      origin/final node: == 0
-    uint16_t    prev_idx;                           ///< 転送元cnl_add_htlc[]index
+    uint16_t            prev_idx;                   ///< 転送元cnl_add_htlc[]index
     //failで戻す
-    utl_buf_t   buf_shared_secret;                  ///< failuremsg暗号化用
+    utl_buf_t           buf_shared_secret;          ///< failuremsg暗号化用
 } ln_update_add_htlc_t;
 
 

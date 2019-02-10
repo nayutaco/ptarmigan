@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-42))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-43))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -188,6 +188,7 @@
     -41: add `funding_tx_t::funding_satoshis`
          rm `ln_channel_t::funding_sat`
     -42: rename `our_msat` -> `local_msat` and `their_msat` -> `remote_msat`
+    -43: rename `ln_update_add_htlc_t::stat` -> `ln_update_add_htlc_t::flags`
  */
 
 
@@ -546,7 +547,7 @@ static const backup_param_t DBHTLC_VALUES[] = {
     M_ITEM(ln_update_add_htlc_t, payment_hash),
     //buf_payment_preimage --> HTLC buf
     //buf_onion_reason --> HTLC buf
-    M_ITEM(ln_update_add_htlc_t, stat),
+    M_ITEM(ln_update_add_htlc_t, flags),
     M_ITEM(ln_update_add_htlc_t, next_short_channel_id),
     M_ITEM(ln_update_add_htlc_t, next_idx),
     M_ITEM(ln_update_add_htlc_t, remote_sig),

@@ -164,10 +164,10 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
 
     //update_add_htlc準備
-    p_flag->addhtlc = LN_ADDHTLC_SEND;
+    p_flags->addhtlc = LN_ADDHTLC_SEND;
 
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -197,7 +197,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_add_htlc送信
-    p_flag->updsend = 1;
+    p_flags->updsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -227,7 +227,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -257,7 +257,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -287,7 +287,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -317,7 +317,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -347,11 +347,11 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fulfill_htlc受信
-    p_flag->comsend = 0;
-    p_flag->revrecv = 0;
-    p_flag->comrecv = 0;
-    p_flag->revsend = 0;
-    p_flag->delhtlc = LN_DELHTLC_FULFILL;
+    p_flags->comsend = 0;
+    p_flags->revrecv = 0;
+    p_flags->comrecv = 0;
+    p_flags->revsend = 0;
+    p_flags->delhtlc = LN_DELHTLC_FULFILL;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -381,7 +381,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -411,7 +411,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -441,7 +441,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -471,7 +471,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -510,10 +510,10 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
 
     //update_add_htlc準備
-    p_flag->addhtlc = LN_ADDHTLC_SEND;
+    p_flags->addhtlc = LN_ADDHTLC_SEND;
 
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -543,7 +543,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_add_htlc送信
-    p_flag->updsend = 1;
+    p_flags->updsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -573,7 +573,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -603,7 +603,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -633,7 +633,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -663,7 +663,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -693,11 +693,11 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fail_htlc受信
-    p_flag->comsend = 0;
-    p_flag->revrecv = 0;
-    p_flag->comrecv = 0;
-    p_flag->revsend = 0;
-    p_flag->delhtlc = LN_DELHTLC_FAIL;
+    p_flags->comsend = 0;
+    p_flags->revrecv = 0;
+    p_flags->comrecv = 0;
+    p_flags->revsend = 0;
+    p_flags->delhtlc = LN_DELHTLC_FAIL;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -727,7 +727,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -757,7 +757,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -787,7 +787,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -817,7 +817,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -856,10 +856,10 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
 
     //update_add_htlc受信
-    p_flag->addhtlc = LN_ADDHTLC_RECV;
+    p_flags->addhtlc = LN_ADDHTLC_RECV;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -889,7 +889,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -919,7 +919,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -949,7 +949,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -979,7 +979,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1009,11 +1009,11 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fulfill_htlc準備
-    p_flag->comsend = 0;
-    p_flag->revrecv = 0;
-    p_flag->comrecv = 0;
-    p_flag->revsend = 0;
-    p_flag->delhtlc = LN_DELHTLC_FULFILL;
+    p_flags->comsend = 0;
+    p_flags->revrecv = 0;
+    p_flags->comrecv = 0;
+    p_flags->revsend = 0;
+    p_flags->delhtlc = LN_DELHTLC_FULFILL;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_TRUE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1043,7 +1043,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fulfill_htlc送信
-    p_flag->updsend = 1;
+    p_flags->updsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1073,7 +1073,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1103,7 +1103,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1133,7 +1133,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1163,7 +1163,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1202,10 +1202,10 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
 
     //update_add_htlc受信
-    p_flag->addhtlc = LN_ADDHTLC_RECV;
+    p_flags->addhtlc = LN_ADDHTLC_RECV;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1235,7 +1235,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1265,7 +1265,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1295,7 +1295,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1325,7 +1325,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1355,11 +1355,11 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fail_htlc準備
-    p_flag->comsend = 0;
-    p_flag->revrecv = 0;
-    p_flag->comrecv = 0;
-    p_flag->revsend = 0;
-    p_flag->delhtlc = LN_DELHTLC_FAIL;
+    p_flags->comsend = 0;
+    p_flags->revrecv = 0;
+    p_flags->comrecv = 0;
+    p_flags->revsend = 0;
+    p_flags->delhtlc = LN_DELHTLC_FAIL;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_TRUE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1389,7 +1389,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fail_htlc送信
-    p_flag->updsend = 1;
+    p_flags->updsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1419,7 +1419,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
-    p_flag->comsend = 1;
+    p_flags->comsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1449,7 +1449,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
-    p_flag->revrecv = 1;
+    p_flags->revrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1479,7 +1479,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
-    p_flag->comrecv = 1;
+    p_flags->comrecv = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1509,7 +1509,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
-    p_flag->revsend = 1;
+    p_flags->revsend = 1;
 
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
@@ -1548,56 +1548,56 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     LnInit(&channel);
 
     ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
-    ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
 
     p_htlc->cltv_expiry = 100;
-    p_flag->addhtlc = LN_ADDHTLC_SEND;
-    p_flag->updsend = true;
-    p_flag->comsend = true;
-    p_flag->revrecv = true;
-    p_flag->comrecv = true;
-    p_flag->revsend = true;
-    uint16_t bak = p_htlc->stat.bits;
+    p_flags->addhtlc = LN_ADDHTLC_SEND;
+    p_flags->updsend = true;
+    p_flags->comsend = true;
+    p_flags->revrecv = true;
+    p_flags->comrecv = true;
+    p_flags->revsend = true;
+    ln_htlc_flags_t bak = p_htlc->flags;
 
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100)); //just
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 101)); //pass
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 99)); //before
 
-    p_flag->addhtlc = LN_ADDHTLC_NONE;
+    p_flags->addhtlc = LN_ADDHTLC_NONE;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_flag->addhtlc = LN_ADDHTLC_RECV;
+    p_flags->addhtlc = LN_ADDHTLC_RECV;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->delhtlc = LN_DELHTLC_FULFILL;
+    p_flags->delhtlc = LN_DELHTLC_FULFILL;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->updsend = false;
+    p_flags->updsend = false;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->comsend = false;
+    p_flags->comsend = false;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->revrecv = false;
+    p_flags->revrecv = false;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->comrecv = false;
+    p_flags->comrecv = false;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->revsend = false;
+    p_flags->revsend = false;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->fin_delhtlc = LN_DELHTLC_FULFILL;
+    p_flags->fin_delhtlc = LN_DELHTLC_FULFILL;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 
-    p_flag->reserved = 1;
+    p_flags->reserved = 1;
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    p_htlc->stat.bits = bak;
+    p_htlc->flags = bak;
 }
