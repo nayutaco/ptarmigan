@@ -401,6 +401,19 @@ typedef struct {
     (pHtlc)->stat.flag.updsend = 1; \
 }
 
+
+//XXX: probably the condition is wrong
+#define LN_HTLC_TIMEOUT_CHECK_NEEDED(pHtlc) ( \
+    ((pHtlc)->stat.flag.addhtlc == LN_ADDHTLC_SEND) && \
+    ((pHtlc)->stat.flag.delhtlc == LN_DELHTLC_NONE) && \
+    ((pHtlc)->stat.flag.updsend == 1) && \
+    ((pHtlc)->stat.flag.comsend == 1) && \
+    ((pHtlc)->stat.flag.revrecv == 1) && \
+    ((pHtlc)->stat.flag.comrecv == 1) && \
+    ((pHtlc)->stat.flag.revsend == 1) \
+)
+
+
 //test
 #define LN_HTLC_TEST_EXCLUSIVENESS(pHtlc) \
 ( \
