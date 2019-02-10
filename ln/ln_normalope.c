@@ -1667,7 +1667,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
 {
     bool b_comsiging = false;   //true: commitment_signed〜revoke_and_ackの途中
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (LN_HTLC_IS_COMSIGING(&pChannel->cnl_add_htlc[idx])) {
+        if (LN_HTLC_COMSIGING(&pChannel->cnl_add_htlc[idx])) {
             b_comsiging = true;
             break;
         }

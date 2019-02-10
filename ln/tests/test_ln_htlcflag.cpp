@@ -193,7 +193,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_add_htlc送信
@@ -223,7 +223,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -253,7 +253,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -283,7 +283,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -313,7 +313,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -343,7 +343,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fulfill_htlc受信
@@ -377,7 +377,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -407,7 +407,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -437,7 +437,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -467,7 +467,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -497,7 +497,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     ln_term(&channel);
@@ -539,7 +539,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_add_htlc送信
@@ -569,7 +569,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -599,7 +599,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -629,7 +629,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -659,7 +659,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -689,7 +689,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fail_htlc受信
@@ -723,7 +723,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -753,7 +753,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -783,7 +783,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -813,7 +813,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -843,7 +843,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     ln_term(&channel);
@@ -885,7 +885,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -915,7 +915,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -945,7 +945,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -975,7 +975,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -1005,7 +1005,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fulfill_htlc準備
@@ -1039,7 +1039,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fulfill_htlc送信
@@ -1069,7 +1069,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -1099,7 +1099,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -1129,7 +1129,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -1159,7 +1159,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -1189,7 +1189,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     ln_term(&channel);
@@ -1231,7 +1231,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -1261,7 +1261,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -1291,7 +1291,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -1321,7 +1321,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -1351,7 +1351,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fail_htlc準備
@@ -1385,7 +1385,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //update_fail_htlc送信
@@ -1415,7 +1415,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed送信
@@ -1445,7 +1445,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_TRUE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack受信
@@ -1475,7 +1475,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //commitment_signed受信
@@ -1505,7 +1505,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_TRUE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_TRUE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     //revoke_and_ack送信
@@ -1535,7 +1535,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ASSERT_FALSE(LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc));
     ASSERT_FALSE(LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc));
 
-    ASSERT_FALSE(LN_HTLC_IS_COMSIGING(p_htlc));
+    ASSERT_FALSE(LN_HTLC_COMSIGING(p_htlc));
     ASSERT_TRUE(LN_HTLC_TEST_EXCLUSIVENESS(p_htlc));
 
     ln_term(&channel);
