@@ -916,22 +916,22 @@ static bool create_htlc_info_and_amount(
     *pHtlcInfoCnt = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         const ln_update_add_htlc_t *p_htlc = &pHtlcs[idx];
-        if (!LN_HTLC_ENABLE(p_htlc)) continue;
+        if (!LN_HTLC_ENABLED(p_htlc)) continue;
 
         bool htlcadd = false;
-        if (LN_HTLC_ENABLE_ADDHTLC_SEND(p_htlc, bLocal)) {
+        if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_htlc, bLocal)) {
             LOGD("addhtlc_offer\n");
             htlcadd = true;
             *pOurMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_ENABLE_FULFILL_RECV(p_htlc, bLocal)) {
+        } else if (LN_HTLC_FULFILL_RECV_ENABLED(p_htlc, bLocal)) {
             LOGD("delhtlc_offer\n");
             *pOurMsat -= p_htlc->amount_msat;
             *pTheirMsat += p_htlc->amount_msat;
-        } else if (LN_HTLC_ENABLE_ADDHTLC_RECV(p_htlc, bLocal)) {
+        } else if (LN_HTLC_ADDHTLC_RECV_ENABLED(p_htlc, bLocal)) {
             LOGD("addhtlc_recv\n");
             htlcadd = true;
             *pTheirMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_ENABLE_FULFILL_SEND(p_htlc, bLocal)) {
+        } else if (LN_HTLC_FULFILL_SEND_ENABLED(p_htlc, bLocal)) {
             LOGD("delhtlc_recv\n");
             *pOurMsat += p_htlc->amount_msat;
             *pTheirMsat -= p_htlc->amount_msat;

@@ -160,7 +160,7 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
         printf(INDENT3 M_QQ("pending") ": [\n");
         int cnt = 0;
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            if (LN_HTLC_ENABLE(&pChannel->cnl_add_htlc[lp])) {
+            if (LN_HTLC_ENABLED(&pChannel->cnl_add_htlc[lp])) {
                 if (cnt != 0) {
                     printf(",\n");
                 }
@@ -346,7 +346,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 M_QQ("add_htlc") ": [\n");
     int cnt = 0;
     for (lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (LN_HTLC_ENABLE(&pChannel->cnl_add_htlc[lp])) {
+        if (LN_HTLC_ENABLED(&pChannel->cnl_add_htlc[lp])) {
             if (cnt > 0) {
                 printf(",\n");
             }

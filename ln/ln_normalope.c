@@ -503,7 +503,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     //commitment_signed recv flag
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if ( LN_HTLC_ENABLE(p_htlc) && LN_HTLC_ENABLE_LOCAL_SOME_UPDATE(p_htlc) ) {
+        if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(p_htlc) ) {
             LOGD(" [%d]comrecv=1\n", idx);
             p_htlc->stat.flag.comrecv = 1;
         }
@@ -535,7 +535,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     //revoke_and_ack send flag
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if ( LN_HTLC_ENABLE(p_htlc) && LN_HTLC_ENABLE_LOCAL_SOME_UPDATE(p_htlc) ) {
+        if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(p_htlc) ) {
             LOGD(" [%d]revsend=1\n", idx);
             p_htlc->stat.flag.revsend = 1;
         }
@@ -642,7 +642,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //revoke_and_ack受信フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if ( LN_HTLC_ENABLE(p_htlc) && LN_HTLC_ENABLE_REMOTE_SOME_UPDATE(p_htlc) ) {
+        if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_htlc) ) {
             LOGD(" [%d]revrecv=1\n", idx);
             p_htlc->stat.flag.revrecv = 1;
         }
@@ -966,7 +966,7 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     bool b_final = true;    //true: HTLCの追加から反映までが完了した状態
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc)) {
+        if (LN_HTLC_ENABLED(p_htlc)) {
             htlc_num++;
             ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
             if (!p_flag->comsend || !p_flag->revrecv || !p_flag->comrecv || !p_flag->revsend) {
@@ -1015,7 +1015,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         int idx;
         for (idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-            if (LN_HTLC_ENABLE(p_htlc)) {
+            if (LN_HTLC_ENABLED(p_htlc)) {
                 utl_buf_t buf = UTL_BUF_INIT;
                 if (LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(p_htlc)) {
                     //XXX: the order of id should be considered?
@@ -1565,7 +1565,7 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
     bool revack = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc)) {
+        if (LN_HTLC_ENABLED(p_htlc)) {
             ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
             // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
             //         idx,
@@ -1575,10 +1575,10 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
             //         p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend,
             //         p_htlc->next_short_channel_id, p_htlc->next_idx,
             //         dbg_htlc_flag_delhtlc_str(p_flag->fin_delhtlc));
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_SEND(p_htlc)) {
+            if (LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc送信側
                 //pChannel->local_msat -= p_htlc->amount_msat;
-            } else if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
+            } else if (LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc受信側
                 //pChannel->remote_msat -= p_htlc->amount_msat;
 
@@ -1678,7 +1678,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
     if (!b_comsiging) {
         for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-            if (LN_HTLC_ENABLE(p_htlc)) {
+            if (LN_HTLC_ENABLED(p_htlc)) {
                 ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
                 // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
                 //         idx,
@@ -1746,7 +1746,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                 //commitment_signed送信済みフラグ
                 for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
                     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-                    if ( LN_HTLC_ENABLE(p_htlc) && LN_HTLC_ENABLE_REMOTE_SOME_UPDATE(p_htlc) ) {
+                    if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_htlc) ) {
                         LOGD(" [%d]comsend=1\n", idx);
                         p_htlc->stat.flag.comsend = 1;
                     }
@@ -2147,7 +2147,7 @@ static void dbg_htlc_flag_all(const ln_channel_t *pChannel)
     LOGD("------------------------------------------\n");
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         const ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc)) {
+        if (LN_HTLC_ENABLED(p_htlc)) {
             const ln_htlc_flag_t *p_flag = &p_htlc->stat.flag;
             LOGD("[%d]prev_short_channel_id=%016" PRIx64 "(%d), next_short_channel_id=%016" PRIx64 "(%d)\n",
                     idx,
