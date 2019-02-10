@@ -3661,7 +3661,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
     LOGD("=(%s:%d)=============================================\n", msg, line);
     if (ln_short_channel_id(pChannel)) {
         LOGD("short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(pChannel));
-        LOGD("local_msat:   %" PRIu64 "\n", ln_local_msat(pChannel));
+        LOGD("local_msat:  %" PRIu64 "\n", ln_local_msat(pChannel));
         LOGD("remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
             const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, lp);
@@ -3679,7 +3679,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
         //コンソールログ
         fprintf(fp, "=%s:%d==================\n", msg, line);
         fprintf(fp, "short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(pChannel));
-        fprintf(fp, "local_msat:   %" PRIu64 "\n", ln_local_msat(pChannel));
+        fprintf(fp, "local_msat:  %" PRIu64 "\n", ln_local_msat(pChannel));
         fprintf(fp, "remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
     } else {
         LOGD("no channel\n");
