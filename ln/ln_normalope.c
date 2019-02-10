@@ -2113,7 +2113,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
     ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
     new_commit_tx.commit_num++;
     ln_htlc_flag_t bak_flag = pChannel->cnl_add_htlc[Idx].stat.flag;
-    pChannel->cnl_add_htlc[Idx].stat.bits = LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLC_FLAG_SFT_UPDSEND;
+    LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(&pChannel->cnl_add_htlc[Idx]);
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
     bool ret = ln_comtx_create_remote(
         pChannel, &new_commit_tx, NULL, &p_htlc_sigs);
