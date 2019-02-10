@@ -272,10 +272,6 @@ typedef struct {
 
 /** @def    LN_HTLC_WILL_DELHTLC_SEND(pHtlc)
  *  @brief  update_fulfill/fail/fail_malformed_htlc送信予定
- *  @note
- *      - update_fulfill_htlc: #LN_HTLC_IS_FULFILL()がtrue
- *      - update_fail_malformed_htlc: #LN_HTLC_IS_MALFORMED()がtrue
- *      - update_fail_htlc: それ以外
  */
 #define LN_HTLC_WILL_DELHTLC_SEND(pHtlc) \
     ( \
@@ -355,7 +351,7 @@ typedef struct {
 )
 
 
-#define LN_HTLC_IS_COMSIGING(pHtlc) \
+#define LN_HTLC_COMSIGING(pHtlc) \
 ( \
     ((pHtlc)->stat.flag.comsend && !(pHtlc)->stat.flag.revrecv) || \
     ((pHtlc)->stat.flag.comrecv && !(pHtlc)->stat.flag.revsend) \
