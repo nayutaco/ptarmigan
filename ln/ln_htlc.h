@@ -69,32 +69,6 @@ typedef struct {
 } ln_htlc_flag_t;
 
 
-#define LN_HTLC_FLAG_MASK_HTLC           (0x000f)    ///< addhtlc, delhtlc
-#define LN_HTLC_FLAG_MASK_UPDSEND        (0x0010)    ///< updsend
-#define LN_HTLC_FLAG_MASK_COMSIG1        (0x0060)    ///< comsend, revrecv
-#define LN_HTLC_FLAG_MASK_COMSIG2        (0x0180)    ///< comrecv, revsend
-#define LN_HTLC_FLAG_MASK_COMSIG         ((LN_HTLC_FLAG_MASK_COMSIG1 | LN_HTLC_FLAG_MASK_COMSIG2))    ///< comsned, revrecv, comrecv, revsend
-#define LN_HTLC_FLAG_MASK_FIN_DELHTLC    (0x0600)    ///< fin_delhtlc
-#define LN_HTLC_FLAG_MASK_ALL            (LN_HTLC_FLAG_MASK_FIN_DELHTLC | LN_HTLC_FLAG_MASK_COMSIG | LN_HTLC_FLAG_MASK_UPDSEND | LN_HTLC_FLAG_MASK_HTLC)
-#define LN_HTLC_FLAG_SFT_ADDHTLC(a)      ((uint16_t)(a))
-#define LN_HTLC_FLAG_SFT_DELHTLC(a)      ((uint16_t)(a) << 2)
-#define LN_HTLC_FLAG_SFT_UPDSEND         ((uint16_t)1 << 4)
-#define LN_HTLC_FLAG_SFT_COMSEND         ((uint16_t)1 << 5)
-#define LN_HTLC_FLAG_SFT_REVRECV         ((uint16_t)1 << 6)
-#define LN_HTLC_FLAG_SFT_COMRECV         ((uint16_t)1 << 7)
-#define LN_HTLC_FLAG_SFT_REVSEND         ((uint16_t)1 << 8)
-#define LN_HTLC_FLAG_SFT_FIN_DELHTLC(a)  ((uint16_t)(a) << 9)
-#define LN_HTLC_FLAG_SFT_UPDRECV         ((uint16_t)1 << 11)
-#define LN_HTLC_FLAG_SFT_TIMEOUT         ( \
-                                            LN_HTLC_FLAG_SFT_REVSEND | \
-                                            LN_HTLC_FLAG_SFT_COMRECV | \
-                                            LN_HTLC_FLAG_SFT_REVRECV | \
-                                            LN_HTLC_FLAG_SFT_COMSEND | \
-                                            LN_HTLC_FLAG_SFT_UPDSEND | \
-                                            LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) \
-                                        )
-
-
 /**************************************************************************
  * macro functions
  **************************************************************************/

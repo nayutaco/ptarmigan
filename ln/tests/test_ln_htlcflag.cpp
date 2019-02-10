@@ -1601,27 +1601,3 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->stat.bits = bak;
 }
-
-
-TEST_F(ln_htlc_flag, htlc_flag_bitmask)
-{
-    union {
-        uint16_t        bits;
-        ln_htlc_flag_t   flag;
-    } stat;
-
-    stat.bits = 0;
-    stat.flag.addhtlc = LN_ADDHTLC_SEND;
-    stat.flag.delhtlc = LN_DELHTLC_FULFILL;
-    stat.flag.updsend = true;
-    stat.flag.comsend = true;
-    stat.flag.revrecv = true;
-    stat.flag.comrecv = true;
-    stat.flag.revsend = true;
-    stat.flag.fin_delhtlc = LN_DELHTLC_FULFILL;
-
-    ASSERT_EQ(LN_HTLC_FLAG_SFT_ADDHTLC(LN_ADDHTLC_SEND) | LN_HTLC_FLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLC_FLAG_MASK_HTLC);
-    ASSERT_TRUE(stat.bits & LN_HTLC_FLAG_MASK_UPDSEND);
-    ASSERT_EQ(LN_HTLC_FLAG_SFT_REVSEND | LN_HTLC_FLAG_SFT_COMRECV | LN_HTLC_FLAG_SFT_REVRECV | LN_HTLC_FLAG_SFT_COMSEND, stat.bits & LN_HTLC_FLAG_MASK_COMSIG);
-    ASSERT_EQ(LN_HTLC_FLAG_SFT_FIN_DELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLC_FLAG_MASK_FIN_DELHTLC);
-}
