@@ -1295,8 +1295,9 @@ const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uin
 bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlockCount)
 {
     return (htlc_idx < LN_HTLC_MAX) &&
-            ((pChannel->cnl_add_htlc[htlc_idx].stat.bits & LN_HTLC_FLAG_MASK_ALL) == LN_HTLC_FLAG_SFT_TIMEOUT) &&
-            (pChannel->cnl_add_htlc[htlc_idx].cltv_expiry <= BlockCount);
+        LN_HTLC_ENABLED(&(pChannel->cnl_add_htlc[htlc_idx]) &&
+        LN_HTLC_TIMEOUT_CHECK_NEEDED(&(pChannel->cnl_add_htlc[htlc_idx]) &&
+        (pChannel->cnl_add_htlc[htlc_idx].cltv_expiry <= BlockCount);
 }
 
 
