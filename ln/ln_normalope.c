@@ -207,7 +207,7 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
         uint16_t failure_code = utl_int_pack_u16be(buf_reason.buf);
         if (failure_code & LNERR_ONION_BADONION) {
             //update_fail_malformed_htlc
-            result = LN_CB_ADD_HTLC_RESULT_MALFORMED;
+            result = LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED;
         } else {
             //update_fail_htlc
             result = LN_CB_ADD_HTLC_RESULT_FAIL;
@@ -297,10 +297,10 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
         //折り返しだけAPIが異なる
         ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
         break;
-    case LN_CB_ADD_HTLC_RESULT_MALFORMED:
-        LOGE("fail: will backwind malformed_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_MALFORMED);
-        p_htlc->flags.fin_delhtlc = LN_DELHTLC_MALFORMED;
+    case LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED:
+        LOGE("fail: will backwind fail_malformed_htlc\n");
+        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FAIL_MALFORMED);
+        p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL_MALFORMED;
         utl_buf_free(&p_htlc->buf_onion_reason);
         utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
         break;
@@ -420,7 +420,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = p_htlc->id;     //元のHTLC id
             fail_recv.p_payment_hash = p_htlc->payment_hash;
-            fail_recv.malformed_failure = 0;
+            fail_recv.fail_malformed_failure_code = 0;
             ln_callback(pChannel, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             ret = fail_recv.result;
@@ -768,7 +768,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
         if ( (p_htlc->flags.addhtlc == LN_ADDHTLC_SEND) &&
              (p_htlc->id == msg.id)) {
             //id一致
-            clear_htlc_comrevflag(p_htlc, LN_DELHTLC_MALFORMED);
+            clear_htlc_comrevflag(p_htlc, LN_DELHTLC_FAIL_MALFORMED);
 
             utl_buf_t reason = UTL_BUF_INIT;
             utl_push_t push_rsn;
@@ -784,7 +784,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = p_htlc->id;     //元のHTLC id
             fail_recv.p_payment_hash = p_htlc->payment_hash;
-            fail_recv.malformed_failure = msg.failure_code;
+            fail_recv.fail_malformed_failure_code = msg.failure_code;
             ln_callback(pChannel, LN_CB_FAIL_HTLC_RECV, &fail_recv);
             utl_buf_free(&reason);
 
@@ -1001,7 +1001,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
                 } else if (LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_htlc\n");
                     fail_htlc_create(pChannel, &buf, idx);
-                } else if (LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc)) {
+                } else if (LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_malformed_htlc\n");
                     fail_malformed_htlc_create(pChannel, &buf, idx);
                 }
@@ -1677,7 +1677,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                         case LN_DELHTLC_FAIL:
                             fail_htlc_create(pChannel, &buf, idx);
                             break;
-                        case LN_DELHTLC_MALFORMED:
+                        case LN_DELHTLC_FAIL_MALFORMED:
                             fail_malformed_htlc_create(pChannel, &buf, idx);
                             break;
                         default:

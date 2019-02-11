@@ -394,8 +394,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             case LN_DELHTLC_FAIL:
                 p_str_delhtlc = "fail";
                 break;
-            case LN_DELHTLC_MALFORMED:
-                p_str_delhtlc = "malformed";
+            case LN_DELHTLC_FAIL_MALFORMED:
+                p_str_delhtlc = "fail_malformed";
                 break;
             default:
                 p_str_delhtlc = "???";
@@ -410,8 +410,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             case LN_DELHTLC_FAIL:
                 p_str_fin_delhtlc = "fail";
                 break;
-            case LN_DELHTLC_MALFORMED:
-                p_str_fin_delhtlc = "malformed";
+            case LN_DELHTLC_FAIL_MALFORMED:
+                p_str_fin_delhtlc = "fail_malformed";
                 break;
             default:
                 p_str_fin_delhtlc = "???";

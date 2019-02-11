@@ -607,7 +607,7 @@ TEST_F(ln, update_add_htlc_recv3)
     ln_htlc_flags_t *p_flags = &channel.cnl_add_htlc[0].flags;
     ASSERT_EQ(LN_ADDHTLC_RECV, p_flags->addhtlc);
     ASSERT_EQ(0, p_flags->delhtlc);
-    ASSERT_EQ(LN_DELHTLC_MALFORMED, p_flags->fin_delhtlc);
+    ASSERT_EQ(LN_DELHTLC_FAIL_MALFORMED, p_flags->fin_delhtlc);
     ASSERT_EQ(0, p_flags->updsend);
     ASSERT_EQ(0, p_flags->comsend);
     ASSERT_EQ(0, p_flags->revrecv);
