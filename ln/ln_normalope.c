@@ -983,7 +983,6 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
-
         LOGD("$$$ resend: previous update message\n");
         int idx;
         for (idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -1004,18 +1003,19 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
                 } else if (LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_malformed_htlc\n");
                     fail_malformed_htlc_create(pChannel, &buf, idx);
+                } else {
+                    //XXX: resend update_fee
                 }
                 if (buf.len > 0) {
                     p_htlc->flags.comsend = 0;
                     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
                     utl_buf_free(&buf);
                     pChannel->cnl_add_htlc[idx].flags.updsend = 1;
-                    pChannel->commit_tx_remote.commit_num--;
-                    M_DB_CHANNEL_SAVE(pChannel);
                     break;
                 }
             }
         }
+        pChannel->commit_tx_remote.commit_num--;
         if (idx >= LN_HTLC_MAX) {
             LOGE("fail: cannot find HTLC to process\n");
         }
@@ -1100,8 +1100,8 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 
     //送信側が現在のfeerate_per_kwで支払えないようなamount_msatの場合、チャネルを失敗させる。
     //  receiving an amount_msat that the sending node cannot afford at the current feerate_per_kw
-    if (pChannel->remote_msat < p_htlc->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->remote_msat, p_htlc->amount_msat);
+    if (pChannel->commit_tx_local.remote_msat < p_htlc->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_local.remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->commit_tx_local.remote_msat, p_htlc->amount_msat);
         return false;
     }
 
@@ -1582,8 +1582,8 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
                 case LN_ADDHTLC_SEND:
                     //DEL_HTLC後: update_add_htlc送信側
                     if (p_flags->delhtlc == LN_DELHTLC_FULFILL) {
-                        pChannel->local_msat -= p_htlc->amount_msat;
-                        pChannel->remote_msat += p_htlc->amount_msat;
+                        //pChannel->local_msat -= p_htlc->amount_msat;
+                        //pChannel->remote_msat += p_htlc->amount_msat;
                     } else if ((p_flags->delhtlc != LN_DELHTLC_NONE) && (p_htlc->prev_short_channel_id != 0)) {
                         LOGD("backward fail_htlc!\n");
 
@@ -1605,8 +1605,8 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
                 case LN_ADDHTLC_RECV:
                     //DEL_HTLC後: update_add_htlc受信側
                     if (p_flags->delhtlc == LN_DELHTLC_FULFILL) {
-                        pChannel->local_msat += p_htlc->amount_msat;
-                        pChannel->remote_msat -= p_htlc->amount_msat;
+                        //pChannel->local_msat += p_htlc->amount_msat;
+                        //pChannel->remote_msat -= p_htlc->amount_msat;
                     }
                     break;
                 default:
@@ -1805,16 +1805,16 @@ static bool check_create_add_htlc(
     }
 
     //相手が指定したchannel_reserve_satは残しておく必要あり
-    if (pChannel->local_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "local_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
-                    pChannel->local_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
+    if (pChannel->commit_tx_remote.remote_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
+                    pChannel->commit_tx_remote.remote_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
         goto LABEL_EXIT;
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
-    if (pChannel->local_msat < amount_msat + close_fee_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "local_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
-                    pChannel->local_msat, amount_msat, close_fee_msat);
+    if (pChannel->commit_tx_remote.remote_msat < amount_msat + close_fee_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
+                    pChannel->commit_tx_remote.remote_msat, amount_msat, close_fee_msat);
         goto LABEL_EXIT;
     }
 

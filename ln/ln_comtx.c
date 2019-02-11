@@ -216,6 +216,8 @@ bool HIDDEN ln_comtx_create_local(
     }
 
     //set pCommitTx
+    pCommitTx->local_msat = comtx_info.local_msat;
+    pCommitTx->remote_msat = comtx_info.remote_msat;
     pCommitTx->htlc_output_num = comtx_info.htlc_output_num;
     if (!ln_comtx_create_rs(&tx_commit, local_sig, &comtx_info, &pChannel->keys_local)) {
         LOGE("fail\n");
@@ -261,8 +263,8 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
 
     memset(pComTxInfo, 0x00, sizeof(ln_comtx_info_t));
 
-    uint64_t local_msat = pChannel->local_msat;
-    uint64_t remote_msat = pChannel->remote_msat;
+    pComTxInfo->local_msat = pCommitTx->local_msat;
+    pComTxInfo->remote_msat = pCommitTx->remote_msat;
 
     LOGD("local commitment_number=%" PRIu64 "\n", pCommitTx->commit_num);
     //
@@ -273,7 +275,7 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
     pComTxInfo->pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
     if (!pComTxInfo->pp_htlc_info) goto LABEL_EXIT;
     if (!create_local_htlc_info_and_amount(
-        pChannel->cnl_add_htlc, pComTxInfo->pp_htlc_info, &pComTxInfo->htlc_info_num, &local_msat, &remote_msat)) goto LABEL_EXIT;
+        pChannel->cnl_add_htlc, pComTxInfo->pp_htlc_info, &pComTxInfo->htlc_info_num, &pComTxInfo->local_msat, &pComTxInfo->remote_msat)) goto LABEL_EXIT;
 
     //HTLCs (script)
     for (int lp = 0; lp < pComTxInfo->htlc_info_num; lp++) {
@@ -289,8 +291,8 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
 
     //print amount of HTLCs
     LOGD("-------\n");
-    LOGD("local_msat   %" PRIu64 " --> %" PRIu64 "\n", pChannel->local_msat, local_msat);
-    LOGD("remote_msat %" PRIu64 " --> %" PRIu64 "\n", pChannel->remote_msat, remote_msat);
+    LOGD("local_msat  %" PRIu64 " --> %" PRIu64 "\n", pCommitTx->local_msat, pComTxInfo->local_msat);
+    LOGD("remote_msat %" PRIu64 " --> %" PRIu64 "\n", pCommitTx->remote_msat, pComTxInfo->remote_msat);
     for (int lp = 0; lp < pComTxInfo->htlc_info_num; lp++) {
         LOGD("  [%d] %" PRIu64 " (%s)\n",
             lp, pComTxInfo->pp_htlc_info[lp]->amount_msat,
@@ -305,7 +307,7 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
     pComTxInfo->fund.p_wit_script = &pChannel->funding_tx.wit_script;
 
     //to_local
-    pComTxInfo->to_local.satoshi = LN_MSAT2SATOSHI(local_msat);
+    pComTxInfo->to_local.satoshi = LN_MSAT2SATOSHI(pComTxInfo->local_msat);
     if (!ln_script_create_to_local(
         &pComTxInfo->to_local.wit_script,
         pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
@@ -313,7 +315,7 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
         pCommitTx->to_self_delay)) return false;
 
     //to_remote
-    pComTxInfo->to_remote.satoshi = LN_MSAT2SATOSHI(remote_msat);
+    pComTxInfo->to_remote.satoshi = LN_MSAT2SATOSHI(pComTxInfo->remote_msat);
     pComTxInfo->to_remote.pubkey = pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
 
     //fee
@@ -366,10 +368,10 @@ bool ln_comtx_create_remote(
     uint16_t htlc_info_num = 0;
 
     ln_comtx_info_t comtx_info;
-    uint64_t local_msat = pChannel->remote_msat;
-    uint64_t remote_msat = pChannel->local_msat;
-
     memset(&comtx_info, 0x00, sizeof(ln_comtx_info_t));
+
+    comtx_info.local_msat = pCommitTx->local_msat;
+    comtx_info.remote_msat = pCommitTx->remote_msat;
 
     //to_local
     if (!ln_script_create_to_local(
@@ -381,7 +383,7 @@ bool ln_comtx_create_remote(
     //HTLC info (amount)
     pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
     if (!pp_htlc_info) goto LABEL_EXIT;
-    if (!create_remote_htlc_info_and_amount(pChannel->cnl_add_htlc, pp_htlc_info, &htlc_info_num, &local_msat, &remote_msat)) goto LABEL_EXIT;
+    if (!create_remote_htlc_info_and_amount(pChannel->cnl_add_htlc, pp_htlc_info, &htlc_info_num, &comtx_info.local_msat, &comtx_info.remote_msat)) goto LABEL_EXIT;
 
     //HTLC info (script)
     for (int lp = 0; lp < htlc_info_num; lp++) {
@@ -413,8 +415,8 @@ bool ln_comtx_create_remote(
 #endif  //LN_UGLY_NORMAL
 
     LOGD("-------\n");
-    LOGD("(remote)local_msat   %" PRIu64 " --> %" PRIu64 "\n", pChannel->remote_msat, local_msat);
-    LOGD("(remote)remote_msat %" PRIu64 " --> %" PRIu64 "\n", pChannel->local_msat, remote_msat);
+    LOGD("(remote)local_msat  %" PRIu64 " --> %" PRIu64 "\n", pCommitTx->local_msat, comtx_info.local_msat);
+    LOGD("(remote)remote_msat %" PRIu64 " --> %" PRIu64 "\n", pCommitTx->remote_msat, comtx_info.remote_msat);
     for (int lp = 0; lp < htlc_info_num; lp++) {
         LOGD("  have HTLC[%d] %" PRIu64 " (%s)\n", lp, pp_htlc_info[lp]->amount_msat, (pp_htlc_info[lp]->type != LN_COMTX_OUTPUT_TYPE_RECEIVED) ? "received" : "offered");
     }
@@ -432,9 +434,9 @@ bool ln_comtx_create_remote(
     comtx_info.fund.txid_index = ln_funding_txindex(pChannel);
     comtx_info.fund.satoshi = pChannel->funding_tx.funding_satoshis;
     comtx_info.fund.p_wit_script = &pChannel->funding_tx.wit_script;
-    comtx_info.to_local.satoshi = LN_MSAT2SATOSHI(local_msat);
+    comtx_info.to_local.satoshi = LN_MSAT2SATOSHI(comtx_info.local_msat);
     comtx_info.to_local.wit_script = wit_script_to_local;
-    comtx_info.to_remote.satoshi = LN_MSAT2SATOSHI(remote_msat);
+    comtx_info.to_remote.satoshi = LN_MSAT2SATOSHI(comtx_info.remote_msat);
     comtx_info.to_remote.pubkey = pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
     comtx_info.obscured_commit_num =
         ln_comtx_calc_obscured_commit_num(pChannel->obscured_commit_num_mask, pCommitTx->commit_num);
@@ -457,6 +459,11 @@ bool ln_comtx_create_remote(
     if (!ln_comtx_create_rs(&tx_commit, pCommitTx->remote_sig, &comtx_info, &pChannel->keys_local)) goto LABEL_EXIT;
     LOGD("++++++++++++++ remote commit tx: tx_commit[%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(&tx_commit);
+
+
+    pCommitTx->local_msat = comtx_info.local_msat;
+    pCommitTx->remote_msat = comtx_info.remote_msat;
+
     if (!btc_tx_txid(&tx_commit, pCommitTx->txid)) goto LABEL_EXIT;
     LOGD("remote commit_txid: ");
     TXIDD(pCommitTx->txid);
@@ -916,28 +923,36 @@ static bool create_htlc_info_and_amount(
     *pHtlcInfoCnt = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         const ln_update_add_htlc_t *p_htlc = &pHtlcs[idx];
+        LOGD("flags = 0x%04x\n", p_htlc->flags);
         if (!LN_HTLC_ENABLED(p_htlc)) continue;
 
-        bool htlcadd = false;
-        if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_htlc, bLocal)) {
-            LOGD("addhtlc_offer\n");
-            htlcadd = true;
+        if (LN_HTLC_ADDHTLC_SEND_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+            LOGD("addhtlc_send\n");
             *pLocalMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_FULFILL_RECV_ENABLED(p_htlc, bLocal)) {
-            LOGD("delhtlc_offer\n");
-            *pLocalMsat -= p_htlc->amount_msat;
-            *pRemoteMsat += p_htlc->amount_msat;
-        } else if (LN_HTLC_ADDHTLC_RECV_ENABLED(p_htlc, bLocal)) {
+        } else if (LN_HTLC_DELHTLC_RECV_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+            if (LN_HTLC_FULFILL_RECV_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+                LOGD("fulfill_recv\n");
+                *pRemoteMsat += p_htlc->amount_msat;
+            } else {
+                LOGD("failhtlc_recv\n");
+                *pLocalMsat += p_htlc->amount_msat;
+            }
+        } else if (LN_HTLC_ADDHTLC_RECV_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
             LOGD("addhtlc_recv\n");
-            htlcadd = true;
             *pRemoteMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_FULFILL_SEND_ENABLED(p_htlc, bLocal)) {
-            LOGD("delhtlc_recv\n");
-            *pLocalMsat += p_htlc->amount_msat;
-            *pRemoteMsat -= p_htlc->amount_msat;
+        } else if (LN_HTLC_DELHTLC_SEND_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+            if (LN_HTLC_FULFILL_SEND_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+                LOGD("fulfill_send\n");
+                *pLocalMsat += p_htlc->amount_msat;
+            } else {
+                LOGD("delhtlc_send\n");
+                *pRemoteMsat += p_htlc->amount_msat;
+            }
         }
 
-        if (!htlcadd) {
+        if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_htlc, bLocal) || LN_HTLC_ADDHTLC_RECV_ENABLED(p_htlc, bLocal)) {
+            //add HTLC
+        } else {
             LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
             continue;
         }
