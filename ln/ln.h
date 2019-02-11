@@ -352,7 +352,7 @@ typedef struct {
     uint64_t    id;                                 ///< 8:  id
     uint64_t    amount_msat;                        ///< 8:  amount_msat
     uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
-    uint8_t     payment_hash[BTC_SZ_HASH256];     ///< 32: payment_hash //XXX:
+    uint8_t     payment_hash[BTC_SZ_HASH256];       ///< 32: payment_hash
     utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
     utl_buf_t   buf_onion_reason;                   ///<
                                                     //  update_add_htlc
@@ -438,9 +438,9 @@ typedef struct {
  *  @brief  result of update_add_htlc processing
  */
 typedef enum {
-    LN_CB_ADD_HTLC_RESULT_OK,           ///< transfer update_add_htlc or backward update_fulfill_htlc
-    LN_CB_ADD_HTLC_RESULT_FAIL,         ///< backward update_fail_htlc
-    LN_CB_ADD_HTLC_RESULT_MALFORMED,    ///< backward update_fail_malformed_htlc
+    LN_CB_ADD_HTLC_RESULT_OK,               ///< transfer update_add_htlc or backward update_fulfill_htlc
+    LN_CB_ADD_HTLC_RESULT_FAIL,             ///< backward update_fail_htlc
+    LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED,   ///< backward update_fail_malformed_htlc
 } ln_cb_add_htlc_result_t;
 
 
@@ -498,7 +498,7 @@ typedef struct {
     uint16_t                prev_idx;               ///< pChannel->cnl_add_htlc[idx]
     uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
-    uint16_t                malformed_failure;      ///< !0: malformed_htlcのfailure_code
+    uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code
 } ln_cb_fail_htlc_recv_t;
 
 

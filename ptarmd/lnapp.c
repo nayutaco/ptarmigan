@@ -2726,13 +2726,13 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;
     bool ret;
-    if (p_fail->malformed_failure == 0) {
+    if (p_fail->fail_malformed_failure_code == 0) {
         // update_fail_htlc
         ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
     } else {
         // update_fail_malformed_htlc
         uint16_t failure_code = utl_int_pack_u16be(p_fail->p_reason->buf);
-        ret = (failure_code == p_fail->malformed_failure);
+        ret = (failure_code == p_fail->fail_malformed_failure_code);
         utl_buf_alloccopy(&reason, p_fail->p_reason->buf, p_fail->p_reason->len);
         hop = 0;
     }

@@ -43,7 +43,7 @@
 #define LN_DELHTLC_NONE                 (0x00)
 #define LN_DELHTLC_FULFILL              (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
 #define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
-#define LN_DELHTLC_MALFORMED            (0x03)      ///< update_fail_malformed_htlc
+#define LN_DELHTLC_FAIL_MALFORMED       (0x03)      ///< update_fail_malformed_htlc
 
 
 /********************************************************************
@@ -57,7 +57,7 @@
  */
 typedef struct {
     unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_SEND/RECV
-    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/MALFORMED
+    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/FAIL_MALFORMED
     unsigned        updsend     : 1;    ///< 1:update message sent
     unsigned        comsend     : 1;    ///< 1:commitment_signed sent
     unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
@@ -366,7 +366,7 @@ typedef struct {
 
 
 //update_fail_malformed_htlc+commitment_signed送信直後
-#define LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_MALFORMED)
+#define LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_FAIL_MALFORMED)
 
 
 #define LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(pHtlc) { \
@@ -432,7 +432,7 @@ static inline const char *ln_htlc_flags_delhtlc_str(int delhtlc)
     case LN_DELHTLC_NONE: return "NONE";
     case LN_DELHTLC_FULFILL: return "FULFILL";
     case LN_DELHTLC_FAIL: return "FAIL";
-    case LN_DELHTLC_MALFORMED: return "MALFORMED";
+    case LN_DELHTLC_FAIL_MALFORMED: return "FAIL_MALFORMED";
     default: return "unknown";
     }
 }
