@@ -5,7 +5,7 @@ CXX=g++
 MK := mkdir
 RM := rm -rf
 
- TEST_TARGET_SRC += \
+TEST_TARGET_SRC += \
 	test_ln_proto_updatechannel.cpp \
 	test_ln_msg_close.cpp \
 	test_ln_msg_normalope.cpp \
@@ -22,7 +22,8 @@ RM := rm -rf
 	test_ln_bech32.cpp
 
 # TEST_TARGET_SRC += \
-# 	test_ln_msg_anno_gossip.cpp
+# 	test_ln_msg_anno_gossip.cpp \
+# 	test_ln_anno.cpp
 
 # #remove -lz
 # TEST_TARGET_SRC += \

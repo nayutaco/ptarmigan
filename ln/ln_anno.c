@@ -187,8 +187,8 @@ static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
         return false;
     }
     if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
-        LOGE("fail: chain_hash mismatch\n");
-        return false;
+        LOGD("through: chain_hash mismatch\n");
+        return true;
     }
 
     //XXX: check sign
@@ -304,16 +304,16 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         return false;
     }
 
+    if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
+        LOGD("through: chain_hash mismatch\n");
+        return true;
+    }
+
     //timestamp check
     if (ln_db_annocnlupd_is_prune(now, msg.timestamp)) {
         char time[UTL_SZ_TIME_FMT_STR + 1];
         LOGD("older channel: not save(%016" PRIx64 "): %s\n", msg.short_channel_id, utl_time_fmt(time, msg.timestamp));
-        return false;
-    }
-
-    if (memcmp(ln_genesishash_get(), msg.p_chain_hash, BTC_SZ_HASH256)) {
-        LOGE("fail: chain_hash mismatch\n");
-        return false;
+        return true;
     }
 
     LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), msg.short_channel_id);
@@ -384,7 +384,10 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
 
 bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
 {
-    (void)pChannel;
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
 
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_query_short_channel_ids_t msg;
@@ -400,7 +403,11 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
 
 bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)pChannel;
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGD("through: not gossip_queries\n");
+        return true;
+    }
+
     ln_msg_query_short_channel_ids_t msg;
     ln_msg_query_short_channel_ids_read(&msg, pData, Len);
     return true;
@@ -409,7 +416,12 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
 
 bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_query_short_channel_ids_t *pMsg)
 {
-    (void)pChannel; (void)pMsg;
+    (void)pMsg;
+
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
 
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_query_short_channel_ids_t msg;
@@ -425,7 +437,10 @@ bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_qu
 
 bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)pChannel;
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
 
     ln_msg_reply_short_channel_ids_end_t msg;
     ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len);
@@ -435,9 +450,19 @@ bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const ui
 
 bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, uint32_t Num)
 {
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
+
     ln_msg_query_channel_range_t msg;
     msg.p_chain_hash = ln_genesishash_get();
     msg.first_blocknum = FirstBlock;
+    uint64_t last_block = (uint64_t)FirstBlock + (uint64_t)Num - 1;
+    if (last_block > UINT32_MAX) {
+        Num = UINT32_MAX - FirstBlock + 1;
+        LOGD("auto ranging: number_of_blocks=%" PRIu32 "\n", Num);
+    }
     msg.number_of_blocks = Num;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_query_channel_range_write(&buf, &msg)) return false;
@@ -449,6 +474,11 @@ bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, ui
 
 bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGD("through: not gossip_queries\n");
+        return true;
+    }
+
     ln_msg_query_channel_range_t msg;
     ln_msg_query_channel_range_read(&msg, pData, Len);
     return ln_reply_channel_range_send(pChannel, &msg);
@@ -457,12 +487,16 @@ bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
 
 bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_channel_range_t *pMsg)
 {
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
+
 #warning GQUERY TEST(no channel data)
-    (void)pChannel; (void)pMsg;
     ln_msg_reply_channel_range_t msg;
     msg.p_chain_hash = pMsg->p_chain_hash;
-    msg.first_blocknum = 0;
-    msg.number_of_blocks = 0;
+    msg.first_blocknum = pMsg->first_blocknum;
+    msg.number_of_blocks = pMsg->number_of_blocks;
     msg.complete = 1;
     //encoded_short_ids need encode type
     uint8_t zero = LN_GOSSIPQUERY_ENCODE_NONE;
@@ -478,7 +512,11 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
 
 bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)pChannel;
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
+
     ln_msg_reply_channel_range_t msg;
     bool ret = ln_msg_reply_channel_range_read(&msg, pData, Len);
     if (ret) {
@@ -500,14 +538,30 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
 
 bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
 {
-    (void)pChannel;
-    return false;
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGE("fail: not gossip_queries\n");
+        return false;
+    }
+
+    ln_msg_gossip_timestamp_filter_t msg;
+    msg.p_chain_hash = ln_genesishash_get();
+    msg.first_timestamp = (uint32_t)utl_time_time();
+    msg.timestamp_range = UINT32_MAX;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_gossip_timestamp_filter_write(&buf, &msg)) return false;
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
 bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)pChannel;
+    if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
+        LOGD("through: not gossip_queries\n");
+        return true;
+    }
+
     ln_msg_gossip_timestamp_filter_t msg;
     ln_msg_gossip_timestamp_filter_read(&msg, pData, Len);
     return true;

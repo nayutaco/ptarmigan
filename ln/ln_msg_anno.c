@@ -1008,7 +1008,9 @@ static void gossip_timestamp_filter_print(const ln_msg_gossip_timestamp_filter_t
     LOGD("-[gossip_timestamp_filter]-------------------------------\n");
     LOGD("chain_hash: ");
     DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
-    LOGD("first_timestamp: %" PRIu32 "\n", pMsg->first_timestamp);
+    char str_time[UTL_SZ_TIME_FMT_STR + 1];
+    (void)utl_time_fmt(str_time, pMsg->first_timestamp);
+    LOGD("first_timestamp: %" PRIu32 "(%s)\n", pMsg->first_timestamp, str_time);
     LOGD("timestamp_range: %" PRIu32 "\n", pMsg->timestamp_range);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
