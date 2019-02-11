@@ -599,6 +599,8 @@ typedef struct {
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
                                                         //      commit_tx_local:  revoke_and_ack送信後、commit_tx_local.commit_num - 1を代入
                                                         //      commit_tx_remote: revoke_and_ack受信後、pChannel->commit_tx_remote.commit_num - 1を代入
+    uint64_t            local_msat;
+    uint64_t            remote_msat;
 } ln_commit_tx_t;
 
 
@@ -654,11 +656,9 @@ struct ln_channel_t {
 
     //msg:normal operation
     uint64_t                    htlc_id_num;                    ///< [NORM_01]update_add_htlcで使うidの管理
-    uint64_t                    local_msat;                     ///< [NORM_02]自分の持ち分
-    uint64_t                    remote_msat;                    ///< [NORM_03]相手の持ち分
-    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_04]channel_id
-    uint64_t                    short_channel_id;               ///< [NORM_05]short_channel_id
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
+    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
+    uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
+    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_04]追加したHTLC
 
     //commitment transaction(local/remote)
     ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用

@@ -1102,21 +1102,24 @@ bool ln_status_is_closing(const ln_channel_t *pChannel)
 
 uint64_t ln_local_msat(const ln_channel_t *pChannel)
 {
-    return pChannel->local_msat;
+    //XXX: need to consider the uncommitted offered HTLCs
+    return pChannel->commit_tx_remote.remote_msat; //remote's remote -> local
 }
 
 
 uint64_t ln_remote_msat(const ln_channel_t *pChannel)
 {
-    return pChannel->remote_msat;
+    //XXX: need to consider the uncommitted offered HTLCs
+    return pChannel->commit_tx_remote.local_msat; //remote's local -> remote
 }
 
 
 uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
 {
+    //XXX: need to consider the uncommitted offered HTLCs
     uint64_t remote_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat);
-    if (pChannel->local_msat > remote_reserve_msat) {
-        return pChannel->local_msat - remote_reserve_msat;
+    if (pChannel->commit_tx_remote.remote_msat > remote_reserve_msat) { //remote's remote -> local
+        return pChannel->commit_tx_remote.remote_msat - remote_reserve_msat;
     } else {
         return 0;
     }
@@ -1125,9 +1128,10 @@ uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
 
 uint64_t ln_remote_payable_msat(const ln_channel_t *pChannel)
 {
+    //XXX: need to consider the uncommitted offered HTLCs
     uint64_t local_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_local.channel_reserve_sat);
-    if (pChannel->remote_msat > local_reserve_msat) {
-        return pChannel->remote_msat - local_reserve_msat;
+    if (pChannel->commit_tx_local.remote_msat > local_reserve_msat) { //local's remote -> remote
+        return pChannel->commit_tx_local.remote_msat - local_reserve_msat;
     } else {
         return 0;
     }
