@@ -972,7 +972,7 @@ bool ln_db_channel_save(const ln_channel_t *pChannel)
         }
     }
     if (retval != 0) {
-        LOGE("fail through: channel_id is 0\n");
+        LOGD("through: channel_id is 0\n");
         return true;
     }
 
@@ -2456,7 +2456,7 @@ bool ln_db_routeskip_work(bool bWork)
                 retval_put = mdb_put(db.txn, db.dbi, &key, &data, 0);
             }
             if (retval_put != 0) {
-                LOGD("fail through: mdb_put(%s)\n", mdb_strerror(retval_put));
+                LOGD("through: mdb_put(%s)\n", mdb_strerror(retval_put));
             }
         }
     }
@@ -4400,6 +4400,9 @@ static int annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pT
                 data.mv_size -= sizeof(uint32_t);
             } else {
                 //channel_announcementにtimestampは無い
+                if (pTimeStamp != NULL) {
+                    *pTimeStamp = 0;
+                }
             }
             utl_buf_alloccopy(pBuf, pData, data.mv_size);
         } else {

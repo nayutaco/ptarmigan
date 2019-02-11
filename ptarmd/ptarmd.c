@@ -193,6 +193,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     load_channel_settings();
     btcrpc_set_creationhash(ln_creationhash_get());
     set_channels();
+    lnapp_init();
 
     //接続待ち受け用
     pthread_t th_svr;

@@ -164,7 +164,6 @@ TEST_F(ln, init_recv_ok)
     LnInit(&channel);
 
     static bool b_called;
-    static bool b_initial_routing_sync;
     class dummy {
     public:
         static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
@@ -176,7 +175,6 @@ TEST_F(ln, init_recv_ok)
             (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
-                b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
@@ -188,7 +186,6 @@ TEST_F(ln, init_recv_ok)
     ASSERT_EQ(0x00, channel.lfeature_remote);
     ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
     ASSERT_TRUE(b_called);
-    ASSERT_FALSE(b_initial_routing_sync);
 }
 
 
@@ -198,7 +195,6 @@ TEST_F(ln, init_recv_fail)
     LnInit(&channel);
 
     static bool b_called;
-    static bool b_initial_routing_sync;
     class dummy {
     public:
         // static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
@@ -208,7 +204,6 @@ TEST_F(ln, init_recv_fail)
             (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
-                b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
@@ -227,7 +222,6 @@ TEST_F(ln, init_recv_gf1)
     LnInit(&channel);
 
     static bool b_called;
-    static bool b_initial_routing_sync;
     static uint8_t gf;
     class dummy {
     public:
@@ -241,7 +235,6 @@ TEST_F(ln, init_recv_gf1)
             (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
-                b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
@@ -254,7 +247,6 @@ TEST_F(ln, init_recv_gf1)
         channel.init_flag = 0;
         channel.lfeature_remote = 0;
         b_called = false;
-        b_initial_routing_sync = false;
 
         //odd bits(7, 5, 3, 1)
         //          abcd
@@ -265,7 +257,6 @@ TEST_F(ln, init_recv_gf1)
         ASSERT_EQ(0x00, channel.lfeature_remote);
         ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
         ASSERT_TRUE(b_called);
-        ASSERT_FALSE(b_initial_routing_sync);
     }
 }
 
@@ -276,7 +267,6 @@ TEST_F(ln, init_recv_gf2)
     LnInit(&channel);
 
     static bool b_called;
-    static bool b_initial_routing_sync;
     static uint8_t gf;
     class dummy {
     public:
@@ -289,7 +279,6 @@ TEST_F(ln, init_recv_gf2)
             (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
-                b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
@@ -302,7 +291,6 @@ TEST_F(ln, init_recv_gf2)
         channel.init_flag = 0;
         channel.lfeature_remote = 0;
         b_called = false;
-        b_initial_routing_sync = false;
 
         //even bits(6, 4, 2, 0)
         //          abcd
@@ -313,7 +301,6 @@ TEST_F(ln, init_recv_gf2)
         ASSERT_EQ(0x00, channel.lfeature_remote);
         ASSERT_EQ(0, channel.init_flag);
         ASSERT_FALSE(b_called);
-        ASSERT_FALSE(b_initial_routing_sync);
     }
 }
 
@@ -324,7 +311,6 @@ TEST_F(ln, init_recv_lf1)
     LnInit(&channel);
 
     static bool b_called;
-    static bool b_initial_routing_sync;
     static uint8_t lf;
     class dummy {
     public:
@@ -338,7 +324,6 @@ TEST_F(ln, init_recv_lf1)
             (void)pChannel;
             if (type == LN_CB_INIT_RECV) {
                 b_called = true;
-                b_initial_routing_sync = *(bool *)p_param;
             }
         }
     };
@@ -351,7 +336,6 @@ TEST_F(ln, init_recv_lf1)
         channel.init_flag = 0;
         channel.lfeature_remote = 0;
         b_called = false;
-        b_initial_routing_sync = false;
 
         //odd bits(7, 5, 3, 1)
         //          abcd
@@ -362,65 +346,5 @@ TEST_F(ln, init_recv_lf1)
         ASSERT_EQ(lf, channel.lfeature_remote);
         ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
         ASSERT_TRUE(b_called);
-        bool initsync = ((lp & 0x02) << 2) != 0;
-        ASSERT_EQ(initsync, b_initial_routing_sync);
-    }
-}
-
-
-TEST_F(ln, init_recv_lf2)
-{
-    ln_channel_t channel;
-    LnInit(&channel);
-
-    static bool b_called;
-    static bool b_initial_routing_sync;
-    static uint8_t lf;
-    class dummy {
-    public:
-        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
-            pMsg->gflen = 0;
-            pMsg->lflen = 1;
-            pMsg->p_localfeatures = &lf;
-            return true;
-        }
-        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
-            (void)pChannel;
-            if (type == LN_CB_INIT_RECV) {
-                b_called = true;
-                b_initial_routing_sync = *(bool *)p_param;
-            }
-        }
-    };
-    channel.p_callback = dummy::callback;
-    ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
-
-    bool ret;
-    
-    for (int lp = 1; lp <= 0x0f; lp++) {
-        channel.init_flag = 0;
-        channel.lfeature_remote = 0;
-        b_called = false;
-        b_initial_routing_sync = false;
-
-        //even bits(6, 4, 2, 0)
-        //          abcd
-        //      0a0b0c0d
-        lf = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
-        ret = ln_init_recv(&channel, NULL, 0);
-        if (lf == 0x01) {
-            //option_data_loss_protect
-            ASSERT_TRUE(ret);
-            ASSERT_EQ(lf, channel.lfeature_remote);
-            ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
-            ASSERT_TRUE(b_called);
-            ASSERT_FALSE(b_initial_routing_sync);
-        } else {
-            ASSERT_FALSE(ret);
-            ASSERT_EQ(0x00, channel.lfeature_remote);
-            ASSERT_EQ(0, channel.init_flag);
-            ASSERT_FALSE(b_called);
-            ASSERT_FALSE(b_initial_routing_sync);
-        }
     }
 }

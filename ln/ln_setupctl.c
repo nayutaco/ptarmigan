@@ -116,7 +116,6 @@ bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool b
 bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
-    bool initial_routing_sync = false;
 
     if (pChannel->init_flag & M_INIT_FLAG_RECV) {
         //TODO: multiple init error
@@ -140,22 +139,19 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
 
     pChannel->lfeature_remote = 0x00;
     if (msg.lflen) {
-        //check
-        for (uint32_t lp = 0; lp < msg.lflen; lp++) {
-            if (lp == 0) {
-                //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
-                //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
-                //  bit0/1 : option_data_loss_protect
-                //  bit3   : initial_routing_sync
-                //  bit4/5 : option_upfront_shutdown_script
-                //  bit6/7 : gossip_queries
-                uint8_t flag = (msg.p_localfeatures[lp] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
-                if (flag & 0x55) { //even bits
-                    LOGE("fail: unknown bit(localfeatures)\n");
-                    goto LABEL_EXIT;
-                }
-                initial_routing_sync = (msg.p_localfeatures[lp] & LN_INIT_LF_ROUTE_SYNC);
-            } else if (msg.p_localfeatures[lp] & 0x55) { //even bits
+        //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
+        //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
+        //  bit0 : option_data_loss_protect
+        //  bit2 : (none)
+        //  bit4 : option_upfront_shutdown_script
+        //  bit6 : gossip_queries
+        if (msg.p_localfeatures[0] & (LN_INIT_LF_OPT_UPF_SHDN_REQ | LN_INIT_LF_OPT_GSP_QUERY_REQ)) { //even bits
+            LOGE("fail: unknown bit(localfeatures)\n");
+            goto LABEL_EXIT;
+        }
+
+        for (uint32_t lp = 1; lp < msg.lflen; lp++) {
+            if (msg.p_localfeatures[lp] & 0x55) { //even bits
                 LOGE("fail: unknown bit(localfeatures)\n");
                 goto LABEL_EXIT;
             }
@@ -163,9 +159,16 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
         pChannel->lfeature_remote = msg.p_localfeatures[0];
     }
 
+    //gossip_queries
+    if ( (pChannel->lfeature_local & LN_INIT_LF_OPT_GSP_QUERIES) &&
+         (pChannel->lfeature_remote & LN_INIT_LF_OPT_GSP_QUERIES) ) {
+        //gossip_queries negotiate
+        pChannel->init_flag |= M_INIT_GOSSIP_QUERY;
+    }
+
     pChannel->init_flag |= M_INIT_FLAG_RECV;
 
-    ln_callback(pChannel, LN_CB_INIT_RECV, &initial_routing_sync);
+    ln_callback(pChannel, LN_CB_INIT_RECV, NULL);
 
     ret = true;
 

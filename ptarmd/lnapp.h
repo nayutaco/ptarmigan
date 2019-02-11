@@ -91,13 +91,18 @@ typedef struct lnapp_conf_t {
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocol handshakeのinitiator
     uint8_t         node_id[BTC_SZ_PUBKEY];     ///< 接続先(initiator==true時)
-    ptarmd_routesync_t  routesync;              ///< initial_routing_sync
+    
+    //routing_sync
+    ptarmd_routesync_t  routesync;              ///< local routing_sync
+    uint32_t            firstblock;             ///< [query/reply_channel_range]
+    uint32_t            lastblock;              ///< [query/reply_channel_range]
+    uint32_t            firsttimestamp;         ///< [gossip_timestamp_filter]
+    uint32_t            lasttimestamp;          ///< [gossip_timestamp_filter]
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
     ln_channel_t    *p_channel;             ///< channelのコンテキスト
 
-    bool            initial_routing_sync;   ///< init.localfeaturesのinitial_routing_sync
     int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
 
     bool            funding_waiting;        ///< true:funding_txの安定待ち
@@ -140,6 +145,9 @@ typedef struct lnapp_conf_t {
 /********************************************************************
  * prototypes
  ********************************************************************/
+
+void lnapp_init(void);
+
 
 /** [lnapp]開始
  *

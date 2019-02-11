@@ -115,7 +115,7 @@ extern "C" {
 // revoked transaction closeされたときの pChannel->p_revoked_vout, p_revoked_witのインデックス値
 #define LN_RCLOSE_IDX_TO_LOCAL           (0)         ///< to_local
 #define LN_RCLOSE_IDX_TO_REMOTE          (1)         ///< to_remote
-#define LN_RCLOSE_IDX_HTLC              (2)         ///< HTLC
+#define LN_RCLOSE_IDX_HTLC               (2)         ///< HTLC
 
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
                                                     ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
@@ -128,7 +128,7 @@ extern "C" {
 #define LN_INIT_LF_OPT_UPF_SHDN         (1 << 5)    ///< option_upfront_shutdown_script
 #define LN_INIT_LF_OPT_GSP_QUERY_REQ    (1 << 6)    ///< gossip_queries
 #define LN_INIT_LF_OPT_GSP_QUERY        (1 << 7)    ///< gossip_queries
-
+#define LN_INIT_LF_OPT_GSP_QUERIES      (LN_INIT_LF_OPT_GSP_QUERY_REQ | LN_INIT_LF_OPT_GSP_QUERY)
 
 //XXX:
 #define LN_MAX_ACCEPTED_HTLCS_MAX       (483)
@@ -384,7 +384,9 @@ typedef struct {
 /// @{
 
 /** @struct     ln_anno_prm_t
- *  @brief      announce関連のパラメータ
+ *  @brief      announcement parameter
+ *  @note
+ *      - lnapp has default parameter(initialize on node startup)
  */
 typedef struct {
     //channel_update
@@ -1195,6 +1197,9 @@ uint32_t ln_last_conf_get(const ln_channel_t *pChannel);
 
 
 void ln_last_conf_set(ln_channel_t *pChannel, uint32_t Conf);
+
+
+bool ln_announcement_is_gossip_query(const ln_channel_t *pChannel);
 
 
 /** initial_routing_sync動作が必要かどうか

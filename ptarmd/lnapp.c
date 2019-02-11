@@ -245,6 +245,13 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
  * public functions
  ********************************************************************/
 
+void lnapp_init(void)
+{
+    //announcementデフォルト値
+    load_announce_settings();
+}
+
+
 void lnapp_start(lnapp_conf_t *pAppConf)
 {
     pthread_create(&pAppConf->th, NULL, &thread_main_start, pAppConf);
@@ -488,8 +495,6 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     bool ret;
     ln_channel_t *p_channel = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
 
-    //announcementデフォルト値
-    load_announce_settings();
     ln_init(p_channel, &mAnnoPrm, NULL);
 
     ret = ln_node_search_channel(p_channel, pNodeId);
@@ -685,7 +690,6 @@ static void *thread_main_start(void *pArg)
     bool ret;
     int retval;
     bool detect;
-    bool isync;
     bool b_channelreestablished = false;
 
     LOGD("[THREAD]ln_channel_t initialize\n");
@@ -694,8 +698,6 @@ static void *thread_main_start(void *pArg)
     ln_channel_t *p_channel = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
 
     p_channel->p_param = p_conf;
-
-    load_announce_settings();
 
     //スレッド
     pthread_t   th_recv;        //peer受信
@@ -719,6 +721,12 @@ static void *thread_main_start(void *pArg)
     LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
     LIST_INIT(&p_conf->pong_head);
+
+    //gossip
+    p_conf->firstblock = 0;
+    p_conf->lastblock = 0;
+    p_conf->firsttimestamp = 0;
+    p_conf->lasttimestamp = 0;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -803,13 +811,6 @@ static void *thread_main_start(void *pArg)
     } else {
         LOGE("fail: exchange init\n");
         goto LABEL_JOIN;
-    }
-
-    isync = ln_need_init_routing_sync(p_channel);
-    if (isync) {
-        //annoinfo情報削除(node_id指定)
-        LOGD("initial_routing_sync ON\n");
-        ln_db_annoinfos_del(p_conf->node_id);
     }
 
     //送金先
@@ -1210,7 +1211,6 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
  */
 static bool exchange_init(lnapp_conf_t *p_conf)
 {
-    LOGD("$$$ initial_routing_sync=%s\n", ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"));
     if (!ln_init_send(p_conf->p_channel, p_conf->routesync == PTARMD_ROUTESYNC_INIT, true)) {
         LOGE("fail: create\n");
         return false;
@@ -1224,6 +1224,34 @@ static bool exchange_init(lnapp_conf_t *p_conf)
         count--;
     }
     LOGD("loop:%d, count:%d, flag_recv=%02x\n", p_conf->loop, count, p_conf->flag_recv);
+
+    bool del_sendinfo;
+    if (ln_announcement_is_gossip_query(p_conf->p_channel)) {
+        LOGD("$$$ gossip_queries\n");
+        del_sendinfo = true;
+    } else {
+        del_sendinfo = ln_need_init_routing_sync(p_conf->p_channel);
+        LOGD("$$$ initial_routing_sync local=%s, remote=%s\n",
+            ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"),
+            (del_sendinfo) ? "YES" : "no");
+        if (del_sendinfo) {
+            //send all range
+            p_conf->lastblock = UINT32_MAX;
+        } else {
+            //only new received
+            p_conf->firsttimestamp = (uint32_t)utl_time_time();
+        }
+        p_conf->lasttimestamp = UINT32_MAX;
+    }
+    if (del_sendinfo) {
+        //annoinfo情報削除(node_id指定)
+        //  gossip_queries: timestamp filter
+        //  initial_routing_sync: all
+        LOGD("remove announcement sent info\n");
+        ln_db_annoinfos_del(p_conf->node_id);
+    }
+
+
     return p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) != 0);
 }
 
@@ -1365,7 +1393,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
             LOGE("fail: open_channel\n");
         }
     } else {
-        LOGE("fail through: check_unspent: ");
+        LOGD("through: check_unspent: ");
         TXIDD(pFunding->txid);
     }
 
@@ -2159,8 +2187,6 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
-
-    p_conf->initial_routing_sync = *(bool *)p_param;
 
     //init受信待ち合わせ解除(*1)
     p_conf->flag_recv |= RECV_MSG_INIT;
@@ -3625,6 +3651,7 @@ static void show_channel_connonly(const lnapp_conf_t *pAppConf, cJSON *result)
     utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
 }
+
 
 /** ln_channel_t内容表示(デバッグ用)
  *

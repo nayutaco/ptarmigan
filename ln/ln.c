@@ -1203,6 +1203,12 @@ void ln_last_conf_set(ln_channel_t *pChannel, uint32_t Conf)
 }
 
 
+bool ln_announcement_is_gossip_query(const ln_channel_t *pChannel)
+{
+    return pChannel->init_flag & M_INIT_GOSSIP_QUERY;
+}
+
+
 bool ln_need_init_routing_sync(const ln_channel_t *pChannel)
 {
     return pChannel->lfeature_remote & LN_INIT_LF_ROUTE_SYNC;

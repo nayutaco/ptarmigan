@@ -125,6 +125,10 @@ static void init_print(const ln_msg_init_t *pMsg)
     DUMPD(pMsg->p_globalfeatures, pMsg->gflen);
     LOGD("localfeatures: ");
     DUMPD(pMsg->p_localfeatures, pMsg->lflen);
+    LOGD("  option_data_loss_protect:       %d\n", (pMsg->p_localfeatures[0] & 0x03));
+    LOGD("  initial_routing_sync:           %d\n", (pMsg->p_localfeatures[0] & 0x0c) >> 2);
+    LOGD("  option_upfront_shutdown_script: %d\n", (pMsg->p_localfeatures[0] & 0x30) >> 4);
+    LOGD("  gossip_queries:                 %d\n", (pMsg->p_localfeatures[0] & 0xc0) >> 6);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
