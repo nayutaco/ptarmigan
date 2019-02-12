@@ -68,7 +68,15 @@ endif
 ifeq ($(JDK_HOME),)
     $(error You must set JDK_COMPILE in options.mak.)
 endif
-USE_SPV_JVM = -L$(JDK_HOME)/jre/lib/$(JDK_CPU)
+SPV_JAR_PATH = $(JDK_HOME)/jre/lib/$(JDK_CPU)
+USE_SPV_JVM = -L$(SPV_JAR_PATH)
+JVM_PATH = $(SPV_JAR_PATH)/libjvm.so
+JAR_EXISTS = $(shell ls $(JVM_PATH) | grep $(JVM_PATH))
+#$(info $(JVM_PATH))
+#$(info $(JAR_EXISTS))
+ifneq ($(JAR_EXISTS),$(JVM_PATH))
+    $(error  libjvm.so not found.)
+endif
 endif
 
 ifneq ($(NODESET),1)
