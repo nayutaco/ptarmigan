@@ -168,7 +168,7 @@ bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash,
     ret = mbedtls_ecdsa_read_signature((mbedtls_ecdsa_context *)&keypair,
                 pTxHash, BTC_SZ_HASH256, pSig, Len - 1);
     if (ret) {
-        LOGE("fail vefiry sig\n");
+        LOGE("fail verify sig\n");
         goto LABEL_EXIT;
     }
 
