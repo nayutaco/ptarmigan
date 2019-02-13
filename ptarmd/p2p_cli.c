@@ -53,14 +53,15 @@
  * macros
  ********************************************************************/
 
-#define SZ_SOCK_CLIENT_MAX          MAX_CHANNELS        ///< 接続可能max(client)
+#define M_SOCK_CLIENT_MAX           MAX_CHANNELS                ///< 接続可能max(client)
+#define M_TIMEOUT_MSEC              (TM_WAIT_CONNECT * 1000)    ///< poll timeout[msec]
 
 
 /********************************************************************
  * static variables
  ********************************************************************/
 
-static lnapp_conf_t     mAppConf[SZ_SOCK_CLIENT_MAX];
+static lnapp_conf_t     mAppConf[M_SOCK_CLIENT_MAX];
 
 static peer_conn_t mLastPeerConn;
 pthread_mutex_t mMuxLastPeerConn = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -91,7 +92,7 @@ bool p2p_cli_connect_test(const char *pIpAddr, uint16_t Port)
 
     int sock = socket(PF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        LOGD("socket\n");
+        LOGE("socket\n");
         goto LABEL_EXIT;
     }
 
@@ -100,7 +101,12 @@ bool p2p_cli_connect_test(const char *pIpAddr, uint16_t Port)
     sv_addr.sin_addr.s_addr = inet_addr(pIpAddr);
     sv_addr.sin_port = htons(Port);
     errno = 0;
-    ret = (connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr)) == 0);
+    int retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    int bak_errno = errno;
+    if (retval) {
+        LOGE("connect: %s\n", strerror(bak_errno));
+    }
+    ret = (retval == 0);
 
 LABEL_EXIT:
     close(sock);
@@ -134,14 +140,14 @@ bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
         }
     }
     if (idx >= (int)ARRAY_SIZE(mAppConf)) {
-        LOGD("client full\n");
+        LOGE("client full\n");
         *pErrCode = RPCERR_FULLCLI;
         goto LABEL_EXIT;
     }
 
     mAppConf[idx].sock = socket(PF_INET, SOCK_STREAM, 0);
     if (mAppConf[idx].sock < 0) {
-        LOGD("socket\n");
+        LOGE("socket\n");
         *pErrCode = RPCERR_SOCK;
         goto LABEL_EXIT;
     }
@@ -158,15 +164,15 @@ bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
         struct pollfd fds;
         fds.fd = mAppConf[idx].sock;
         fds.events = POLLIN | POLLOUT;
-        int polr = poll(&fds, 1, TM_WAIT_CONNECT * 1000);
+        int polr = poll(&fds, 1, M_TIMEOUT_MSEC);
         if (polr > 0) {
             ret = 0;
         } else {
-            LOGD("poll: %s\n", strerror(errno));
+            LOGE("poll: %s\n", strerror(errno));
         }
     }
     if (ret < 0) {
-        LOGD("connect: %s\n", strerror(errno));
+        LOGE("connect: %s\n", strerror(errno));
         *pErrCode = RPCERR_CONNECT;
         close(mAppConf[idx].sock);
         mAppConf[idx].sock = -1;
@@ -217,7 +223,7 @@ LABEL_EXIT:
 
 void p2p_cli_stop_all(void)
 {
-    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             lnapp_stop(&mAppConf[lp]);
         }
@@ -229,7 +235,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
 {
     lnapp_conf_t *p_appconf = NULL;
     int lp;
-    for (lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+    for (lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY) == 0)) {
             //LOGD("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
@@ -244,7 +250,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
 lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf = NULL;
-    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
             //LOGD("found: client[%016" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
@@ -260,7 +266,7 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 int p2p_cli_connected_peer(void)
 {
     int cnt = 0;
-    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         if (lnapp_is_looping(&mAppConf[lp])) {
             cnt++;
         }
@@ -271,7 +277,7 @@ int p2p_cli_connected_peer(void)
 
 void p2p_cli_show_channel(cJSON *pResult)
 {
-    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         lnapp_show_channel(&mAppConf[lp], pResult, "client");
     }
 }
@@ -282,7 +288,7 @@ bool p2p_cli_is_looping(void)
     bool ret = false;
     int connects = 0;
 
-    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             connects++;
             ret = lnapp_is_looping(&mAppConf[lp]);
@@ -322,4 +328,3 @@ bool p2p_cli_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId)
 
     return ret;
 }
-
