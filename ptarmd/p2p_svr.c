@@ -50,14 +50,15 @@
  * macros
  ********************************************************************/
 
-#define SZ_SOCK_SERVER_MAX          MAX_CHANNELS        ///< 接続可能max(server)
+#define M_SOCK_SERVER_MAX           MAX_CHANNELS        ///< 接続可能max(server)
+#define M_TIMEOUT_MSEC              (500)               ///< poll timeout[msec]
 
 
 /********************************************************************
  * static variables
  ********************************************************************/
 
-static lnapp_conf_t     mAppConf[SZ_SOCK_SERVER_MAX];
+static lnapp_conf_t     mAppConf[M_SOCK_SERVER_MAX];
 volatile bool           mLoop = true;
 
 
@@ -88,21 +89,21 @@ void *p2p_svr_start(void *pArg)
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        LOGD("socket error: %s\n", strerror(errno));
+        LOGE("socket error: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     int optval = 1;
 
     ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     if (ret < 0) {
-        LOGD("setsockopt: %s\n", strerror(errno));
+        LOGE("setsockopt: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
 
     socklen_t optlen = sizeof(optval);
     ret = getsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, &optlen);
     if (ret < 0) {
-        LOGD("getsokopt: %s\n", strerror(errno));
+        LOGE("getsokopt: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fcntl(sock, F_SETFL, O_NONBLOCK);
@@ -113,12 +114,12 @@ void *p2p_svr_start(void *pArg)
     sv_addr.sin_port = htons(ln_node_addr()->port);
     ret = bind(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
-        LOGD("bind: %s\n", strerror(errno));
+        LOGE("bind: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     ret = listen(sock, 1);
     if (ret < 0) {
-        LOGD("listen: %s\n", strerror(errno));
+        LOGE("listen: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fprintf(stderr, "listening...\n");
@@ -127,7 +128,7 @@ void *p2p_svr_start(void *pArg)
     while (mLoop) {
         fds.fd = sock;
         fds.events = POLLIN;
-        int polr = poll(&fds, 1, 500);
+        int polr = poll(&fds, 1, M_TIMEOUT_MSEC);
         if (polr < 0) {
             LOGD("poll: %s\n", strerror(errno));
             continue;
@@ -149,7 +150,7 @@ void *p2p_svr_start(void *pArg)
             //fprintf(stderr, "accept...\n");
             mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
             if (mAppConf[idx].sock < 0) {
-                LOGD("accept: %s\n", strerror(errno));
+                LOGE("accept: %s\n", strerror(errno));
                 goto LABEL_EXIT;
             }
 
@@ -167,7 +168,7 @@ void *p2p_svr_start(void *pArg)
             //空き無し
             int delsock = accept(sock, NULL, NULL);
             close(delsock);
-            LOGD("no empty socket\n");
+            LOGE("no empty socket\n");
         }
     }
 
@@ -184,7 +185,7 @@ LABEL_EXIT:
 
 void p2p_svr_stop_all(void)
 {
-    for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             lnapp_stop(&mAppConf[lp]);
         }
@@ -197,7 +198,7 @@ lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId)
 {
     lnapp_conf_t *p_appconf = NULL;
     int lp;
-    for (lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+    for (lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY) == 0)) {
             //LOGD("found: server %d\n", lp);
             p_appconf = &mAppConf[lp];
@@ -212,7 +213,7 @@ lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId)
 lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf = NULL;
-    for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
             //LOGD("found: server[%016" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
@@ -228,7 +229,7 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
 int p2p_svr_connected_peer(void)
 {
     int cnt = 0;
-    for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         if (lnapp_is_looping(&mAppConf[lp])) {
             cnt++;
         }
@@ -239,7 +240,7 @@ int p2p_svr_connected_peer(void)
 
 void p2p_svr_show_channel(cJSON *pResult)
 {
-    for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         lnapp_show_channel(&mAppConf[lp], pResult, "server");
     }
 }
@@ -250,7 +251,7 @@ bool p2p_svr_is_looping(void)
     bool ret = false;
     int connects = 0;
 
-    for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+    for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             connects++;
             ret = lnapp_is_looping(&mAppConf[lp]);
