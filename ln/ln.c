@@ -643,10 +643,15 @@ void ln_shutdown_update_fee(ln_channel_t *pChannel, uint64_t Fee)
 void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void *pDbParam)
 {
     LOGD("BEGIN: status=%d\n", (int)pChannel->status);
-    if ((pChannel->status == LN_STATUS_NORMAL) || (pChannel->status == LN_STATUS_CLOSE_WAIT)) {
-        pChannel->status = LN_STATUS_CLOSE_SPENT;
-        ln_db_channel_save_status(pChannel, pDbParam);
-    } else if (pChannel->status == LN_STATUS_CLOSE_SPENT) {
+    if (pCloseTx == NULL) {
+        //funding_tx isn't mining
+        if ( (pChannel->status == LN_STATUS_NORMAL) ||
+             (pChannel->status == LN_STATUS_CLOSE_WAIT) ) {
+            pChannel->status = LN_STATUS_CLOSE_SPENT;
+            ln_db_channel_save_status(pChannel, pDbParam);
+        }
+    } else {
+        //funding_tx is mined
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
