@@ -101,6 +101,7 @@ test_clean:
 	$(MAKE) -C ptarmd/tests clobber
 	$(MAKE) -C btc/examples clean
 
-test-integration:
+test-integration: test-i
+
 test-i:
 	cd tests/4nodes_test; timeout 200 ./all_test.sh
