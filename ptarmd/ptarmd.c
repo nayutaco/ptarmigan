@@ -522,6 +522,8 @@ const char *ptarmd_error_cstr(int ErrCode)
         { RPCERR_CONNECT,                   "connect" },
         { RPCERR_PEER_ERROR,                "peer error" },
         { RPCERR_OPENING,                   "funding now" },
+        { RPCERR_ADDRESS,                   "invalid address" },
+        { RPCERR_PORTNUM,                   "invalid port number" },
 
         { RPCERR_FUNDING,                   "fail funding" },
 

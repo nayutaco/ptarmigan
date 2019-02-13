@@ -92,6 +92,8 @@ extern "C" {
 #define RPCERR_CONNECT              (-20005)
 #define RPCERR_PEER_ERROR           (-20006)
 #define RPCERR_OPENING              (-20007)
+#define RPCERR_ADDRESS              (-20008)
+#define RPCERR_PORTNUM              (-20009)
 
 #define RPCERR_FUNDING              (-21000)
 
