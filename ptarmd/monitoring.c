@@ -314,7 +314,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
             bool ret = close_unilateral_local_sendreq(&del, p_tx, p_htlctx, num);
             if (ret && (lp == LN_CLOSE_IDX_COMMIT)) {
-                ln_close_change_stat(pChannel, p_tx, pDbParam);
+                ln_close_change_stat(pChannel, NULL, pDbParam);
             }
         }
     }
@@ -483,11 +483,15 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_
             p_list->last_check_confm = 0;
             monchanlist_add(p_list);
         }
+        btc_tx_t *p_tx = NULL;
         ret = btcrpc_search_outpoint(&close_tx, p_prm->confm - p_list->last_check_confm, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+        if (ret) {
+            p_tx = &close_tx;
+        }
         p_list->last_check_confm = p_prm->confm;
         if (ret || (stat == LN_STATUS_NORMAL)) {
             //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
-            ln_close_change_stat(pChannel, &close_tx, p_db_param);
+            ln_close_change_stat(pChannel, p_tx, p_db_param);
             stat = ln_status_get(pChannel);
             const char *p_str = ln_status_string(pChannel);
             ptarmd_eventlog(ln_channel_id(pChannel), "close: %s(%s)", p_str, txid_str);
