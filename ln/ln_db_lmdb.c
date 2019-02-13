@@ -581,6 +581,7 @@ static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_item_load(ln_channel_t *pChannel, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
 static int channel_item_save(const ln_channel_t *pChannel, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
 static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
+static int channel_secret_restore(ln_channel_t *pChannel);
 static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_cursor_close(lmdb_cursor_t *pCur);
 static void channel_addhtlc_dbname(char *pDbName, int num);
@@ -939,17 +940,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //復元データからさらに復元
-    if (!ln_derkey_restore(&pChannel->keys_local, &pChannel->keys_remote)) {
-        retval = -1;
-        LOGE("ERR\n");
-        goto LABEL_EXIT;
-    }
-    if (!btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
-        pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
-        retval = -1;
-        LOGE("ERR\n");
-        goto LABEL_EXIT;
-    }
+    retval = channel_secret_restore(pChannel);
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -4091,6 +4082,25 @@ static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     // LOGD("[priv][%lu] ", lp);
     // DUMPD(pChannel->privkeys.per_commitment_secret, BTC_SZ_PRIVKEY);
 
+    return retval;
+}
+
+
+static int channel_secret_restore(ln_channel_t *pChannel)
+{
+    int retval = 0;
+    if (!ln_derkey_restore(&pChannel->keys_local, &pChannel->keys_remote)) {
+        retval = -1;
+        LOGE("ERR\n");
+        goto LABEL_EXIT;
+    }
+    if (!btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
+        pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
+        retval = -1;
+        LOGE("ERR\n");
+    }
+
+LABEL_EXIT:
     return retval;
 }
 
