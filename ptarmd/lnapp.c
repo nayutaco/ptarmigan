@@ -1734,7 +1734,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     //DBGTRACE_BEGIN
 
     bool ret = ln_status_load(p_conf->p_channel);
-    if (ret && ln_status_is_closing(p_conf->p_channel)) {
+    if (ret && ln_status_is_closed(p_conf->p_channel)) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_channel));
         stop_threads(p_conf);
@@ -2726,13 +2726,13 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;
     bool ret;
-    if (p_fail->malformed_failure == 0) {
+    if (p_fail->fail_malformed_failure_code == 0) {
         // update_fail_htlc
         ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
     } else {
         // update_fail_malformed_htlc
         uint16_t failure_code = utl_int_pack_u16be(p_fail->p_reason->buf);
-        ret = (failure_code == p_fail->malformed_failure);
+        ret = (failure_code == p_fail->fail_malformed_failure_code);
         utl_buf_alloccopy(&reason, p_fail->p_reason->buf, p_fail->p_reason->len);
         hop = 0;
     }
@@ -3661,7 +3661,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
     LOGD("=(%s:%d)=============================================\n", msg, line);
     if (ln_short_channel_id(pChannel)) {
         LOGD("short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(pChannel));
-        LOGD("local_msat:   %" PRIu64 "\n", ln_local_msat(pChannel));
+        LOGD("local_msat:  %" PRIu64 "\n", ln_local_msat(pChannel));
         LOGD("remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
             const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, lp);
@@ -3679,7 +3679,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
         //コンソールログ
         fprintf(fp, "=%s:%d==================\n", msg, line);
         fprintf(fp, "short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(pChannel));
-        fprintf(fp, "local_msat:   %" PRIu64 "\n", ln_local_msat(pChannel));
+        fprintf(fp, "local_msat:  %" PRIu64 "\n", ln_local_msat(pChannel));
         fprintf(fp, "remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
     } else {
         LOGD("no channel\n");

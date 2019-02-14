@@ -98,33 +98,6 @@ static void dbg_htlc_flag_all(const ln_channel_t *pChannel);
 
 
 /**************************************************************************
- * static inline
- **************************************************************************/
-
-static inline const char *dbg_htlc_flag_addhtlc_str(int addhtlc)
-{
-    switch (addhtlc) {
-    case LN_ADDHTLC_NONE: return "NONE";
-    case LN_ADDHTLC_SEND: return "SEND";
-    case LN_ADDHTLC_RECV: return "RECV";
-    default: return "unknown";
-    }
-}
-
-
-static inline const char *dbg_htlc_flag_delhtlc_str(int delhtlc)
-{
-    switch (delhtlc) {
-    case LN_DELHTLC_NONE: return "NONE";
-    case LN_DELHTLC_FULFILL: return "FULFILL";
-    case LN_DELHTLC_FAIL: return "FAIL";
-    case LN_DELHTLC_MALFORMED: return "MALFORMED";
-    default: return "unknown";
-    }
-}
-
-
-/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -234,7 +207,7 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
         uint16_t failure_code = utl_int_pack_u16be(buf_reason.buf);
         if (failure_code & LNERR_ONION_BADONION) {
             //update_fail_malformed_htlc
-            result = LN_CB_ADD_HTLC_RESULT_MALFORMED;
+            result = LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED;
         } else {
             //update_fail_htlc
             result = LN_CB_ADD_HTLC_RESULT_FAIL;
@@ -324,10 +297,10 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
         //折り返しだけAPIが異なる
         ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
         break;
-    case LN_CB_ADD_HTLC_RESULT_MALFORMED:
-        LOGE("fail: will backwind malformed_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_MALFORMED);
-        p_htlc->flags.fin_delhtlc = LN_DELHTLC_MALFORMED;
+    case LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED:
+        LOGE("fail: will backwind fail_malformed_htlc\n");
+        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FAIL_MALFORMED);
+        p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL_MALFORMED;
         utl_buf_free(&p_htlc->buf_onion_reason);
         utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
         break;
@@ -447,7 +420,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = p_htlc->id;     //元のHTLC id
             fail_recv.p_payment_hash = p_htlc->payment_hash;
-            fail_recv.malformed_failure = 0;
+            fail_recv.fail_malformed_failure_code = 0;
             ln_callback(pChannel, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             ret = fail_recv.result;
@@ -795,7 +768,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
         if ( (p_htlc->flags.addhtlc == LN_ADDHTLC_SEND) &&
              (p_htlc->id == msg.id)) {
             //id一致
-            clear_htlc_comrevflag(p_htlc, LN_DELHTLC_MALFORMED);
+            clear_htlc_comrevflag(p_htlc, LN_DELHTLC_FAIL_MALFORMED);
 
             utl_buf_t reason = UTL_BUF_INIT;
             utl_push_t push_rsn;
@@ -811,7 +784,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = p_htlc->id;     //元のHTLC id
             fail_recv.p_payment_hash = p_htlc->payment_hash;
-            fail_recv.malformed_failure = msg.failure_code;
+            fail_recv.fail_malformed_failure_code = msg.failure_code;
             ln_callback(pChannel, LN_CB_FAIL_HTLC_RECV, &fail_recv);
             utl_buf_free(&reason);
 
@@ -1010,7 +983,6 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
-
         LOGD("$$$ resend: previous update message\n");
         int idx;
         for (idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -1028,21 +1000,22 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
                 } else if (LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_htlc\n");
                     fail_htlc_create(pChannel, &buf, idx);
-                } else if (LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(p_htlc)) {
+                } else if (LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(p_htlc)) {
                     LOGD("resend: update_fail_malformed_htlc\n");
                     fail_malformed_htlc_create(pChannel, &buf, idx);
+                } else {
+                    //XXX: resend update_fee
                 }
                 if (buf.len > 0) {
                     p_htlc->flags.comsend = 0;
                     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
                     utl_buf_free(&buf);
                     pChannel->cnl_add_htlc[idx].flags.updsend = 1;
-                    pChannel->commit_tx_remote.commit_num--;
-                    M_DB_CHANNEL_SAVE(pChannel);
                     break;
                 }
             }
         }
+        pChannel->commit_tx_remote.commit_num--;
         if (idx >= LN_HTLC_MAX) {
             LOGE("fail: cannot find HTLC to process\n");
         }
@@ -1127,8 +1100,8 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 
     //送信側が現在のfeerate_per_kwで支払えないようなamount_msatの場合、チャネルを失敗させる。
     //  receiving an amount_msat that the sending node cannot afford at the current feerate_per_kw
-    if (pChannel->remote_msat < p_htlc->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->remote_msat, p_htlc->amount_msat);
+    if (pChannel->commit_tx_local.remote_msat < p_htlc->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_local.remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->commit_tx_local.remote_msat, p_htlc->amount_msat);
         return false;
     }
 
@@ -1544,8 +1517,8 @@ static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc)
 static void clear_htlc(ln_update_add_htlc_t *p_htlc)
 {
     LOGD("DELHTLC=%s, FIN_DELHTLC=%s\n",
-            dbg_htlc_flag_delhtlc_str(p_htlc->flags.delhtlc),
-            dbg_htlc_flag_delhtlc_str(p_htlc->flags.fin_delhtlc));
+            ln_htlc_flags_delhtlc_str(p_htlc->flags.delhtlc),
+            ln_htlc_flags_delhtlc_str(p_htlc->flags.fin_delhtlc));
 
     ln_db_preimage_del(p_htlc->buf_payment_preimage.buf);
     utl_buf_free(&p_htlc->buf_payment_preimage);
@@ -1569,12 +1542,12 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
             ln_htlc_flags_t *p_flags = &p_htlc->flags;
             // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
             //         idx,
-            //         dbg_htlc_flag_addhtlc_str(p_flags->addhtlc),
-            //         dbg_htlc_flag_delhtlc_str(p_flags->delhtlc),
+            //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
+            //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
             //         p_flags->updsend,
             //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
             //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-            //         dbg_htlc_flag_delhtlc_str(p_flags->fin_delhtlc));
+            //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
             if (LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc送信側
                 //pChannel->local_msat -= p_htlc->amount_msat;
@@ -1609,8 +1582,8 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
                 case LN_ADDHTLC_SEND:
                     //DEL_HTLC後: update_add_htlc送信側
                     if (p_flags->delhtlc == LN_DELHTLC_FULFILL) {
-                        pChannel->local_msat -= p_htlc->amount_msat;
-                        pChannel->remote_msat += p_htlc->amount_msat;
+                        //pChannel->local_msat -= p_htlc->amount_msat;
+                        //pChannel->remote_msat += p_htlc->amount_msat;
                     } else if ((p_flags->delhtlc != LN_DELHTLC_NONE) && (p_htlc->prev_short_channel_id != 0)) {
                         LOGD("backward fail_htlc!\n");
 
@@ -1632,8 +1605,8 @@ static void recv_idle_proc_final(ln_channel_t *pChannel)
                 case LN_ADDHTLC_RECV:
                     //DEL_HTLC後: update_add_htlc受信側
                     if (p_flags->delhtlc == LN_DELHTLC_FULFILL) {
-                        pChannel->local_msat += p_htlc->amount_msat;
-                        pChannel->remote_msat -= p_htlc->amount_msat;
+                        //pChannel->local_msat += p_htlc->amount_msat;
+                        //pChannel->remote_msat -= p_htlc->amount_msat;
                     }
                     break;
                 default:
@@ -1682,12 +1655,12 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                 ln_htlc_flags_t *p_flags = &p_htlc->flags;
                 // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
                 //         idx,
-                //         dbg_htlc_flag_addhtlc_str(p_flags->addhtlc),
-                //         dbg_htlc_flag_delhtlc_str(p_flags->delhtlc),
+                //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
+                //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
                 //         p_flags->updsend,
                 //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
                 //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-                //         dbg_htlc_flag_delhtlc_str(p_flags->fin_delhtlc));
+                //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
                 utl_buf_t buf = UTL_BUF_INIT;
                 if (LN_HTLC_WILL_ADDHTLC_SEND(p_htlc)) {
                     //update_add_htlc送信
@@ -1704,7 +1677,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
                         case LN_DELHTLC_FAIL:
                             fail_htlc_create(pChannel, &buf, idx);
                             break;
-                        case LN_DELHTLC_MALFORMED:
+                        case LN_DELHTLC_FAIL_MALFORMED:
                             fail_malformed_htlc_create(pChannel, &buf, idx);
                             break;
                         default:
@@ -1832,16 +1805,16 @@ static bool check_create_add_htlc(
     }
 
     //相手が指定したchannel_reserve_satは残しておく必要あり
-    if (pChannel->local_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "local_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
-                    pChannel->local_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
+    if (pChannel->commit_tx_remote.remote_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
+                    pChannel->commit_tx_remote.remote_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
         goto LABEL_EXIT;
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
-    if (pChannel->local_msat < amount_msat + close_fee_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "local_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
-                    pChannel->local_msat, amount_msat, close_fee_msat);
+    if (pChannel->commit_tx_remote.remote_msat < amount_msat + close_fee_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
+                    pChannel->commit_tx_remote.remote_msat, amount_msat, close_fee_msat);
         goto LABEL_EXIT;
     }
 
@@ -2131,7 +2104,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
 static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags)
 {
     LOGD("        addhtlc=%s, delhtlc=%s\n",
-            dbg_htlc_flag_addhtlc_str(p_flags->addhtlc), dbg_htlc_flag_delhtlc_str(p_flags->delhtlc));
+            ln_htlc_flags_addhtlc_str(p_flags->addhtlc), ln_htlc_flags_delhtlc_str(p_flags->delhtlc));
     LOGD("        updsend=%d\n",
             p_flags->updsend);
     LOGD("        comsend=%d, revrecv=%d\n",
@@ -2139,7 +2112,7 @@ static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags)
     LOGD("        comrecv=%d revsend=%d\n",
             p_flags->comrecv, p_flags->revsend);
     LOGD("        fin_del=%s\n",
-            dbg_htlc_flag_delhtlc_str(p_flags->fin_delhtlc));
+            ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
 }
 
 static void dbg_htlc_flag_all(const ln_channel_t *pChannel)

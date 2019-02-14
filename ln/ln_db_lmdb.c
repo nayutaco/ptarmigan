@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-43))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-44))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -189,6 +189,10 @@
          rm `ln_channel_t::funding_sat`
     -42: rename `our_msat` -> `local_msat` and `their_msat` -> `remote_msat`
     -43: rename `ln_update_add_htlc_t::stat` -> `ln_update_add_htlc_t::flags`
+    -44: rm `ln_channel_t::local_msat`
+         rm `ln_channel_t::remote_msat`
+         add `ln_commit_tx_t::local_msat`
+         add `ln_commit_tx_t::remote_msat`
  */
 
 
@@ -420,11 +424,9 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //norm
     //
     M_ITEM(ln_channel_t, htlc_id_num),          //[NORM_01]
-    M_ITEM(ln_channel_t, local_msat),           //[NORM_02]
-    M_ITEM(ln_channel_t, remote_msat),          //[NORM_03]
-    M_ITEM(ln_channel_t, channel_id),           //[NORM_04]
-    M_ITEM(ln_channel_t, short_channel_id),     //[NORM_05]
-    //[NORM_06]cnl_add_htlc --> HTLC
+    M_ITEM(ln_channel_t, channel_id),           //[NORM_02]
+    M_ITEM(ln_channel_t, short_channel_id),     //[NORM_03]
+    //[NORM_04]cnl_add_htlc --> HTLC
 
     //
     //comm
@@ -440,6 +442,8 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, htlc_output_num),                //[COMM_01]
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, commit_num),                     //[COMM_01]
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, revoke_num),                     //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, local_msat),                     //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, remote_msat),                    //[COMM_01]
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, dust_limit_sat),                //[COMM_02]commit_tx_remote
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, max_htlc_value_in_flight_msat), //[COMM_02]
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, channel_reserve_sat),           //[COMM_02]
@@ -451,6 +455,8 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, htlc_output_num),               //[COMM_02]
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, commit_num),                    //[COMM_02]
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, revoke_num),                    //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, local_msat),                    //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, remote_msat),                   //[COMM_02]
     M_ITEM(ln_channel_t, feerate_per_kw),                                                   //[COMM_03]
 
     //
@@ -482,8 +488,6 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, peer_node_id),
     M_ITEM(ln_channel_t, channel_id),
     M_ITEM(ln_channel_t, short_channel_id),
-    M_ITEM(ln_channel_t, local_msat),
-    M_ITEM(ln_channel_t, remote_msat),
     M_ITEM(ln_channel_t, htlc_id_num),
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),
@@ -491,8 +495,12 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, keys_remote),
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, commit_num),
     MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, revoke_num),
+    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, local_msat),
+    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, remote_msat),
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, commit_num),
     MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, revoke_num),
+    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, local_msat),
+    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, remote_msat),
 };
 
 
@@ -521,8 +529,6 @@ static const struct {
     { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },      // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64X,    1, true },                  // short_channel_id
-    { ETYPE_UINT64U,    1, true },                  // local_msat
-    { ETYPE_UINT64U,    1, true },                  // remote_msat
     { ETYPE_UINT64U,    1, true },                  // htlc_id_num
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_txindex
@@ -530,8 +536,12 @@ static const struct {
     { ETYPE_REMOTEKEYS, 1, false },                 // keys_remote
     { ETYPE_UINT64U,    1, true },                  // commit_tx_local.commit_num
     { ETYPE_UINT64U,    1, true },                  // commit_tx_local.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.local_msat
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.remote_msat
     { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.commit_num
     { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.local_msat
+    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.remote_msat
 };
 
 
@@ -583,7 +593,7 @@ static int channel_item_save(const ln_channel_t *pChannel, const backup_param_t 
 static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_secret_restore(ln_channel_t *pChannel);
 static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
-static void channel_cursor_close(lmdb_cursor_t *pCur);
+static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_addhtlc_dbname(char *pDbName, int num);
 static bool channel_comp_func_cnldel(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable);
@@ -1294,7 +1304,7 @@ bool ln_db_channel_chk_mynode(uint64_t ShortChannelId)
         }
     }
     UTL_DBG_FREE(p_channel);
-    channel_cursor_close(&cur);
+    channel_cursor_close(&cur, false);
     return mynode;
 }
 
@@ -3570,7 +3580,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType)
             retval = -1;
         }
     }
-    MDB_TXN_COMMIT(db.txn);
+    MDB_TXN_ABORT(db.txn);
 
 LABEL_EXIT:
     return retval == 0;
@@ -3712,7 +3722,7 @@ bool ln_db_reset(void)
             }
         }
     }
-    channel_cursor_close(&cur);
+    channel_cursor_close(&cur, true);
 
     //node, annoはディレクトリごと削除
     char cmd[512];
@@ -4137,10 +4147,14 @@ LABEL_EXIT:
  *
  * @param[out]      pCur
  */
-static void channel_cursor_close(lmdb_cursor_t *pCur)
+static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable)
 {
     mdb_cursor_close(pCur->cursor);
-    MDB_TXN_COMMIT(pCur->txn);
+    if (bWritable) {
+        MDB_TXN_COMMIT(pCur->txn);
+    } else {
+        MDB_TXN_ABORT(pCur->txn);
+    }
 }
 
 
@@ -4226,7 +4240,7 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
             }
         }
     }
-    channel_cursor_close(&cur);
+    channel_cursor_close(&cur, bWritable);
     UTL_DBG_FREE(p_channel);
 
 LABEL_EXIT:

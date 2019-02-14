@@ -271,9 +271,6 @@ const char *ln_status_string(const ln_channel_t *pChannel)
     case LN_STATUS_CLOSE_WAIT:
         p_str_stat = "close waiting";
         break;
-    case LN_STATUS_CLOSE_SPENT:
-        p_str_stat = "funding spent";
-        break;
     case LN_STATUS_CLOSE_MUTUAL:
         p_str_stat = "mutual close";
         break;
@@ -643,10 +640,14 @@ void ln_shutdown_update_fee(ln_channel_t *pChannel, uint64_t Fee)
 void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void *pDbParam)
 {
     LOGD("BEGIN: status=%d\n", (int)pChannel->status);
-    if ((pChannel->status == LN_STATUS_NORMAL) || (pChannel->status == LN_STATUS_CLOSE_WAIT)) {
-        pChannel->status = LN_STATUS_CLOSE_SPENT;
-        ln_db_channel_save_status(pChannel, pDbParam);
-    } else if (pChannel->status == LN_STATUS_CLOSE_SPENT) {
+    if (pCloseTx == NULL) {
+        //funding_tx is spent but spent_tx isn't mining
+        if (pChannel->status < LN_STATUS_CLOSE_WAIT) {
+            pChannel->status = LN_STATUS_CLOSE_WAIT;
+            ln_db_channel_save_status(pChannel, pDbParam);
+        }
+    } else {
+        //funding_tx is spent and spent_tx is mined
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
@@ -1095,23 +1096,32 @@ bool ln_status_is_closing(const ln_channel_t *pChannel)
 }
 
 
+bool ln_status_is_closed(const ln_channel_t *pChannel)
+{
+    return pChannel->status > LN_STATUS_CLOSE_WAIT;
+}
+
+
 uint64_t ln_local_msat(const ln_channel_t *pChannel)
 {
-    return pChannel->local_msat;
+    //XXX: need to consider the uncommitted offered HTLCs
+    return pChannel->commit_tx_remote.remote_msat; //remote's remote -> local
 }
 
 
 uint64_t ln_remote_msat(const ln_channel_t *pChannel)
 {
-    return pChannel->remote_msat;
+    //XXX: need to consider the uncommitted offered HTLCs
+    return pChannel->commit_tx_remote.local_msat; //remote's local -> remote
 }
 
 
 uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
 {
+    //XXX: need to consider the uncommitted offered HTLCs
     uint64_t remote_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat);
-    if (pChannel->local_msat > remote_reserve_msat) {
-        return pChannel->local_msat - remote_reserve_msat;
+    if (pChannel->commit_tx_remote.remote_msat > remote_reserve_msat) { //remote's remote -> local
+        return pChannel->commit_tx_remote.remote_msat - remote_reserve_msat;
     } else {
         return 0;
     }
@@ -1120,9 +1130,10 @@ uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
 
 uint64_t ln_remote_payable_msat(const ln_channel_t *pChannel)
 {
+    //XXX: need to consider the uncommitted offered HTLCs
     uint64_t local_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_local.channel_reserve_sat);
-    if (pChannel->remote_msat > local_reserve_msat) {
-        return pChannel->remote_msat - local_reserve_msat;
+    if (pChannel->commit_tx_local.remote_msat > local_reserve_msat) { //local's remote -> remote
+        return pChannel->commit_tx_local.remote_msat - local_reserve_msat;
     } else {
         return 0;
     }

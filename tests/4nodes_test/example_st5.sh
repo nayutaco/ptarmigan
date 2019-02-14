@@ -13,3 +13,19 @@
 # mining
 sleep 3
 ./generate.sh 1
+
+loop=1
+while [ $loop -eq 1 ];
+do
+    loop=0
+    for i in 3333 4444 5555 6666
+    do
+        cnt=`./showdb -d node_$i -s | jq -e 'length'`
+        if [ $cnt -ne 0 ]; then
+            echo node_$i not closed
+            sleep 5
+            loop=1
+            continue
+        fi
+    done
+done

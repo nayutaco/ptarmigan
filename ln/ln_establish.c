@@ -147,8 +147,14 @@ bool /*HIDDEN*/ ln_open_channel_send(
     pChannel->commit_tx_local.channel_reserve_sat = msg.channel_reserve_satoshis;
     pChannel->commit_tx_local.htlc_minimum_msat = msg.htlc_minimum_msat;
     pChannel->commit_tx_local.max_accepted_htlcs = msg.max_accepted_htlcs;
-    pChannel->local_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
-    pChannel->remote_msat = msg.push_msat;
+
+    pChannel->commit_tx_local.local_msat =
+        pChannel->commit_tx_remote.remote_msat =
+        LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
+    pChannel->commit_tx_local.remote_msat =
+        pChannel->commit_tx_remote.local_msat =
+        msg.push_msat;
+
     pChannel->funding_tx.funding_satoshis = msg.funding_satoshis;
     pChannel->feerate_per_kw = msg.feerate_per_kw;
 
@@ -243,8 +249,12 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     //params for funding
     pChannel->funding_tx.funding_satoshis = msg.funding_satoshis;
     pChannel->feerate_per_kw = msg.feerate_per_kw;
-    pChannel->local_msat = msg.push_msat;
-    pChannel->remote_msat = LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
+    pChannel->commit_tx_remote.remote_msat =
+        pChannel->commit_tx_local.local_msat =
+        msg.push_msat;
+    pChannel->commit_tx_remote.local_msat =
+        pChannel->commit_tx_local.remote_msat =
+        LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
     pChannel->fund_flag = (ln_fundflag_t)(((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     //generate keys

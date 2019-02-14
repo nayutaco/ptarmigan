@@ -43,7 +43,7 @@
 #define LN_DELHTLC_NONE                 (0x00)
 #define LN_DELHTLC_FULFILL              (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
 #define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
-#define LN_DELHTLC_MALFORMED            (0x03)      ///< update_fail_malformed_htlc
+#define LN_DELHTLC_FAIL_MALFORMED       (0x03)      ///< update_fail_malformed_htlc
 
 
 /********************************************************************
@@ -57,7 +57,7 @@
  */
 typedef struct {
     unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_SEND/RECV
-    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/MALFORMED
+    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/FAIL_MALFORMED
     unsigned        updsend     : 1;    ///< 1:update message sent
     unsigned        comsend     : 1;    ///< 1:commitment_signed sent
     unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
@@ -106,6 +106,14 @@ typedef struct {
     )
 
 
+//XXX:
+#define LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comrecv == 0) \
+    )
+
+
 /** @def    LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc)
  *  @brief
  *    - commitment_signed受信時、local commit_tx作成に含む
@@ -114,6 +122,14 @@ typedef struct {
     ( \
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) \
+    )
+
+
+//XXX:
+#define LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comrecv == 0) \
     )
 
 
@@ -126,6 +142,14 @@ typedef struct {
     ( \
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) \
+    )
+
+
+//XXX:
+#define LN_HTLC_LOCAL_FULFILL_RECV_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comrecv == 0) \
     )
 
 
@@ -142,6 +166,15 @@ typedef struct {
     )
 
 
+//XXX:
+#define LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comrecv == 0) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) \
+    )
+
+
 /** @def    LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc)
  *  @brief  local commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
@@ -153,6 +186,14 @@ typedef struct {
     )
 
 
+//XXX:
+#define LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comrecv == 0) \
+    )
+
+
 /** @def    LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc)
  *  @brief  local commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
@@ -161,6 +202,14 @@ typedef struct {
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) && \
         ((pHtlc)->flags.revrecv == 1) \
+    )
+
+
+//XXX:
+#define LN_HTLC_LOCAL_FULFILL_SEND_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comrecv == 0) \
     )
 
 
@@ -178,6 +227,15 @@ typedef struct {
     )
 
 
+//XXX:
+#define LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comsend == 0) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) \
+    )
+
+
 /** @def    LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc送信側)
  */
@@ -186,6 +244,14 @@ typedef struct {
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
         ((pHtlc)->flags.delhtlc != LN_DELHTLC_NONE) && \
         ((pHtlc)->flags.revsend == 1) \
+    )
+
+
+//XXX:
+#define LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comsend == 0) \
     )
 
 
@@ -202,6 +268,14 @@ typedef struct {
     )
 
 
+//XXX:
+#define LN_HTLC_REMOTE_FULFILL_SEND_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comsend == 0) \
+    )
+
+
 /** @def    LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc受信側)
  */
@@ -210,6 +284,14 @@ typedef struct {
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->flags.updsend == 0) && \
         ((pHtlc)->flags.revsend == 1) \
+    )
+
+
+//XXX:
+#define LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comsend == 0) \
     )
 
 
@@ -223,6 +305,14 @@ typedef struct {
     )
 
 
+//XXX:
+#define LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comsend == 0) \
+    )
+
+
 /** @def    LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc)
  *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
  */
@@ -231,6 +321,14 @@ typedef struct {
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
         ((pHtlc)->flags.updsend == 1) && \
         ((pHtlc)->flags.delhtlc == LN_DELHTLC_FULFILL) \
+    )
+
+
+//XXX:
+#define LN_HTLC_REMOTE_FULFILL_RECV_ENABLED_UNCOMMITTED(pHtlc) \
+    ( \
+        LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc) && \
+        ((pHtlc)->flags.comsend == 0) \
     )
 
 
@@ -291,70 +389,124 @@ typedef struct {
     )
 
 
-#define LN_HTLC_ADDHTLC_SEND_ENABLED(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc))
+#define LN_HTLC_ADDHTLC_SEND_ENABLED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc))
 
 
-#define LN_HTLC_FULFILL_RECV_ENABLED(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc))
+#define LN_HTLC_DELHTLC_RECV_ENABLED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc))
 
 
-#define LN_HTLC_ADDHTLC_RECV_ENABLED(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc))
+#define LN_HTLC_FULFILL_RECV_ENABLED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_FULFILL_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_FULFILL_RECV_ENABLED(pHtlc))
 
 
-#define LN_HTLC_FULFILL_SEND_ENABLED(pHtlc, b_local) \
-    ((b_local) ? LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc))
+#define LN_HTLC_ADDHTLC_RECV_ENABLED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc))
+
+
+#define LN_HTLC_DELHTLC_SEND_ENABLED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc))
+
+
+#define LN_HTLC_FULFILL_SEND_ENABLED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_FULFILL_SEND_ENABLED(pHtlc) : LN_HTLC_REMOTE_FULFILL_SEND_ENABLED(pHtlc))
+
+
+#define LN_HTLC_ADDHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc))
+
+
+#define LN_HTLC_DELHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc) : LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc))
+
+
+#define LN_HTLC_FULFILL_RECV_ENABLED_UNCOMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_FULFILL_RECV_ENABLED_UNCOMMITTED(pHtlc) : LN_HTLC_REMOTE_FULFILL_RECV_ENABLED_UNCOMMITTED(pHtlc))
+
+
+#define LN_HTLC_ADDHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc) : LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED_UNCOMMITTED(pHtlc))
+
+
+#define LN_HTLC_DELHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc) : LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED_UNCOMMITTED(pHtlc))
+
+
+#define LN_HTLC_FULFILL_SEND_ENABLED_UNCOMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_FULFILL_SEND_ENABLED_UNCOMMITTED(pHtlc) : LN_HTLC_REMOTE_FULFILL_SEND_ENABLED_UNCOMMITTED(pHtlc))
+
+
+#if 1
+#define LN_HTLC_LOCAL_COMMITTED(pHtlc) \
+    ((pHtlc)->flags.comrecv == 1)
+
+
+#define LN_HTLC_REMOTE_COMMITTED(pHtlc) \
+    ((pHtlc)->flags.comsend == 1)
+
+
+#define LN_HTLC_COMMITTED(pHtlc, bLocal) \
+    ((bLocal) ? LN_HTLC_LOCAL_COMMITTED(pHtlc) : LN_HTLC_REMOTE_COMMITTED(pHtlc))
+
+
+#define LN_HTLC_NOT_COMMITTED(pHtlc, bLocal) \
+    ( \
+        !( /*NOT*/ \
+            LN_HTLC_COMMITTED(pHtlc, bLocal) \
+        ) \
+    )
+#endif
 
 
 #define LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(pHtlc) \
-( \
-    LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) || \
-    LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) || \
-    LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) || \
-    LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) \
-)
+    ( \
+        LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(pHtlc) || \
+        LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(pHtlc) || \
+        LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(pHtlc) || \
+        LN_HTLC_LOCAL_DELHTLC_SEND_ENABLED(pHtlc) \
+    )
 
 
 #define LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(pHtlc) \
-( \
-    LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) || \
-    LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) || \
-    LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) || \
-    LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
-)
+    ( \
+        LN_HTLC_REMOTE_ADDHTLC_SEND_ENABLED(pHtlc) || \
+        LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(pHtlc) || \
+        LN_HTLC_REMOTE_ADDHTLC_RECV_ENABLED(pHtlc) || \
+        LN_HTLC_REMOTE_DELHTLC_SEND_ENABLED(pHtlc) \
+    )
 
 
 #define LN_HTLC_COMSIGING(pHtlc) \
-( \
-    ((pHtlc)->flags.comsend && !(pHtlc)->flags.revrecv) || \
-    ((pHtlc)->flags.comrecv && !(pHtlc)->flags.revsend) \
-)
+    ( \
+        ((pHtlc)->flags.comsend && !(pHtlc)->flags.revrecv) || \
+        ((pHtlc)->flags.comrecv && !(pHtlc)->flags.revsend) \
+    )
 
 
 //update_add_htlc+commitment_signed送信直後
 #define LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(pHtlc) \
-( \
-    ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
-    ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) && \
-    ((pHtlc)->flags.updsend == 1) && \
-    ((pHtlc)->flags.comsend == 1) && \
-    ((pHtlc)->flags.revrecv == 0) && \
-    ((pHtlc)->flags.comrecv == 0) && \
-    ((pHtlc)->flags.revsend == 0) \
-)
+    ( \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_SEND) && \
+        ((pHtlc)->flags.delhtlc == LN_DELHTLC_NONE) && \
+        ((pHtlc)->flags.updsend == 1) && \
+        ((pHtlc)->flags.comsend == 1) && \
+        ((pHtlc)->flags.revrecv == 0) && \
+        ((pHtlc)->flags.comrecv == 0) && \
+        ((pHtlc)->flags.revsend == 0) \
+    )
 
 
 #define LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, Delhtlc) \
-( \
-    ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
-    ((pHtlc)->flags.delhtlc == Delhtlc) && \
-    ((pHtlc)->flags.updsend == 1) && \
-    ((pHtlc)->flags.comsend == 1) && \
-    ((pHtlc)->flags.revrecv == 0) && \
-    ((pHtlc)->flags.comrecv == 0) && \
-    ((pHtlc)->flags.revsend == 0) \
-)
+    ( \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_RECV) && \
+        ((pHtlc)->flags.delhtlc == Delhtlc) && \
+        ((pHtlc)->flags.updsend == 1) && \
+        ((pHtlc)->flags.comsend == 1) && \
+        ((pHtlc)->flags.revrecv == 0) && \
+        ((pHtlc)->flags.comrecv == 0) && \
+        ((pHtlc)->flags.revsend == 0) \
+    )
 
 
 //update_fulfill_htlc+commitment_signed送信直後
@@ -366,7 +518,7 @@ typedef struct {
 
 
 //update_fail_malformed_htlc+commitment_signed送信直後
-#define LN_HTLC_JUST_SEND_MALFORMED_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_MALFORMED)
+#define LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(pHtlc) LN_HTLC_JUST_SEND_DELHTLC_AND_COMSIG(pHtlc, LN_DELHTLC_FAIL_MALFORMED)
 
 
 #define LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(pHtlc) { \
@@ -411,9 +563,44 @@ typedef struct {
     )
 
 
+/**************************************************************************
+ * static inline
+ **************************************************************************/
+
+static inline const char *ln_htlc_flags_addhtlc_str(int addhtlc)
+{
+    switch (addhtlc) {
+    case LN_ADDHTLC_NONE: return "NONE";
+    case LN_ADDHTLC_SEND: return "SEND";
+    case LN_ADDHTLC_RECV: return "RECV";
+    default: return "unknown";
+    }
+}
+
+
+static inline const char *ln_htlc_flags_delhtlc_str(int delhtlc)
+{
+    switch (delhtlc) {
+    case LN_DELHTLC_NONE: return "NONE";
+    case LN_DELHTLC_FULFILL: return "FULFILL";
+    case LN_DELHTLC_FAIL: return "FAIL";
+    case LN_DELHTLC_FAIL_MALFORMED: return "FAIL_MALFORMED";
+    default: return "unknown";
+    }
+}
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
+
+/*bool ln_htlc_calc_amount_at_update_add_htlc_send(ln_update_add_htlc_t* pHtlc);
+bool ln_htlc_calc_amount_at_update_add_htlc_recv(ln_update_add_htlc_t* pHtlc);
+bool ln_htlc_calc_amount_at_revoke_and_ack_send(ln_update_add_htlc_t* pHtlcs);
+bool ln_htlc_calc_amount_at_revoke_and_ack_recv(ln_update_add_htlc_t* pHtlcs);
+bool ln_htlc_calc_amount_at_update_fail_htlc_send(ln_update_add_htlc_t* pHtlc);
+bool ln_htlc_calc_amount_at_update_fail_htlc_recv(ln_update_add_htlc_t* pHtlc);
+*/
 
 uint32_t ln_htlc_flags2u32(ln_htlc_flags_t Flags);
 

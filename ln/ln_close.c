@@ -263,9 +263,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         }
         utl_buf_free(&txbuf);
 
-        //funding_txがspentになった
-        LOGD("$$$ close waiting\n");
-        pChannel->status = LN_STATUS_CLOSE_SPENT;
+        LOGD("$$$ send closing_tx\n");
 
         //clearはDB削除に任せる
         //channel_clear(pChannel);
@@ -325,16 +323,16 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //vout
     //vout#0 - local
-    bool vout_local = (LN_MSAT2SATOSHI(pChannel->local_msat) > fee_local + BTC_DUST_LIMIT);
-    bool vout_remote = (LN_MSAT2SATOSHI(pChannel->remote_msat) > fee_remote + BTC_DUST_LIMIT);
+    bool vout_local = (LN_MSAT2SATOSHI(pChannel->commit_tx_local.local_msat) > fee_local + BTC_DUST_LIMIT);
+    bool vout_remote = (LN_MSAT2SATOSHI(pChannel->commit_tx_local.remote_msat) > fee_remote + BTC_DUST_LIMIT);
 
     if (vout_local) {
-        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->local_msat) - fee_local);
+        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_tx_local.local_msat) - fee_local);
         utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_local.buf, pChannel->shutdown_scriptpk_local.len);
     }
     //vout#1 - remote
     if (vout_remote) {
-        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->remote_msat) - fee_remote);
+        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_tx_local.remote_msat) - fee_remote);
         utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_remote.buf, pChannel->shutdown_scriptpk_remote.len);
     }
 

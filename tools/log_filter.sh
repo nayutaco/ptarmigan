@@ -6,7 +6,7 @@ PRJ_HOME=$SCRIPT_DIR/../
 
 (
 cd $PRJ_HOME
-cat tests/4nodes_test/node_*/logs/log | grep -e \/E -e fail\: | \
+grep -n -e "\/E" -e "fail\:"  tests/4nodes_test/node_*/logs/log | \
     grep -v \
         -e "not real value" \
         -e "channel_id is 0" \

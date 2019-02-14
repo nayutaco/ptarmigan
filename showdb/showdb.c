@@ -186,8 +186,10 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
             }
         }
         printf("\n" INDENT3 "],\n");
-        printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", pChannel->local_msat - offered);
-        printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 "\n", pChannel->remote_msat - received);
+        //printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", pChannel->local_msat - offered);
+        //printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 "\n", pChannel->remote_msat - received);
+        printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", ln_local_msat(pChannel));
+        printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 "\n", ln_remote_msat(pChannel));
         printf(INDENT2 "}");
     }
 }
@@ -220,8 +222,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
 
     //amount
-    printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", pChannel->local_msat);
-    printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 ",\n", pChannel->remote_msat);
+    printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", ln_local_msat(pChannel));
+    printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 ",\n", ln_remote_msat(pChannel));
     printf(INDENT3 M_QQ("funding_satoshis") ": %" PRIu64 ",\n", pChannel->funding_tx.funding_satoshis);
     printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", pChannel->feerate_per_kw);
 
@@ -394,8 +396,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             case LN_DELHTLC_FAIL:
                 p_str_delhtlc = "fail";
                 break;
-            case LN_DELHTLC_MALFORMED:
-                p_str_delhtlc = "malformed";
+            case LN_DELHTLC_FAIL_MALFORMED:
+                p_str_delhtlc = "fail_malformed";
                 break;
             default:
                 p_str_delhtlc = "???";
@@ -410,8 +412,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             case LN_DELHTLC_FAIL:
                 p_str_fin_delhtlc = "fail";
                 break;
-            case LN_DELHTLC_MALFORMED:
-                p_str_fin_delhtlc = "malformed";
+            case LN_DELHTLC_FAIL_MALFORMED:
+                p_str_fin_delhtlc = "fail_malformed";
                 break;
             default:
                 p_str_fin_delhtlc = "???";

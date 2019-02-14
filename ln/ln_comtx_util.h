@@ -100,6 +100,8 @@ typedef struct {
  *  @brief  Commitment Transaction生成用情報
  */
 typedef struct {
+    uint64_t                    local_msat;
+    uint64_t                    remote_msat;
     struct {
         const uint8_t           *txid;                  ///< funding txid
         uint32_t                txid_index;             ///< funding txid index

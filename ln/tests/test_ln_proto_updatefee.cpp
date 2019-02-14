@@ -185,12 +185,14 @@ public:
         pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_local.htlc_minimum_msat = 0;
         pChannel->commit_tx_local.max_accepted_htlcs = 10;
+        pChannel->commit_tx_local.local_msat = 1000000;
+        pChannel->commit_tx_local.remote_msat = 1000000;
         pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_remote.htlc_minimum_msat = 0;
         pChannel->commit_tx_remote.max_accepted_htlcs = 10;
+        pChannel->commit_tx_remote.local_msat = 1000000;
+        pChannel->commit_tx_remote.remote_msat = 1000000;
         pChannel->feerate_per_kw = 500;
-        pChannel->local_msat = 1000000;
-        pChannel->remote_msat = 1000000;
         btc_tx_init(&pChannel->funding_tx.tx_data);
         utl_buf_init(&pChannel->funding_tx.wit_script);
         pChannel->p_callback = LnCallbackType;

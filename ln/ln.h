@@ -212,11 +212,10 @@ typedef enum {
     LN_STATUS_ESTABLISH = 1,        ///< establish
     LN_STATUS_NORMAL = 2,           ///< normal operation
     LN_STATUS_CLOSE_WAIT = 3,       ///< shutdown received or sent
-    LN_STATUS_CLOSE_SPENT = 4,      ///< funding_tx is spent but not in block
-    LN_STATUS_CLOSE_MUTUAL = 5,     ///< mutual close
-    LN_STATUS_CLOSE_UNI_LOCAL = 6,  ///< unilateral close(from local)
-    LN_STATUS_CLOSE_UNI_REMOTE = 7, ///< unilateral close(from remote)
-    LN_STATUS_CLOSE_REVOKED = 8     ///< revoked transaction close(from remote)
+    LN_STATUS_CLOSE_MUTUAL = 4,     ///< mutual close
+    LN_STATUS_CLOSE_UNI_LOCAL = 5,  ///< unilateral close(from local)
+    LN_STATUS_CLOSE_UNI_REMOTE = 6, ///< unilateral close(from remote)
+    LN_STATUS_CLOSE_REVOKED = 7     ///< revoked transaction close(from remote)
 } ln_status_t;
 
 
@@ -352,7 +351,7 @@ typedef struct {
     uint64_t    id;                                 ///< 8:  id
     uint64_t    amount_msat;                        ///< 8:  amount_msat
     uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
-    uint8_t     payment_hash[BTC_SZ_HASH256];     ///< 32: payment_hash //XXX:
+    uint8_t     payment_hash[BTC_SZ_HASH256];       ///< 32: payment_hash
     utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
     utl_buf_t   buf_onion_reason;                   ///<
                                                     //  update_add_htlc
@@ -438,9 +437,9 @@ typedef struct {
  *  @brief  result of update_add_htlc processing
  */
 typedef enum {
-    LN_CB_ADD_HTLC_RESULT_OK,           ///< transfer update_add_htlc or backward update_fulfill_htlc
-    LN_CB_ADD_HTLC_RESULT_FAIL,         ///< backward update_fail_htlc
-    LN_CB_ADD_HTLC_RESULT_MALFORMED,    ///< backward update_fail_malformed_htlc
+    LN_CB_ADD_HTLC_RESULT_OK,               ///< transfer update_add_htlc or backward update_fulfill_htlc
+    LN_CB_ADD_HTLC_RESULT_FAIL,             ///< backward update_fail_htlc
+    LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED,   ///< backward update_fail_malformed_htlc
 } ln_cb_add_htlc_result_t;
 
 
@@ -498,7 +497,7 @@ typedef struct {
     uint16_t                prev_idx;               ///< pChannel->cnl_add_htlc[idx]
     uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
-    uint16_t                malformed_failure;      ///< !0: malformed_htlcのfailure_code
+    uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code
 } ln_cb_fail_htlc_recv_t;
 
 
@@ -599,6 +598,8 @@ typedef struct {
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
                                                         //      commit_tx_local:  revoke_and_ack送信後、commit_tx_local.commit_num - 1を代入
                                                         //      commit_tx_remote: revoke_and_ack受信後、pChannel->commit_tx_remote.commit_num - 1を代入
+    uint64_t            local_msat;
+    uint64_t            remote_msat;
 } ln_commit_tx_t;
 
 
@@ -654,11 +655,9 @@ struct ln_channel_t {
 
     //msg:normal operation
     uint64_t                    htlc_id_num;                    ///< [NORM_01]update_add_htlcで使うidの管理
-    uint64_t                    local_msat;                     ///< [NORM_02]自分の持ち分
-    uint64_t                    remote_msat;                    ///< [NORM_03]相手の持ち分
-    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_04]channel_id
-    uint64_t                    short_channel_id;               ///< [NORM_05]short_channel_id
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
+    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
+    uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
+    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_04]追加したHTLC
 
     //commitment transaction(local/remote)
     ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用
@@ -1088,6 +1087,14 @@ ln_status_t ln_status_get(const ln_channel_t *pChannel);
  * @retval  true    closing now
  */
 bool ln_status_is_closing(const ln_channel_t *pChannel);
+
+
+/** is closed ?
+ *
+ * @param[in]           pChannel        channel info
+ * @retval  true    funding_tx is spent
+ */
+bool ln_status_is_closed(const ln_channel_t *pChannel);
 
 
 /** get local_msat
