@@ -592,7 +592,7 @@ static int channel_item_load(ln_channel_t *pChannel, const backup_param_t *pBack
 static int channel_item_save(const ln_channel_t *pChannel, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
 static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
-static void channel_cursor_close(lmdb_cursor_t *pCur);
+static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_addhtlc_dbname(char *pDbName, int num);
 static bool channel_comp_func_cnldel(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable);
@@ -1313,7 +1313,7 @@ bool ln_db_channel_chk_mynode(uint64_t ShortChannelId)
         }
     }
     UTL_DBG_FREE(p_channel);
-    channel_cursor_close(&cur);
+    channel_cursor_close(&cur, false);
     return mynode;
 }
 
@@ -3589,7 +3589,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType)
             retval = -1;
         }
     }
-    MDB_TXN_COMMIT(db.txn);
+    MDB_TXN_ABORT(db.txn);
 
 LABEL_EXIT:
     return retval == 0;
@@ -3731,7 +3731,7 @@ bool ln_db_reset(void)
             }
         }
     }
-    channel_cursor_close(&cur);
+    channel_cursor_close(&cur, true);
 
     //node, annoはディレクトリごと削除
     char cmd[512];
@@ -4137,10 +4137,14 @@ LABEL_EXIT:
  *
  * @param[out]      pCur
  */
-static void channel_cursor_close(lmdb_cursor_t *pCur)
+static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable)
 {
     mdb_cursor_close(pCur->cursor);
-    MDB_TXN_COMMIT(pCur->txn);
+    if (bWritable) {
+        MDB_TXN_COMMIT(pCur->txn);
+    } else {
+        MDB_TXN_ABORT(pCur->txn);
+    }
 }
 
 
@@ -4226,7 +4230,7 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
             }
         }
     }
-    channel_cursor_close(&cur);
+    channel_cursor_close(&cur, bWritable);
     UTL_DBG_FREE(p_channel);
 
 LABEL_EXIT:
