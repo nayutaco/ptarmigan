@@ -2186,6 +2186,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_INIT_RECV: init受信
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     //init受信待ち合わせ解除(*1)
