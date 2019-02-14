@@ -959,13 +959,13 @@ LABEL_JOIN:
     pthread_join(th_anno, NULL);
 
 LABEL_SHUTDOWN:
-    LOGD("shutdown: sock=%d...\n", p_conf->sock);
+    LOGD("close sock=%d...\n", p_conf->sock);
     retval = close(p_conf->sock);
     if (retval < 0) {
         LOGD("socket close: %s", strerror(errno));
     }
 
-    LOGD("stop channel[%016" PRIx64 "]\n", ln_short_channel_id(p_channel));
+    LOGD("$$$ stop channel[%016" PRIx64 "]\n", ln_short_channel_id(p_channel));
 
     if (p_conf->sock != -1) {
         // method: disconnect
@@ -1414,7 +1414,7 @@ static void *thread_recv_start(void *pArg)
     utl_buf_t buf_recv = UTL_BUF_INIT;
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
-    LOGD("[THREAD]recv initialize\n");
+    LOGD("[THREAD]recv initialize: %d\n", p_conf->loop);
 
     //init受信待ちの準備時間を設ける
     utl_thread_msleep(M_WAIT_RECV_THREAD_MSEC);
@@ -1551,7 +1551,7 @@ static void *thread_poll_start(void *pArg)
 {
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
-    LOGD("[THREAD]poll initialize\n");
+    LOGD("[THREAD]poll initialize: %d\n", p_conf->loop);
 
     while (p_conf->loop) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -1774,7 +1774,7 @@ static void *thread_anno_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     int slp = M_WAIT_ANNO_SEC;
 
-    LOGD("[THREAD]anno initialize\n");
+    LOGD("[THREAD]anno initialize: %d\n", p_conf->loop);
 
     while (p_conf->loop) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -3015,6 +3015,7 @@ static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param)
 //スレッドループ停止
 static void stop_threads(lnapp_conf_t *p_conf)
 {
+    LOGD("$$$ stop\n");
     if (p_conf->loop) {
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
