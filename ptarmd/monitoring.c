@@ -473,7 +473,7 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_prm, void *p_db_
     utl_str_bin2str_rev(txid_str, ln_funding_txid(pChannel), BTC_SZ_TXID);
 
     LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(pChannel));
-    if (stat <= LN_STATUS_CLOSE_SPENT) {
+    if (stat <= LN_STATUS_CLOSE_WAIT) {
         //update status
         monchanlist_t *p_list = NULL;
         ret = monchanlist_search(&p_list, ln_channel_id(pChannel), false);

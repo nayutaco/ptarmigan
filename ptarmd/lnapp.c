@@ -1734,7 +1734,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     //DBGTRACE_BEGIN
 
     bool ret = ln_status_load(p_conf->p_channel);
-    if (ret && ln_status_is_closing(p_conf->p_channel)) {
+    if (ret && ln_status_is_closed(p_conf->p_channel)) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_channel));
         stop_threads(p_conf);

@@ -212,11 +212,10 @@ typedef enum {
     LN_STATUS_ESTABLISH = 1,        ///< establish
     LN_STATUS_NORMAL = 2,           ///< normal operation
     LN_STATUS_CLOSE_WAIT = 3,       ///< shutdown received or sent
-    LN_STATUS_CLOSE_SPENT = 4,      ///< funding_tx is spent but not in block
-    LN_STATUS_CLOSE_MUTUAL = 5,     ///< mutual close
-    LN_STATUS_CLOSE_UNI_LOCAL = 6,  ///< unilateral close(from local)
-    LN_STATUS_CLOSE_UNI_REMOTE = 7, ///< unilateral close(from remote)
-    LN_STATUS_CLOSE_REVOKED = 8     ///< revoked transaction close(from remote)
+    LN_STATUS_CLOSE_MUTUAL = 4,     ///< mutual close
+    LN_STATUS_CLOSE_UNI_LOCAL = 5,  ///< unilateral close(from local)
+    LN_STATUS_CLOSE_UNI_REMOTE = 6, ///< unilateral close(from remote)
+    LN_STATUS_CLOSE_REVOKED = 7     ///< revoked transaction close(from remote)
 } ln_status_t;
 
 
@@ -1088,6 +1087,14 @@ ln_status_t ln_status_get(const ln_channel_t *pChannel);
  * @retval  true    closing now
  */
 bool ln_status_is_closing(const ln_channel_t *pChannel);
+
+
+/** is closed ?
+ *
+ * @param[in]           pChannel        channel info
+ * @retval  true    funding_tx is spent
+ */
+bool ln_status_is_closed(const ln_channel_t *pChannel);
 
 
 /** get local_msat
