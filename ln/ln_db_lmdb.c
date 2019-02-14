@@ -1067,7 +1067,7 @@ bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param)
     if (retval == 0) {
         LOGD("drop: %s\n", dbname);
     } else {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        LOGE("ERR: %s(dbname=%s)\n", mdb_strerror(retval), dbname);
     }
 
     //channel削除
