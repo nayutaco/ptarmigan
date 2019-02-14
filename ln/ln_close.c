@@ -263,9 +263,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         }
         utl_buf_free(&txbuf);
 
-        //funding_txがspentになった
-        LOGD("$$$ close waiting\n");
-        pChannel->status = LN_STATUS_CLOSE_SPENT;
+        LOGD("$$$ send closing_tx\n");
 
         //clearはDB削除に任せる
         //channel_clear(pChannel);

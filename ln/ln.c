@@ -271,9 +271,6 @@ const char *ln_status_string(const ln_channel_t *pChannel)
     case LN_STATUS_CLOSE_WAIT:
         p_str_stat = "close waiting";
         break;
-    case LN_STATUS_CLOSE_SPENT:
-        p_str_stat = "funding spent";
-        break;
     case LN_STATUS_CLOSE_MUTUAL:
         p_str_stat = "mutual close";
         break;
@@ -644,14 +641,13 @@ void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void
 {
     LOGD("BEGIN: status=%d\n", (int)pChannel->status);
     if (pCloseTx == NULL) {
-        //funding_tx isn't mining
-        if ( (pChannel->status == LN_STATUS_NORMAL) ||
-             (pChannel->status == LN_STATUS_CLOSE_WAIT) ) {
-            pChannel->status = LN_STATUS_CLOSE_SPENT;
+        //funding_tx is spent but spent_tx isn't mining
+        if (pChannel->status < LN_STATUS_CLOSE_WAIT) {
+            pChannel->status = LN_STATUS_CLOSE_WAIT;
             ln_db_channel_save_status(pChannel, pDbParam);
         }
     } else {
-        //funding_tx is mined
+        //funding_tx is spent and spent_tx is mined
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
@@ -1097,6 +1093,12 @@ ln_status_t ln_status_get(const ln_channel_t *pChannel)
 bool ln_status_is_closing(const ln_channel_t *pChannel)
 {
     return pChannel->status > LN_STATUS_NORMAL;
+}
+
+
+bool ln_status_is_closed(const ln_channel_t *pChannel)
+{
+    return pChannel->status > LN_STATUS_CLOSE_WAIT;
 }
 
 
