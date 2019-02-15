@@ -298,7 +298,7 @@ bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId)
     comp_param_srcnodeid_t param;
     param.p_node_id = pNodeId;
     param.short_channel_id = ShortChannelId;
-    bool ret = ln_db_channel_search_nk_readonly(comp_func_srch_nodeid, &param);
+    bool ret = ln_db_channel_search_readonly(comp_func_srch_nodeid, &param);
     LOGD("ret=%d\n", ret);
     return ret;
 }
