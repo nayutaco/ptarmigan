@@ -2170,7 +2170,8 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
     }
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_data);
     const uint8_t *p_channel_id;
-    if (ln_short_channel_id(p_conf->p_channel) == 0) {
+    if ( (ln_short_channel_id(p_conf->p_channel) == 0) ||
+          utl_mem_is_all_zero(p_msg->p_channel_id, LN_SZ_CHANNEL_ID) ) {
         p_channel_id = NULL;
     } else {
         p_channel_id = p_msg->p_channel_id;
