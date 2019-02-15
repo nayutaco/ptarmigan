@@ -596,7 +596,7 @@ static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_addhtlc_dbname(char *pDbName, int num);
 static bool channel_comp_func_cnldel(ln_channel_t *pChannel, void *p_db_param, void *p_param);
-static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable);
+static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore);
 
 static int node_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
@@ -886,7 +886,7 @@ void ln_db_term(void)
  * channel
  ********************************************************************/
 
-int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
+int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool bRestore)
 {
     int         retval;
     MDB_val     key, data;
@@ -949,8 +949,10 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi)
         goto LABEL_EXIT;
     }
 
-    //復元データからさらに復元
-    retval = channel_secret_restore(pChannel);
+    if (bRestore) {
+        //復元データからさらに復元
+        retval = channel_secret_restore(pChannel);
+    }
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -1097,13 +1099,19 @@ bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param)
 
 bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-    return channel_search(pFunc, pFuncParam, true);
+    return channel_search(pFunc, pFuncParam, true, true);
 }
 
 
 bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-    return channel_search(pFunc, pFuncParam, false);
+    return channel_search(pFunc, pFuncParam, false, __GCC_ATOMIC_TEST_AND_SET_TRUEVAL);
+}
+
+
+bool ln_db_channel_search_nk_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
+{
+    return channel_search(pFunc, pFuncParam, false, false);
 }
 
 
@@ -1291,7 +1299,7 @@ bool ln_db_channel_chk_mynode(uint64_t ShortChannelId)
             ret = MDB_DBI_OPEN(cur.txn, name, 0, &cur.dbi);
             if (ret == 0) {
                 memset(p_channel, 0, sizeof(ln_channel_t));
-                int retval = ln_lmdb_channel_load(p_channel, cur.txn, cur.dbi);
+                int retval = ln_lmdb_channel_load(p_channel, cur.txn, cur.dbi, true);
                 ln_term(p_channel);
                 if ((retval == 0) && (ShortChannelId == p_channel->short_channel_id)) {
                     //LOGD("own channel: %016" PRIx64 "\n", ShortChannelId);
@@ -4104,11 +4112,15 @@ static int channel_secret_restore(ln_channel_t *pChannel)
         LOGE("ERR\n");
         goto LABEL_EXIT;
     }
-    if (!btc_script_2of2_create_redeem_sorted(&pChannel->funding_tx.wit_script, &pChannel->funding_tx.key_order,
-        pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
+    if (!btc_script_2of2_create_redeem_sorted(
+                &pChannel->funding_tx.wit_script,
+                &pChannel->funding_tx.key_order,
+                pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
+                pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
         retval = -1;
         LOGE("ERR\n");
     }
+    LOGD("key restored.\n");
 
 LABEL_EXIT:
     return retval;
@@ -4200,7 +4212,7 @@ static bool channel_comp_func_cnldel(ln_channel_t *pChannel, void *p_db_param, v
 }
 
 
-static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable)
+static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore)
 {
     bool            result = false;
     int             retval;
@@ -4224,7 +4236,7 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
             ret = MDB_DBI_OPEN(cur.txn, name, 0, &cur.dbi);
             if (ret == 0) {
                 memset(p_channel, 0, sizeof(ln_channel_t));
-                retval = ln_lmdb_channel_load(p_channel, cur.txn, cur.dbi);
+                retval = ln_lmdb_channel_load(p_channel, cur.txn, cur.dbi, bRestore);
                 if (retval == 0) {
                     result = (*pFunc)(p_channel, (void *)&cur, pFuncParam);
                     if (result) {

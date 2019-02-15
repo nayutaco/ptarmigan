@@ -2094,7 +2094,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
     prm.pp_field = ppRField;
     prm.amount_msat = AmountMsat;
     prm.p_fieldnum = pRFieldNum;
-    ln_db_channel_search_readonly(comp_func_cnl, &prm);
+    ln_db_channel_search_nk_readonly(comp_func_cnl, &prm);
 
     if (*pRFieldNum != 0) {
         LOGD("add r_field: %d\n", *pRFieldNum);

@@ -216,12 +216,13 @@ const char *ln_lmdb_get_waltpath(void);
  * @param[out]      pChannel
  * @param[in]       txn
  * @param[in]       pdbi
+ * @param[in]       bRestore        true:restore keys from basepoint
  * @retval      0       成功
  * @attention
  *      -
  *      - 新規 pChannel に読込を行う場合は、事前に #ln_init()を行っておくこと(seedはNULLでよい)
  */
-int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi);
+int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool bRestore);
 
 
 /** closeしたDB("cn")を出力
