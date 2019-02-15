@@ -635,7 +635,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
         ln_channel_t *p_channel = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
         memset(p_channel, 0, sizeof(ln_channel_t));
 
-        int retval = ln_lmdb_channel_load(p_channel, txn, dbi);
+        int retval = ln_lmdb_channel_load(p_channel, txn, dbi, true);
         if (retval != 0) {
             //printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
