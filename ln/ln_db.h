@@ -222,7 +222,8 @@ bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param);
 
 
 /** channel情報検索
- *      比較関数を使用してchannel情報を検索する
+ *      比較関数を使用してchannel情報を検索する。
+ *      最後はcommitされる。
  *
  * @param[in]       pFunc       検索関数
  * @param[in,out]   pFuncParam  検索関数に渡す引数
@@ -232,7 +233,35 @@ bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param);
  *      - 戻り値がtrueの場合、検索関数のpChannelは解放しない。必要があれば#ln_term()を実行すること。
  */
 bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
+
+
+/** channel情報検索(read only)
+ *      比較関数を使用してchannel情報を検索する。
+ *      最後はcommitされない。
+ *
+ * @param[in]       pFunc       検索関数
+ * @param[in,out]   pFuncParam  検索関数に渡す引数
+ * @retval      true    検索関数がtrueを戻した
+ * @retval      false   検索関数が最後までtrueを返さなかった
+ * @note
+ *      - 戻り値がtrueの場合、検索関数のpChannelは解放しない。必要があれば#ln_term()を実行すること。
+ */
 bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
+
+
+/** channel情報検索(read only)(no key restore)
+ *      比較関数を使用してchannel情報を検索する。
+ *      鍵は復元されない。
+ *      最後はcommitされない。
+ *
+ * @param[in]       pFunc       検索関数
+ * @param[in,out]   pFuncParam  検索関数に渡す引数
+ * @retval      true    検索関数がtrueを戻した
+ * @retval      false   検索関数が最後までtrueを返さなかった
+ * @note
+ *      - 戻り値がtrueの場合、検索関数のpChannelは解放しない。必要があれば#ln_term()を実行すること。
+ */
+bool ln_db_channel_search_nk_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 /** load pChannel->status
