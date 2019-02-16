@@ -89,9 +89,10 @@ static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig
 static bool check_create_add_htlc(ln_channel_t *pChannel, uint16_t *pIdx, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
 static bool set_add_htlc(ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx);
-static void recv_idle_proc_final(ln_channel_t *pChannel);
 static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel);
+static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel);
+static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel);
 
 #ifdef M_DBG_COMMITNUM
 static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags);
@@ -354,17 +355,18 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
+    //revoke_and_ackを返せた場合だけ保存することにする XXX: ???
+    new_commit_tx.revoke_num++;
+    pChannel->commit_tx_local = new_commit_tx;
+    M_DBG_COMMITNUM(pChannel);
+    M_DB_SECRET_SAVE(pChannel);
+    M_DB_CHANNEL_SAVE(pChannel);
+
+    /*ignore*/ revoke_and_ack_send__delhtlc(pChannel); //XXX:
+
     ret = true;
 
 LABEL_EXIT:
-    if (ret) {
-        //revoke_and_ackを返せた場合だけ保存することにする XXX: ???
-        new_commit_tx.revoke_num++;
-        pChannel->commit_tx_local = new_commit_tx;
-        M_DBG_COMMITNUM(pChannel);
-        M_DB_SECRET_SAVE(pChannel);
-        M_DB_CHANNEL_SAVE(pChannel);
-    }
     LOGD("END\n");
     return ret;
 }
@@ -464,6 +466,8 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         LOGE("fail: xxx\n");
         goto LABEL_EXIT;
     }
+
+    /*ignore*/ revoke_and_ack_recv__delhtlc(pChannel); //XXX:
 
     ret = true;
 
@@ -778,32 +782,19 @@ void ln_del_htlc_start_bwd(ln_channel_t *pChannel, uint16_t Idx)
 void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     int htlc_num = 0;
-    bool b_final = true;    //true: HTLCの追加から反映までが完了した状態
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLED(p_htlc)) {
-            htlc_num++;
-            ln_htlc_flags_t *p_flags = &p_htlc->flags;
-            if (!p_flags->comsend || !p_flags->revrecv || !p_flags->comrecv || !p_flags->revsend) {
-                //HTLCとして有効なのに、commitment_signed/revoke_and_ackの送受信が完了していない
-                b_final = false;
-                break;
-            }
-        }
+        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+        htlc_num++;
     }
-    if ( (htlc_num == 0) &&
-         ((pChannel->short_channel_id == 0) || (pChannel->feerate_per_kw == FeeratePerKw))) {
+    if ((htlc_num == 0) &&
+        ((pChannel->short_channel_id == 0) || (pChannel->feerate_per_kw == FeeratePerKw))) {
         return;
     }
     if (htlc_num == 0) {
         LOGD("$$$ update_fee: %" PRIu32 " ==> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
-        b_final = false;
     }
-    if (b_final) {
-        recv_idle_proc_final(pChannel);
-    } else {
-        recv_idle_proc_nonfinal(pChannel, FeeratePerKw);
-    }
+    recv_idle_proc_nonfinal(pChannel, FeeratePerKw);
 }
 
 
@@ -1526,85 +1517,84 @@ static void clear_htlc(ln_update_add_htlc_t *p_htlc)
 }
 
 
-/** 受信アイドル処理(HTLC final)
- */
-static void recv_idle_proc_final(ln_channel_t *pChannel)
+static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel)
 {
-    //LOGD("HTLC final\n");
-
     bool db_upd = false;
     bool revack = false;
+
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLED(p_htlc)) {
-            ln_htlc_flags_t *p_flags = &p_htlc->flags;
-            // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
-            //         idx,
-            //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
-            //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
-            //         p_flags->updsend,
-            //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
-            //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-            //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
-            if (LN_HTLC_LOCAL_ADDHTLC_SEND_ENABLED(p_htlc)) {
-                //ADD_HTLC後: update_add_htlc送信側
-                //pChannel->local_msat -= p_htlc->amount_msat;
-            } else if (LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_htlc)) {
-                //ADD_HTLC後: update_add_htlc受信側
-                //pChannel->remote_msat -= p_htlc->amount_msat;
-            } else {
-                //DEL_HTLC後
-                switch (p_flags->addhtlc) {
-                case LN_ADDHTLC_SEND:
-                    //DEL_HTLC後: update_add_htlc送信側
-                    if (p_flags->delhtlc == LN_DELHTLC_FULFILL) {
-                        //pChannel->local_msat -= p_htlc->amount_msat;
-                        //pChannel->remote_msat += p_htlc->amount_msat;
-                    } else if ((p_flags->delhtlc != LN_DELHTLC_NONE) && (p_htlc->prev_short_channel_id != 0)) {
-                        LOGD("backward fail_htlc!\n");
+        ln_htlc_flags_t *p_flags = &p_htlc->flags;
+        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+        if (!LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(p_htlc)) continue;
+        if (p_flags->comrecv != 1) continue;
 
-                        ln_cb_bwd_del_htlc_t bwd;
-                        bwd.short_channel_id = p_htlc->prev_short_channel_id;
-                        bwd.fin_delhtlc = p_flags->delhtlc;
-                        bwd.idx = p_htlc->prev_idx;
-                        ln_callback(pChannel, LN_CB_BWD_DELHTLC_START, &bwd);
-                        clear_htlc_comrevflag(p_htlc, p_flags->delhtlc);
-                    }
-
-                    if (p_htlc->prev_short_channel_id == 0) {
-                        if (p_flags->delhtlc != LN_DELHTLC_FULFILL) {
-                            //origin nodeで失敗 --> 送金の再送
-                            ln_callback(pChannel, LN_CB_PAYMENT_RETRY, p_htlc->payment_hash);
-                        }
-                    }
-                    break;
-                case LN_ADDHTLC_RECV:
-                    //DEL_HTLC後: update_add_htlc受信側
-                    if (p_flags->delhtlc == LN_DELHTLC_FULFILL) {
-                        //pChannel->local_msat += p_htlc->amount_msat;
-                        //pChannel->remote_msat -= p_htlc->amount_msat;
-                    }
-                    break;
-                default:
-                    //nothing
-                    break;
-                }
-
-                LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
-                clear_htlc(p_htlc);
-
-                db_upd = true;
-                revack = true;
-            }
-        }
+        LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
+        clear_htlc(p_htlc);
+        db_upd = true;
+        revack = true;
     }
 
+    //Be sure to save before the callback call
+    //  Otherwise there is a possibility of the same callback call multiple times
     if (db_upd) {
         M_DB_CHANNEL_SAVE(pChannel);
-        if (revack) {
-            ln_callback(pChannel, LN_CB_REV_AND_ACK_EXCG, NULL);
+    }
+
+    if (revack) {
+        ln_callback(pChannel, LN_CB_REV_AND_ACK_EXCG, NULL); //XXX: ???
+    }
+    return true;
+}
+
+
+static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
+{
+    ln_cb_bwd_del_htlc_t bwds[LN_HTLC_MAX]; //XXX: dynamically allocate
+    uint8_t payment_hashs[LN_HTLC_MAX][BTC_SZ_HASH256]; //XXX: dynamically allocate
+    uint32_t bwds_num = 0;
+    bool db_upd = false;
+    bool revack = false;
+
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
+        ln_htlc_flags_t *p_flags = &p_htlc->flags;
+        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+        if (!LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(p_htlc)) continue;
+        if (p_flags->comsend != 1) continue;
+
+        if (p_flags->delhtlc != LN_DELHTLC_FULFILL) {
+            bwds[bwds_num].short_channel_id = p_htlc->prev_short_channel_id;
+            bwds[bwds_num].fin_delhtlc = p_flags->delhtlc;
+            bwds[bwds_num].idx = p_htlc->prev_idx;
+            memcpy(payment_hashs[bwds_num], p_htlc->payment_hash, BTC_SZ_HASH256);
+            bwds_num++;
+        }
+        LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
+        clear_htlc(p_htlc);
+        db_upd = true;
+        revack = true;
+    }
+
+    //Be sure to save before the callback call
+    //  Otherwise there is a possibility of the same callback call multiple times
+    if (db_upd) {
+        M_DB_CHANNEL_SAVE(pChannel);
+    }
+
+    for (uint32_t lp = 0; lp < bwds_num; lp++) {
+        if (bwds[lp].short_channel_id) {
+            LOGD("backward fail_htlc!\n");
+            ln_callback(pChannel, LN_CB_BWD_DELHTLC_START, &bwds[lp]);
+        } else {
+            LOGD("retry the payment! in the origin node\n");
+            ln_callback(pChannel, LN_CB_PAYMENT_RETRY, payment_hashs[lp]);
         }
     }
+    if (revack) {
+        ln_callback(pChannel, LN_CB_REV_AND_ACK_EXCG, NULL); //XXX: ???
+    }
+    return true;
 }
 
 
@@ -2079,7 +2069,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
 static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
 {
     uint32_t fwds_num = 0;
-    ln_cb_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: Dynamically allocate
+    ln_cb_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
     bool db_upd = false;
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
