@@ -1105,7 +1105,7 @@ bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
 bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-    return channel_search(pFunc, pFuncParam, false, __GCC_ATOMIC_TEST_AND_SET_TRUEVAL);
+    return channel_search(pFunc, pFuncParam, false, true);
 }
 
 
