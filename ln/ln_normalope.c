@@ -942,8 +942,8 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
     //  if a sending node adds more than its max_accepted_htlcs HTLCs to its local commitment transaction
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (pChannel->commit_tx_local.max_accepted_htlcs < pChannel->commit_tx_local.htlc_output_num) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d", pChannel->commit_tx_local.htlc_output_num);
+    if (pChannel->commit_tx_local.max_accepted_htlcs < pChannel->commit_tx_local.num_htlc_outputs) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d", pChannel->commit_tx_local.num_htlc_outputs);
         return false;
     }
 
@@ -1552,7 +1552,7 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
 {
     ln_cb_bwd_del_htlc_t bwds[LN_HTLC_MAX]; //XXX: dynamically allocate
     uint8_t payment_hashs[LN_HTLC_MAX][BTC_SZ_HASH256]; //XXX: dynamically allocate
-    uint32_t bwds_num = 0;
+    uint32_t num_bwds = 0;
     bool db_upd = false;
     bool revack = false;
 
@@ -1564,11 +1564,11 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
         if (p_flags->comsend != 1) continue;
 
         if (p_flags->delhtlc != LN_DELHTLC_FULFILL) {
-            bwds[bwds_num].short_channel_id = p_htlc->prev_short_channel_id;
-            bwds[bwds_num].fin_delhtlc = p_flags->delhtlc;
-            bwds[bwds_num].idx = p_htlc->prev_idx;
-            memcpy(payment_hashs[bwds_num], p_htlc->payment_hash, BTC_SZ_HASH256);
-            bwds_num++;
+            bwds[num_bwds].short_channel_id = p_htlc->prev_short_channel_id;
+            bwds[num_bwds].fin_delhtlc = p_flags->delhtlc;
+            bwds[num_bwds].idx = p_htlc->prev_idx;
+            memcpy(payment_hashs[num_bwds], p_htlc->payment_hash, BTC_SZ_HASH256);
+            num_bwds++;
         }
         LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
         clear_htlc(p_htlc);
@@ -1582,7 +1582,7 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
         M_DB_CHANNEL_SAVE(pChannel);
     }
 
-    for (uint32_t lp = 0; lp < bwds_num; lp++) {
+    for (uint32_t lp = 0; lp < num_bwds; lp++) {
         if (bwds[lp].short_channel_id) {
             LOGD("backward fail_htlc!\n");
             ln_callback(pChannel, LN_CB_BWD_DELHTLC_START, &bwds[lp]);
@@ -1704,7 +1704,7 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     ln_msg_commitment_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.p_signature = pChannel->commit_tx_remote.remote_sig;
-    msg.num_htlcs = pChannel->commit_tx_remote.htlc_output_num;
+    msg.num_htlcs = pChannel->commit_tx_remote.num_htlc_outputs;
     msg.p_htlc_signature = (uint8_t *)p_htlc_sigs;
     if (!ln_msg_commitment_signed_write(&buf, &msg)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create commitment_signed");
@@ -1781,9 +1781,9 @@ static bool check_create_add_htlc(
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (pChannel->commit_tx_remote.max_accepted_htlcs <= pChannel->commit_tx_remote.htlc_output_num) {
+    if (pChannel->commit_tx_remote.max_accepted_htlcs <= pChannel->commit_tx_remote.num_htlc_outputs) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d <= %d",
-                    pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.htlc_output_num);
+                    pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.num_htlc_outputs);
         goto LABEL_EXIT;
     }
 
@@ -1903,7 +1903,7 @@ static bool set_add_htlc(ln_channel_t *pChannel,
     if (ret) {
         LOGD("OK\n");
         pChannel->cnl_add_htlc[idx].p_channel_id = pChannel->channel_id;
-        pChannel->cnl_add_htlc[idx].id = pChannel->htlc_id_num++;
+        pChannel->cnl_add_htlc[idx].id = pChannel->num_htlc_ids++;
         pChannel->cnl_add_htlc[idx].amount_msat = AmountMsat;
         pChannel->cnl_add_htlc[idx].cltv_expiry = CltvValue;
         memcpy(pChannel->cnl_add_htlc[idx].payment_hash, pPaymentHash, BTC_SZ_HASH256);
@@ -2062,7 +2062,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
 
 static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
 {
-    uint32_t fwds_num = 0;
+    uint32_t num_fwds = 0;
     ln_cb_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
     bool db_upd = false;
 
@@ -2073,10 +2073,10 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
 
         if (p_htlc->next_short_channel_id) {
             LOGD("forward: %d\n", p_htlc->next_idx);
-            fwds[fwds_num].short_channel_id = p_htlc->next_short_channel_id;
-            fwds[fwds_num].idx = p_htlc->next_idx;
+            fwds[num_fwds].short_channel_id = p_htlc->next_short_channel_id;
+            fwds[num_fwds].idx = p_htlc->next_idx;
             p_htlc->next_short_channel_id = 0;
-            fwds_num++;
+            num_fwds++;
         }
 
         if (LN_DBG_FULFILL()) {
@@ -2097,7 +2097,7 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
         M_DB_CHANNEL_SAVE(pChannel);
     }
 
-    for (uint32_t lp = 0; lp < fwds_num; lp++) {
+    for (uint32_t lp = 0; lp < num_fwds; lp++) {
         ln_callback(pChannel, LN_CB_FWD_ADDHTLC_START, &fwds[lp]);
     }
     return true;

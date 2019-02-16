@@ -193,7 +193,7 @@ bool HIDDEN ln_comtx_create_rs(
     }
 
     //  HTLCs
-    for (uint16_t lp = 0; lp < pComTxInfoTrimmed->htlc_info_num; lp++) {
+    for (uint16_t lp = 0; lp < pComTxInfoTrimmed->num_htlc_infos; lp++) {
         if (!pComTxInfoTrimmed->pp_htlc_info[lp]->amount_msat) continue; //trimmed
         if (!btc_sw_add_vout_p2wsh_wit(
             pTx, LN_MSAT2SATOSHI(pComTxInfoTrimmed->pp_htlc_info[lp]->amount_msat),
@@ -254,7 +254,7 @@ void HIDDEN ln_comtx_info_sub_fee_and_trim_outputs(ln_comtx_info_t *pComTxInfo, 
     }
 
     //HTLCs
-    for (uint16_t lp = 0; lp < pComTxInfo->htlc_info_num; lp++) {
+    for (uint16_t lp = 0; lp < pComTxInfo->num_htlc_infos; lp++) {
         uint64_t output_sat = LN_MSAT2SATOSHI(pComTxInfo->pp_htlc_info[lp]->amount_msat);
         uint64_t fee;
         LOGD("lp=%d\n", lp);
@@ -284,14 +284,14 @@ void HIDDEN ln_comtx_info_sub_fee_and_trim_outputs(ln_comtx_info_t *pComTxInfo, 
 }
 
 
-uint16_t HIDDEN ln_comtx_info_get_htlc_output_num(ln_comtx_info_t *pComTxInfoTrimmed)
+uint16_t HIDDEN ln_comtx_info_get_num_htlc_outputs(ln_comtx_info_t *pComTxInfoTrimmed)
 {
-    uint16_t htlc_output_num = 0;
-    for (uint16_t lp = 0; lp < pComTxInfoTrimmed->htlc_info_num; lp++) {
+    uint16_t num_htlc_outputs = 0;
+    for (uint16_t lp = 0; lp < pComTxInfoTrimmed->num_htlc_infos; lp++) {
         if (!pComTxInfoTrimmed->pp_htlc_info[lp]->amount_msat) continue; //trimmed
-        htlc_output_num++;
+        num_htlc_outputs++;
     }
-    return htlc_output_num;
+    return num_htlc_outputs;
 }
 
 

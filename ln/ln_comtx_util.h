@@ -118,8 +118,8 @@ typedef struct {
     } to_remote;
     uint64_t                    obscured_commit_num;    ///< Obscured Commitment Number
     ln_comtx_htlc_info_t        **pp_htlc_info;         ///< HTLC infos
-    uint16_t                    htlc_info_num;          ///< num of HTLC infos
-    uint16_t                    htlc_output_num;        ///< num of HTLC (non-trimmed) outputs
+    uint16_t                    num_htlc_infos;          ///< num of HTLC infos
+    uint16_t                    num_htlc_outputs;       ///< num of HTLC (non-trimmed) outputs
     ln_comtx_base_fee_info_t    base_fee_info;
     bool                        b_trimmed;              ///< trimmed?
 } ln_comtx_info_t;
@@ -194,7 +194,7 @@ bool HIDDEN ln_comtx_create_rs(
 void HIDDEN ln_comtx_info_sub_fee_and_trim_outputs(ln_comtx_info_t *pComTxInfo, bool ToLocalIsFounder);
 
 
-uint16_t HIDDEN ln_comtx_info_get_htlc_output_num(ln_comtx_info_t *pComTxInfoTrimmed);
+uint16_t HIDDEN ln_comtx_info_get_num_htlc_outputs(ln_comtx_info_t *pComTxInfoTrimmed);
 
 
 #endif /* LN_COMTX_INFO_H__ */

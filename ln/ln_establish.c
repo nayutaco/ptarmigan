@@ -900,7 +900,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
     pChannel->commit_tx_local.revoke_num = (uint64_t)-1;
     pChannel->commit_tx_remote.commit_num = 0;
     pChannel->commit_tx_remote.revoke_num = (uint64_t)-1;
-    // pChannel->htlc_id_num = 0;
+    // pChannel->num_htlc_ids = 0;
     // pChannel->short_channel_id = 0;
 
     //storage_next_indexデクリメントおよびper_commit_secret更新

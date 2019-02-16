@@ -49,7 +49,7 @@
  * @param[in,out]       pCommitTx
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
  * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
- * @param[in]           HtlcSigsNum         pHtlcSigsの署名数
+ * @param[in]           NumHtlcSigs         pHtlcSigsの署名数
  * @retval      true    成功
  * @note
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
@@ -59,7 +59,7 @@ bool HIDDEN ln_comtx_create_local(
     ln_commit_tx_t *pCommitTx,
     ln_close_force_t *pClose,
     const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
-    uint16_t HtlcSigsNum);
+    uint16_t NumHtlcSigs);
 
 
 /** create local commitment transaction info
