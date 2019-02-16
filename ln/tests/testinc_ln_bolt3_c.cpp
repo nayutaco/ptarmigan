@@ -701,12 +701,12 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -1424,12 +1424,12 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -2146,12 +2146,12 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -2807,12 +2807,12 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -3468,12 +3468,12 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -4065,12 +4065,12 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -4662,12 +4662,12 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -5198,12 +5198,12 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -5734,12 +5734,12 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -6209,12 +6209,12 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -6685,12 +6685,12 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -6983,12 +6983,12 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -7283,12 +7283,12 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 
@@ -7576,12 +7576,12 @@ TEST_F(ln_bolt3_c, committx_commit)
     comtx.to_remote.pubkey = REMOTE_KEY;
     comtx.obscured_commit_num = obscured;
     comtx.pp_htlc_info = pp_htlc_infos;
-    comtx.htlc_info_num = 5;
+    comtx.num_htlc_infos = 5;
     comtx.base_fee_info = base_fee_info;
     utl_buf_t buf_sig_local = UTL_BUF_INIT;
 
     ln_comtx_info_sub_fee_and_trim_outputs(&comtx, true);
-    comtx.htlc_output_num = ln_comtx_info_get_htlc_output_num(&comtx);
+    comtx.num_htlc_outputs = ln_comtx_info_get_num_htlc_outputs(&comtx);
     ret = ln_comtx_create(&tx, &buf_sig_local, &comtx, &local_keys);
     ASSERT_TRUE(ret);
 

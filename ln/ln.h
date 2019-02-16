@@ -347,31 +347,31 @@ typedef struct {
  *  @brief      update_add_htlc
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel_id
-    uint64_t    id;                                 ///< 8:  id
-    uint64_t    amount_msat;                        ///< 8:  amount_msat
-    uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
-    uint8_t     payment_hash[BTC_SZ_HASH256];       ///< 32: payment_hash
-    utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
-    utl_buf_t   buf_onion_reason;                   ///<
-                                                    //  update_add_htlc
-                                                    //      1366: onion_routing_packet
-                                                    //          final node: length == 0
-                                                    //  update_fail_htlc
-                                                    //      len:  reason
+    uint8_t             *p_channel_id;                  ///< 32: channel_id
+    uint64_t            id;                             ///< 8:  id
+    uint64_t            amount_msat;                    ///< 8:  amount_msat
+    uint32_t            cltv_expiry;                    ///< 4:  cltv_expirty
+    uint8_t             payment_hash[BTC_SZ_HASH256];   ///< 32: payment_hash
+    utl_buf_t           buf_payment_preimage;           ///< 32: payment_preimage
+    utl_buf_t           buf_onion_reason;               ///<
+                                                        //  update_add_htlc
+                                                        //      1366: onion_routing_packet
+                                                        //          final node: length == 0
+                                                        //  update_fail_htlc
+                                                        //      len:  reason
     //inner
-    ln_htlc_flags_t     flags;                      ///< LN_HTLC_FLAG_xxx
-    uint64_t            next_short_channel_id;      ///< flags.addhtlc == SEND
-                                                    //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
+    ln_htlc_flags_t     flags;                          ///< LN_HTLC_FLAG_xxx
+    uint64_t            next_short_channel_id;          ///< flags.addhtlc == SEND
+                                                        //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
     uint16_t            next_idx;
     //fulfillで戻す
-    uint8_t             remote_sig[LN_SZ_SIGNATURE];///< 受信した最新のHTLC署名
-                                                    //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
-    uint64_t            prev_short_channel_id;      ///< 転送元short_channel_id
-                                                    //      origin/final node: == 0
-    uint16_t            prev_idx;                   ///< 転送元cnl_add_htlc[]index
+    uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< 受信した最新のHTLC署名
+                                                        //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
+    uint64_t            prev_short_channel_id;          ///< 転送元short_channel_id
+                                                        //      origin/final node: == 0
+    uint16_t            prev_idx;                       ///< 転送元cnl_add_htlc[]index
     //failで戻す
-    utl_buf_t           buf_shared_secret;          ///< failuremsg暗号化用
+    utl_buf_t           buf_shared_secret;              ///< failuremsg暗号化用
 } ln_update_add_htlc_t;
 
 
@@ -591,7 +591,7 @@ typedef struct {
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
     uint8_t             txid[BTC_SZ_TXID];              ///< txid
-    uint16_t            htlc_output_num;                ///< commit_tx中のHTLC数
+    uint16_t            num_htlc_outputs;               ///< commit_tx中のHTLC数
     uint64_t            commit_num;                     ///< commitment_number
                                                         //      commit_tx_local:  commitment_signed受信後、インクリメント
                                                         //      commit_tx_remote: commitment_signed送信後、インクリメント
@@ -654,7 +654,7 @@ struct ln_channel_t {
     uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint64_t                    htlc_id_num;                    ///< [NORM_01]update_add_htlcで使うidの管理
+    uint64_t                    num_htlc_ids;                   ///< [NORM_01]update_add_htlcで使うidの管理
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
     uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_04]追加したHTLC

@@ -343,7 +343,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
 
     //normal operation
-    printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", pChannel->htlc_id_num);
+    printf(INDENT3 M_QQ("num_htlc_ids") ": %" PRIu64 ",\n", pChannel->num_htlc_ids);
 
     printf(INDENT3 M_QQ("add_htlc") ": [\n");
     int cnt = 0;
@@ -481,7 +481,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT4 M_QQ("commit_txid") ": \"");
     btc_dbg_dump_txid(stdout, pChannel->commit_tx_local.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("htlc_output_num") ": %" PRIu32 ",\n", pChannel->commit_tx_local.htlc_output_num);
+    printf(INDENT4 M_QQ("num_htlc_outputs") ": %" PRIu32 ",\n", pChannel->commit_tx_local.num_htlc_outputs);
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_tx_local.commit_num);
     if (pChannel->commit_tx_local.revoke_num != (uint64_t)-1) {
         printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_tx_local.revoke_num);
@@ -501,7 +501,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT4 M_QQ("commit_txid") ": \"");
     btc_dbg_dump_txid(stdout, pChannel->commit_tx_remote.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("htlc_output_num") ": %" PRIu32 ",\n", pChannel->commit_tx_remote.htlc_output_num);
+    printf(INDENT4 M_QQ("num_htlc_outputs") ": %" PRIu32 ",\n", pChannel->commit_tx_remote.num_htlc_outputs);
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.commit_num);
     if (pChannel->commit_tx_remote.revoke_num != (uint64_t)-1) {
         printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_tx_remote.revoke_num);
