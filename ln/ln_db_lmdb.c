@@ -949,10 +949,10 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool
         goto LABEL_EXIT;
     }
 
-    //if (bRestore) {
+    if (bRestore) {
         //復元データからさらに復元
         retval = channel_secret_restore(pChannel);
-    //}
+    }
 
 LABEL_EXIT:
     if (retval == 0) {
