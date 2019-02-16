@@ -85,7 +85,7 @@ static void add_htlc_create(ln_channel_t *pChannel, utl_buf_t *pAdd, uint16_t Id
 static void fulfill_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFulfill, uint16_t Idx);
 static void fail_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail, uint16_t Idx);
 static void fail_malformed_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail, uint16_t Idx);
-static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig);
+static bool commitment_signed_send(ln_channel_t *pChannel);
 static bool check_create_add_htlc(ln_channel_t *pChannel, uint16_t *pIdx, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
 static bool set_add_htlc(ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx);
@@ -1675,72 +1675,66 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
         }
     }
     if (b_comsig || b_updfee) {
-        //commitment_signed送信
-        utl_buf_t buf = UTL_BUF_INIT;
-        bool ret = create_commitment_signed(pChannel, &buf);
-        if (ret) {
-            ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
-
-            if (b_comsig) {
-                //commitment_signed送信済みフラグ
-                for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-                    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-                    if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_htlc) ) {
-                        LOGD(" [%d]comsend=1\n", idx);
-                        p_htlc->flags.comsend = 1;
-                    }
-                }
-            } else {
-                LOGD("$$$ commitment_signed for update_fee\n");
-            }
-
-            M_DBG_COMMITNUM(pChannel);
-            M_DB_CHANNEL_SAVE(pChannel);
-        } else {
-            //commit_txの作成に失敗したので、commitment_signedは送信できない
-            LOGE("fail: create commit_tx(0x%" PRIx64 ")\n", ln_short_channel_id(pChannel));
-            ln_callback(pChannel, LN_CB_QUIT, NULL);
-        }
-        utl_buf_free(&buf);
+        /*ignore*/ commitment_signed_send(pChannel);
     }
 }
 
 
-static bool create_commitment_signed(ln_channel_t *pChannel, utl_buf_t *pCommSig)
+static bool commitment_signed_send(ln_channel_t *pChannel)
 {
     LOGD("BEGIN\n");
 
+    bool ret = false;
+    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
+    utl_buf_t buf = UTL_BUF_INIT;
+
     if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "no init finished");
-        return false;
+        goto LABEL_EXIT;
     }
 
-    //相手に送る署名を作成
-    ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
-    new_commit_tx.commit_num++;
-    uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
+    //create sigs for remote commitment transaction
+    pChannel->commit_tx_remote.commit_num++;
     if (!ln_comtx_create_remote(
-        pChannel, &new_commit_tx, NULL, &p_htlc_sigs)) {
-        M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx");
-        return false;
+        pChannel, &pChannel->commit_tx_remote, NULL, &p_htlc_sigs)) {
+        M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commitment transaction");
+        goto LABEL_EXIT;
     }
-
-    //commitment_signedを受信していないと想定してはいけないようなのでupdate
-    pChannel->commit_tx_remote = new_commit_tx;
 
     ln_msg_commitment_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
-    msg.p_signature = pChannel->commit_tx_remote.remote_sig;     //相手commit_txに行った自分の署名
+    msg.p_signature = pChannel->commit_tx_remote.remote_sig;
     msg.num_htlcs = pChannel->commit_tx_remote.htlc_output_num;
     msg.p_htlc_signature = (uint8_t *)p_htlc_sigs;
-    if (!ln_msg_commitment_signed_write(pCommSig, &msg)) {
-        M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commitment_signed");
-        return false;
+    if (!ln_msg_commitment_signed_write(&buf, &msg)) {
+        M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create commitment_signed");
+        LOGE("fail: create commit_tx(0x%" PRIx64 ")\n", ln_short_channel_id(pChannel));
+        ln_callback(pChannel, LN_CB_QUIT, NULL);
+        utl_buf_free(&buf);
+        goto LABEL_EXIT;
     }
-    UTL_DBG_FREE(p_htlc_sigs);
 
+    //We have to save the channel before sending the message
+    //  Otherwise, if aborted after sending it, the channel forgets sending it
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
+        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+        if (!LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_htlc)) continue;
+        LOGD(" [%d]comsend=1\n", idx);
+        p_htlc->flags.comsend = 1;
+    }
+    M_DBG_COMMITNUM(pChannel);
+    M_DB_CHANNEL_SAVE(pChannel);
+
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+
+    ret = true;
+
+LABEL_EXIT:
+    utl_buf_free(&buf);
+    UTL_DBG_FREE(p_htlc_sigs);
     LOGD("END\n");
-    return true;
+    return ret;
 }
 
 
