@@ -35,6 +35,7 @@ extern "C" {
 #include "ln_derkey_ex.c"
 #include "ln_msg_anno.c"
 #include "ln_msg_close.c"
+#include "ln_msg.c"
 //#include "ln_msg_establish.c"
 #include "ln_msg_normalope.c"
 #include "ln_msg_setupctl.c"
@@ -400,8 +401,7 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_EQ(0, buf_reason.len);
 
     /*** TEST ***/
-    utl_buf_t add = UTL_BUF_INIT;
-    add_htlc_create(&channel, &add, 0);
+    ASSERT_TRUE(update_add_htlc_send(&channel, 0));
 
     /*** CHECK ***/
     ASSERT_EQ(amount_msat, channel.cnl_add_htlc[0].amount_msat);
@@ -429,7 +429,6 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_EQ(0, channel.commit_tx_local.num_htlc_outputs);
     ASSERT_EQ(0, channel.commit_tx_remote.num_htlc_outputs);
 
-    utl_buf_free(&add);
     ln_term(&channel);
 }
 

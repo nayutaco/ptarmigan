@@ -81,10 +81,10 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel, ln_hop_dat
 static bool store_peer_percommit_secret(ln_channel_t *pChannel, const uint8_t *p_prev_secret);
 static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc);
 static void clear_htlc(ln_update_add_htlc_t *p_htlc);
-static void add_htlc_create(ln_channel_t *pChannel, utl_buf_t *pAdd, uint16_t Idx);
-static void fulfill_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFulfill, uint16_t Idx);
-static void fail_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail, uint16_t Idx);
-static void fail_malformed_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail, uint16_t Idx);
+static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
+static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
+static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
+static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
 static bool commitment_signed_send(ln_channel_t *pChannel);
 static bool check_create_add_htlc(ln_channel_t *pChannel, uint16_t *pIdx, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
 static bool set_add_htlc(ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
@@ -820,32 +820,27 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         int idx;
         for (idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-            if (LN_HTLC_ENABLED(p_htlc)) {
-                utl_buf_t buf = UTL_BUF_INIT;
-                if (LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(p_htlc)) {
-                    //XXX: the order of id should be considered?
-                    LOGD("resend: update_add_htlc\n");
-                    p_htlc->p_channel_id = pChannel->channel_id;
-                    (void)msg_update_add_htlc_write(&buf, p_htlc);
-                } else if (LN_HTLC_JUST_SEND_FULFILL_AND_COMSIG(p_htlc)) {
-                    LOGD("resend: update_fulfill_htlc\n");
-                    fulfill_htlc_create(pChannel, &buf, idx);
-                } else if (LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc)) {
-                    LOGD("resend: update_fail_htlc\n");
-                    fail_htlc_create(pChannel, &buf, idx);
-                } else if (LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(p_htlc)) {
-                    LOGD("resend: update_fail_malformed_htlc\n");
-                    fail_malformed_htlc_create(pChannel, &buf, idx);
-                } else {
-                    //XXX: resend update_fee
-                }
-                if (buf.len > 0) {
-                    p_htlc->flags.comsend = 0;
-                    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
-                    utl_buf_free(&buf);
-                    pChannel->cnl_add_htlc[idx].flags.updsend = 1;
-                    break;
-                }
+            if (!LN_HTLC_ENABLED(p_htlc)) continue;
+            if (LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(p_htlc)) {
+                //XXX: the order of id should be considered?
+                LOGD("resend: update_add_htlc\n");
+                p_htlc->p_channel_id = pChannel->channel_id; //XXX: ???
+                /*ignore*/ update_add_htlc_send(pChannel, idx);
+                p_htlc->flags.comsend = 0;
+            } else if (LN_HTLC_JUST_SEND_FULFILL_AND_COMSIG(p_htlc)) {
+                LOGD("resend: update_fulfill_htlc\n");
+                /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
+                p_htlc->flags.comsend = 0;
+            } else if (LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc)) {
+                LOGD("resend: update_fail_htlc\n");
+                /*ignore*/ update_fail_htlc_send(pChannel, idx);
+                p_htlc->flags.comsend = 0;
+            } else if (LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(p_htlc)) {
+                LOGD("resend: update_fail_malformed_htlc\n");
+                /*ignore*/ update_fail_malformed_htlc_send(pChannel, idx);
+                p_htlc->flags.comsend = 0;
+            } else {
+                //XXX: resend update_fee? or revert
             }
         }
         pChannel->commit_tx_remote.commit_num--;
@@ -1604,77 +1599,57 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
  */
 static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
-    bool b_comsiging = false;   //true: commitment_signed〜revoke_and_ackの途中
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (LN_HTLC_COMSIGING(&pChannel->cnl_add_htlc[idx])) {
-            b_comsiging = true;
-            break;
+            //commitment_signed〜revoke_and_ackの途中
+            //XXX: We should be able to send an update message at this timing
+            return;
         }
     }
 
     bool b_comsig = false;      //true: commitment_signed送信可能
-    bool b_updfee = false;      //true: update_fee送信
-    if (!b_comsiging) {
-        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-            ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-            if (LN_HTLC_ENABLED(p_htlc)) {
-                ln_htlc_flags_t *p_flags = &p_htlc->flags;
-                // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
-                //         idx,
-                //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
-                //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
-                //         p_flags->updsend,
-                //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
-                //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-                //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
-                utl_buf_t buf = UTL_BUF_INIT;
-                if (LN_HTLC_WILL_ADDHTLC_SEND(p_htlc)) {
-                    //update_add_htlc送信
-                    add_htlc_create(pChannel, &buf, idx);
-                } else if (LN_HTLC_WILL_DELHTLC_SEND(p_htlc)) {
-                    if (!LN_DBG_FULFILL() || !LN_DBG_FULFILL_BWD()) {
-                        LOGD("DBG: no fulfill mode\n");
-                    } else {
-                        //update_fulfill/fail/fail_malformed_htlc送信
-                        switch (p_flags->delhtlc) {
-                        case LN_DELHTLC_FULFILL:
-                            fulfill_htlc_create(pChannel, &buf, idx);
-                            break;
-                        case LN_DELHTLC_FAIL:
-                            fail_htlc_create(pChannel, &buf, idx);
-                            break;
-                        case LN_DELHTLC_FAIL_MALFORMED:
-                            fail_malformed_htlc_create(pChannel, &buf, idx);
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                } else if (LN_HTLC_WILL_COMSIG_SEND(p_htlc)) {
-                    //commitment_signed送信可能
-                    b_comsig = true;
-                } else {
-                    //???
-                }
-                if (buf.len > 0) {
-                    uint16_t type = utl_int_pack_u16be(buf.buf);
-                    LOGD("send: %s\n", ln_msg_name(type));
-                    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
-                    utl_buf_free(&buf);
-                    pChannel->cnl_add_htlc[idx].flags.updsend = 1;
-                } else {
-                    //nothing to do or fail create packet
-                }
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
+        ln_htlc_flags_t *p_flags = &p_htlc->flags;
+        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+        // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
+        //         idx,
+        //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
+        //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
+        //         p_flags->updsend,
+        //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
+        //         p_htlc->next_short_channel_id, p_htlc->next_idx,
+        //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
+        if (LN_HTLC_WILL_ADDHTLC_SEND(p_htlc)) {
+            /*ignore*/ update_add_htlc_send(pChannel, idx);
+        } else if (LN_HTLC_WILL_DELHTLC_SEND(p_htlc)) {
+            if (!LN_DBG_FULFILL() || !LN_DBG_FULFILL_BWD()) {
+                LOGD("DBG: no fulfill mode\n");
+                continue;
             }
+            switch (p_flags->delhtlc) {
+            case LN_DELHTLC_FULFILL:
+                /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
+                break;
+            case LN_DELHTLC_FAIL:
+                /*ignore*/ update_fail_htlc_send(pChannel, idx);
+                break;
+            case LN_DELHTLC_FAIL_MALFORMED:
+                /*ignore*/ update_fail_malformed_htlc_send(pChannel, idx);
+                break;
+            default:
+                ;
+            }
+        } else if (LN_HTLC_WILL_COMSIG_SEND(p_htlc)) {
+            b_comsig = true;
         }
     }
     if (!b_comsig && ((FeeratePerKw != 0) && (pChannel->feerate_per_kw != FeeratePerKw))) {
-        bool ret = ln_update_fee_send(pChannel, FeeratePerKw);
-        if (ret) {
-            b_updfee = true;
+        if (ln_update_fee_send(pChannel, FeeratePerKw)) {
+            b_comsig = true;
         }
     }
-    if (b_comsig || b_updfee) {
+    if (b_comsig) {
         /*ignore*/ commitment_signed_send(pChannel);
     }
 }
@@ -1935,109 +1910,104 @@ static bool set_add_htlc(ln_channel_t *pChannel,
 }
 
 
-/** update_add_htlcメッセージ作成
+/** send update_add_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
- * @note
- *  - 作成失敗時、pAddは解放する
  */
-static void add_htlc_create(ln_channel_t *pChannel, utl_buf_t *pAdd, uint16_t Idx)
+static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 {
     LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-    bool ret = msg_update_add_htlc_write(pAdd, &pChannel->cnl_add_htlc[Idx]);
-    if (ret) {
-        pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
-    } else {
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!msg_update_add_htlc_write(&buf, &pChannel->cnl_add_htlc[Idx])) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: add_htlc");
-        utl_buf_free(pAdd);
+        return false;
     }
+    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
-/** update_fulfill_htlcメッセージ作成
+/** send update_fulfill_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[out]          pFulfill        生成したupdate_fulfill_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
- * @note
- *  - 作成失敗時、pFulfillは解放する
  */
-static void fulfill_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFulfill, uint16_t Idx)
+static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 {
     LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-
     ln_msg_update_fulfill_htlc_t msg;
     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
 
     msg.p_channel_id = pChannel->channel_id;
     msg.id = p_htlc->id;
     msg.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
-    bool ret = ln_msg_update_fulfill_htlc_write(pFulfill, &msg);
-    if (ret) {
-        p_htlc->flags.updsend = 1;
-    } else {
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_update_fulfill_htlc_write(&buf, &msg)) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
-        utl_buf_free(pFulfill);
+        return false;
     }
+    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    utl_buf_free(&buf);
+    return true;
 }
 
 
-/** update_fail_htlcメッセージ作成
+/** send update_fail_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
- * @note
- *  - 作成失敗時、pFailは解放する
  */
-static void fail_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail, uint16_t Idx)
+static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 {
     LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-
-    ln_msg_update_fail_htlc_t fail_htlc;
+    ln_msg_update_fail_htlc_t msg;
     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
 
-    fail_htlc.p_channel_id = pChannel->channel_id;
-    fail_htlc.id = p_htlc->id;
-    fail_htlc.len = p_htlc->buf_onion_reason.len;
-    fail_htlc.p_reason = p_htlc->buf_onion_reason.buf;
-    bool ret = ln_msg_update_fail_htlc_write(pFail, &fail_htlc);
-    if (ret) {
-        p_htlc->flags.updsend = 1;
-    } else {
+    msg.p_channel_id = pChannel->channel_id;
+    msg.id = p_htlc->id;
+    msg.len = p_htlc->buf_onion_reason.len;
+    msg.p_reason = p_htlc->buf_onion_reason.buf;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_update_fail_htlc_write(&buf, &msg)) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fail_htlc");
-        utl_buf_free(pFail);
+        return false;
     }
+    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    return true;
 }
 
 
-/** update_fail_malformed_htlcメッセージ作成
+/** send update_fail_malformed_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
- * @note
- *  - 作成失敗時、pFailは解放する
  */
-static void fail_malformed_htlc_create(ln_channel_t *pChannel, utl_buf_t *pFail, uint16_t Idx)
+static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 {
     LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-
     ln_msg_update_fail_malformed_htlc_t msg;
     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
     msg.p_channel_id = pChannel->channel_id;
     msg.id = p_htlc->id;
     msg.p_sha256_of_onion = p_htlc->buf_onion_reason.buf + sizeof(uint16_t);
     msg.failure_code = utl_int_pack_u16be(p_htlc->buf_onion_reason.buf);
-    bool ret = ln_msg_update_fail_malformed_htlc_write(pFail, &msg);
-    if (ret) {
-        p_htlc->flags.updsend = 1;
-    } else {
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_update_fail_malformed_htlc_write(&buf, &msg)) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: malformed_htlc");
-        utl_buf_free(pFail);
+        return false;
     }
+    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
+    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    return true;
 }
 
 
