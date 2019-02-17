@@ -2439,3 +2439,57 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     p_htlc->flags = bak;
 }
+
+
+TEST_F(ln_htlc_flag, htlc_flag_update_add_htlc_resend)
+{
+    ln_channel_t channel;
+    LnInit(&channel);
+
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
+
+    p_flags->addhtlc = LN_ADDHTLC_SEND;
+    p_flags->delhtlc = LN_DELHTLC_NONE;
+    p_flags->updsend = 1;
+    p_flags->comsend = 1;
+    p_flags->revrecv = 0; //comsiging!
+    p_flags->comrecv = 0;
+    p_flags->revsend = 0;
+
+    ASSERT_TRUE(LN_HTLC_ENABLED(p_htlc));
+    ASSERT_TRUE(LN_HTLC_REMOTE_COMSIGING(p_htlc));
+    LN_HTLC_ENABLE_RESEND(p_htlc);
+    ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC_SEND(p_htlc));
+    p_flags->updsend = 1;
+    ASSERT_TRUE(LN_HTLC_WILL_COMSIG_SEND(p_htlc));
+
+    ln_term(&channel);
+}
+
+
+TEST_F(ln_htlc_flag, htlc_flag_update_del_htlc_resend)
+{
+    ln_channel_t channel;
+    LnInit(&channel);
+
+    ln_update_add_htlc_t *p_htlc = &channel.cnl_add_htlc[0];
+    ln_htlc_flags_t *p_flags = &p_htlc->flags;
+
+    p_flags->addhtlc = LN_ADDHTLC_RECV;
+    p_flags->delhtlc = LN_DELHTLC_FULFILL;
+    p_flags->updsend = 1;
+    p_flags->comsend = 1;
+    p_flags->revrecv = 0; //comsiging!
+    p_flags->comrecv = 0;
+    p_flags->revsend = 0;
+
+    ASSERT_TRUE(LN_HTLC_ENABLED(p_htlc));
+    ASSERT_TRUE(LN_HTLC_REMOTE_COMSIGING(p_htlc));
+    LN_HTLC_ENABLE_RESEND(p_htlc);
+    ASSERT_TRUE(LN_HTLC_WILL_DELHTLC_SEND(p_htlc));
+    p_flags->updsend = 1;
+    ASSERT_TRUE(LN_HTLC_WILL_COMSIG_SEND(p_htlc));
+
+    ln_term(&channel);
+}
