@@ -477,10 +477,18 @@ typedef struct {
     )
 
 
+#define LN_HTLC_LOCAL_COMSIGING(pHtlc) \
+    ((pHtlc)->flags.comrecv && !(pHtlc)->flags.revsend)
+
+
+#define LN_HTLC_REMOTE_COMSIGING(pHtlc) \
+    ((pHtlc)->flags.comsend && !(pHtlc)->flags.revrecv)
+
+
 #define LN_HTLC_COMSIGING(pHtlc) \
     ( \
-        ((pHtlc)->flags.comsend && !(pHtlc)->flags.revrecv) || \
-        ((pHtlc)->flags.comrecv && !(pHtlc)->flags.revsend) \
+        LN_HTLC_LOCAL_COMSIGING(pHtlc) || \
+        LN_HTLC_REMOTE_COMSIGING(pHtlc) \
     )
 
 
@@ -539,6 +547,13 @@ typedef struct {
     ((pHtlc)->flags.revsend == 1) && \
     ((pHtlc)->flags.fin_delhtlc == LN_DELHTLC_NONE) \
 )
+
+
+#define LN_HTLC_ENABLE_RESEND(pHtlc) { \
+    assert((pHtlc)->flags.revrecv == 0); \
+    (pHtlc)->flags.updsend = 0; \
+    (pHtlc)->flags.comsend = 0; \
+}
 
 
 //test

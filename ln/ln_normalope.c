@@ -816,37 +816,16 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
+        //XXX: If the corresponding `revoke_andk_ack` is received, channel should be failed
         LOGD("$$$ resend: previous update message\n");
-        int idx;
-        for (idx = 0; idx < LN_HTLC_MAX; idx++) {
+        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
             if (!LN_HTLC_ENABLED(p_htlc)) continue;
-            if (LN_HTLC_JUST_SEND_ADDHTLC_AND_COMSIG(p_htlc)) {
-                //XXX: the order of id should be considered?
-                LOGD("resend: update_add_htlc\n");
-                p_htlc->p_channel_id = pChannel->channel_id; //XXX: ???
-                /*ignore*/ update_add_htlc_send(pChannel, idx);
-                p_htlc->flags.comsend = 0;
-            } else if (LN_HTLC_JUST_SEND_FULFILL_AND_COMSIG(p_htlc)) {
-                LOGD("resend: update_fulfill_htlc\n");
-                /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
-                p_htlc->flags.comsend = 0;
-            } else if (LN_HTLC_JUST_SEND_FAIL_AND_COMSIG(p_htlc)) {
-                LOGD("resend: update_fail_htlc\n");
-                /*ignore*/ update_fail_htlc_send(pChannel, idx);
-                p_htlc->flags.comsend = 0;
-            } else if (LN_HTLC_JUST_SEND_FAIL_MALFORMED_AND_COMSIG(p_htlc)) {
-                LOGD("resend: update_fail_malformed_htlc\n");
-                /*ignore*/ update_fail_malformed_htlc_send(pChannel, idx);
-                p_htlc->flags.comsend = 0;
-            } else {
-                //XXX: resend update_fee? or revert
-            }
+            if (!LN_HTLC_REMOTE_COMSIGING(p_htlc)) continue;
+            LN_HTLC_ENABLE_RESEND(p_htlc);
+            //The update message will be sent in the idle proc.
         }
         pChannel->commit_tx_remote.commit_num--;
-        if (idx >= LN_HTLC_MAX) {
-            LOGE("fail: cannot find HTLC to process\n");
-        }
     }
 
     //BOLT#02
