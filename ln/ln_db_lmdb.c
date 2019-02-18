@@ -312,7 +312,7 @@ typedef struct {
 } preimage_info_t;
 
 
-/** #ln_db_channel_del_prm()用(ln_db_preimage_search)
+/** #ln_db_channel_del_param()用(ln_db_preimage_search)
  *
  */
 typedef struct {
@@ -388,7 +388,7 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //anno
     //
     M_ITEM(ln_channel_t, anno_flag),       //[ANNO_01]
-    //[ANNO_02]anno_prm
+    //[ANNO_02]anno_param
     //[ANNO_03]cnl_anno
 
     //
@@ -1017,7 +1017,7 @@ bool ln_db_channel_del(const uint8_t *pChannelId)
 }
 
 
-bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param)
+bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *p_db_param)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -1027,9 +1027,9 @@ bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param)
     MDB_TXN_CHECK_CHANNEL(p_cur->txn);
 
     //add_htlcと関連するpreimage削除
-    preimage_close_t prm;
-    prm.add_htlc = pChannel->cnl_add_htlc;
-    ln_db_preimage_search(preimage_close_func, &prm);
+    preimage_close_t param;
+    param.add_htlc = pChannel->cnl_add_htlc;
+    ln_db_preimage_search(preimage_close_func, &param);
 
     //add_htlc
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
@@ -4207,7 +4207,7 @@ static bool channel_comp_func_cnldel(ln_channel_t *pChannel, void *p_db_param, v
 
     bool ret = (memcmp(pChannel->channel_id, p_channel_id, LN_SZ_CHANNEL_ID) == 0);
     if (ret) {
-        ln_db_channel_del_prm(pChannel, p_db_param);
+        ln_db_channel_del_param(pChannel, p_db_param);
 
         //true時は呼び元では解放しないので、ここで解放する
         ln_term(pChannel);
@@ -4737,7 +4737,7 @@ static bool preimage_del_func(const uint8_t *pPreimage, uint64_t Amount, uint32_
 }
 
 
-/** ln_db_channel_del_prm用処理関数
+/** ln_db_channel_del_param用処理関数
  *
  * SHA256(preimage)がpayment_hashと一致した場合、DBから削除する。
  */
@@ -4746,7 +4746,7 @@ static bool preimage_close_func(const uint8_t *pPreimage, uint64_t Amount, uint3
     (void)Amount; (void)Expiry;
 
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
-    preimage_close_t *prm = (preimage_close_t *)p_param;
+    preimage_close_t *param = (preimage_close_t *)p_param;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
     LOGD("compare preimage : ");
@@ -4754,7 +4754,7 @@ static bool preimage_close_func(const uint8_t *pPreimage, uint64_t Amount, uint3
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (memcmp(preimage_hash, prm->add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {
+        if (memcmp(preimage_hash, param->add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {
             //一致
             int retval = mdb_cursor_del(p_cur->cursor, 0);
             LOGD("  remove from DB: %s\n", mdb_strerror(retval));

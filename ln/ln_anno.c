@@ -694,10 +694,10 @@ static bool create_channel_update(
     pUpd->timestamp = TimeStamp;
     pUpd->message_flags = 0;
     pUpd->channel_flags = Flag | ln_sort_to_dir(ln_node_id_sort(pChannel, NULL));
-    pUpd->cltv_expiry_delta = pChannel->anno_prm.cltv_expiry_delta;
-    pUpd->htlc_minimum_msat = pChannel->anno_prm.htlc_minimum_msat;
-    pUpd->fee_base_msat = pChannel->anno_prm.fee_base_msat;
-    pUpd->fee_proportional_millionths = pChannel->anno_prm.fee_prop_millionths;
+    pUpd->cltv_expiry_delta = pChannel->anno_param.cltv_expiry_delta;
+    pUpd->htlc_minimum_msat = pChannel->anno_param.htlc_minimum_msat;
+    pUpd->fee_base_msat = pChannel->anno_param.fee_base_msat;
+    pUpd->fee_proportional_millionths = pChannel->anno_param.fee_prop_millionths;
     pUpd->htlc_maximum_msat = 0;
     if (!ln_msg_channel_update_write(pCnlUpd, pUpd)) return false;
     return ln_msg_channel_update_sign(pCnlUpd->buf, pCnlUpd->len);

@@ -141,7 +141,7 @@ enum {
 
 static volatile bool        mLoop;          //true:チャネル有効
 
-static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
+static ln_anno_param_t        mAnnoParam;       ///< announcementパラメータ
 
 
 /********************************************************************
@@ -495,7 +495,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     bool ret;
     ln_channel_t *p_channel = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
 
-    ln_init(p_channel, &mAnnoPrm, NULL);
+    ln_init(p_channel, &mAnnoParam, NULL);
 
     ret = ln_node_search_channel(p_channel, pNodeId);
     if (!ret) {
@@ -704,7 +704,7 @@ static void *thread_main_start(void *pArg)
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
 
-    ln_init(p_channel, &mAnnoPrm, notify_cb);
+    ln_init(p_channel, &mAnnoParam, notify_cb);
 
     p_conf->p_channel = p_channel;
     p_conf->ping_counter = 1;       //send soon
@@ -3119,7 +3119,7 @@ LABEL_EXIT:
  */
 static void load_channel_settings(lnapp_conf_t *p_conf)
 {
-    bool ret = ln_establish_alloc(p_conf->p_channel, ptarmd_get_establishprm());
+    bool ret = ln_establish_alloc(p_conf->p_channel, ptarmd_get_establishparam());
     if (!ret) {
         LOGE("fail: set establish\n");
         assert(ret);
@@ -3135,10 +3135,10 @@ static void load_announce_settings(void)
     anno_conf_t aconf;
     conf_anno_init(&aconf);
     (void)conf_anno_load(FNAME_CONF_ANNO, &aconf);
-    mAnnoPrm.cltv_expiry_delta = aconf.cltv_expiry_delta;
-    mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
-    mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
-    mAnnoPrm.fee_prop_millionths = aconf.fee_prop_millionths;
+    mAnnoParam.cltv_expiry_delta = aconf.cltv_expiry_delta;
+    mAnnoParam.htlc_minimum_msat = aconf.htlc_minimum_msat;
+    mAnnoParam.fee_base_msat = aconf.fee_base_msat;
+    mAnnoParam.fee_prop_millionths = aconf.fee_prop_millionths;
 }
 
 

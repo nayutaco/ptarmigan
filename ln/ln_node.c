@@ -200,11 +200,11 @@ bool ln_node_search_channel(ln_channel_t *pChannel, const uint8_t *pNodeId)
     LOGD("search id:");
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
-    comp_param_cnl_t prm;
+    comp_param_cnl_t param;
 
-    prm.p_node_id = pNodeId;
-    prm.p_channel = pChannel;
-    bool detect = ln_db_channel_search_readonly(comp_func_cnl, &prm);
+    param.p_node_id = pNodeId;
+    param.p_channel = pChannel;
+    bool detect = ln_db_channel_search_readonly(comp_func_cnl, &param);
 
     LOGD("  --> detect=%d\n", detect);
 
