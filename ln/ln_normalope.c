@@ -249,7 +249,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
     utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_idx = idx; //XXX: ??? p_htlc->prev_idx???
+    cb_param.prev_idx = p_htlc->prev_idx;
     cb_param.orig_id = p_htlc->id;     //元のHTLC id //XXX: ??? rename next_id
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = 0;
@@ -316,7 +316,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
     cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_idx = idx; //XXX: ???
+    cb_param.prev_idx = p_htlc->prev_idx;
     cb_param.orig_id = p_htlc->id;     //元のHTLC id //XXX: next
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = msg.failure_code;
