@@ -289,28 +289,28 @@ public:
         (void)pChannel; (void)p_param;
         const char *p_str;
         switch (type) {
-        case LN_CB_TYPE_ERROR: p_str = "LN_CB_TYPE_ERROR"; break;
-        case LN_CB_TYPE_INIT_RECV: p_str = "LN_CB_TYPE_INIT_RECV"; break;
-        case LN_CB_TYPE_REESTABLISH_RECV: p_str = "LN_CB_TYPE_REESTABLISH_RECV"; break;
-        case LN_CB_TYPE_SIGN_FUNDINGTX_REQ: p_str = "LN_CB_TYPE_SIGN_FUNDINGTX_REQ"; break;
-        case LN_CB_TYPE_FUNDINGTX_WAIT: p_str = "LN_CB_TYPE_FUNDINGTX_WAIT"; break;
-        case LN_CB_TYPE_FUNDINGLOCKED_RECV: p_str = "LN_CB_TYPE_FUNDINGLOCKED_RECV"; break;
-        case LN_CB_TYPE_UPDATE_ANNODB: p_str = "LN_CB_TYPE_UPDATE_ANNODB"; break;
-        case LN_CB_TYPE_ADD_HTLC_RECV_PREV: p_str = "LN_CB_TYPE_ADD_HTLC_RECV_PREV"; break;
-        case LN_CB_TYPE_ADD_HTLC_RECV: p_str = "LN_CB_TYPE_ADD_HTLC_RECV"; break;
-        case LN_CB_TYPE_FWD_ADDHTLC_START: p_str = "LN_CB_TYPE_FWD_ADDHTLC_START"; break;
-        case LN_CB_TYPE_FULFILL_HTLC_RECV: p_str = "LN_CB_TYPE_FULFILL_HTLC_RECV"; break;
-        case LN_CB_TYPE_FAIL_HTLC_RECV: p_str = "LN_CB_TYPE_FAIL_HTLC_RECV"; break;
-        case LN_CB_TYPE_REV_AND_ACK_EXCG: p_str = "LN_CB_TYPE_REV_AND_ACK_EXCG"; break;
-        case LN_CB_TYPE_PAYMENT_RETRY: p_str = "LN_CB_TYPE_PAYMENT_RETRY"; break;
-        case LN_CB_TYPE_UPDATE_FEE_RECV: p_str = "LN_CB_TYPE_UPDATE_FEE_RECV"; break;
-        case LN_CB_TYPE_SHUTDOWN_RECV: p_str = "LN_CB_TYPE_SHUTDOWN_RECV"; break;
-        case LN_CB_TYPE_CLOSED_FEE: p_str = "LN_CB_TYPE_CLOSED_FEE"; break;
-        case LN_CB_TYPE_CLOSED: p_str = "LN_CB_TYPE_CLOSED"; break;
-        case LN_CB_TYPE_SEND_REQ: p_str = "LN_CB_TYPE_SEND_REQ"; break;
-        case LN_CB_TYPE_SEND_QUEUE: p_str = "LN_CB_TYPE_SEND_QUEUE"; break;
+        case LN_CB_TYPE_NOTIFY_ERROR: p_str = "LN_CB_TYPE_NOTIFY_ERROR"; break;
+        case LN_CB_TYPE_NOTIFY_INIT_RECV: p_str = "LN_CB_TYPE_NOTIFY_INIT_RECV"; break;
+        case LN_CB_TYPE_NOTIFY_REESTABLISH_RECV: p_str = "LN_CB_TYPE_NOTIFY_REESTABLISH_RECV"; break;
+        case LN_CB_TYPE_SIGN_FUNDING_TX: p_str = "LN_CB_TYPE_SIGN_FUNDING_TX"; break;
+        case LN_CB_TYPE_WAIT_FUNDING_TX: p_str = "LN_CB_TYPE_WAIT_FUNDING_TX"; break;
+        case LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV: p_str = "LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV"; break;
+        case LN_CB_TYPE_NOTIFY_ANNODB_UPDATE: p_str = "LN_CB_TYPE_NOTIFY_ANNODB_UPDATE"; break;
+        case LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV: p_str = "LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV"; break;
+        case LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV"; break;
+        case LN_CB_TYPE_START_FWD_ADD_HTLC: p_str = "LN_CB_TYPE_START_FWD_ADD_HTLC"; break;
+        case LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV"; break;
+        case LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV"; break;
+        case LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE: p_str = "LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE"; break;
+        case LN_CB_TYPE_RETRY_PAYMENT: p_str = "LN_CB_TYPE_RETRY_PAYMENT"; break;
+        case LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV: p_str = "LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV"; break;
+        case LN_CB_TYPE_NOTIFY_SHUTDOWN_RECV: p_str = "LN_CB_TYPE_NOTIFY_SHUTDOWN_RECV"; break;
+        case LN_CB_TYPE_UPDATE_CLOSING_FEE: p_str = "LN_CB_TYPE_UPDATE_CLOSING_FEE"; break;
+        case LN_CB_TYPE_NOTIFY_CLOSING_END: p_str = "LN_CB_TYPE_NOTIFY_CLOSING_END"; break;
+        case LN_CB_TYPE_SEND_MESSAGE: p_str = "LN_CB_TYPE_SEND_MESSAGE"; break;
+        case LN_CB_TYPE_QUEUE_MESSAGE: p_str = "LN_CB_TYPE_QUEUE_MESSAGE"; break;
         case LN_CB_TYPE_GET_LATEST_FEERATE: p_str = "LN_CB_TYPE_GET_LATEST_FEERATE"; break;
-        case LN_CB_TYPE_GETBLOCKCOUNT: p_str = "LN_CB_TYPE_GETBLOCKCOUNT"; break;
+        case LN_CB_TYPE_GET_BLOCK_COUNT: p_str = "LN_CB_TYPE_GET_BLOCK_COUNT"; break;
         default:
             p_str = "unknown";
         }
@@ -367,7 +367,7 @@ TEST_F(ln, recv_updatechannel_ok)
     class dummy {
     public:
         static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            if (type == LN_CB_TYPE_UPDATE_ANNODB) {
+            if (type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
                 callback_called++;
             }
         }
@@ -428,7 +428,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
     class dummy {
     public:
         static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            if (type == LN_CB_TYPE_UPDATE_ANNODB) {
+            if (type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
                 callback_called++;
             }
         }
@@ -489,7 +489,7 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
     class dummy {
     public:
         static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            if (type == LN_CB_TYPE_UPDATE_ANNODB) {
+            if (type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
                 callback_called++;
             }
         }
