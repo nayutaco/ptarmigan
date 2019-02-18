@@ -100,32 +100,32 @@ public:
         }
         return ret;
     }
-    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
         (void)pChannel; (void)p_param;
         const char *p_str;
         switch (type) {
-        case LN_CB_ERROR: p_str = "LN_CB_ERROR"; break;
-        case LN_CB_INIT_RECV: p_str = "LN_CB_INIT_RECV"; break;
-        case LN_CB_REESTABLISH_RECV: p_str = "LN_CB_REESTABLISH_RECV"; break;
-        case LN_CB_SIGN_FUNDINGTX_REQ: p_str = "LN_CB_SIGN_FUNDINGTX_REQ"; break;
-        case LN_CB_FUNDINGTX_WAIT: p_str = "LN_CB_FUNDINGTX_WAIT"; break;
-        case LN_CB_FUNDINGLOCKED_RECV: p_str = "LN_CB_FUNDINGLOCKED_RECV"; break;
-        case LN_CB_UPDATE_ANNODB: p_str = "LN_CB_UPDATE_ANNODB"; break;
-        case LN_CB_ADD_HTLC_RECV_PREV: p_str = "LN_CB_ADD_HTLC_RECV_PREV"; break;
-        case LN_CB_ADD_HTLC_RECV: p_str = "LN_CB_ADD_HTLC_RECV"; break;
-        case LN_CB_FWD_ADDHTLC_START: p_str = "LN_CB_FWD_ADDHTLC_START"; break;
-        case LN_CB_FULFILL_HTLC_RECV: p_str = "LN_CB_FULFILL_HTLC_RECV"; break;
-        case LN_CB_FAIL_HTLC_RECV: p_str = "LN_CB_FAIL_HTLC_RECV"; break;
-        case LN_CB_REV_AND_ACK_EXCG: p_str = "LN_CB_REV_AND_ACK_EXCG"; break;
-        case LN_CB_PAYMENT_RETRY: p_str = "LN_CB_PAYMENT_RETRY"; break;
-        case LN_CB_UPDATE_FEE_RECV: p_str = "LN_CB_UPDATE_FEE_RECV"; break;
-        case LN_CB_SHUTDOWN_RECV: p_str = "LN_CB_SHUTDOWN_RECV"; break;
-        case LN_CB_CLOSED_FEE: p_str = "LN_CB_CLOSED_FEE"; break;
-        case LN_CB_CLOSED: p_str = "LN_CB_CLOSED"; break;
-        case LN_CB_SEND_REQ: p_str = "LN_CB_SEND_REQ"; break;
-        case LN_CB_SEND_QUEUE: p_str = "LN_CB_SEND_QUEUE"; break;
-        case LN_CB_GET_LATEST_FEERATE: p_str = "LN_CB_GET_LATEST_FEERATE"; break;
-        case LN_CB_GETBLOCKCOUNT: p_str = "LN_CB_GETBLOCKCOUNT"; break;
+        case LN_CB_TYPE_ERROR: p_str = "LN_CB_TYPE_ERROR"; break;
+        case LN_CB_TYPE_INIT_RECV: p_str = "LN_CB_TYPE_INIT_RECV"; break;
+        case LN_CB_TYPE_REESTABLISH_RECV: p_str = "LN_CB_TYPE_REESTABLISH_RECV"; break;
+        case LN_CB_TYPE_SIGN_FUNDINGTX_REQ: p_str = "LN_CB_TYPE_SIGN_FUNDINGTX_REQ"; break;
+        case LN_CB_TYPE_FUNDINGTX_WAIT: p_str = "LN_CB_TYPE_FUNDINGTX_WAIT"; break;
+        case LN_CB_TYPE_FUNDINGLOCKED_RECV: p_str = "LN_CB_TYPE_FUNDINGLOCKED_RECV"; break;
+        case LN_CB_TYPE_UPDATE_ANNODB: p_str = "LN_CB_TYPE_UPDATE_ANNODB"; break;
+        case LN_CB_TYPE_ADD_HTLC_RECV_PREV: p_str = "LN_CB_TYPE_ADD_HTLC_RECV_PREV"; break;
+        case LN_CB_TYPE_ADD_HTLC_RECV: p_str = "LN_CB_TYPE_ADD_HTLC_RECV"; break;
+        case LN_CB_TYPE_FWD_ADDHTLC_START: p_str = "LN_CB_TYPE_FWD_ADDHTLC_START"; break;
+        case LN_CB_TYPE_FULFILL_HTLC_RECV: p_str = "LN_CB_TYPE_FULFILL_HTLC_RECV"; break;
+        case LN_CB_TYPE_FAIL_HTLC_RECV: p_str = "LN_CB_TYPE_FAIL_HTLC_RECV"; break;
+        case LN_CB_TYPE_REV_AND_ACK_EXCG: p_str = "LN_CB_TYPE_REV_AND_ACK_EXCG"; break;
+        case LN_CB_TYPE_PAYMENT_RETRY: p_str = "LN_CB_TYPE_PAYMENT_RETRY"; break;
+        case LN_CB_TYPE_UPDATE_FEE_RECV: p_str = "LN_CB_TYPE_UPDATE_FEE_RECV"; break;
+        case LN_CB_TYPE_SHUTDOWN_RECV: p_str = "LN_CB_TYPE_SHUTDOWN_RECV"; break;
+        case LN_CB_TYPE_CLOSED_FEE: p_str = "LN_CB_TYPE_CLOSED_FEE"; break;
+        case LN_CB_TYPE_CLOSED: p_str = "LN_CB_TYPE_CLOSED"; break;
+        case LN_CB_TYPE_SEND_REQ: p_str = "LN_CB_TYPE_SEND_REQ"; break;
+        case LN_CB_TYPE_SEND_QUEUE: p_str = "LN_CB_TYPE_SEND_QUEUE"; break;
+        case LN_CB_TYPE_GET_LATEST_FEERATE: p_str = "LN_CB_TYPE_GET_LATEST_FEERATE"; break;
+        case LN_CB_TYPE_GETBLOCKCOUNT: p_str = "LN_CB_TYPE_GETBLOCKCOUNT"; break;
         default:
             p_str = "unknown";
         }
@@ -173,9 +173,9 @@ TEST_F(ln, init_recv_ok)
             pMsg->lflen = 0;
             return true;
         }
-        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
             (void)pChannel;
-            if (type == LN_CB_INIT_RECV) {
+            if (type == LN_CB_TYPE_INIT_RECV) {
                 b_called = true;
             }
         }
@@ -202,9 +202,9 @@ TEST_F(ln, init_recv_fail)
         // static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
         //     return false;
         // }
-        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
             (void)pChannel;
-            if (type == LN_CB_INIT_RECV) {
+            if (type == LN_CB_TYPE_INIT_RECV) {
                 b_called = true;
             }
         }
@@ -233,9 +233,9 @@ TEST_F(ln, init_recv_gf1)
             pMsg->lflen = 0;
             return true;
         }
-        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
             (void)pChannel;
-            if (type == LN_CB_INIT_RECV) {
+            if (type == LN_CB_TYPE_INIT_RECV) {
                 b_called = true;
             }
         }
@@ -277,9 +277,9 @@ TEST_F(ln, init_recv_gf2)
             pMsg->p_globalfeatures = &gf;
             return true;
         }
-        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
             (void)pChannel;
-            if (type == LN_CB_INIT_RECV) {
+            if (type == LN_CB_TYPE_INIT_RECV) {
                 b_called = true;
             }
         }
@@ -322,9 +322,9 @@ TEST_F(ln, init_recv_lf1)
             pMsg->p_localfeatures = &lf;
             return true;
         }
-        static void callback(ln_channel_t *pChannel, ln_cb_t type, void *p_param) {
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
             (void)pChannel;
-            if (type == LN_CB_INIT_RECV) {
+            if (type == LN_CB_TYPE_INIT_RECV) {
                 b_called = true;
             }
         }

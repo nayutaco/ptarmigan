@@ -173,7 +173,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
 static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl);
 static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl);
 
-static void notify_cb(ln_channel_t *pChannel, ln_cb_t reason, void *p_param);
+static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param);
 static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param);
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -2093,7 +2093,7 @@ static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_in
  **************************************************************************/
 
 //コールバック分岐
-static void notify_cb(ln_channel_t *pChannel, ln_cb_t reason, void *p_param)
+static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param)
 {
     //DBGTRACE_BEGIN
 
@@ -2103,34 +2103,34 @@ static void notify_cb(ln_channel_t *pChannel, ln_cb_t reason, void *p_param)
         const char *p_msg;
         void (*func)(lnapp_conf_t *p_conf, void *p_param);
     } MAP[] = {
-        { "  LN_CB_QUIT: channel quit", cb_channel_quit },
-        { "  LN_CB_ERROR: error receive", cb_error_recv },
-        { "  LN_CB_INIT_RECV: init receive", cb_init_recv },
-        { "  LN_CB_REESTABLISH_RECV: channel_reestablish receive", cb_channel_reestablish_recv },
-        { "  LN_CB_SIGN_FUNDINGTX_REQ: funding_tx sign request", cb_funding_tx_sign },
-        { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation wait request", cb_funding_tx_wait },
-        { "  LN_CB_FUNDINGLOCKED_RECV: funding_locked receive", cb_funding_locked },
-        { NULL/*"  LN_CB_UPDATE_ANNODB: announcement DB update"*/, cb_update_anno_db },
-        { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc pre-process", cb_add_htlc_recv_prev },
-        { "  LN_CB_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
-        { "  LN_CB_FWD_ADDHTLC_START: update_add_htlc forward", cb_fwd_addhtlc_start },
-        { "  LN_CB_BWD_DELHTLC_START: delete htlc", cb_bwd_delhtlc_start },
-        { "  LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
-        { "  LN_CB_FAIL_HTLC_RECV: update_fail_htlc receive", cb_fail_htlc_recv },
-        { "  LN_CB_REV_AND_ACK_EXCG: revoke_and_ack exchange", cb_rev_and_ack_excg },
-        { "  LN_CB_PAYMENT_RETRY: payment retry", cb_payment_retry},
-        { "  LN_CB_UPDATE_FEE_RECV: update_fee receive", cb_update_fee_recv },
-        { "  LN_CB_SHUTDOWN_RECV: shutdown receive", cb_shutdown_recv },
-        { "  LN_CB_CLOSED_FEE: closing_signed receive(not same fee)", cb_closed_fee },
-        { "  LN_CB_CLOSED: closing_signed receive(same fee)", cb_closed },
-        { "  LN_CB_SEND_REQ: send request", cb_send_req },
-        { "  LN_CB_SEND_QUEUE: add send queue", cb_send_queue },
-        { "  LN_CB_GET_LATEST_FEERATE: get feerate_per_kw", cb_get_latest_feerate },
-        { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
-        { "  LN_CB_PONG_RECV: pong receive", cb_pong_recv },
+        { "  LN_CB_TYPE_QUIT: channel quit", cb_channel_quit },
+        { "  LN_CB_TYPE_ERROR: error receive", cb_error_recv },
+        { "  LN_CB_TYPE_INIT_RECV: init receive", cb_init_recv },
+        { "  LN_CB_TYPE_REESTABLISH_RECV: channel_reestablish receive", cb_channel_reestablish_recv },
+        { "  LN_CB_TYPE_SIGN_FUNDINGTX_REQ: funding_tx sign request", cb_funding_tx_sign },
+        { "  LN_CB_TYPE_FUNDINGTX_WAIT: funding_tx confirmation wait request", cb_funding_tx_wait },
+        { "  LN_CB_TYPE_FUNDINGLOCKED_RECV: funding_locked receive", cb_funding_locked },
+        { NULL/*"  LN_CB_TYPE_UPDATE_ANNODB: announcement DB update"*/, cb_update_anno_db },
+        { "  LN_CB_TYPE_ADD_HTLC_RECV_PREV: update_add_htlc pre-process", cb_add_htlc_recv_prev },
+        { "  LN_CB_TYPE_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
+        { "  LN_CB_TYPE_FWD_ADDHTLC_START: update_add_htlc forward", cb_fwd_addhtlc_start },
+        { "  LN_CB_TYPE_BWD_DELHTLC_START: delete htlc", cb_bwd_delhtlc_start },
+        { "  LN_CB_TYPE_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
+        { "  LN_CB_TYPE_FAIL_HTLC_RECV: update_fail_htlc receive", cb_fail_htlc_recv },
+        { "  LN_CB_TYPE_REV_AND_ACK_EXCG: revoke_and_ack exchange", cb_rev_and_ack_excg },
+        { "  LN_CB_TYPE_PAYMENT_RETRY: payment retry", cb_payment_retry},
+        { "  LN_CB_TYPE_UPDATE_FEE_RECV: update_fee receive", cb_update_fee_recv },
+        { "  LN_CB_TYPE_SHUTDOWN_RECV: shutdown receive", cb_shutdown_recv },
+        { "  LN_CB_TYPE_CLOSED_FEE: closing_signed receive(not same fee)", cb_closed_fee },
+        { "  LN_CB_TYPE_CLOSED: closing_signed receive(same fee)", cb_closed },
+        { "  LN_CB_TYPE_SEND_REQ: send request", cb_send_req },
+        { "  LN_CB_TYPE_SEND_QUEUE: add send queue", cb_send_queue },
+        { "  LN_CB_TYPE_GET_LATEST_FEERATE: get feerate_per_kw", cb_get_latest_feerate },
+        { "  LN_CB_TYPE_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
+        { "  LN_CB_TYPE_PONG_RECV: pong receive", cb_pong_recv },
     };
 
-    if (reason < LN_CB_MAX) {
+    if (reason < LN_CB_TYPE_MAX) {
         if (MAP[reason].p_msg != NULL) {
             LOGD("%s\n", MAP[reason].p_msg);
         }
@@ -2152,7 +2152,7 @@ static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_ERROR: error受信
+//LN_CB_TYPE_ERROR: error受信
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     const ln_msg_error_t *p_msg = (const ln_msg_error_t *)p_param;
@@ -2190,7 +2190,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_INIT_RECV: init受信
+//LN_CB_TYPE_INIT_RECV: init受信
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
@@ -2201,7 +2201,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_REESTABLISH_RECV: channel_reestablish受信
+//LN_CB_TYPE_REESTABLISH_RECV: channel_reestablish受信
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
@@ -2212,7 +2212,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_SIGN_FUNDINGTX_REQ: funding_tx署名要求
+//LN_CB_TYPE_SIGN_FUNDINGTX_REQ: funding_tx署名要求
 static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
@@ -2227,7 +2227,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_FUNDINGTX_WAIT: funding_txのconfirmation待ち開始
+//LN_CB_TYPE_FUNDINGTX_WAIT: funding_txのconfirmation待ち開始
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
@@ -2295,7 +2295,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_FUNDINGLOCKED_RECV: funding_locked受信通知
+//LN_CB_TYPE_FUNDINGLOCKED_RECV: funding_locked受信通知
 static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
@@ -2315,7 +2315,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_UPDATE_ANNODB: announcement DB更新通知
+//LN_CB_TYPE_UPDATE_ANNODB: announcement DB更新通知
 static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
@@ -2339,7 +2339,7 @@ static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
+//LN_CB_TYPE_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
 //  BOLT4チェックをするために転送先チャネルを取得する
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -2363,7 +2363,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-/** LN_CB_ADD_HTLC_RECV: update_add_htlc受信(後処理)
+/** LN_CB_TYPE_ADD_HTLC_RECV: update_add_htlc受信(後処理)
  *
  * add_htlc受信後は、以下のどれかになる。
  *      - add_htlcがOK
@@ -2497,7 +2497,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
 }
 
 
-/** LN_CB_FWD_ADDHTLC_START: update_add_htlc転送指示
+/** LN_CB_TYPE_FWD_ADDHTLC_START: update_add_htlc転送指示
  *
  */
 static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
@@ -2521,7 +2521,7 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-/** LN_CB_BWD_DELHTLC_START: update_add_htlc転送指示
+/** LN_CB_TYPE_BWD_DELHTLC_START: update_add_htlc転送指示
  *
  */
 static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
@@ -2547,7 +2547,7 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc受信
+//LN_CB_TYPE_FULFILL_HTLC_RECV: update_fulfill_htlc受信
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
@@ -2658,7 +2658,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_fulfill_htlc_re
 }
 
 
-//LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信
+//LN_CB_TYPE_FAIL_HTLC_RECV: update_fail_htlc受信
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
@@ -2819,7 +2819,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_fail_htlc_recv_t *
 }
 
 
-//LN_CB_REV_AND_ACK_EXCG: revoke_and_ack交換通知
+//LN_CB_TYPE_REV_AND_ACK_EXCG: revoke_and_ack交換通知
 static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
@@ -2850,7 +2850,7 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_PAYMENT_RETRY: 送金リトライ
+//LN_CB_TYPE_PAYMENT_RETRY: 送金リトライ
 static void cb_payment_retry(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
@@ -2862,7 +2862,7 @@ static void cb_payment_retry(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_UPDATE_FEE_RECV: update_fee受信
+//LN_CB_TYPE_UPDATE_FEE_RECV: update_fee受信
 static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
@@ -2875,7 +2875,7 @@ static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_SHUTDOWN_RECV: shutdown受信
+//LN_CB_TYPE_SHUTDOWN_RECV: shutdown受信
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
@@ -2885,7 +2885,7 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)
+//LN_CB_TYPE_CLOSED_FEE: closing_signed受信(FEE不一致)
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
@@ -2898,7 +2898,7 @@ static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_CLOSED: closing_singed受信(FEE一致)
+//LN_CB_TYPE_CLOSED: closing_singed受信(FEE一致)
 //  コールバック後、p_channelはクリアされる
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -2941,7 +2941,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_SEND_REQ: BOLTメッセージ送信要求
+//LN_CB_TYPE_SEND_REQ: BOLTメッセージ送信要求
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 {
     utl_buf_t *p_buf = (utl_buf_t *)p_param;
@@ -2949,7 +2949,7 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_SEND_QUEUE: BOLTメッセージをキュー保存
+//LN_CB_TYPE_SEND_QUEUE: BOLTメッセージをキュー保存
 static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param)
 {
     utl_buf_t *p_buf = (utl_buf_t *)p_param;
@@ -2960,7 +2960,7 @@ static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_GET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw取得
+//LN_CB_TYPE_GET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw取得
 static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
 {
     uint32_t *p_rate = (uint32_t *)p_param;
@@ -2968,7 +2968,7 @@ static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_GETBLOCKCOUNT
+//LN_CB_TYPE_GETBLOCKCOUNT
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
@@ -2984,7 +2984,7 @@ static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_PONG_RECV
+//LN_CB_TYPE_PONG_RECV
 static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     ln_cb_pong_recv_t *p_pongrecv = (ln_cb_pong_recv_t *)p_param;

@@ -680,7 +680,7 @@ bool ln_funding_locked_check_need(const ln_channel_t *pChannel);
 
 
 //XXX:
-void ln_callback(ln_channel_t *pChannel, ln_cb_t Req, void *pParam);
+void ln_callback(ln_channel_t *pChannel, ln_cb_type_t Req, void *pParam);
 bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
 void ln_dbg_commitnum(const ln_channel_t *pChannel);
 btc_script_pubkey_order_t ln_node_id_sort(const ln_channel_t *pChannel, const uint8_t *pNodeId);
