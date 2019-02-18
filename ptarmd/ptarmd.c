@@ -253,9 +253,11 @@ void ptarmd_stop(void)
         mRunning = false;
         LOGD("stopage order\n");
         cmd_json_stop();
+        monitor_stop();
         p2p_svr_stop_all();
         p2p_cli_stop_all();
-        monitor_stop();
+    } else {
+        LOGD("stopped\n");
     }
 }
 
