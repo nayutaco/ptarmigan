@@ -139,7 +139,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
     msg.p_shutdown_scriptpubkey = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_open_channel_write(&buf, &msg);
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
     pChannel->commit_tx_local.dust_limit_sat = msg.dust_limit_satoshis;
@@ -201,7 +201,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     }
 
     //check feerate_per_kw
-    ln_callback(pChannel, LN_CB_GET_LATEST_FEERATE, &pChannel->feerate_per_kw);
+    ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &pChannel->feerate_per_kw);
     if ( (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
          !M_FEERATE_CHK_MIN_OK(pChannel->feerate_per_kw, msg.feerate_per_kw) ) {
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too low");
@@ -292,7 +292,7 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     msg.p_shutdown_scriptpubkey = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_accept_channel_write(&buf, &msg);
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
     pChannel->min_depth = msg.minimum_depth;
@@ -415,7 +415,7 @@ bool HIDDEN ln_funding_created_send(ln_channel_t *pChannel)
     msg.funding_output_index = ln_funding_txindex(pChannel);
     msg.p_signature = pChannel->commit_tx_remote.remote_sig;
     ln_msg_funding_created_write(&buf, &msg);
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -494,7 +494,7 @@ bool HIDDEN ln_funding_signed_send(ln_channel_t *pChannel)
     msg.p_signature = pChannel->commit_tx_remote.remote_sig;
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_funding_signed_write(&buf, &msg);
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
     //wait funding_tx
@@ -551,7 +551,7 @@ bool /*HIDDEN*/ ln_funding_locked_send(ln_channel_t *pChannel)
     msg.p_next_per_commitment_point = pChannel->keys_local.per_commitment_point;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_funding_locked_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
     //channel_reestablishと同じ扱いにする
@@ -600,7 +600,7 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
     ln_print_keys(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
-    ln_callback(pChannel, LN_CB_FUNDINGLOCKED_RECV, NULL);
+    ln_callback(pChannel, LN_CB_TYPE_FUNDINGLOCKED_RECV, NULL);
 
     //channel_reestablishと同じ扱いにする
     pChannel->init_flag |= M_INIT_FLAG_REEST_RECV;
@@ -650,7 +650,7 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel)
 
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_channel_reestablish_write(&buf, &msg, option_data_loss_protect)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     pChannel->init_flag |= M_INIT_FLAG_REEST_SEND;
     return true;
@@ -747,7 +747,7 @@ bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *p
         }
     }
 
-    ln_callback(pChannel, LN_CB_REESTABLISH_RECV, NULL);
+    ln_callback(pChannel, LN_CB_TYPE_REESTABLISH_RECV, NULL);
 
     ret = true;
 
@@ -830,7 +830,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         }
     } else {
         //for SPV
-        //fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
+        //fee計算と署名はSPVに任せる(LN_CB_TYPE_SIGN_FUNDINGTX_REQで吸収する)
         //その代わり、ln_funding_txindex(pChannel)は固定値にならない。
         btc_sw_add_vout_p2wsh_wit(&pChannel->funding_tx.tx_data, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script);
         btc_tx_add_vin(&pChannel->funding_tx.tx_data, ln_funding_txid(pChannel), 0); //dummy
@@ -846,7 +846,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     } else {
         param.amount = 0;
     }
-    ln_callback(pChannel, LN_CB_SIGN_FUNDINGTX_REQ, &param);
+    ln_callback(pChannel, LN_CB_TYPE_SIGN_FUNDINGTX_REQ, &param);
     if (!param.ret) {
         LOGE("fail: signature\n");
         btc_tx_free(&pChannel->funding_tx.tx_data);
@@ -912,7 +912,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
         funding.p_tx_funding = &pChannel->funding_tx.tx_data;
     }
     funding.b_result = false;
-    ln_callback(pChannel, LN_CB_FUNDINGTX_WAIT, &funding);
+    ln_callback(pChannel, LN_CB_TYPE_FUNDINGTX_WAIT, &funding);
 
     if (funding.b_result) {
         pChannel->status = LN_STATUS_ESTABLISH;

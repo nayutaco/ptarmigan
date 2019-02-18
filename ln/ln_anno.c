@@ -93,7 +93,7 @@ bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
         return false;
     }
 
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
 
     pChannel->anno_flag |= M_ANNO_FLAG_SEND;
@@ -205,7 +205,7 @@ static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
 
     ln_cb_update_annodb_t db;
     db.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
-    ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
+    ln_callback(pChannel, LN_CB_TYPE_UPDATE_ANNODB, &db);
     return true;
 }
 
@@ -248,7 +248,7 @@ static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     ln_cb_update_annodb_t db;
     db.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
-    ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
+    ln_callback(pChannel, LN_CB_TYPE_UPDATE_ANNODB, &db);
     return true;
 }
 
@@ -282,10 +282,10 @@ bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel)
         //save for broadcasting
         ln_cb_update_annodb_t db;
         db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
-        ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
+        ln_callback(pChannel, LN_CB_TYPE_UPDATE_ANNODB, &db);
     }
 
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -356,7 +356,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 
     ln_cb_update_annodb_t db;
     db.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
-    ln_callback(pChannel, LN_CB_UPDATE_ANNODB, &db);
+    ln_callback(pChannel, LN_CB_TYPE_UPDATE_ANNODB, &db);
     return true;
 }
 
@@ -395,7 +395,7 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
     msg.len = 0;
     msg.p_encoded_short_ids = NULL;
     if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -429,7 +429,7 @@ bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_qu
     msg.len = 0;
     msg.p_encoded_short_ids = NULL;
     if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -466,7 +466,7 @@ bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, ui
     msg.number_of_blocks = Num;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_query_channel_range_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -504,7 +504,7 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
     msg.p_encoded_short_ids = &zero;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_reply_channel_range_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -549,7 +549,7 @@ bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
     msg.timestamp_range = UINT32_MAX;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_gossip_timestamp_filter_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
     utl_buf_free(&buf);
     return true;
 }

@@ -1482,7 +1482,7 @@ void HIDDEN ln_revoked_buf_free(ln_channel_t *pChannel)
 }
 
 
-void ln_callback(ln_channel_t *pChannel, ln_cb_t Req, void *pParam)
+void ln_callback(ln_channel_t *pChannel, ln_cb_type_t Req, void *pParam)
 {
     if (pChannel->p_callback == NULL) {
         LOGE("fail: not callback(%d)\n", (int)Req);

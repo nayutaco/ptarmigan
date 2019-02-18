@@ -38,37 +38,37 @@ struct ln_channel_t;
 typedef struct ln_channel_t ln_channel_t;
 
 
-/** @enum   ln_cb_t
+/** @enum   ln_cb_type_t
  *  @brief  callback type
  */
 typedef enum {
-    LN_CB_QUIT,                 ///< チャネルを停止(closeはしない)
-    LN_CB_ERROR,                ///< エラー通知
-    LN_CB_INIT_RECV,            ///< init受信通知
-    LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
-    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
-    LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
-    LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
-    LN_CB_UPDATE_ANNODB,        ///< announcement DB更新通知
-    LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
-    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
-    LN_CB_FWD_ADDHTLC_START,    ///< update_add_htlc転送開始
-    LN_CB_BWD_DELHTLC_START,    ///< HTLC削除処理開始
-    LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
-    LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
-    LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
-    LN_CB_PAYMENT_RETRY,        ///< 送金リトライ
-    LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
-    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
-    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
-    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
-    LN_CB_SEND_REQ,             ///< peerへの送信要求
-    LN_CB_SEND_QUEUE,           ///< 送信キュー保存(廃止予定)
-    LN_CB_GET_LATEST_FEERATE,   ///< feerate_per_kw取得要求
-    LN_CB_GETBLOCKCOUNT,        ///< getblockcount
-    LN_CB_PONG_RECV,            ///< pong received
-    LN_CB_MAX,
-} ln_cb_t;
+    LN_CB_TYPE_QUIT,                 ///< チャネルを停止(closeはしない)
+    LN_CB_TYPE_ERROR,                ///< エラー通知
+    LN_CB_TYPE_INIT_RECV,            ///< init受信通知
+    LN_CB_TYPE_REESTABLISH_RECV,     ///< channel_reestablish受信通知
+    LN_CB_TYPE_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
+    LN_CB_TYPE_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
+    LN_CB_TYPE_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
+    LN_CB_TYPE_UPDATE_ANNODB,        ///< announcement DB更新通知
+    LN_CB_TYPE_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
+    LN_CB_TYPE_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
+    LN_CB_TYPE_FWD_ADDHTLC_START,    ///< update_add_htlc転送開始
+    LN_CB_TYPE_BWD_DELHTLC_START,    ///< HTLC削除処理開始
+    LN_CB_TYPE_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
+    LN_CB_TYPE_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
+    LN_CB_TYPE_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
+    LN_CB_TYPE_PAYMENT_RETRY,        ///< 送金リトライ
+    LN_CB_TYPE_UPDATE_FEE_RECV,      ///< update_fee受信通知
+    LN_CB_TYPE_SHUTDOWN_RECV,        ///< shutdown受信通知
+    LN_CB_TYPE_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
+    LN_CB_TYPE_CLOSED,               ///< closing_signed受信通知(FEE一致)
+    LN_CB_TYPE_SEND_REQ,             ///< peerへの送信要求
+    LN_CB_TYPE_SEND_QUEUE,           ///< 送信キュー保存(廃止予定)
+    LN_CB_TYPE_GET_LATEST_FEERATE,   ///< feerate_per_kw取得要求
+    LN_CB_TYPE_GETBLOCKCOUNT,        ///< getblockcount
+    LN_CB_TYPE_PONG_RECV,            ///< pong received
+    LN_CB_TYPE_MAX,
+} ln_cb_type_t;
 
 
 /** @typedef    ln_callback_t
@@ -76,11 +76,11 @@ typedef enum {
  *  @note
  *      - p_paramで渡すデータを上位層で保持しておきたい場合、コピーを取ること
  */
-typedef void (*ln_callback_t)(ln_channel_t *pChannel, ln_cb_t type, void *p_param);
+typedef void (*ln_callback_t)(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param);
 
 
 /** @struct ln_cb_funding_sign_t
- *  @brief  funding_tx署名要求(#LN_CB_SIGN_FUNDINGTX_REQ)
+ *  @brief  funding_tx署名要求(#LN_CB_TYPE_SIGN_FUNDINGTX_REQ)
  */
 typedef struct {
     btc_tx_t                *p_tx;
@@ -90,7 +90,7 @@ typedef struct {
 
 
 /** @struct ln_cb_funding_t
- *  @brief  funding_tx安定待ち要求(#LN_CB_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_ESTABLISHED)
+ *  @brief  funding_tx安定待ち要求(#LN_CB_TYPE_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_TYPE_ESTABLISHED)
  */
 typedef struct {
     const btc_tx_t          *p_tx_funding;              ///< funding_tx
@@ -102,7 +102,7 @@ typedef struct {
 
 
 /** @struct ln_cb_add_htlc_recv_prev_t
- *  @brief  update_add_htlc受信 前処理(#LN_CB_ADD_HTLC_RECV_PREV)
+ *  @brief  update_add_htlc受信 前処理(#LN_CB_TYPE_ADD_HTLC_RECV_PREV)
  */
 typedef struct {
     uint64_t                next_short_channel_id;
@@ -121,7 +121,7 @@ typedef enum {
 
 
 /** @struct ln_cb_add_htlc_recv_t
- *  @brief  update_add_htlc受信通知(#LN_CB_ADD_HTLC_RECV)
+ *  @brief  update_add_htlc受信通知(#LN_CB_TYPE_ADD_HTLC_RECV)
  */
 typedef struct {
     bool                        ret;                    ///< callback処理結果
@@ -150,7 +150,7 @@ typedef struct {
 
 
 /** @struct ln_cb_fulfill_htlc_recv_t
- *  @brief  update_fulfill_htlc受信通知(#LN_CB_FULFILL_HTLC_RECV)
+ *  @brief  update_fulfill_htlc受信通知(#LN_CB_TYPE_FULFILL_HTLC_RECV)
  */
 typedef struct {
     bool                    ret;                    ///< callback処理結果
@@ -163,7 +163,7 @@ typedef struct {
 
 
 /** @struct ln_cb_fail_htlc_recv_t
- *  @brief  update_fail_htlc受信通知(#LN_CB_FAIL_HTLC_RECV)
+ *  @brief  update_fail_htlc受信通知(#LN_CB_TYPE_FAIL_HTLC_RECV)
  */
 typedef struct {
     bool                    result;
@@ -179,7 +179,7 @@ typedef struct {
 
 
 /** @struct ln_cb_closed_fee_t
- *  @brief  FEE不一致なおclosing_signed受信(#LN_CB_CLOSED_FEE)
+ *  @brief  FEE不一致なおclosing_signed受信(#LN_CB_TYPE_CLOSED_FEE)
  */
 typedef struct {
     uint64_t                fee_sat;                ///< 受信したfee
@@ -187,7 +187,7 @@ typedef struct {
 
 
 /** @struct ln_cb_closed_t
- *  @brief  Mutual Close完了通知(#LN_CB_CLOSED)
+ *  @brief  Mutual Close完了通知(#LN_CB_TYPE_CLOSED)
  */
 typedef struct {
     bool                    result;                 ///< true:closing_tx展開成功
@@ -216,7 +216,7 @@ typedef enum {
 
 
 /** @struct ln_cb_update_annodb_t
- *  @brief  announcement DB更新通知(#LN_CB_UPDATE_ANNODB)
+ *  @brief  announcement DB更新通知(#LN_CB_TYPE_UPDATE_ANNODB)
  */
 typedef struct {
     ln_cb_update_annodb_anno_t      anno;
@@ -224,7 +224,7 @@ typedef struct {
 
 
 /** @struct ln_cb_pong_recv_t
- *  @brief  pong received(#LN_CB_PONG_RECV)
+ *  @brief  pong received(#LN_CB_TYPE_PONG_RECV)
  */
 typedef struct {
     bool                            result;         //true: lnapp check OK
