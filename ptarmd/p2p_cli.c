@@ -223,6 +223,7 @@ LABEL_EXIT:
 
 void p2p_cli_stop_all(void)
 {
+    LOGD("stop\n");
     for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             lnapp_stop(&mAppConf[lp]);

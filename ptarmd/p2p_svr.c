@@ -138,6 +138,10 @@ void *p2p_svr_start(void *pArg)
         } else {
             //継続
         }
+        if (!mLoop) {
+            LOGD("stop\n");
+            break;
+        }
 
         int idx;
         for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
@@ -151,7 +155,12 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
             if (mAppConf[idx].sock < 0) {
                 LOGE("accept: %s\n", strerror(errno));
-                goto LABEL_EXIT;
+                break;
+            }
+            if (!mLoop) {
+                LOGD("stop\n");
+                close(mAppConf[idx].sock);
+                break;
             }
 
             //スレッド起動
@@ -185,12 +194,13 @@ LABEL_EXIT:
 
 void p2p_svr_stop_all(void)
 {
+    LOGD("stop\n");
+    mLoop = false;
     for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             lnapp_stop(&mAppConf[lp]);
         }
     }
-    mLoop = false;
 }
 
 

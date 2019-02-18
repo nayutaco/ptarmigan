@@ -11,6 +11,8 @@ grep -n -e "\/E" -e "fail\:"  tests/4nodes_test/node_*/logs/log | \
         -e "not real value" \
         -e "channel_id is 0" \
         -e "recv_peer]fail: timeout(" \
-        -e "already connected"
+        -e "already connected" \
+        -e "cmd_json_connect]fail: connect test" \
+        -e "Connection reset by peer"
 cd -
 )

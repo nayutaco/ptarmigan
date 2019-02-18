@@ -234,6 +234,8 @@ void cmd_json_stop(void)
         jrpc_server_stop(&mJrpc);
         LOGD("stop jrpc_server\n");
         mRunning = false;
+    } else {
+        LOGD("stopeed\n");
     }
 }
 
