@@ -168,15 +168,15 @@ public:
     }
     static void LnInit(ln_channel_t *pChannel)
     {
-        ln_anno_prm_t annoprm;
+        ln_anno_param_t anno_param;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
         pChannel->noise.p_handshake = NULL;
-        annoprm.cltv_expiry_delta = 10;
-        annoprm.htlc_minimum_msat = 1000;
-        annoprm.fee_base_msat = 20;
-        annoprm.fee_prop_millionths = 200;
-        ln_init(pChannel, &annoprm, (ln_callback_t)0x123456);
+        anno_param.cltv_expiry_delta = 10;
+        anno_param.htlc_minimum_msat = 1000;
+        anno_param.fee_base_msat = 20;
+        anno_param.fee_prop_millionths = 200;
+        ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
         pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_local.htlc_minimum_msat = 0;
         pChannel->commit_tx_local.max_accepted_htlcs = 10;
@@ -246,15 +246,15 @@ namespace LN_DUMMY {
 TEST_F(ln, init)
 {
     ln_channel_t channel;
-    ln_anno_prm_t annoprm;
+    ln_anno_param_t anno_param;
 
     memset(&channel, 0xcc, sizeof(channel));
     channel.noise.p_handshake = NULL;
-    annoprm.cltv_expiry_delta = 10;
-    annoprm.htlc_minimum_msat = 1000;
-    annoprm.fee_base_msat = 20;
-    annoprm.fee_prop_millionths = 200;
-    ln_init(&channel, &annoprm, (ln_callback_t)0x123456);
+    anno_param.cltv_expiry_delta = 10;
+    anno_param.htlc_minimum_msat = 1000;
+    anno_param.fee_base_msat = 20;
+    anno_param.fee_prop_millionths = 200;
+    ln_init(&channel, &anno_param, (ln_callback_t)0x123456);
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {

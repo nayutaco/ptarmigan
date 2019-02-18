@@ -244,7 +244,7 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
 {
     (void)p_db_param;
 
-    param_channel_t *p_prm_channel = (param_channel_t *)p_param;
+    param_channel_t *p_param_channel = (param_channel_t *)p_param;
 
     M_DBGLOG("channel: short_channel_id=%016" PRIx64 "\n", pChannel->short_channel_id);
     M_DBGLOG("      status=%d\n", ln_status_get(pChannel));
@@ -256,18 +256,18 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
             return false;
         }
 
-        if (memcmp(pChannel->peer_node_id, p_prm_channel->p_payer, BTC_SZ_PUBKEY) == 0) {
+        if (memcmp(pChannel->peer_node_id, p_param_channel->p_payer, BTC_SZ_PUBKEY) == 0) {
             M_DBGLOG("skip\n");
             return false;
         }
 
-        p_prm_channel->p_result->node_num++;
-        p_prm_channel->p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_prm_channel->p_result->p_nodes, sizeof(nodes_t) * p_prm_channel->p_result->node_num);
-        p_prm_channel->p_result->p_nodes[p_prm_channel->p_result->node_num - 1].short_channel_id = pChannel->short_channel_id;
+        p_param_channel->p_result->node_num++;
+        p_param_channel->p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_param_channel->p_result->p_nodes, sizeof(nodes_t) * p_param_channel->p_result->node_num);
+        p_param_channel->p_result->p_nodes[p_param_channel->p_result->node_num - 1].short_channel_id = pChannel->short_channel_id;
 
-        nodes_t *p_nodes_result = &p_prm_channel->p_result->p_nodes[p_prm_channel->p_result->node_num - 1];
+        nodes_t *p_nodes_result = &p_param_channel->p_result->p_nodes[p_param_channel->p_result->node_num - 1];
         const uint8_t *p1, *p2;
-        direction(&p1, &p2, p_prm_channel->p_payer, pChannel->peer_node_id);
+        direction(&p1, &p2, p_param_channel->p_payer, pChannel->peer_node_id);
         memcpy(p_nodes_result->ninfo[0].node_id, p1, BTC_SZ_PUBKEY);
         memcpy(p_nodes_result->ninfo[1].node_id, p2, BTC_SZ_PUBKEY);
         for (int lp = 0; lp < 2; lp++) {
@@ -278,10 +278,10 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
             p_nodes_result->ninfo[lp].routeskip = rskip;
         }
 
-        M_DBGLOGV("[channel]nodenum=%d\n",  p_prm_channel->p_result->node_num);
+        M_DBGLOGV("[channel]nodenum=%d\n",  p_param_channel->p_result->node_num);
         M_DBGLOGV("[channel]short_channel_id: %016" PRIx64 "\n", pChannel->short_channel_id);
         M_DBGLOGV("[channel]p_payer= ");
-        M_DBGDUMPV(p_prm_channel->p_payer, BTC_SZ_PUBKEY);
+        M_DBGDUMPV(p_param_channel->p_payer, BTC_SZ_PUBKEY);
         M_DBGLOGV("[channel]pChannel->peer_node_id= ");
         M_DBGDUMPV(pChannel->peer_node_id, BTC_SZ_PUBKEY);
     } else {
@@ -350,11 +350,11 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     int ret;
 
     //channel
-    param_channel_t prm_channel;
+    param_channel_t param_channel;
 
-    prm_channel.p_result = p_result;
-    prm_channel.p_payer = pPayerId;
-    ln_db_channel_search_nk_readonly(comp_func_channel, &prm_channel);
+    param_channel.p_result = p_result;
+    param_channel.p_payer = pPayerId;
+    ln_db_channel_search_nk_readonly(comp_func_channel, &param_channel);
 
     //channel_anno
     void *p_cur;

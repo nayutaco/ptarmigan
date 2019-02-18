@@ -218,7 +218,7 @@ bool ln_db_channel_del(const uint8_t *pChannelId);
  * @note
  *      - #ln_db_channel_search() 経由を想定
  */
-bool ln_db_channel_del_prm(const ln_channel_t *pChannel, void *p_db_param);
+bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *p_db_param);
 
 
 /** channel情報検索

@@ -117,17 +117,17 @@ bool /*HIDDEN*/ ln_open_channel_send(
     msg.p_temporary_channel_id = pChannel->channel_id;
     msg.funding_satoshis = FundingSat;
     msg.push_msat = LN_SATOSHI2MSAT(PushSat);
-    msg.dust_limit_satoshis = pChannel->establish.estprm.dust_limit_sat;
-    if (pChannel->establish.estprm.max_htlc_value_in_flight_msat > LN_SATOSHI2MSAT(msg.funding_satoshis)) {
+    msg.dust_limit_satoshis = pChannel->establish.param.dust_limit_sat;
+    if (pChannel->establish.param.max_htlc_value_in_flight_msat > LN_SATOSHI2MSAT(msg.funding_satoshis)) {
         msg.max_htlc_value_in_flight_msat = LN_SATOSHI2MSAT(msg.funding_satoshis);
     } else {
-        msg.max_htlc_value_in_flight_msat = pChannel->establish.estprm.max_htlc_value_in_flight_msat;
+        msg.max_htlc_value_in_flight_msat = pChannel->establish.param.max_htlc_value_in_flight_msat;
     }
-    msg.channel_reserve_satoshis = pChannel->establish.estprm.channel_reserve_sat;
-    msg.htlc_minimum_msat = pChannel->establish.estprm.htlc_minimum_msat;
+    msg.channel_reserve_satoshis = pChannel->establish.param.channel_reserve_sat;
+    msg.htlc_minimum_msat = pChannel->establish.param.htlc_minimum_msat;
     msg.feerate_per_kw = FeeRate;
-    msg.to_self_delay = pChannel->establish.estprm.to_self_delay;
-    msg.max_accepted_htlcs = pChannel->establish.estprm.max_accepted_htlcs;
+    msg.to_self_delay = pChannel->establish.param.to_self_delay;
+    msg.max_accepted_htlcs = pChannel->establish.param.max_accepted_htlcs;
     msg.p_funding_pubkey = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
     msg.p_revocation_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION];
     msg.p_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT];
@@ -225,11 +225,11 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     //  The sender:
     //      - MUST set channel_reserve_satoshis greater than or equal to dust_limit_satoshis from the open_channel message.
     //      - MUST set dust_limit_satoshis less than or equal to channel_reserve_satoshis from the open_channel message.
-    if (pChannel->establish.estprm.channel_reserve_sat < msg.dust_limit_satoshis) {
+    if (pChannel->establish.param.channel_reserve_sat < msg.dust_limit_satoshis) {
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "local channel_reserve_satoshis is lower than remote dust_limit_satoshis");
         return false;
     }
-    if (pChannel->establish.estprm.dust_limit_sat > msg.channel_reserve_satoshis) {
+    if (pChannel->establish.param.dust_limit_sat > msg.channel_reserve_satoshis) {
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "local dust_limit_satoshis is greater than remote channel_reserve_satoshis");
         return false;
     }
@@ -275,13 +275,13 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
 {
     ln_msg_accept_channel_t msg;
     msg.p_temporary_channel_id = pChannel->channel_id;
-    msg.dust_limit_satoshis = pChannel->establish.estprm.dust_limit_sat;
-    msg.max_htlc_value_in_flight_msat = pChannel->establish.estprm.max_htlc_value_in_flight_msat;
-    msg.channel_reserve_satoshis = pChannel->establish.estprm.channel_reserve_sat;
-    msg.htlc_minimum_msat = pChannel->establish.estprm.htlc_minimum_msat;
-    msg.minimum_depth = pChannel->establish.estprm.min_depth;
-    msg.to_self_delay = pChannel->establish.estprm.to_self_delay;
-    msg.max_accepted_htlcs = pChannel->establish.estprm.max_accepted_htlcs;
+    msg.dust_limit_satoshis = pChannel->establish.param.dust_limit_sat;
+    msg.max_htlc_value_in_flight_msat = pChannel->establish.param.max_htlc_value_in_flight_msat;
+    msg.channel_reserve_satoshis = pChannel->establish.param.channel_reserve_sat;
+    msg.htlc_minimum_msat = pChannel->establish.param.htlc_minimum_msat;
+    msg.minimum_depth = pChannel->establish.param.min_depth;
+    msg.to_self_delay = pChannel->establish.param.to_self_delay;
+    msg.max_accepted_htlcs = pChannel->establish.param.max_accepted_htlcs;
     msg.p_funding_pubkey = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
     msg.p_revocation_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_REVOCATION];
     msg.p_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT];

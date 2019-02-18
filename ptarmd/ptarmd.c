@@ -106,7 +106,7 @@ LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
 static pthread_mutex_t              mMuxPreimage;
 static struct nodefaillisthead_t    mNodeFailListHead;
 static bool                         mRunning;
-static ln_establish_prm_t           mEstablishPrm;
+static ln_establish_param_t         mEstablishParam;
 
 
 static const char *kSCRIPT[] = {
@@ -434,9 +434,9 @@ bool ptarmd_nodefail_get(
 }
 
 
-const ln_establish_prm_t *ptarmd_get_establishprm(void)
+const ln_establish_param_t *ptarmd_get_establishparam(void)
 {
-    return &mEstablishPrm;
+    return &mEstablishParam;
 }
 
 
@@ -573,13 +573,13 @@ static void load_channel_settings(void)
 
     conf_channel_init(&econf);
     (void)conf_channel_load(FNAME_CONF_CHANNEL, &econf);
-    mEstablishPrm.dust_limit_sat = econf.dust_limit_sat;
-    mEstablishPrm.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
-    mEstablishPrm.channel_reserve_sat = econf.channel_reserve_sat;
-    mEstablishPrm.htlc_minimum_msat = econf.htlc_minimum_msat;
-    mEstablishPrm.to_self_delay = econf.to_self_delay;
-    mEstablishPrm.max_accepted_htlcs = econf.max_accepted_htlcs;
-    mEstablishPrm.min_depth = econf.min_depth;
+    mEstablishParam.dust_limit_sat = econf.dust_limit_sat;
+    mEstablishParam.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
+    mEstablishParam.channel_reserve_sat = econf.channel_reserve_sat;
+    mEstablishParam.htlc_minimum_msat = econf.htlc_minimum_msat;
+    mEstablishParam.to_self_delay = econf.to_self_delay;
+    mEstablishParam.max_accepted_htlcs = econf.max_accepted_htlcs;
+    mEstablishParam.min_depth = econf.min_depth;
 
     ln_init_localfeatures_set(econf.localfeatures);
 }

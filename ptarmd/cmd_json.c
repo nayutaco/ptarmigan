@@ -88,7 +88,7 @@ typedef struct {
     ln_r_field_t    **pp_field;
     uint64_t        amount_msat;
     uint8_t         *p_fieldnum;
-} r_field_prm_t;
+} r_field_param_t;
 
 
 /********************************************************************
@@ -839,44 +839,44 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
             //[node_id, short_channel_id, amt_to_forward, outgoing_cltv_value]
 
             //node_id
-            cJSON *jprm = cJSON_GetArrayItem(jarray, 0);
-            LOGD("jprm=%p\n", jprm);
-            if (jprm && (jprm->type == cJSON_String)) {
-                utl_str_str2bin(p->pubkey, BTC_SZ_PUBKEY, jprm->valuestring);
+            cJSON *jparam = cJSON_GetArrayItem(jarray, 0);
+            LOGD("jparam=%p\n", jparam);
+            if (jparam && (jparam->type == cJSON_String)) {
+                utl_str_str2bin(p->pubkey, BTC_SZ_PUBKEY, jparam->valuestring);
                 LOGD("  node_id=");
                 DUMPD(p->pubkey, BTC_SZ_PUBKEY);
             } else {
-                LOGE("fail: p=%p\n", jprm);
+                LOGE("fail: p=%p\n", jparam);
                 err = RPCERR_PARSE;
                 goto LABEL_EXIT;
             }
             //short_channel_id
-            jprm = cJSON_GetArrayItem(jarray, 1);
-            if (jprm && (jprm->type == cJSON_String)) {
-                p->short_channel_id = strtoull(jprm->valuestring, NULL, 16);
+            jparam = cJSON_GetArrayItem(jarray, 1);
+            if (jparam && (jparam->type == cJSON_String)) {
+                p->short_channel_id = strtoull(jparam->valuestring, NULL, 16);
                 LOGD("  short_channel_id=%016" PRIx64 "\n", p->short_channel_id);
             } else {
-                LOGE("fail: p=%p\n", jprm);
+                LOGE("fail: p=%p\n", jparam);
                 err = RPCERR_PARSE;
                 goto LABEL_EXIT;
             }
             //amt_to_forward
-            jprm = cJSON_GetArrayItem(jarray, 2);
-            if (jprm && (jprm->type == cJSON_Number)) {
-                p->amt_to_forward = jprm->valueu64;
+            jparam = cJSON_GetArrayItem(jarray, 2);
+            if (jparam && (jparam->type == cJSON_Number)) {
+                p->amt_to_forward = jparam->valueu64;
                 LOGD("  amt_to_forward=%" PRIu64 "\n", p->amt_to_forward);
             } else {
-                LOGE("fail: p=%p\n", jprm);
+                LOGE("fail: p=%p\n", jparam);
                 err = RPCERR_PARSE;
                 goto LABEL_EXIT;
             }
             //outgoing_cltv_value
-            jprm = cJSON_GetArrayItem(jarray, 3);
-            if (jprm && (jprm->type == cJSON_Number)) {
-                p->outgoing_cltv_value = jprm->valueint + blockcnt;
+            jparam = cJSON_GetArrayItem(jarray, 3);
+            if (jparam && (jparam->type == cJSON_Number)) {
+                p->outgoing_cltv_value = jparam->valueint + blockcnt;
                 LOGD("  outgoing_cltv_value=%u\n", p->outgoing_cltv_value);
             } else {
-                LOGE("fail: p=%p\n", jprm);
+                LOGE("fail: p=%p\n", jparam);
                 err = RPCERR_PARSE;
                 goto LABEL_EXIT;
             }
@@ -1228,11 +1228,11 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     LOGD("$$$ [JSONRPC]getcommittx\n");
 
     result = cJSON_CreateObject();
-    getcommittx_t prm;
-    prm.b_local = true;
-    prm.p_nodeid = conn.node_id;
-    prm.result = result;
-    ln_db_channel_search_readonly(comp_func_getcommittx, &prm);
+    getcommittx_t param;
+    param.b_local = true;
+    param.p_nodeid = conn.node_id;
+    param.result = result;
+    ln_db_channel_search_readonly(comp_func_getcommittx, &param);
 
 LABEL_EXIT:
     if (err) {
@@ -2086,15 +2086,15 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
  */
 static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, uint64_t AmountMsat)
 {
-    r_field_prm_t prm;
+    r_field_param_t param;
 
     *ppRField = NULL;
     *pRFieldNum = 0;
 
-    prm.pp_field = ppRField;
-    prm.amount_msat = AmountMsat;
-    prm.p_fieldnum = pRFieldNum;
-    ln_db_channel_search_nk_readonly(comp_func_cnl, &prm);
+    param.pp_field = ppRField;
+    param.amount_msat = AmountMsat;
+    param.p_fieldnum = pRFieldNum;
+    ln_db_channel_search_nk_readonly(comp_func_cnl, &param);
 
     if (*pRFieldNum != 0) {
         LOGD("add r_field: %d\n", *pRFieldNum);
@@ -2108,37 +2108,37 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
  *
  * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         r_field_prm_t構造体
+ * @param[in,out]   p_param         r_field_param_t構造体
  */
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
     bool ret;
-    r_field_prm_t *prm = (r_field_prm_t *)p_param;
+    r_field_param_t *param = (r_field_param_t *)p_param;
 
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_channel_update_t msg;
     ret = ln_channel_update_get_peer(pChannel, &buf, &msg);
 #ifdef M_RFIELD_AMOUNT
     LOGD("remote amount: %" PRIu64 "\n", ln_remote_msat(pChannel));
-    if (ret && (ln_remote_payable_msat(pChannel) >= prm->amount_msat)) {
+    if (ret && (ln_remote_payable_msat(pChannel) >= param->amount_msat)) {
         LOGD("invoice: add r-field(%" PRIx64 ")\n", ln_short_channel_id(pChannel));
 #else
     if (ret && !ln_is_announced(pChannel)) {
 #endif
-        size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_r_field_t);
-        *prm->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
+        size_t sz = (1 + *param->p_fieldnum) * sizeof(ln_r_field_t);
+        *param->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*param->pp_field, sz);
 
-        ln_r_field_t *pfield = *prm->pp_field + *prm->p_fieldnum;
+        ln_r_field_t *pfield = *param->pp_field + *param->p_fieldnum;
         memcpy(pfield->node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY);
         pfield->short_channel_id = ln_short_channel_id(pChannel);
         pfield->fee_base_msat = msg.fee_base_msat;
         pfield->fee_prop_millionths = msg.fee_proportional_millionths;
         pfield->cltv_expiry_delta = msg.cltv_expiry_delta;
 
-        (*prm->p_fieldnum)++;
-        LOGD("r_field num=%d\n", *prm->p_fieldnum);
+        (*param->p_fieldnum)++;
+        LOGD("r_field num=%d\n", *param->p_fieldnum);
     }
     utl_buf_free(&buf);
 
@@ -2220,12 +2220,12 @@ static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void
 {
     (void)p_db_param;
 
-    getcommittx_t *prm = (getcommittx_t *)p_param;
+    getcommittx_t *param = (getcommittx_t *)p_param;
 
-    if (memcmp(prm->p_nodeid, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
+    if (memcmp(param->p_nodeid, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
         lnapp_conf_t appconf;
         appconf.p_channel = pChannel;
-        lnapp_get_committx(&appconf, prm->result, prm->b_local);
+        lnapp_get_committx(&appconf, param->result, param->b_local);
     }
 
     return false;

@@ -244,7 +244,7 @@ typedef struct {
 } ln_fundin_t;
 
 
-/** @struct ln_establish_prm_t
+/** @struct ln_establish_param_t
  *  @brief  Establish関連のパラメータ
  *  @note
  *      - #ln_establish_alloc()で初期化する
@@ -257,15 +257,15 @@ typedef struct {
     uint16_t    to_self_delay;                      ///< 2 : to_self_delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-} ln_establish_prm_t;
+} ln_establish_param_t;
 
 
 /** @struct ln_establish_t
  *  @brief  [Establish]ワーク領域
  */
 typedef struct {
-    ln_fundin_t                 *p_fundin;                      ///< 非NULL:open_channel側
-    ln_establish_prm_t          estprm;                         ///< channel establish parameter
+    ln_fundin_t                 *p_fundin;          ///< 非NULL:open_channel側
+    ln_establish_param_t        param;              ///< channel establish parameter
 } ln_establish_t;
 
 /// @}
@@ -342,7 +342,7 @@ typedef struct {
 /// @addtogroup announcement
 /// @{
 
-/** @struct     ln_anno_prm_t
+/** @struct     ln_anno_param_t
  *  @brief      announcement parameter
  *  @note
  *      - lnapp has default parameter(initialize on node startup)
@@ -353,7 +353,7 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8 : htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4 : fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
-} ln_anno_prm_t;
+} ln_anno_param_t;
 
 /// @}
 
@@ -429,7 +429,7 @@ struct ln_channel_t {
 
     //msg:announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
-    ln_anno_prm_t               anno_prm;                       ///< [ANNO_02]announcementパラメータ
+    ln_anno_param_t             anno_param;                     ///< [ANNO_02]announcementパラメータ
     utl_buf_t                   cnl_anno;                       ///< [ANNO_03]自channel_announcement
 
     //msg:establish
@@ -491,11 +491,11 @@ struct ln_channel_t {
  * 鍵関係を、ストレージを含めて初期化している。
  *
  * @param[in,out]       pChannel        channel info
- * @param[in]           pAnnoPrm        announcementパラメータ
+ * @param[in]           pAnnoParam      announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
+bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callback_t pFunc);
 
 
 /** 終了
@@ -561,12 +561,12 @@ void ln_peer_set_nodeid(ln_channel_t *pChannel, const uint8_t *pNodeId);
 /** Channel Establish設定
  *
  * @param[in,out]       pChannel        channel info
- * @param[in]           pEstPrm         Establishパラメータ
+ * @param[in]           pParam          Establishパラメータ
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_prm_t *pEstPrm);
+bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_param_t *pParam);
 
 
 /** #ln_establish_alloc()で確保したメモリを解放する

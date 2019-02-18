@@ -183,7 +183,7 @@ static unsigned long mDebug;
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
+bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callback_t pFunc)
 {
     ln_noise_t noise_bak;
     void *ptr_bak;
@@ -217,11 +217,11 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_prm_t *pAnnoPrm, ln_callback_
 
     pChannel->p_callback = pFunc;
 
-    memcpy(&pChannel->anno_prm, pAnnoPrm, sizeof(ln_anno_prm_t));
-    LOGD("cltv_expiry_delta=%" PRIu16 "\n", pChannel->anno_prm.cltv_expiry_delta);
-    LOGD("htlc_minimum_msat=%" PRIu64 "\n", pChannel->anno_prm.htlc_minimum_msat);
-    LOGD("fee_base_msat=%" PRIu32 "\n", pChannel->anno_prm.fee_base_msat);
-    LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_prm.fee_prop_millionths);
+    memcpy(&pChannel->anno_param, pAnnoParam, sizeof(ln_anno_param_t));
+    LOGD("cltv_expiry_delta=%" PRIu16 "\n", pChannel->anno_param.cltv_expiry_delta);
+    LOGD("htlc_minimum_msat=%" PRIu64 "\n", pChannel->anno_param.htlc_minimum_msat);
+    LOGD("fee_base_msat=%" PRIu32 "\n", pChannel->anno_param.fee_base_msat);
+    LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_param.fee_prop_millionths);
 
     //seed
     ln_derkey_init(&pChannel->keys_local, &pChannel->keys_remote);
@@ -329,21 +329,21 @@ void ln_peer_set_nodeid(ln_channel_t *pChannel, const uint8_t *pNodeId)
 }
 
 
-bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_prm_t *pEstPrm)
+bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_param_t *pParam)
 {
     LOGD("BEGIN\n");
 
-    if (pEstPrm != NULL) {
+    if (pParam) {
         pChannel->establish.p_fundin = NULL;       //open_channel送信側が設定する
 
-        memcpy(&pChannel->establish.estprm, pEstPrm, sizeof(ln_establish_prm_t));
-        LOGD("dust_limit_sat= %" PRIu64 "\n", pChannel->establish.estprm.dust_limit_sat);
-        LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pChannel->establish.estprm.max_htlc_value_in_flight_msat);
-        LOGD("channel_reserve_sat= %" PRIu64 "\n", pChannel->establish.estprm.channel_reserve_sat);
-        LOGD("htlc_minimum_msat= %" PRIu64 "\n", pChannel->establish.estprm.htlc_minimum_msat);
-        LOGD("to_self_delay= %" PRIu16 "\n", pChannel->establish.estprm.to_self_delay);
-        LOGD("max_accepted_htlcs= %" PRIu16 "\n", pChannel->establish.estprm.max_accepted_htlcs);
-        LOGD("min_depth= %" PRIu16 "\n", pChannel->establish.estprm.min_depth);
+        memcpy(&pChannel->establish.param, pParam, sizeof(ln_establish_param_t));
+        LOGD("dust_limit_sat= %" PRIu64 "\n", pChannel->establish.param.dust_limit_sat);
+        LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pChannel->establish.param.max_htlc_value_in_flight_msat);
+        LOGD("channel_reserve_sat= %" PRIu64 "\n", pChannel->establish.param.channel_reserve_sat);
+        LOGD("htlc_minimum_msat= %" PRIu64 "\n", pChannel->establish.param.htlc_minimum_msat);
+        LOGD("to_self_delay= %" PRIu16 "\n", pChannel->establish.param.to_self_delay);
+        LOGD("max_accepted_htlcs= %" PRIu16 "\n", pChannel->establish.param.max_accepted_htlcs);
+        LOGD("min_depth= %" PRIu16 "\n", pChannel->establish.param.min_depth);
     }
 
     LOGD("END\n");
@@ -516,13 +516,13 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 
     ln_channel_t *dummy = (ln_channel_t *)UTL_DBG_MALLOC(sizeof(ln_channel_t));
     uint8_t seed[LN_SZ_SEED];
-    ln_anno_prm_t annoprm;
+    ln_anno_param_t anno_param;
     ln_establish_t est;
     ln_fundin_t fundin;
 
     memset(dummy, 0, sizeof(ln_channel_t));
     memset(seed, 1, sizeof(seed));
-    memset(&annoprm, 0, sizeof(annoprm));
+    memset(&anno_param, 0, sizeof(anno_param));
     memset(&est, 0, sizeof(est));
     memset(&fundin, 0, sizeof(fundin));
 
@@ -532,13 +532,13 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
     fundin.change_spk.len = 23;
     fundin.amount = (uint64_t)0xffffffffffffffff;
 
-    est.estprm.dust_limit_sat = BTC_DUST_LIMIT;
-    est.estprm.to_self_delay = 100;
+    est.param.dust_limit_sat = BTC_DUST_LIMIT;
+    est.param.to_self_delay = 100;
     est.cnl_open.feerate_per_kw = Feerate;
     est.cnl_open.funding_satoshis = 100000000;
     est.p_fundin = &fundin;
 
-    ln_init(dummy, seed, &annoprm, NULL);
+    ln_init(dummy, seed, &anno_param, NULL);
     memcpy(dummy->pubkeys_remote[LN_BASEPOINT_IDX_FUNDING],
             dummy->pubkeys_local[LN_BASEPOINT_IDX_FUNDING],
             BTC_SZ_PUBKEY);
@@ -1396,14 +1396,14 @@ const uint8_t *ln_remote_node_id(const ln_channel_t *pChannel)
 
 uint32_t ln_cltv_expily_delta(const ln_channel_t *pChannel)
 {
-    return pChannel->anno_prm.cltv_expiry_delta;
+    return pChannel->anno_param.cltv_expiry_delta;
 }
 
 
 uint64_t ln_forward_fee(const ln_channel_t *pChannel, uint64_t AmountMsat)
 {
-    return (uint64_t)pChannel->anno_prm.fee_base_msat +
-            (AmountMsat * (uint64_t)pChannel->anno_prm.fee_prop_millionths / (uint64_t)1000000);
+    return (uint64_t)pChannel->anno_param.fee_base_msat +
+            (AmountMsat * (uint64_t)pChannel->anno_param.fee_prop_millionths / (uint64_t)1000000);
 }
 
 

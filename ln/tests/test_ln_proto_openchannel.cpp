@@ -167,15 +167,15 @@ public:
     }
     static void LnInit(ln_channel_t *pChannel)
     {
-        ln_anno_prm_t annoprm;
+        ln_anno_param_t anno_param;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
         pChannel->noise.p_handshake = NULL;
-        annoprm.cltv_expiry_delta = 10;
-        annoprm.htlc_minimum_msat = 1000;
-        annoprm.fee_base_msat = 20;
-        annoprm.fee_prop_millionths = 200;
-        ln_init(pChannel, &annoprm, (ln_callback_t)0x123456);
+        anno_param.cltv_expiry_delta = 10;
+        anno_param.htlc_minimum_msat = 1000;
+        anno_param.fee_base_msat = 20;
+        anno_param.fee_prop_millionths = 200;
+        ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
         pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_tx_local.htlc_minimum_msat = 0;
         pChannel->commit_tx_local.max_accepted_htlcs = 10;
@@ -287,8 +287,8 @@ TEST_F(ln, ln_open_channel_recv_ok)
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    channel.establish.estprm.dust_limit_sat = 10000;
-    channel.establish.estprm.channel_reserve_sat = 800;
+    channel.establish.param.dust_limit_sat = 10000;
+    channel.establish.param.channel_reserve_sat = 800;
 
     bool ret = ln_open_channel_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
@@ -345,10 +345,10 @@ TEST_F(ln, ln_open_channel_recv_sender1)
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    channel.establish.estprm.dust_limit_sat = 10000;
+    channel.establish.param.dust_limit_sat = 10000;
 
     //accept_channelで送信するchannel_reserve_satoshis
-    channel.establish.estprm.channel_reserve_sat = 800 - 1;
+    channel.establish.param.channel_reserve_sat = 800 - 1;
 
     bool ret = ln_open_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
@@ -404,9 +404,9 @@ TEST_F(ln, ln_open_channel_recv_sender2)
     ln_msg_open_channel_read_fake.custom_fake = dummy::ln_msg_open_channel_read;
 
     memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
-    channel.establish.estprm.channel_reserve_sat = 800;
+    channel.establish.param.channel_reserve_sat = 800;
 
-    channel.establish.estprm.dust_limit_sat = 10000 + 1;
+    channel.establish.param.dust_limit_sat = 10000 + 1;
 
     bool ret = ln_open_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);

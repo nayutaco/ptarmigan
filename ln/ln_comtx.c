@@ -1217,11 +1217,11 @@ static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPayHash, bool bC
     // LOGD("pPayHash(%d)=", bClosing);
     // DUMPD(pPayHash, BTC_SZ_HASH256);
 
-    preimage_t prm;
-    prm.image = pPreimage;
-    prm.hash = pPayHash;
-    prm.b_closing = bClosing;
-    if (!ln_db_preimage_search(search_preimage_func, &prm)) return false;
+    preimage_t param;
+    param.image = pPreimage;
+    param.hash = pPayHash;
+    param.b_closing = bClosing;
+    if (!ln_db_preimage_search(search_preimage_func, &param)) return false;
     return true;
 }
 
@@ -1235,17 +1235,17 @@ static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint
 {
     (void)Amount; (void)Expiry;
 
-    preimage_t *prm = (preimage_t *)p_param;
+    preimage_t *param = (preimage_t *)p_param;
 
     //LOGD("compare preimage : ");
     //DUMPD(pPreimage, LN_SZ_PREIMAGE);
     uint8_t payment_hash[BTC_SZ_HASH256];
     ln_payment_hash_calc(payment_hash, pPreimage);
-    if (memcmp(payment_hash, prm->hash, BTC_SZ_HASH256)) return false;
+    if (memcmp(payment_hash, param->hash, BTC_SZ_HASH256)) return false;
     //LOGD("preimage match!: ");
     //DUMPD(pPreimage, LN_SZ_PREIMAGE);
-    memcpy(prm->image, pPreimage, LN_SZ_PREIMAGE);
-    if (prm->b_closing && Expiry != UINT32_MAX) {
+    memcpy(param->image, pPreimage, LN_SZ_PREIMAGE);
+    if (param->b_closing && Expiry != UINT32_MAX) {
         //期限切れによる自動削除をしない
         ln_db_preimage_set_expiry(p_db_param, UINT32_MAX); //XXX:
     }
