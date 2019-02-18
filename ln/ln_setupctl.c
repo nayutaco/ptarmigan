@@ -107,7 +107,7 @@ bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool b
 
     M_DB_CHANNEL_SAVE(pChannel);
 
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -168,7 +168,7 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
 
     pChannel->init_flag |= M_INIT_FLAG_RECV;
 
-    ln_callback(pChannel, LN_CB_TYPE_INIT_RECV, NULL);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_INIT_RECV, NULL);
 
     ret = true;
 
@@ -189,7 +189,7 @@ bool HIDDEN ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, 
     msg.len = strlen(pChannel->err_msg);
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_error_write(&buf, &msg);
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -204,7 +204,7 @@ bool HIDDEN ln_error_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t
 
     ln_msg_error_t msg;
     ln_msg_error_read(&msg, pData, Len);
-    ln_callback(pChannel, LN_CB_TYPE_ERROR, &msg);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ERROR, &msg);
     return true;
 }
 
@@ -219,7 +219,7 @@ bool /*HIDDEN*/ ln_ping_send(ln_channel_t *pChannel, uint16_t PingLen, uint16_t 
     msg.p_ignored = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_ping_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -249,7 +249,7 @@ bool HIDDEN ln_pong_send(ln_channel_t *pChannel, ln_msg_ping_t *pPingMsg)
     msg.p_ignored = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_pong_write(&buf, &msg)) return false;
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -264,14 +264,14 @@ bool HIDDEN ln_pong_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    ln_cb_pong_recv_t param;
-    param.result = false;
+    ln_cb_param_notify_pong_recv_t param;
+    param.ret = false;
     param.byteslen = msg.byteslen;
     param.p_ignored = msg.p_ignored;
-    ln_callback(pChannel, LN_CB_TYPE_PONG_RECV, &param);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_PONG_RECV, &param);
 
     //LOGD("END\n");
-    return param.result;
+    return param.ret;
 }
 
 

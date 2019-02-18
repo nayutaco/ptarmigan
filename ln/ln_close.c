@@ -85,7 +85,7 @@ bool /*HIDDEN*/ ln_shutdown_send(ln_channel_t *pChannel)
         return false;
     }
 
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
     pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND;
@@ -130,7 +130,7 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
     pChannel->shutdown_flag |= LN_SHDN_FLAG_RECV;
     M_DB_CHANNEL_SAVE(pChannel);
 
-    ln_callback(pChannel, LN_CB_TYPE_SHUTDOWN_RECV, NULL);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_SHUTDOWN_RECV, NULL);
 
     if (!(pChannel->shutdown_flag & LN_SHDN_FLAG_SEND)) {
         //shutdown has not been sent
@@ -162,9 +162,9 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     LOGD("fee_sat: %" PRIu64 "\n", pChannel->close_fee_sat);
 
     if (pClosingSignedMsg) {
-        ln_cb_closed_fee_t closed_fee;
+        ln_cb_param_update_closing_fee_t closed_fee;
         closed_fee.fee_sat = pClosingSignedMsg->fee_satoshis;
-        ln_callback(pChannel, LN_CB_TYPE_CLOSED_FEE, &closed_fee);
+        ln_callback(pChannel, LN_CB_TYPE_UPDATE_CLOSING_FEE, &closed_fee);
         //pChannel->close_fee_sat updated
     } else {
         pChannel->close_fee_sat = ln_closing_signed_initfee(pChannel);
@@ -188,7 +188,7 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
         return false;
     }
     pChannel->close_last_fee_sat = pChannel->close_fee_sat;
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
     M_DB_CHANNEL_SAVE(pChannel);
@@ -251,10 +251,10 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
             LOGE("fail: create closeing_tx\n");
             return false;
         }
-        ln_cb_closed_t closed;
+        ln_cb_param_notify_closing_end_t closed;
         closed.result = false;
         closed.p_tx_closing = &txbuf;
-        ln_callback(pChannel, LN_CB_TYPE_CLOSED, &closed);
+        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_CLOSING_END, &closed);
         if (!closed.result) {
             //XXX: retry to send closing_tx
             LOGE("fail: send closing_tx\n");

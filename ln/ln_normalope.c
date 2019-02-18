@@ -194,14 +194,14 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
 
     clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FULFILL);
 
-    ln_cb_fulfill_htlc_recv_t cb_param;
+    ln_cb_param_notify_fulfill_htlc_recv_t cb_param;
     cb_param.ret = false;
     cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
     cb_param.prev_idx = p_htlc->prev_idx;
     cb_param.p_preimage = msg.p_payment_preimage;
-    cb_param.id = p_htlc->id; //XXX: ???
+    cb_param.next_id = p_htlc->id;
     cb_param.amount_msat = p_htlc->amount_msat;
-    ln_callback(pChannel, LN_CB_TYPE_FULFILL_HTLC_RECV, &cb_param); //XXX: ???
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV, &cb_param);
     if (!cb_param.ret) {
         LOGE("fail: backwind\n");
         /*ignore*/
@@ -242,19 +242,19 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
 
     clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FAIL);
 
-    ln_cb_fail_htlc_recv_t cb_param;
-    cb_param.result = false;
+    ln_cb_param_notify_fail_htlc_recv_t cb_param;
+    cb_param.ret = false;
     cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
     utl_buf_t reason;
     utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
     cb_param.prev_idx = p_htlc->prev_idx;
-    cb_param.orig_id = p_htlc->id;     //元のHTLC id //XXX: ??? rename next_id
+    cb_param.next_id = p_htlc->id;
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = 0;
-    ln_callback(pChannel, LN_CB_TYPE_FAIL_HTLC_RECV, &cb_param);
-    if (!cb_param.result) { //XXX: ret?
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV, &cb_param);
+    if (!cb_param.ret) {
         LOGE("fail: backwind\n");
         /*ignore*/
     }
@@ -311,18 +311,18 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
     utl_push_u16be(&push_reason, msg.failure_code);
     utl_push_data(&push_reason, msg.p_sha256_of_onion, BTC_SZ_HASH256);
 
-    ln_cb_fail_htlc_recv_t cb_param;
-    cb_param.result = false;
+    ln_cb_param_notify_fail_htlc_recv_t cb_param;
+    cb_param.ret = false;
     cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
     cb_param.prev_idx = p_htlc->prev_idx;
-    cb_param.orig_id = p_htlc->id;     //元のHTLC id //XXX: next
+    cb_param.next_id = p_htlc->id;
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = msg.failure_code;
-    ln_callback(pChannel, LN_CB_TYPE_FAIL_HTLC_RECV, &cb_param);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV, &cb_param);
     utl_buf_free(&reason);
-    if (!cb_param.result) { //XXX: ret??? 
+    if (!cb_param.ret) {
         LOGE("fail: backwind\n");
         /*ignore*/
     }
@@ -412,7 +412,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
             p_htlc->flags.revsend = 1;
         }
     }
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
     //revoke_and_ackを返せた場合だけ保存することにする XXX: ???
@@ -586,7 +586,7 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     //M_DB_CHANNEL_SAVE(pChannel);  //確定するまでDB保存しない
 
     //fee更新通知
-    ln_callback(pChannel, LN_CB_TYPE_UPDATE_FEE_RECV, &old_fee);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV, &old_fee);
 
     LOGD("END\n");
     return true;
@@ -628,7 +628,7 @@ bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
         return false;
     }
     pChannel->feerate_per_kw = FeeratePerKw;
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
     LOGD("END\n");
@@ -838,7 +838,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", pChannel->keys_local.per_commitment_point);
         bool ret = ln_msg_revoke_and_ack_write(&buf, &revack);
         if (ret) {
-            ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+            ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
             LOGD("OK: re-send revoke_and_ack\n");
         } else {
             LOGE("fail: re-send revoke_and_ack\n");
@@ -955,6 +955,13 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 
 static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
 {
+    typedef enum {
+        RESULT_OK,
+        RESULT_FAIL,
+        RESULT_FAIL_MALFORMED,
+    } result_t;
+
+
     //BOLT4 check
     //  [2018/09/07] N/A
     //      A2. 該当する状況なし
@@ -966,11 +973,11 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
 
     ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
     uint8_t preimage[LN_SZ_PREIMAGE];
-    ln_cb_add_htlc_recv_t add_htlc;
+    ln_cb_param_nofity_add_htlc_recv_t add_htlc;
     utl_push_t push_htlc;
     utl_buf_t buf_reason = UTL_BUF_INIT;
     int32_t height = 0;
-    ln_cb_add_htlc_result_t result = LN_CB_ADD_HTLC_RESULT_OK;
+    result_t result = RESULT_OK;
     ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
 
     utl_push_init(&push_htlc, &buf_reason, 0);
@@ -991,27 +998,27 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
         uint16_t failure_code = utl_int_pack_u16be(buf_reason.buf);
         if (failure_code & LNERR_ONION_BADONION) {
             //update_fail_malformed_htlc
-            result = LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED;
+            result = RESULT_FAIL_MALFORMED;
         } else {
             //update_fail_htlc
-            result = LN_CB_ADD_HTLC_RESULT_FAIL;
+            result = RESULT_FAIL;
         }
         utl_buf_free(&p_htlc->buf_onion_reason);
         goto LABEL_EXIT;
     }
 
-    ln_callback(pChannel, LN_CB_TYPE_GETBLOCKCOUNT, &height);
+    ln_callback(pChannel, LN_CB_TYPE_GET_BLOCK_COUNT, &height);
     if (height <= 0) {
         M_SET_ERR(pChannel, LNERR_BITCOIND, "getblockcount");
         LOGE("fail\n");
-        result = LN_CB_ADD_HTLC_RESULT_FAIL;
+        result = RESULT_FAIL;
         goto LABEL_EXIT;
     }
 
     if (hop_dataout.b_exit) {
         if (!check_recv_add_htlc_bolt4_final(pChannel, &hop_dataout, &push_htlc, p_htlc, preimage, height)) {
             LOGE("fail\n");
-            result = LN_CB_ADD_HTLC_RESULT_FAIL;
+            result = RESULT_FAIL;
             goto LABEL_EXIT;
         }
         p_htlc->prev_short_channel_id = UINT64_MAX; //final node
@@ -1020,14 +1027,14 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
     } else {
         if (!check_recv_add_htlc_bolt4_forward(pChannel, &hop_dataout, &push_htlc, p_htlc, height)) {
             LOGE("fail\n");
-            result = LN_CB_ADD_HTLC_RESULT_FAIL;
+            result = RESULT_FAIL;
             goto LABEL_EXIT;
         }
     }
 
     if (!check_recv_add_htlc_bolt4_common(pChannel, &push_htlc)) {
         LOGE("fail\n");
-        result = LN_CB_ADD_HTLC_RESULT_FAIL;
+        result = RESULT_FAIL;
         goto LABEL_EXIT;
     }
 
@@ -1043,7 +1050,7 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
                             //戻り値は転送先のidx
     add_htlc.p_onion_reason = &p_htlc->buf_onion_reason;
     add_htlc.p_shared_secret = &p_htlc->buf_shared_secret;
-    ln_callback(pChannel, LN_CB_TYPE_ADD_HTLC_RECV, &add_htlc);
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV, &add_htlc);
 
     if (!add_htlc.ret) {
         utl_buf_t buf = UTL_BUF_INIT;
@@ -1057,7 +1064,7 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
             LOGE("fail: --> unknown next peer\n");
             utl_push_u16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
         }
-        result = LN_CB_ADD_HTLC_RESULT_FAIL;
+        result = RESULT_FAIL;
         goto LABEL_EXIT;
     }
 
@@ -1086,7 +1093,7 @@ LABEL_EXIT:
     LOGD("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
 
     switch (result) {
-    case LN_CB_ADD_HTLC_RESULT_FAIL:
+    case RESULT_FAIL:
         LOGE("fail: will backwind fail_htlc\n");
         LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FAIL);
         p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL;
@@ -1094,7 +1101,7 @@ LABEL_EXIT:
         //折り返しだけAPIが異なる
         ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
         break;
-    case LN_CB_ADD_HTLC_RESULT_FAIL_MALFORMED:
+    case RESULT_FAIL_MALFORMED:
         LOGE("fail: will backwind fail_malformed_htlc\n");
         LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FAIL_MALFORMED);
         p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL_MALFORMED;
@@ -1280,11 +1287,11 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
 {
     //処理前呼び出し
     //  転送先取得(final nodeの場合は、p_next_channelにNULLが返る)
-    ln_cb_add_htlc_recv_prev_t recv_prev;
+    ln_cb_param_notify_add_htlc_recv_prev_t recv_prev;
     recv_prev.p_next_channel = NULL;
     if (pDataOut->short_channel_id != 0) {
         recv_prev.next_short_channel_id = pDataOut->short_channel_id;
-        ln_callback(pChannel, LN_CB_TYPE_ADD_HTLC_RECV_PREV, &recv_prev);
+        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV, &recv_prev);
     }
 
     //B6. if the outgoing channel has requirements advertised in its channel_announcement's features, which were NOT included in the onion:
@@ -1507,7 +1514,7 @@ static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel)
     }
 
     if (revack) {
-        ln_callback(pChannel, LN_CB_TYPE_REV_AND_ACK_EXCG, NULL); //XXX: ???
+        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL); //XXX: ???
     }
     return true;
 }
@@ -1515,7 +1522,7 @@ static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel)
 
 static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
 {
-    ln_cb_bwd_del_htlc_t bwds[LN_HTLC_MAX]; //XXX: dynamically allocate
+    ln_cb_param_start_bwd_del_htlc_t bwds[LN_HTLC_MAX]; //XXX: dynamically allocate
     uint8_t payment_hashs[LN_HTLC_MAX][BTC_SZ_HASH256]; //XXX: dynamically allocate
     uint32_t num_bwds = 0;
     bool db_upd = false;
@@ -1550,14 +1557,14 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
     for (uint32_t lp = 0; lp < num_bwds; lp++) {
         if (bwds[lp].short_channel_id) {
             LOGD("backward fail_htlc!\n");
-            ln_callback(pChannel, LN_CB_TYPE_BWD_DELHTLC_START, &bwds[lp]);
+            ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &bwds[lp]);
         } else {
             LOGD("retry the payment! in the origin node\n");
-            ln_callback(pChannel, LN_CB_TYPE_PAYMENT_RETRY, payment_hashs[lp]);
+            ln_callback(pChannel, LN_CB_TYPE_RETRY_PAYMENT, payment_hashs[lp]);
         }
     }
     if (revack) {
-        ln_callback(pChannel, LN_CB_TYPE_REV_AND_ACK_EXCG, NULL); //XXX: ???
+        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL); //XXX: ???
     }
     return true;
 }
@@ -1654,7 +1661,7 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     if (!ln_msg_commitment_signed_write(&buf, &msg)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create commitment_signed");
         LOGE("fail: create commit_tx(0x%" PRIx64 ")\n", ln_short_channel_id(pChannel));
-        ln_callback(pChannel, LN_CB_TYPE_QUIT, NULL);
+        ln_callback(pChannel, LN_CB_TYPE_STOP_CHANNEL, NULL);
         utl_buf_free(&buf);
         goto LABEL_EXIT;
     }
@@ -1671,7 +1678,7 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     M_DBG_COMMITNUM(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
 
     ret = true;
 
@@ -1895,7 +1902,7 @@ static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
     }
     pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -1922,7 +1929,7 @@ static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
     }
     pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
 }
@@ -1950,7 +1957,7 @@ static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
     }
     pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     return true;
 }
 
@@ -1976,7 +1983,7 @@ static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Idx
     }
     pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
-    ln_callback(pChannel, LN_CB_TYPE_SEND_REQ, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     return true;
 }
 
@@ -2003,7 +2010,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
 static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
 {
     uint32_t num_fwds = 0;
-    ln_cb_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
+    ln_cb_param_start_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
     bool db_upd = false;
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -2038,7 +2045,7 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
     }
 
     for (uint32_t lp = 0; lp < num_fwds; lp++) {
-        ln_callback(pChannel, LN_CB_TYPE_FWD_ADDHTLC_START, &fwds[lp]);
+        ln_callback(pChannel, LN_CB_TYPE_START_FWD_ADD_HTLC, &fwds[lp]);
     }
     return true;
 }
