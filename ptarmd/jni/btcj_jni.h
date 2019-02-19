@@ -36,6 +36,7 @@ typedef enum {
     METHOD_PTARM_SETCOMMITTXID,
     METHOD_PTARM_GETBALANCE,
     METHOD_PTARM_EMPTYWALLET,
+    METHOD_PTARM_EXIT,
     //
     METHOD_PTARM_MAX
 } btcj_method_t;
@@ -79,5 +80,6 @@ void btcj_del_channel(const uint8_t *pPeerId);
 // void btcj_set_committxid(const uint8_t *peerId, )
 bool btcj_getbalance(uint64_t *pAmount);
 bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid);
+void btcj_exit(void);
 
 #endif
