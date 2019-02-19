@@ -1114,8 +1114,8 @@ bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
 bool ln_db_channel_search_nk_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-#warning NOT READONLY and KEY CREATE
-    return channel_search(pFunc, pFuncParam, true, true);
+#warning NOT READONLY
+    return channel_search(pFunc, pFuncParam, true, false);
 }
 
 
