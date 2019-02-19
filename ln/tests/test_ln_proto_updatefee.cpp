@@ -523,7 +523,41 @@ TEST_F(ln, recv_updatefee_min)
 }
 
 
-TEST_F(ln, recv_updatefee_low)
+TEST_F(ln, recv_updatefee_low_in)
+{
+    ln_channel_t channel;
+    LnInitRecv(&channel);
+
+    static int callback_called = 0;
+    class dummy {
+    public:
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
+            if (type == LN_CB_TYPE_GET_LATEST_FEERATE) {
+                uint32_t *p = (uint32_t *)p_param;
+                *p = 5000;
+                callback_called++;
+            }
+        }
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
+            //now: 5000
+            //      low: 5000*0.2 = 1000
+            //      hi : 5000*5.0 = 25000
+            pMsg->feerate_per_kw = 1000;
+            return true;
+        }
+    };
+    channel.p_callback = dummy::callback;
+    ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
+
+    bool ret = ln_update_fee_recv(&channel, NULL, 0);
+    ASSERT_TRUE(ret);
+
+    ln_term(&channel);
+}
+
+
+TEST_F(ln, recv_updatefee_low_out)
 {
     ln_channel_t channel;
     LnInitRecv(&channel);
@@ -557,7 +591,7 @@ TEST_F(ln, recv_updatefee_low)
 }
 
 
-TEST_F(ln, recv_updatefee_hi)
+TEST_F(ln, recv_updatefee_hi_in)
 {
     ln_channel_t channel;
     LnInitRecv(&channel);
@@ -576,8 +610,42 @@ TEST_F(ln, recv_updatefee_hi)
             pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
             //now: 5000
             //      low: 5000*0.2 = 1000
-            //      hi : 5000*5.0 = 25000
-            pMsg->feerate_per_kw = 25000 + 1;
+            //      hi : 5000*20.0 = 100000
+            pMsg->feerate_per_kw = 100000;
+            return true;
+        }
+    };
+    channel.p_callback = dummy::callback;
+    ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
+
+    bool ret = ln_update_fee_recv(&channel, NULL, 0);
+    ASSERT_TRUE(ret);
+
+    ln_term(&channel);
+}
+
+
+TEST_F(ln, recv_updatefee_hi_out)
+{
+    ln_channel_t channel;
+    LnInitRecv(&channel);
+
+    static int callback_called = 0;
+    class dummy {
+    public:
+        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
+            if (type == LN_CB_TYPE_GET_LATEST_FEERATE) {
+                uint32_t *p = (uint32_t *)p_param;
+                *p = 5000;
+                callback_called++;
+            }
+        }
+        static bool ln_msg_update_fee_read(ln_msg_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->p_channel_id = LN_DUMMY::CHANNEL_ID;
+            //now: 5000
+            //      low: 5000*0.2 = 1000
+            //      hi : 5000*20.0 = 100000
+            pMsg->feerate_per_kw = 100000 + 1;
             return true;
         }
     };
