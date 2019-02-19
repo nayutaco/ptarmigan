@@ -219,6 +219,7 @@ static void jni_del_channel(void *pArg);
 static void jni_set_committxid(void *pArg);
 static void jni_get_balance(void *pArg);
 static void jni_empty_wallet(void *pArg);
+static void jni_exit(void *pArg);
 
 
 /**************************************************************************
@@ -233,6 +234,7 @@ static volatile enum {
     JNILOOP_INI,
     JNILOOP_WORK,
     JNILOOP_STOP,
+    JNILOOP_ABORT,
 } mLoopJni;
 static pthread_mutex_t      mMuxJni;
 static pthread_cond_t       mCondJni;        ///< JNIの待ち合わせ
@@ -287,6 +289,8 @@ static const struct {
     { jni_get_balance },
     // METHOD_PTARM_EMPTYWALLET,
     { jni_empty_wallet },
+    // METHOD_PTARM_EXIT,
+    { jni_exit },
 };
 
 
@@ -308,16 +312,28 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     pthread_create(&th, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
 
     //wait jni start...
-    int count = 60 * 3;       //1s*60*3 = 3min
+    int count = 60 * 1;       //1s * count
     LOGD("$$$ SYNC start\n");
     fprintf(stderr, "Java initialize...");
+
+    //もしbitcoinjが、動作がうまく行かない場合でもメソッドから抜ける場合、
+    //こちらでタイムアウトの監視をする必要はない。
+    //しかし、bitcoinjが戻ってこないままになったらどうする？
+    //その場合は、btcj_init()
     while ((mLoopJni == JNILOOP_INI) && (count > 0)) {
+        //mLoopJni changes in thread_jni_start()
         sleep(1);
         fprintf(stderr, ".");
+        LOGD(".\n");
         count--;
     }
-    if ((mLoopJni == JNILOOP_STOP) || (count <= 0)) {
-        LOGE("fail: JNI thread\n");
+    if ((mLoopJni != JNILOOP_WORK) || (count <= 0)) {
+        if (count == 0) {
+            LOGE("fail: JNI timeout\n");
+            mLoopJni = JNILOOP_ABORT;
+        } else {
+            LOGE("fail: JNI thread(%d)\n", mLoopJni);
+        }
         fprintf(stderr, "JNI thread cannot start.\n");
         return false;
     }
@@ -739,7 +755,8 @@ static void *thread_jni_start(void *pArg)
     bool ret = btcj_init(p_rpcconf->gen);
     if (!ret) {
         LOGE("fail: jvm init\n");
-        mLoopJni = JNILOOP_STOP;
+        mLoopJni = JNILOOP_ABORT;
+        btcj_release();
         return NULL;
     }
 
@@ -1020,4 +1037,14 @@ static void jni_empty_wallet(void *pArg)
 
     emptywallet_t *p = (emptywallet_t *)pArg;
     p->ret = btcj_emptywallet(p->p_addr, p->p_txid);
+}
+
+
+//METHOD_PTARM_EXIT
+static void jni_exit(void *pArg)
+{
+    (void)pArg;
+    LOGD("\n");
+
+    btcj_release();
 }

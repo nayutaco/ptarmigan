@@ -36,6 +36,7 @@ static JavaVM *jvm;
 //GlobalRef
 static jclass hash_cls;
 static jclass arraylist_cls;
+static jclass system_cls;
 static jobject ptarm_obj;
 
 static jmethodID ptarm_method[METHOD_PTARM_MAX];
@@ -45,6 +46,7 @@ static jmethodID arraylist_ctor_method;
 static jmethodID arraylist_add_method;
 static jmethodID list_get_method;
 static jmethodID list_size_method;
+static jmethodID system_exit_method;
 static jfieldID ptarmcls_field[M_FIELD_PTARMCHAN_MAX];
 
 static uint8_t* hash2bytes(jobject hash_obj);
@@ -97,6 +99,8 @@ const struct {
     { "getBalance", "()J" },
     // METHOD_PTARM_EMPTYWALLET,
     { "emptyWallet", "(Ljava/lang/String;)[B" },
+    // METHOD_PARAM_EXIT
+    { NULL, NULL },
 };
 
 
@@ -141,6 +145,18 @@ bool btcj_init(btc_block_chain_t Gen)
         return false;
     }
 
+    //
+    system_cls = (*env)->FindClass(env, "java/lang/System");
+    if(system_cls == NULL) {
+        LOGE("fail: FindClass()\n");
+        return false;
+    }
+    system_exit_method = (*env)->GetStaticMethodID(env, system_cls, "exit", "(I)V");
+    if(system_exit_method == NULL) {
+        LOGE("fail: GetMethodID()\n");
+        return false;
+    }
+
     LOGD("Class: Ptarmigan\n");
 
     // クラス検索
@@ -153,9 +169,8 @@ bool btcj_init(btc_block_chain_t Gen)
     // コンストラクタ呼び出し
     LOGD("call ctor\n");
     jmethodID method = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/lang/String;)V");
-    check_exception(env);
-    if(method == NULL) {
-        LOGE("fail: get method id\n");
+    if ((*env)->ExceptionCheck(env) || (method == NULL)) {
+        LOGE("fail: ctor\n");
         return false;
     }
     const char *p_chain;
@@ -185,10 +200,12 @@ bool btcj_init(btc_block_chain_t Gen)
     //
     LOGD("get methods\n");
     for(size_t lp = 0; lp < ARRAY_SIZE(kMethod); lp++) {
-        ptarm_method[lp] = (*env)->GetMethodID(env, cls, kMethod[lp].name, kMethod[lp].sig);
-        if(ptarm_method[lp] == NULL) {
-            LOGE("fail: get method id(%s)\n", kMethod[lp].name);
-            return false;
+        if (kMethod[lp].name != NULL) {
+            ptarm_method[lp] = (*env)->GetMethodID(env, cls, kMethod[lp].name, kMethod[lp].sig);
+            if(ptarm_method[lp] == NULL) {
+                LOGE("fail: get method id(%s)\n", kMethod[lp].name);
+                return false;
+            }
         }
     }
 
@@ -269,6 +286,8 @@ bool btcj_init(btc_block_chain_t Gen)
         LOGE("fail: GetMethodID()\n");
         return false;
     }
+
+    //
     (*env)->DeleteLocalRef(env, cls);
 
     LOGD("END\n");
@@ -277,12 +296,17 @@ bool btcj_init(btc_block_chain_t Gen)
 //-----------------------------------------------------------------------------
 bool btcj_release(void)
 {
-    (*env)->DeleteGlobalRef(env, ptarm_obj);
-    (*env)->DeleteGlobalRef(env, arraylist_cls);
-    (*env)->DeleteGlobalRef(env, hash_cls);
-    //
-    if(jvm != NULL) {
-        (*jvm)->DestroyJavaVM(jvm);
+    if (env != NULL) {
+        btcj_exit();
+        (*env)->DeleteGlobalRef(env, ptarm_obj);
+        (*env)->DeleteGlobalRef(env, arraylist_cls);
+        (*env)->DeleteGlobalRef(env, hash_cls);
+        //
+        if(jvm != NULL) {
+            (*jvm)->DestroyJavaVM(jvm);
+            jvm = NULL;
+        }
+        env = NULL;
     }
     //
     return true;
@@ -645,6 +669,12 @@ bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid)
     return ret;
 }
 //-----------------------------------------------------------------------------
+void btcj_exit(void)
+{
+    (*env)->CallStaticVoidMethod(env, system_cls, system_exit_method, 0);
+    check_exception(env);
+}
+//-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 static uint8_t* hash2bytes(jobject hash_obj)
 {
@@ -706,7 +736,7 @@ static inline void _check_exception(JNIEnv *env)
 {
     if ((*env)->ExceptionCheck(env)) {
         LOGE("fail: exception!!\n");
-        abort();
+        //abort();
         (*env)->ExceptionClear(env);
     }
 }
