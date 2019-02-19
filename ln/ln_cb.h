@@ -118,9 +118,9 @@ typedef struct {
     uint64_t                    id;                     ///< HTLC id
     const uint8_t               *p_payment;             ///< payment_hash
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
-    uint64_t                    amount_msat;            ///< pChannel->cnl_add_htlc[idx].amount_msat
-    uint32_t                    cltv_expiry;            ///< pChannel->cnl_add_htlc[idx].cltv_expiry
-    uint16_t                    idx;                    ///< pChannel->cnl_add_htlc[idx]
+    uint64_t                    amount_msat;            ///<
+    uint32_t                    cltv_expiry;            ///<
+    uint16_t                    update_idx;             ///<
     utl_buf_t                   *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
     const utl_buf_t             *p_shared_secret;       ///< onion shared secret
 } ln_cb_param_nofity_add_htlc_recv_t;
@@ -128,13 +128,13 @@ typedef struct {
 
 typedef struct {
     uint64_t                    short_channel_id;
-    uint16_t                    idx;
+    uint16_t                    update_idx;
 } ln_cb_param_start_fwd_add_htlc_t;
 
 
 typedef struct {
     uint64_t                    short_channel_id;
-    uint16_t                    idx;
+    uint16_t                    update_idx;
     uint8_t                     fin_delhtlc;
 } ln_cb_param_start_bwd_del_htlc_t;
 
@@ -145,7 +145,7 @@ typedef struct {
 typedef struct {
     bool                    ret;                    ///< callback処理結果
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    uint16_t                prev_idx;               ///< pChannel->cnl_add_htlc[idx]
+    uint16_t                prev_update_idx;        ///<
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                next_id;                ///< HTLC id (caller's)
     uint64_t                amount_msat;            ///< HTLC amount
@@ -160,7 +160,7 @@ typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
     const utl_buf_t         *p_shared_secret;       ///< shared secret
-    uint16_t                prev_idx;               ///< pChannel->cnl_add_htlc[idx]
+    uint16_t                prev_update_idx;        ///< pChannel->updates[idx]
     uint64_t                next_id;                ///< HTLC id (caller's)
     const uint8_t           *p_payment_hash;        ///< payment_hash
     uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code

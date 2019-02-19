@@ -68,7 +68,8 @@ typedef struct {
 
 //common
 static bool create_htlc_info_and_amount(
-    const ln_update_add_htlc_t *pHtlcs,
+    const ln_update_t *pUpdates,
+    const ln_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -78,7 +79,8 @@ static bool create_htlc_info_and_amount(
 
 //local
 static bool create_local_htlc_info_and_amount(
-    const ln_update_add_htlc_t *pHtlcs,
+    const ln_update_t *pUpdates,
+    const ln_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -135,7 +137,8 @@ static bool create_local_spent_htlc__spend_tx_for_htlc_tx(
 
 //remote
 static bool create_remote_htlc_info_and_amount(
-    const ln_update_add_htlc_t *pHtlcs,
+    const ln_update_t *pUpdates,
+    const ln_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -275,7 +278,8 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
     pComTxInfo->pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
     if (!pComTxInfo->pp_htlc_info) goto LABEL_EXIT;
     if (!create_local_htlc_info_and_amount(
-        pChannel->cnl_add_htlc, pComTxInfo->pp_htlc_info, &pComTxInfo->num_htlc_infos, &pComTxInfo->local_msat, &pComTxInfo->remote_msat)) goto LABEL_EXIT;
+        pChannel->updates, pChannel->htlcs, pComTxInfo->pp_htlc_info, &pComTxInfo->num_htlc_infos,
+        &pComTxInfo->local_msat, &pComTxInfo->remote_msat)) goto LABEL_EXIT;
 
     //HTLCs (script)
     for (int lp = 0; lp < pComTxInfo->num_htlc_infos; lp++) {
@@ -383,7 +387,9 @@ bool ln_comtx_create_remote(
     //HTLC info (amount)
     pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
     if (!pp_htlc_info) goto LABEL_EXIT;
-    if (!create_remote_htlc_info_and_amount(pChannel->cnl_add_htlc, pp_htlc_info, &num_htlc_infos, &comtx_info.local_msat, &comtx_info.remote_msat)) goto LABEL_EXIT;
+    if (!create_remote_htlc_info_and_amount(
+        pChannel->updates, pChannel->htlcs, pp_htlc_info, &num_htlc_infos,
+        &comtx_info.local_msat, &comtx_info.remote_msat)) goto LABEL_EXIT;
 
     //HTLC info (script)
     for (int lp = 0; lp < num_htlc_infos; lp++) {
@@ -561,13 +567,14 @@ LABEL_EXIT:
  ********************************************************************/
 
 static bool create_local_htlc_info_and_amount(
-    const ln_update_add_htlc_t *pHtlcs,
+    const ln_update_t *pUpdates,
+    const ln_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
     uint64_t *pRemoteMsat)
 {
-    return create_htlc_info_and_amount(pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, true);
+    return create_htlc_info_and_amount(pUpdates, pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, true);
 }
 
 
@@ -699,7 +706,7 @@ static bool create_local_spent__close(
                 btc_tx_free(&spend_tx);
                 return false;
             }
-            pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
+            pClose->p_htlc_idxs[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
             htlc_num++;
         }
     }
@@ -776,7 +783,7 @@ static bool create_local_spent__verify(
         //XXX: save the commitment_signed message?
         //OKなら各HTLCに保持
         //  相手がunilateral closeした後に送信しなかったら、この署名を使う
-        memcpy(pChannel->cnl_add_htlc[p_htlc_info->add_htlc_idx].remote_sig, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+        memcpy(pChannel->htlcs[p_htlc_info->htlc_idx].remote_sig, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
         btc_tx_free(&tx);
         htlc_num++;
     }
@@ -847,7 +854,7 @@ static bool create_local_spent_htlc__htlc_tx(
     if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) {
         ret_img = search_preimage(
             preimage,
-            pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].payment_hash,
+            pChannel->htlcs[pHtlcInfo->htlc_idx].payment_hash,
             true);
         LOGD("[received]have preimage=%s\n", (ret_img) ? "yes" : "NO");
         if (!ret_img) {
@@ -868,7 +875,7 @@ static bool create_local_spent_htlc__htlc_tx(
         return false;
     }
     if (!ln_htlctx_set_vin0_rs(
-        pTxHtlc, local_sig, pChannel->cnl_add_htlc[pHtlcInfo->add_htlc_idx].remote_sig,
+        pTxHtlc, local_sig, pChannel->htlcs[pHtlcInfo->htlc_idx].remote_sig,
         (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) ? preimage : NULL,
         NULL, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_TIMEOUT_SUCCESS)) {
         LOGE("fail: set htlc_tx vout\n");
@@ -902,18 +909,20 @@ static bool create_local_spent_htlc__spend_tx_for_htlc_tx(
 
 
 static bool create_remote_htlc_info_and_amount(
-    const ln_update_add_htlc_t *pHtlcs,
+    const ln_update_t *pUpdates,
+    const ln_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
     uint64_t *pRemoteMsat)
 {
-    return create_htlc_info_and_amount(pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, false);
+    return create_htlc_info_and_amount(pUpdates, pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, false);
 }
 
 
 static bool create_htlc_info_and_amount(
-    const ln_update_add_htlc_t *pHtlcs,
+    const ln_update_t *pUpdates,
+    const ln_htlc_t *pHtlcs,
     ln_comtx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -921,27 +930,28 @@ static bool create_htlc_info_and_amount(
     bool bLocal)
 {
     *pHtlcInfoCnt = 0;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        const ln_update_add_htlc_t *p_htlc = &pHtlcs[idx];
-        LOGD("flags = 0x%04x\n", p_htlc->flags);
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        const ln_update_t *p_update = &pUpdates[update_idx];
+        LOGD("flags = 0x%04x\n", p_update->flags);
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        const ln_htlc_t *p_htlc = &pHtlcs[p_update->htlc_idx];
 
-        if (LN_HTLC_ADDHTLC_SEND_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+        if (LN_HTLC_ADDHTLC_SEND_ENABLED_UNCOMMITTED(p_update, bLocal)) {
             LOGD("addhtlc_send\n");
-            *pLocalMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_DELHTLC_RECV_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
-            if (LN_HTLC_FULFILL_RECV_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+            *pLocalMsat -= pHtlcs[p_update->htlc_idx].amount_msat;
+        } else if (LN_HTLC_DELHTLC_RECV_ENABLED_UNCOMMITTED(p_update, bLocal)) {
+            if (LN_HTLC_FULFILL_RECV_ENABLED_UNCOMMITTED(p_update, bLocal)) {
                 LOGD("fulfill_recv\n");
                 *pRemoteMsat += p_htlc->amount_msat;
             } else {
                 LOGD("failhtlc_recv\n");
                 *pLocalMsat += p_htlc->amount_msat;
             }
-        } else if (LN_HTLC_ADDHTLC_RECV_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+        } else if (LN_HTLC_ADDHTLC_RECV_ENABLED_UNCOMMITTED(p_update, bLocal)) {
             LOGD("addhtlc_recv\n");
             *pRemoteMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_DELHTLC_SEND_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
-            if (LN_HTLC_FULFILL_SEND_ENABLED_UNCOMMITTED(p_htlc, bLocal)) {
+        } else if (LN_HTLC_DELHTLC_SEND_ENABLED_UNCOMMITTED(p_update, bLocal)) {
+            if (LN_HTLC_FULFILL_SEND_ENABLED_UNCOMMITTED(p_update, bLocal)) {
                 LOGD("fulfill_send\n");
                 *pLocalMsat += p_htlc->amount_msat;
             } else {
@@ -950,16 +960,17 @@ static bool create_htlc_info_and_amount(
             }
         }
 
-        if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_htlc, bLocal) || LN_HTLC_ADDHTLC_RECV_ENABLED(p_htlc, bLocal)) {
+        if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_update, bLocal) || LN_HTLC_ADDHTLC_RECV_ENABLED(p_update, bLocal)) {
             //add HTLC
         } else {
-            LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
+            LOGD(" DEL UPDATE[%u] HTLC[%u] [id=%" PRIu64 "](%" PRIu64 ")\n",
+                update_idx, p_update->htlc_idx, p_htlc->id, p_htlc->amount_msat);
             continue;
         }
 
         ln_comtx_htlc_info_t *p_info = (ln_comtx_htlc_info_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t));
         ln_comtx_htlc_info_init(p_info);
-        switch (p_htlc->flags.addhtlc) {
+        switch (p_update->flags.addhtlc) {
         case LN_ADDHTLC_RECV:
             p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_RECEIVED : LN_COMTX_OUTPUT_TYPE_OFFERED;
             break;
@@ -967,18 +978,19 @@ static bool create_htlc_info_and_amount(
             p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_OFFERED : LN_COMTX_OUTPUT_TYPE_RECEIVED;
             break;
         default:
-            LOGE("unknown flags: %04x\n", p_htlc->flags);
+            LOGE("unknown flags: %04x\n", p_update->flags);
             assert(0);
             UTL_DBG_FREE(p_info);
             goto LABEL_ERROR;
         }
-        p_info->add_htlc_idx = idx;
+        p_info->htlc_idx = p_update->htlc_idx;
         p_info->cltv_expiry = p_htlc->cltv_expiry;
         p_info->amount_msat = p_htlc->amount_msat;
         p_info->payment_hash = p_htlc->payment_hash;
         ppHtlcInfo[*pHtlcInfoCnt] = p_info;
         (*pHtlcInfoCnt)++;
-        LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
+        LOGD(" ADD UPDATE[%u] HTLC[%u] [id=%" PRIu64 "](%" PRIu64 ")\n",
+            update_idx, p_update->htlc_idx, p_htlc->id, p_htlc->amount_msat);
     }
     return true;
 
@@ -1028,7 +1040,7 @@ static bool create_remote_spent__with_close(
             btc_tx_init(&tx); //force clear
         }
         const ln_comtx_htlc_info_t *p_htlc_info = ppHtlcInfo[htlc_idx];
-        const uint8_t *p_payhash = pChannel->cnl_add_htlc[p_htlc_info->add_htlc_idx].payment_hash;
+        const uint8_t *p_payhash = pChannel->htlcs[p_htlc_info->htlc_idx].payment_hash;
         uint64_t fee_sat =
             (p_htlc_info->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ?
             pBaseFeeInfo->htlc_timeout_fee : pBaseFeeInfo->htlc_success_fee;
@@ -1036,7 +1048,7 @@ static bool create_remote_spent__with_close(
         if (!create_remote_spent_htlc__with_close(
             pCommitTx, &pCloseTxHtlcs[htlc_num], pTxCommit, pWitScriptToLocal, p_htlc_info,
             &htlckey, fee_sat, vout_idx, p_payhash)) return false;
-        pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
+        pClose->p_htlc_idxs[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
         htlc_num++;
     }
     return true;

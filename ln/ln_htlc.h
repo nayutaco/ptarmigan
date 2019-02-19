@@ -76,12 +76,12 @@ typedef struct {
 /** @def    LN_HTLC_EMPTY(pHtlc)
  *  @brief  ln_update_add_htlc_tの空き
  *  @note
- *      - HTLCの空き場所を探している場合には、(amount_msat != 0)も同時にチェックする
+ *      - HTLCの空き場所を探している場合には、(enabled == false)も同時にチェックする
  */
 #define LN_HTLC_EMPTY(pHtlc) \
     ( \
         ((pHtlc)->flags.addhtlc == LN_ADDHTLC_NONE) && \
-        ((pHtlc)->amount_msat == 0) \
+        (!(pHtlc)->enabled) \
     )
 
 /** @def    LN_HTLC_ENABLED(pHtlc)

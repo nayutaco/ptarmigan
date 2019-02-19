@@ -207,10 +207,10 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
     btc_tx_init(&pChannel->funding_tx.tx_data);
     btc_tx_init(&pChannel->tx_closing);
 
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        utl_buf_init(&pChannel->htlcs[idx].buf_payment_preimage);
+        utl_buf_init(&pChannel->htlcs[idx].buf_onion_reason);
+        utl_buf_init(&pChannel->htlcs[idx].buf_shared_secret);
     }
 
     pChannel->lfeature_remote = 0;
@@ -240,10 +240,10 @@ void ln_term(ln_channel_t *pChannel)
     channel_clear(pChannel);
 
     ln_derkey_term(&pChannel->keys_local, &pChannel->keys_remote);
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        utl_buf_free(&pChannel->htlcs[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->htlcs[idx].buf_onion_reason);
+        utl_buf_free(&pChannel->htlcs[idx].buf_shared_secret);
     }
     //LOGD("END\n");
 }
@@ -599,8 +599,8 @@ bool ln_channel_update_get_peer(const ln_channel_t *pChannel, utl_buf_t *pCnlUpd
 {
     bool ret;
 
-    btc_script_pubkey_order_t sort = ln_node_id_sort(pChannel, NULL);
-    uint8_t dir = (sort == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
+    btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
+    uint8_t dir = (order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
     ret = ln_db_annocnlupd_load(pCnlUpd, NULL, pChannel->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_channel_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
@@ -809,8 +809,8 @@ void ln_close_free_forcetx(ln_close_force_t *pClose)
     pClose->num = 0;
     UTL_DBG_FREE(pClose->p_tx);
     pClose->p_tx = NULL;
-    UTL_DBG_FREE(pClose->p_htlc_idx);
-    pClose->p_htlc_idx = NULL;
+    UTL_DBG_FREE(pClose->p_htlc_idxs);
+    pClose->p_htlc_idxs = NULL;
 
     int num = pClose->tx_buf.len / sizeof(btc_tx_t);
     btc_tx_t *p_tx = (btc_tx_t *)pClose->tx_buf.buf;
@@ -904,7 +904,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
             bool srch = ln_db_phash_search(payhash, &type, &expiry,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
-                int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
+                uint16_t htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
                 ln_script_create_htlc(&pChannel->p_revoked_wit[htlc_idx],
                         type,
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
@@ -1304,18 +1304,38 @@ const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_channel_t *pChannel)
 }
 
 
-const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uint16_t htlc_idx)
+const ln_update_t *ln_update(const ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    return (htlc_idx < LN_HTLC_MAX) ? &pChannel->cnl_add_htlc[htlc_idx] : NULL;
+    return (UpdateIdx < LN_HTLC_MAX) ? &pChannel->updates[UpdateIdx] : NULL;
 }
 
 
-bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlockCount)
+const ln_update_t *ln_update_by_htlc_idx(const ln_channel_t *pChannel, uint16_t HtlcIdx)
 {
-    return (htlc_idx < LN_HTLC_MAX) &&
-        LN_HTLC_ENABLED(&pChannel->cnl_add_htlc[htlc_idx]) &&
-        LN_HTLC_TIMEOUT_CHECK_NEEDED(&pChannel->cnl_add_htlc[htlc_idx]) &&
-        (pChannel->cnl_add_htlc[htlc_idx].cltv_expiry <= BlockCount);
+    const ln_htlc_t *p_htlc = ln_htlc(pChannel, HtlcIdx);
+    if (!p_htlc->enabled) return NULL;
+    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        const ln_update_t *p_update = ln_update(pChannel, update_idx);
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (p_update->htlc_idx != HtlcIdx) continue;
+        return p_update;
+    }
+    return NULL;
+}
+
+
+const ln_htlc_t *ln_htlc(const ln_channel_t *pChannel, uint16_t HtlcIdx)
+{
+    return (HtlcIdx < LN_HTLC_MAX) ? &pChannel->htlcs[HtlcIdx] : NULL;
+}
+
+
+bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t UpdateIdx, uint32_t BlockCount)
+{
+    return (UpdateIdx < LN_HTLC_MAX) &&
+        LN_HTLC_ENABLED(&pChannel->updates[UpdateIdx]) &&
+        LN_HTLC_TIMEOUT_CHECK_NEEDED(&pChannel->updates[UpdateIdx]) &&
+        (pChannel->htlcs[pChannel->updates[UpdateIdx].htlc_idx].cltv_expiry <= BlockCount);
 }
 
 
@@ -1500,9 +1520,9 @@ void ln_callback(ln_channel_t *pChannel, ln_cb_type_t Req, void *pParam)
  * @retval      BTC_SCRYPT_PUBKEY_ORDER_ASC     自ノードが先
  * @retval      BTC_SCRYPT_PUBKEY_ORDER_OTHER   相手ノードが先
  */
-btc_script_pubkey_order_t ln_node_id_sort(const ln_channel_t *pChannel, const uint8_t *pNodeId)
+btc_script_pubkey_order_t ln_node_id_order(const ln_channel_t *pChannel, const uint8_t *pNodeId)
 {
-    btc_script_pubkey_order_t sort;
+    btc_script_pubkey_order_t order;
 
     int lp;
     const uint8_t *p_nodeid = ln_node_getid();
@@ -1519,22 +1539,22 @@ btc_script_pubkey_order_t ln_node_id_sort(const ln_channel_t *pChannel, const ui
     }
     if ((lp < BTC_SZ_PUBKEY) && (p_nodeid[lp] < p_peerid[lp])) {
         LOGD("my node= first\n");
-        sort = BTC_SCRYPT_PUBKEY_ORDER_ASC;
+        order = BTC_SCRYPT_PUBKEY_ORDER_ASC;
     } else {
         LOGD("my node= second\n");
-        sort = BTC_SCRYPT_PUBKEY_ORDER_OTHER;
+        order = BTC_SCRYPT_PUBKEY_ORDER_OTHER;
     }
 
-    return sort;
+    return order;
 }
 
 
 /** btc_script_pubkey_order_t --> Direction変換
  *
  */
-uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort)
+uint8_t ln_order_to_dir(btc_script_pubkey_order_t Order)
 {
-    return (uint8_t)Sort;
+    return (uint8_t)Order;
 }
 
 
@@ -1584,10 +1604,10 @@ static void channel_clear(ln_channel_t *pChannel)
     btc_tx_free(&pChannel->funding_tx.tx_data);
     btc_tx_free(&pChannel->tx_closing);
 
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        utl_buf_free(&pChannel->htlcs[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->htlcs[idx].buf_onion_reason);
+        utl_buf_free(&pChannel->htlcs[idx].buf_shared_secret);
     }
 
     memset(pChannel->peer_node_id, 0, BTC_SZ_PUBKEY);
@@ -1632,10 +1652,10 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 {
     pClose->num = Num;
     pClose->p_tx = (btc_tx_t *)UTL_DBG_MALLOC(sizeof(btc_tx_t) * pClose->num);
-    pClose->p_htlc_idx = (uint8_t *)UTL_DBG_MALLOC(sizeof(uint8_t) * pClose->num);
+    pClose->p_htlc_idxs = (uint16_t *)UTL_DBG_MALLOC(sizeof(uint16_t) * pClose->num);
     for (int lp = 0; lp < pClose->num; lp++) {
         btc_tx_init(&pClose->p_tx[lp]);
-        pClose->p_htlc_idx[lp] = LN_CLOSE_IDX_NONE;
+        pClose->p_htlc_idxs[lp] = LN_CLOSE_IDX_NONE;
     }
     utl_buf_init(&pClose->tx_buf);
     LOGD("TX num: %d\n", pClose->num);
@@ -1647,7 +1667,8 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx)
 {
-    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(pTx->vin[0].sequence, pTx->locktime, pChannel->obscured_commit_num_mask);
+    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(
+        pTx->vin[0].sequence, pTx->locktime, pChannel->obscured_commit_num_mask);
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;
 }
@@ -1667,6 +1688,6 @@ void ln_dbg_commitnum(const ln_channel_t *pChannel)
     LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)pChannel->commit_tx_local.revoke_num);
     LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)pChannel->commit_tx_remote.revoke_num);
     LOGD("------------------------------------------\n");
-    LOGD("num_htlc_ids: %" PRIu64 "\n", pChannel->num_htlc_ids);
+    LOGD("next_htlc_id: %" PRIu64 "\n", pChannel->next_htlc_id);
     LOGD("------------------------------------------\n");
 }

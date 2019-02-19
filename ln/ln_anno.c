@@ -80,7 +80,7 @@ bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
     if (!pChannel->cnl_anno.buf) {
         if (!create_local_channel_announcement(pChannel)) return false;
     }
-    ln_msg_channel_announcement_get_sigs(pChannel->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, ln_node_id_sort(pChannel, NULL));
+    ln_msg_channel_announcement_get_sigs(pChannel->cnl_anno.buf, &p_sig_node, &p_sig_btc, true, ln_node_id_order(pChannel, NULL));
 
     ln_msg_announcement_signatures_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -117,8 +117,8 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
 
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
-    btc_script_pubkey_order_t sort = ln_node_id_sort(pChannel, NULL);
-    ln_msg_channel_announcement_get_sigs(pChannel->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, sort);
+    btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
+    ln_msg_channel_announcement_get_sigs(pChannel->cnl_anno.buf, &p_sig_node, &p_sig_btc, false, order);
 
     ln_msg_announcement_signatures_t msg;
     if (!ln_msg_announcement_signatures_read(&msg, pData, Len)) {
@@ -154,7 +154,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
         if (!ln_msg_channel_announcement_sign(
             pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
             pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
-            sort)) {
+            order)) {
             LOGE("fail: sign\n");
             return false;
         }
@@ -619,8 +619,8 @@ static bool create_local_channel_announcement(ln_channel_t *pChannel)
     msg.p_features = NULL;
     msg.p_chain_hash = ln_genesishash_get();
     msg.short_channel_id = pChannel->short_channel_id;
-    btc_script_pubkey_order_t sort = ln_node_id_sort(pChannel, NULL);
-    if (sort == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
+    btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
+    if (order == BTC_SCRYPT_PUBKEY_ORDER_ASC) {
         msg.p_node_id_1 = ln_node_getid();
         msg.p_node_id_2 = pChannel->peer_node_id;
         msg.p_bitcoin_key_1 = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING];
@@ -635,7 +635,7 @@ static bool create_local_channel_announcement(ln_channel_t *pChannel)
     return ln_msg_channel_announcement_sign(
         pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
         pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
-        sort);
+        order);
 }
 
 
@@ -655,7 +655,7 @@ static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_
         memcpy(pNodeId, Dir ? msg.p_node_id_2 : msg.p_node_id_1, BTC_SZ_PUBKEY);
     } else {
         if (ShortChannelId != pChannel->short_channel_id) goto LABEL_EXIT;
-        btc_script_pubkey_order_t order = ln_node_id_sort(pChannel, NULL);
+        btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
         if ( ((order == BTC_SCRYPT_PUBKEY_ORDER_ASC) && (Dir == 0)) ||
              ((order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) && (Dir == 1)) ) {
             LOGD("this channel: my node\n");
@@ -693,7 +693,7 @@ static bool create_channel_update(
     pUpd->short_channel_id = pChannel->short_channel_id;
     pUpd->timestamp = TimeStamp;
     pUpd->message_flags = 0;
-    pUpd->channel_flags = Flag | ln_sort_to_dir(ln_node_id_sort(pChannel, NULL));
+    pUpd->channel_flags = Flag | ln_order_to_dir(ln_node_id_order(pChannel, NULL));
     pUpd->cltv_expiry_delta = pChannel->anno_param.cltv_expiry_delta;
     pUpd->htlc_minimum_msat = pChannel->anno_param.htlc_minimum_msat;
     pUpd->fee_base_msat = pChannel->anno_param.fee_base_msat;

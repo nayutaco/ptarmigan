@@ -649,58 +649,63 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
 // Unilateral Close(自分がcommit_tx展開): Offered HTLC output
 static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
-    bool send_req = false;
-
     LOGD("offered HTLC output\n");
-    if (spent) {
-        const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, pCloseDat->p_htlc_idx[lp]);
-        if (p_htlc->prev_short_channel_id == UINT64_MAX) {
-            LOGD("origin node\n");
-        } else if (p_htlc->prev_short_channel_id != 0) {
-            //転送元がある場合、preimageを抽出する
-            LOGD("hop node\n");
-            LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
-
-            uint32_t confm;
-            bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(pChannel));
-            if (b_get) {
-                btc_tx_t tx = BTC_TX_INIT;
-                uint8_t txid[BTC_SZ_TXID];
-                btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-                bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
-                if (ret) {
-                    //preimageを登録(自分が持っているのと同じ状態にする)
-                    const utl_buf_t *p_buf = ln_preimage_remote(&tx);
-                    if (p_buf != NULL) {
-                        LOGD("backwind preimage: ");
-                        DUMPD(p_buf->buf, p_buf->len);
-
-                        ln_db_preimage_t preimage;
-                        memcpy(preimage.preimage, p_buf->buf, LN_SZ_PREIMAGE);
-                        preimage.amount_msat = 0;
-                        preimage.expiry = UINT32_MAX;
-                        ln_db_preimage_save(&preimage, pDbParam);
-                    } else {
-                        assert(0);
-                    }
-                } else {
-                    LOGD("not found txid: ");
-                    TXIDD(txid);
-                    LOGD("index=%d\n", pCloseDat->p_htlc_idx[lp]);
-                    *pDel = false;
-                }
-                btc_tx_free(&tx);
-            } else {
-                LOGE("fail: get confirmation\n");
-            }
-        }
-    } else {
+    if (!spent) {
         //タイムアウト用Txを展開
         //  commit_txが展開されてcltv_expiryブロック経過するまではBIP68エラーになる
-        send_req = true;
+        return true; //return send request
+    }
+    const ln_update_t *p_update = ln_update_by_htlc_idx(pChannel, pCloseDat->p_htlc_idxs[lp]);
+    if (!p_update) return false;
+    const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
+    if (!p_htlc) return false;
+
+    if (p_update->prev_short_channel_id == UINT64_MAX) {
+        LOGD("origin node\n");
+        return false;
+    }
+    if (!p_update->prev_short_channel_id) {
+        //XXX: completed???
+        return false;
     }
 
-    return send_req;
+    //extract the preimage for backwinding
+    LOGD("hop node\n");
+    LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_update->prev_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
+
+    uint32_t confirm;
+    if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
+        LOGE("fail: get confirmation\n");
+        return false;
+    }
+    btc_tx_t tx = BTC_TX_INIT;
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
+    if (!btcrpc_search_outpoint(&tx, confirm, txid, pCloseDat->p_tx[lp].vin[0].index)) {
+        LOGD("not found txid: ");
+        TXIDD(txid);
+        LOGD("index=%d\n", lp);
+        *pDel = false;
+        btc_tx_free(&tx);
+        return false;
+    }
+    const utl_buf_t *p_buf = ln_preimage_remote(&tx);
+    if (!p_buf) {
+        btc_tx_free(&tx);
+        return false;
+    }
+    LOGD("backwind preimage: ");
+    DUMPD(p_buf->buf, p_buf->len);
+
+    //register preimage
+    //  (自分が持っているのと同じ状態にする)
+    ln_db_preimage_t preimage;
+    memcpy(preimage.preimage, p_buf->buf, LN_SZ_PREIMAGE);
+    preimage.amount_msat = 0;
+    preimage.expiry = UINT32_MAX;
+    ln_db_preimage_save(&preimage, pDbParam);
+    btc_tx_free(&tx);
+    return false; //not return send request
 }
 
 
@@ -833,54 +838,66 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
 {
     LOGD("offered HTLC output\n");
 
-    const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, pCloseDat->p_htlc_idx[lp]);
-    if (p_htlc->prev_short_channel_id != 0) {
-        LOGD("origin/hop node\n");
+    //XXX: We should return a return value
 
-        bool unspent;
-        bool ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL,
-                        pCloseDat->p_tx[lp].vin[0].txid, pCloseDat->p_tx[lp].vin[0].index);
-        if (ret && !unspent) {
+    const ln_update_t *p_update = ln_update_by_htlc_idx(pChannel, pCloseDat->p_htlc_idxs[lp]);
+    if (!p_update) return;
+    const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
+    if (!p_htlc) return;
+
+    if (!p_update->prev_short_channel_id) {
+        return;
+    }
+
+    LOGD("origin/hop node\n");
+
+    bool unspent;
+    if (btcrpc_check_unspent(
+        ln_remote_node_id(pChannel), &unspent, NULL, pCloseDat->p_tx[lp].vin[0].txid,
+        pCloseDat->p_tx[lp].vin[0].index)) {
+        if (!unspent) {
             LOGD("already spent\n");
             ln_db_wallet_del(pCloseDat->p_tx[lp].vin[0].txid, pCloseDat->p_tx[lp].vin[0].index);
             return;
         }
-
-        //転送元がある場合、preimageを抽出する
-        LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
-        uint32_t confm;
-        bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(pChannel));
-        if (b_get) {
-            btc_tx_t tx = BTC_TX_INIT;
-            uint8_t txid[BTC_SZ_TXID];
-            btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-            bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
-            if (ret) {
-                //preimageを登録(自分が持っているのと同じ状態にする)
-                const utl_buf_t *p_buf = ln_preimage_remote(&tx);
-                if (p_buf != NULL) {
-                    LOGD("backwind preimage: ");
-                    DUMPD(p_buf->buf, p_buf->len);
-
-                    ln_db_preimage_t preimage;
-                    memcpy(preimage.preimage, p_buf->buf, LN_SZ_PREIMAGE);
-                    preimage.amount_msat = 0;
-                    preimage.expiry = UINT32_MAX;
-                    ln_db_preimage_save(&preimage, pDbParam);
-                } else {
-                    assert(0);
-                }
-            } else {
-                LOGD("not found txid: ");
-                TXIDD(txid);
-                LOGD("index=%d\n", pCloseDat->p_htlc_idx[lp]);
-                *pDel = false;
-            }
-            btc_tx_free(&tx);
-        } else {
-            LOGE("fail: get confirmation\n");
-        }
     }
+
+    //転送元がある場合、preimageを抽出する
+
+    LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n",
+        p_update->prev_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
+    uint32_t confirm;
+    if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
+        LOGE("fail: get confirmation\n");
+        return;
+    }
+
+    btc_tx_t tx = BTC_TX_INIT;
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
+    if (!btcrpc_search_outpoint(&tx, confirm, txid, pCloseDat->p_tx[lp].vin[0].index)) {
+        LOGD("not found txid: ");
+        TXIDD(txid);
+        LOGD("index=%d\n", pCloseDat->p_htlc_idxs[lp]);
+        *pDel = false;
+        btc_tx_free(&tx);
+        return;
+    }
+    //preimageを登録(自分が持っているのと同じ状態にする)
+    const utl_buf_t *p_buf = ln_preimage_remote(&tx);
+    if (!p_buf) {
+        btc_tx_free(&tx);
+        return;
+    }
+    LOGD("backwind preimage: ");
+    DUMPD(p_buf->buf, p_buf->len);
+
+    ln_db_preimage_t preimage;
+    memcpy(preimage.preimage, p_buf->buf, LN_SZ_PREIMAGE);
+    preimage.amount_msat = 0;
+    preimage.expiry = UINT32_MAX;
+    ln_db_preimage_save(&preimage, pDbParam);
+    btc_tx_free(&tx);
 }
 
 

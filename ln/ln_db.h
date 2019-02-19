@@ -639,11 +639,11 @@ bool ln_db_invoice_drop(void);
 
 /** preimage保存
  *
- * @param[in,out]   pPreImg     creation_timeのみoutput
+ * @param[in,out]   pPreimage   creation_timeのみoutput
  * @param[in,out]   pDb
  * @retval  true
  */
-bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb);
+bool ln_db_preimage_save(ln_db_preimage_t *pPreimage, void *pDb);
 
 
 /** preimage削除
@@ -691,10 +691,10 @@ void ln_db_preimage_cur_close(void *pCur);
  *
  * @param[in]       pCur
  * @param[out]      pDetect     true:取得成功
- * @param[out]      pPreImg
+ * @param[out]      pPreimage
  * @retval  true        エラーでは無い
  */
-bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreImg);
+bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage);
 
 
 /** preimage expiry更新

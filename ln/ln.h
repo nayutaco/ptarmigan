@@ -97,12 +97,12 @@ extern "C" {
 #define LN_SHDN_FLAG_SEND               (0x01)      ///< shutdown送信済み
 #define LN_SHDN_FLAG_RECV               (0x02)      ///< shutdown受信済み
 
-// ln_close_force_t.p_tx, p_htlc_idxのインデックス値
+// ln_close_force_t.p_tx, p_htlc_idxsのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
 #define LN_CLOSE_IDX_TO_LOCAL           (1)         ///< to_local tx
 #define LN_CLOSE_IDX_TO_REMOTE          (2)         ///< to_remote tx
 #define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
-#define LN_CLOSE_IDX_NONE               ((uint8_t)0xff)
+#define LN_CLOSE_IDX_NONE               UINT16_MAX
 
 // channel.anno_flag
 #define LN_ANNO_FLAG_END                (0x80)      ///< 1:announcement_signatures交換済み
@@ -281,7 +281,7 @@ typedef struct {
 /** @struct ln_close_force_t
  *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
  *  @note
- *      - p_tx, p_htlc_idxの添字
+ *      - p_tx, p_htlc_idxsの添字
  *          - commit_tx: LN_CLOSE_IDX_COMMIT
  *          - to_local output: LN_CLOSE_IDX_TO_LOCAL
  *          - to_remote output: LN_CLOSE_IDX_TO_REMOTE
@@ -291,7 +291,7 @@ typedef struct {
     int             num;                            ///< p_txのtransaction数
     btc_tx_t        *p_tx;                          ///< トランザクション
                                                     ///<    添字:[0]commit_tx [1]to_local [2]to_remote [3-]HTLC
-    uint8_t         *p_htlc_idx;                    ///< pChannel->cnl_add_htlc[]のhtlc_idx
+    uint16_t        *p_htlc_idxs;                   ///< pChannel->htlcs[]のidx
                                                     ///<    添字:[3]以上で有効
     utl_buf_t       tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
@@ -303,11 +303,27 @@ typedef struct {
  * typedefs : Normal Operation
  **************************************************************************/
 
-/** @struct     ln_update_add_htlc_t
- *  @brief      update_add_htlc
+/** @struct     ln_update_t
+ *  @brief      update message
  */
 typedef struct {
-    uint8_t             *p_channel_id;                  ///< 32: channel_id
+    bool                enabled;                        ///< XXX: Interim. Soon abolished
+    ln_htlc_flags_t     flags;                          ///< LN_HTLC_FLAG_xxx
+    uint64_t            next_short_channel_id;          ///< flags.addhtlc == SEND
+                                                        //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
+    uint16_t            next_idx;                       ///< next index
+    uint64_t            prev_short_channel_id;          ///< 転送元short_channel_id
+                                                        //      origin/final node: == 0
+    uint16_t            prev_idx;                       ///< prev index
+    uint16_t            htlc_idx;                       ///< index of `ln_htlc_t` array
+} ln_update_t;
+
+
+/** @struct     ln_htlc_t
+ *  @brief      htlc
+ */
+typedef struct {
+    bool                enabled;                        ///< XXX: Interim. Soon abolished
     uint64_t            id;                             ///< 8:  id
     uint64_t            amount_msat;                    ///< 8:  amount_msat
     uint32_t            cltv_expiry;                    ///< 4:  cltv_expirty
@@ -319,20 +335,10 @@ typedef struct {
                                                         //          final node: length == 0
                                                         //  update_fail_htlc
                                                         //      len:  reason
-    //inner
-    ln_htlc_flags_t     flags;                          ///< LN_HTLC_FLAG_xxx
-    uint64_t            next_short_channel_id;          ///< flags.addhtlc == SEND
-                                                        //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
-    uint16_t            next_idx;
-    //fulfillで戻す
     uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< 受信した最新のHTLC署名
                                                         //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
-    uint64_t            prev_short_channel_id;          ///< 転送元short_channel_id
-                                                        //      origin/final node: == 0
-    uint16_t            prev_idx;                       ///< 転送元cnl_add_htlc[]index
-    //failで戻す
     utl_buf_t           buf_shared_secret;              ///< failuremsg暗号化用
-} ln_update_add_htlc_t;
+} ln_htlc_t;
 
 
 /**************************************************************************
@@ -456,10 +462,11 @@ struct ln_channel_t {
     uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint64_t                    num_htlc_ids;                   ///< [NORM_01]update_add_htlcで使うidの管理
+    uint64_t                    next_htlc_id;                   ///< [NORM_01]update_add_htlcで使うidの管理
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
     uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_04]追加したHTLC
+    ln_update_t                 updates[LN_HTLC_MAX];           ///< [NORM_04]updates
+    ln_htlc_t                   htlcs[LN_HTLC_MAX];             ///< [NORM_05]追加したHTLC
 
     //commitment transaction(local/remote)
     ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用
@@ -683,8 +690,8 @@ bool ln_funding_locked_check_need(const ln_channel_t *pChannel);
 void ln_callback(ln_channel_t *pChannel, ln_cb_type_t Req, void *pParam);
 bool ln_check_channel_id(const uint8_t *recv_id, const uint8_t *mine_id);
 void ln_dbg_commitnum(const ln_channel_t *pChannel);
-btc_script_pubkey_order_t ln_node_id_sort(const ln_channel_t *pChannel, const uint8_t *pNodeId);
-uint8_t ln_sort_to_dir(btc_script_pubkey_order_t Sort);
+btc_script_pubkey_order_t ln_node_id_order(const ln_channel_t *pChannel, const uint8_t *pNodeId);
+uint8_t ln_order_to_dir(btc_script_pubkey_order_t Order);
 
 
 /** revoked transaction close用のスクリプトバッファ確保
@@ -1127,14 +1134,27 @@ const utl_buf_t *ln_shutdown_scriptpk_local(const ln_channel_t *pChannel);
 const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_channel_t *pChannel);
 
 
-/** add_htlc構造体取得
+/** update構造体取得
  *
  * @param[in]           pChannel        channel info
- * @param[in]           htlc_idx        index値
- * @retval      非NULL  add_htlc構造体
+ * @param[in]           UpdateIdx       index of the updates
+ * @retval      非NULL  update構造体
  * @retval      NULL    index不正
  */
-const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uint16_t htlc_idx);
+const ln_update_t *ln_update(const ln_channel_t *pChannel, uint16_t UpdateIdx);
+
+
+const ln_update_t *ln_update_by_htlc_idx(const ln_channel_t *pChannel, uint16_t HtlcIdx);
+
+
+/** htlc構造体取得
+ *
+ * @param[in]           pChannel        channel info
+ * @param[in]           HtlcIdx         index of the htlcs
+ * @retval      非NULL  htlc構造体
+ * @retval      NULL    index不正
+ */
+const ln_htlc_t *ln_htlc(const ln_channel_t *pChannel, uint16_t HtlcIdx);
 
 
 /** Offered HTLCがTimeoutしているかどうか
@@ -1149,7 +1169,7 @@ const ln_update_add_htlc_t *ln_update_add_htlc(const ln_channel_t *pChannel, uin
  *      - fin_delhtlc == none
  *      - cltv_expiry <= current blockcount
  */
-bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t htlc_idx, uint32_t BlockCount);
+bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t UpdateIdx, uint32_t BlockCount);
 
 
 /** トランザクションがHTLC Success Txの場合、preimageを取得

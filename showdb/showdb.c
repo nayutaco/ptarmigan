@@ -160,30 +160,31 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
         printf(INDENT3 M_QQ("pending") ": [\n");
         int cnt = 0;
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            if (LN_HTLC_ENABLED(&pChannel->cnl_add_htlc[lp])) {
-                if (cnt != 0) {
-                    printf(",\n");
-                }
-                const char *p_dir = NULL;
-                switch (pChannel->cnl_add_htlc[lp].flags.addhtlc) {
-                case LN_ADDHTLC_SEND:
-                    p_dir = "Offered";
-                    offered += pChannel->cnl_add_htlc[lp].amount_msat;
-                    break;
-                case LN_ADDHTLC_RECV:
-                    p_dir = "Received";
-                    received += pChannel->cnl_add_htlc[lp].amount_msat;
-                    break;
-                default:
-                    p_dir = "???";
-                }
-                printf(INDENT4 "{\n");
-                printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
-                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].amount_msat);
-                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", pChannel->cnl_add_htlc[lp].cltv_expiry);
-                printf(INDENT4 "}");
-                cnt++;
+            const ln_update_t *p_update = &pChannel->updates[lp];
+            if (!LN_HTLC_ENABLED(&pChannel->updates[lp])) continue;
+            const ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+            if (cnt) {
+                printf(",\n");
             }
+            const char *p_dir = NULL;
+            switch (p_update->flags.addhtlc) {
+            case LN_ADDHTLC_SEND:
+                p_dir = "offered";
+                offered += p_htlc->amount_msat;
+                break;
+            case LN_ADDHTLC_RECV:
+                p_dir = "received";
+                received += p_htlc->amount_msat;
+                break;
+            default:
+                p_dir = "unknown";
+            }
+            printf(INDENT4 "{\n");
+            printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
+            printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", p_htlc->amount_msat);
+            printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", p_htlc->cltv_expiry);
+            printf(INDENT4 "}");
+            cnt++;
         }
         printf("\n" INDENT3 "],\n");
         //printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", pChannel->local_msat - offered);
@@ -343,130 +344,133 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
 
     //normal operation
-    printf(INDENT3 M_QQ("num_htlc_ids") ": %" PRIu64 ",\n", pChannel->num_htlc_ids);
+    printf(INDENT3 M_QQ("next_htlc_id") ": %" PRIu64 ",\n", pChannel->next_htlc_id);
 
     printf(INDENT3 M_QQ("add_htlc") ": [\n");
     int cnt = 0;
     for (lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (LN_HTLC_ENABLED(&pChannel->cnl_add_htlc[lp])) {
-            if (cnt > 0) {
-                printf(",\n");
-            }
-            printf(INDENT4 "{\n");
-            printf(INDENT5 M_QQ("type") ": \"");
-            if (pChannel->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
-                printf("final node");
-            } else if ((pChannel->cnl_add_htlc[lp].prev_short_channel_id == 0) && (pChannel->cnl_add_htlc[lp].flags.addhtlc == LN_ADDHTLC_SEND)) {
-                //prev_short_channel_idが0になる
-                //      - origin node
-                //      - update_add_htlcの受信側
-                printf("origin node");
-            } else {
-                printf("hop");
-            }
-            printf("\",\n");
-            printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].id);
-            // printf(INDENT5 M_QQ("flags") ": " M_QQ("%s(0x%04x)") ",\n",
-            //             ((pChannel->cnl_add_htlc[lp].flags.addhtlc == LN_ADDHTLC_RECV) ? "Received" : "Offered"),
-            //             pChannel->cnl_add_htlc[lp].flags);
-            printf(INDENT5 M_QQ("flags") ": {\n");
-            const char *p_str_addhtlc;
-            const char *p_str_delhtlc;
-            const char *p_str_fin_delhtlc;
-            switch (pChannel->cnl_add_htlc[lp].flags.addhtlc) {
-            case LN_ADDHTLC_NONE:
-                p_str_addhtlc = "---";
-                break;
-            case LN_ADDHTLC_SEND:
-                p_str_addhtlc = "Offered";
-                break;
-            case LN_ADDHTLC_RECV:
-                p_str_addhtlc = "Received";
-                break;
-            default:
-                p_str_addhtlc = "???";
-            }
-            switch (pChannel->cnl_add_htlc[lp].flags.delhtlc) {
-            case LN_DELHTLC_NONE:
-                p_str_delhtlc = "---";
-                break;
-            case LN_DELHTLC_FULFILL:
-                p_str_delhtlc = "fulfill";
-                break;
-            case LN_DELHTLC_FAIL:
-                p_str_delhtlc = "fail";
-                break;
-            case LN_DELHTLC_FAIL_MALFORMED:
-                p_str_delhtlc = "fail_malformed";
-                break;
-            default:
-                p_str_delhtlc = "???";
-            }
-            switch (pChannel->cnl_add_htlc[lp].flags.fin_delhtlc) {
-            case LN_DELHTLC_NONE:
-                p_str_fin_delhtlc = "---";
-                break;
-            case LN_DELHTLC_FULFILL:
-                p_str_fin_delhtlc = "fulfill";
-                break;
-            case LN_DELHTLC_FAIL:
-                p_str_fin_delhtlc = "fail";
-                break;
-            case LN_DELHTLC_FAIL_MALFORMED:
-                p_str_fin_delhtlc = "fail_malformed";
-                break;
-            default:
-                p_str_fin_delhtlc = "???";
-            }
-            printf(INDENT6 M_QQ("flags") ": " M_QQ("0x%04x") ",\n", ln_htlc_flags2u32(pChannel->cnl_add_htlc[lp].flags));
-            printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
-            printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
-            printf(INDENT6 M_QQ("updsend") ": %d,\n", pChannel->cnl_add_htlc[lp].flags.updsend);
-            printf(INDENT6 M_QQ("comsend") ": %d,\n", pChannel->cnl_add_htlc[lp].flags.comsend);
-            printf(INDENT6 M_QQ("revrecv") ": %d,\n", pChannel->cnl_add_htlc[lp].flags.revrecv);
-            printf(INDENT6 M_QQ("comrecv") ": %d,\n", pChannel->cnl_add_htlc[lp].flags.comrecv);
-            printf(INDENT6 M_QQ("revsend") ": %d,\n", pChannel->cnl_add_htlc[lp].flags.revsend);
-            printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
-            printf(INDENT5 "},\n");
-            printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", pChannel->cnl_add_htlc[lp].amount_msat);
-            printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", pChannel->cnl_add_htlc[lp].cltv_expiry);
-            printf(INDENT5 M_QQ("payhash") ": \"");
-            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].payment_hash, BTC_SZ_HASH256, false);
-            printf("\",\n");
-            printf(INDENT5 M_QQ("preimage") ": \"");
-            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf, pChannel->cnl_add_htlc[lp].buf_payment_preimage.len, false);
-            printf("\",\n");
-            uint8_t sha[BTC_SZ_HASH256];
-            btc_md_sha256(sha, pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf, pChannel->cnl_add_htlc[lp].buf_payment_preimage.len);
-            printf(INDENT5 M_QQ("preimage_check") ": ");
-            if (memcmp(sha, pChannel->cnl_add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {
-                printf(M_QQ("OK") ",\n");
-            } else {
-                printf(M_QQ("NG") ",\n");
-            }
-            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-            ln_short_channel_id_string(str_sci, pChannel->cnl_add_htlc[lp].next_short_channel_id);
-            printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, pChannel->cnl_add_htlc[lp].next_short_channel_id);
-            printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", pChannel->cnl_add_htlc[lp].next_idx);
-            ln_short_channel_id_string(str_sci, pChannel->cnl_add_htlc[lp].prev_short_channel_id);
-            printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, pChannel->cnl_add_htlc[lp].prev_short_channel_id);
-            printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", pChannel->cnl_add_htlc[lp].prev_idx);
-            printf(INDENT5 M_QQ("onion_reason") ": \"");
-            if (pChannel->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
-                printf("length=%d, ", pChannel->cnl_add_htlc[lp].buf_onion_reason.len);
-                utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
-                printf("...");
-            } else {
-                utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_onion_reason.buf, pChannel->cnl_add_htlc[lp].buf_onion_reason.len, false);
-            }
-            printf("\",\n");
-            printf(INDENT5 M_QQ("shared_secret") ": \"");
-            utl_dbg_dump(stdout, pChannel->cnl_add_htlc[lp].buf_shared_secret.buf, pChannel->cnl_add_htlc[lp].buf_shared_secret.len, false);
-            printf("\",\n");
-            printf(INDENT5 M_QQ("index") ": %d\n", lp);
-            printf(INDENT4 "}");
-            cnt++;
+        const ln_update_t *p_update = &pChannel->updates[lp];
+        if (!LN_HTLC_ENABLED(&pChannel->updates[lp])) continue;
+        const ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        if (cnt > 0) {
+            printf(",\n");
         }
+        printf(INDENT4 "{\n");
+        printf(INDENT5 M_QQ("type") ": \"");
+        if (p_update->prev_short_channel_id == UINT64_MAX) {
+            printf("final node");
+        } else if ((p_update->prev_short_channel_id == 0) && (p_update->flags.addhtlc == LN_ADDHTLC_SEND)) {
+            //prev_short_channel_idが0になる
+            //      - origin node
+            //      - update_add_htlcの受信側
+            printf("origin node");
+        } else {
+            printf("hop");
+        }
+        printf("\",\n");
+        printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", p_htlc->id);
+        // printf(INDENT5 M_QQ("flags") ": " M_QQ("%s(0x%04x)") ",\n",
+        //             ((p_update->flags.addhtlc == LN_ADDHTLC_RECV) ? "received" : "offered"),
+        //             p_update->flags);
+        printf(INDENT5 M_QQ("flags") ": {\n");
+        const char *p_str_addhtlc;
+        const char *p_str_delhtlc;
+        const char *p_str_fin_delhtlc;
+        switch (p_update->flags.addhtlc) {
+        case LN_ADDHTLC_NONE:
+            p_str_addhtlc = "---";
+            break;
+        case LN_ADDHTLC_SEND:
+            p_str_addhtlc = "offered";
+            break;
+        case LN_ADDHTLC_RECV:
+            p_str_addhtlc = "received";
+            break;
+        default:
+            p_str_addhtlc = "unknown";
+        }
+        switch (p_update->flags.delhtlc) {
+        case LN_DELHTLC_NONE:
+            p_str_delhtlc = "---";
+            break;
+        case LN_DELHTLC_FULFILL:
+            p_str_delhtlc = "fulfill";
+            break;
+        case LN_DELHTLC_FAIL:
+            p_str_delhtlc = "fail";
+            break;
+        case LN_DELHTLC_FAIL_MALFORMED:
+            p_str_delhtlc = "fail_malformed";
+            break;
+        default:
+            p_str_delhtlc = "unknown";
+        }
+        switch (p_update->flags.fin_delhtlc) {
+        case LN_DELHTLC_NONE:
+            p_str_fin_delhtlc = "---";
+            break;
+        case LN_DELHTLC_FULFILL:
+            p_str_fin_delhtlc = "fulfill";
+            break;
+        case LN_DELHTLC_FAIL:
+            p_str_fin_delhtlc = "fail";
+            break;
+        case LN_DELHTLC_FAIL_MALFORMED:
+            p_str_fin_delhtlc = "fail_malformed";
+            break;
+        default:
+            p_str_fin_delhtlc = "unknown";
+        }
+        printf(INDENT6 M_QQ("flags") ": " M_QQ("0x%04x") ",\n", ln_htlc_flags2u32(p_update->flags));
+        printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
+        printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
+        printf(INDENT6 M_QQ("updsend") ": %d,\n", p_update->flags.updsend);
+        printf(INDENT6 M_QQ("comsend") ": %d,\n", p_update->flags.comsend);
+        printf(INDENT6 M_QQ("revrecv") ": %d,\n", p_update->flags.revrecv);
+        printf(INDENT6 M_QQ("comrecv") ": %d,\n", p_update->flags.comrecv);
+        printf(INDENT6 M_QQ("revsend") ": %d,\n", p_update->flags.revsend);
+        printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
+        printf(INDENT5 "},\n");
+        printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", p_htlc->amount_msat);
+        printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", p_htlc->cltv_expiry);
+        printf(INDENT5 M_QQ("payhash") ": \"");
+        utl_dbg_dump(stdout, p_htlc->payment_hash, BTC_SZ_HASH256, false);
+        printf("\",\n");
+        printf(INDENT5 M_QQ("preimage") ": \"");
+        utl_dbg_dump(stdout, p_htlc->buf_payment_preimage.buf, p_htlc->buf_payment_preimage.len, false);
+        printf("\",\n");
+        uint8_t sha[BTC_SZ_HASH256];
+        btc_md_sha256(sha, p_htlc->buf_payment_preimage.buf, p_htlc->buf_payment_preimage.len);
+        printf(INDENT5 M_QQ("preimage_check") ": ");
+        if (memcmp(sha, p_htlc->payment_hash, BTC_SZ_HASH256) == 0) {
+            printf(M_QQ("OK") ",\n");
+        } else {
+            printf(M_QQ("NG") ",\n");
+        }
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        ln_short_channel_id_string(str_sci, p_update->next_short_channel_id);
+        printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
+            str_sci, p_update->next_short_channel_id);
+        printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", p_update->next_idx);
+        ln_short_channel_id_string(str_sci, p_update->prev_short_channel_id);
+        printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
+            str_sci, p_update->prev_short_channel_id);
+        printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", p_update->prev_idx);
+        printf(INDENT5 M_QQ("onion_reason") ": \"");
+        if (p_htlc->buf_onion_reason.len > 35) {
+            printf("length=%d, ", p_htlc->buf_onion_reason.len);
+            utl_dbg_dump(stdout, p_htlc->buf_onion_reason.buf, 35, false);
+            printf("...");
+        } else {
+            utl_dbg_dump(stdout, p_htlc->buf_onion_reason.buf, p_htlc->buf_onion_reason.len, false);
+        }
+        printf("\",\n");
+        printf(INDENT5 M_QQ("shared_secret") ": \"");
+        utl_dbg_dump(stdout, p_htlc->buf_shared_secret.buf, p_htlc->buf_shared_secret.len, false);
+        printf("\",\n");
+        printf(INDENT5 M_QQ("index") ": %d\n", lp);
+        printf(INDENT4 "}");
+        cnt++;
     }
     printf("\n");
     printf(INDENT3 "],\n");
@@ -934,7 +938,7 @@ static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
                     printf(M_QQ("work") "]");
                     break;
                 default:
-                    printf(M_QQ("???") "]");
+                    printf(M_QQ("unknown") "]");
                     break;
                 }
             } else {

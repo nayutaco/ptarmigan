@@ -88,7 +88,7 @@ typedef struct {
  */
 typedef struct {
     ln_comtx_output_type_t  type;                   ///< HTLC種別
-    uint16_t        add_htlc_idx;                   ///< 対応するpChannel->cnl_add_htlc[]のindex値
+    uint16_t        htlc_idx;                       ///< 対応するpChannel->htlcs[]のindex値
     uint32_t        cltv_expiry;                    ///< cltv_expiry
     uint64_t        amount_msat;                    ///< amount_msat
     const uint8_t   *payment_hash;                  ///< preimage hash

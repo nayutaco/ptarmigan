@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-45))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-46))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -195,6 +195,8 @@
          add `ln_commit_tx_t::remote_msat`
     -45: rename `htlc_id_num` -> `num_htlc_ids`
          rename `htlc_output_num` -> `num_htlc_outputs`
+    -46: separate `ln_update_add_htlc_t` into `ln_update_t` and `ln_htlc_t`
+        rename `num_htlc_ids` -> `next_htlc_id`
  */
 
 
@@ -316,7 +318,7 @@ typedef struct {
  *
  */
 typedef struct {
-    const ln_update_add_htlc_t  *add_htlc;
+    const ln_htlc_t  *p_htlcs;
 } preimage_close_t;
 
 
@@ -425,10 +427,11 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     //norm
     //
-    M_ITEM(ln_channel_t, num_htlc_ids),         //[NORM_01]
+    M_ITEM(ln_channel_t, next_htlc_id),         //[NORM_01]
     M_ITEM(ln_channel_t, channel_id),           //[NORM_02]
     M_ITEM(ln_channel_t, short_channel_id),     //[NORM_03]
-    //[NORM_04]cnl_add_htlc --> HTLC
+    M_ITEM(ln_channel_t, updates),              //[NORM_04]
+    //[NORM_05]htlcs --> HTLC
 
     //
     //comm
@@ -490,7 +493,7 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, peer_node_id),
     M_ITEM(ln_channel_t, channel_id),
     M_ITEM(ln_channel_t, short_channel_id),
-    M_ITEM(ln_channel_t, num_htlc_ids),
+    M_ITEM(ln_channel_t, next_htlc_id),
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),
     MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),
     M_ITEM(ln_channel_t, keys_local),
@@ -552,19 +555,14 @@ static const struct {
  *  @brief  HTLC
  */
 static const backup_param_t DBHTLC_VALUES[] = {
-    //p_channel_id
-    M_ITEM(ln_update_add_htlc_t, id),
-    M_ITEM(ln_update_add_htlc_t, amount_msat),
-    M_ITEM(ln_update_add_htlc_t, cltv_expiry),
-    M_ITEM(ln_update_add_htlc_t, payment_hash),
+    M_ITEM(ln_htlc_t, enabled),
+    M_ITEM(ln_htlc_t, id),
+    M_ITEM(ln_htlc_t, amount_msat),
+    M_ITEM(ln_htlc_t, cltv_expiry),
+    M_ITEM(ln_htlc_t, payment_hash),
     //buf_payment_preimage --> HTLC buf
     //buf_onion_reason --> HTLC buf
-    M_ITEM(ln_update_add_htlc_t, flags),
-    M_ITEM(ln_update_add_htlc_t, next_short_channel_id),
-    M_ITEM(ln_update_add_htlc_t, next_idx),
-    M_ITEM(ln_update_add_htlc_t, remote_sig),
-    M_ITEM(ln_update_add_htlc_t, prev_short_channel_id),
-    M_ITEM(ln_update_add_htlc_t, prev_idx),
+    M_ITEM(ln_htlc_t, remote_sig),
     //buf_shared_secret --> HTLC buf
 };
 
@@ -902,11 +900,10 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool
         goto LABEL_EXIT;
     }
 
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        pChannel->cnl_add_htlc[idx].p_channel_id = NULL;
-        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_payment_preimage);
-        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_onion_reason);
-        utl_buf_init(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        utl_buf_init(&pChannel->htlcs[idx].buf_payment_preimage);
+        utl_buf_init(&pChannel->htlcs[idx].buf_onion_reason);
+        utl_buf_init(&pChannel->htlcs[idx].buf_shared_secret);
     }
 
     //可変サイズ
@@ -1026,9 +1023,9 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *p_db_param)
 
     MDB_TXN_CHECK_CHANNEL(p_cur->txn);
 
-    //add_htlcと関連するpreimage削除
+    //htlcsと関連するpreimage削除
     preimage_close_t param;
-    param.add_htlc = pChannel->cnl_add_htlc;
+    param.p_htlcs = pChannel->htlcs;
     ln_db_preimage_search(preimage_close_func, &param);
 
     //add_htlc
@@ -2762,7 +2759,7 @@ LABEL_EXIT:
  * [node]payment preimage
  ********************************************************************/
 
-bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb)
+bool ln_db_preimage_save(ln_db_preimage_t *pPreimage, void *pDb)
 {
     bool ret;
     ln_lmdb_db_t db;
@@ -2781,15 +2778,15 @@ bool ln_db_preimage_save(ln_db_preimage_t *pPreImg, void *pDb)
     }
 
     key.mv_size = LN_SZ_PREIMAGE;
-    key.mv_data = pPreImg->preimage;
+    key.mv_data = pPreimage->preimage;
     data.mv_size = sizeof(info);
-    info.amount = pPreImg->amount_msat;
+    info.amount = pPreimage->amount_msat;
     info.creation = (uint64_t)utl_time_time();
-    info.expiry = pPreImg->expiry;
+    info.expiry = pPreimage->expiry;
     data.mv_data = &info;
     int retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
     if (retval == 0) {
-        pPreImg->creation_time = info.creation;
+        pPreimage->creation_time = info.creation;
     } else {
         LOGE("ERR: %s\n", mdb_strerror(retval));
     }
@@ -2905,7 +2902,7 @@ void ln_db_preimage_cur_close(void *pCur)
 }
 
 
-bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreImg)
+bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
@@ -2918,15 +2915,15 @@ bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreImg
         preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
-        pPreImg->expiry = p_info->expiry;
-        pPreImg->creation_time = p_info->creation;
+        pPreimage->expiry = p_info->expiry;
+        pPreimage->creation_time = p_info->creation;
         if ((p_info->expiry == UINT32_MAX) || (now <= p_info->creation + p_info->expiry)) {
-            memcpy(pPreImg->preimage, key.mv_data, key.mv_size);
-            pPreImg->amount_msat = p_info->amount;
+            memcpy(pPreimage->preimage, key.mv_data, key.mv_size);
+            pPreimage->amount_msat = p_info->amount;
             *pDetect = true;
 
             uint8_t hash[BTC_SZ_HASH256];
-            ln_payment_hash_calc(hash, pPreImg->preimage);
+            ln_payment_hash_calc(hash, pPreimage->preimage);
             LOGD("invoice hash: ");
             DUMPD(hash, BTC_SZ_HASH256);
         } else {
@@ -3757,8 +3754,8 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
         memcpy((uint8_t *)pOutChannel + DBCHANNEL_VALUES[lp].offset, (uint8_t *)pInChannel + DBCHANNEL_VALUES[lp].offset,  DBCHANNEL_VALUES[lp].datalen);
     }
 
-    // add_htlc
-    memcpy(pOutChannel->cnl_add_htlc,  pInChannel->cnl_add_htlc, M_SIZE(ln_channel_t, cnl_add_htlc));
+    memcpy(pOutChannel->updates,  pInChannel->updates, M_SIZE(ln_channel_t, updates));
+    memcpy(pOutChannel->htlcs,  pInChannel->htlcs, M_SIZE(ln_channel_t, htlcs));
     // scriptpubkeys --> keys
     //memcpy(&pOutChannel->script_pubkeys_local, &pInChannel->script_pubkeys_local, sizeof(ln_derkey_script_pubkeys_t));
     //memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
@@ -3830,7 +3827,7 @@ static int channel_addhtlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    uint8_t *OFFSET = ((uint8_t *)pChannel) + offsetof(ln_channel_t, cnl_add_htlc);
+    uint8_t *OFFSET = ((uint8_t *)pChannel) + offsetof(ln_channel_t, htlcs);
 
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
@@ -3851,7 +3848,7 @@ static int channel_addhtlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
             if (retval == 0) {
                 //LOGD("[%d]%s: ", lp, DBHTLC_VALUES[lp2].name);
                 //DUMPD(data.mv_data, data.mv_size);
-                memcpy(OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_VALUES[lp2].offset, data.mv_data, DBHTLC_VALUES[lp2].datalen);
+                memcpy(OFFSET + sizeof(ln_htlc_t) * lp + DBHTLC_VALUES[lp2].offset, data.mv_data, DBHTLC_VALUES[lp2].datalen);
             } else {
                 LOGE("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_VALUES[lp2].name);
             }
@@ -3862,7 +3859,7 @@ static int channel_addhtlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_data = M_KEY_PREIMAGE;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&pChannel->cnl_add_htlc[lp].buf_payment_preimage, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&pChannel->htlcs[lp].buf_payment_preimage, data.mv_data, data.mv_size);
         } else {
             //LOGE("ERR: %s(preimage)\n", mdb_strerror(retval));
         }
@@ -3871,7 +3868,7 @@ static int channel_addhtlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_data = M_KEY_ONIONROUTE;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&pChannel->cnl_add_htlc[lp].buf_onion_reason, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&pChannel->htlcs[lp].buf_onion_reason, data.mv_data, data.mv_size);
         } else {
             //LOGE("ERR: %s(onion_route)\n", mdb_strerror(retval));
             retval = 0;     //FALLTHROUGH
@@ -3881,7 +3878,7 @@ static int channel_addhtlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_data = M_KEY_SHAREDSECRET;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&pChannel->cnl_add_htlc[lp].buf_shared_secret, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&pChannel->htlcs[lp].buf_shared_secret, data.mv_data, data.mv_size);
         } else {
             //LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
             retval = 0;     //FALLTHROUGH
@@ -3906,7 +3903,7 @@ static int channel_addhtlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    uint8_t *OFFSET = ((uint8_t *)pChannel) + offsetof(ln_channel_t, cnl_add_htlc);
+    uint8_t *OFFSET = ((uint8_t *)pChannel) + offsetof(ln_channel_t, htlcs);
 
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
@@ -3924,7 +3921,7 @@ static int channel_addhtlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         ln_lmdb_db_t db;
         db.txn = pDb->txn;
         db.dbi = dbi;
-        retval = backup_param_save(OFFSET + sizeof(ln_update_add_htlc_t) * lp,
+        retval = backup_param_save(OFFSET + sizeof(ln_htlc_t) * lp,
                         &db, DBHTLC_VALUES, ARRAY_SIZE(DBHTLC_VALUES));
         if (retval != 0) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
@@ -3932,11 +3929,11 @@ static int channel_addhtlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         }
 
         //可変
-        if (pChannel->cnl_add_htlc[lp].buf_payment_preimage.len > 0) {
+        if (pChannel->htlcs[lp].buf_payment_preimage.len > 0) {
             key.mv_size = M_SZ_PREIMAGE;
             key.mv_data = M_KEY_PREIMAGE;
-            data.mv_size = pChannel->cnl_add_htlc[lp].buf_payment_preimage.len;
-            data.mv_data = pChannel->cnl_add_htlc[lp].buf_payment_preimage.buf;
+            data.mv_size = pChannel->htlcs[lp].buf_payment_preimage.len;
+            data.mv_data = pChannel->htlcs[lp].buf_payment_preimage.buf;
             retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
             if (retval != 0) {
                 LOGE("ERR: %s(preimage)\n", mdb_strerror(retval));
@@ -3947,8 +3944,8 @@ static int channel_addhtlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_size = M_SZ_ONIONROUTE;
         key.mv_data = M_KEY_ONIONROUTE;
-        data.mv_size = pChannel->cnl_add_htlc[lp].buf_onion_reason.len;
-        data.mv_data = pChannel->cnl_add_htlc[lp].buf_onion_reason.buf;
+        data.mv_size = pChannel->htlcs[lp].buf_onion_reason.len;
+        data.mv_data = pChannel->htlcs[lp].buf_onion_reason.buf;
         retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
         if (retval != 0) {
             LOGE("ERR: %s(onion_route)\n", mdb_strerror(retval));
@@ -3956,8 +3953,8 @@ static int channel_addhtlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         }
 
         key.mv_data = M_KEY_SHAREDSECRET;
-        data.mv_size = pChannel->cnl_add_htlc[lp].buf_shared_secret.len;
-        data.mv_data = pChannel->cnl_add_htlc[lp].buf_shared_secret.buf;
+        data.mv_size = pChannel->htlcs[lp].buf_shared_secret.len;
+        data.mv_data = pChannel->htlcs[lp].buf_shared_secret.buf;
         retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
         if (retval != 0) {
             LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
@@ -4754,7 +4751,7 @@ static bool preimage_close_func(const uint8_t *pPreimage, uint64_t Amount, uint3
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (memcmp(preimage_hash, param->add_htlc[lp].payment_hash, BTC_SZ_HASH256) == 0) {
+        if (memcmp(preimage_hash, param->p_htlcs[lp].payment_hash, BTC_SZ_HASH256) == 0) {
             //一致
             int retval = mdb_cursor_del(p_cur->cursor, 0);
             LOGD("  remove from DB: %s\n", mdb_strerror(retval));
