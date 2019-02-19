@@ -403,7 +403,7 @@ bool ptarmd_nodefail_get(
 /** Establish Parameter取得
  * 
  */
-const ln_establish_param_t *ptarmd_get_establishparam(void);
+const ln_establish_param_t *ptarmd_get_establish_param(void);
 
 
 /** イベントコール

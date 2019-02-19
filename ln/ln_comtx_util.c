@@ -101,7 +101,7 @@ uint64_t HIDDEN ln_comtx_calc_commit_num_from_tx(uint32_t Sequence, uint32_t Loc
 void HIDDEN ln_comtx_htlc_info_init(ln_comtx_htlc_info_t *pHtlcInfo)
 {
     pHtlcInfo->type = LN_COMTX_OUTPUT_TYPE_NONE;
-    pHtlcInfo->add_htlc_idx = (uint16_t)-1;
+    pHtlcInfo->htlc_idx = (uint16_t)-1;
     pHtlcInfo->cltv_expiry = 0;
     pHtlcInfo->amount_msat = 0;
     pHtlcInfo->payment_hash = NULL;

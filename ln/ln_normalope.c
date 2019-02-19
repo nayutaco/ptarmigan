@@ -71,28 +71,35 @@
  * prototypes
  **************************************************************************/
 
-static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pInfo);
-static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len);
-static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_add_htlc_t *p_htlc);
-static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx);
+static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *pHtlc);
+static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t update_idx);
 static bool check_recv_add_htlc_bolt4_common(ln_channel_t *pChannel, utl_push_t *pPushReason);
-static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc, uint8_t *pPreimage, int32_t Height);
-static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason, ln_update_add_htlc_t *pAddHtlc,int32_t Height);
+static bool check_recv_add_htlc_bolt4_final(
+    ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason,
+    ln_htlc_t *pHtlc, uint8_t *pPreimage, int32_t Height);
+static bool check_recv_add_htlc_bolt4_forward(
+    ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason,
+    ln_htlc_t *pHtlc,int32_t Height);
 static bool store_peer_percommit_secret(ln_channel_t *pChannel, const uint8_t *p_prev_secret);
-static void clear_htlc_comrev_flags(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc);
-static void clear_htlc(ln_update_add_htlc_t *p_htlc);
-static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
-static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
-static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
-static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Idx);
+static void clear_update_comrev_flags(ln_update_t *p_update, uint8_t DelHtlc);
+static void clear_htlc(ln_update_t *p_update, ln_htlc_t *p_htlc);
+static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
+static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
+static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
+static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool commitment_signed_send(ln_channel_t *pChannel);
-static bool check_create_add_htlc(ln_channel_t *pChannel, uint16_t *pIdx, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
-static bool set_add_htlc(ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pIdx, const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId, uint16_t PrevIdx, const utl_buf_t *pSharedSecrets);
-static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx);
+static bool check_create_add_htlc(ln_channel_t *pChannel, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
+static bool set_add_htlc(
+    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pUpdateIdx,
+    const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
+    uint64_t PrevShortChannelId, uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets);
+static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel);
 static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel);
 static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel);
+static bool get_empty_update(ln_channel_t *pChannel, uint16_t* pUpdateIdx);
+static bool get_empty_htlc(ln_channel_t *pChannel, uint16_t* pHtlcIdx);
 
 #ifdef M_DBG_COMMITNUM
 static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags);
@@ -108,26 +115,38 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
 {
     LOGD("BEGIN\n");
 
-    int idx;
-    for (idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (LN_HTLC_EMPTY(&pChannel->cnl_add_htlc[idx])) {
-            break;
-        }
-    }
-    if (idx >= LN_HTLC_MAX) {
-        M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free add_htlc");
+    ln_update_t *p_update = NULL;
+    ln_htlc_t *p_htlc = NULL;
+    uint16_t update_idx;
+    uint16_t htlc_idx;
+
+    if (!get_empty_update(pChannel, &update_idx)) {
+        M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free updates");
         return false;
     }
+    if (!get_empty_htlc(pChannel, &htlc_idx)) {
+        M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free htlcs");
+        return false;
+    }
+    p_update = &pChannel->updates[update_idx];
+    p_htlc = &pChannel->htlcs[htlc_idx];
+    p_update->htlc_idx = htlc_idx;
 
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    p_htlc->p_channel_id = channel_id;
-    if (!msg_update_add_htlc_read(p_htlc, pData, Len)) {
+    ln_msg_update_add_htlc_t msg;
+    if (!ln_msg_update_add_htlc_read(&msg, pData, Len)) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
+    p_htlc->id = msg.id;
+    p_htlc->amount_msat = msg.amount_msat;
+    memcpy(p_htlc->payment_hash, msg.p_payment_hash, BTC_SZ_HASH256);
+    p_htlc->cltv_expiry = msg.cltv_expiry;
+    if (!utl_buf_alloccopy(&p_htlc->buf_onion_reason, msg.p_onion_routing_packet, LN_SZ_ONION_ROUTE)) {
+        M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "memory allocation error");
+        return false;
+    }
 
-    if (!ln_check_channel_id(channel_id, pChannel->channel_id)) {
+    if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
         M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
@@ -144,9 +163,9 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
     }
 
     //XXX: should not ignore
-    /*ignore*/ check_recv_add_htlc_bolt4(pChannel, idx);
+    /*ignore*/ check_recv_add_htlc_bolt4(pChannel, update_idx);
 
-    p_htlc->flags.addhtlc = LN_ADDHTLC_RECV;
+    p_update->flags.addhtlc = LN_ADDHTLC_RECV;
 
     LOGD("END\n");
     return true;
@@ -168,36 +187,41 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
         return false;
     }
 
-    uint8_t hash[BTC_SZ_HASH256];
-    btc_md_sha256(hash, msg.p_payment_preimage, BTC_SZ_PRIVKEY);
-    LOGD("hash: ");
-    DUMPD(hash, sizeof(hash));
-
-    ln_update_add_htlc_t *p_htlc = NULL;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        LOGD("HTLC%d: id=%" PRIu64 ", flags=%04x: ", idx, pChannel->cnl_add_htlc[idx].id, pChannel->cnl_add_htlc[idx].flags);
-        DUMPD(pChannel->cnl_add_htlc[idx].payment_hash, BTC_SZ_HASH256);
-        if (pChannel->cnl_add_htlc[idx].flags.addhtlc != LN_ADDHTLC_SEND) continue;
-        if (pChannel->cnl_add_htlc[idx].id != msg.id) continue;
-        if (memcmp(hash, pChannel->cnl_add_htlc[idx].payment_hash, BTC_SZ_HASH256)) {
-            LOGE("fail: match id, but fail payment_hash\n");
-            M_SET_ERR(pChannel, LNERR_INV_ID, "fulfill");
-            return false;
-        }
-        p_htlc = &pChannel->cnl_add_htlc[idx];
+    ln_update_t *p_update = NULL;
+    ln_htlc_t *p_htlc = NULL;
+    uint16_t update_idx;
+    for (update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        p_update = &pChannel->updates[update_idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        //LOGD("UPDATE[%u]: flags=%04x\n", update_idx, p_update->flags);
+        if (p_update->flags.addhtlc != LN_ADDHTLC_SEND) continue;
+        p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        //LOGD("HTLC[%u]: id=%" PRIu64 ", payment_hash", p_update->htlc_idx, p_htlc->id);
+        //DUMPD(p_htlc->payment_hash, BTC_SZ_HASH256);
+        if (p_htlc->id != msg.id) continue;
         break;
     }
-    if (!p_htlc) {
+    if (update_idx == LN_HTLC_MAX) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fulfill");
         return false;
     }
 
-    clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FULFILL);
+    uint8_t hash[BTC_SZ_HASH256];
+    btc_md_sha256(hash, msg.p_payment_preimage, BTC_SZ_PRIVKEY);
+    LOGD("hash: ");
+    DUMPD(hash, sizeof(hash));
+    if (memcmp(hash, p_htlc->payment_hash, BTC_SZ_HASH256)) {
+        LOGE("fail: match id, but fail payment_hash\n");
+        M_SET_ERR(pChannel, LNERR_INV_ID, "fulfill");
+        return false;
+    }
+
+    clear_update_comrev_flags(p_update, LN_DELHTLC_FULFILL);
 
     ln_cb_param_notify_fulfill_htlc_recv_t cb_param;
     cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
-    cb_param.prev_idx = p_htlc->prev_idx;
+    cb_param.prev_short_channel_id = p_update->prev_short_channel_id;
+    cb_param.prev_update_idx = p_update->prev_idx;
     cb_param.p_preimage = msg.p_payment_preimage;
     cb_param.next_id = p_htlc->id;
     cb_param.amount_msat = p_htlc->amount_msat;
@@ -227,29 +251,32 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
         return false;
     }
 
-    ln_update_add_htlc_t *p_htlc = NULL;
-    int idx;
-    for (idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (pChannel->cnl_add_htlc[idx].flags.addhtlc != LN_ADDHTLC_SEND) continue;
-        if (pChannel->cnl_add_htlc[idx].id != msg.id) continue;
-        p_htlc = &pChannel->cnl_add_htlc[idx];
+    ln_update_t *p_update = NULL;
+    ln_htlc_t *p_htlc = NULL;
+    uint16_t update_idx;
+    for (update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        p_update = &pChannel->updates[update_idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (p_update->flags.addhtlc != LN_ADDHTLC_SEND) continue;
+        p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        if (p_htlc->id != msg.id) continue;
         break;
     }
-    if (!p_htlc) {
+    if (update_idx == LN_HTLC_MAX) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail_htlc");
         return false;
     }
 
-    clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FAIL);
+    clear_update_comrev_flags(p_update, LN_DELHTLC_FAIL);
 
     ln_cb_param_notify_fail_htlc_recv_t cb_param;
     cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
+    cb_param.prev_short_channel_id = p_update->prev_short_channel_id;
     utl_buf_t reason;
     utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_idx = p_htlc->prev_idx;
+    cb_param.prev_update_idx = p_update->prev_idx;
     cb_param.next_id = p_htlc->id;
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = 0;
@@ -282,20 +309,23 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
         return false;
     }
 
-    ln_update_add_htlc_t *p_htlc = NULL;
-    int idx;
-    for (idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (pChannel->cnl_add_htlc[idx].flags.addhtlc != LN_ADDHTLC_SEND) continue;
-        if (pChannel->cnl_add_htlc[idx].id != msg.id) continue;
-        p_htlc = &pChannel->cnl_add_htlc[idx];
+    ln_update_t *p_update = NULL;
+    ln_htlc_t *p_htlc = NULL;
+    uint16_t update_idx;
+    for (update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        p_update = &pChannel->updates[update_idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (p_update->flags.addhtlc != LN_ADDHTLC_SEND) continue;
+        p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        if (p_htlc->id != msg.id) continue;
         break;
     }
-    if (!p_htlc) {
+    if (update_idx == LN_HTLC_MAX) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail_htlc_malformed");
         return false;
     }
 
-    clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FAIL_MALFORMED);
+    clear_update_comrev_flags(p_update, LN_DELHTLC_FAIL_MALFORMED);
 
     //XXX: ???
     //受信したmal_htlcは、Offered HTLCについてチェックする。
@@ -313,10 +343,10 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
 
     ln_cb_param_notify_fail_htlc_recv_t cb_param;
     cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_htlc->prev_short_channel_id;
+    cb_param.prev_short_channel_id = p_update->prev_short_channel_id;
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_idx = p_htlc->prev_idx;
+    cb_param.prev_update_idx = p_update->prev_idx;
     cb_param.next_id = p_htlc->id;
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = msg.failure_code;
@@ -373,12 +403,12 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     // }
 
     //commitment_signed recv flag
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(p_htlc) ) {
-            LOGD(" [%d]comrecv=1\n", idx);
-            p_htlc->flags.comrecv = 1;
-        }
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(p_update)) continue;
+        LOGD(" [%d]comrecv=1\n", idx);
+        p_update->flags.comrecv = 1;
     }
 
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
@@ -405,12 +435,12 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
         goto LABEL_EXIT;
     }
     //revoke_and_ack send flag
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if ( LN_HTLC_ENABLED(p_htlc) && LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(p_htlc) ) {
-            LOGD(" [%d]revsend=1\n", idx);
-            p_htlc->flags.revsend = 1;
-        }
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_LOCAL_SOME_UPDATE_ENABLED(p_update)) continue;
+        LOGD(" [%d]revsend=1\n", idx);
+        p_update->flags.revsend = 1;
     }
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
@@ -510,12 +540,12 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
 
     //revoke_and_ack recv flag
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        if (!LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_htlc)) continue;
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_update)) continue;
         LOGD(" [%d]revrecv=1\n", idx);
-        p_htlc->flags.revrecv = 1;
+        p_update->flags.revrecv = 1;
     }
 
     pChannel->commit_tx_remote.revoke_num = pChannel->commit_tx_remote.commit_num - 1;
@@ -636,147 +666,137 @@ bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 }
 
 
-bool ln_add_htlc_set(ln_channel_t *pChannel,
-            uint64_t *pHtlcId,
-            utl_buf_t *pReason,
-            const uint8_t *pPacket,
-            uint64_t AmountMsat,
-            uint32_t CltvValue,
-            const uint8_t *pPaymentHash,
-            uint64_t PrevShortChannelId,
-            uint16_t PrevIdx,
-            const utl_buf_t *pSharedSecrets)
+bool ln_add_htlc_set(
+    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, const uint8_t *pPacket,
+    uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
+    uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
 
     //BOLT2
     //  MUST NOT send an update_add_htlc after a shutdown.
-    if (pChannel->shutdown_flag != 0) {
+    if (pChannel->shutdown_flag) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "shutdown: not allow add_htlc");
         return false;
     }
 
-    uint16_t idx;
-    bool ret = set_add_htlc(pChannel, pHtlcId, pReason, &idx,
-                    pPacket, AmountMsat, CltvValue, pPaymentHash,
-                    PrevShortChannelId, PrevIdx, pSharedSecrets);
-    if (ret) {
-        pChannel->cnl_add_htlc[idx].flags.addhtlc = LN_ADDHTLC_SEND;
-    }
-
-    return ret;
+    uint16_t update_idx;
+    if (!set_add_htlc(
+        pChannel, pHtlcId, pReason, &update_idx, pPacket, AmountMsat,
+        CltvValue, pPaymentHash, PrevShortChannelId, PrevUpdateIdx, pSharedSecrets)) return false;
+    pChannel->updates[update_idx].flags.addhtlc = LN_ADDHTLC_SEND;
+    return true;
 }
 
 
-bool ln_add_htlc_set_fwd(ln_channel_t *pChannel,
-            uint64_t *pHtlcId,
-            utl_buf_t *pReason,
-            uint16_t *pNextIdx,
-            const uint8_t *pPacket,
-            uint64_t AmountMsat,
-            uint32_t CltvValue,
-            const uint8_t *pPaymentHash,
-            uint64_t PrevShortChannelId,
-            uint16_t PrevIdx,
-            const utl_buf_t *pSharedSecrets)
+bool ln_add_htlc_set_fwd(
+    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pNextUpdateIdx,
+    const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
+    uint64_t PrevShortChannelId, uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
 
     //BOLT2
     //  MUST NOT send an update_add_htlc after a shutdown.
-    if (pChannel->shutdown_flag != 0) {
+    if (pChannel->shutdown_flag) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "shutdown: not allow add_htlc");
         return false;
     }
 
-    bool ret = set_add_htlc(pChannel, pHtlcId, pReason, pNextIdx,
-                    pPacket, AmountMsat, CltvValue, pPaymentHash,
-                    PrevShortChannelId, PrevIdx, pSharedSecrets);
+    if (!set_add_htlc(
+        pChannel, pHtlcId, pReason, pNextUpdateIdx, pPacket, AmountMsat, CltvValue,
+        pPaymentHash, PrevShortChannelId, PrevUpdateIdx, pSharedSecrets)) return false;
     //flags.addhtlcは #ln_recv_idle_proc()のHTLC final経由で #ln_add_htlc_start_fwd()を呼び出して設定
-    dbg_htlc_flag(&pChannel->cnl_add_htlc[PrevIdx].flags);
-
-    return ret;
+    dbg_htlc_flag(&pChannel->updates[*pNextUpdateIdx].flags);
+    return true;
 }
 
 
-void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t Idx)
+void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
     LOGD("forwarded HTLC\n");
-    pChannel->cnl_add_htlc[Idx].flags.addhtlc = LN_ADDHTLC_SEND;
-    dbg_htlc_flag(&pChannel->cnl_add_htlc[Idx].flags);
+    pChannel->updates[UpdateIdx].flags.addhtlc = LN_ADDHTLC_SEND;
+    dbg_htlc_flag(&pChannel->updates[UpdateIdx].flags);
 }
 
 
-bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const uint8_t *pPreimage)
+bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t UpdateIdx, const uint8_t *pPreimage)
 {
     LOGD("BEGIN\n");
 
-    //pChannel->cnl_add_htlc[Idx]にupdate_fulfill_htlcが作成出来るだけの情報を設定
+    //XXX: ???
+    //pChannel->htlcs[]にupdate_fulfill_htlcが作成出来るだけの情報を設定
     //  final nodeにふさわしいかのチェックはupdate_add_htlc受信時に行われている
-    //  update_fulfill_htlc未送信状態にしておきたいが、このタイミングではadd_htlcのcommitは済んでいない
+    //  update_fulfill_htlc未送信状態にしておきたいが、このタイミングではupdateのcommitは済んでいない
 
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
-    clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FULFILL);
-    utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreimage, LN_SZ_PREIMAGE);
-    M_DB_CHANNEL_SAVE(pChannel);
-    LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-    dbg_htlc_flag(&pChannel->cnl_add_htlc[Idx].flags);
+    clear_update_comrev_flags(p_update, LN_DELHTLC_FULFILL);
+    if (!utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
+    //M_DB_CHANNEL_SAVE(pChannel); //XXX: Since the forwarding data of update is stored separately, this is not necessary
+    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, p_update->flags);
+    dbg_htlc_flag(&p_update->flags);
     return true;
 }
 
 
-bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t Idx, const utl_buf_t *pReason)
+bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t UpdateIdx, const utl_buf_t *pReason)
 {
     LOGD("BEGIN\n");
 
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
-    clear_htlc_comrev_flags(p_htlc, LN_DELHTLC_FAIL);
+    clear_update_comrev_flags(p_update, LN_DELHTLC_FAIL);
     utl_buf_free(&p_htlc->buf_onion_reason);
     ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
 
-    LOGD("END: pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, p_htlc->flags);
+    LOGD("END: pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, p_update->flags);
     LOGD("   reason: ");
     DUMPD(pReason->buf, pReason->len);
-    dbg_htlc_flag(&p_htlc->flags);
+    dbg_htlc_flag(&p_update->flags);
     return true;
 }
 
 
-bool ln_fail_htlc_set_bwd(ln_channel_t *pChannel, uint16_t Idx, const utl_buf_t *pReason)
+bool ln_fail_htlc_set_bwd(ln_channel_t *pChannel, uint16_t UpdateIdx, const utl_buf_t *pReason)
 {
     LOGD("BEGIN\n");
 
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
-    clear_htlc_comrev_flags(p_htlc, p_htlc->flags.delhtlc);
-    p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL;
+    clear_update_comrev_flags(p_update, p_update->flags.delhtlc);
+    p_update->flags.fin_delhtlc = LN_DELHTLC_FAIL;
     utl_buf_free(&p_htlc->buf_onion_reason);
     ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
 
-    LOGD("END: pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, p_htlc->flags);
+    LOGD("END: pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, p_update->flags);
     LOGD("   reason: ");
     DUMPD(pReason->buf, pReason->len);
-    dbg_htlc_flag(&p_htlc->flags);
+    dbg_htlc_flag(&p_update->flags);
     return true;
 }
 
 
-void ln_del_htlc_start_bwd(ln_channel_t *pChannel, uint16_t Idx)
+void ln_del_htlc_start_bwd(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
     LOGD("backward HTLC\n");
-    pChannel->cnl_add_htlc[Idx].flags.delhtlc = pChannel->cnl_add_htlc[Idx].flags.fin_delhtlc;
-    dbg_htlc_flag(&pChannel->cnl_add_htlc[Idx].flags);
+
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+
+    p_update->flags.delhtlc = p_update->flags.fin_delhtlc;
+    dbg_htlc_flag(&p_update->flags);
 }
 
 
 void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     int htlc_num = 0;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
         htlc_num++;
     }
     if ((htlc_num == 0) &&
@@ -810,11 +830,11 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
         //XXX: If the corresponding `revoke_andk_ack` is received, channel should be failed
         LOGD("$$$ resend: previous update message\n");
-        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-            ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-            if (!LN_HTLC_ENABLED(p_htlc)) continue;
-            if (!LN_HTLC_REMOTE_COMSIGING(p_htlc)) continue;
-            LN_HTLC_ENABLE_RESEND(p_htlc);
+        for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+            ln_update_t *p_update = &pChannel->updates[idx];
+            if (!LN_HTLC_ENABLED(p_update)) continue;
+            if (!LN_HTLC_REMOTE_COMSIGING(p_update)) continue;
+            LN_HTLC_ENABLE_RESEND(p_update);
             //The update message will be sent in the idle proc.
         }
         pChannel->commit_tx_remote.commit_num--;
@@ -852,37 +872,13 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
  * private functions
  ********************************************************************/
 
-static bool msg_update_add_htlc_write(utl_buf_t *pBuf, const ln_update_add_htlc_t *pInfo)
-{
-    ln_msg_update_add_htlc_t msg;
-    msg.p_channel_id = pInfo->p_channel_id;
-    msg.id = pInfo->id;
-    msg.amount_msat = pInfo->amount_msat;
-    msg.p_payment_hash = pInfo->payment_hash;
-    msg.cltv_expiry = pInfo->cltv_expiry;
-    msg.p_onion_routing_packet = pInfo->buf_onion_reason.buf;
-    return ln_msg_update_add_htlc_write(pBuf, &msg);
-}
-
-
-static bool msg_update_add_htlc_read(ln_update_add_htlc_t *pInfo, const uint8_t *pData, uint16_t Len)
-{
-    ln_msg_update_add_htlc_t msg;
-    if (!ln_msg_update_add_htlc_read(&msg, pData, Len)) return false;
-    memcpy(pInfo->p_channel_id, msg.p_channel_id, LN_SZ_CHANNEL_ID);
-    pInfo->id = msg.id;
-    pInfo->amount_msat = msg.amount_msat;
-    memcpy(pInfo->payment_hash, msg.p_payment_hash, BTC_SZ_HASH256);
-    pInfo->cltv_expiry = msg.cltv_expiry;
-    return utl_buf_alloccopy(&pInfo->buf_onion_reason, msg.p_onion_routing_packet, LN_SZ_ONION_ROUTE);
-}
-
-
 /** [BOLT#2]ln_update_add_htlc_recv()のチェック項目
  *
  */
-static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_add_htlc_t *p_htlc)
+static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *pHtlc)
 {
+    const ln_htlc_t *p_htlc = pHtlc;
+
     //shutdown
     if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "already shutdown received");
@@ -915,13 +911,15 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 
     //加算した結果が自分のmax_htlc_value_in_flight_msatを超えるなら、チャネルを失敗させる。
     //      adds more than its max_htlc_value_in_flight_msat worth of offered HTLCs to its local commitment transaction
-    uint64_t max_htlc_value_in_flight_msat = 0;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (pChannel->cnl_add_htlc[idx].flags.addhtlc == LN_ADDHTLC_SEND) {
-            max_htlc_value_in_flight_msat += pChannel->cnl_add_htlc[idx].amount_msat;
-        }
+    uint64_t total_amount_msat = 0;
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (p_update->flags.addhtlc != LN_ADDHTLC_SEND) continue;
+        ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        total_amount_msat += p_htlc->amount_msat;
     }
-    if (max_htlc_value_in_flight_msat > pChannel->commit_tx_local.max_htlc_value_in_flight_msat) {
+    if (total_amount_msat > pChannel->commit_tx_local.max_htlc_value_in_flight_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "exceed local max_htlc_value_in_flight_msat");
         return false;
     }
@@ -953,14 +951,16 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_update_ad
 }
 
 
-static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
+static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+
     typedef enum {
         RESULT_OK,
         RESULT_FAIL,
         RESULT_FAIL_MALFORMED,
     } result_t;
-
 
     //BOLT4 check
     //  [2018/09/07] N/A
@@ -969,16 +969,13 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
     //      A4. node_announcement.featuresは未定義
     //      B6. channel_announcement.featuresは未定義
 
-    LOGD("Idx=%d\n", Idx);
-
     ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
     uint8_t preimage[LN_SZ_PREIMAGE];
-    ln_cb_param_nofity_add_htlc_recv_t add_htlc;
     utl_push_t push_htlc;
     utl_buf_t buf_reason = UTL_BUF_INIT;
     int32_t height = 0;
     result_t result = RESULT_OK;
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
+    ln_cb_param_nofity_add_htlc_recv_t cb_param;
 
     utl_push_init(&push_htlc, &buf_reason, 0);
 
@@ -1021,7 +1018,7 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
             result = RESULT_FAIL;
             goto LABEL_EXIT;
         }
-        p_htlc->prev_short_channel_id = UINT64_MAX; //final node
+        p_update->prev_short_channel_id = UINT64_MAX; //final node
         utl_buf_alloccopy(&p_htlc->buf_payment_preimage, preimage, LN_SZ_PREIMAGE);
         utl_buf_free(&p_htlc->buf_onion_reason);
     } else {
@@ -1039,20 +1036,21 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
     }
 
     //update_add_htlc受信通知
-    //  hop nodeの場合、転送先ln_channel_tのcnl_add_htlc[]に設定まで行う
-    add_htlc.ret = true;
-    add_htlc.id = p_htlc->id;
-    add_htlc.p_payment = p_htlc->payment_hash;
-    add_htlc.p_hop = &hop_dataout;
-    add_htlc.amount_msat = p_htlc->amount_msat;
-    add_htlc.cltv_expiry = p_htlc->cltv_expiry;
-    add_htlc.idx = Idx;     //転送先にとっては、prev_idxになる
-                            //戻り値は転送先のidx
-    add_htlc.p_onion_reason = &p_htlc->buf_onion_reason;
-    add_htlc.p_shared_secret = &p_htlc->buf_shared_secret;
-    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV, &add_htlc);
+    //  hop nodeの場合、転送先ln_channel_tのupdates[],htlcs[]に設定まで行う
+    cb_param.ret = true;
+    cb_param.id = p_htlc->id;
+    cb_param.p_payment = p_htlc->payment_hash;
+    cb_param.p_hop = &hop_dataout;
+    cb_param.amount_msat = p_htlc->amount_msat;
+    cb_param.cltv_expiry = p_htlc->cltv_expiry;
+    cb_param.update_idx = UpdateIdx;
+        //転送先にとっては、prev_update_idx
+        //戻り値は転送先の  next_update_idx
+    cb_param.p_onion_reason = &p_htlc->buf_onion_reason;
+    cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
+    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV, &cb_param);
 
-    if (!add_htlc.ret) {
+    if (!cb_param.ret) {
         utl_buf_t buf = UTL_BUF_INIT;
         if (ln_channel_update_get_peer(pChannel, &buf, NULL)) {
             LOGE("fail: --> temporary channel failure\n");
@@ -1070,12 +1068,13 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, int Idx)
 
     if (hop_dataout.b_exit) {
         LOGD("final node: will backwind fulfill_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FULFILL);
-        p_htlc->flags.fin_delhtlc = LN_DELHTLC_FULFILL;
+        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
+            pChannel->short_channel_id, p_update->flags.fin_delhtlc, LN_DELHTLC_FULFILL);
+        p_update->flags.fin_delhtlc = LN_DELHTLC_FULFILL;
     } else {
         LOGD("hop node: will forward another channel\n");
-        p_htlc->next_short_channel_id = hop_dataout.short_channel_id;
-        p_htlc->next_idx = add_htlc.idx;
+        p_update->next_short_channel_id = hop_dataout.short_channel_id;
+        p_update->next_idx = cb_param.update_idx;
     }
 
 LABEL_EXIT:
@@ -1090,21 +1089,24 @@ LABEL_EXIT:
     LOGD("  amount_msat: %" PRIu64 "\n", p_htlc->amount_msat);
     LOGD("  cltv_expiry: %d\n", p_htlc->cltv_expiry);
     LOGD("  my fee : %" PRIu64 "\n", (uint64_t)(p_htlc->amount_msat - hop_dataout.amt_to_forward));
-    LOGD("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
+    LOGD("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",
+        hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
 
     switch (result) {
     case RESULT_FAIL:
         LOGE("fail: will backwind fail_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FAIL);
-        p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL;
+        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
+            pChannel->short_channel_id, p_update->flags.fin_delhtlc, LN_DELHTLC_FAIL);
+        p_update->flags.fin_delhtlc = LN_DELHTLC_FAIL;
         utl_buf_free(&p_htlc->buf_onion_reason);
-        //折り返しだけAPIが異なる
         ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
+            //折り返しだけAPIが異なる
         break;
     case RESULT_FAIL_MALFORMED:
         LOGE("fail: will backwind fail_malformed_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n", pChannel->short_channel_id, p_htlc->flags.fin_delhtlc, LN_DELHTLC_FAIL_MALFORMED);
-        p_htlc->flags.fin_delhtlc = LN_DELHTLC_FAIL_MALFORMED;
+        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
+            pChannel->short_channel_id, p_update->flags.fin_delhtlc, LN_DELHTLC_FAIL_MALFORMED);
+        p_update->flags.fin_delhtlc = LN_DELHTLC_FAIL_MALFORMED;
         utl_buf_free(&p_htlc->buf_onion_reason);
         utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
         break;
@@ -1143,7 +1145,6 @@ static bool check_recv_add_htlc_bolt4_common(ln_channel_t *pChannel, utl_push_t 
 
 /** [BOLT#4]ln_update_add_htlc_recv()のチェック(final node)
  *
- *      pChannel->cnl_add_htlc[Index]: update_add_htlcパラメータ
  *      pDataOut                 : onionパラメータ
  *
  * +------+                          +------+                          +------+
@@ -1156,45 +1157,41 @@ static bool check_recv_add_htlc_bolt4_common(ln_channel_t *pChannel, utl_push_t 
  * @param[in,out]       pChannel
  * @param[out]          pDataOut        onion packetデコード結果
  * @param[out]          pPushReason     error reason
- * @param[in,out]       pAddHtlc        activeなpChannel->cnl_add_htlc[Index]
+ * @param[in,out]       pHtlc           activeなpChannel->htlcs[Index]
  * @param[out]          pPreimage       pAddHtlc->payment_hashに該当するpreimage
  * @param[in]           Height          current block height
  * @retval  true    成功
  */
-static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
-                    ln_hop_dataout_t *pDataOut,
-                    utl_push_t *pPushReason,
-                    ln_update_add_htlc_t *pAddHtlc,
-                    uint8_t *pPreimage,
-                    int32_t Height)
+static bool check_recv_add_htlc_bolt4_final(
+    ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason,
+    ln_htlc_t *pHtlc, uint8_t *pPreimage, int32_t Height)
 {
-    bool ret;
+    ln_htlc_t *p_htlc = pHtlc;
 
-    //preimage検索
+    //search preimage
     ln_db_preimage_t preimage;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
     preimage.amount_msat = (uint64_t)-1;
     preimage.expiry = 0;
     void *p_cur;
-    ret = ln_db_preimage_cur_open(&p_cur);
-    while (ret) {
-        bool detect;
-        ret = ln_db_preimage_cur_get(p_cur, &detect, &preimage);     //from invoice
-        if (detect) {
-            memcpy(pPreimage, preimage.preimage, LN_SZ_PREIMAGE);
-            ln_payment_hash_calc(preimage_hash, pPreimage);
-            if (memcmp(preimage_hash, pAddHtlc->payment_hash, BTC_SZ_HASH256) == 0) {
-                //一致
-                LOGD("match preimage: ");
-                DUMPD(pPreimage, LN_SZ_PREIMAGE);
-                break;
-            }
-        }
+    if (!ln_db_preimage_cur_open(&p_cur)) { //XXX: internal error?
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
+        utl_push_u16be(pPushReason, LNONION_UNKNOWN_PAY_HASH);
+        return false;
+    }
+    bool detect = false;
+    for (;;) {
+        detect = false;
+        if (!ln_db_preimage_cur_get(p_cur, &detect, &preimage)) break;     //from invoice
+        if (!detect) continue;
+        memcpy(pPreimage, preimage.preimage, LN_SZ_PREIMAGE);
+        ln_payment_hash_calc(preimage_hash, pPreimage);
+        if (memcmp(preimage_hash, p_htlc->payment_hash, BTC_SZ_HASH256)) continue;
+        break;
     }
     ln_db_preimage_cur_close(p_cur);
-
-    if (!ret) {
+    if (!detect) {
         //C1. if the payment hash has already been paid:
         //      ★(採用)MAY treat the payment hash as unknown.★
         //      MAY succeed in accepting the HTLC.
@@ -1202,70 +1199,63 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
         //      unknown_payment_hash
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
         utl_push_u16be(pPushReason, LNONION_UNKNOWN_PAY_HASH);
-        //no data
-
         return false;
     }
+    LOGD("match preimage: ");
+    DUMPD(pPreimage, LN_SZ_PREIMAGE);
 
     //C2. if the amount paid is less than the amount expected:
     //      incorrect_payment_amount
-    if (pAddHtlc->amount_msat < preimage.amount_msat) {
+    if (p_htlc->amount_msat < preimage.amount_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, preimage.amount_msat);
-        ret = false;
         utl_push_u16be(pPushReason, LNONION_INCORR_PAY_AMT);
-        //no data
-
         return false;
     }
 
     //C4. if the amount paid is more than twice the amount expected:
     //      incorrect_payment_amount
-    if (preimage.amount_msat * 2 < pAddHtlc->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, preimage.amount_msat * 2, pDataOut->amt_to_forward);
-        ret = false;
+    if (preimage.amount_msat * 2 < p_htlc->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64,
+            preimage.amount_msat * 2, pDataOut->amt_to_forward);
         utl_push_u16be(pPushReason, LNONION_INCORR_PAY_AMT);
-        //no data
-
         return false;
     }
 
     //C5. if the cltv_expiry value is unreasonably near the present:
     //      final_expiry_too_soon
     //          今のところ、min_final_cltv_expiryは固定値(#LN_MIN_FINAL_CLTV_EXPIRY)しかない。
-    LOGD("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n", pDataOut->outgoing_cltv_value, LN_MIN_FINAL_CLTV_EXPIRY, Height);
+    LOGD("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n",
+        pDataOut->outgoing_cltv_value, LN_MIN_FINAL_CLTV_EXPIRY, Height);
     if ( (pDataOut->outgoing_cltv_value + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)Height + LN_MIN_FINAL_CLTV_EXPIRY) ||
          (pDataOut->outgoing_cltv_value < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
-        LOGD("%" PRIu32 " < %" PRId32 "\n", pDataOut->outgoing_cltv_value + M_HYSTE_CLTV_EXPIRY_SOON, Height + M_HYSTE_CLTV_EXPIRY_MIN);
+        LOGD("%" PRIu32 " < %" PRId32 "\n",
+            pDataOut->outgoing_cltv_value + M_HYSTE_CLTV_EXPIRY_SOON, Height + M_HYSTE_CLTV_EXPIRY_MIN);
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv_expiry too soon(final)");
         utl_push_u16be(pPushReason, LNONION_FINAL_EXPIRY_TOO_SOON);
-
         return false;
     }
 
     //C6. if the outgoing_cltv_value does NOT correspond with the cltv_expiry from the final node's HTLC:
     //      final_incorrect_cltv_expiry
-    if (pDataOut->outgoing_cltv_value != pAddHtlc->cltv_expiry) {
+    if (pDataOut->outgoing_cltv_value != p_htlc->cltv_expiry) {
         LOGD("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(pChannel));
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect cltv expiry(final)");
         utl_push_u16be(pPushReason, LNONION_FINAL_INCORR_CLTV_EXP);
         //[4:cltv_expiry]
         utl_push_u32be(pPushReason, pDataOut->outgoing_cltv_value);
-
         return false;
     }
 
     //C7. if the amt_to_forward is greater than the incoming_htlc_amt from the final node's HTLC:
     //      final_incorrect_htlc_amount
-    if (pDataOut->amt_to_forward > pAddHtlc->amount_msat) {
-        LOGD("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, pAddHtlc->amount_msat);
+    if (pDataOut->amt_to_forward > p_htlc->amount_msat) {
+        LOGD("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, p_htlc->amount_msat);
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final)");
         utl_push_u16be(pPushReason, LNONION_FINAL_INCORR_HTLC_AMT);
         //[4:incoming_htlc_amt]
-        utl_push_u32be(pPushReason, pAddHtlc->amount_msat);
-
+        utl_push_u32be(pPushReason, p_htlc->amount_msat);
         return false;
     }
-
     return true;
 }
 
@@ -1275,21 +1265,21 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel,
  * @param[in,out]       pChannel
  * @param[out]          pDataOut        onion packetデコード結果
  * @param[out]          pPushReason     error reason
- * @param[in,out]       pAddHtlc        activeなpChannel->cnl_add_htlc[Index]
+ * @param[in,out]       pHtlc           activeなpChannel->htlcs[Index]
  * @param[in]           Height          current block height
  * @retval  true    成功
  */
-static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
-                    ln_hop_dataout_t *pDataOut,
-                    utl_push_t *pPushReason,
-                    ln_update_add_htlc_t *pAddHtlc,
-                    int32_t Height)
+static bool check_recv_add_htlc_bolt4_forward(
+    ln_channel_t *pChannel, ln_hop_dataout_t *pDataOut, utl_push_t *pPushReason,
+    ln_htlc_t *pHtlc, int32_t Height)
 {
+    ln_htlc_t *p_htlc = pHtlc;
+
     //処理前呼び出し
     //  転送先取得(final nodeの場合は、p_next_channelにNULLが返る)
     ln_cb_param_notify_add_htlc_recv_prev_t recv_prev;
     recv_prev.p_next_channel = NULL;
-    if (pDataOut->short_channel_id != 0) {
+    if (pDataOut->short_channel_id) {
         recv_prev.next_short_channel_id = pDataOut->short_channel_id;
         ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV, &recv_prev);
     }
@@ -1302,42 +1292,35 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
     //B7. if the receiving peer specified by the onion is NOT known:
     //      unknown_next_peer
     if ( (pDataOut->short_channel_id == 0) ||
-         (recv_prev.p_next_channel == NULL) ||
-         (ln_status_get(recv_prev.p_next_channel) != LN_STATUS_NORMAL) ) {
-        //転送先がない
+        (recv_prev.p_next_channel == NULL) ||
+        (ln_status_get(recv_prev.p_next_channel) != LN_STATUS_NORMAL) ) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "no next channel");
         utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
-        //no data
-
         return false;
     }
 
-    //channel_update読み込み
+    //load channel_update
     ln_msg_channel_update_t cnlupd;
     utl_buf_t cnlupd_buf = UTL_BUF_INIT;
     uint8_t peer_id[BTC_SZ_PUBKEY];
-    bool ret = ln_node_search_node_id(peer_id, pDataOut->short_channel_id);
-    if (ret) {
-        uint8_t dir = ln_sort_to_dir(ln_node_id_sort(pChannel, peer_id));
-        ret = ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir);
-        if (!ret) {
-            LOGE("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
-        }
-    } else {
+    if (!ln_node_search_node_id(peer_id, pDataOut->short_channel_id)) {
         LOGE("fail: ln_node_search_node_id\n");
-    }
-    if (ret) {
-        ret = ln_msg_channel_update_read(&cnlupd, cnlupd_buf.buf, cnlupd_buf.len);
-        if (!ret) {
-            LOGE("fail: ln_msg_channel_update_read\n");
-        }
-    }
-    if (!ret) {
-        //channel_updateがない
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
         utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
-        //no data
-
+        return false;
+    }
+    uint8_t dir = ln_order_to_dir(ln_node_id_order(pChannel, peer_id));
+    if (!ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir)) {
+        LOGE("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n",
+            pDataOut->short_channel_id, dir);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
+        utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
+        return false;
+    }
+    if (!ln_msg_channel_update_read(&cnlupd, cnlupd_buf.buf, cnlupd_buf.len)) {
+        LOGE("fail: ln_msg_channel_update_read\n");
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
+        utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
         return false;
     }
     LOGD("short_channel_id=%016" PRIx64 "\n", pDataOut->short_channel_id);
@@ -1346,14 +1329,14 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
     //      amount_below_minimum
     //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
     if (pDataOut->amt_to_forward < recv_prev.p_next_channel->commit_tx_remote.htlc_minimum_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, recv_prev.p_next_channel->commit_tx_remote.htlc_minimum_msat);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64,
+            pDataOut->amt_to_forward, recv_prev.p_next_channel->commit_tx_remote.htlc_minimum_msat);
         utl_push_u16be(pPushReason, LNONION_AMT_BELOW_MIN);
         //[8:htlc_msat]
         //[2:len]
         utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
-
         return false;
     }
 
@@ -1361,42 +1344,45 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
     //      fee_insufficient
     //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
     uint64_t fwd_fee = ln_forward_fee(pChannel, pDataOut->amt_to_forward);
-    if (pAddHtlc->amount_msat < pDataOut->amt_to_forward + fwd_fee) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, pAddHtlc->amount_msat - pDataOut->amt_to_forward);
+    if (p_htlc->amount_msat < pDataOut->amt_to_forward + fwd_fee) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32,
+            fwd_fee, p_htlc->amount_msat - pDataOut->amt_to_forward);
         utl_push_u16be(pPushReason, LNONION_FEE_INSUFFICIENT);
         //[8:htlc_msat]
         //[2:len]
         utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
-
         return false;
     }
 
     //B10. if the outgoing_cltv_value does NOT match the update_add_htlc's cltv_expiry minus the cltv_expiry_delta for the outgoing channel:
     //      incorrect_cltv_expiry
     //      (report the cltv_expiry and the current channel setting for the outgoing channel.)
-    if ( (pAddHtlc->cltv_expiry <= pDataOut->outgoing_cltv_value) ||
-            (pAddHtlc->cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_channel) < pDataOut->outgoing_cltv_value) ) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_channel));
+    if ( (p_htlc->cltv_expiry <= pDataOut->outgoing_cltv_value) ||
+        (p_htlc->cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_channel) < pDataOut->outgoing_cltv_value) ) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv not enough : %" PRIu32,
+            ln_cltv_expily_delta(recv_prev.p_next_channel));
         utl_push_u16be(pPushReason, LNONION_INCORR_CLTV_EXPIRY);
         //[4:cltv_expiry]
         //[2:len]
         utl_push_u16be(pPushReason, cnlupd_buf.len);
         //[len:channel_update]
         utl_push_data(pPushReason, cnlupd_buf.buf, cnlupd_buf.len);
-
         return false;
     }
 
     //B11. if the cltv_expiry is unreasonably near the present:
     //      expiry_too_soon
     //      (report the current channel setting for the outgoing channel.)
-    LOGD("cltv_value=%" PRIu32 ", expiry_delta=%" PRIu16 ", height=%" PRId32 "\n", pAddHtlc->cltv_expiry, cnlupd.cltv_expiry_delta, Height);
-    if ( (pAddHtlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)Height + cnlupd.cltv_expiry_delta) ||
-         (pAddHtlc->cltv_expiry < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
-        LOGD("%" PRIu32 " < %" PRId32 "\n", pAddHtlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, Height + cnlupd.cltv_expiry_delta);
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "expiry too soon : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_channel));
+    LOGD("cltv_value=%" PRIu32 ", expiry_delta=%" PRIu16 ", height=%" PRId32 "\n",
+        p_htlc->cltv_expiry, cnlupd.cltv_expiry_delta, Height);
+    if ( (p_htlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)Height + cnlupd.cltv_expiry_delta) ||
+        (p_htlc->cltv_expiry < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
+        LOGD("%" PRIu32 " < %" PRId32 "\n",
+            p_htlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, Height + cnlupd.cltv_expiry_delta);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "expiry too soon : %" PRIu32,
+            ln_cltv_expily_delta(recv_prev.p_next_channel));
         utl_push_u16be(pPushReason, LNONION_EXPIRY_TOO_SOON);
         //[2:len]
         utl_push_u16be(pPushReason, cnlupd_buf.len);
@@ -1408,14 +1394,14 @@ static bool check_recv_add_htlc_bolt4_forward(ln_channel_t *pChannel,
 
     //B12. if the cltv_expiry is unreasonably far in the future:
     //      expiry_too_far
-    if (pAddHtlc->cltv_expiry > (uint32_t)Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR) {
-        LOGD("%" PRIu32 " > %" PRId32 "\n", pAddHtlc->cltv_expiry, Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR);
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "expiry too far : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_channel));
+    if (p_htlc->cltv_expiry > (uint32_t)Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR) {
+        LOGD("%" PRIu32 " > %" PRId32 "\n",
+            p_htlc->cltv_expiry, Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "expiry too far : %" PRIu32,
+            ln_cltv_expily_delta(recv_prev.p_next_channel));
         utl_push_u16be(pPushReason, LNONION_EXPIRY_TOO_FAR);
-
         return false;
     }
-
     return true;
 }
 
@@ -1457,9 +1443,11 @@ static bool store_peer_percommit_secret(ln_channel_t *pChannel, const uint8_t *p
 }
 
 
-static void clear_htlc_comrev_flags(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc)
+static void clear_update_comrev_flags(ln_update_t *pUpdate, uint8_t DelHtlc)
 {
-    ln_htlc_flags_t *p_flags = &p_htlc->flags;
+    ln_update_t *p_update = pUpdate;
+    ln_htlc_flags_t *p_flags = &p_update->flags;
+
     if (p_flags->comsend && p_flags->revrecv && p_flags->comrecv && p_flags->revsend) {
         LOGD("[DELHTLC]%d --> %d\n", p_flags->delhtlc, DelHtlc);
         p_flags->delhtlc = DelHtlc;
@@ -1475,17 +1463,21 @@ static void clear_htlc_comrev_flags(ln_update_add_htlc_t *p_htlc, uint8_t DelHtl
 }
 
 
-static void clear_htlc(ln_update_add_htlc_t *p_htlc)
+static void clear_htlc(ln_update_t *pUpdate, ln_htlc_t *pHtlc)
 {
+    ln_update_t *p_update = pUpdate;
+    ln_htlc_t *p_htlc = pHtlc;
+
     LOGD("DELHTLC=%s, FIN_DELHTLC=%s\n",
-        ln_htlc_flags_delhtlc_str(p_htlc->flags.delhtlc),
-        ln_htlc_flags_delhtlc_str(p_htlc->flags.fin_delhtlc));
+        ln_htlc_flags_delhtlc_str(p_update->flags.delhtlc),
+        ln_htlc_flags_delhtlc_str(p_update->flags.fin_delhtlc));
 
     ln_db_preimage_del(p_htlc->buf_payment_preimage.buf);
     utl_buf_free(&p_htlc->buf_payment_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_free(&p_htlc->buf_shared_secret);
-    memset(p_htlc, 0, sizeof(ln_update_add_htlc_t));
+    memset(p_update, 0x00, sizeof(ln_update_t));
+    memset(p_htlc, 0x00, sizeof(ln_htlc_t));
 }
 
 
@@ -1494,15 +1486,15 @@ static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel)
     bool db_upd = false;
     bool revack = false;
 
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        ln_htlc_flags_t *p_flags = &p_htlc->flags;
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        if (!LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(p_htlc)) continue;
-        if (p_flags->comrecv != 1) continue;
+    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        ln_update_t *p_update = &pChannel->updates[update_idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_REMOTE_DELHTLC_RECV_ENABLED(p_update)) continue;
+        if (p_update->flags.comrecv != 1) continue;
+        ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
-        LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
-        clear_htlc(p_htlc);
+        LOGD("clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n", pChannel->short_channel_id, update_idx, p_update->htlc_idx);
+        clear_htlc(p_update, p_htlc);
         db_upd = true;
         revack = true;
     }
@@ -1528,22 +1520,22 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
     bool db_upd = false;
     bool revack = false;
 
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        ln_htlc_flags_t *p_flags = &p_htlc->flags;
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        if (!LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(p_htlc)) continue;
-        if (p_flags->comsend != 1) continue;
+    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        ln_update_t *p_update = &pChannel->updates[update_idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(p_update)) continue;
+        if (p_update->flags.comsend != 1) continue;
+        ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
-        if (p_flags->delhtlc != LN_DELHTLC_FULFILL) {
-            bwds[num_bwds].short_channel_id = p_htlc->prev_short_channel_id;
-            bwds[num_bwds].fin_delhtlc = p_flags->delhtlc;
-            bwds[num_bwds].idx = p_htlc->prev_idx;
+        if (p_update->flags.delhtlc != LN_DELHTLC_FULFILL) {
+            bwds[num_bwds].short_channel_id = p_update->prev_short_channel_id;
+            bwds[num_bwds].fin_delhtlc = p_update->flags.delhtlc;
+            bwds[num_bwds].update_idx = p_update->prev_idx;
             memcpy(payment_hashs[num_bwds], p_htlc->payment_hash, BTC_SZ_HASH256);
             num_bwds++;
         }
-        LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
-        clear_htlc(p_htlc);
+        LOGD("clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n", pChannel->short_channel_id, update_idx, p_update->htlc_idx);
+        clear_htlc(p_update, p_htlc);
         db_upd = true;
         revack = true;
     }
@@ -1570,14 +1562,25 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
 }
 
 
+// LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
+//         idx,
+//         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
+//         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
+//         p_flags->updsend,
+//         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
+//         p_htlc->next_short_channel_id, p_htlc->next_idx,
+//         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
+
+
 /** 受信アイドル処理(HTLC non-final)
  *
  * HTLCとして有効だが、commitment_signed/revoke_and_ackの送受信が完了していないものがある
  */
 static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (LN_HTLC_COMSIGING(&pChannel->cnl_add_htlc[idx])) {
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (LN_HTLC_COMSIGING(p_update)) {
             //commitment_signed〜revoke_and_ackの途中
             //XXX: We should be able to send an update message at this timing
             return;
@@ -1585,26 +1588,17 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
     }
 
     bool b_comsig = false;      //true: commitment_signed送信可能
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        ln_htlc_flags_t *p_flags = &p_htlc->flags;
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
-        //         idx,
-        //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
-        //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
-        //         p_flags->updsend,
-        //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
-        //         p_htlc->next_short_channel_id, p_htlc->next_idx,
-        //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
-        if (LN_HTLC_WILL_ADDHTLC_SEND(p_htlc)) {
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (LN_HTLC_WILL_ADDHTLC_SEND(p_update)) {
             /*ignore*/ update_add_htlc_send(pChannel, idx);
-        } else if (LN_HTLC_WILL_DELHTLC_SEND(p_htlc)) {
+        } else if (LN_HTLC_WILL_DELHTLC_SEND(p_update)) {
             if (!LN_DBG_FULFILL() || !LN_DBG_FULFILL_BWD()) {
                 LOGD("DBG: no fulfill mode\n");
                 continue;
             }
-            switch (p_flags->delhtlc) {
+            switch (p_update->flags.delhtlc) {
             case LN_DELHTLC_FULFILL:
                 /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
                 break;
@@ -1617,7 +1611,7 @@ static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerK
             default:
                 ;
             }
-        } else if (LN_HTLC_WILL_COMSIG_SEND(p_htlc)) {
+        } else if (LN_HTLC_WILL_COMSIG_SEND(p_update)) {
             b_comsig = true;
         }
     }
@@ -1668,12 +1662,12 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
 
     //We have to save the channel before sending the message
     //  Otherwise, if aborted after sending it, the channel forgets sending it
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        if (!LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_htlc)) continue;
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_update)) continue;
         LOGD(" [%d]comsend=1\n", idx);
-        p_htlc->flags.comsend = 1;
+        p_update->flags.comsend = 1;
     }
     M_DBG_COMMITNUM(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
@@ -1693,41 +1687,40 @@ LABEL_EXIT:
 /** update_add_htlc作成前チェック
  *
  * @param[in,out]       pChannel    #M_SET_ERR()で書込む
- * @param[out]          pIdx        HTLCを追加するpChannel->cnl_add_htlc[*pIdx]
  * @param[out]          pReason     (非NULL時かつ戻り値がfalse)onion reason
  * @param[in]           amount_msat
  * @param[in]           cltv_value
  * @retval      true    チェックOK
  */
 static bool check_create_add_htlc(
-                ln_channel_t *pChannel,
-                uint16_t *pIdx,
-                utl_buf_t *pReason,
-                uint64_t amount_msat,
-                uint32_t cltv_value)
+    ln_channel_t *pChannel, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value)
 {
-    bool ret = false;
-    uint64_t max_htlc_value_in_flight_msat = 0;
+    uint64_t total_amount_msat = 0;
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_closing_signed_initfee(pChannel));
+    if (pReason) {
+        utl_buf_free(pReason);
+    }
 
     //cltv_expiryは、500000000未満にしなくてはならない
     if (cltv_value >= BTC_TX_LOCKTIME_LIMIT) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv_value >= 500000000");
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     //相手が指定したchannel_reserve_satは残しておく必要あり
     if (pChannel->commit_tx_remote.remote_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
-                    pChannel->commit_tx_remote.remote_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
-        goto LABEL_EXIT;
+        M_SET_ERR(pChannel, LNERR_INV_VALUE,
+            "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
+            pChannel->commit_tx_remote.remote_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
+        goto LABEL_ERROR;
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
     if (pChannel->commit_tx_remote.remote_msat < amount_msat + close_fee_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
-                    pChannel->commit_tx_remote.remote_msat, amount_msat, close_fee_msat);
-        goto LABEL_EXIT;
+        M_SET_ERR(pChannel, LNERR_INV_VALUE,
+            "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
+            pChannel->commit_tx_remote.remote_msat, amount_msat, close_fee_msat);
+        goto LABEL_ERROR;
     }
 
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
@@ -1735,112 +1728,88 @@ static bool check_create_add_htlc(
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
     if (pChannel->commit_tx_remote.max_accepted_htlcs <= pChannel->commit_tx_remote.num_htlc_outputs) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d <= %d",
-                    pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.num_htlc_outputs);
-        goto LABEL_EXIT;
+            pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.num_htlc_outputs);
+        goto LABEL_ERROR;
     }
 
     //amount_msatは、0より大きくなくてはならない。
     //amount_msatは、相手のhtlc_minimum_msat未満にしてはならない。
     if ((amount_msat == 0) || (amount_msat < pChannel->commit_tx_remote.htlc_minimum_msat)) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "amount_msat(%" PRIu64 ") < remote htlc_minimum_msat(%" PRIu64 ")",
-                    amount_msat, pChannel->commit_tx_remote.htlc_minimum_msat);
-        goto LABEL_EXIT;
+            amount_msat, pChannel->commit_tx_remote.htlc_minimum_msat);
+        goto LABEL_ERROR;
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (pChannel->cnl_add_htlc[idx].flags.addhtlc == LN_ADDHTLC_SEND) {
-            max_htlc_value_in_flight_msat += pChannel->cnl_add_htlc[idx].amount_msat;
-        }
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (p_update->flags.addhtlc != LN_ADDHTLC_SEND) continue;
+        ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        total_amount_msat += p_htlc->amount_msat;
     }
-    if (max_htlc_value_in_flight_msat > pChannel->commit_tx_remote.max_htlc_value_in_flight_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "exceed remote max_htlc_value_in_flight_msat(%" PRIu64 ")", pChannel->commit_tx_remote.max_htlc_value_in_flight_msat);
-        goto LABEL_EXIT;
-    }
-
-    int idx;
-    for (idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (LN_HTLC_EMPTY(&pChannel->cnl_add_htlc[idx])) {
-            break;
-        }
-    }
-    if (idx >= LN_HTLC_MAX) {
-        M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free add_htlc");
-        goto LABEL_EXIT;
+    if (total_amount_msat > pChannel->commit_tx_remote.max_htlc_value_in_flight_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE,
+            "exceed remote max_htlc_value_in_flight_msat(%" PRIu64 ")",
+            pChannel->commit_tx_remote.max_htlc_value_in_flight_msat);
+        goto LABEL_ERROR;
     }
 
-    *pIdx = idx;
-    ret = true;
-
-LABEL_EXIT:
-    if (pReason != NULL) {
+    if (pReason && !pReason->len) {
+        //forwarding only
+        //  If channel_update has been received, it is checked whether it is disabled
         utl_buf_t buf = UTL_BUF_INIT;
-        ln_msg_channel_update_t upd;
-
-        bool retval = ln_channel_update_get_peer(pChannel, &buf, NULL);
-        if (retval) {
-            memset(&upd, 0, sizeof(upd));
-            retval = ln_msg_channel_update_read(&upd, buf.buf, buf.len);
-        }
-        if (ret) {
-            if (retval) {
-                if (upd.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) {
-                    //B13. if the channel is disabled:
-                    //      channel_disabled
-                    //      (report the current channel setting for the outgoing channel.)
-                    LOGE("fail: channel_disabled\n");
-
-                    utl_push_t push_htlc;
-                    utl_push_init(&push_htlc, pReason,
-                                        sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
-                    utl_push_u16be(&push_htlc, LNONION_CHAN_DISABLE);
-                    utl_push_u16be(&push_htlc, (uint16_t)buf.len);
-                    utl_push_data(&push_htlc, buf.buf, buf.len);
-                } else {
-                    LOGD("OK\n");
-                }
-            } else {
-                //channel_updateは必ずしも受信しているとは限らないため、ここではスルー
-                LOGD("OK\n");
-            }
-        } else {
-            if (retval) {
-                //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
-                //      temporary_channel_failure
-                LOGE("fail: temporary_channel_failure\n");
-
-                utl_push_t push_htlc;
-                utl_push_init(&push_htlc, pReason,
-                                    sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
-                utl_push_u16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
-                utl_push_u16be(&push_htlc, (uint16_t)buf.len);
-                utl_push_data(&push_htlc, buf.buf, buf.len);
-            } else {
-                //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
-                //      permanent_channel_failure
-                LOGE("fail: permanent_channel_failure\n");
-
-                utl_push_t push_htlc;
-                utl_push_init(&push_htlc, pReason, sizeof(uint16_t));
-                utl_push_u16be(&push_htlc, LNONION_PERM_CHAN_FAIL);
+        if (ln_channel_update_get_peer(pChannel, &buf, NULL)) {
+            ln_msg_channel_update_t msg;
+            if (!ln_msg_channel_update_read(&msg, buf.buf, buf.len) ||
+                msg.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) {
+                //B13. if the channel is disabled:
+                //      channel_disabled
+                //      (report the current channel setting for the outgoing channel.)
+                LOGE("fail: channel_disabled\n");
+                utl_push_t push;
+                utl_push_init(
+                    &push, pReason, sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
+                utl_push_u16be(&push, LNONION_CHAN_DISABLE);
+                utl_push_u16be(&push, (uint16_t)buf.len);
+                utl_push_data(&push, buf.buf, buf.len);
+                goto LABEL_ERROR;
             }
         }
     }
-    return ret;
+    return true;
+
+LABEL_ERROR:
+    if (pReason && !pReason->len) {
+        //failure && forwarding only
+        utl_buf_t buf = UTL_BUF_INIT;
+        if (ln_channel_update_get_peer(pChannel, &buf, NULL)) {
+            //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
+            //      temporary_channel_failure
+            LOGE("fail: temporary_channel_failure\n");
+            utl_push_t push;
+            utl_push_init(
+                &push, pReason, sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
+            utl_push_u16be(&push, LNONION_TMP_CHAN_FAIL);
+            utl_push_u16be(&push, (uint16_t)buf.len);
+            utl_push_data(&push, buf.buf, buf.len);
+        } else {
+            //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
+            //      permanent_channel_failure
+            LOGE("fail: permanent_channel_failure\n");
+            utl_push_t push;
+            utl_push_init(&push, pReason, sizeof(uint16_t));
+            utl_push_u16be(&push, LNONION_PERM_CHAN_FAIL);
+        }
+    }
+    return false;
 }
 
 
-static bool set_add_htlc(ln_channel_t *pChannel,
-            uint64_t *pHtlcId,
-            utl_buf_t *pReason,
-            uint16_t *pIdx,
-            const uint8_t *pPacket,
-            uint64_t AmountMsat,
-            uint32_t CltvValue,
-            const uint8_t *pPaymentHash,
-            uint64_t PrevShortChannelId,
-            uint16_t PrevIdx,
-            const utl_buf_t *pSharedSecrets)
+static bool set_add_htlc(
+    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pUpdateIdx,
+    const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
+    uint64_t PrevShortChannelId, uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
     LOGD("  AmountMsat=%" PRIu64 "\n", AmountMsat);
@@ -1849,58 +1818,87 @@ static bool set_add_htlc(ln_channel_t *pChannel,
     DUMPD(pPaymentHash, BTC_SZ_HASH256);
     LOGD("  PrevShortChannelId=%016" PRIx64 "\n", PrevShortChannelId);
 
-    bool ret;
-    uint16_t idx;
-    ret = check_create_add_htlc(pChannel, &idx, pReason, AmountMsat, CltvValue);
-    if (ret) {
-        LOGD("OK\n");
-        pChannel->cnl_add_htlc[idx].p_channel_id = pChannel->channel_id;
-        pChannel->cnl_add_htlc[idx].id = pChannel->num_htlc_ids++;
-        pChannel->cnl_add_htlc[idx].amount_msat = AmountMsat;
-        pChannel->cnl_add_htlc[idx].cltv_expiry = CltvValue;
-        memcpy(pChannel->cnl_add_htlc[idx].payment_hash, pPaymentHash, BTC_SZ_HASH256);
-        utl_buf_alloccopy(&pChannel->cnl_add_htlc[idx].buf_onion_reason, pPacket, LN_SZ_ONION_ROUTE);
-        pChannel->cnl_add_htlc[idx].prev_short_channel_id = PrevShortChannelId;
-        pChannel->cnl_add_htlc[idx].prev_idx = PrevIdx;
-        utl_buf_free(&pChannel->cnl_add_htlc[idx].buf_shared_secret);
-        if (pSharedSecrets) {
-            utl_buf_alloccopy(&pChannel->cnl_add_htlc[idx].buf_shared_secret, pSharedSecrets->buf, pSharedSecrets->len);
-        }
+    ln_update_t *p_update = NULL;
+    ln_htlc_t *p_htlc = NULL;
+    uint16_t update_idx;
+    uint16_t htlc_idx;
 
-        ret = check_create_remote_commit_tx(pChannel, idx);
-        if (ret) {
-            *pIdx = idx;
-            *pHtlcId = pChannel->cnl_add_htlc[idx].id;
-
-            LOGD("HTLC add : prev_short_channel_id=%" PRIu64 "\n", pChannel->cnl_add_htlc[idx].prev_short_channel_id);
-            LOGD("           pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", idx, pChannel->cnl_add_htlc[idx].flags);
-        } else {
-            M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
-            LOGD("clear_htlc: %016" PRIx64 " htlc[%d]\n", pChannel->short_channel_id, idx);
-            clear_htlc(&pChannel->cnl_add_htlc[idx]);
-        }
-    } else {
+    if (!check_create_add_htlc(pChannel, pReason, AmountMsat, CltvValue)) {
         LOGE("fail: create update_add_htlc\n");
+        return false;
+    }
+    if (!get_empty_update(pChannel, &update_idx)) {
+        M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free updates");
+        return false;
+    }
+    if (!get_empty_htlc(pChannel, &htlc_idx)) {
+        M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free htlcs");
+        return false;
+    }
+    p_update = &pChannel->updates[update_idx];
+    p_htlc = &pChannel->htlcs[htlc_idx];
+    p_update->htlc_idx = htlc_idx;
+    LOGD("OK\n");
+
+    p_htlc->id = pChannel->next_htlc_id++;
+        //XXX: Add on sending (Then a natural value is added at the time of resend at reestablish)
+    p_htlc->amount_msat = AmountMsat;
+    p_htlc->cltv_expiry = CltvValue;
+    memcpy(p_htlc->payment_hash, pPaymentHash, BTC_SZ_HASH256);
+    utl_buf_alloccopy(&p_htlc->buf_onion_reason, pPacket, LN_SZ_ONION_ROUTE);
+    p_update->prev_short_channel_id = PrevShortChannelId;
+    p_update->prev_idx = PrevUpdateIdx;
+    utl_buf_free(&p_htlc->buf_shared_secret);
+    if (pSharedSecrets) {
+        if (!utl_buf_alloccopy(
+            &p_htlc->buf_shared_secret, pSharedSecrets->buf, pSharedSecrets->len)) {
+            LOGD("clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n",
+                pChannel->short_channel_id, update_idx, htlc_idx);
+            clear_htlc(p_update, p_htlc);
+            return false;
+        }
     }
 
-    return ret;
+    if (!check_create_remote_commit_tx(pChannel, update_idx)) {
+        M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
+        LOGD("clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n",
+            pChannel->short_channel_id, update_idx, htlc_idx);
+        clear_htlc(p_update, p_htlc);
+        return false;
+    }
+
+    *pUpdateIdx = update_idx;
+    *pHtlcId = p_htlc->id;
+    LOGD("HTLC add : prev_short_channel_id=%" PRIu64 "\n", p_update->prev_short_channel_id);
+    LOGD("           pChannel->updates[%u].flags = 0x%04x\n", update_idx, p_update->flags);
+    return true;
 }
 
 
 /** send update_add_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[in]           Idx             生成するHTLCの内部管理index値
+ * @param[in]           UpdateIdx             生成するHTLCの内部管理index値
  */
-static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
+static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
+    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+
+    ln_msg_update_add_htlc_t msg;
+    msg.p_channel_id = pChannel->channel_id;
+    msg.id = p_htlc->id;
+    msg.amount_msat = p_htlc->amount_msat;
+    msg.p_payment_hash = p_htlc->payment_hash;
+    msg.cltv_expiry = p_htlc->cltv_expiry;
+    msg.p_onion_routing_packet = p_htlc->buf_onion_reason.buf;
     utl_buf_t buf = UTL_BUF_INIT;
-    if (!msg_update_add_htlc_write(&buf, &pChannel->cnl_add_htlc[Idx])) {
+    if (!ln_msg_update_add_htlc_write(&buf, &msg)) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: add_htlc");
         return false;
     }
-    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    p_update->flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
@@ -1911,14 +1909,15 @@ static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 /** send update_fulfill_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[in]           Idx             生成するHTLCの内部管理index値
+ * @param[in]           UpdateIdx       index of the updates
  */
-static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
+static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-    ln_msg_update_fulfill_htlc_t msg;
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
+    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
+    ln_msg_update_fulfill_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.id = p_htlc->id;
     msg.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
@@ -1927,7 +1926,7 @@ static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
         return false;
     }
-    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    p_update->flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
@@ -1938,14 +1937,15 @@ static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 /** send update_fail_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[in]           Idx             生成するHTLCの内部管理index値
+ * @param[in]           UpdateIdx       index of the updates
  */
-static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
+static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
-    ln_msg_update_fail_htlc_t msg;
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
+    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
+    ln_msg_update_fail_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.id = p_htlc->id;
     msg.len = p_htlc->buf_onion_reason.len;
@@ -1955,7 +1955,7 @@ static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fail_htlc");
         return false;
     }
-    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    p_update->flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     return true;
@@ -1965,13 +1965,15 @@ static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
 /** send update_fail_malformed_htlc
  *
  * @param[in,out]       pChannel        channel情報
- * @param[in]           Idx             生成するHTLCの内部管理index値
+ * @param[in]           UpdateIdx       index of the updates
  */
-static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Idx)
+static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->cnl_add_htlc[%d].flags = 0x%04x\n", Idx, pChannel->cnl_add_htlc[Idx].flags);
+    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+
     ln_msg_update_fail_malformed_htlc_t msg;
-    ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[Idx];
     msg.p_channel_id = pChannel->channel_id;
     msg.id = p_htlc->id;
     msg.p_sha256_of_onion = p_htlc->buf_onion_reason.buf + sizeof(uint16_t);
@@ -1981,28 +1983,28 @@ static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Idx
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: malformed_htlc");
         return false;
     }
-    pChannel->cnl_add_htlc[Idx].flags.updsend = 1;
+    p_update->flags.updsend = 1;
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     return true;
 }
 
 
-static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Idx)
+static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
+    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
     ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
     new_commit_tx.commit_num++;
-    ln_htlc_flags_t bak_flag = pChannel->cnl_add_htlc[Idx].flags;
-    LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(&pChannel->cnl_add_htlc[Idx]);
+
+    ln_htlc_flags_t bak_flag = p_update->flags;
+    LN_HTLC_REMOTE_ENABLE_ADDHTLC_SEND(p_update);
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
-    bool ret = ln_comtx_create_remote(
-        pChannel, &new_commit_tx, NULL, &p_htlc_sigs);
-    pChannel->cnl_add_htlc[Idx].flags = bak_flag;
+    bool ret = ln_comtx_create_remote(pChannel, &new_commit_tx, NULL, &p_htlc_sigs);
+    p_update->flags = bak_flag;
     if (!ret) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
     }
     UTL_DBG_FREE(p_htlc_sigs);
-
     return ret;
 }
 
@@ -2013,26 +2015,26 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
     ln_cb_param_start_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
     bool db_upd = false;
 
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        if (!LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_htlc)) continue;
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        if (!LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_update)) continue;
 
-        if (p_htlc->next_short_channel_id) {
-            LOGD("forward: %d\n", p_htlc->next_idx);
-            fwds[num_fwds].short_channel_id = p_htlc->next_short_channel_id;
-            fwds[num_fwds].idx = p_htlc->next_idx;
-            p_htlc->next_short_channel_id = 0;
+        if (p_update->next_short_channel_id) {
+            LOGD("forward: %d\n", p_update->next_idx);
+            fwds[num_fwds].short_channel_id = p_update->next_short_channel_id;
+            fwds[num_fwds].update_idx = p_update->next_idx;
+            p_update->next_short_channel_id = 0;
             num_fwds++;
         }
 
         if (LN_DBG_FULFILL()) {
             //start DEL_HTLC
-            ln_htlc_flags_t *p_flags = &p_htlc->flags;
+            ln_htlc_flags_t *p_flags = &p_update->flags;
             if (p_flags->fin_delhtlc != LN_DELHTLC_NONE) {
                 LOGD("del htlc: %d\n", p_flags->fin_delhtlc);
                 ln_del_htlc_start_bwd(pChannel, idx);
-                clear_htlc_comrev_flags(p_htlc, p_flags->fin_delhtlc);
+                clear_update_comrev_flags(p_update, p_flags->fin_delhtlc);
                 db_upd = true;
             }
         }
@@ -2048,6 +2050,30 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
         ln_callback(pChannel, LN_CB_TYPE_START_FWD_ADD_HTLC, &fwds[lp]);
     }
     return true;
+}
+
+
+static bool get_empty_update(ln_channel_t *pChannel, uint16_t* pUpdateIdx)
+{
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        if (LN_HTLC_EMPTY(&pChannel->updates[idx])) {
+            *pUpdateIdx = idx;
+            return true;
+        }
+    }
+    return false;
+}
+
+
+static bool get_empty_htlc(ln_channel_t *pChannel, uint16_t* pHtlcIdx)
+{
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        if (!pChannel->htlcs[idx].enabled) {
+            *pHtlcIdx = idx;
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -2069,14 +2095,13 @@ static void dbg_htlc_flag(const ln_htlc_flags_t *p_flags)
 static void dbg_htlc_flag_all(const ln_channel_t *pChannel)
 {
     LOGD("------------------------------------------\n");
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        const ln_update_add_htlc_t *p_htlc = &pChannel->cnl_add_htlc[idx];
-        if (!LN_HTLC_ENABLED(p_htlc)) continue;
-        const ln_htlc_flags_t *p_flags = &p_htlc->flags;
-        LOGD("[%d]prev_short_channel_id=%016" PRIx64 "(%d), next_short_channel_id=%016" PRIx64 "(%d)\n",
-            idx, p_htlc->prev_short_channel_id, p_htlc->prev_idx,
-            p_htlc->next_short_channel_id, p_htlc->next_idx);
-        dbg_htlc_flag(p_flags);
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        const ln_update_t *p_update = &pChannel->updates[idx];
+        if (!LN_HTLC_ENABLED(p_update)) continue;
+        LOGD("UPDATE[%d]: prev_short_channel_id=%016" PRIx64 "(%d), next_short_channel_id=%016" PRIx64 "(%d)\n",
+            idx, p_update->prev_short_channel_id, p_update->prev_idx,
+            p_update->next_short_channel_id, p_update->next_idx);
+        dbg_htlc_flag(&p_update->flags);
     }
     LOGD("------------------------------------------\n");
 }

@@ -2434,20 +2434,13 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
         uint64_t htlc_id;
         uint16_t next_idx;
         pthread_mutex_lock(&p_nextconf->mux_channel);
-        ret = ln_add_htlc_set_fwd(p_nextconf->p_channel,
-                            &htlc_id,
-                            &reason,
-                            &next_idx,
-                            p_addhtlc->p_onion_reason->buf,
-                            p_addhtlc->p_hop->amt_to_forward,
-                            p_addhtlc->p_hop->outgoing_cltv_value,
-                            p_addhtlc->p_payment,
-                            ln_short_channel_id(p_conf->p_channel),     //hop
-                            p_addhtlc->idx,
-                            p_addhtlc->p_shared_secret);
+        ret = ln_add_htlc_set_fwd(
+            p_nextconf->p_channel, &htlc_id, &reason, &next_idx, p_addhtlc->p_onion_reason->buf,
+            p_addhtlc->p_hop->amt_to_forward, p_addhtlc->p_hop->outgoing_cltv_value, p_addhtlc->p_payment,
+            ln_short_channel_id(p_conf->p_channel), p_addhtlc->update_idx, p_addhtlc->p_shared_secret);
         //utl_buf_free(&pFwdAdd->shared_secret);  //ln.cで管理するため、freeさせない
         if (ret) {
-            p_addhtlc->idx = next_idx;
+            p_addhtlc->update_idx = next_idx;
         } else {
             LOGE("fail forward\n");
         }
@@ -2486,7 +2479,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
         //エラーだがreasonが未設定
         LOGE("fail: temporary_node_failure\n");
         ln_onion_create_reason_temp_node(&reason);
-        ln_fail_htlc_set(p_conf->p_channel, p_addhtlc->idx, &reason);
+        ln_fail_htlc_set(p_conf->p_channel, p_addhtlc->update_idx, &reason);
     } else {
         //none
         LOGE("fail\n");
@@ -2511,7 +2504,7 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
     lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_fwd->short_channel_id);
     if (p_nextconf != NULL) {
         pthread_mutex_lock(&p_nextconf->mux_channel);
-        ln_add_htlc_start_fwd(p_nextconf->p_channel, p_fwd->idx);
+        ln_add_htlc_start_fwd(p_nextconf->p_channel, p_fwd->update_idx);
         pthread_mutex_unlock(&p_nextconf->mux_channel);
     } else {
         LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_fwd->short_channel_id);
@@ -2532,7 +2525,7 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_bwd->short_channel_id);
     if (p_prevconf != NULL) {
-        ln_del_htlc_start_bwd(p_prevconf->p_channel, p_bwd->idx);
+        ln_del_htlc_start_bwd(p_prevconf->p_channel, p_bwd->update_idx);
 
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
@@ -2588,7 +2581,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fulfill->prev_short_channel_id);
     if (p_prevconf != NULL) {
         pthread_mutex_lock(&p_prevconf->mux_channel);
-        ret = ln_fulfill_htlc_set(p_prevconf->p_channel, p_fulfill->prev_idx, p_fulfill->p_preimage);
+        ret = ln_fulfill_htlc_set(p_prevconf->p_channel, p_fulfill->prev_update_idx, p_fulfill->p_preimage);
         pthread_mutex_unlock(&p_prevconf->mux_channel);
     }
     if (!LN_DBG_FULFILL_BWD()) {
@@ -2668,7 +2661,8 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     char str_stat[256];
 
     if (p_fail->prev_short_channel_id != 0) {
-        LOGD("backwind fail_htlc: prev_idx=%" PRIu16 ", prev_short_channel_id=%016" PRIx64 ")\n", p_fail->prev_idx, p_fail->prev_short_channel_id);
+        LOGD("backwind fail_htlc: prev_idx=%u, prev_short_channel_id=%016" PRIx64 ")\n",
+            p_fail->prev_update_idx, p_fail->prev_short_channel_id);
         snprintf(str_stat, sizeof(str_stat), "-->%016" PRIx64, p_fail->prev_short_channel_id);
         p_info = str_stat;
 
@@ -2717,7 +2711,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fail_ht
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fail->prev_short_channel_id);
     if (p_prevconf != NULL) {
         pthread_mutex_lock(&p_prevconf->mux_channel);
-        ret = ln_fail_htlc_set_bwd(p_prevconf->p_channel, p_fail->prev_idx, p_fail->p_reason);
+        ret = ln_fail_htlc_set_bwd(p_prevconf->p_channel, p_fail->prev_update_idx, p_fail->p_reason);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
             LOGE("fail backward\n");
@@ -3119,7 +3113,7 @@ LABEL_EXIT:
  */
 static void load_channel_settings(lnapp_conf_t *p_conf)
 {
-    bool ret = ln_establish_alloc(p_conf->p_channel, ptarmd_get_establishparam());
+    bool ret = ln_establish_alloc(p_conf->p_channel, ptarmd_get_establish_param());
     if (!ret) {
         LOGE("fail: set establish\n");
         assert(ret);
@@ -3344,7 +3338,7 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 
 /** 送金情報リスト削除
  *
- * udpate_add_htlc送信元が追加するリストから、指定したHTLC idの情報を削除する。
+ * update_add_htlc送信元が追加するリストから、指定したHTLC idの情報を削除する。
  *      - update_fulfill_htlc受信
  *      - update_fail_htlc受信
  *
@@ -3564,40 +3558,40 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
 
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (ln_commit_tx_local(p_channel)->num_htlc_outputs != 0) {
+    if (ln_commit_tx_local(p_channel)->num_htlc_outputs) {
         cJSON *htlcs = cJSON_CreateArray();
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(p_channel, lp);
-            if (LN_HTLC_ENABLED(p_htlc)) {
-                cJSON *htlc = cJSON_CreateObject();
-                const char *p_type;
-                switch (p_htlc->flags.addhtlc) {
-                case LN_ADDHTLC_SEND:
-                    p_type = "offered";
-                    break;
-                case LN_ADDHTLC_RECV:
-                    p_type = "received";
-                    break;
-                case LN_ADDHTLC_NONE:
-                default:
-                    p_type = "unknown";
-                    break;
-                }
-                cJSON_AddItemToObject(htlc, "type", cJSON_CreateString(p_type));
-                cJSON_AddItemToObject(htlc, "htlc id", cJSON_CreateNumber64(p_htlc->id));
-                cJSON_AddItemToObject(htlc, "amount_msat", cJSON_CreateNumber(p_htlc->amount_msat));
-                cJSON_AddItemToObject(htlc, "cltv_expiry", cJSON_CreateNumber(p_htlc->cltv_expiry));
-                if (p_htlc->prev_short_channel_id != 0) {
-                    if (p_htlc->prev_short_channel_id == UINT64_MAX) {
-                        cJSON_AddItemToObject(htlc, "role", cJSON_CreateString("final node"));
-                    } else {
-                        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-                        ln_short_channel_id_string(str_sci, p_htlc->prev_short_channel_id);
-                        cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
-                    }
-                }
-                cJSON_AddItemToArray(htlcs, htlc);
+            const ln_update_t *p_update = ln_update(p_channel, lp);
+            if (!LN_HTLC_ENABLED(p_update)) continue;
+            const ln_htlc_t *p_htlc = ln_htlc(p_channel, p_update->htlc_idx);
+            cJSON *htlc = cJSON_CreateObject();
+            const char *p_type;
+            switch (p_update->flags.addhtlc) {
+            case LN_ADDHTLC_SEND:
+                p_type = "offered";
+                break;
+            case LN_ADDHTLC_RECV:
+                p_type = "received";
+                break;
+            case LN_ADDHTLC_NONE:
+            default:
+                p_type = "unknown";
+                break;
             }
+            cJSON_AddItemToObject(htlc, "type", cJSON_CreateString(p_type));
+            cJSON_AddItemToObject(htlc, "htlc id", cJSON_CreateNumber64(p_htlc->id));
+            cJSON_AddItemToObject(htlc, "amount_msat", cJSON_CreateNumber(p_htlc->amount_msat));
+            cJSON_AddItemToObject(htlc, "cltv_expiry", cJSON_CreateNumber(p_htlc->cltv_expiry));
+            if (p_update->prev_short_channel_id != 0) {
+                if (p_update->prev_short_channel_id == UINT64_MAX) {
+                    cJSON_AddItemToObject(htlc, "role", cJSON_CreateString("final node"));
+                } else {
+                    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+                    ln_short_channel_id_string(str_sci, p_update->prev_short_channel_id);
+                    cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
+                }
+            }
+            cJSON_AddItemToArray(htlcs, htlc);
         }
         cJSON_AddItemToObject(result, "htlc", htlcs);
     }
@@ -3673,15 +3667,16 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
         LOGD("local_msat:  %" PRIu64 "\n", ln_local_msat(pChannel));
         LOGD("remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(pChannel, lp);
-            if (LN_HTLC_ENABLED(p_htlc)) {
-                LOGD("  HTLC[%d]\n", lp);
-                LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
-                LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
-                LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
-                if (p_htlc->prev_short_channel_id) {
-                    LOGD("    from:        cnl_add_htlc[%d]%016" PRIx64 "\n", p_htlc->prev_idx, p_htlc->prev_short_channel_id);
-                }
+            const ln_update_t *p_update = ln_update(pChannel, lp);
+            if (!LN_HTLC_ENABLED(p_update)) continue;
+            const ln_htlc_t *p_htlc = ln_htlc(pChannel, p_update->htlc_idx);
+            LOGD("  HTLC[%d]\n", lp);
+            LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
+            LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
+            LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
+            if (p_update->prev_short_channel_id) {
+                LOGD("    from:        cnl_add_htlc[%u]%016" PRIx64 "\n",
+                    p_update->prev_idx, p_update->prev_short_channel_id);
             }
         }
 

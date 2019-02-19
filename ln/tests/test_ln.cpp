@@ -207,8 +207,8 @@ TEST_F(ln, init)
     ln_init(&channel, &anno_param, (ln_callback_t)0x123456);
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ASSERT_TRUE(utl_mem_is_all_zero(&channel.cnl_add_htlc[idx].flags, sizeof(ln_htlc_flags_t)));
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ASSERT_TRUE(utl_mem_is_all_zero(&channel.updates[idx].flags, sizeof(ln_htlc_flags_t)));
     }
     ASSERT_TRUE(DumpCheck(&channel.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
     ASSERT_TRUE(DumpCheck(&channel.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));

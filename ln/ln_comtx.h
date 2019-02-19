@@ -84,7 +84,7 @@ void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
  *          - to_remote output
  *          - 各HTLC output
  *
- * 作成した署名は、To-LocalはpChannel->commit_tx_remote.signatureに、HTLCはpChannel->cnl_add_htlc[].signature 代入する
+ * 作成した署名は、To-LocalはpChannel->commit_tx_remote.remote_sigに、HTLCはpChannel->htlcs[].remote_sig 代入する
  *
  *   1. to_local script作成
  *   2. HTLC情報設定
