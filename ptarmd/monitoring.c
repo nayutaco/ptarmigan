@@ -1172,15 +1172,21 @@ static uint32_t get_latest_feerate_kw(void)
 
 static bool update_btc_values(void)
 {
-    if (mFeeratePerKw == 0) {
-        mMonParam.feerate_per_kw = get_latest_feerate_kw();
-    } else {
-        mMonParam.feerate_per_kw = mFeeratePerKw;
+    int32_t height;
+    bool ret = btcrpc_getblockcount(&height);
+    if (ret && (height != mMonParam.height)) {
+        mMonParam.height = height;
+
+        //update feerate if blockcount changed
+        if (mFeeratePerKw == 0) {
+            mMonParam.feerate_per_kw = get_latest_feerate_kw();
+        } else {
+            mMonParam.feerate_per_kw = mFeeratePerKw;
+        }
+        if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+            mMonParam.feerate_per_kw = 0;
+        }
     }
-    if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
-        mMonParam.feerate_per_kw = 0;
-    }
-    bool ret = btcrpc_getblockcount(&mMonParam.height);
     return ret;
 }
 
