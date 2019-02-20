@@ -57,7 +57,7 @@ extern "C" {
 //FAKE関数
 
 FAKE_VOID_FUNC(ln_db_preimage_cur_close, void *);
-FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, uint8_t);
+FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, uint8_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_del, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *);

@@ -1310,7 +1310,7 @@ static bool check_recv_add_htlc_bolt4_forward(
         return false;
     }
     uint8_t dir = ln_order_to_dir(ln_node_id_order(pChannel, peer_id));
-    if (!ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir)) {
+    if (!ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir, NULL)) {
         LOGE("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n",
             pDataOut->short_channel_id, dir);
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");

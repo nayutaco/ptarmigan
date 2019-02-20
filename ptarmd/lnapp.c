@@ -101,7 +101,7 @@
 #define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
 #define M_WAIT_CHANREEST_MSEC   (3600000)   //channel_reestablish受信待ち[msec]
 
-#define M_ANNO_UNIT             (50)        ///< 1回のsend_announcement()での処理単位
+#define M_ANNO_UNIT             (10)        ///< 1回のsend_announcement()での処理単位
 #define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
 
 #define M_PING_CNT              (M_WAIT_PING_SEC / M_WAIT_POLL_SEC)
@@ -168,10 +168,9 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
 
 static void *thread_anno_start(void *pArg);
 static bool send_announcement(lnapp_conf_t *p_conf);
-static bool send_anno_pre_chan(uint64_t short_channel_id);
-static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uint64_t last_short_channel_id);
-static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl);
-static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl);
+static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp);
+static bool send_anno_cnl(lnapp_conf_t *p_conf, uint64_t short_channel_id, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl);
+static bool send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl);
 
 static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param);
 static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param);
@@ -1841,9 +1840,8 @@ static bool send_announcement(lnapp_conf_t *p_conf)
     void *p_cur_infocnl = NULL;     //channel送信済みDB
     void *p_cur_infonode = NULL;    //node_announcement送信済みDB
     utl_buf_t buf_cnl = UTL_BUF_INIT;
-    char type;
 
-    LOGD("BEGIN\n");
+    LOGD("BEGIN: last=%" PRIx64 "\n", p_conf->last_anno_cnl);
 
     ret = ln_db_anno_transaction();
     if (!ret) {
@@ -1872,90 +1870,114 @@ static bool send_announcement(lnapp_conf_t *p_conf)
         goto LABEL_EXIT;
     }
 
-    if (p_conf->last_anno_cnl != 0) {
-        //前回のところまで検索する
-        while ((ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, NULL, &buf_cnl))) {
-            if (short_channel_id == p_conf->last_anno_cnl) {
-                //この時点でcursorは次に進んでいる
-                (void)ln_db_annocnl_cur_getback(p_cur_cnl, &short_channel_id, &type, NULL, &buf_cnl);
-                break;
-            }
-            utl_buf_free(&buf_cnl);
-        }
-    }
-    utl_buf_free(&buf_cnl);
-
     //これ以降、short_channel_id に 0以外の値が入っている状態で LABEL_EXITに到達すると、
     //  そのshort_channel_idに関する channel_announcement, channel_update は削除される。
 
-    uint32_t timestamp;
-    while ((ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, &timestamp, &buf_cnl))) {
-        if (!p_conf->loop) {
+    while (p_conf->loop) {
+        char type;
+        uint32_t timestamp;
+
+        utl_buf_free(&buf_cnl);
+        ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, &timestamp, &buf_cnl);
+        if (!ret) {
+            //次回は最初から検索する
+            LOGD("annolist end\n");
+            p_conf->last_anno_cnl = 0;
             break;
         }
+        if (type != LN_DB_CNLANNO_ANNO) {
+            //BOLT#7: Pruning the Network View
+            if ((type == LN_DB_CNLANNO_UPD0) || (type == LN_DB_CNLANNO_UPD1)) {
+                uint64_t now = (uint64_t)utl_time_time();
+                if (ln_db_annocnlupd_is_prune(now, timestamp)) {
+                    ln_db_annocnl_cur_del(p_cur_cnl);
+                }
+            }
+            //LOGD("continue1: %" PRIx64 ":%c\n", short_channel_id, type);
+            continue;
+        }
+        if (p_conf->last_anno_cnl != 0) {
+            //前回の続きであれば、次のshort_channel_idになるまで進める
+            if (p_conf->last_anno_cnl != short_channel_id) {
+                //LOGD("continue2: %" PRIx64 ":%c\n", short_channel_id, type);
+                continue;
+            } else {
+                //LOGD("match\n");
+                p_conf->last_anno_cnl = 0;
+                continue;
+            }
+        }
 
-        //事前チェック
-        if (type == LN_DB_CNLANNO_ANNO) {
-            p_conf->last_annocnl_sci = short_channel_id;    //channel_updateだけを送信しないようにするため
+        //ここまで来た場合、short_channel_idとbuf_cnlは
+        //  データの先頭 or p_conf->last_anno_cnlの次のchannel_announcement
+        //となっている。
+        //
+        //keyの順で取得されるため、
+        //  LN_DB_CNLANNO_ANNO --> LN_DB_CNLANNO_UPD0 --> LN_DB_CNLANNO_UPD1
+        //となる。
+        //ただし、どれかが欠けている可能性もある。
+        //
+        //1セット(channel_announcement, update1, update2, node_announcement)準備することができるようにしなくてはならぬ。
+        //node_announcement以外は同じDBに入っているので、異なるshort_chadnnel_idになるまでかDBの最後になるまでが1セットだろう。
+        //
+        //DBのcursorが「次位置に進めて取得」なので、取得したものが期待と異なった場合にはcursorを戻したい。
+        //ln_db_annocnl_cur_get()は次に進めて取得なので、ループで処理したいなら、そうした方がよいだろう。
 
-            //  DBを長時間ロックする可能性があるので、送信しなくてもカウントする
-            if (anno_cnt >= M_ANNO_UNIT) {
+        bool unspent = check_unspent_short_channel_id(short_channel_id);
+        if (!unspent) {
+            //SPENTであれば削除
+            LOGD("pre_chan: delete all channel %016" PRIx64 "\n", short_channel_id);
+            goto LABEL_EXIT;
+        }
+
+        int cnt_upd = 0;
+        utl_buf_t buf_upd[2] = { UTL_BUF_INIT, UTL_BUF_INIT };
+        for (int lp = 0; lp < 2; lp++) {
+            uint64_t sci;
+            ret = ln_db_annocnl_cur_get(p_cur_cnl, &sci, &type, &timestamp, &buf_upd[lp]);
+            if (ret && (sci == short_channel_id) && (type == LN_DB_CNLANNO_UPD0 + lp)) {
+                ret = send_anno_pre_upd(short_channel_id, timestamp);
+                if (ret) {
+                    cnt_upd++;
+                } else {
+                    LOGD("pre_upd: delete channel_update %016" PRIx64 " %c\n", short_channel_id, type);
+                    //channel_updateをDBから削除
+                    ln_db_annocnl_cur_del(p_cur_cnl);
+                    utl_buf_free(&buf_upd[lp]);
+                }
+            } else if (!ret) {
+                LOGD("annolist end\n");
+                p_conf->last_anno_cnl = 0;
+                break;
+            } else {
+                //LOGD("back\n");
+                ret = ln_db_annocnl_cur_back(p_cur_cnl);
+                utl_buf_free(&buf_upd[lp]);
+            }
+        }
+        if (cnt_upd > 0) {
+            send_anno_cnl(p_conf, short_channel_id, LN_DB_CNLANNO_ANNO, p_cur_infocnl, &buf_cnl);
+            for (int lp = 0; lp < 2; lp++) {
+                if (buf_upd[lp].len > 0) {
+                    send_anno_cnl(p_conf, short_channel_id, LN_DB_CNLANNO_UPD0 + lp, p_cur_infocnl, &buf_upd[lp]);
+                    utl_buf_free(&buf_upd[lp]);
+                } else {
+                    LOGD("skip: type=%c\n", LN_DB_CNLANNO_UPD0 + lp);
+                }
+            }
+            send_anno_node(p_conf, p_cur_node, p_cur_infonode, &buf_cnl);
+            utl_buf_free(&buf_cnl);
+
+            anno_cnt++;
+            if (anno_cnt > M_ANNO_UNIT) {
+                LOGD("annolist next\n");
+                p_conf->last_anno_cnl = short_channel_id;
                 break;
             }
-
-            ret = send_anno_pre_chan(short_channel_id);
-            if (!ret) {
-                LOGD("pre_chan: delete all channel %016" PRIx64 "\n", short_channel_id);
-                goto LABEL_EXIT;
-            }
-        } else if ((type == LN_DB_CNLANNO_UPD1) || (type == LN_DB_CNLANNO_UPD2)) {
-            ret = send_anno_pre_upd(short_channel_id, timestamp, p_conf->last_annocnl_sci);
-            if (!ret) {
-                LOGD("pre_upd: delete channel_update %016" PRIx64 " %c\n", short_channel_id, (char)type);
-
-                //channel_updateをDBから削除
-                (void)ln_db_annocnl_cur_del(p_cur_cnl);
-
-                short_channel_id = 0;       //channel自体は削除しない
-                goto LABEL_EXIT;
-            }
         } else {
-            //nothing
+            LOGD("skip channel: %" PRIx64 "\n", short_channel_id);
         }
-
-        //取得したchannel_announcementのshort_channel_idに一致するものは送信する
-        if (p_conf->last_annocnl_sci == short_channel_id) {
-            //channel_announcement/channel_update送信済みDB検索
-            bool chk = ln_db_annocnlinfo_search_nodeid(p_cur_infocnl, short_channel_id, type, ln_remote_node_id(p_conf->p_channel));
-            if (!chk) {
-                //channel_announcement, channel_update
-                anno_cnt += send_anno_cnl(p_conf, type, p_cur_infocnl, &buf_cnl);
-            } else {
-                //LOGD("already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
-            }
-            if (type == LN_DB_CNLANNO_ANNO) {
-                //channel_announcementの送信にかかわらず、未送信のnode_announcementは送信する
-                anno_cnt += send_anno_node(p_conf, p_cur_node, p_cur_infonode, &buf_cnl);
-            }
-
-            //処理数カウント
-            //  DBを長時間ロックする可能性があるので、送信しなくてもカウントする(whileから抜けるのは)
-            anno_cnt++;
-        } else {
-            //channel_announcementが無いchannel_updateの場合
-            LOGV("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
-        }
-        utl_buf_free(&buf_cnl);
     }
-    if (ret) {
-        //次回は続きから始める
-        p_conf->last_anno_cnl = short_channel_id;
-    } else {
-        //リストの最後まで終わったら、また先頭から始める
-        LOGV("end of channel list\n");
-        p_conf->last_anno_cnl = 0;
-    }
-
     short_channel_id = 0;
 
 LABEL_EXIT:
@@ -1984,35 +2006,14 @@ LABEL_EXIT:
 }
 
 
-/** channel_announcement事前チェック
- *
- * @retval  true        none
- * @retval  false       channel情報を削除してよい
- */
-static bool send_anno_pre_chan(uint64_t short_channel_id)
-{
-    bool ret = true;
-
-    bool unspent = check_unspent_short_channel_id(short_channel_id);
-    if (!unspent) {
-        //使用済みのため、DBから削除
-        LOGD("closed channel: %016" PRIx64 "\n", short_channel_id);
-        ret = false;
-    }
-
-    return ret;
-}
-
-
 /** channel_update事前チェック
  *
  * @param[in]       short_channel_id        target short_channel_id
  * @param[in]       timestamp               channel_announcement saved time
- * @param[in]       last_short_channel_id   channel_announcement short_channel_id
  * @retval  true        nothing to do
  * @retval  false       channel_updateを削除してよい
  */
-static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uint64_t last_short_channel_id)
+static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
 {
     bool ret = true;
 
@@ -2029,12 +2030,6 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
         ret = false;
     }
 
-    if (ret && (short_channel_id != last_short_channel_id)) {
-        //channel_announcementを持たないchannel_updateのため、削除する
-        LOGD("orphan channel_update: prune(%016" PRIx64 ")\n", short_channel_id);
-        ret = false;
-    }
-
     return ret;
 }
 
@@ -2043,14 +2038,18 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
  *
  * @return  送信数
  */
-static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl)
+static bool send_anno_cnl(lnapp_conf_t *p_conf, uint64_t short_channel_id, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl)
 {
-    int cnt = 0;
-    LOGD("send channel_%c: %016" PRIx64 "\n", type, p_conf->last_annocnl_sci);
-    send_peer_noise(p_conf, p_buf_cnl);
-    cnt = 2;
-    ln_db_annocnlinfo_add_nodeid(p_cur_infocnl, p_conf->last_annocnl_sci, type, false, ln_remote_node_id(p_conf->p_channel));
-    return cnt;
+    bool chk = ln_db_annocnlinfo_search_nodeid(p_cur_infocnl, short_channel_id, type, ln_remote_node_id(p_conf->p_channel));
+    if (!chk) {
+        LOGD("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
+        send_peer_noise(p_conf, p_buf_cnl);
+        ln_db_annocnlinfo_add_nodeid(p_cur_infocnl, short_channel_id, type, false, ln_remote_node_id(p_conf->p_channel));
+        chk = true;
+    } else {
+        LOGD("CHAN already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
+    }
+    return chk;
 }
 
 
@@ -2058,16 +2057,15 @@ static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, c
  *
  * @return  送信数
  */
-static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl)
+static bool send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl)
 {
     uint64_t short_channel_id;
     uint8_t node[2][BTC_SZ_PUBKEY];
     bool ret = ln_getids_cnl_anno(&short_channel_id, node[0], node[1], p_buf_cnl->buf, p_buf_cnl->len);
     if (!ret) {
-        return 0;
+        return false;
     }
 
-    int cnt = 1;
     utl_buf_t buf_node = UTL_BUF_INIT;
 
     for (int lp = 0; lp < 2; lp++) {
@@ -2075,16 +2073,17 @@ static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_in
         if (!ret) {
             ret = ln_db_annonod_cur_load(p_cur_node, &buf_node, NULL, node[lp]);
             if (ret) {
-                LOGD("send node_anno: ");
+                LOGD("send node_anno(%d): ", lp);
                 DUMPD(node[lp], BTC_SZ_PUBKEY);
                 send_peer_noise(p_conf, &buf_node);
                 utl_buf_free(&buf_node);
-                cnt += 2;
                 ln_db_annonodinfo_add_nodeid(p_cur_infonode, node[lp], false, ln_remote_node_id(p_conf->p_channel));
             }
+        } else {
+            LOGD("NODE already sent: short_channel_id=%016" PRIx64 ", node%d\n", short_channel_id, lp);
         }
     }
-    return cnt;
+    return true;
 }
 
 

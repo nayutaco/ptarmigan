@@ -40,8 +40,8 @@ extern "C" {
  ********************************************************************/
 
 #define LN_DB_CNLANNO_ANNO          'A'     ///< channel_announcement用KEYの末尾: channel_announcement
-#define LN_DB_CNLANNO_UPD1          'B'     ///< channel_announcement用KEYの末尾: channel_update 1
-#define LN_DB_CNLANNO_UPD2          'C'     ///< channel_announcement用KEYの末尾: channel_update 2
+#define LN_DB_CNLANNO_UPD0          'B'     ///< channel_announcement用KEYの末尾: channel_update dir=0
+#define LN_DB_CNLANNO_UPD1          'C'     ///< channel_announcement用KEYの末尾: channel_update dir=1
 
 #define LN_DB_WALLET_TYPE_TO_LOCAL   ((uint8_t)1)
 #define LN_DB_WALLET_TYPE_TO_REMOTE  ((uint8_t)2)
@@ -352,9 +352,10 @@ bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, cons
  * @param[out]      pTimeStamp          pCnlAnnoのTimeStamp
  * @param[in]       ShortChannelId      読み込むshort_channel_id
  * @param[in]       Dir                 0:node1, 1:node2
+ * @param[in]       pDbParam            非NULL:指定されたdb paramを使用する
  * @retval      true    成功
  */
-bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
+bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir, void *pDbParam);
 
 
 /** channel_update書込み
@@ -468,18 +469,10 @@ bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char T
 bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
-/** channel_announcement関連情報の前方取得
- *
- * #ln_db_annocnl_cur_get()ではcursorが進んでしまうため、戻す場合に使う想定。
- *
- * @param[in]       pCur
- * @param[out]      pShortChannelId         short_channel_id
- * @param[out]      pType                   LN_DB_CNLANNO_xxx(channel_announcement / channel_update)
- * @param[out]      pTimeStamp              channel_announcementのtimestamp
- * @param[out]      pBuf                    取得したデータ(p_typeに応じて内容は変わる)
- * @retval  true    成功
+/** channel_announcement関連情報の前方移動
+ * 
  */
-bool ln_db_annocnl_cur_getback(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
+bool ln_db_annocnl_cur_back(void *pCur);
 
 
 /** ln_db_annocnl_cur_get()したDBの削除

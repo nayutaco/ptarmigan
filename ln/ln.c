@@ -601,7 +601,7 @@ bool ln_channel_update_get_peer(const ln_channel_t *pChannel, utl_buf_t *pCnlUpd
 
     btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
     uint8_t dir = (order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, pChannel->short_channel_id, dir);
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, pChannel->short_channel_id, dir, NULL);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_channel_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }

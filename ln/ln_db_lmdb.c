@@ -1554,27 +1554,35 @@ LABEL_EXIT:
  *
  *  dbi: "channel_anno"
  */
-bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir)
+bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir, void *pDbParam)
 {
     int         retval;
     ln_lmdb_db_t   db;
+    ln_lmdb_db_t   *p_db;
 
-    bool ret = ln_db_anno_transaction();
-    if (!ret) {
-        LOGE("ERR: anno transaction\n");
-        retval = -1;
-        goto LABEL_EXIT;
+    if (pDbParam == NULL) {
+        bool ret = ln_db_anno_transaction();
+        if (!ret) {
+            LOGE("ERR: anno transaction\n");
+            retval = -1;
+            goto LABEL_EXIT;
+        }
+        retval = MDB_DBI_OPEN(mTxnAnno, M_DBI_ANNO_CNL, 0, &db.dbi);
+        if (retval != 0) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            ln_db_anno_commit(false);
+            goto LABEL_EXIT;
+        }
+        p_db = &db;
+    } else {
+        p_db = (ln_lmdb_db_t *)pDbParam;
     }
-    retval = MDB_DBI_OPEN(mTxnAnno, M_DBI_ANNO_CNL, 0, &db.dbi);
-    if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+
+    retval = annocnlupd_load(p_db, pCnlUpd, pTimeStamp, ShortChannelId, Dir);
+
+    if (pDbParam == NULL) {
         ln_db_anno_commit(false);
-        goto LABEL_EXIT;
     }
-
-    retval = annocnlupd_load(&db, pCnlUpd, pTimeStamp, ShortChannelId, Dir);
-
-    ln_db_anno_commit(false);
 
 LABEL_EXIT:
     return retval == 0;
@@ -1658,7 +1666,7 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update
         retval = annocnlupd_save(&db, pCnlUpd, pUpd);
     }
     if ((retval == 0) && (pSendId != NULL)) {
-        char type = ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1;
+        char type = ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD1 : LN_DB_CNLANNO_UPD0;
         bool ret = ln_db_annocnlinfo_add_nodeid(&db_info, pUpd->short_channel_id, type, clr, pSendId);
         if (!ret) {
             retval = -1;
@@ -1717,7 +1725,7 @@ bool ln_db_annocnlall_del(uint64_t ShortChannelId)
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, 0);
 
-    char POSTFIX[] = { LN_DB_CNLANNO_ANNO, LN_DB_CNLANNO_UPD1, LN_DB_CNLANNO_UPD2 };
+    char POSTFIX[] = { LN_DB_CNLANNO_ANNO, LN_DB_CNLANNO_UPD0, LN_DB_CNLANNO_UPD1 };
     for (size_t lp = 0; lp < ARRAY_SIZE(POSTFIX); lp++) {
         keydata[LN_SZ_SHORT_CHANNEL_ID] = POSTFIX[lp];
         retval = mdb_del(mTxnAnno, dbi, &key, NULL);
@@ -2015,17 +2023,16 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 }
 
 
-/* [channel_announcement / channel_update]cursor back
- *
- * MDB_NEXT_NODUPするとcursorが次に進んでしまうため、戻す
- *  dbi: "channel_anno"
- */
-bool ln_db_annocnl_cur_getback(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf)
+bool ln_db_annocnl_cur_back(void *pCur)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
-    int retval = annocnl_cur_load(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf, MDB_PREV_NODUP);
-
+    uint64_t short_channel_id;
+    char type;
+    uint32_t timestamp;
+    utl_buf_t buf = UTL_BUF_INIT;
+    int retval = annocnl_cur_load(p_cur->cursor, &short_channel_id, &type, &timestamp, &buf, MDB_PREV_NODUP);
+    utl_buf_free(&buf);
     return retval == 0;
 }
 
@@ -2334,6 +2341,8 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId)
     }
 
     if (pNodeId != NULL) {
+        LOGD("del annoinfo: ");
+        DUMPD(pNodeId, BTC_SZ_PUBKEY);
         MDB_cursor  *cursor;
 
         //annocnl info
@@ -2354,6 +2363,7 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId)
             LOGE("ERR: %s\n", mdb_strerror(retval));
         }
     } else {
+        LOGD("del annoinfo: ALL\n");
         //annocnl info
         int retval_cnl = mdb_drop(mTxnAnno, dbi_cnl, 1);
         if (retval_cnl != 0) {
@@ -4363,7 +4373,7 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlUpd, uint32_t *pTim
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
-    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD1 : LN_DB_CNLANNO_UPD0));
     int retval = mdb_get(mTxnAnno, pDb->dbi, &key, &data);
     if (retval == 0) {
         if (pTimeStamp != NULL) {
@@ -4394,7 +4404,7 @@ static int annocnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
-    M_ANNOINFO_CNL_SET(keydata, key, pUpd->short_channel_id, (ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
+    M_ANNOINFO_CNL_SET(keydata, key, pUpd->short_channel_id, (ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD1 : LN_DB_CNLANNO_UPD0));
     utl_buf_t buf = UTL_BUF_INIT;
     utl_buf_alloc(&buf, sizeof(uint32_t) + pCnlUpd->len);
 
@@ -4426,14 +4436,17 @@ static int annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pT
         if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
             //key = short_channel_id + type
             memcpy(pShortChannelId, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
-            *pType = *(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
+            char type = *(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
+            if (pType != NULL) {
+                *pType = type;
+            }
             //data
-            uint8_t *pData = (uint8_t *)data.mv_data;
-            if ((*pType == LN_DB_CNLANNO_UPD1) || (*pType == LN_DB_CNLANNO_UPD2)) {
+            uint8_t *p_data = (uint8_t *)data.mv_data;
+            if ((type == LN_DB_CNLANNO_UPD0) || (type == LN_DB_CNLANNO_UPD1)) {
                 if (pTimeStamp != NULL) {
-                    memcpy(pTimeStamp, pData, sizeof(uint32_t));
+                    memcpy(pTimeStamp, p_data, sizeof(uint32_t));
                 }
-                pData += sizeof(uint32_t);
+                p_data += sizeof(uint32_t);
                 data.mv_size -= sizeof(uint32_t);
             } else {
                 //channel_announcementにtimestampは無い
@@ -4441,7 +4454,9 @@ static int annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pT
                     *pTimeStamp = 0;
                 }
             }
-            utl_buf_alloccopy(pBuf, pData, data.mv_size);
+            if (pBuf != NULL) {
+                utl_buf_alloccopy(pBuf, p_data, data.mv_size);
+            }
         } else {
             LOGE("fail: invalid key length: %d\n", (int)key.mv_size);
             DUMPD(key.mv_data, key.mv_size);
