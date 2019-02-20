@@ -1138,7 +1138,9 @@ bool ln_db_channel_load_status(ln_channel_t *pChannel)
     memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
     retval = channel_db_open(&db, dbname, MDB_RDONLY, 0);
     if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
         goto LABEL_EXIT;
     }
 
@@ -3803,7 +3805,9 @@ static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, i
     }
     retval = MDB_DBI_OPEN(pDb->txn, pDbName, OptDb, &pDb->dbi);
     if (retval != 0) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
         MDB_TXN_ABORT(pDb->txn);
         pDb->txn = NULL;
         goto LABEL_EXIT;
