@@ -200,13 +200,13 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
         M_DBGLOGV("[cnl]node2= ");
         M_DBGDUMPV(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
         break;
+    case LN_DB_CNLANNO_UPD0:
     case LN_DB_CNLANNO_UPD1:
-    case LN_DB_CNLANNO_UPD2:
         if (p_result->node_num > 0) {
             p_nodes = &p_result->p_nodes[p_result->node_num - 1];
 
             ln_msg_channel_update_t upd;
-            int idx = type - LN_DB_CNLANNO_UPD1;
+            int idx = type - LN_DB_CNLANNO_UPD0;
             bool bret = ln_channel_update_get_params(&upd, p_buf->buf, p_buf->len);
             if (bret && ((upd.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) == 0)) {
                 if (p_nodes->short_channel_id == upd.short_channel_id) {

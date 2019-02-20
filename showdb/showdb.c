@@ -607,7 +607,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             ln_msg_channel_update_t msg;
             bool ret = ln_msg_channel_update_read(&msg, pData, Len);
             if (ret) {
-                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? "2" : "1");
+                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %d") ",\n", (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION));
 
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
                 ln_short_channel_id_string(str_sci, msg.short_channel_id);
@@ -866,11 +866,11 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
             case LN_DB_CNLANNO_ANNO:
                 printf("channel_announcement: ");
                 break;
+            case LN_DB_CNLANNO_UPD0:
+                printf("channel_update 0: ");
+                break;
             case LN_DB_CNLANNO_UPD1:
                 printf("channel_update 1: ");
-                break;
-            case LN_DB_CNLANNO_UPD2:
-                printf("channel_update 2: ");
                 break;
             default:
                 fprintf(stderr, "keyname=%02x: %d\n", keyname[M_SZ_ANNOINFO_CNL - 1], __LINE__);

@@ -308,18 +308,19 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         LOGD("through: chain_hash mismatch\n");
         return true;
     }
+    int dir = msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION;
 
     //timestamp check
     if (ln_db_annocnlupd_is_prune(now, msg.timestamp)) {
         char time[UTL_SZ_TIME_FMT_STR + 1];
-        LOGD("older channel: not save(%016" PRIx64 "): %s\n", msg.short_channel_id, utl_time_fmt(time, msg.timestamp));
+        LOGD("older channel_update: not save(%016" PRIx64 ":%d): %s\n", msg.short_channel_id, dir, utl_time_fmt(time, msg.timestamp));
         return true;
     }
 
-    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)), msg.short_channel_id);
+    LOGV("recv channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
 
     uint8_t node_id[BTC_SZ_PUBKEY];
-    if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION)) {
+    if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, dir)) {
         //found
         if (!btc_keys_check_pub(node_id)) {
             LOGE("fail: invalid pubkey\n");
@@ -352,7 +353,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         LOGE("fail: save\n");
         return false;
     }
-    LOGD("save channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION);
+    LOGD("save channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
 
     ln_cb_param_notify_annodb_update_t db;
     db.type = LN_CB_ANNO_TYPE_CNL_UPD;

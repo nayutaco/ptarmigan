@@ -128,7 +128,6 @@ typedef struct lnapp_conf_t {
 
     //send announcement
     uint64_t        last_anno_cnl;                      ///< [#send_channel_anno()]最後にannouncementしたchannel
-    uint64_t        last_annocnl_sci;                   ///< [#send_channel_anno()]最後にcur_getしたchannel_announcementのshort_channel_id
     bool            annosig_send_req;                   ///< true: open_channel.announce_channel=1 and announcement_signatures not send
     bool            annodb_updated;                     ///< true: flag to notify annodb update
     bool            annodb_cont;                        ///< true: announcement連続送信中

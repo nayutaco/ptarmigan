@@ -649,7 +649,7 @@ static void channel_update_print(const ln_msg_channel_update_t *pMsg)
     LOGD("timestamp(fmt): %s\n", utl_time_fmt(time, pMsg->timestamp));
     LOGD("message_flags: 0x%02x\n", pMsg->message_flags);
     LOGD("channel_flags: 0x%02x\n", pMsg->channel_flags);
-    LOGD("  direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1"); //XXX:
+    LOGD("  direction: %d\n", ln_cnlupd_direction(pMsg)); //XXX:
     LOGD("  %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable"); //XXX:
     LOGD("cltv_expiry_delta: %u\n", pMsg->cltv_expiry_delta);
     LOGD("htlc_minimum_msat: %" PRIu64 "\n", pMsg->htlc_minimum_msat);
