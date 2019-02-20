@@ -1206,6 +1206,15 @@ static bool update_btc_values(void)
         }
     }
 #else
+    //update feerate if blockcount changed
+    if (mFeeratePerKw == 0) {
+        mMonParam.feerate_per_kw = get_latest_feerate_kw();
+    } else {
+        mMonParam.feerate_per_kw = mFeeratePerKw;
+    }
+    if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+        mMonParam.feerate_per_kw = 0;
+    }
     bool ret = btcrpc_getblockcount(&mMonParam.height);
 #endif
     return ret;
