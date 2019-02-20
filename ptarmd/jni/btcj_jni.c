@@ -18,7 +18,7 @@
 #define M_CHECKUNSPENT_SPENT            (1)
 
 
-#define check_exception(env)    { LOGD("\n"); _check_exception(env); }
+#define check_exception(env)    { _check_exception(env, __func__, __LINE__); }
 
 
 enum {
@@ -54,7 +54,7 @@ static jbyteArray buf2jbarray(const btcj_buf_t *buf);
 static btcj_buf_t* jbarray2buf(jbyteArray jbarray);
 static jobject bufs2list(const btcj_buf_t *bufs);
 static btcj_buf_t* list2bufs(jobject list);
-static inline void _check_exception(JNIEnv *env);
+static inline void _check_exception(JNIEnv *env, const char *pFuncName, int Line);
 
 
 const struct {
@@ -325,7 +325,6 @@ void btcj_setcreationhash(const uint8_t *pHash)
 //-----------------------------------------------------------------------------
 int32_t btcj_getblockcount(uint8_t *pHash)
 {
-    LOGD("\n");
     jbyteArray array;
     if (pHash != NULL) {
         array = (*env)->NewByteArray(env, BTC_SZ_HASH256);
@@ -334,7 +333,6 @@ int32_t btcj_getblockcount(uint8_t *pHash)
     }
     jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETBLOCKCOUNT], array);
     check_exception(env);
-    LOGD("ret=%d\n", ret);
     if (pHash != NULL) {
         (*env)->GetByteArrayRegion(env, array, 0, BTC_SZ_HASH256, (jbyte *)pHash);
         (*env)->DeleteLocalRef(env, array);
@@ -732,10 +730,10 @@ static btcj_buf_t* list2bufs(jobject list)
     return bufs;
 }
 
-static inline void _check_exception(JNIEnv *env)
+static inline void _check_exception(JNIEnv *env, const char *pFuncName, int Line)
 {
     if ((*env)->ExceptionCheck(env)) {
-        LOGE("fail: exception!!\n");
+        LOGE("fail: exception(%s(): %d)!!\n", pFuncName, Line);
         //abort();
         (*env)->ExceptionClear(env);
     }

@@ -324,7 +324,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
         //mLoopJni changes in thread_jni_start()
         sleep(1);
         fprintf(stderr, ".");
-        LOGD(".\n");
+        LOGD("count=%d\n", count);
         count--;
     }
     if ((mLoopJni != JNILOOP_WORK) || (count <= 0)) {
