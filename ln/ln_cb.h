@@ -127,14 +127,14 @@ typedef struct {
 
 
 typedef struct {
-    uint64_t                    short_channel_id;
-    uint16_t                    update_idx;
+    uint64_t                    next_short_channel_id;
+    uint16_t                    next_update_idx;
 } ln_cb_param_start_fwd_add_htlc_t;
 
 
 typedef struct {
-    uint64_t                    short_channel_id;
-    uint16_t                    update_idx;
+    uint64_t                    prev_short_channel_id;
+    uint16_t                    prev_update_idx;
     uint8_t                     fin_delhtlc;
 } ln_cb_param_start_bwd_del_htlc_t;
 
