@@ -2500,13 +2500,13 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_param_start_fwd_add_htlc_t *p_fwd = (ln_cb_param_start_fwd_add_htlc_t *)p_param;
 
-    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_fwd->short_channel_id);
+    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_fwd->next_short_channel_id);
     if (p_nextconf != NULL) {
         pthread_mutex_lock(&p_nextconf->mux_channel);
-        ln_add_htlc_start_fwd(p_nextconf->p_channel, p_fwd->update_idx);
+        ln_add_htlc_start_fwd(p_nextconf->p_channel, p_fwd->next_update_idx);
         pthread_mutex_unlock(&p_nextconf->mux_channel);
     } else {
-        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_fwd->short_channel_id);
+        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_fwd->next_short_channel_id);
     }
 
     DBGTRACE_END
@@ -2522,9 +2522,9 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_param_start_bwd_del_htlc_t *p_bwd = (ln_cb_param_start_bwd_del_htlc_t *)p_param;
 
-    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_bwd->short_channel_id);
+    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_bwd->prev_short_channel_id);
     if (p_prevconf != NULL) {
-        ln_del_htlc_start_bwd(p_prevconf->p_channel, p_bwd->update_idx);
+        ln_del_htlc_start_bwd(p_prevconf->p_channel, p_bwd->prev_update_idx);
 
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
@@ -2532,7 +2532,7 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
                 "delte HTLC: short_channel_id=%s, fin_delhtlc=%d",
                 str_sci, p_bwd->fin_delhtlc);
     } else {
-        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_bwd->short_channel_id);
+        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_bwd->prev_short_channel_id);
     }
 
     DBGTRACE_END

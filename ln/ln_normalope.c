@@ -225,6 +225,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     cb_param.p_preimage = msg.p_payment_preimage;
     cb_param.next_id = p_htlc->id;
     cb_param.amount_msat = p_htlc->amount_msat;
+    //XXX: In the current implementation it will be called more than once in a retry at reconnection
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV, &cb_param);
     if (!cb_param.ret) {
         LOGE("fail: backwind\n");
@@ -1528,9 +1529,9 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
         ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
         if (p_update->flags.delhtlc != LN_DELHTLC_FULFILL) {
-            bwds[num_bwds].short_channel_id = p_update->prev_short_channel_id;
+            bwds[num_bwds].prev_short_channel_id = p_update->prev_short_channel_id;
             bwds[num_bwds].fin_delhtlc = p_update->flags.delhtlc;
-            bwds[num_bwds].update_idx = p_update->prev_idx;
+            bwds[num_bwds].prev_update_idx = p_update->prev_idx;
             memcpy(payment_hashs[num_bwds], p_htlc->payment_hash, BTC_SZ_HASH256);
             num_bwds++;
         }
@@ -1547,7 +1548,7 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
     }
 
     for (uint32_t lp = 0; lp < num_bwds; lp++) {
-        if (bwds[lp].short_channel_id) {
+        if (bwds[lp].prev_short_channel_id) {
             LOGD("backward fail_htlc!\n");
             ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &bwds[lp]);
         } else {
@@ -2022,8 +2023,8 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
 
         if (p_update->next_short_channel_id) {
             LOGD("forward: %d\n", p_update->next_idx);
-            fwds[num_fwds].short_channel_id = p_update->next_short_channel_id;
-            fwds[num_fwds].update_idx = p_update->next_idx;
+            fwds[num_fwds].next_short_channel_id = p_update->next_short_channel_id;
+            fwds[num_fwds].next_update_idx = p_update->next_idx;
             p_update->next_short_channel_id = 0;
             num_fwds++;
         }
