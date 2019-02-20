@@ -1172,6 +1172,7 @@ static uint32_t get_latest_feerate_kw(void)
 
 static bool update_btc_values(void)
 {
+#ifdef USE_BITCOINJ
     int32_t height;
     bool ret = btcrpc_getblockcount(&height);
     if (ret && (height != mMonParam.height)) {
@@ -1187,6 +1188,9 @@ static bool update_btc_values(void)
             mMonParam.feerate_per_kw = 0;
         }
     }
+#else
+    bool ret = btcrpc_getblockcount(&mMonParam.height);
+#endif
     return ret;
 }
 
