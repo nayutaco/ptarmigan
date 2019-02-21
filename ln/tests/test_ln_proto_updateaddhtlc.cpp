@@ -345,8 +345,8 @@ TEST_F(ln, set_add_htlc1)
     /*** CHECK ***/
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, buf_reason.len);
-    ASSERT_EQ(prev_schid, channel.updates[0].prev_short_channel_id);
-    ASSERT_EQ(prev_idx, channel.updates[0].prev_idx);
+    ASSERT_EQ(prev_schid, channel.updates[0].neighbor_short_channel_id);
+    ASSERT_EQ(prev_idx, channel.updates[0].neighbor_idx);
     ASSERT_EQ(amount_msat, channel.htlcs[0].amount_msat);
     ASSERT_EQ(cltv_expiry, channel.htlcs[0].cltv_expiry);
     //
@@ -404,8 +404,8 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_TRUE(update_add_htlc_send(&channel, 0));
 
     /*** CHECK ***/
-    ASSERT_EQ(prev_schid, channel.updates[0].prev_short_channel_id);
-    ASSERT_EQ(prev_idx, channel.updates[0].prev_idx);
+    ASSERT_EQ(prev_schid, channel.updates[0].neighbor_short_channel_id);
+    ASSERT_EQ(prev_idx, channel.updates[0].neighbor_idx);
     ASSERT_EQ(amount_msat, channel.htlcs[0].amount_msat);
     ASSERT_EQ(cltv_expiry, channel.htlcs[0].cltv_expiry);
     //
@@ -475,8 +475,8 @@ TEST_F(ln, update_add_htlc_recv1)
     ASSERT_TRUE(ln_update_add_htlc_recv(&channel, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC)));
 
     /*** CHECK ***/
-    // ASSERT_EQ(0, channel.updates[0].prev_short_channel_id);
-    // ASSERT_EQ(0, channel.updates[0].prev_idx);
+    // ASSERT_EQ(0, channel.updates[0].neighbor_short_channel_id);
+    // ASSERT_EQ(0, channel.updates[0].neighbor_idx);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, channel.htlcs[0].amount_msat);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, channel.htlcs[0].cltv_expiry);
     //
@@ -547,8 +547,8 @@ TEST_F(ln, update_add_htlc_recv2)
     ASSERT_TRUE(ln_update_add_htlc_recv(&channel, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC)));
 
     /*** CHECK ***/
-    // ASSERT_EQ(0, channel.updates[0].prev_short_channel_id);
-    // ASSERT_EQ(0, channel.updates[0].prev_idx);
+    // ASSERT_EQ(0, channel.updates[0].neighbor_short_channel_id);
+    // ASSERT_EQ(0, channel.updates[0].neighbor_idx);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, channel.htlcs[0].amount_msat);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, channel.htlcs[0].cltv_expiry);
     //
@@ -598,8 +598,8 @@ TEST_F(ln, update_add_htlc_recv3)
     ASSERT_TRUE(ln_update_add_htlc_recv(&channel, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC)));
 
     /*** CHECK ***/
-    // ASSERT_EQ(0, channel.updates[0].prev_short_channel_id);
-    // ASSERT_EQ(0, channel.updates[0].prev_idx);
+    // ASSERT_EQ(0, channel.updates[0].neighbor_short_channel_id);
+    // ASSERT_EQ(0, channel.updates[0].neighbor_idx);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, channel.htlcs[0].amount_msat);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, channel.htlcs[0].cltv_expiry);
     //

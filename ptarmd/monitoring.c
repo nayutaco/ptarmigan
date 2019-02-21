@@ -647,6 +647,8 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
 
 
 // Unilateral Close(自分がcommit_tx展開): Offered HTLC output
+//Unilateral Close Handling: Local Commitment Transaction
+//  HTLC Output Handling: Local Commitment, Local Offers
 static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
     LOGD("offered HTLC output\n");
@@ -660,18 +662,10 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
     const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
     if (!p_htlc) return false;
 
-    if (p_update->prev_short_channel_id == UINT64_MAX) {
-        LOGD("origin node\n");
-        return false;
-    }
-    if (!p_update->prev_short_channel_id) {
-        //XXX: completed???
-        return false;
-    }
-
     //extract the preimage for backwinding
     LOGD("hop node\n");
-    LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_update->prev_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
+    LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
+        p_update->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
 
     uint32_t confirm;
     if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
@@ -834,8 +828,13 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
 
 // Unilateral Close(相手がcommit_tx展開): Offered HTLC output
 //  相手からofferされているから、preimageがあれば取り戻す
+//Unilateral Close Handling: Remote Commitment Transaction
+//  HTLC Output Handling: Remote Commitment, Remote Offers
 static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
+    //XXX:
+    //Probably this function will be for `Received` HTLC output not `Offered`...
+
     LOGD("offered HTLC output\n");
 
     //XXX: We should return a return value
@@ -844,12 +843,6 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
     if (!p_update) return;
     const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
     if (!p_htlc) return;
-
-    if (!p_update->prev_short_channel_id) {
-        return;
-    }
-
-    LOGD("origin/hop node\n");
 
     bool unspent;
     if (btcrpc_check_unspent(
@@ -862,10 +855,8 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
         }
     }
 
-    //転送元がある場合、preimageを抽出する
-
-    LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n",
-        p_update->prev_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
+    LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
+        p_update->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
     uint32_t confirm;
     if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
         LOGE("fail: get confirmation\n");
