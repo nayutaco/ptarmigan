@@ -95,9 +95,7 @@ static bool set_add_htlc(
     uint64_t PrevShortChannelId, uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static void recv_idle_proc_nonfinal(ln_channel_t *pChannel, uint32_t FeeratePerKw);
-static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel);
 static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel);
-static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel);
 static bool get_empty_update(ln_channel_t *pChannel, uint16_t* pUpdateIdx);
 static bool get_empty_htlc(ln_channel_t *pChannel, uint16_t* pHtlcIdx);
 
@@ -467,17 +465,24 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
 {
     LOGD("BEGIN\n");
 
-    bool ret = false;
+    uint32_t num_fwds = 0;
+
+    //for callbacks
+    ln_cb_param_start_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
+    uint32_t num_bwds = 0;
+    ln_cb_param_start_bwd_del_htlc_t bwds[LN_HTLC_MAX]; //XXX: dynamically allocate
+    uint8_t bwd_payment_hashs[LN_HTLC_MAX][BTC_SZ_HASH256]; //XXX: dynamically allocate
+    bool revack_exchanged = false;
 
     ln_msg_revoke_and_ack_t msg;
     if (!ln_msg_revoke_and_ack_read(&msg, pData, Len)) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
         M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     //prev_secretチェック
@@ -486,7 +491,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     uint8_t prev_commitpt[BTC_SZ_PUBKEY];
     if (!btc_keys_priv2pub(prev_commitpt, msg.p_per_commitment_secret)) {
         LOGE("fail: prev_secret convert\n");
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     LOGD("$$$ revoke_num: %" PRIu64 "\n", pChannel->commit_tx_local.revoke_num);
@@ -506,7 +511,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //         DUMPD(pubkey, sizeof(pubkey));
     //     } else {
     //         LOGD("$$$ fail: get last secret\n");
-    //         //goto LABEL_EXIT;
+    //         //goto LABEL_ERROR;
     //     }
     // }
 
@@ -525,13 +530,13 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //         DUMPD(pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
     //         ret = false;
     //     }
-    //     goto LABEL_EXIT;
+    //     goto LABEL_ERROR;
     // }
 
     //save prev_secret
     if (!store_peer_percommit_secret(pChannel, msg.p_per_commitment_secret)) {
         LOGE("fail: store prev secret\n");
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     //update per_commitment_point
@@ -540,31 +545,83 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     ln_update_script_pubkeys(pChannel);
     //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
 
-    //revoke_and_ack recv flag
-    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+    pChannel->commit_tx_remote.revoke_num = pChannel->commit_tx_remote.commit_num - 1;
+
+    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+        ln_update_t *p_update = &pChannel->updates[update_idx];
         if (!LN_HTLC_ENABLED(p_update)) continue;
-        if (!LN_HTLC_REMOTE_SOME_UPDATE_ENABLED(p_update)) continue;
-        LOGD(" [%d]revrecv=1\n", idx);
-        p_update->flags.revrecv = 1;
+        if (!LN_HTLC_REMOTE_COMSIGING(p_update)) continue;
+        revack_exchanged = true;
+
+        if (LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_update)) {
+            if (p_update->neighbor_short_channel_id) {
+                LOGD("forward: %d\n", p_update->neighbor_idx);
+                fwds[num_fwds].next_short_channel_id = p_update->neighbor_short_channel_id;
+                fwds[num_fwds].next_update_idx = p_update->neighbor_idx;
+                //p_update->neighbor_short_channel_id = 0;
+                num_fwds++;
+            }
+
+            LOGD(" [%d]revrecv=1\n", update_idx);
+            p_update->flags.revrecv = 1;
+
+            if (LN_DBG_FULFILL()) {
+                //start DEL_HTLC
+                ln_htlc_flags_t *p_flags = &p_update->flags;
+                if (p_flags->fin_delhtlc != LN_DELHTLC_NONE) {
+                    LOGD("del htlc: %d\n", p_flags->fin_delhtlc);
+                    ln_del_htlc_start_bwd(pChannel, update_idx);
+                    clear_update_comrev_flags(p_update, p_flags->fin_delhtlc);
+                }
+            }
+        } else if (LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(p_update)) {
+            ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+            if (p_update->flags.delhtlc != LN_DELHTLC_FULFILL) {
+                bwds[num_bwds].prev_short_channel_id = p_update->neighbor_short_channel_id;
+                bwds[num_bwds].fin_delhtlc = p_update->flags.delhtlc;
+                bwds[num_bwds].prev_update_idx = p_update->neighbor_idx;
+                memcpy(bwd_payment_hashs[num_bwds], p_htlc->payment_hash, BTC_SZ_HASH256);
+                num_bwds++;
+            }
+
+            LOGD(" [%d]revrecv=1\n", update_idx);
+            p_update->flags.revrecv = 1;
+
+            LOGD("clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n",
+                pChannel->short_channel_id, update_idx, p_update->htlc_idx);
+            clear_htlc(p_update, p_htlc);
+        } else {
+            LOGD(" [%d]revrecv=1\n", update_idx);
+            p_update->flags.revrecv = 1;
+        }
     }
 
-    pChannel->commit_tx_remote.revoke_num = pChannel->commit_tx_remote.commit_num - 1;
+    //Be sure to save before fowrarding and backwarding
+    //  Otherwise there is a possibility of fowrarding and backwarding of the same updates multiple times
     M_DBG_COMMITNUM(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
-    if (!forward_update_add_htlc_or_start_delhtlc(pChannel)) {
-        LOGE("fail: xxx\n");
-        goto LABEL_EXIT;
+    for (uint32_t lp = 0; lp < num_fwds; lp++) {
+        ln_callback(pChannel, LN_CB_TYPE_START_FWD_ADD_HTLC, &fwds[lp]);
     }
-
-    /*ignore*/ revoke_and_ack_recv__delhtlc(pChannel); //XXX:
-
-    ret = true;
-
-LABEL_EXIT:
+    for (uint32_t lp = 0; lp < num_bwds; lp++) {
+        if (bwds[lp].prev_short_channel_id) {
+            LOGD("backward fail_htlc!\n");
+            ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &bwds[lp]);
+        } else {
+            LOGD("retry the payment! in the origin node\n");
+            ln_callback(pChannel, LN_CB_TYPE_RETRY_PAYMENT, bwd_payment_hashs[lp]);
+        }
+    }
+    if (revack_exchanged) {
+        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL);
+    }
     LOGD("END\n");
-    return ret;
+    return true;
+
+LABEL_ERROR:
+    LOGD("END\n");
+    return false;
 }
 
 
@@ -1512,56 +1569,6 @@ static bool revoke_and_ack_send__delhtlc(ln_channel_t *pChannel)
 }
 
 
-static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
-{
-    ln_cb_param_start_bwd_del_htlc_t bwds[LN_HTLC_MAX]; //XXX: dynamically allocate
-    uint8_t payment_hashs[LN_HTLC_MAX][BTC_SZ_HASH256]; //XXX: dynamically allocate
-    uint32_t num_bwds = 0;
-    bool db_upd = false;
-    bool revack = false;
-
-    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
-        ln_update_t *p_update = &pChannel->updates[update_idx];
-        if (!LN_HTLC_ENABLED(p_update)) continue;
-        if (!LN_HTLC_LOCAL_DELHTLC_RECV_ENABLED(p_update)) continue;
-        if (p_update->flags.comsend != 1) continue;
-        ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
-
-        if (p_update->flags.delhtlc != LN_DELHTLC_FULFILL) {
-            bwds[num_bwds].prev_short_channel_id = p_update->neighbor_short_channel_id;
-            bwds[num_bwds].fin_delhtlc = p_update->flags.delhtlc;
-            bwds[num_bwds].prev_update_idx = p_update->neighbor_idx;
-            memcpy(payment_hashs[num_bwds], p_htlc->payment_hash, BTC_SZ_HASH256);
-            num_bwds++;
-        }
-        LOGD("clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n", pChannel->short_channel_id, update_idx, p_update->htlc_idx);
-        clear_htlc(p_update, p_htlc);
-        db_upd = true;
-        revack = true;
-    }
-
-    //Be sure to save before the callback call
-    //  Otherwise there is a possibility of the same callback call multiple times
-    if (db_upd) {
-        M_DB_CHANNEL_SAVE(pChannel);
-    }
-
-    for (uint32_t lp = 0; lp < num_bwds; lp++) {
-        if (bwds[lp].prev_short_channel_id) {
-            LOGD("backward fail_htlc!\n");
-            ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &bwds[lp]);
-        } else {
-            LOGD("retry the payment! in the origin node\n");
-            ln_callback(pChannel, LN_CB_TYPE_RETRY_PAYMENT, payment_hashs[lp]);
-        }
-    }
-    if (revack) {
-        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL); //XXX: ???
-    }
-    return true;
-}
-
-
 // LOGD(" [%d]addhtlc=%s, delhtlc=%s, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%s\n",
 //         idx,
 //         ln_htlc_flags_addhtlc_str(p_flags->addhtlc),
@@ -2006,50 +2013,6 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Updat
     }
     UTL_DBG_FREE(p_htlc_sigs);
     return ret;
-}
-
-
-static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
-{
-    uint32_t num_fwds = 0;
-    ln_cb_param_start_fwd_add_htlc_t fwds[LN_HTLC_MAX]; //XXX: dynamically allocate
-    bool db_upd = false;
-
-    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
-        if (!LN_HTLC_ENABLED(p_update)) continue;
-        if (!LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_update)) continue;
-
-        if (p_update->neighbor_short_channel_id) {
-            LOGD("forward: %d\n", p_update->neighbor_idx);
-            fwds[num_fwds].next_short_channel_id = p_update->neighbor_short_channel_id;
-            fwds[num_fwds].next_update_idx = p_update->neighbor_idx;
-            p_update->neighbor_short_channel_id = 0;
-            num_fwds++;
-        }
-
-        if (LN_DBG_FULFILL()) {
-            //start DEL_HTLC
-            ln_htlc_flags_t *p_flags = &p_update->flags;
-            if (p_flags->fin_delhtlc != LN_DELHTLC_NONE) {
-                LOGD("del htlc: %d\n", p_flags->fin_delhtlc);
-                ln_del_htlc_start_bwd(pChannel, idx);
-                clear_update_comrev_flags(p_update, p_flags->fin_delhtlc);
-                db_upd = true;
-            }
-        }
-    }
-
-    //Be sure to save before fowrarding
-    //  Otherwise there is a possibility of fowrarding the same updates multiple times
-    if (db_upd) {
-        M_DB_CHANNEL_SAVE(pChannel);
-    }
-
-    for (uint32_t lp = 0; lp < num_fwds; lp++) {
-        ln_callback(pChannel, LN_CB_TYPE_START_FWD_ADD_HTLC, &fwds[lp]);
-    }
-    return true;
 }
 
 
