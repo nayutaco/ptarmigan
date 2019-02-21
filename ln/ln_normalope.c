@@ -220,8 +220,8 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
 
     ln_cb_param_notify_fulfill_htlc_recv_t cb_param;
     cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_update->prev_short_channel_id;
-    cb_param.prev_update_idx = p_update->prev_idx;
+    cb_param.prev_short_channel_id = p_update->neighbor_short_channel_id;
+    cb_param.prev_update_idx = p_update->neighbor_idx;
     cb_param.p_preimage = msg.p_payment_preimage;
     cb_param.next_id = p_htlc->id;
     cb_param.amount_msat = p_htlc->amount_msat;
@@ -272,12 +272,12 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
 
     ln_cb_param_notify_fail_htlc_recv_t cb_param;
     cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_update->prev_short_channel_id;
+    cb_param.prev_short_channel_id = p_update->neighbor_short_channel_id;
     utl_buf_t reason;
     utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_update_idx = p_update->prev_idx;
+    cb_param.prev_update_idx = p_update->neighbor_idx;
     cb_param.next_id = p_htlc->id;
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = 0;
@@ -344,10 +344,10 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
 
     ln_cb_param_notify_fail_htlc_recv_t cb_param;
     cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_update->prev_short_channel_id;
+    cb_param.prev_short_channel_id = p_update->neighbor_short_channel_id;
     cb_param.p_reason = &reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_update_idx = p_update->prev_idx;
+    cb_param.prev_update_idx = p_update->neighbor_idx;
     cb_param.next_id = p_htlc->id;
     cb_param.p_payment_hash = p_htlc->payment_hash;
     cb_param.fail_malformed_failure_code = msg.failure_code;
@@ -1019,7 +1019,6 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
             result = RESULT_FAIL;
             goto LABEL_EXIT;
         }
-        p_update->prev_short_channel_id = UINT64_MAX; //final node
         utl_buf_alloccopy(&p_htlc->buf_payment_preimage, preimage, LN_SZ_PREIMAGE);
         utl_buf_free(&p_htlc->buf_onion_reason);
     } else {
@@ -1074,8 +1073,8 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
         p_update->flags.fin_delhtlc = LN_DELHTLC_FULFILL;
     } else {
         LOGD("hop node: will forward another channel\n");
-        p_update->next_short_channel_id = hop_dataout.short_channel_id;
-        p_update->next_idx = cb_param.update_idx;
+        p_update->neighbor_short_channel_id = hop_dataout.short_channel_id;
+        p_update->neighbor_idx = cb_param.update_idx;
     }
 
 LABEL_EXIT:
@@ -1529,9 +1528,9 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
         ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
 
         if (p_update->flags.delhtlc != LN_DELHTLC_FULFILL) {
-            bwds[num_bwds].prev_short_channel_id = p_update->prev_short_channel_id;
+            bwds[num_bwds].prev_short_channel_id = p_update->neighbor_short_channel_id;
             bwds[num_bwds].fin_delhtlc = p_update->flags.delhtlc;
-            bwds[num_bwds].prev_update_idx = p_update->prev_idx;
+            bwds[num_bwds].prev_update_idx = p_update->neighbor_idx;
             memcpy(payment_hashs[num_bwds], p_htlc->payment_hash, BTC_SZ_HASH256);
             num_bwds++;
         }
@@ -1569,7 +1568,7 @@ static bool revoke_and_ack_recv__delhtlc(ln_channel_t *pChannel)
 //         ln_htlc_flags_delhtlc_str(p_flags->delhtlc),
 //         p_flags->updsend,
 //         p_flags->comsend, p_flags->revrecv, p_flags->comrecv, p_flags->revsend,
-//         p_htlc->next_short_channel_id, p_htlc->next_idx,
+//         p_htlc->neighbor_short_channel_id, p_htlc->neighbor_idx,
 //         ln_htlc_flags_delhtlc_str(p_flags->fin_delhtlc));
 
 
@@ -1847,8 +1846,8 @@ static bool set_add_htlc(
     p_htlc->cltv_expiry = CltvValue;
     memcpy(p_htlc->payment_hash, pPaymentHash, BTC_SZ_HASH256);
     utl_buf_alloccopy(&p_htlc->buf_onion_reason, pPacket, LN_SZ_ONION_ROUTE);
-    p_update->prev_short_channel_id = PrevShortChannelId;
-    p_update->prev_idx = PrevUpdateIdx;
+    p_update->neighbor_short_channel_id = PrevShortChannelId;
+    p_update->neighbor_idx = PrevUpdateIdx;
     utl_buf_free(&p_htlc->buf_shared_secret);
     if (pSharedSecrets) {
         if (!utl_buf_alloccopy(
@@ -1870,7 +1869,7 @@ static bool set_add_htlc(
 
     *pUpdateIdx = update_idx;
     *pHtlcId = p_htlc->id;
-    LOGD("HTLC add : prev_short_channel_id=%" PRIu64 "\n", p_update->prev_short_channel_id);
+    LOGD("HTLC add : neighbor_short_channel_id=%" PRIu64 "\n", p_update->neighbor_short_channel_id);
     LOGD("           pChannel->updates[%u].flags = 0x%04x\n", update_idx, p_update->flags);
     return true;
 }
@@ -2021,11 +2020,11 @@ static bool forward_update_add_htlc_or_start_delhtlc(ln_channel_t *pChannel)
         if (!LN_HTLC_ENABLED(p_update)) continue;
         if (!LN_HTLC_LOCAL_ADDHTLC_RECV_ENABLED(p_update)) continue;
 
-        if (p_update->next_short_channel_id) {
-            LOGD("forward: %d\n", p_update->next_idx);
-            fwds[num_fwds].next_short_channel_id = p_update->next_short_channel_id;
-            fwds[num_fwds].next_update_idx = p_update->next_idx;
-            p_update->next_short_channel_id = 0;
+        if (p_update->neighbor_short_channel_id) {
+            LOGD("forward: %d\n", p_update->neighbor_idx);
+            fwds[num_fwds].next_short_channel_id = p_update->neighbor_short_channel_id;
+            fwds[num_fwds].next_update_idx = p_update->neighbor_idx;
+            p_update->neighbor_short_channel_id = 0;
             num_fwds++;
         }
 
@@ -2099,9 +2098,8 @@ static void dbg_htlc_flag_all(const ln_channel_t *pChannel)
     for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
         const ln_update_t *p_update = &pChannel->updates[idx];
         if (!LN_HTLC_ENABLED(p_update)) continue;
-        LOGD("UPDATE[%d]: prev_short_channel_id=%016" PRIx64 "(%d), next_short_channel_id=%016" PRIx64 "(%d)\n",
-            idx, p_update->prev_short_channel_id, p_update->prev_idx,
-            p_update->next_short_channel_id, p_update->next_idx);
+        LOGD("UPDATE[%d]: neighbor_short_channel_id=%016" PRIx64 "(%d)\n",
+            idx, p_update->neighbor_short_channel_id, p_update->neighbor_idx);
         dbg_htlc_flag(&p_update->flags);
     }
     LOGD("------------------------------------------\n");

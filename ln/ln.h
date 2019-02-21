@@ -309,12 +309,8 @@ typedef struct {
 typedef struct {
     bool                enabled;                        ///< XXX: Interim. Soon abolished
     ln_htlc_flags_t     flags;                          ///< LN_HTLC_FLAG_xxx
-    uint64_t            next_short_channel_id;          ///< flags.addhtlc == SEND
-                                                        //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
-    uint16_t            next_idx;                       ///< next index
-    uint64_t            prev_short_channel_id;          ///< 転送元short_channel_id
-                                                        //      origin/final node: == 0
-    uint16_t            prev_idx;                       ///< prev index
+    uint64_t            neighbor_short_channel_id;      ///<
+    uint16_t            neighbor_idx;                   ///<
     uint16_t            htlc_idx;                       ///< index of `ln_htlc_t` array
 } ln_update_t;
 

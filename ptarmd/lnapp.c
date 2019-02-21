@@ -2548,16 +2548,14 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     const char *p_info;
     char str_stat[256];
 
-    if (p_fulfill->prev_short_channel_id != 0) {
+    if (p_fulfill->prev_short_channel_id) {
         LOGD("backwind: id=%" PRIu64 ", prev_short_channel_id=%016" PRIx64 "\n", p_fulfill->next_id, p_fulfill->prev_short_channel_id);
         snprintf(str_stat, sizeof(str_stat), "-->[fwd]%016" PRIx64, p_fulfill->prev_short_channel_id);
         p_info = str_stat;
-
         cbsub_fulfill_backwind(p_conf, p_fulfill);
     } else {
         LOGD("origin node\n");
         p_info = "origin node";
-
         cbsub_fulfill_originnode(p_conf, p_fulfill);
     }
 
@@ -2659,17 +2657,15 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     const char *p_info;
     char str_stat[256];
 
-    if (p_fail->prev_short_channel_id != 0) {
+    if (p_fail->prev_short_channel_id) {
         LOGD("backwind fail_htlc: prev_idx=%u, prev_short_channel_id=%016" PRIx64 ")\n",
             p_fail->prev_update_idx, p_fail->prev_short_channel_id);
         snprintf(str_stat, sizeof(str_stat), "-->%016" PRIx64, p_fail->prev_short_channel_id);
         p_info = str_stat;
-
         cbsub_fail_backwind(p_conf, p_fail);
     } else {
         LOGD("origin node\n");
         p_info = "origin node";
-
         cbsub_fail_originnode(p_conf, p_fail);
     }
 
@@ -3575,19 +3571,41 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
             case LN_ADDHTLC_NONE:
             default:
                 p_type = "unknown";
-                break;
             }
             cJSON_AddItemToObject(htlc, "type", cJSON_CreateString(p_type));
             cJSON_AddItemToObject(htlc, "htlc id", cJSON_CreateNumber64(p_htlc->id));
             cJSON_AddItemToObject(htlc, "amount_msat", cJSON_CreateNumber(p_htlc->amount_msat));
             cJSON_AddItemToObject(htlc, "cltv_expiry", cJSON_CreateNumber(p_htlc->cltv_expiry));
-            if (p_update->prev_short_channel_id != 0) {
-                if (p_update->prev_short_channel_id == UINT64_MAX) {
-                    cJSON_AddItemToObject(htlc, "role", cJSON_CreateString("final node"));
-                } else {
-                    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-                    ln_short_channel_id_string(str_sci, p_update->prev_short_channel_id);
+            const char *p_role;
+            if (p_update->neighbor_short_channel_id) {
+                p_role = "hop";
+            } else {
+                switch (p_update->flags.addhtlc) {
+                case LN_ADDHTLC_SEND:
+                    p_role = "origin node";
+                    break;
+                case LN_ADDHTLC_RECV:
+                    p_role = "final node";
+                    break;
+                case LN_ADDHTLC_NONE:
+                default:
+                    p_role = "unknown";
+                }
+            }
+            cJSON_AddItemToObject(htlc, "role", cJSON_CreateString(p_role));
+            if (p_update->neighbor_short_channel_id) {
+                char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+                ln_short_channel_id_string(str_sci, p_update->neighbor_short_channel_id);
+                switch (p_update->flags.addhtlc) {
+                case LN_ADDHTLC_SEND:
                     cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
+                    break;
+                case LN_ADDHTLC_RECV:
+                    cJSON_AddItemToObject(htlc, "to", cJSON_CreateString(str_sci));
+                    break;
+                case LN_ADDHTLC_NONE:
+                default:
+                    ;
                 }
             }
             cJSON_AddItemToArray(htlcs, htlc);
@@ -3665,17 +3683,21 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
         LOGD("short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(pChannel));
         LOGD("local_msat:  %" PRIu64 "\n", ln_local_msat(pChannel));
         LOGD("remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
-        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        for (uint16_t lp = 0; lp < LN_HTLC_MAX; lp++) {
             const ln_update_t *p_update = ln_update(pChannel, lp);
             if (!LN_HTLC_ENABLED(p_update)) continue;
             const ln_htlc_t *p_htlc = ln_htlc(pChannel, p_update->htlc_idx);
-            LOGD("  HTLC[%d]\n", lp);
+            LOGD("  HTLC[%u]\n", lp);
             LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
             LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
             LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
-            if (p_update->prev_short_channel_id) {
-                LOGD("    from:        cnl_add_htlc[%u]%016" PRIx64 "\n",
-                    p_update->prev_idx, p_update->prev_short_channel_id);
+            if (!p_update->neighbor_short_channel_id) continue;
+            if (p_update->flags.addhtlc == LN_ADDHTLC_SEND) {
+                LOGD("    from:        UPDATE[%u]%016" PRIx64 "\n",
+                    p_update->neighbor_idx, p_update->neighbor_short_channel_id);
+            } else if (p_update->flags.addhtlc == LN_ADDHTLC_RECV) {
+                LOGD("    to:          UPDATE[%u]%016" PRIx64 "\n",
+                    p_update->neighbor_idx, p_update->neighbor_short_channel_id);
             }
         }
 

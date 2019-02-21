@@ -357,15 +357,20 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         }
         printf(INDENT4 "{\n");
         printf(INDENT5 M_QQ("type") ": \"");
-        if (p_update->prev_short_channel_id == UINT64_MAX) {
-            printf("final node");
-        } else if ((p_update->prev_short_channel_id == 0) && (p_update->flags.addhtlc == LN_ADDHTLC_SEND)) {
-            //prev_short_channel_idが0になる
-            //      - origin node
-            //      - update_add_htlcの受信側
-            printf("origin node");
-        } else {
+        if (p_update->neighbor_short_channel_id) {
             printf("hop");
+        } else {
+            switch (p_update->flags.addhtlc) {
+            case LN_ADDHTLC_SEND:
+                printf("origin node");
+                break;
+            case LN_ADDHTLC_RECV:
+                printf("final node");
+                break;
+            case LN_ADDHTLC_NONE:
+            default:
+                printf("unknown");
+            }
         }
         printf("\",\n");
         printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", p_htlc->id);
@@ -448,14 +453,10 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             printf(M_QQ("NG") ",\n");
         }
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-        ln_short_channel_id_string(str_sci, p_update->next_short_channel_id);
-        printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
-            str_sci, p_update->next_short_channel_id);
-        printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", p_update->next_idx);
-        ln_short_channel_id_string(str_sci, p_update->prev_short_channel_id);
-        printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
-            str_sci, p_update->prev_short_channel_id);
-        printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", p_update->prev_idx);
+        ln_short_channel_id_string(str_sci, p_update->neighbor_short_channel_id);
+        printf(INDENT5 M_QQ("neighbor_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
+            str_sci, p_update->neighbor_short_channel_id);
+        printf(INDENT5 M_QQ("neighbor_idx") ": %" PRIu16 ",\n", p_update->neighbor_idx);
         printf(INDENT5 M_QQ("onion_reason") ": \"");
         if (p_htlc->buf_onion_reason.len > 35) {
             printf("length=%d, ", p_htlc->buf_onion_reason.len);

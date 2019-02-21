@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-46))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-47))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -196,7 +196,14 @@
     -45: rename `htlc_id_num` -> `num_htlc_ids`
          rename `htlc_output_num` -> `num_htlc_outputs`
     -46: separate `ln_update_add_htlc_t` into `ln_update_t` and `ln_htlc_t`
-        rename `num_htlc_ids` -> `next_htlc_id`
+         rename `num_htlc_ids` -> `next_htlc_id`
+    -47: the size of `ln_update_t` gets smaller
+         rm `ln_update_t::prev_short_channel_id`
+         rm `ln_update_t::prev_idx`
+         rm `ln_update_t::next_short_channel_id`
+         rm `ln_update_t::next_idx`
+         add `ln_update_t::neighbor_short_channel_id`
+         add `ln_update_t::neighbor_idx`
  */
 
 
