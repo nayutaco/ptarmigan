@@ -7,6 +7,17 @@ function check_live() {
 	echo check proc count end
 }
 
+function check_log() {
+    echo check log
+    BAD_LINE_COUNT=`../../tools/log_filter.sh | wc -l`
+    if [ $BAD_LINE_COUNT -ne 0 ];
+    then
+        ../../tools/log_filter.sh
+        exit 1
+    fi
+    echo check log end
+}
+
 START=`date +%s`
 
 echo clean start
@@ -28,6 +39,7 @@ sleep 5 # XXX: TODO
 echo st3 end
 
 check_live
+check_log
 
 echo st4c start
 ./example_st4c.sh
@@ -35,6 +47,7 @@ sleep 5 # XXX: TODO
 echo st4c end
 
 check_live
+check_log
 
 echo st4d start
 ./example_st4d.sh
@@ -42,6 +55,7 @@ sleep 5 # XXX: TODO
 echo st4d end
 
 check_live
+check_log
 
 echo st4e start
 ./example_st4e.sh
@@ -49,6 +63,7 @@ sleep 5 # XXX: TODO
 echo st4e end
 
 check_live
+check_log
 
 echo st4f start
 ./example_st4f.sh
@@ -56,6 +71,7 @@ sleep 5 # XXX: TODO
 echo st4f end
 
 check_live
+check_log
 
 echo disconnect start
 ./example_st_quit.sh
@@ -74,6 +90,7 @@ sleep 5
 echo reconnect end
 
 check_live
+check_log
 
 echo st4c start
 ./example_st4c.sh
@@ -81,6 +98,7 @@ sleep 5 # XXX: TODO
 echo st4c end
 
 check_live
+check_log
 
 echo st4d start
 ./example_st4d.sh
@@ -88,6 +106,7 @@ sleep 5 # XXX: TODO
 echo st4d end
 
 check_live
+check_log
 
 echo st4e start
 ./example_st4e.sh
@@ -95,6 +114,7 @@ sleep 5 # XXX: TODO
 echo st4e end
 
 check_live
+check_log
 
 echo st4f start
 ./example_st4f.sh
@@ -102,6 +122,7 @@ sleep 5 # XXX: TODO
 echo st4f end
 
 check_live
+check_log
 
 echo st5 start
 ./example_st5.sh
@@ -109,15 +130,7 @@ sleep 5 # XXX: TODO
 echo st5 end
 
 check_live
-
-echo check log
-BAD_LINE_COUNT=`../../tools/log_filter.sh | wc -l`
-if [ $BAD_LINE_COUNT -ne 0 ];
-then
-    ../../tools/log_filter.sh
-    exit 1
-fi
-echo check log end
+check_log
 
 echo clean start
 ./clean.sh

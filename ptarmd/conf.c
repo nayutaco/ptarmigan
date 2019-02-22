@@ -50,7 +50,7 @@
 #define M_CHANNEL_RESERVE_SAT           (700)
 #define M_HTLC_MINIMUM_MSAT_EST         (0)
 #define M_TO_SELF_DELAY                 (40)
-#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
+#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_RECEIVED_MAX)
 #define M_MIN_DEPTH                     (1)
 
 //  init

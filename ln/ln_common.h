@@ -19,25 +19,32 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ln_htlc.c
- *  @brief  ln_htlc
+/** @file   ln_common.h
+ *  @brief  ln_common
  */
-#include "utl_int.h"
+#ifndef LN_COMMON_H__
+#define LN_COMMON_H__
 
-#include "ln_htlc.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 
 /**************************************************************************
- * public functions
+ * macros
  **************************************************************************/
 
-uint32_t ln_htlc_flags2u32(ln_htlc_flags_t Flags)
-{
-    if (sizeof(ln_htlc_flags_t) == 2) {
-        return utl_int_pack_u16be((const uint8_t *)&Flags);
-    } else if (sizeof(ln_htlc_flags_t) == 4) {
-        return utl_int_pack_u32be((const uint8_t *)&Flags);
-    } else {
-        return 0;
-    }
-}
+#define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< (size) signature
+
+#define LN_DBG_PRINT
+#ifdef LN_DBG_PRINT
+#define LN_DBG_COMMIT_NUM_PRINT(pChannel) { LOGD("----- debug commit_num -----\n"); ln_dbg_commitnum(pChannel); }
+#define LN_DBG_UPDATE_PRINT(pUpdate) ln_update_print(pUpdate)
+#define LN_DBG_UPDATES_PRINT(pUpdates) ln_update_updates_print(pUpdates)
+#else
+#define LN_DBG_COMMIT_NUM_PRINT(pChannel) //none
+#define LN_DBG_UPDATE_PRINT(pUpdate) //none
+#define LN_DBG_UPDATES_PRINT(pUpdates) //none
+#endif
+
+
+#endif /* LN_COMMON_H__ */

@@ -52,10 +52,9 @@ typedef enum {
     LN_CB_TYPE_NOTIFY_ANNODB_UPDATE,        ///< announcement DB更新通知
     LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
-    LN_CB_TYPE_START_FWD_ADD_HTLC,           ///< update_add_htlc転送開始
-    LN_CB_TYPE_START_BWD_DEL_HTLC,           ///< HTLC削除処理開始
+    LN_CB_TYPE_START_FWD_ADD_HTLC,          ///< update_add_htlc転送開始
+    LN_CB_TYPE_START_BWD_DEL_HTLC,          ///< HTLC削除処理開始
     LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
-    LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
     LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, ///< revoke_and_ack交換通知
     LN_CB_TYPE_RETRY_PAYMENT,               ///< 送金リトライ
     LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV,      ///< update_fee受信通知
@@ -120,7 +119,7 @@ typedef struct {
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
     uint64_t                    amount_msat;            ///<
     uint32_t                    cltv_expiry;            ///<
-    uint16_t                    update_idx;             ///<
+    uint16_t                    htlc_idx;               ///< XXX: should use htlc_id
     utl_buf_t                   *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
     const utl_buf_t             *p_shared_secret;       ///< onion shared secret
 } ln_cb_param_nofity_add_htlc_recv_t;
@@ -128,14 +127,20 @@ typedef struct {
 
 typedef struct {
     uint64_t                    next_short_channel_id;
-    uint16_t                    next_update_idx;
+    uint16_t                    next_htlc_idx;        ///< XXX: should use htlc_id
 } ln_cb_param_start_fwd_add_htlc_t;
 
 
 typedef struct {
-    uint64_t                    prev_short_channel_id;
-    uint16_t                    prev_update_idx;
-    uint8_t                     fin_delhtlc;
+    bool                    ret;
+    uint8_t                 update_type;
+    uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
+    const utl_buf_t         *p_reason;              ///< reason
+    const utl_buf_t         *p_shared_secret;       ///< shared secret
+    uint16_t                prev_htlc_idx;          ///< XXX: should use htlc_id
+    uint64_t                next_htlc_id;           ///< HTLC id (caller's)
+    const uint8_t           *p_payment_hash;        ///< payment_hash
+    uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code
 } ln_cb_param_start_bwd_del_htlc_t;
 
 
@@ -145,26 +150,11 @@ typedef struct {
 typedef struct {
     bool                    ret;                    ///< callback処理結果
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    uint16_t                prev_update_idx;        ///<
+    uint16_t                prev_htlc_idx;          ///< XXX: should use htlc_id
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                next_id;                ///< HTLC id (caller's)
     uint64_t                amount_msat;            ///< HTLC amount
 } ln_cb_param_notify_fulfill_htlc_recv_t;
-
-
-/** @struct ln_cb_param_notify_fail_htlc_recv_t
- *  @brief  update_fail_htlc受信通知(#LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV)
- */
-typedef struct {
-    bool                    ret;
-    uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    const utl_buf_t         *p_reason;              ///< reason
-    const utl_buf_t         *p_shared_secret;       ///< shared secret
-    uint16_t                prev_update_idx;        ///< pChannel->updates[idx]
-    uint64_t                next_id;                ///< HTLC id (caller's)
-    const uint8_t           *p_payment_hash;        ///< payment_hash
-    uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code
-} ln_cb_param_notify_fail_htlc_recv_t;
 
 
 /** @struct ln_cb_param_update_closing_fee_t

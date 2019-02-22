@@ -57,54 +57,45 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
  * @param[in]           CltvValue       CLTV値(絶対値)
  * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
  * @param[in]           PrevShortChannelId      転送元short_channel_id(ない場合は0)
- * @param[in]           PrevUpdateIdx           転送元updates[]index(ない場合は0)
+ * @param[in]           PrevHtlcIdx           転送元updates[]index(ない場合は0)
  * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
  * @retval      true    成功
  * @note
  *      - prev_short_channel_id はfullfillの通知先として使用する
  */
-bool ln_add_htlc_set(
+bool ln_set_add_htlc_send(
     ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, const uint8_t *pPacket,
     uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets);
+    uint64_t PrevShortChannelId, uint16_t PrevHtlcIdx, const utl_buf_t *pSharedSecrets);
 
-bool ln_add_htlc_set_fwd(
+bool ln_set_add_htlc_send_fwd(
     ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pNextUpdateIdx,
     const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint16_t PrevUpdateIdx, const utl_buf_t *pSharedSecrets);
+    uint64_t PrevShortChannelId, uint16_t PrevHtlcIdx, const utl_buf_t *pSharedSecrets);
 
-void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t UpdateIdx);
+void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t NextHtlcIdx);
 
 
 /** update_fulfill_htlc設定
  *
  * @param[in,out]       pChannel        channel info
- * @param[in]           UpdateIdx       index of the updates
+ * @param[in]           HtlcIdx         index of the htlcs
  * @param[in]           pPreimage       payment_preimage
  * @retval      true    成功
  */
-bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t UpdateIdx, const uint8_t *pPreimage);
+bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t *pPreimage);
 
 
 /** update_fail_htlc設定
  *
  * @param[in,out]       pChannel        channel info
- * @param[in]           UpdateIdx       index of the updates
+ * @param[in]           HtlcIdx         index of the htlcs
+ * @param[in]           UpdateType      
  * @param[in]           pReason         reason
  * @note
  *      - onion_routing_packetと共用のため、onion_routingは消える
  */
-bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t UpdateIdx, const utl_buf_t *pReason);
-
-
-bool ln_fail_htlc_set_bwd(ln_channel_t *pChannel, uint16_t UpdateIdx, const utl_buf_t *pReason);
-
-
-/** update_fail_htlc転送
- *
- *
- */
-void ln_del_htlc_start_bwd(ln_channel_t *pChannel, uint16_t UpdateIdx);
+bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateType, const utl_buf_t *pReason);
 
 
 /** send update_fee message

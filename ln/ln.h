@@ -45,8 +45,9 @@
 #include "ln_noise.h"
 #include "ln_node.h"
 #include "ln_script.h"
-#include "ln_htlc.h"
+#include "ln_update.h"
 #include "ln_cb.h"
+#include "ln_common.h"
 
 
 #ifdef __cplusplus
@@ -62,7 +63,6 @@ extern "C" {
 #define LN_SZ_CHANNEL_ID                (32)        ///< (size) channel_id
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< (size) short_channel_id
 #define LN_SZ_SHORTCHANNELID_STR        (127)       ///< (size) short_channel_id string
-#define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< (size) signature
 #define LN_SZ_ALIAS_STR                 (32)        ///< (size) node alias //XXX:
 #define LN_SZ_PREIMAGE                  (32)        ///< (size) preimage
 #define LN_SZ_ONION_ROUTE               (1366)      ///< (size) onion-routing-packet
@@ -72,11 +72,9 @@ extern "C" {
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
-#define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
-                                                    //      max_accepted_htlcsとして使用する
-                                                    //      相手の分も同じ分しか用意していない
-                                                    //      相手からの要求はmax_accepted_htlcsまでしか受け入れないので、
-                                                    //      こちらから要求しなければ済む話である。
+#define LN_HTLC_OFFERED_MAX_XXX         (6)         ///<
+#define LN_HTLC_RECEIVED_MAX            (6)         ///<
+#define LN_HTLC_MAX_XXX                 (LN_HTLC_OFFERED_MAX_XXX + LN_HTLC_RECEIVED_MAX)
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_FEERATE_PER_KW               (500)       ///< estimate feeできなかった場合のfeerate_per_kw
@@ -186,13 +184,8 @@ extern "C" {
 
 #define M_DBG_COMMITHTLC
 #ifdef M_DBG_COMMITHTLC
-#define M_DBG_COMMITNUM(pChannel) { LOGD("----- debug commit_num -----\n"); ln_dbg_commitnum(pChannel); }
-#define M_DBG_HTLCFLAG(htlc) dbg_htlc_flag(htlc)
-#define M_DBG_HTLCFLAGALL(pChannel) dbg_htlc_flag_all(pChannel)
 #else
-#define M_DBG_COMMITNUM(pChannel)   //none
-#define M_DBG_HTLCFLAG(htlc)        //none
-#define M_DBG_HTLCFLAGALL(pChannel) //none
+#define LN_DBG_COMMIT_NUM_PRINT(pChannel)   //none
 #endif
 
 
@@ -297,44 +290,6 @@ typedef struct {
 } ln_close_force_t;
 
 /// @}
-
-
-/**************************************************************************
- * typedefs : Normal Operation
- **************************************************************************/
-
-/** @struct     ln_update_t
- *  @brief      update message
- */
-typedef struct {
-    bool                enabled;                        ///< XXX: Interim. Soon abolished
-    ln_htlc_flags_t     flags;                          ///< LN_HTLC_FLAG_xxx
-    uint64_t            neighbor_short_channel_id;      ///<
-    uint16_t            neighbor_idx;                   ///<
-    uint16_t            htlc_idx;                       ///< index of `ln_htlc_t` array
-} ln_update_t;
-
-
-/** @struct     ln_htlc_t
- *  @brief      htlc
- */
-typedef struct {
-    bool                enabled;                        ///< XXX: Interim. Soon abolished
-    uint64_t            id;                             ///< 8:  id
-    uint64_t            amount_msat;                    ///< 8:  amount_msat
-    uint32_t            cltv_expiry;                    ///< 4:  cltv_expirty
-    uint8_t             payment_hash[BTC_SZ_HASH256];   ///< 32: payment_hash
-    utl_buf_t           buf_payment_preimage;           ///< 32: payment_preimage
-    utl_buf_t           buf_onion_reason;               ///<
-                                                        //  update_add_htlc
-                                                        //      1366: onion_routing_packet
-                                                        //          final node: length == 0
-                                                        //  update_fail_htlc
-                                                        //      len:  reason
-    uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< 受信した最新のHTLC署名
-                                                        //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
-    utl_buf_t           buf_shared_secret;              ///< failuremsg暗号化用
-} ln_htlc_t;
 
 
 /**************************************************************************
@@ -461,8 +416,8 @@ struct ln_channel_t {
     uint64_t                    next_htlc_id;                   ///< [NORM_01]update_add_htlcで使うidの管理
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
     uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
-    ln_update_t                 updates[LN_HTLC_MAX];           ///< [NORM_04]updates
-    ln_htlc_t                   htlcs[LN_HTLC_MAX];             ///< [NORM_05]追加したHTLC
+    ln_update_t                 updates[LN_UPDATE_MAX];         ///< [NORM_04]updates
+    ln_htlc_t                   htlcs[LN_HTLC_RECEIVED_MAX];    ///< [NORM_05]追加したHTLC //XXX:
 
     //commitment transaction(local/remote)
     ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用
@@ -1157,13 +1112,6 @@ const ln_htlc_t *ln_htlc(const ln_channel_t *pChannel, uint16_t HtlcIdx);
  *
  * @param[in]           pChannel        channel info
  * @retval      true    Timeoutしている
- * @note
- *      - addhtlc == SEND
- *      - delhtlc == none
- *      - updsend == true
- *      - comsend, revrecv, comrecv, revsend == true
- *      - fin_delhtlc == none
- *      - cltv_expiry <= current blockcount
  */
 bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t UpdateIdx, uint32_t BlockCount);
 

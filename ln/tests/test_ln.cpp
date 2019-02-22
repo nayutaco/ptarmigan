@@ -46,6 +46,7 @@ extern "C" {
 #include "ln_signer.c"
 #include "ln_invoice.c"
 #include "ln_print.c"
+#include "ln_update.c"
 
 #include "ln.c"
 }
@@ -147,7 +148,6 @@ public:
         case LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV"; break;
         case LN_CB_TYPE_START_FWD_ADD_HTLC: p_str = "LN_CB_TYPE_START_FWD_ADD_HTLC"; break;
         case LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV"; break;
-        case LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV"; break;
         case LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE: p_str = "LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE"; break;
         case LN_CB_TYPE_RETRY_PAYMENT: p_str = "LN_CB_TYPE_RETRY_PAYMENT"; break;
         case LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV: p_str = "LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV"; break;
@@ -207,8 +207,8 @@ TEST_F(ln, init)
     ln_init(&channel, &anno_param, (ln_callback_t)0x123456);
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
-    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ASSERT_TRUE(utl_mem_is_all_zero(&channel.updates[idx].flags, sizeof(ln_htlc_flags_t)));
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        ASSERT_TRUE(utl_mem_is_all_zero(&channel.updates[idx].flags, sizeof(ln_update_flags_t)));
     }
     ASSERT_TRUE(DumpCheck(&channel.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
     ASSERT_TRUE(DumpCheck(&channel.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));
