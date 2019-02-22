@@ -568,7 +568,7 @@ bool /*HIDDEN*/ ln_funding_locked_send(ln_channel_t *pChannel)
     //channel_reestablishと同じ扱いにする
     pChannel->init_flag |= M_INIT_FLAG_REEST_SEND;
 
-    M_DBG_COMMITNUM(pChannel);
+    LN_DBG_COMMIT_NUM_PRINT(pChannel);
     return true;
 }
 
@@ -616,7 +616,7 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //channel_reestablishと同じ扱いにする
     pChannel->init_flag |= M_INIT_FLAG_REEST_RECV;
 
-    M_DBG_COMMITNUM(pChannel);
+    LN_DBG_COMMIT_NUM_PRINT(pChannel);
 
     LOGD("END\n");
     return true;
@@ -632,7 +632,7 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel)
     msg.p_your_last_per_commitment_secret = your_last_per_commitment_secret;
     msg.p_my_current_per_commitment_point = my_current_per_commitment_point;
 
-    M_DBG_COMMITNUM(pChannel);
+    LN_DBG_COMMIT_NUM_PRINT(pChannel);
 
     //MUST set next_local_commitment_number to the commitment number
     //  of the next commitment_signed it expects to receive.
@@ -692,7 +692,7 @@ bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *p
         return false;
     }
 
-    M_DBG_COMMITNUM(pChannel);
+    LN_DBG_COMMIT_NUM_PRINT(pChannel);
     pChannel->reest_commit_num = msg.next_local_commitment_number;
     pChannel->reest_revoke_num = msg.next_remote_revocation_number;
 
@@ -934,5 +934,5 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
         //上位で停止される
     }
 
-    M_DBG_COMMITNUM(pChannel);
+    LN_DBG_COMMIT_NUM_PRINT(pChannel);
 }

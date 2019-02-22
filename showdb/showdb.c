@@ -159,24 +159,22 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
         uint64_t received = 0;
         printf(INDENT3 M_QQ("pending") ": [\n");
         int cnt = 0;
-        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
             const ln_update_t *p_update = &pChannel->updates[lp];
-            if (!LN_HTLC_ENABLED(&pChannel->updates[lp])) continue;
+            if (!LN_UPDATE_ENABLED(p_update)) continue;
+            if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
             const ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
             if (cnt) {
                 printf(",\n");
             }
             const char *p_dir = NULL;
-            switch (p_update->flags.addhtlc) {
-            case LN_ADDHTLC_SEND:
+            if (p_update->flags.up_send) {
                 p_dir = "offered";
                 offered += p_htlc->amount_msat;
-                break;
-            case LN_ADDHTLC_RECV:
+            } else if (p_update->flags.up_recv) {
                 p_dir = "received";
                 received += p_htlc->amount_msat;
-                break;
-            default:
+            } else {
                 p_dir = "unknown";
             }
             printf(INDENT4 "{\n");
@@ -346,95 +344,85 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     //normal operation
     printf(INDENT3 M_QQ("next_htlc_id") ": %" PRIu64 ",\n", pChannel->next_htlc_id);
 
-    printf(INDENT3 M_QQ("add_htlc") ": [\n");
+    printf(INDENT3 M_QQ("htlcs") ": [\n");
     int cnt = 0;
-    for (lp = 0; lp < LN_HTLC_MAX; lp++) {
+    for (lp = 0; lp < LN_UPDATE_MAX; lp++) {
         const ln_update_t *p_update = &pChannel->updates[lp];
-        if (!LN_HTLC_ENABLED(&pChannel->updates[lp])) continue;
+        if (!LN_UPDATE_ENABLED(p_update)) continue;
+        if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
         const ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
         if (cnt > 0) {
             printf(",\n");
         }
         printf(INDENT4 "{\n");
         printf(INDENT5 M_QQ("type") ": \"");
-        if (p_update->neighbor_short_channel_id) {
+        if (p_htlc->neighbor_short_channel_id) {
             printf("hop");
         } else {
-            switch (p_update->flags.addhtlc) {
-            case LN_ADDHTLC_SEND:
+            if (p_update->flags.up_send) {
                 printf("origin node");
-                break;
-            case LN_ADDHTLC_RECV:
+            } else if (p_update->flags.up_recv) {
                 printf("final node");
-                break;
-            case LN_ADDHTLC_NONE:
-            default:
+            } else {
                 printf("unknown");
             }
         }
         printf("\",\n");
         printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", p_htlc->id);
         // printf(INDENT5 M_QQ("flags") ": " M_QQ("%s(0x%04x)") ",\n",
-        //             ((p_update->flags.addhtlc == LN_ADDHTLC_RECV) ? "received" : "offered"),
+        //             ((p_update->type == LN_UPDATE_TYPE_ADD_HTLC) ? "received" : "offered"),
         //             p_update->flags);
         printf(INDENT5 M_QQ("flags") ": {\n");
-        const char *p_str_addhtlc;
-        const char *p_str_delhtlc;
-        const char *p_str_fin_delhtlc;
-        switch (p_update->flags.addhtlc) {
+#if 0 //XXX:
+        const char *p_str_type;
+        const char *p_str_fin_type;
+        switch (p_update->type) {
         case LN_ADDHTLC_NONE:
-            p_str_addhtlc = "---";
+            p_str_type = "---";
             break;
-        case LN_ADDHTLC_SEND:
-            p_str_addhtlc = "offered";
+        case LN_UPDATE_TYPE_ADD_HTLC:
+            p_str_type = "offered";
             break;
-        case LN_ADDHTLC_RECV:
-            p_str_addhtlc = "received";
+        case LN_UPDATE_TYPE_ADD_HTLC:
+            p_str_type = "received";
+            break;
+        case LN_UPDATE_TYPE_FULFILL_HTLC:
+            p_str_type = "fulfill";
+            break;
+        case LN_UPDATE_TYPE_FAIL_HTLC:
+            p_str_type = "fail";
+            break;
+        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
+            p_str_type = "fail_malformed";
             break;
         default:
-            p_str_addhtlc = "unknown";
+            p_str_type = "unknown";
         }
-        switch (p_update->flags.delhtlc) {
+        switch (p_update->fin_type) {
         case LN_DELHTLC_NONE:
-            p_str_delhtlc = "---";
+            p_str_fin_type = "---";
             break;
-        case LN_DELHTLC_FULFILL:
-            p_str_delhtlc = "fulfill";
+        case LN_UPDATE_TYPE_FULFILL_HTLC:
+            p_str_fin_type = "fulfill";
             break;
-        case LN_DELHTLC_FAIL:
-            p_str_delhtlc = "fail";
+        case LN_UPDATE_TYPE_FAIL_HTLC:
+            p_str_fin_type = "fail";
             break;
-        case LN_DELHTLC_FAIL_MALFORMED:
-            p_str_delhtlc = "fail_malformed";
-            break;
-        default:
-            p_str_delhtlc = "unknown";
-        }
-        switch (p_update->flags.fin_delhtlc) {
-        case LN_DELHTLC_NONE:
-            p_str_fin_delhtlc = "---";
-            break;
-        case LN_DELHTLC_FULFILL:
-            p_str_fin_delhtlc = "fulfill";
-            break;
-        case LN_DELHTLC_FAIL:
-            p_str_fin_delhtlc = "fail";
-            break;
-        case LN_DELHTLC_FAIL_MALFORMED:
-            p_str_fin_delhtlc = "fail_malformed";
+        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
+            p_str_fin_type = "fail_malformed";
             break;
         default:
-            p_str_fin_delhtlc = "unknown";
+            p_str_fin_type = "unknown";
         }
-        printf(INDENT6 M_QQ("flags") ": " M_QQ("0x%04x") ",\n", ln_htlc_flags2u32(p_update->flags));
-        printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
-        printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
-        printf(INDENT6 M_QQ("updsend") ": %d,\n", p_update->flags.updsend);
-        printf(INDENT6 M_QQ("comsend") ": %d,\n", p_update->flags.comsend);
-        printf(INDENT6 M_QQ("revrecv") ": %d,\n", p_update->flags.revrecv);
-        printf(INDENT6 M_QQ("comrecv") ": %d,\n", p_update->flags.comrecv);
-        printf(INDENT6 M_QQ("revsend") ": %d,\n", p_update->flags.revsend);
-        printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
+#endif
+        printf(INDENT6 M_QQ("flags") ": " M_QQ("0x%04x") ",\n", ln_update_flags2u32(p_update->flags));
+        //printf(INDENT6 M_QQ("type") ": " M_QQ("%s") ",\n", p_str_type);
+        printf(INDENT6 M_QQ("up_send") ": %d,\n", p_update->flags.up_send);
+        printf(INDENT6 M_QQ("cs_send") ": %d,\n", p_update->flags.cs_send);
+        printf(INDENT6 M_QQ("ra_recv") ": %d,\n", p_update->flags.ra_recv);
+        printf(INDENT6 M_QQ("cs_recv") ": %d,\n", p_update->flags.cs_recv);
+        printf(INDENT6 M_QQ("ra_send") ": %d,\n", p_update->flags.ra_send);
+        //printf(INDENT6 M_QQ("fin_type") ": " M_QQ("%s") "\n", p_str_fin_type);
         printf(INDENT5 "},\n");
         printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", p_htlc->amount_msat);
         printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", p_htlc->cltv_expiry);
@@ -453,10 +441,10 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             printf(M_QQ("NG") ",\n");
         }
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-        ln_short_channel_id_string(str_sci, p_update->neighbor_short_channel_id);
+        ln_short_channel_id_string(str_sci, p_htlc->neighbor_short_channel_id);
         printf(INDENT5 M_QQ("neighbor_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
-            str_sci, p_update->neighbor_short_channel_id);
-        printf(INDENT5 M_QQ("neighbor_idx") ": %" PRIu16 ",\n", p_update->neighbor_idx);
+            str_sci, p_htlc->neighbor_short_channel_id);
+        printf(INDENT5 M_QQ("neighbor_idx") ": %" PRIu16 ",\n", p_htlc->neighbor_idx);
         printf(INDENT5 M_QQ("onion_reason") ": \"");
         if (p_htlc->buf_onion_reason.len > 35) {
             printf("length=%d, ", p_htlc->buf_onion_reason.len);

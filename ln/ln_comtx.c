@@ -275,7 +275,8 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
         ln_comtx_calc_obscured_commit_num(pChannel->obscured_commit_num_mask, pCommitTx->commit_num);
 
     //HTLCs (amount)
-    pComTxInfo->pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
+    pComTxInfo->pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(
+        sizeof(ln_comtx_htlc_info_t *) * (LN_HTLC_MAX_XXX));
     if (!pComTxInfo->pp_htlc_info) goto LABEL_EXIT;
     if (!create_local_htlc_info_and_amount(
         pChannel->updates, pChannel->htlcs, pComTxInfo->pp_htlc_info, &pComTxInfo->num_htlc_infos,
@@ -385,7 +386,7 @@ bool ln_comtx_create_remote(
         pCommitTx->to_self_delay)) return false;
 
     //HTLC info (amount)
-    pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t*) * LN_HTLC_MAX);
+    pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t *) * LN_HTLC_MAX_XXX);
     if (!pp_htlc_info) goto LABEL_EXIT;
     if (!create_remote_htlc_info_and_amount(
         pChannel->updates, pChannel->htlcs, pp_htlc_info, &num_htlc_infos,
@@ -930,39 +931,44 @@ static bool create_htlc_info_and_amount(
     bool bLocal)
 {
     *pHtlcInfoCnt = 0;
-    for (uint16_t update_idx = 0; update_idx < LN_HTLC_MAX; update_idx++) {
+    for (uint16_t update_idx = 0; update_idx < LN_UPDATE_MAX; update_idx++) {
         const ln_update_t *p_update = &pUpdates[update_idx];
         LOGD("flags = 0x%04x\n", p_update->flags);
-        if (!LN_HTLC_ENABLED(p_update)) continue;
-        const ln_htlc_t *p_htlc = &pHtlcs[p_update->htlc_idx];
+        if (!LN_UPDATE_ENABLED(p_update)) continue;
 
-        if (LN_HTLC_ADDHTLC_SEND_ENABLED_UNCOMMITTED(p_update, bLocal)) {
-            LOGD("addhtlc_send\n");
-            *pLocalMsat -= pHtlcs[p_update->htlc_idx].amount_msat;
-        } else if (LN_HTLC_DELHTLC_RECV_ENABLED_UNCOMMITTED(p_update, bLocal)) {
-            if (LN_HTLC_FULFILL_RECV_ENABLED_UNCOMMITTED(p_update, bLocal)) {
-                LOGD("fulfill_recv\n");
-                *pRemoteMsat += p_htlc->amount_msat;
+        if (LN_UPDATE_UNCOMMITTED(p_update, bLocal)) {
+            if (LN_UPDATE_ADD_HTLC_SEND_ENABLED(p_update, bLocal)) {
+                LOGD("add htlc send\n");
+                *pLocalMsat -= pHtlcs[p_update->htlc_idx].amount_msat;
+            } else if (LN_UPDATE_DEL_HTLC_RECV_ENABLED(p_update, bLocal)) {
+                if (LN_UPDATE_FULFILL_HTLC_RECV_ENABLED(p_update, bLocal)) {
+                    LOGD("fulfill htlc recv\n");
+                    *pRemoteMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                } else {
+                    LOGD("fail htlc recv\n");
+                    *pLocalMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                }
+                continue;
+            } else if (LN_UPDATE_ADD_HTLC_RECV_ENABLED(p_update, bLocal)) {
+                LOGD("add htlc recv\n");
+                *pRemoteMsat -= pHtlcs[p_update->htlc_idx].amount_msat;
+            } else if (LN_UPDATE_DEL_HTLC_SEND_ENABLED(p_update, bLocal)) {
+                if (LN_UPDATE_FULFILL_HTLC_SEND_ENABLED(p_update, bLocal)) {
+                    LOGD("fulfill htlc send\n");
+                    *pLocalMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                } else {
+                    LOGD("fail htlc send\n");
+                    *pRemoteMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                }
+                continue;
             } else {
-                LOGD("failhtlc_recv\n");
-                *pLocalMsat += p_htlc->amount_msat;
-            }
-        } else if (LN_HTLC_ADDHTLC_RECV_ENABLED_UNCOMMITTED(p_update, bLocal)) {
-            LOGD("addhtlc_recv\n");
-            *pRemoteMsat -= p_htlc->amount_msat;
-        } else if (LN_HTLC_DELHTLC_SEND_ENABLED_UNCOMMITTED(p_update, bLocal)) {
-            if (LN_HTLC_FULFILL_SEND_ENABLED_UNCOMMITTED(p_update, bLocal)) {
-                LOGD("fulfill_send\n");
-                *pLocalMsat += p_htlc->amount_msat;
-            } else {
-                LOGD("delhtlc_send\n");
-                *pRemoteMsat += p_htlc->amount_msat;
+                continue;
             }
         }
 
-        if (LN_HTLC_ADDHTLC_SEND_ENABLED(p_update, bLocal) || LN_HTLC_ADDHTLC_RECV_ENABLED(p_update, bLocal)) {
-            //add HTLC
-        } else {
+        const ln_htlc_t *p_htlc = &pHtlcs[p_update->htlc_idx];
+        const ln_update_t *p_update_del_htlc = ln_update_get_update_del_htlc_const(pUpdates, p_update->htlc_idx);
+        if (p_update_del_htlc && LN_UPDATE_SOME_UPDATE_ENABLED(p_update_del_htlc, bLocal)) {
             LOGD(" DEL UPDATE[%u] HTLC[%u] [id=%" PRIu64 "](%" PRIu64 ")\n",
                 update_idx, p_update->htlc_idx, p_htlc->id, p_htlc->amount_msat);
             continue;
@@ -970,14 +976,11 @@ static bool create_htlc_info_and_amount(
 
         ln_comtx_htlc_info_t *p_info = (ln_comtx_htlc_info_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t));
         ln_comtx_htlc_info_init(p_info);
-        switch (p_update->flags.addhtlc) {
-        case LN_ADDHTLC_RECV:
-            p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_RECEIVED : LN_COMTX_OUTPUT_TYPE_OFFERED;
-            break;
-        case LN_ADDHTLC_SEND:
-            p_info->type = bLocal ? LN_COMTX_OUTPUT_TYPE_OFFERED : LN_COMTX_OUTPUT_TYPE_RECEIVED;
-            break;
-        default:
+        if (LN_UPDATE_ADD_HTLC_SEND_ENABLED(p_update, bLocal)) {
+            p_info->type = LN_COMTX_OUTPUT_TYPE_OFFERED;
+        } else if (LN_UPDATE_ADD_HTLC_RECV_ENABLED(p_update, bLocal)) {
+            p_info->type = LN_COMTX_OUTPUT_TYPE_RECEIVED;
+        } else {
             LOGE("unknown flags: %04x\n", p_update->flags);
             assert(0);
             UTL_DBG_FREE(p_info);

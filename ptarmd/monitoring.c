@@ -427,7 +427,7 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p
     }
 
     //Offered HTLCのtimeoutチェック
-    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+    for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
         if (ln_is_offered_htlc_timeout(pChannel, lp, p_param->height)) {
             LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(pChannel));
             bool ret = monitor_close_unilateral_local(pChannel, p_db_param);
@@ -665,7 +665,7 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
     //extract the preimage for backwinding
     LOGD("hop node\n");
     LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
-        p_update->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
+        p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
 
     uint32_t confirm;
     if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
@@ -856,7 +856,7 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
     }
 
     LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
-        p_update->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
+        p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
     uint32_t confirm;
     if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
         LOGE("fail: get confirmation\n");
