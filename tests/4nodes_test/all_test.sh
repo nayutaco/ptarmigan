@@ -1,5 +1,12 @@
 #!/bin/bash -ue
 
+function check_live() {
+	echo check proc count start
+	PROC_COUNT=`ps -C ptarmd | grep ptarmd | wc -l`
+	test $PROC_COUNT == 4
+	echo check proc count end
+}
+
 START=`date +%s`
 
 echo clean start
@@ -20,25 +27,35 @@ echo st3 start
 sleep 5 # XXX: TODO
 echo st3 end
 
+check_live
+
 echo st4c start
 ./example_st4c.sh
 sleep 5 # XXX: TODO
 echo st4c end
+
+check_live
 
 echo st4d start
 ./example_st4d.sh
 sleep 5 # XXX: TODO
 echo st4d end
 
+check_live
+
 echo st4e start
 ./example_st4e.sh
 sleep 5 # XXX: TODO
 echo st4e end
 
+check_live
+
 echo st4f start
 ./example_st4f.sh
 sleep 5 # XXX: TODO
 echo st4f end
+
+check_live
 
 echo disconnect start
 ./example_st_quit.sh
@@ -56,35 +73,42 @@ echo reconnect start
 sleep 5
 echo reconnect end
 
+check_live
+
 echo st4c start
 ./example_st4c.sh
 sleep 5 # XXX: TODO
 echo st4c end
+
+check_live
 
 echo st4d start
 ./example_st4d.sh
 sleep 5 # XXX: TODO
 echo st4d end
 
+check_live
+
 echo st4e start
 ./example_st4e.sh
 sleep 5 # XXX: TODO
 echo st4e end
+
+check_live
 
 echo st4f start
 ./example_st4f.sh
 sleep 5 # XXX: TODO
 echo st4f end
 
+check_live
+
 echo st5 start
 ./example_st5.sh
 sleep 5 # XXX: TODO
 echo st5 end
 
-echo check proc count start
-PROC_COUNT=`ps -C ptarmd | grep ptarmd | wc -l`
-test $PROC_COUNT == 4
-echo check proc count end
+check_live
 
 echo check log
 BAD_LINE_COUNT=`../../tools/log_filter.sh | wc -l`
