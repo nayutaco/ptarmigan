@@ -5,7 +5,8 @@ CXX=g++
 MK := mkdir
 RM := rm -rf
 
-TEST_TARGET_SRC += test_main.cpp
+TEST_TARGET_SRC += \
+	test_lnapp_anno.cpp
 
 include ../../options.mak
 
@@ -25,21 +26,22 @@ CPPFLAGS += -DPTARM_DEBUG_MEM
 CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --coverage -fpermissive
 #CXXFLAGS += -fsanitize=leak
 #CXXFLAGS += -fsanitize=address
-CXXFLAGS += -I../../utl -I../../ln -I../../btc
+CXXFLAGS += -I../../utl
+CXXFLAGS += -I../../btc
 CXXFLAGS += -I../../utl/tests
+CXXFLAGS += -I../../ln
 CXXFLAGS += -I..
 CXXFLAGS += -I../../libs/install/include
 CXXFLAGS += -I../../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-protector -D_FORTIFY_SOURCE=1
-LDFLAGS  += -L../../ln -lln -L../../btc -lbtc
-LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58 -llmdb
+LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58 -lz -llmdb
 LDFLAGS  += -Wl,--gc-sections
 
 
 TEST_SRC_FILE_NAMES = $(notdir $(TEST_TARGET_SRC))
 TEST_PATHS = $(call remduplicates, $(dir $(TEST_TARGET_SRC) ) )
-TEST_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(TEST_SRC_FILE_NAMES:.cpp=.o) )
+TEST_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(TEST_SRC_FILE_NAMES:.cpp=) )
 
 
 vpath %.cpp $(TEST_PATHS)
@@ -48,7 +50,6 @@ vpath %.cpp $(TEST_PATHS)
 all: .Depend unittest
 
 unittest: $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TEST_OBJECTS) $(GTEST_DIR)/gtest_main.a -o $(OBJECT_DIRECTORY)/$@ $(LDFLAGS)
 
 $(OBJECT_DIRECTORY):
 	@echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -56,10 +57,10 @@ $(OBJECT_DIRECTORY):
 	@echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 	@$(MK) $@
 
-# Create objects from C SRC files
-$(OBJECT_DIRECTORY)/%.o: %.cpp
+# Create objects from CPP SRC files
+$(OBJECT_DIRECTORY)/%: %.cpp
 	@echo Compiling file: $(notdir $<) $@
-	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) -c -o $@ $<
+	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
 
 $(GTEST_DIR)/gtest_main.a:
 	make -C $(GTEST_DIR)
@@ -70,18 +71,18 @@ ifneq ($(MAKECMDGOALS),clean)
 endif
 
 rmlcov:
-	$(RM) $(OBJECT_DIRECTORY)/*.gcda
+	$(RM) $(OBJECT_DIRECTORY)/*.gcda *.gcda
 
 clean:
 	@$(RM) $(OBJECT_DIRECTORY) .Depend
 
-clobber: clean rmlcov
+clobber: rmlcov clean
 	make -C $(GTEST_DIR) clean
 	$(RM) $(OBJECT_DIRECTORY) *.gcno
 
 exec: rmlcov
 	$(RM) $(OBJECT_DIRECTORY)/lcov.info
-	$(OBJECT_DIRECTORY)/unittest
+	$(foreach EXEC,$(TEST_OBJECTS),$(EXEC) &&) echo
 
 info:
 	@echo TEST_TARGET_SRC=$(TEST_TARGET_SRC)
@@ -90,7 +91,7 @@ info:
 	@echo TEST_OBJECTS=$(TEST_OBJECTS)
 
 lcov:
-	lcov -c -d $(OBJECT_DIRECTORY) -o $(OBJECT_DIRECTORY)/lcov.info
+	lcov -c -d . -o $(OBJECT_DIRECTORY)/lcov.info
 	genhtml -o $(OBJECT_DIRECTORY)/lcovhtml $(OBJECT_DIRECTORY)/lcov.info
 
 valgrind:

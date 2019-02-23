@@ -66,7 +66,7 @@ TEST_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(TEST_SRC_FILE_NAMES:.cpp=) )
 vpath %.cpp $(TEST_PATHS)
 
 
-all: .Depend unittest 
+all: .Depend unittest
 
 unittest: $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
 
