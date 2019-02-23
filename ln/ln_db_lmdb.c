@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-47))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-48))     ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -204,6 +204,7 @@
          rm `ln_update_t::next_idx`
          add `ln_update_t::neighbor_short_channel_id`
          add `ln_update_t::neighbor_idx`
+    -48: fix ln_update_t::enabled
  */
 
 
