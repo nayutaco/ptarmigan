@@ -79,7 +79,7 @@ $(OBJECT_DIRECTORY):
 # Create objects from CPP SRC files
 $(OBJECT_DIRECTORY)/%: %.cpp
 	@echo Compiling file: $(notdir $<) $@
-	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
+	$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
 
 $(GTEST_DIR)/gtest_main.a:
 	make -C $(GTEST_DIR)

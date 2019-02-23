@@ -28,14 +28,13 @@ CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --
 #CXXFLAGS += -fsanitize=address
 CXXFLAGS += -I../../utl
 CXXFLAGS += -I../../btc
-CXXFLAGS += -I../../utl/tests
 CXXFLAGS += -I../../ln
 CXXFLAGS += -I..
 CXXFLAGS += -I../../libs/install/include
 CXXFLAGS += -I../../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-protector -D_FORTIFY_SOURCE=1
-LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58 -lz -llmdb
+LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58 -lz
 LDFLAGS  += -Wl,--gc-sections
 
 
@@ -60,7 +59,7 @@ $(OBJECT_DIRECTORY):
 # Create objects from CPP SRC files
 $(OBJECT_DIRECTORY)/%: %.cpp
 	@echo Compiling file: $(notdir $<) $@
-	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
+	$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
 
 $(GTEST_DIR)/gtest_main.a:
 	make -C $(GTEST_DIR)
