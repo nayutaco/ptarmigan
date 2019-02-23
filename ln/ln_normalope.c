@@ -129,6 +129,8 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
     p_update = &pChannel->updates[update_idx];
     p_htlc = &pChannel->htlcs[htlc_idx];
     p_update->htlc_idx = htlc_idx;
+    p_update->enabled = true;
+    p_htlc->enabled = true;
 
     ln_msg_update_add_htlc_t msg;
     if (!ln_msg_update_add_htlc_read(&msg, pData, Len)) {
@@ -1845,6 +1847,8 @@ static bool set_add_htlc(
     p_update = &pChannel->updates[update_idx];
     p_htlc = &pChannel->htlcs[htlc_idx];
     p_update->htlc_idx = htlc_idx;
+    p_update->enabled = true;
+    p_htlc->enabled = true;
     LOGD("OK\n");
 
     p_htlc->id = pChannel->next_htlc_id++;

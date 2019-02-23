@@ -80,7 +80,7 @@ typedef struct {
  */
 #define LN_HTLC_EMPTY(pHtlc) \
     ( \
-        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_NONE) && \
+        ((pHtlc)->flags.addhtlc == LN_ADDHTLC_NONE) || \
         (!(pHtlc)->enabled) \
     )
 

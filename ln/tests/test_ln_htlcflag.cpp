@@ -2390,6 +2390,7 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     ln_htlc_flags_t *p_flags = &p_update->flags;
 
     p_update->htlc_idx = 0;
+    p_update->enabled = true;
     p_htlc->cltv_expiry = 100;
     p_flags->addhtlc = LN_ADDHTLC_SEND;
     p_flags->updsend = true;
@@ -2451,6 +2452,7 @@ TEST_F(ln_htlc_flag, htlc_flag_update_add_htlc_resend)
     ln_update_t *p_update = &channel.updates[0];
     ln_htlc_flags_t *p_flags = &p_update->flags;
 
+    p_update->enabled = true;
     p_flags->addhtlc = LN_ADDHTLC_SEND;
     p_flags->delhtlc = LN_DELHTLC_NONE;
     p_flags->updsend = 1;
@@ -2478,6 +2480,7 @@ TEST_F(ln_htlc_flag, htlc_flag_update_del_htlc_resend)
     ln_update_t *p_update = &channel.updates[0];
     ln_htlc_flags_t *p_flags = &p_update->flags;
 
+    p_update->enabled = true;
     p_flags->addhtlc = LN_ADDHTLC_RECV;
     p_flags->delhtlc = LN_DELHTLC_FULFILL;
     p_flags->updsend = 1;
