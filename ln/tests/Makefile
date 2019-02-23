@@ -66,7 +66,7 @@ TEST_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(TEST_SRC_FILE_NAMES:.cpp=) )
 vpath %.cpp $(TEST_PATHS)
 
 
-all: .Depend unittest 
+all: .Depend unittest
 
 unittest: $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
 
@@ -79,7 +79,7 @@ $(OBJECT_DIRECTORY):
 # Create objects from CPP SRC files
 $(OBJECT_DIRECTORY)/%: %.cpp
 	@echo Compiling file: $(notdir $<) $@
-	@$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
+	$(CXX) -DSVCALL_AS_NORMAL_FUNCTION $(CPPFLAGS) $(CXXFLAGS) $(INC_PATHS) $(GTEST_DIR)/gtest_main.a -o $@ $< $(LDFLAGS)
 
 $(GTEST_DIR)/gtest_main.a:
 	make -C $(GTEST_DIR)
