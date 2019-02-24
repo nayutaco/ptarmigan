@@ -122,7 +122,7 @@ TEST_F(ln, no_gossip_queries)
     memset(&qsci, 0, sizeof(qsci));
     memset(&qcr, 0, sizeof(qcr));
 
-    ASSERT_FALSE(ln_query_short_channel_ids_send(&channel));
+    ASSERT_FALSE(ln_query_short_channel_ids_send(&channel, NULL, 0));
     ASSERT_TRUE(ln_query_short_channel_ids_recv(&channel, NULL, 0));
     ASSERT_FALSE(ln_reply_short_channel_ids_end_send(&channel, &qsci));
     ASSERT_FALSE(ln_reply_short_channel_ids_end_recv(&channel, NULL, 0));

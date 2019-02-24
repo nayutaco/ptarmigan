@@ -46,7 +46,7 @@ bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel);
 bool HIDDEN ln_channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 bool ln_channel_update_disable(ln_channel_t *pChannel);
 
-bool ln_query_short_channel_ids_send(ln_channel_t *pChannel);
+bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEncodedIds, uint16_t Len);
 bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_query_short_channel_ids_t *pMsg);
 bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);

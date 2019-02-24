@@ -98,6 +98,7 @@ ifeq ($(ENABLE_DEVELOPER_MODE),1)
 	CFLAGS += -DDEVELOPER_MODE
 endif
 
+#CFLAGS += -DUSE_GQUERY
 
 # for syscall()
 CFLAGS += -D_GNU_SOURCE

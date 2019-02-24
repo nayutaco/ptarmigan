@@ -383,7 +383,7 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
 }
 
 
-bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
+bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEncodedIds, uint16_t Len)
 {
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
@@ -393,8 +393,8 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel)
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_query_short_channel_ids_t msg;
     msg.p_chain_hash = ln_genesishash_get();
-    msg.len = 0;
-    msg.p_encoded_short_ids = NULL;
+    msg.len = Len;
+    msg.p_encoded_short_ids = pEncodedIds;
     if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
@@ -526,6 +526,12 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ret = ln_msg_gossip_ids_decode(&p_short_ids, &ids, msg.p_encoded_short_ids, msg.len);
         if (ret) {
+            if (msg.len > 1) {
+                ret = ln_query_short_channel_ids_send(pChannel, msg.p_encoded_short_ids, msg.len);
+                assert(ret);
+            }
+
+            //debug
             for (size_t lp = 0; lp < ids; lp++) {
                 ln_short_channel_id_string(str_sci, p_short_ids[lp]);
                 LOGD("[%ld]%s\n", lp, str_sci);
