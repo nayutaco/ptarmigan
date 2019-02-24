@@ -921,6 +921,15 @@ static void *thread_main_start(void *pArg)
     // send `channel_update` for private/before publish channel
     send_cnlupd_before_announce(p_conf);
 
+#ifdef USE_GQUERY
+    ret = ln_query_channel_range_send(p_channel, 0, UINT32_MAX);
+    if (ret) {
+        (void)ln_gossip_timestamp_filter_send(p_channel);
+    } else {
+        LOGE("fail: ln_query_channel_range_send\n");
+    }
+#endif  //USE_GQUERY
+
     {
         // method: connected
         // $1: short_channel_id

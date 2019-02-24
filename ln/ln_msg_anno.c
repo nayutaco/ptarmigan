@@ -750,8 +750,9 @@ static void query_short_channel_ids_print(const ln_msg_query_short_channel_ids_t
     LOGD("-[query_short_channel_ids]-------------------------------\n");
     LOGD("chain_hash: ");
     DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
-    LOGD("encoded_short_ids: ");
     size_t len = pMsg->len;
+    LOGD("len=%lu\n", len);
+    LOGD("encoded_short_ids: ");
     if (len > 100) {
         len = 100;
     }
@@ -943,8 +944,9 @@ static void reply_channel_range_print(const ln_msg_reply_channel_range_t *pMsg)
     LOGD("first_blocknum: %" PRIu32 "\n", pMsg->first_blocknum);
     LOGD("number_of_blocks: %" PRIu32 "\n", pMsg->number_of_blocks);
     LOGD("complete: %02x\n", pMsg->complete);
-    LOGD("encoded_short_ids: ");
     size_t len = pMsg->len;
+    LOGD("len=%lu\n", len);
+    LOGD("encoded_short_ids: ");
     if (len > 100) {
         len = 100;
     }
