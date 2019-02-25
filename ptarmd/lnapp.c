@@ -1402,7 +1402,8 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
                         &fundin,
                         pFunding->funding_sat,
                         pFunding->push_sat,
-                        feerate_kw);
+                        feerate_kw,
+                        pFunding->priv_channel);
         if (ret) {
             LOGD("SEND: open_channel\n");
         } else {

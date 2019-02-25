@@ -582,6 +582,15 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         //デフォルト値
         fundconf.feerate_per_kw = 0;
     }
+    //private channel
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        fundconf.priv_channel = json->valueint;
+        LOGD("priv_chanel=%" PRIu32 "\n", fundconf.priv_channel);
+    } else {
+        //デフォルト値
+        fundconf.priv_channel = 0;
+    }
 
     LOGD("$$$: [JSONRPC]fund\n");
 

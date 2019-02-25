@@ -109,7 +109,7 @@ extern "C" {
 
 // channel.fund_flag
 #define LN_FUNDFLAG_FUNDER              (1 << 0)    ///< 1:funder / 0:fundee
-#define LN_FUNDFLAG_NO_ANNO_CH          (1 << 1)    ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
+#define LN_FUNDFLAG_NO_ANNO_CH          (1 << 1)    ///< 1:announcement_signatures未送信(後で送信する) / 0:announcement_signatures送信不要 or 送信済み(もう送信しない)
 #define LN_FUNDFLAG_FUNDING             (1 << 2)    ///< 1:open_channel～funding_lockedまで
 #define LN_FUNDFLAG_OPENED              (1 << 7)    ///< 1:opened
 

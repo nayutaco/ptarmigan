@@ -277,7 +277,7 @@ TEST_F(ln, ln_open_channel_recv_ok)
             pMsg->p_delayed_payment_basepoint = pubkey;
             pMsg->p_htlc_basepoint = pubkey;
             pMsg->p_first_per_commitment_point = pubkey;
-            pMsg->channel_flags = CHANNEL_FLAGS_VALUE;
+            pMsg->channel_flags = CHANNEL_FLAGS_ANNOCNL;
             pMsg->shutdown_len = 0;
             pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
@@ -335,7 +335,7 @@ TEST_F(ln, ln_open_channel_recv_sender1)
             pMsg->p_delayed_payment_basepoint = pubkey;
             pMsg->p_htlc_basepoint = pubkey;
             pMsg->p_first_per_commitment_point = pubkey;
-            pMsg->channel_flags = CHANNEL_FLAGS_VALUE;
+            pMsg->channel_flags = CHANNEL_FLAGS_ANNOCNL;
             pMsg->shutdown_len = 0;
             pMsg->p_shutdown_scriptpubkey = NULL;
             return true;
@@ -394,7 +394,7 @@ TEST_F(ln, ln_open_channel_recv_sender2)
             pMsg->p_delayed_payment_basepoint = pubkey;
             pMsg->p_htlc_basepoint = pubkey;
             pMsg->p_first_per_commitment_point = pubkey;
-            pMsg->channel_flags = CHANNEL_FLAGS_VALUE;
+            pMsg->channel_flags = CHANNEL_FLAGS_ANNOCNL;
             pMsg->shutdown_len = 0;
             pMsg->p_shutdown_scriptpubkey = NULL;
             return true;

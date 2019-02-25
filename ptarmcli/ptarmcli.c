@@ -61,6 +61,7 @@
 #define M_OPT_INITROUTESYNC         '\x06'
 #define M_OPT_PAYTOWALLET           '\x07'
 #define M_OPT_NOINITROUTESYNC       '\x08'
+#define M_OPT_PRIVCHANNEL           '\x09'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -99,7 +100,8 @@ static char         mBuf[BUFFER_SIZE];
 static bool         mTcpSend;
 static char         mAddr[256];
 static char         mErrStr[256];
-static char         mInitRouteSync[16];
+static uint8_t      mInitRouteSync;
+static uint8_t      mPrivChannel;
 
 
 /********************************************************************
@@ -132,6 +134,7 @@ static void optfunc_getbalance(int *pOption, bool *pConn);
 static void optfunc_emptywallet(int *pOption, bool *pConn);
 static void optfunc_initroutesync(int *pOption, bool *pConn);
 static void optfunc_noinitroutesync(int *pOption, bool *pConn);
+static void optfunc_privchannel(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -172,6 +175,7 @@ static const struct {
     { M_OPT_INITROUTESYNC,      optfunc_initroutesync },
     { M_OPT_PAYTOWALLET,        optfunc_walletback },
     { M_OPT_NOINITROUTESYNC,    optfunc_noinitroutesync },
+    { M_OPT_PRIVCHANNEL,        optfunc_privchannel },
     //
     { M_OPT_DEBUG,              optfunc_debug },
 };
@@ -191,6 +195,7 @@ int main(int argc, char *argv[])
         { "paytowallet", optional_argument, NULL, M_OPT_PAYTOWALLET },
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
+        { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
@@ -199,7 +204,8 @@ int main(int argc, char *argv[])
     bool conn = false;
     mAddr[0] = '\0';
     mTcpSend = true;
-    mInitRouteSync[0] = '\0';
+    mInitRouteSync = PTARMD_ROUTESYNC_DEFAULT;
+    mPrivChannel = 0;
     int opt;
     while ((opt = getopt_long(argc, argv, "c:hta:l::q::f:i:e:mp:r:R:x::wg::s:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
@@ -227,9 +233,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\tCONNECT:\n");
         fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
 #if defined(USE_BITCOIND)
-        fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF [--private]: funding\n");
 #elif defined(USE_BITCOINJ)
-        fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS : funding\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
 #endif
         fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
@@ -471,10 +477,12 @@ static void optfunc_funding(int *pOption, bool *pConn)
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
                     //txid, txindex, funding_sat, push_sat, feerate_per_kw
                     M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
+                    ",%d"
                 " ]"
             "}",
                 mPeerNodeId, mPeerAddr, mPeerPort,
-                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw);
+                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw,
+                mPrivChannel);
 
         *pConn = false;
         *pOption = M_OPTIONS_EXEC;
@@ -903,7 +911,7 @@ static void optfunc_initroutesync(int *pOption, bool *pConn)
 
     M_CHK_CONN
 
-    snprintf(mInitRouteSync, sizeof(mInitRouteSync), ",%d", PTARMD_ROUTESYNC_INIT);
+    mInitRouteSync = PTARMD_ROUTESYNC_INIT;
 }
 
 
@@ -913,7 +921,17 @@ static void optfunc_noinitroutesync(int *pOption, bool *pConn)
 
     M_CHK_CONN
 
-    snprintf(mInitRouteSync, sizeof(mInitRouteSync), ",%d", PTARMD_ROUTESYNC_NONE);
+    mInitRouteSync = PTARMD_ROUTESYNC_NONE;
+}
+
+
+static void optfunc_privchannel(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_CONN
+
+    mPrivChannel = 1;
 }
 
 
@@ -928,8 +946,7 @@ static void connect_rpc(void)
             M_STR("method", "connect") M_NEXT
             M_QQ("params") ":[ "
                 //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
-                "%s"
+                M_QQ("%s") "," M_QQ("%s") ",%d,%d"
             " ]"
         "}",
             mPeerNodeId, mPeerAddr, mPeerPort, mInitRouteSync);
