@@ -81,7 +81,8 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign);
  **************************************************************************/
 
 bool /*HIDDEN*/ ln_open_channel_send(
-    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
+    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate,
+    uint8_t PrivChannel)
 {
     if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "no init finished.");
@@ -134,7 +135,12 @@ bool /*HIDDEN*/ ln_open_channel_send(
     msg.p_delayed_payment_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_DELAYED];
     msg.p_htlc_basepoint = pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_HTLC];
     msg.p_first_per_commitment_point = pChannel->keys_local.per_commitment_point;
-    msg.channel_flags = CHANNEL_FLAGS_VALUE;
+    if (PrivChannel != 0) {
+        LOGD("private channel\n");
+        msg.channel_flags = 0;
+    } else {
+        msg.channel_flags = CHANNEL_FLAGS_ANNOCNL;
+    }
     msg.shutdown_len = 0;
     msg.p_shutdown_scriptpubkey = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
@@ -160,7 +166,10 @@ bool /*HIDDEN*/ ln_open_channel_send(
 
     pChannel->commit_tx_remote.to_self_delay = msg.to_self_delay; //XXX:
 
-    pChannel->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+    pChannel->fund_flag = (ln_fundflag_t)(
+                LN_FUNDFLAG_FUNDER |
+                ((msg.channel_flags & CHANNEL_FLAGS_MASK) ? LN_FUNDFLAG_NO_ANNO_CH : 0) |
+                LN_FUNDFLAG_FUNDING);
     return true;
 }
 
@@ -255,7 +264,9 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     pChannel->commit_tx_remote.local_msat =
         pChannel->commit_tx_local.remote_msat =
         LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
-    pChannel->fund_flag = (ln_fundflag_t)(((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
+    pChannel->fund_flag = (ln_fundflag_t)(
+                ((msg.channel_flags & 1) ? LN_FUNDFLAG_NO_ANNO_CH : 0) |
+                LN_FUNDFLAG_FUNDING);
 
     //generate keys
     ln_update_script_pubkeys(pChannel);

@@ -194,6 +194,7 @@ typedef struct funding_conf_t {
     uint64_t        funding_sat;
     uint64_t        push_sat;
     uint32_t        feerate_per_kw;
+    uint8_t         priv_channel;           //not 0: private channel
 } funding_conf_t;
 
 
