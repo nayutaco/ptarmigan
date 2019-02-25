@@ -79,7 +79,7 @@ sleep 3
 # node_6666からnode_5555へチャネルを開く。
 ./fund-test-in.sh > node_6666/fund6666_5555.conf
 sleep 1
-./ptarmcli -c conf/peer5555.conf -f node_6666/fund6666_5555.conf --private 6667
+./ptarmcli -c conf/peer5555.conf -f node_6666/fund6666_5555.conf 6667
 
 # 少し待つ
 echo wait...
