@@ -581,19 +581,39 @@ bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_
 
 static void proc_announcement_signatures(ln_channel_t *pChannel)
 {
-    if ( (pChannel->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) && pChannel->short_channel_id ) {
-        //announcement_signatures have been exchanged
-        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", pChannel->short_channel_id);
+    if (pChannel->anno_flag != (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
+        LOGD("yet: anno_flag=%02x\n", pChannel->anno_flag);
+        return;
+    }
+    if (pChannel->short_channel_id == 0) {
+        LOGD("yet: no short_channel_id\n");
+        return;
+    }
+    //announcement_signatures have been exchanged
+    LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", pChannel->short_channel_id);
 
-        //channel_announcement
+    //channel_announcement
+    {
+        //verify
+        ln_msg_channel_announcement_t msg;
+        if (!ln_msg_channel_announcement_read(&msg, pChannel->cnl_anno.buf, pChannel->cnl_anno.len)) {
+            LOGE("fail: read\n");
+            return;
+        }
+        if (!ln_msg_channel_announcement_verify(&msg, pChannel->cnl_anno.buf, pChannel->cnl_anno.len)) {
+            LOGE("fail: verify\n");
+            return;
+        }
         if (ln_db_annocnl_save(
             &pChannel->cnl_anno, pChannel->short_channel_id, NULL, ln_remote_node_id(pChannel), ln_node_getid())) {
             utl_buf_free(&pChannel->cnl_anno);
         } else {
             LOGE("fail\n");
         }
+    }
 
-        //channel_update
+    //channel_update
+    {
         ln_msg_channel_update_t msg;
         utl_buf_t buf = UTL_BUF_INIT;
         if (create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), 0)) {
@@ -602,11 +622,9 @@ static void proc_announcement_signatures(ln_channel_t *pChannel)
             LOGE("fail\n");
         }
         utl_buf_free(&buf);
-
-        pChannel->anno_flag |= LN_ANNO_FLAG_END;
-    } else {
-        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", pChannel->anno_flag, pChannel->short_channel_id);
     }
+
+    pChannel->anno_flag |= LN_ANNO_FLAG_END;
 }
 
 
