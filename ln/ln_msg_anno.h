@@ -349,7 +349,7 @@ bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_channel_announcement_verify(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len); //XXX: not used
+bool HIDDEN ln_msg_channel_announcement_verify(const ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len); //XXX: not used
 
 
 /** print channel_announcement

@@ -301,7 +301,7 @@ bool HIDDEN ln_msg_channel_announcement_sign(uint8_t *pData, uint16_t Len, const
 }
 
 
-bool HIDDEN ln_msg_channel_announcement_verify(ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_channel_announcement_verify(const ln_msg_channel_announcement_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     uint8_t hash[BTC_SZ_HASH256];
     uint16_t offset = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
