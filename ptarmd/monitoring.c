@@ -50,8 +50,12 @@
  **************************************************************************/
 
 #define M_WAIT_START_SEC                (5)         ///< monitoring start[sec]
+#ifdef DEVELOPER_MODE
+//Workaround for `lightning-integration`'s timeout (outside BOLT specifications)
+#define M_WAIT_MON_SEC                  (20)        ///< monitoring cyclic[sec] for developer mode
+#else
 #define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
-
+#endif
 
 /**************************************************************************
  * typedefs
