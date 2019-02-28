@@ -1712,29 +1712,6 @@ static bool check_create_add_htlc(
             pChannel->commit_info_remote.max_htlc_value_in_flight_msat);
         goto LABEL_ERROR;
     }
-
-    if (pReason && !pReason->len) {
-        //forwarding only
-        //  If channel_update has been received, it is checked whether it is disabled
-        utl_buf_t buf = UTL_BUF_INIT;
-        if (ln_channel_update_get_peer(pChannel, &buf, NULL)) {
-            ln_msg_channel_update_t msg;
-            if (!ln_msg_channel_update_read(&msg, buf.buf, buf.len) ||
-                msg.channel_flags & LN_CNLUPD_CHFLAGS_DISABLE) {
-                //B13. if the channel is disabled:
-                //      channel_disabled
-                //      (report the current channel setting for the outgoing channel.)
-                LOGE("fail: channel_disabled\n");
-                utl_push_t push;
-                utl_push_init(
-                    &push, pReason, sizeof(uint16_t) + sizeof(uint16_t) + buf.len);
-                utl_push_u16be(&push, LNONION_CHAN_DISABLE);
-                utl_push_u16be(&push, (uint16_t)buf.len);
-                utl_push_data(&push, buf.buf, buf.len);
-                goto LABEL_ERROR;
-            }
-        }
-    }
     return true;
 
 LABEL_ERROR:
