@@ -287,7 +287,7 @@ bool ln_db_channel_save_status(const ln_channel_t *pChannel, void *pDbParam);
  * @param[in]           pChannel        channel info
  * @retval  save result
  */
-bool ln_db_channel_save_lastconf(const ln_channel_t *pChannel, void *pDbParam);
+bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbParam);
 
 
 /** short_channel_idが自分が持つチャネルかどうか

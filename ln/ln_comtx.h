@@ -46,7 +46,7 @@
  *   5. メモリ解放
  *
  * @param[in,out]       pChannel
- * @param[in,out]       pCommitTx
+ * @param[in,out]       pCommitInfo
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
  * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           NumHtlcSigs         pHtlcSigsの署名数
@@ -56,7 +56,7 @@
  */
 bool HIDDEN ln_comtx_create_local(
     ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommitTx,
+    ln_commit_info_t *pCommitInfo,
     ln_close_force_t *pClose,
     const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
     uint16_t NumHtlcSigs);
@@ -65,11 +65,11 @@ bool HIDDEN ln_comtx_create_local(
 /** create local commitment transaction info
  *
  * @param[in,out]       pComTxInfo
- * @param[in,out]       pCommitTx
+ * @param[in,out]       pCommitInfo
  * @param[in,out]       pChannel
  * @retval              true        success
  */
-bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_commit_tx_t *pCommitTx, const ln_channel_t *pChannel);
+bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_commit_info_t *pCommitInfo, const ln_channel_t *pChannel);
 
 
 void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
@@ -84,7 +84,7 @@ void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
  *          - to_remote output
  *          - 各HTLC output
  *
- * 作成した署名は、To-LocalはpChannel->commit_tx_remote.remote_sigに、HTLCはpChannel->htlcs[].remote_sig 代入する
+ * 作成した署名は、To-LocalはpChannel->commit_info_remote.remote_sigに、HTLCはpChannel->htlcs[].remote_sig 代入する
  *
  *   1. to_local script作成
  *   2. HTLC情報設定
@@ -94,14 +94,14 @@ void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
  *   5. メモリ解放
  *
  * @param[in,out]       pChannel
- * @param[in,out]       pCommitRemote
+ * @param[in,out]       pCommitInfoRemote
  * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
  * @param[out]          ppHtlcSigs          commitment_signed送信用署名(NULLの場合は代入しない)
  * @retval  true    成功
  */
 bool HIDDEN ln_comtx_create_remote(
     const ln_channel_t *pChannel,
-    ln_commit_tx_t *pCommitRemote,
+    ln_commit_info_t *pCommitInfoRemote,
     ln_close_force_t *pClose,
     uint8_t (**ppHtlcSigs)[LN_SZ_SIGNATURE]);
 

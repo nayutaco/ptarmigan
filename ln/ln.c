@@ -123,7 +123,7 @@ typedef bool (*pRecvFunc_t)(ln_channel_t *pChannel,const uint8_t *pData, uint16_
 
 static void channel_clear(ln_channel_t *pChannel);
 static void close_alloc(ln_close_force_t *pClose, int Num);
-static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx);
+static uint64_t calc_commit_num(const ln_commit_info_t *pCommitInfo, const btc_tx_t *pTx);
 
 
 /**************************************************************************
@@ -197,14 +197,14 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
 
     utl_buf_init(&pChannel->shutdown_scriptpk_local);
     utl_buf_init(&pChannel->shutdown_scriptpk_remote);
-    utl_buf_init(&pChannel->funding_tx.wit_script);
+    utl_buf_init(&pChannel->funding_info.wit_script);
     utl_buf_init(&pChannel->cnl_anno);
     utl_buf_init(&pChannel->revoked_sec);
     pChannel->p_revoked_vout = NULL;
     pChannel->p_revoked_wit = NULL;
     pChannel->p_revoked_type = NULL;
 
-    btc_tx_init(&pChannel->funding_tx.tx_data);
+    btc_tx_init(&pChannel->funding_info.tx_data);
     btc_tx_init(&pChannel->tx_closing);
 
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
@@ -226,8 +226,15 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
     //seed
     ln_derkey_init(&pChannel->keys_local, &pChannel->keys_remote);
 
-    pChannel->commit_tx_local.commit_num = 0;
-    pChannel->commit_tx_remote.commit_num = 0;
+    pChannel->commit_info_local.commit_num = 0;
+    pChannel->commit_info_remote.commit_num = 0;
+
+    pChannel->commit_info_local.p_script_pubkeys = pChannel->keys_local.script_pubkeys;
+    pChannel->commit_info_remote.p_script_pubkeys = pChannel->keys_remote.script_pubkeys;
+
+    pChannel->commit_info_local.p_funding_info =
+        pChannel->commit_info_remote.p_funding_info =
+        &pChannel->funding_info;
 
     LOGD("END\n");
 
@@ -359,7 +366,7 @@ void ln_establish_free(ln_channel_t *pChannel)
         UTL_DBG_FREE(pChannel->establish.p_fundin);
         LOGD("free\n");
     }
-    pChannel->fund_flag = (ln_fundflag_t)((pChannel->fund_flag & ~LN_FUNDFLAG_FUNDING) | LN_FUNDFLAG_OPENED);
+    pChannel->funding_info.state = (ln_funding_state_t)((pChannel->funding_info.state & ~LN_FUNDING_STATE_STATE_FUNDING) | LN_FUNDING_STATE_STATE_OPENED);
 }
 
 
@@ -376,7 +383,7 @@ uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint3
 
 void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint32_t Index)
 {
-    pChannel->short_channel_id = ln_short_channel_id_calc(Height, Index, ln_funding_txindex(pChannel));
+    pChannel->short_channel_id = ln_short_channel_id_calc(Height, Index, ln_funding_info_txindex(&pChannel->funding_info));
     pChannel->status = LN_STATUS_NORMAL;
     M_DB_CHANNEL_SAVE(pChannel);
 }
@@ -390,11 +397,32 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_
 }
 
 
-void ln_funding_blockhash_set(ln_channel_t *pChannel, const uint8_t *pMinedHash)
+
+const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel)
 {
-    LOGD("save minedHash=");
-    TXIDD(pMinedHash);
-    memcpy(pChannel->funding_bhash, pMinedHash, BTC_SZ_HASH256);
+    return pChannel->funding_blockhash;
+}
+
+
+uint32_t ln_funding_last_confirm_get(const ln_channel_t *pChannel)
+{
+    return pChannel->funding_last_confirm;
+}
+
+
+void ln_funding_last_confirm_set(ln_channel_t *pChannel, uint32_t Confirm)
+{
+    if (Confirm > pChannel->funding_last_confirm) {
+        pChannel->funding_last_confirm = Confirm;
+    }
+}
+
+
+void ln_funding_blockhash_set(ln_channel_t *pChannel, const uint8_t *pBlockHash)
+{
+    LOGD("save funding blockhash=");
+    TXIDD(pBlockHash);
+    memcpy(pChannel->funding_blockhash, pBlockHash, BTC_SZ_HASH256);
     M_DB_CHANNEL_SAVE(pChannel);
 }
 
@@ -497,7 +525,7 @@ bool ln_funding_locked_check_need(const ln_channel_t *pChannel)
 {
     return (pChannel->short_channel_id != 0) &&
         (
-            ((pChannel->commit_tx_local.commit_num == 0) && (pChannel->commit_tx_remote.commit_num == 0)) ||
+            ((pChannel->commit_info_local.commit_num == 0) && (pChannel->commit_info_remote.commit_num == 0)) ||
             ((pChannel->reest_commit_num == 1) && (pChannel->reest_revoke_num == 0))
         );
 }
@@ -664,12 +692,12 @@ void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void
                utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(pChannel)) ) ) {
             //mutual close
             pChannel->status = LN_STATUS_CLOSE_MUTUAL;
-        } else if (memcmp(txid, pChannel->commit_tx_local.txid, BTC_SZ_TXID) == 0) {
+        } else if (memcmp(txid, pChannel->commit_info_local.txid, BTC_SZ_TXID) == 0) {
             //unilateral close(local)
             pChannel->status = LN_STATUS_CLOSE_UNI_LOCAL;
         } else {
             //commitment numberの復元
-            uint64_t commit_num = calc_commit_num(pChannel, pCloseTx);
+            uint64_t commit_num = calc_commit_num(&pChannel->commit_info_remote, pCloseTx);
 
             utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
             bool ret = ln_derkey_remote_storage_get_secret(&pChannel->keys_remote, pChannel->revoked_sec.buf, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
@@ -725,11 +753,11 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     ln_update_script_pubkeys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_local.num_htlc_outputs);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_local.num_htlc_outputs);
 
     //local commit_tx
     bool ret = ln_comtx_create_local( //closeのみ(HTLC署名無し)
-        pChannel, &pChannel->commit_tx_local, pClose, NULL, 0);
+        pChannel, &pChannel->commit_info_local, pClose, NULL, 0);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
@@ -780,11 +808,11 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     ln_print_keys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
-    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_tx_remote.num_htlc_outputs);
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_remote.num_htlc_outputs);
 
     //remote commit_tx
     bool ret = ln_comtx_create_remote(
-        pChannel, &pChannel->commit_tx_remote, pClose, NULL);
+        pChannel, &pChannel->commit_info_remote, pClose, NULL);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
@@ -850,7 +878,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     //
 
     //commitment numberの復元
-    uint64_t commit_num = calc_commit_num(pChannel, pRevokedTx);
+    uint64_t commit_num = calc_commit_num(&pChannel->commit_info_remote, pRevokedTx);
 
     //remote per_commitment_secretの復元
     utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
@@ -877,7 +905,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     ln_script_create_to_local(&pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_LOCAL],
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                 pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
-                pChannel->commit_tx_remote.to_self_delay);
+                pChannel->commit_info_remote.to_self_delay);
     utl_buf_init(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL]);
     btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[LN_RCLOSE_IDX_TO_LOCAL], &pChannel->p_revoked_wit[LN_RCLOSE_IDX_TO_LOCAL]);
     // LOGD("calc to_local vout: ");
@@ -1105,23 +1133,23 @@ bool ln_status_is_closed(const ln_channel_t *pChannel)
 uint64_t ln_local_msat(const ln_channel_t *pChannel)
 {
     //XXX: need to consider the uncommitted offered HTLCs
-    return pChannel->commit_tx_remote.remote_msat; //remote's remote -> local
+    return pChannel->commit_info_remote.remote_msat; //remote's remote -> local
 }
 
 
 uint64_t ln_remote_msat(const ln_channel_t *pChannel)
 {
     //XXX: need to consider the uncommitted offered HTLCs
-    return pChannel->commit_tx_remote.local_msat; //remote's local -> remote
+    return pChannel->commit_info_remote.local_msat; //remote's local -> remote
 }
 
 
 uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
 {
     //XXX: need to consider the uncommitted offered HTLCs
-    uint64_t remote_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat);
-    if (pChannel->commit_tx_remote.remote_msat > remote_reserve_msat) { //remote's remote -> local
-        return pChannel->commit_tx_remote.remote_msat - remote_reserve_msat;
+    uint64_t remote_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_info_remote.channel_reserve_sat);
+    if (pChannel->commit_info_remote.remote_msat > remote_reserve_msat) { //remote's remote -> local
+        return pChannel->commit_info_remote.remote_msat - remote_reserve_msat;
     } else {
         return 0;
     }
@@ -1131,85 +1159,11 @@ uint64_t ln_local_payable_msat(const ln_channel_t *pChannel)
 uint64_t ln_remote_payable_msat(const ln_channel_t *pChannel)
 {
     //XXX: need to consider the uncommitted offered HTLCs
-    uint64_t local_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_tx_local.channel_reserve_sat);
-    if (pChannel->commit_tx_local.remote_msat > local_reserve_msat) { //local's remote -> remote
-        return pChannel->commit_tx_local.remote_msat - local_reserve_msat;
+    uint64_t local_reserve_msat = LN_SATOSHI2MSAT(pChannel->commit_info_local.channel_reserve_sat);
+    if (pChannel->commit_info_local.remote_msat > local_reserve_msat) { //local's remote -> remote
+        return pChannel->commit_info_local.remote_msat - local_reserve_msat;
     } else {
         return 0;
-    }
-}
-
-
-void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid)
-{
-    memcpy(pChannel->funding_tx.txid, pTxid, BTC_SZ_TXID);
-}
-
-
-const uint8_t *ln_funding_txid(const ln_channel_t *pChannel)
-{
-    return pChannel->funding_tx.txid;
-}
-
-
-void ln_funding_set_txindex(ln_channel_t *pChannel, uint32_t Txindex)
-{
-    pChannel->funding_tx.txindex = Txindex;
-}
-
-
-uint32_t ln_funding_txindex(const ln_channel_t *pChannel)
-{
-    return pChannel->funding_tx.txindex;
-}
-
-
-const utl_buf_t *ln_funding_redeem(const ln_channel_t *pChannel)
-{
-    return &pChannel->funding_tx.wit_script;
-}
-
-
-uint32_t ln_minimum_depth(const ln_channel_t *pChannel)
-{
-    return pChannel->min_depth;
-}
-
-
-bool ln_is_funder(const ln_channel_t *pChannel)
-{
-    return (pChannel->fund_flag & LN_FUNDFLAG_FUNDER);
-}
-
-
-bool ln_is_funding(const ln_channel_t *pChannel)
-{
-    return (pChannel->fund_flag & LN_FUNDFLAG_FUNDING);
-}
-
-
-const btc_tx_t *ln_funding_tx(const ln_channel_t *pChannel)
-{
-    return &pChannel->funding_tx.tx_data;
-}
-
-
-const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel)
-{
-    return pChannel->funding_bhash;
-}
-
-
-uint32_t ln_last_conf_get(const ln_channel_t *pChannel)
-{
-    return pChannel->last_confirm;
-}
-
-
-void ln_last_conf_set(ln_channel_t *pChannel, uint32_t Conf)
-{
-    if (Conf > pChannel->last_confirm) {
-        pChannel->last_confirm = Conf;
     }
 }
 
@@ -1280,15 +1234,15 @@ uint64_t ln_closing_signed_initfee(const ln_channel_t *pChannel)
 }
 
 
-const ln_commit_tx_t *ln_commit_tx_local(const ln_channel_t *pChannel)
+const ln_commit_info_t *ln_commit_info_local(const ln_channel_t *pChannel)
 {
-    return &pChannel->commit_tx_local;
+    return &pChannel->commit_info_local;
 }
 
 
-const ln_commit_tx_t *ln_commit_tx_remote(const ln_channel_t *pChannel)
+const ln_commit_info_t *ln_commit_info_remote(const ln_channel_t *pChannel)
 {
-    return &pChannel->commit_tx_remote;
+    return &pChannel->commit_info_remote;
 }
 
 
@@ -1390,7 +1344,7 @@ const utl_buf_t* ln_revoked_wit(const ln_channel_t *pChannel)
 
 bool ln_open_channel_announce(const ln_channel_t *pChannel)
 {
-    bool ret = (pChannel->fund_flag & LN_FUNDFLAG_NO_ANNO_CH);
+    bool ret = (pChannel->funding_info.state & LN_FUNDING_STATE_STATE_NO_ANNO_CH);
 
     //コメントアウトすると、announcement_signatures交換済みかどうかにかかわらず、
     //送信しても良い状況であればannouncement_signaturesを起動時に送信する
@@ -1596,12 +1550,12 @@ static void channel_clear(ln_channel_t *pChannel)
 {
     utl_buf_free(&pChannel->shutdown_scriptpk_local);
     utl_buf_free(&pChannel->shutdown_scriptpk_remote);
-    utl_buf_free(&pChannel->funding_tx.wit_script);
+    utl_buf_free(&pChannel->funding_info.wit_script);
     utl_buf_free(&pChannel->cnl_anno);
     utl_buf_free(&pChannel->revoked_sec);
     ln_revoked_buf_free(pChannel);
 
-    btc_tx_free(&pChannel->funding_tx.tx_data);
+    btc_tx_free(&pChannel->funding_info.tx_data);
     btc_tx_free(&pChannel->tx_closing);
 
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
@@ -1665,10 +1619,10 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 /** transactionからcommitment numberを復元
  *
  */
-static uint64_t calc_commit_num(const ln_channel_t *pChannel, const btc_tx_t *pTx)
+static uint64_t calc_commit_num(const ln_commit_info_t *pCommitInfo, const btc_tx_t *pTx)
 {
     uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(
-        pTx->vin[0].sequence, pTx->locktime, pChannel->obscured_commit_num_mask);
+        pTx->vin[0].sequence, pTx->locktime, pCommitInfo->obscured_commit_num_mask);
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;
 }
@@ -1683,10 +1637,10 @@ void ln_dbg_commitnum(const ln_channel_t *pChannel)
     LOGD("storage_index      = %016" PRIx64 "\n", ln_derkey_local_storage_get_current_index(&pChannel->keys_local));
     LOGD("peer_storage_index = %016" PRIx64 "\n", ln_derkey_remote_storage_get_current_index(&pChannel->keys_remote));
     LOGD("------------------------------------------\n");
-    LOGD("local.commit_num  = %" PRIu64 "\n", pChannel->commit_tx_local.commit_num);
-    LOGD("remote.commit_num = %" PRIu64 "\n", pChannel->commit_tx_remote.commit_num);
-    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)pChannel->commit_tx_local.revoke_num);
-    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)pChannel->commit_tx_remote.revoke_num);
+    LOGD("local.commit_num  = %" PRIu64 "\n", pChannel->commit_info_local.commit_num);
+    LOGD("remote.commit_num = %" PRIu64 "\n", pChannel->commit_info_remote.commit_num);
+    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)pChannel->commit_info_local.revoke_num);
+    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)pChannel->commit_info_remote.revoke_num);
     LOGD("------------------------------------------\n");
     LOGD("next_htlc_id: %" PRIu64 "\n", pChannel->next_htlc_id);
     LOGD("------------------------------------------\n");

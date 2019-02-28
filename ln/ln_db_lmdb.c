@@ -89,7 +89,7 @@
 
 
 #define M_CHANNEL_BUFS          (3)             ///< DB保存する可変長データ数
-                                                //      funding_tx
+                                                //      funding
                                                 //      local shutdown scriptPubKeyHash
                                                 //      remote shutdown scriptPubKeyHash
 
@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-49))     ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)(-50))     ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -206,6 +206,8 @@
          add `ln_update_t::neighbor_idx`
     -48: fix ln_update_t::enabled
     -49: update `ln_update_t` and `ln_htlc_t`
+    -50: rename `ln_funding_tx_t` -> `ln_funding_info_t` 
+         rename `ln_commit_t` -> `ln_commit_info_t` 
  */
 
 
@@ -386,14 +388,14 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     //fund
     //
-    M_ITEM(ln_channel_t, fund_flag),                                                //[FUND_01]
-    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),                       //[FUND_02]
-    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),                    //[FUND_02]
-    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, funding_satoshis),           //[FUND_02]
-    M_ITEM(ln_channel_t, obscured_commit_num_mask),                                 //[FUND_03]
-    M_ITEM(ln_channel_t, min_depth),                                                //[FUND_06]
-    M_ITEM(ln_channel_t, funding_bhash),   //[FUNDSPV_01]
-    M_ITEM(ln_channel_t, last_confirm),    //[FUNDSPV_02]
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, role),                             //[FUND_01]
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, state),                            //[FUND_01]
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txid),                             //[FUND_01]
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txindex),                          //[FUND_01]
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, funding_satoshis),                 //[FUND_01]
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, minimum_depth),                    //[FUND_01]
+    M_ITEM(ln_channel_t, funding_blockhash),    //[FUNDSPV_01]
+    M_ITEM(ln_channel_t, funding_last_confirm), //[FUNDSPV_02]
 
     //
     //anno
@@ -445,33 +447,35 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     //comm
     //
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, dust_limit_sat),                 //[COMM_01]commit_tx_local
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, max_htlc_value_in_flight_msat),  //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, channel_reserve_sat),            //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, htlc_minimum_msat),              //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, to_self_delay),                  //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, max_accepted_htlcs),             //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, remote_sig),                     //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, txid),                           //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, num_htlc_outputs),               //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, commit_num),                     //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, revoke_num),                     //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, local_msat),                     //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, remote_msat),                    //[COMM_01]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, dust_limit_sat),                //[COMM_02]commit_tx_remote
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, max_htlc_value_in_flight_msat), //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, channel_reserve_sat),           //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, htlc_minimum_msat),             //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, to_self_delay),                 //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, max_accepted_htlcs),            //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, remote_sig),                    //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, txid),                          //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, num_htlc_outputs),              //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, commit_num),                    //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, revoke_num),                    //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, local_msat),                    //[COMM_02]
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, remote_msat),                   //[COMM_02]
-    M_ITEM(ln_channel_t, feerate_per_kw),                                                   //[COMM_03]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, dust_limit_sat),                   //[COMM_01]commit_info_local
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, max_htlc_value_in_flight_msat),    //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, channel_reserve_sat),              //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, htlc_minimum_msat),                //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, to_self_delay),                    //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, max_accepted_htlcs),               //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, remote_sig),                       //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, txid),                             //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, num_htlc_outputs),                 //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, commit_num),                       //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, revoke_num),                       //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, local_msat),                       //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, remote_msat),                      //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, obscured_commit_num_mask),         //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, dust_limit_sat),                  //[COMM_02]commit_info_remote
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, max_htlc_value_in_flight_msat),   //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, channel_reserve_sat),             //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, htlc_minimum_msat),               //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, to_self_delay),                   //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, max_accepted_htlcs),              //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, remote_sig),                      //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, txid),                            //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, num_htlc_outputs),                //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, commit_num),                      //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, revoke_num),                      //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, local_msat),                      //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, remote_msat),                     //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, obscured_commit_num_mask),        //[COMM_02]
+    M_ITEM(ln_channel_t, feerate_per_kw),                                               //[COMM_03]
 
     //
     //nois
@@ -503,18 +507,18 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, channel_id),
     M_ITEM(ln_channel_t, short_channel_id),
     M_ITEM(ln_channel_t, next_htlc_id),
-    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txid),
-    MM_ITEM(ln_channel_t, funding_tx, ln_funding_tx_t, txindex),
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txid),
+    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txindex),
     M_ITEM(ln_channel_t, keys_local),
     M_ITEM(ln_channel_t, keys_remote),
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, commit_num),
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, revoke_num),
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, local_msat),
-    MM_ITEM(ln_channel_t, commit_tx_local, ln_commit_tx_t, remote_msat),
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, commit_num),
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, revoke_num),
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, local_msat),
-    MM_ITEM(ln_channel_t, commit_tx_remote, ln_commit_tx_t, remote_msat),
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, commit_num),
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, revoke_num),
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, local_msat),
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, remote_msat),
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, commit_num),
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, revoke_num),
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, local_msat),
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, remote_msat),
 };
 
 
@@ -548,14 +552,14 @@ static const struct {
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_txindex
     { ETYPE_LOCALKEYS,  1, false },                 // keys_local
     { ETYPE_REMOTEKEYS, 1, false },                 // keys_remote
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.commit_num
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.revoke_num
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.local_msat
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_local.remote_msat
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.commit_num
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.revoke_num
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.local_msat
-    { ETYPE_UINT64U,    1, true },                  // commit_tx_remote.remote_msat
+    { ETYPE_UINT64U,    1, true },                  // commit_info_local.commit_num
+    { ETYPE_UINT64U,    1, true },                  // commit_info_local.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_info_local.local_msat
+    { ETYPE_UINT64U,    1, true },                  // commit_info_local.remote_msat
+    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.commit_num
+    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.local_msat
+    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.remote_msat
 };
 
 
@@ -939,7 +943,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool
         }
     }
 
-    btc_tx_read(&pChannel->funding_tx.tx_data, buf_funding.buf, buf_funding.len);
+    btc_tx_read(&pChannel->funding_info.tx_data, buf_funding.buf, buf_funding.len);
     utl_buf_free(&buf_funding);
     UTL_DBG_FREE(p_dbscript_keys);
 
@@ -1172,13 +1176,13 @@ bool ln_db_channel_save_status(const ln_channel_t *pChannel, void *pDbParam)
 }
 
 
-bool ln_db_channel_save_lastconf(const ln_channel_t *pChannel, void *pDbParam)
+bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbParam)
 {
-    const backup_param_t DBCHANNEL_KEY = M_ITEM(ln_channel_t, last_confirm);
+    const backup_param_t DBCHANNEL_KEY = M_ITEM(ln_channel_t, funding_last_confirm);
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDbParam;
     int retval = channel_item_save(pChannel, &DBCHANNEL_KEY, p_db);
 
-    LOGD("last_confirm=%" PRIu32 ", retval=%d\n", pChannel->last_confirm, retval);
+    LOGD("last_confirm=%" PRIu32 ", retval=%d\n", pChannel->funding_last_confirm, retval);
     return retval == 0;
 }
 
@@ -1187,10 +1191,10 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
 {
     MDB_val         key, data;
 #ifdef M_DEBUG_KEYS
-    ln_funding_tx_t funding_tx;
+    ln_funding_info_t funding_info;
     ln_derkey_local_keys_t keys_local;
     ln_derkey_remote_keys_t keys_remote;
-    memset(&funding_tx, 0x00, sizeof(funding_tx));
+    memset(&funding_info, 0x00, sizeof(funding_info));
     memset(&keys_local, 0x00, sizeof(keys_local));
     memset(&keys_remote, 0x00, sizeof(keys_remote));
 #endif  //M_DEBUG_KEYS
@@ -1233,7 +1237,7 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCHANNEL_COPYIDX[lp].type == ETYPE_FUNDTXIDX) {
-                    funding_tx.txindex = *(const uint16_t *)p;
+                    funding_info.txindex = *(const uint16_t *)p;
                 }
 #endif  //M_DEBUG_KEYS
                 break;
@@ -1246,7 +1250,7 @@ void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi)
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCHANNEL_COPYIDX[lp].type == ETYPE_FUNDTXID) {
-                    memcpy(funding_tx.txid, p, DBCHANNEL_COPYIDX[lp].length);
+                    memcpy(funding_info.txid, p, DBCHANNEL_COPYIDX[lp].length);
                 }
 #endif  //M_DEBUG_KEYS
                 break;
@@ -3780,15 +3784,15 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
     //memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
 
     //復元データ
-    utl_buf_alloccopy(&pOutChannel->funding_tx.wit_script, pInChannel->funding_tx.wit_script.buf, pInChannel->funding_tx.wit_script.len);
-    pOutChannel->funding_tx.key_order = pInChannel->funding_tx.key_order;
+    utl_buf_alloccopy(&pOutChannel->funding_info.wit_script, pInChannel->funding_info.wit_script.buf, pInChannel->funding_info.wit_script.len);
+    pOutChannel->funding_info.key_order = pInChannel->funding_info.key_order;
 
 
     //可変サイズ(shallow copy)
 
-    //funding_tx.tx_data
-    btc_tx_free(&pOutChannel->funding_tx.tx_data);
-    memcpy(&pOutChannel->funding_tx.tx_data, &pInChannel->funding_tx.tx_data, sizeof(btc_tx_t));
+    //funding_info.tx_data
+    btc_tx_free(&pOutChannel->funding_info.tx_data);
+    memcpy(&pOutChannel->funding_info.tx_data, &pInChannel->funding_info.tx_data, sizeof(btc_tx_t));
 
     //shutdown_scriptpk_local
     utl_buf_free(&pOutChannel->shutdown_scriptpk_local);
@@ -4005,7 +4009,7 @@ static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
-    btc_tx_write(&pChannel->funding_tx.tx_data, &buf_funding);
+    btc_tx_write(&pChannel->funding_info.tx_data, &buf_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)UTL_DBG_MALLOC(sizeof(backup_buf_t) * M_CHANNEL_BUFS);
     int index = 0;
@@ -4133,8 +4137,8 @@ static int channel_secret_restore(ln_channel_t *pChannel)
         goto LABEL_EXIT;
     }
     if (!btc_script_2of2_create_redeem_sorted(
-                &pChannel->funding_tx.wit_script,
-                &pChannel->funding_tx.key_order,
+                &pChannel->funding_info.wit_script,
+                &pChannel->funding_info.key_order,
                 pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
                 pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING])) {
         retval = -1;

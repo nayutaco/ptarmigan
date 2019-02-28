@@ -163,7 +163,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf);
 /** [lnapp]チャネル接続開始
  *
  */
-bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
+bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFundingConf);
 
 
 /*******************************************

@@ -141,18 +141,18 @@ public:
         anno_param.fee_prop_millionths = 200;
 
         ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
-        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        pChannel->commit_tx_local.htlc_minimum_msat = 0;
-        pChannel->commit_tx_local.max_accepted_htlcs = 10;
-        pChannel->commit_tx_local.local_msat = 1000000;
-        pChannel->commit_tx_local.remote_msat = 1000000;
-        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
-        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
-        pChannel->commit_tx_remote.local_msat = 1000000;
-        pChannel->commit_tx_remote.remote_msat = 1000000;
-        btc_tx_init(&pChannel->funding_tx.tx_data);
-        utl_buf_init(&pChannel->funding_tx.wit_script);
+        pChannel->commit_info_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_info_local.htlc_minimum_msat = 0;
+        pChannel->commit_info_local.max_accepted_htlcs = 10;
+        pChannel->commit_info_local.local_msat = 1000000;
+        pChannel->commit_info_local.remote_msat = 1000000;
+        pChannel->commit_info_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_info_remote.htlc_minimum_msat = 0;
+        pChannel->commit_info_remote.max_accepted_htlcs = 10;
+        pChannel->commit_info_remote.local_msat = 1000000;
+        pChannel->commit_info_remote.remote_msat = 1000000;
+        btc_tx_init(&pChannel->funding_info.tx_data);
+        utl_buf_init(&pChannel->funding_info.wit_script);
         pChannel->p_callback = LnCallbackType;
     }
 };

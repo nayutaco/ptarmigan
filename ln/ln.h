@@ -48,6 +48,8 @@
 #include "ln_update.h"
 #include "ln_cb.h"
 #include "ln_common.h"
+#include "ln_funding_info.h"
+#include "ln_commit_info.h"
 
 
 #ifdef __cplusplus
@@ -83,7 +85,6 @@ extern "C" {
 #define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 #define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
-#define LN_FUNDSAT_MIN                  (1000)      ///< minimum funding_sat(BOLTに規定はない)
 
 #define LN_FEE_COMMIT_BASE_WEIGHT       (724ULL)    ///< commit_tx base weight for the fee calculation
 
@@ -104,12 +105,6 @@ extern "C" {
 
 // channel.anno_flag
 #define LN_ANNO_FLAG_END                (0x80)      ///< 1:announcement_signatures交換済み
-
-// channel.fund_flag
-#define LN_FUNDFLAG_FUNDER              (1 << 0)    ///< 1:funder / 0:fundee
-#define LN_FUNDFLAG_NO_ANNO_CH          (1 << 1)    ///< 1:announcement_signatures未送信(後で送信する) / 0:announcement_signatures送信不要 or 送信済み(もう送信しない)
-#define LN_FUNDFLAG_FUNDING             (1 << 2)    ///< 1:open_channel～funding_lockedまで
-#define LN_FUNDFLAG_OPENED              (1 << 7)    ///< 1:opened
 
 // revoked transaction closeされたときの pChannel->p_revoked_vout, p_revoked_witのインデックス値
 #define LN_RCLOSE_IDX_TO_LOCAL           (0)         ///< to_local
@@ -132,7 +127,6 @@ extern "C" {
 //XXX:
 #define LN_MAX_ACCEPTED_HTLCS_MAX       (483)
 #define LN_NUM_PONG_BYTES_MAX           (65532 - 1)
-#define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
 
 
 /**************************************************************************
@@ -211,13 +205,6 @@ typedef enum {
     LN_STATUS_CLOSE_UNI_REMOTE = 6, ///< unilateral close(from remote)
     LN_STATUS_CLOSE_REVOKED = 7     ///< revoked transaction close(from remote)
 } ln_status_t;
-
-
-/** @enum   ln_fundflag_t
- *  @brief  pChannel->fund_flag
- *  @note   LN_FUNDFLAG_xxx
- */
-typedef uint8_t ln_fundflag_t;
 
 
 /**************************************************************************
@@ -322,45 +309,6 @@ typedef struct {
 /// @addtogroup channel_mng
 /// @{
 
-/** @struct ln_funding_tx_t
- *  @brief  自ノードfunding情報
- */
-typedef struct {
-    uint8_t                     txid[BTC_SZ_TXID];      ///< funding-tx TXID
-    uint16_t                    txindex;                ///< funding-tx index
-    utl_buf_t                   wit_script;             ///< Witness Script of vout (2-of-2)
-    btc_script_pubkey_order_t   key_order;              ///< key order of 2-of-2
-    uint64_t                    funding_satoshis;       ///< funding_satoshis
-    btc_tx_t                    tx_data;                ///< funding_tx
-} ln_funding_tx_t;
-
-
-/** @struct ln_commit_tx_t
- *  @brief  commitment transaction用情報
- */
-typedef struct {
-    uint64_t            dust_limit_sat;                 ///< dust_limit_satoshis
-    uint64_t            max_htlc_value_in_flight_msat;  ///< max_htlc_value_in_flight_msat
-    uint64_t            channel_reserve_sat;            ///< channel_reserve_satoshis
-    uint64_t            htlc_minimum_msat;              ///< htlc_minimum_msat
-    uint16_t            to_self_delay;                  ///< to_self_delay
-    uint16_t            max_accepted_htlcs;             ///< max_accepted_htlcs
-
-    uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< remote's signature
-                                                        // localには相手に送信する署名
-                                                        // remoteには相手から受信した署名
-    uint8_t             txid[BTC_SZ_TXID];              ///< txid
-    uint16_t            num_htlc_outputs;               ///< commit_tx中のHTLC数
-    uint64_t            commit_num;                     ///< commitment_number
-                                                        //      commit_tx_local:  commitment_signed受信後、インクリメント
-                                                        //      commit_tx_remote: commitment_signed送信後、インクリメント
-    uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
-                                                        //      commit_tx_local:  revoke_and_ack送信後、commit_tx_local.commit_num - 1を代入
-                                                        //      commit_tx_remote: revoke_and_ack受信後、pChannel->commit_tx_remote.commit_num - 1を代入
-    uint64_t            local_msat;
-    uint64_t            remote_msat;
-} ln_commit_tx_t;
-
 
 /** @struct     ln_channel_t
  *  @brief      チャネル情報
@@ -376,13 +324,10 @@ struct ln_channel_t {
     ln_derkey_remote_keys_t     keys_remote;                    ///< [KEYS_02]remote keys
 
     //funding
-    ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
-    ln_funding_tx_t             funding_tx;                     ///< [FUND_02]funding tx
-    uint64_t                    obscured_commit_num_mask;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
-    ln_establish_t              establish;                      ///< [FUND_04]Establishワーク領域
-    uint32_t                    min_depth;                      ///< [FUND_05]minimum_depth
-    uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
-    uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
+    ln_funding_info_t           funding_info;                   ///< [FUND_01]funding info
+    ln_establish_t              establish;                      ///< [FUND_02]Establishワーク領域
+    uint8_t                     funding_blockhash[BTC_SZ_HASH256];      ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
+    uint32_t                    funding_last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 
     //msg:announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
@@ -413,15 +358,16 @@ struct ln_channel_t {
     uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint64_t                    next_htlc_id;                   ///< [NORM_01]update_add_htlcで使うidの管理
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
     uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
+
     ln_update_t                 updates[LN_UPDATE_MAX];         ///< [NORM_04]updates
+    uint64_t                    next_htlc_id;                   ///< [NORM_01]update_add_htlcで使うidの管理 //XXX: Append immediately before sending
     ln_htlc_t                   htlcs[LN_HTLC_RECEIVED_MAX];    ///< [NORM_05]追加したHTLC //XXX:
 
     //commitment transaction(local/remote)
-    ln_commit_tx_t              commit_tx_local;                ///< [COMM_01]local commit_tx用
-    ln_commit_tx_t              commit_tx_remote;               ///< [COMM_02]remote commit_tx用
+    ln_commit_info_t                 commit_info_local;                   ///< [COMM_01]local commit_tx用
+    ln_commit_info_t                 commit_info_remote;                  ///< [COMM_02]remote commit_tx用
     //commitment transaction(固有)
     uint32_t                    feerate_per_kw;                 ///< [COMM_03]feerate_per_kw
 
@@ -547,6 +493,14 @@ void ln_establish_free(ln_channel_t *pChannel);
 void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint32_t Index);
 
 
+/** short_channel_id情報設定
+ *
+ * @param[in,out]       pChannel        channel info
+ * @param[in]           pBlockHash      funding_txがマイニングされたblock hash
+ */
+void ln_funding_blockhash_set(ln_channel_t *pChannel, const uint8_t *pBlockHash);
+
+
 /** short_channel_id情報取得
  *
  * @param[out]          pHeight     funding_txが入ったブロック height
@@ -555,14 +509,6 @@ void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint
  * @param[in]           ShortChannelId  short_channel_id
  */
 void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
-
-
-/** short_channel_id情報設定
- *
- * @param[in,out]       pChannel        channel info
- * @param[in]           pMinedHash      funding_txがマイニングされたblock hash
- */
-void ln_funding_blockhash_set(ln_channel_t *pChannel, const uint8_t *pMinedHash);
 
 
 /** get BOLT short_channel_id string
@@ -893,65 +839,6 @@ uint64_t ln_local_payable_msat(const ln_channel_t *pChannel);
 uint64_t ln_remote_payable_msat(const ln_channel_t *pChannel);
 
 
-void ln_funding_set_txid(ln_channel_t *pChannel, const uint8_t *pTxid);
-
-
-/** funding_txのTXID取得
- *
- * @param[in]           pChannel        channel info
- * @return      funding_txのTXID
- */
-const uint8_t *ln_funding_txid(const ln_channel_t *pChannel);
-
-
-void ln_funding_set_txindex(ln_channel_t *pChannel, uint32_t Txindex);
-
-
-/** funding_txのTXINDEX取得
- *
- * @param[in]           pChannel        channel info
- * @return      funding_txのTXINDEX
- */
-uint32_t ln_funding_txindex(const ln_channel_t *pChannel);
-
-
-const utl_buf_t *ln_funding_redeem(const ln_channel_t *pChannel);
-
-
-/** minimum_depth
- *
- * @param[in]           pChannel        channel info
- * @return      accept_channelで受信したminimum_depth
- */
-uint32_t ln_minimum_depth(const ln_channel_t *pChannel);
-
-
-/** funderかどうか
- *
- * @param[in]           pChannel        channel info
- * @retval      true    funder
- * @retval      false   fundee
- */
-bool ln_is_funder(const ln_channel_t *pChannel);
-
-
-/** funding中かどうか
- *
- * @param[in]           pChannel        channel info
- * @retval      true    fundingしている
- * @retval      false   fundingしていない(未funding or funding済み)
- */
-bool ln_is_funding(const ln_channel_t *pChannel);
-
-
-/** funding_tx
- *
- * @param[in]           pChannel        channel info
- * @return      funding_tx
- */
-const btc_tx_t *ln_funding_tx(const ln_channel_t *pChannel);
-
-
 /** funding_txがマイニングされたblock hash
  *
  * @param[in]           pChannel        channel info
@@ -960,10 +847,10 @@ const btc_tx_t *ln_funding_tx(const ln_channel_t *pChannel);
 const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel);
 
 
-uint32_t ln_last_conf_get(const ln_channel_t *pChannel);
+uint32_t ln_funding_last_confirm_get(const ln_channel_t *pChannel);
 
 
-void ln_last_conf_set(ln_channel_t *pChannel, uint32_t Conf);
+void ln_funding_last_confirm_set(ln_channel_t *pChannel, uint32_t Conf);
 
 
 bool ln_announcement_is_gossip_query(const ln_channel_t *pChannel);
@@ -1053,20 +940,20 @@ bool ln_is_shutdown_sent(const ln_channel_t *pChannel);
 uint64_t ln_closing_signed_initfee(const ln_channel_t *pChannel);
 
 
-/** commit_tx_local取得
+/** commit_info_local取得
  *
  * @param[in]           pChannel        channel info
- * @return      commit_tx_local情報
+ * @return      commit_info_local情報
  */
-const ln_commit_tx_t *ln_commit_tx_local(const ln_channel_t *pChannel);
+const ln_commit_info_t *ln_commit_info_local(const ln_channel_t *pChannel);
 
 
-/** commit_tx_remote取得
+/** commit_info_remote取得
  *
  * @param[in]           pChannel        channel info
- * @return      commit_tx_remote情報
+ * @return      commit_info_remote情報
  */
-const ln_commit_tx_t *ln_commit_tx_remote(const ln_channel_t *pChannel);
+const ln_commit_info_t *ln_commit_info_remote(const ln_channel_t *pChannel);
 
 
 /** shutdown時のlocal scriptPubKey取得

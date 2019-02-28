@@ -153,8 +153,8 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
         ln_short_channel_id_string(str_sci, pChannel->short_channel_id);
         printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n", str_sci, pChannel->short_channel_id);
         printf(INDENT3 M_QQ("funding_tx") ": \"");
-        btc_dbg_dump_txid(stdout, ln_funding_txid(pChannel));
-        printf(":%d\",\n", ln_funding_txindex(pChannel));
+        btc_dbg_dump_txid(stdout, ln_funding_info_txid(&pChannel->funding_info));
+        printf(":%d\",\n", ln_funding_info_txindex(&pChannel->funding_info));
         uint64_t offered = 0;
         uint64_t received = 0;
         printf(INDENT3 M_QQ("pending") ": [\n");
@@ -223,7 +223,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     //amount
     printf(INDENT3 M_QQ("local_msat") ": %" PRIu64 ",\n", ln_local_msat(pChannel));
     printf(INDENT3 M_QQ("remote_msat") ": %" PRIu64 ",\n", ln_remote_msat(pChannel));
-    printf(INDENT3 M_QQ("funding_satoshis") ": %" PRIu64 ",\n", pChannel->funding_tx.funding_satoshis);
+    printf(INDENT3 M_QQ("funding_satoshis") ": %" PRIu64 ",\n", pChannel->funding_info.funding_satoshis);
     printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", pChannel->feerate_per_kw);
 
     //status
@@ -238,22 +238,22 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", ln_derkey_remote_storage_get_current_index(&pChannel->keys_remote));
 
     //funding
-    printf(INDENT3 M_QQ("fund_flag") ": {\n");
-    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", pChannel->fund_flag);
-    printf(INDENT4 M_QQ("is_funder") ": %d,\n", ((pChannel->fund_flag & LN_FUNDFLAG_FUNDER) == LN_FUNDFLAG_FUNDER));
-    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((pChannel->fund_flag & LN_FUNDFLAG_NO_ANNO_CH) == LN_FUNDFLAG_NO_ANNO_CH));
-    printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((pChannel->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
-    printf(INDENT4 M_QQ("is_opened") ": %d\n", ((pChannel->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
+    printf(INDENT3 M_QQ("state") ": {\n");
+    printf(INDENT4 M_QQ("state") ": " M_QQ("0x%02x") ",\n", pChannel->funding_info.state);
+    printf(INDENT4 M_QQ("is_funder") ": %d,\n", (pChannel->funding_info.role == LN_FUNDING_ROLE_FUNDER));
+    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((pChannel->funding_info.state & LN_FUNDING_STATE_STATE_NO_ANNO_CH) == LN_FUNDING_STATE_STATE_NO_ANNO_CH));
+    printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((pChannel->funding_info.state & LN_FUNDING_STATE_STATE_FUNDING) == LN_FUNDING_STATE_STATE_FUNDING));
+    printf(INDENT4 M_QQ("is_opened") ": %d\n", ((pChannel->funding_info.state & LN_FUNDING_STATE_STATE_OPENED) == LN_FUNDING_STATE_STATE_OPENED));
     printf(INDENT3 "},\n");
     printf(INDENT3 M_QQ("mined_block") ": \"");
-    btc_dbg_dump_txid(stdout, pChannel->funding_bhash);
+    btc_dbg_dump_txid(stdout, pChannel->funding_blockhash);
     printf("\",\n");
-    printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", pChannel->last_confirm);
+    printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", pChannel->funding_last_confirm);
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
-    btc_dbg_dump_txid(stdout, ln_funding_txid(pChannel));
+    btc_dbg_dump_txid(stdout, ln_funding_info_txid(&pChannel->funding_info));
     printf("\",\n");
-    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", ln_funding_txindex(pChannel));
+    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", ln_funding_info_txindex(&pChannel->funding_info));
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
@@ -308,12 +308,12 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     }
     printf("\n");
     printf(INDENT3 "},\n");
-    printf(INDENT3 M_QQ("obscured_commit_num_mask") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->obscured_commit_num_mask);
+    printf(INDENT3 M_QQ("obscured_commit_num_mask") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->commit_info_local.obscured_commit_num_mask);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
-    // utl_dbg_dump(stdout, pChannel->funding_tx.wit_script.buf, pChannel->funding_tx.wit_script.len, false);
+    // utl_dbg_dump(stdout, pChannel->funding_info.wit_script.buf, pChannel->funding_info.wit_script.len, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("key_order_of_fundtx") ": " M_QQ("%s") ",\n", (pChannel->funding_tx.key_order == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
-    printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", pChannel->min_depth);
+    printf(INDENT3 M_QQ("key_order_of_fundtx") ": " M_QQ("%s") ",\n", (pChannel->funding_info.key_order == BTC_SCRYPT_PUBKEY_ORDER_ASC) ? "first" : "second");
+    printf(INDENT3 M_QQ("minmum_depth") ": %" PRIu32 ",\n", pChannel->funding_info.minimum_depth);
 
     //announce
     printf(INDENT3 M_QQ("anno_flag") ": {\n");
@@ -464,40 +464,40 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf("\n");
     printf(INDENT3 "],\n");
 
-    printf(INDENT3 M_QQ("commit_tx_local") ": {\n");
-    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.dust_limit_sat);
-    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.max_htlc_value_in_flight_msat);
-    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.channel_reserve_sat);
-    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", pChannel->commit_tx_local.htlc_minimum_msat);
-    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", pChannel->commit_tx_local.to_self_delay);
-    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", pChannel->commit_tx_local.max_accepted_htlcs);
+    printf(INDENT3 M_QQ("commit_info_local") ": {\n");
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", pChannel->commit_info_local.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", pChannel->commit_info_local.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", pChannel->commit_info_local.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", pChannel->commit_info_local.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", pChannel->commit_info_local.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", pChannel->commit_info_local.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_dbg_dump_txid(stdout, pChannel->commit_tx_local.txid);
+    btc_dbg_dump_txid(stdout, pChannel->commit_info_local.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("num_htlc_outputs") ": %" PRIu32 ",\n", pChannel->commit_tx_local.num_htlc_outputs);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_tx_local.commit_num);
-    if (pChannel->commit_tx_local.revoke_num != (uint64_t)-1) {
-        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_tx_local.revoke_num);
+    printf(INDENT4 M_QQ("num_htlc_outputs") ": %" PRIu32 ",\n", pChannel->commit_info_local.num_htlc_outputs);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_info_local.commit_num);
+    if (pChannel->commit_info_local.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_info_local.revoke_num);
     } else {
         printf(INDENT4 M_QQ("revoke_num") ": null\n");
     }
 
     printf(INDENT3 "},\n");
 
-    printf(INDENT3 M_QQ("commit_tx_remote") ": {\n");
-    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.dust_limit_sat);
-    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.max_htlc_value_in_flight_msat);
-    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.channel_reserve_sat);
-    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", pChannel->commit_tx_remote.htlc_minimum_msat);
-    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", pChannel->commit_tx_remote.to_self_delay);
-    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", pChannel->commit_tx_remote.max_accepted_htlcs);
+    printf(INDENT3 M_QQ("commit_info_remote") ": {\n");
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", pChannel->commit_info_remote.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", pChannel->commit_info_remote.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", pChannel->commit_info_remote.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", pChannel->commit_info_remote.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", pChannel->commit_info_remote.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", pChannel->commit_info_remote.max_accepted_htlcs);
     printf(INDENT4 M_QQ("commit_txid") ": \"");
-    btc_dbg_dump_txid(stdout, pChannel->commit_tx_remote.txid);
+    btc_dbg_dump_txid(stdout, pChannel->commit_info_remote.txid);
     printf("\",\n");
-    printf(INDENT4 M_QQ("num_htlc_outputs") ": %" PRIu32 ",\n", pChannel->commit_tx_remote.num_htlc_outputs);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_tx_remote.commit_num);
-    if (pChannel->commit_tx_remote.revoke_num != (uint64_t)-1) {
-        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_tx_remote.revoke_num);
+    printf(INDENT4 M_QQ("num_htlc_outputs") ": %" PRIu32 ",\n", pChannel->commit_info_remote.num_htlc_outputs);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", pChannel->commit_info_remote.commit_num);
+    if (pChannel->commit_info_remote.revoke_num != (uint64_t)-1) {
+        printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", pChannel->commit_info_remote.revoke_num);
     } else {
         printf(INDENT4 M_QQ("revoke_num") ": null\n");
     }

@@ -1660,7 +1660,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         return RPCERR_ALOPEN;
     }
 
-    bool is_funding = ln_is_funding(p_appconf->p_channel);
+    bool is_funding = ln_funding_info_funding_now(&p_appconf->p_channel->funding_info);
     if (is_funding) {
         //開設しようとしてチャネルが開設中
         return RPCERR_OPENING;
@@ -1685,10 +1685,10 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         return RPCERR_BLOCKCHAIN;
     }
     uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
-    if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {
+    if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN) {
         char str[256];
         sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ") feerate_per_kw=%" PRIu32 "\n",
-                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN, feerate_per_kw);
+                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN, feerate_per_kw);
         LOGD(str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);

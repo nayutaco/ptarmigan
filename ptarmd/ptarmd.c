@@ -603,11 +603,11 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
     p_bhash = ln_funding_blockhash(pChannel);
     btcrpc_set_channel(ln_remote_node_id(pChannel),
             ln_short_channel_id(pChannel),
-            ln_funding_txid(pChannel),
-            ln_funding_txindex(pChannel),
-            ln_funding_redeem(pChannel),
+            ln_funding_info_txid(&pChannel->funding_info),
+            ln_funding_info_txindex(&pChannel->funding_info),
+            ln_funding_info_wit_script(&pChannel->funding_info),
             p_bhash,
-            ln_last_conf_get(pChannel));
+            ln_funding_last_confirm_get(pChannel));
 
     return false;
 }

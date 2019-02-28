@@ -53,6 +53,7 @@
 #include "ln_msg_normalope.h"
 #include "ln_local.h"
 #include "ln_normalope.h"
+#include "ln_funding_info.h"
 
 
 /**************************************************************************
@@ -185,7 +186,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
         return false;
     }
 
-    const ln_update_t *p_update_add_htlc; 
+    const ln_update_t *p_update_add_htlc;
     ln_htlc_t *p_htlc = NULL;
     uint16_t update_idx_add_htlc;
     for (update_idx_add_htlc = 0; update_idx_add_htlc < LN_UPDATE_MAX; update_idx_add_htlc++) {
@@ -252,7 +253,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
         return false;
     }
 
-    const ln_update_t *p_update_add_htlc; 
+    const ln_update_t *p_update_add_htlc;
     ln_htlc_t *p_htlc = NULL;
     uint16_t update_idx_add_htlc;
     for (update_idx_add_htlc = 0; update_idx_add_htlc < LN_UPDATE_MAX; update_idx_add_htlc++) {
@@ -319,7 +320,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
         return false;
     }
 
-    const ln_update_t *p_update_add_htlc; 
+    const ln_update_t *p_update_add_htlc;
     ln_htlc_t *p_htlc = NULL;
     uint16_t update_idx_add_htlc;
     for (update_idx_add_htlc = 0; update_idx_add_htlc < LN_UPDATE_MAX; update_idx_add_htlc++) {
@@ -372,7 +373,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(pChannel->commit_tx_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_info_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
 
     if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
         M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
@@ -380,9 +381,9 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     }
 
     //署名チェック＋保存: To-Local
-    pChannel->commit_tx_local.commit_num++;
+    pChannel->commit_info_local.commit_num++;
     if (!ln_comtx_create_local( //HTLC署名のみ(closeなし)
-        pChannel, &pChannel->commit_tx_local, NULL,
+        pChannel, &pChannel->commit_info_local, NULL,
         (const uint8_t (*)[LN_SZ_SIGNATURE])msg.p_htlc_signature, msg.num_htlcs)) {
         LOGE("fail: create_to_local\n");
         return false;
@@ -438,12 +439,12 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         goto LABEL_ERROR;
     }
 
-    LOGD("$$$ revoke_num: %" PRIu64 "\n", pChannel->commit_tx_local.revoke_num);
+    LOGD("$$$ revoke_num: %" PRIu64 "\n", pChannel->commit_info_local.revoke_num);
     LOGD("$$$ prev per_commit_pt: ");
     DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
 
     // uint8_t old_secret[BTC_SZ_PRIVKEY];
-    // for (uint64_t index = 0; index <= pChannel->commit_tx_local.revoke_num + 1; index++) {
+    // for (uint64_t index = 0; index <= pChannel->commit_info_local.revoke_num + 1; index++) {
     //     ret = ln_derkey_remote_storage_get_secret(&pChannel->privkeys_remote, old_secret, LN_SECRET_INDEX_INIT - index);
     //     if (ret) {
     //         uint8_t pubkey[BTC_SZ_PUBKEY];
@@ -487,9 +488,9 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
     memcpy(pChannel->keys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
     ln_update_script_pubkeys(pChannel);
-    //ln_print_keys(&pChannel->funding_local, &pChannel->funding_remote);
+    //ln_print_keys(&pChannel->funding_info_local, &pChannel->funding_info_remote);
 
-    pChannel->commit_tx_remote.revoke_num = pChannel->commit_tx_remote.commit_num - 1;
+    pChannel->commit_info_remote.revoke_num = pChannel->commit_info_remote.commit_num - 1;
 
     for (uint16_t update_idx = 0; update_idx < LN_UPDATE_MAX; update_idx++) {
         ln_update_t *p_update = &pChannel->updates[update_idx];
@@ -626,7 +627,7 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     //  A receiving node:
     //    if the sender is not responsible for paying the Bitcoin fee:
     //      MUST fail the channel.
-    if (ln_is_funder(pChannel)) {
+    if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "not fundee");
         return false;
     }
@@ -672,7 +673,7 @@ bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     //BOLT02
     //  The node not responsible for paying the Bitcoin fee:
     //    MUST NOT send update_fee.
-    if (!ln_is_funder(pChannel)) {
+    if (!ln_funding_info_is_funder(&pChannel->funding_info, true)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "not funder");
         return false;
     }
@@ -898,7 +899,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
     //  そのため、(commit_num+1)がcommit_tx作成時のcommitment numberである。
 
     //  next_local_commitment_number
-    if (pChannel->commit_tx_remote.commit_num == pChannel->reest_commit_num) {
+    if (pChannel->commit_info_remote.commit_num == pChannel->reest_commit_num) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
@@ -911,12 +912,12 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
             LN_UPDATE_ENABLE_RESEND_UPDATE(p_update);
             //The update message will be sent in the idle proc.
         }
-        pChannel->commit_tx_remote.commit_num--;
+        pChannel->commit_info_remote.commit_num--;
     }
 
     //BOLT#02
     //  next_remote_revocation_number
-    if (pChannel->commit_tx_local.revoke_num == pChannel->reest_revoke_num) {
+    if (pChannel->commit_info_local.revoke_num == pChannel->reest_revoke_num) {
         // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
         //      * MUST re-send the revoke_and_ack.
         LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");
@@ -962,15 +963,15 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
     //amount_msatが0の場合、チャネルを失敗させる。
     //amount_msatが自分のhtlc_minimum_msat未満の場合、チャネルを失敗させる。
     //  receiving an amount_msat equal to 0, OR less than its own htlc_minimum_msat
-    if (p_htlc->amount_msat < pChannel->commit_tx_local.htlc_minimum_msat) {
+    if (p_htlc->amount_msat < pChannel->commit_info_local.htlc_minimum_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "amount_msat < local htlc_minimum_msat");
         return false;
     }
 
     //送信側が現在のfeerate_per_kwで支払えないようなamount_msatの場合、チャネルを失敗させる。
     //  receiving an amount_msat that the sending node cannot afford at the current feerate_per_kw
-    if (pChannel->commit_tx_local.remote_msat < p_htlc->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_tx_local.remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->commit_tx_local.remote_msat, p_htlc->amount_msat);
+    if (pChannel->commit_info_local.remote_msat < p_htlc->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "commit_info_local.remote_msat too small(%" PRIu64 " < %" PRIu64 ")", pChannel->commit_info_local.remote_msat, p_htlc->amount_msat);
         return false;
     }
 
@@ -978,14 +979,14 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
     //  if a sending node adds more than its max_accepted_htlcs HTLCs to its local commitment transaction
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (pChannel->commit_tx_local.max_accepted_htlcs < pChannel->commit_tx_local.num_htlc_outputs) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d", pChannel->commit_tx_local.num_htlc_outputs);
+    if (pChannel->commit_info_local.max_accepted_htlcs < pChannel->commit_info_local.num_htlc_outputs) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d", pChannel->commit_info_local.num_htlc_outputs);
         return false;
     }
 
     //加算した結果が自分のmax_htlc_value_in_flight_msatを超えるなら、チャネルを失敗させる。
     //      adds more than its max_htlc_value_in_flight_msat worth of offered HTLCs to its local commitment transaction
-    if (htlc_value_in_flight_msat_local(pChannel) > pChannel->commit_tx_local.max_htlc_value_in_flight_msat) {
+    if (htlc_value_in_flight_msat_local(pChannel) > pChannel->commit_info_local.max_htlc_value_in_flight_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "exceed local max_htlc_value_in_flight_msat");
         return false;
     }
@@ -1391,9 +1392,9 @@ static bool check_recv_add_htlc_bolt4_forward(
     //B8. if the HTLC amount is less than the currently specified minimum amount:
     //      amount_below_minimum
     //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
-    if (pDataOut->amt_to_forward < recv_prev.p_next_channel->commit_tx_remote.htlc_minimum_msat) {
+    if (pDataOut->amt_to_forward < recv_prev.p_next_channel->commit_info_remote.htlc_minimum_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64,
-            pDataOut->amt_to_forward, recv_prev.p_next_channel->commit_tx_remote.htlc_minimum_msat);
+            pDataOut->amt_to_forward, recv_prev.p_next_channel->commit_info_remote.htlc_minimum_msat);
         utl_push_u16be(pPushReason, LNONION_AMT_BELOW_MIN);
         //[8:htlc_msat]
         //[2:len]
@@ -1542,17 +1543,17 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     }
 
     //create sigs for remote commitment transaction
-    pChannel->commit_tx_remote.commit_num++;
+    pChannel->commit_info_remote.commit_num++;
     if (!ln_comtx_create_remote(
-        pChannel, &pChannel->commit_tx_remote, NULL, &p_htlc_sigs)) {
+        pChannel, &pChannel->commit_info_remote, NULL, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commitment transaction");
         goto LABEL_EXIT;
     }
 
     ln_msg_commitment_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
-    msg.p_signature = pChannel->commit_tx_remote.remote_sig;
-    msg.num_htlcs = pChannel->commit_tx_remote.num_htlc_outputs;
+    msg.p_signature = pChannel->commit_info_remote.remote_sig;
+    msg.num_htlcs = pChannel->commit_info_remote.num_htlc_outputs;
     msg.p_htlc_signature = (uint8_t *)p_htlc_sigs;
     if (!ln_msg_commitment_signed_write(&buf, &msg)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create commitment_signed");
@@ -1595,11 +1596,11 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
     ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
     ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
     ln_update_script_pubkeys(pChannel);
-    pChannel->commit_tx_local.revoke_num++;
+    pChannel->commit_info_local.revoke_num++;
 
     //XXX: ???
     // //revokeするsecret
-    // for (uint64_t index = 0; index <= pChannel->commit_tx_local.revoke_num + 1; index++) {
+    // for (uint64_t index = 0; index <= pChannel->commit_info_local.revoke_num + 1; index++) {
     //     uint8_t old_secret[BTC_SZ_PRIVKEY];
     //     ln_derkey_remote_storage_create_secret(&pChannel->privkeys, old_secret, LN_SECRET_INDEX_INIT - index);
     //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT - index);
@@ -1672,43 +1673,43 @@ static bool check_create_add_htlc(
     }
 
     //相手が指定したchannel_reserve_satは残しておく必要あり
-    if (pChannel->commit_tx_remote.remote_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat)) {
+    if (pChannel->commit_info_remote.remote_msat < amount_msat + LN_SATOSHI2MSAT(pChannel->commit_info_remote.channel_reserve_sat)) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE,
-            "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
-            pChannel->commit_tx_remote.remote_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_tx_remote.channel_reserve_sat));
+            "commit_info_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < channel_reserve msat(%" PRIu64 ")",
+            pChannel->commit_info_remote.remote_msat, amount_msat, LN_SATOSHI2MSAT(pChannel->commit_info_remote.channel_reserve_sat));
         goto LABEL_ERROR;
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
-    if (pChannel->commit_tx_remote.remote_msat < amount_msat + close_fee_msat) {
+    if (pChannel->commit_info_remote.remote_msat < amount_msat + close_fee_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE,
-            "commit_tx_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
-            pChannel->commit_tx_remote.remote_msat, amount_msat, close_fee_msat);
+            "commit_info_remote.remote_msat(%" PRIu64 ") - amount_msat(%" PRIu64 ") < closing_fee_msat(%" PRIu64 ")",
+            pChannel->commit_info_remote.remote_msat, amount_msat, close_fee_msat);
         goto LABEL_ERROR;
     }
 
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (pChannel->commit_tx_remote.max_accepted_htlcs <= pChannel->commit_tx_remote.num_htlc_outputs) {
+    if (pChannel->commit_info_remote.max_accepted_htlcs <= pChannel->commit_info_remote.num_htlc_outputs) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d <= %d",
-            pChannel->commit_tx_remote.max_accepted_htlcs, pChannel->commit_tx_remote.num_htlc_outputs);
+            pChannel->commit_info_remote.max_accepted_htlcs, pChannel->commit_info_remote.num_htlc_outputs);
         goto LABEL_ERROR;
     }
 
     //amount_msatは、0より大きくなくてはならない。
     //amount_msatは、相手のhtlc_minimum_msat未満にしてはならない。
-    if ((amount_msat == 0) || (amount_msat < pChannel->commit_tx_remote.htlc_minimum_msat)) {
+    if ((amount_msat == 0) || (amount_msat < pChannel->commit_info_remote.htlc_minimum_msat)) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "amount_msat(%" PRIu64 ") < remote htlc_minimum_msat(%" PRIu64 ")",
-            amount_msat, pChannel->commit_tx_remote.htlc_minimum_msat);
+            amount_msat, pChannel->commit_info_remote.htlc_minimum_msat);
         goto LABEL_ERROR;
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
-    if (htlc_value_in_flight_msat_remote(pChannel) > pChannel->commit_tx_remote.max_htlc_value_in_flight_msat) {
+    if (htlc_value_in_flight_msat_remote(pChannel) > pChannel->commit_info_remote.max_htlc_value_in_flight_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE,
             "exceed remote max_htlc_value_in_flight_msat(%" PRIu64 ")",
-            pChannel->commit_tx_remote.max_htlc_value_in_flight_msat);
+            pChannel->commit_info_remote.max_htlc_value_in_flight_msat);
         goto LABEL_ERROR;
     }
 
@@ -1954,13 +1955,13 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Updat
     bool ret = false;
 
     ln_update_t *p_update = &pChannel->updates[UpdateIdx];
-    ln_commit_tx_t new_commit_tx = pChannel->commit_tx_remote;
-    new_commit_tx.commit_num++;
+    ln_commit_info_t new_commit_info = pChannel->commit_info_remote;
+    new_commit_info.commit_num++;
 
     ln_update_t bak = *p_update;
     LN_UPDATE_REMOTE_ENABLE_ADD_HTLC_RECV(p_update);
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
-    if (!ln_comtx_create_remote(pChannel, &new_commit_tx, NULL, &p_htlc_sigs)) {
+    if (!ln_comtx_create_remote(pChannel, &new_commit_info, NULL, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
         goto LABEL_EXIT;
     }

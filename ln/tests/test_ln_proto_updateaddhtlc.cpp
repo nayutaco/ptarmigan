@@ -77,7 +77,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, c
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
-FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, fake_sig_t **);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_info_t *, ln_close_force_t *, fake_sig_t **);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -178,18 +178,18 @@ public:
         anno_param.fee_base_msat = 20;
         anno_param.fee_prop_millionths = 200;
         ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
-        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        pChannel->commit_tx_local.htlc_minimum_msat = 0;
-        pChannel->commit_tx_local.max_accepted_htlcs = 10;
-        pChannel->commit_tx_local.local_msat = 1000000;
-        pChannel->commit_tx_local.remote_msat = 1000000;
-        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
-        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
-        pChannel->commit_tx_remote.local_msat = 1000000;
-        pChannel->commit_tx_remote.remote_msat = 1000000;
-        btc_tx_init(&pChannel->funding_tx.tx_data);
-        utl_buf_init(&pChannel->funding_tx.wit_script);
+        pChannel->commit_info_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_info_local.htlc_minimum_msat = 0;
+        pChannel->commit_info_local.max_accepted_htlcs = 10;
+        pChannel->commit_info_local.local_msat = 1000000;
+        pChannel->commit_info_local.remote_msat = 1000000;
+        pChannel->commit_info_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_info_remote.htlc_minimum_msat = 0;
+        pChannel->commit_info_remote.max_accepted_htlcs = 10;
+        pChannel->commit_info_remote.local_msat = 1000000;
+        pChannel->commit_info_remote.remote_msat = 1000000;
+        btc_tx_init(&pChannel->funding_info.tx_data);
+        utl_buf_init(&pChannel->funding_info.wit_script);
         pChannel->p_callback = LnCallbackType;
     }
 };
@@ -361,13 +361,13 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_EQ(0, p_flags->cs_recv);
     ASSERT_EQ(0, p_flags->ra_send);
 
-    ASSERT_EQ(1000000, channel.commit_tx_local.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_local.remote_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.remote_msat);
     ASSERT_EQ(1, channel.next_htlc_id);
-    ASSERT_EQ(0, channel.commit_tx_local.num_htlc_outputs);
-    ASSERT_EQ(0, channel.commit_tx_remote.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_local.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_remote.num_htlc_outputs);
 
     ln_term(&channel);
 }
@@ -419,13 +419,13 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_EQ(0, p_flags->cs_recv);
     ASSERT_EQ(0, p_flags->ra_send);
 
-    ASSERT_EQ(1000000, channel.commit_tx_local.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_local.remote_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.remote_msat);
     ASSERT_EQ(1, channel.next_htlc_id);
-    ASSERT_EQ(0, channel.commit_tx_local.num_htlc_outputs);
-    ASSERT_EQ(0, channel.commit_tx_remote.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_local.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_remote.num_htlc_outputs);
 
     ln_term(&channel);
 }
@@ -467,7 +467,7 @@ TEST_F(ln, update_add_htlc_recv1)
     channel.p_callback = dummy::callback;
     memcpy(channel.peer_node_id, LN_UPDATE_ADD_HTLC_A::PEER_NODE_ID, BTC_SZ_PUBKEY);
     memcpy(channel.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));
-    channel.commit_tx_local.max_htlc_value_in_flight_msat = 100000;
+    channel.commit_info_local.max_htlc_value_in_flight_msat = 100000;
     //utl_buf_alloccopy(&channel.updates[0].buf_shared_secret,
 
     /*** TEST ***/
@@ -490,13 +490,13 @@ TEST_F(ln, update_add_htlc_recv1)
     ASSERT_EQ(0, p_flags->cs_recv);
     ASSERT_EQ(0, p_flags->ra_send);
 
-    ASSERT_EQ(1000000, channel.commit_tx_local.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_local.remote_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.remote_msat);
     ASSERT_EQ(0, channel.next_htlc_id);
-    ASSERT_EQ(0, channel.commit_tx_local.num_htlc_outputs);
-    ASSERT_EQ(0, channel.commit_tx_remote.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_local.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_remote.num_htlc_outputs);
 
     ln_term(&channel);
 }
@@ -539,7 +539,7 @@ TEST_F(ln, update_add_htlc_recv2)
     channel.p_callback = dummy::callback;
     memcpy(channel.peer_node_id, LN_UPDATE_ADD_HTLC_A::PEER_NODE_ID, BTC_SZ_PUBKEY);
     memcpy(channel.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));
-    channel.commit_tx_local.max_htlc_value_in_flight_msat = 100000;
+    channel.commit_info_local.max_htlc_value_in_flight_msat = 100000;
     //utl_buf_alloccopy(&channel.updates[0].buf_shared_secret,
 
     /*** TEST ***/
@@ -563,13 +563,13 @@ TEST_F(ln, update_add_htlc_recv2)
     ASSERT_EQ(0, p_flags->cs_recv);
     ASSERT_EQ(0, p_flags->ra_send);
 
-    ASSERT_EQ(1000000, channel.commit_tx_local.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_local.remote_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.remote_msat);
     ASSERT_EQ(0, channel.next_htlc_id);
-    ASSERT_EQ(0, channel.commit_tx_local.num_htlc_outputs);
-    ASSERT_EQ(0, channel.commit_tx_remote.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_local.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_remote.num_htlc_outputs);
 
     ln_term(&channel);
 }
@@ -591,7 +591,7 @@ TEST_F(ln, update_add_htlc_recv3)
     LnInit(&channel);
 
     memcpy(channel.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));
-    channel.commit_tx_local.max_htlc_value_in_flight_msat = 100000;
+    channel.commit_info_local.max_htlc_value_in_flight_msat = 100000;
 
     /*** TEST ***/
     ASSERT_TRUE(ln_update_add_htlc_recv(&channel, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC)));
@@ -614,13 +614,13 @@ TEST_F(ln, update_add_htlc_recv3)
     ASSERT_EQ(0, p_flags->cs_recv);
     ASSERT_EQ(0, p_flags->ra_send);
 
-    ASSERT_EQ(1000000, channel.commit_tx_local.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_local.remote_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.local_msat);
-    ASSERT_EQ(1000000, channel.commit_tx_remote.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.local_msat);
+    ASSERT_EQ(1000000, channel.commit_info_remote.remote_msat);
     ASSERT_EQ(0, channel.next_htlc_id);
-    ASSERT_EQ(0, channel.commit_tx_local.num_htlc_outputs);
-    ASSERT_EQ(0, channel.commit_tx_remote.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_local.num_htlc_outputs);
+    ASSERT_EQ(0, channel.commit_info_remote.num_htlc_outputs);
 
     ln_term(&channel);
 }
