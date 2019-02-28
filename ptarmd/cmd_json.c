@@ -1980,6 +1980,12 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
             goto LABEL_EXIT;
         }
 
+        ln_status_t stat = ln_status_get(p_appconf->p_channel);
+        if ((stat < LN_STATUS_ESTABLISH) || (LN_STATUS_NORMAL < stat)) {
+            err = RPCERR_NOCHANNEL;
+            goto LABEL_EXIT;
+        }
+
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
             err = 0;
