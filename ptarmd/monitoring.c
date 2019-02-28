@@ -373,7 +373,7 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
     monparam_t *p_param = (monparam_t *)pParam;
 
     p_param->confm = 0;
-    (void)btcrpc_get_confirm(&p_param->confm, ln_funding_txid(pChannel));
+    (void)btcrpc_get_confirm(&p_param->confm, ln_funding_info_txid(&pChannel->funding_info));
     bool ret;
     bool del = false;
     bool unspent;
@@ -381,7 +381,7 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
         ret = true;
         unspent = false;
     } else {
-        ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+        ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL, ln_funding_info_txid(&pChannel->funding_info), ln_funding_info_txindex(&pChannel->funding_info));
     }
     if (ret && !unspent) {
         //funding_tx SPENT
@@ -438,17 +438,17 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p
         }
     }
 
-    if (p_param->confm > ln_last_conf_get(pChannel)) {
-        ln_last_conf_set(pChannel, p_param->confm);
-        ln_db_channel_save_lastconf(pChannel, p_db_param);
+    if (p_param->confm > ln_funding_last_confirm_get(pChannel)) {
+        ln_funding_last_confirm_set(pChannel, p_param->confm);
+        ln_db_channel_save_last_confirm(pChannel, p_db_param);
 
         btcrpc_set_channel(ln_remote_node_id(pChannel),
                 ln_short_channel_id(pChannel),
-                ln_funding_txid(pChannel),
-                ln_funding_txindex(pChannel),
-                ln_funding_redeem(pChannel),
+                ln_funding_info_txid(&pChannel->funding_info),
+                ln_funding_info_txindex(&pChannel->funding_info),
+                ln_funding_info_wit_script(&pChannel->funding_info),
                 ln_funding_blockhash(pChannel),
-                ln_last_conf_get(pChannel));
+                ln_funding_last_confirm_get(pChannel));
     }
 
     return del;
@@ -470,7 +470,7 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_d
 
     btc_tx_t close_tx = BTC_TX_INIT;
     ln_status_t stat = ln_status_get(pChannel);
-    utl_str_bin2str_rev(txid_str, ln_funding_txid(pChannel), BTC_SZ_TXID);
+    utl_str_bin2str_rev(txid_str, ln_funding_info_txid(&pChannel->funding_info), BTC_SZ_TXID);
 
     LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_param->confm, ln_status_string(pChannel));
     if (stat <= LN_STATUS_CLOSE_WAIT) {
@@ -484,7 +484,8 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_d
             monchanlist_add(p_list);
         }
         btc_tx_t *p_tx = NULL;
-        ret = btcrpc_search_outpoint(&close_tx, p_param->confm - p_list->last_check_confm, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+        ret = btcrpc_search_outpoint(
+            &close_tx, p_param->confm - p_list->last_check_confm, ln_funding_info_txid(&pChannel->funding_info), ln_funding_info_txindex(&pChannel->funding_info));
         if (ret) {
             p_tx = &close_tx;
         }
@@ -668,7 +669,7 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
         p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
 
     uint32_t confirm;
-    if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
+    if (!btcrpc_get_confirm(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
         LOGE("fail: get confirmation\n");
         return false;
     }
@@ -858,7 +859,7 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
     LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
         p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
     uint32_t confirm;
-    if (!btcrpc_get_confirm(&confirm, ln_funding_txid(pChannel))) {
+    if (!btcrpc_get_confirm(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
         LOGE("fail: get confirmation\n");
         return;
     }
@@ -1054,7 +1055,7 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
 
     bool ret = ln_wallet_create_to_local(pChannel, &tx,
                 pTx->vout[VIndex].value,
-                ln_commit_tx_remote(pChannel)->to_self_delay,
+                ln_commit_info_remote(pChannel)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
     if (ret) {
         if (tx.vin_cnt > 0) {
@@ -1062,7 +1063,7 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
 
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
             set_wallet_data(&wlt, &tx);
-            wlt.sequence = ln_commit_tx_remote(pChannel)->to_self_delay;
+            wlt.sequence = ln_commit_info_remote(pChannel)->to_self_delay;
             ln_db_wallet_add(&wlt);
         }
 

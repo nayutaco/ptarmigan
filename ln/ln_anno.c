@@ -106,7 +106,7 @@ bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
 
 bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    if (!pChannel->fund_flag) { //XXX: after `funding_locked`
+    if (!pChannel->funding_info.state) { //XXX: not after `funding_locked`
         LOGE("fail: not open peer\n");
         return false;
     }

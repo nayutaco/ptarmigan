@@ -47,6 +47,7 @@ extern "C" {
 // #include "ln_invoice.c"
 // #include "ln_print.c"
 #include "ln_normalope.c"
+#include "ln_funding_info.c"
 
 #include "ln.c"
 }
@@ -66,7 +67,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
-FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_tx_t *, ln_close_force_t *, fake_sig_t **);
+FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_info_t *, ln_close_force_t *, fake_sig_t **);
 
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_msg_update_fee_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_msg_update_fee_t *, const uint8_t *, uint16_t );
@@ -181,19 +182,19 @@ public:
 
         ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
         pChannel->init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
-        pChannel->commit_tx_local.dust_limit_sat = BTC_DUST_LIMIT;
-        pChannel->commit_tx_local.htlc_minimum_msat = 0;
-        pChannel->commit_tx_local.max_accepted_htlcs = 10;
-        pChannel->commit_tx_local.local_msat = 1000000;
-        pChannel->commit_tx_local.remote_msat = 1000000;
-        pChannel->commit_tx_remote.dust_limit_sat = BTC_DUST_LIMIT;
-        pChannel->commit_tx_remote.htlc_minimum_msat = 0;
-        pChannel->commit_tx_remote.max_accepted_htlcs = 10;
-        pChannel->commit_tx_remote.local_msat = 1000000;
-        pChannel->commit_tx_remote.remote_msat = 1000000;
+        pChannel->commit_info_local.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_info_local.htlc_minimum_msat = 0;
+        pChannel->commit_info_local.max_accepted_htlcs = 10;
+        pChannel->commit_info_local.local_msat = 1000000;
+        pChannel->commit_info_local.remote_msat = 1000000;
+        pChannel->commit_info_remote.dust_limit_sat = BTC_DUST_LIMIT;
+        pChannel->commit_info_remote.htlc_minimum_msat = 0;
+        pChannel->commit_info_remote.max_accepted_htlcs = 10;
+        pChannel->commit_info_remote.local_msat = 1000000;
+        pChannel->commit_info_remote.remote_msat = 1000000;
         pChannel->feerate_per_kw = 500;
-        btc_tx_init(&pChannel->funding_tx.tx_data);
-        utl_buf_init(&pChannel->funding_tx.wit_script);
+        btc_tx_init(&pChannel->funding_info.tx_data);
+        utl_buf_init(&pChannel->funding_info.wit_script);
         pChannel->p_callback = LnCallbackType;
         memcpy(pChannel->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     }
@@ -201,14 +202,14 @@ public:
     {
         LnInit(pChannel);
 
-        pChannel->fund_flag = LN_FUNDFLAG_FUNDER;
+        pChannel->funding_info.role = LN_FUNDING_ROLE_FUNDER;
         ln_msg_update_fee_write_fake.return_val = true;
     }
     static void LnInitRecv(ln_channel_t *pChannel)
     {
         LnInit(pChannel);
 
-        pChannel->fund_flag = 0;
+        pChannel->funding_info.role = 0;
         ln_msg_update_fee_write_fake.return_val = true;
     }
 };
@@ -303,7 +304,7 @@ TEST_F(ln, create_updatefee_fundee)
     ln_channel_t channel;
     LnInitSend(&channel);
 
-    channel.fund_flag = 0;
+    channel.funding_info.role = 0;
 
     bool ret = ln_update_fee_send(&channel, 1000);
     ASSERT_FALSE(ret);
@@ -482,7 +483,7 @@ TEST_F(ln, recv_updatefee_funder)
     channel.p_callback = dummy::callback;
     ln_msg_update_fee_read_fake.custom_fake = dummy::ln_msg_update_fee_read;
 
-    channel.fund_flag = LN_FUNDFLAG_FUNDER;    //★
+    channel.funding_info.role = LN_FUNDING_ROLE_FUNDER;    //★
 
     bool ret = ln_update_fee_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);

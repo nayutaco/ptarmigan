@@ -200,7 +200,7 @@ bool HIDDEN ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, 
 
 bool HIDDEN ln_error_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    if (ln_is_funding(pChannel)) {
+    if (ln_funding_info_funding_now(&pChannel->funding_info)) {
         LOGD("stop funding\n");
         ln_establish_free(pChannel);
     }

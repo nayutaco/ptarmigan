@@ -96,8 +96,8 @@ void ln_print_keys(ln_channel_t *pChannel)
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
     LOGD("  funding_txid: ");
-    TXIDD(ln_funding_txid(pChannel));
-    LOGD("  funding_txindex: %" PRIu16 "\n", ln_funding_txindex(pChannel));
+    TXIDD(ln_funding_info_txid(&pChannel->funding_info));
+    LOGD("  funding_txindex: %" PRIu16 "\n", ln_funding_info_txindex(&pChannel->funding_info));
 
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {

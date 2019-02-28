@@ -144,7 +144,7 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
         pChannel->status = LN_STATUS_CLOSE_WAIT;
         M_DB_CHANNEL_SAVE(pChannel);
 
-        if (ln_is_funder(pChannel)) {
+        if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
             if (!ln_closing_signed_send(pChannel, NULL)) {
                 LOGE("fail\n");
                 return false;
@@ -182,7 +182,7 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     utl_buf_t buf = UTL_BUF_INIT;
     msg.p_channel_id = pChannel->channel_id;
     msg.fee_satoshis = pChannel->close_fee_sat;
-    msg.p_signature = pChannel->commit_tx_remote.remote_sig;
+    msg.p_signature = pChannel->commit_info_remote.remote_sig;
     if (!ln_msg_closing_signed_write(&buf, &msg)) {
         LOGE("fail: create closeing_signed\n");
         return false;
@@ -210,7 +210,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
-    memcpy(pChannel->commit_tx_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
+    memcpy(pChannel->commit_info_local.remote_sig, msg.p_signature, LN_SZ_SIGNATURE);
 
     //channel_id
     if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
@@ -291,9 +291,9 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
  * @param[in]   FeeSat
  * @param[in]   bVerify     true:verifyを行う
  * @note
- *      - INPUT: 2-of-2(順番はpChannel->funding_tx.key_order)
- *          - 自分：pChannel->commit_tx_remote.remote_sig
- *          - 相手：pChannel->commit_tx_local.remote_sig
+ *      - INPUT: 2-of-2(順番はpChannel->funding_info.key_order)
+ *          - 自分：pChannel->commit_info_remote.remote_sig
+ *          - 相手：pChannel->commit_info_local.remote_sig
  *      - OUTPUT:
  *          - 自分：pChannel->shutdown_scriptpk_local, pChannel->local_msat / 1000
  *          - 相手：pChannel->shutdown_scriptpk_remote, pChannel->remote_msat / 1000
@@ -313,7 +313,7 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
     btc_vout_t *vout;
 
     //BOLT#3: feeはfundedの方から引く
-    if (ln_is_funder(pChannel)) {
+    if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
         fee_local = FeeSat;
         fee_remote = 0;
     } else {
@@ -323,33 +323,33 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //vout
     //vout#0 - local
-    bool vout_local = (LN_MSAT2SATOSHI(pChannel->commit_tx_local.local_msat) > fee_local + BTC_DUST_LIMIT);
-    bool vout_remote = (LN_MSAT2SATOSHI(pChannel->commit_tx_local.remote_msat) > fee_remote + BTC_DUST_LIMIT);
+    bool vout_local = (LN_MSAT2SATOSHI(pChannel->commit_info_local.local_msat) > fee_local + BTC_DUST_LIMIT);
+    bool vout_remote = (LN_MSAT2SATOSHI(pChannel->commit_info_local.remote_msat) > fee_remote + BTC_DUST_LIMIT);
 
     if (vout_local) {
-        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_tx_local.local_msat) - fee_local);
+        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_info_local.local_msat) - fee_local);
         utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_local.buf, pChannel->shutdown_scriptpk_local.len);
     }
     //vout#1 - remote
     if (vout_remote) {
-        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_tx_local.remote_msat) - fee_remote);
+        vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_info_local.remote_msat) - fee_remote);
         utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_remote.buf, pChannel->shutdown_scriptpk_remote.len);
     }
 
     //vin
-    btc_tx_add_vin(pTx, ln_funding_txid(pChannel), ln_funding_txindex(pChannel));
+    btc_tx_add_vin(pTx, ln_funding_info_txid(&pChannel->funding_info), ln_funding_info_txindex(&pChannel->funding_info));
 
     //BIP69
     btc_tx_sort_bip69(pTx);
 
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
-    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_tx.funding_satoshis, &pChannel->funding_tx.wit_script)) {
+    if (!btc_sw_sighash_p2wsh_wit(pTx, sighash, 0, pChannel->funding_info.funding_satoshis, &pChannel->funding_info.wit_script)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
     }
-    if (!ln_signer_sign_rs(pChannel->commit_tx_remote.remote_sig, sighash, &pChannel->keys_local, LN_BASEPOINT_IDX_FUNDING)) {
+    if (!ln_signer_sign_rs(pChannel->commit_info_remote.remote_sig, sighash, &pChannel->keys_local, LN_BASEPOINT_IDX_FUNDING)) {
         LOGE("fail: sign p2wsh\n");
         btc_tx_free(pTx);
         return false;
@@ -357,11 +357,13 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //set vin[0]
     if (bVerify) {
-        ln_comtx_set_vin_p2wsh_2of2_rs(pTx, 0, pChannel->funding_tx.key_order, pChannel->commit_tx_remote.remote_sig, pChannel->commit_tx_local.remote_sig, &pChannel->funding_tx.wit_script);
+        ln_comtx_set_vin_p2wsh_2of2_rs(
+            pTx, 0, pChannel->funding_info.key_order, pChannel->commit_info_remote.remote_sig,
+            pChannel->commit_info_local.remote_sig, &pChannel->funding_info.wit_script);
 
         //verify
         if (!btc_sw_verify_p2wsh_2of2(
-            pTx, 0, sighash, &pChannel->funding_tx.tx_data.vout[ln_funding_txindex(pChannel)].script)) {
+            pTx, 0, sighash, &pChannel->funding_info.tx_data.vout[ln_funding_info_txindex(&pChannel->funding_info)].script)) {
             btc_tx_free(pTx);
             LOGD("fail: verify\n");
             return false;

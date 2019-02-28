@@ -155,7 +155,7 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf);
 static bool exchange_init(lnapp_conf_t *p_conf);
 static bool exchange_reestablish(lnapp_conf_t *p_conf);
 static bool exchange_funding_locked(lnapp_conf_t *p_conf);
-static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding);
+static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundingConf);
 
 static void *thread_recv_start(void *pArg);
 static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uint32_t ToMsec);
@@ -279,7 +279,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
-bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
+bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFundingConf)
 {
     if ((!pAppConf->loop) || !lnapp_is_inited(pAppConf)) {
         //LOGD("This AppConf not working\n");
@@ -287,7 +287,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
     }
 
     LOGD("start: Establish\n");
-    bool ret = send_open_channel(pAppConf, pFunding);
+    bool ret = send_open_channel(pAppConf, pFundingConf);
 
     return ret;
 }
@@ -513,7 +513,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
 
-    LOGD("close: bad way(local): htlc=%d\n", ln_commit_tx_local(p_channel)->num_htlc_outputs);
+    LOGD("close: bad way(local): htlc=%d\n", ln_commit_info_local(p_channel)->num_htlc_outputs);
     ptarmd_eventlog(ln_channel_id(p_channel), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_channel, NULL);
     UTL_DBG_FREE(p_channel);
@@ -571,7 +571,7 @@ void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char
         show_channel_have_chan(pAppConf, result);
     } else if (p_channel && pAppConf->funding_waiting) {
         show_channel_fundwait(pAppConf, result);
-    } else if (p_channel && ln_is_funding(p_channel)) {
+    } else if (p_channel && ln_funding_info_funding_now(&p_channel->funding_info)) {
         show_channel_funding(pAppConf, result);
     } else if (btc_keys_check_pub(pAppConf->node_id)) {
         show_channel_connonly(pAppConf, result);
@@ -847,7 +847,7 @@ static void *thread_main_start(void *pArg)
             } else {
                 // funding_txはminimum_depth未満
                 LOGD("$$$ funding_tx in mempool\n");
-                TXIDD(ln_funding_txid(p_channel));
+                TXIDD(ln_funding_info_txid(&p_channel->funding_info));
 
                 p_conf->funding_waiting = true;
             }
@@ -1207,7 +1207,8 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
     int32_t bheight = 0;
     int32_t bindex = 0;
     uint8_t mined_hash[BTC_SZ_HASH256];
-    bool ret = btcrpc_get_short_channel_param(ln_remote_node_id(p_conf->p_channel), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_channel));
+    bool ret = btcrpc_get_short_channel_param(
+        ln_remote_node_id(p_conf->p_channel), &bheight, &bindex, mined_hash, ln_funding_info_txid(&p_conf->p_channel->funding_info));
     if (ret) {
         LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_short_channel_id_set_param(p_conf->p_channel, bheight, bindex);
@@ -1327,7 +1328,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     uint64_t total_amount = ln_node_total_msat();
 
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
-    utl_str_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_channel), BTC_SZ_TXID);
+    utl_str_bin2str_rev(txidstr, ln_funding_info_txid(&p_conf->p_channel->funding_info), BTC_SZ_TXID);
     utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     snprintf(param, sizeof(param), "%s %s "
                 "%" PRIu64 " "
@@ -1344,14 +1345,14 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 /** open_channel送信
  *
  */
-static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding)
+static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundingConf)
 {
     ln_fundin_t fundin;
     utl_buf_init(&fundin.change_spk);
 
     //Establish開始
-    LOGD("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
-    LOGD("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
+    LOGD("  funding_sat: %" PRIu64 "\n", pFundingConf->funding_sat);
+    LOGD("  push_sat: %" PRIu64 "\n", pFundingConf->push_sat);
 
     bool ret = getnewaddress(&fundin.change_spk);
     if (!ret) {
@@ -1363,7 +1364,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 #if defined(USE_BITCOIND)
     //事前にfund-in txがunspentかどうかチェックしようとしている。
     //SPVの場合は1st Layerの処理も内部で行うので、チェック不要。
-    ret = btcrpc_check_unspent(NULL, &unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
+    ret = btcrpc_check_unspent(NULL, &unspent, &fundin.amount, pFundingConf->txid, pFundingConf->txindex);
     LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
 #elif defined(USE_BITCOINJ)
     //内部でfund-in txを生成するため、チェック不要
@@ -1372,10 +1373,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 #endif
     if (ret && unspent) {
         uint32_t feerate_kw;
-        if (pFunding->feerate_per_kw == 0) {
+        if (pFundingConf->feerate_per_kw == 0) {
             feerate_kw = monitor_btc_feerate_per_kw();
         } else {
-            feerate_kw = pFunding->feerate_per_kw;
+            feerate_kw = pFundingConf->feerate_per_kw;
         }
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
@@ -1383,15 +1384,15 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         //bitcoindはptarmdがfunding_txを作るため、fee計算する
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
-        if (fundin.amount < pFunding->funding_sat + estfee) {
+        if (fundin.amount < pFundingConf->funding_sat + estfee) {
             //amountが足りないと思われる
             LOGE("fail: amount too short\n");
-            LOGD("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin.amount, pFunding->funding_sat, estfee);
+            LOGD("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin.amount, pFundingConf->funding_sat, estfee);
             return false;
         }
 
-        memcpy(fundin.txid, pFunding->txid, BTC_SZ_TXID);
-        fundin.index = pFunding->txindex;
+        memcpy(fundin.txid, pFundingConf->txid, BTC_SZ_TXID);
+        fundin.index = pFundingConf->txindex;
 #elif defined(USE_BITCOINJ)
         //funding_txをbitcoinjが作るため、fundin未使用
         memset(&fundin, 0, sizeof(fundin));
@@ -1399,10 +1400,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
         ret = ln_open_channel_send(p_conf->p_channel,
                         &fundin,
-                        pFunding->funding_sat,
-                        pFunding->push_sat,
+                        pFundingConf->funding_sat,
+                        pFundingConf->push_sat,
                         feerate_kw,
-                        pFunding->priv_channel);
+                        pFundingConf->priv_channel);
         if (ret) {
             LOGD("SEND: open_channel\n");
         } else {
@@ -1410,7 +1411,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
     } else {
         LOGD("through: check_unspent: ");
-        TXIDD(pFunding->txid);
+        TXIDD(pFundingConf->txid);
     }
 
     return ret;
@@ -1588,13 +1589,13 @@ static void *thread_poll_start(void *pArg)
 
         poll_ping(p_conf);
 
-        if (utl_mem_is_all_zero(ln_funding_txid(p_conf->p_channel), BTC_SZ_TXID)) {
+        if (utl_mem_is_all_zero(ln_funding_info_txid(&p_conf->p_channel->funding_info), BTC_SZ_TXID)) {
             //fundingしていない
             continue;
         }
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        bool b_get = btcrpc_get_confirm(&p_conf->funding_confirm, ln_funding_txid(p_conf->p_channel));
+        bool b_get = btcrpc_get_confirm(&p_conf->funding_confirm, ln_funding_info_txid(&p_conf->p_channel->funding_info));
         if (b_get) {
             if (bak_conf != p_conf->funding_confirm) {
                 const uint8_t *oldhash = ln_funding_blockhash(p_conf->p_channel);
@@ -1602,7 +1603,8 @@ static void *thread_poll_start(void *pArg)
                     int32_t bheight = 0;
                     int32_t bindex = 0;
                     uint8_t mined_hash[BTC_SZ_HASH256];
-                    bool ret = btcrpc_get_short_channel_param(ln_remote_node_id(p_conf->p_channel), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_channel));
+                    bool ret = btcrpc_get_short_channel_param(
+                        ln_remote_node_id(p_conf->p_channel), &bheight, &bindex, mined_hash, ln_funding_info_txid(&p_conf->p_channel->funding_info));
                     if (ret) {
                         //mined block hash
                         ln_funding_blockhash_set(p_conf->p_channel, mined_hash);
@@ -1612,12 +1614,12 @@ static void *thread_poll_start(void *pArg)
                 LOGD2("***********************************\n");
                 LOGD2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
                 LOGD2("*    funding_txid: ");
-                TXIDD(ln_funding_txid(p_conf->p_channel));
+                TXIDD(ln_funding_info_txid(&p_conf->p_channel->funding_info));
                 LOGD2("***********************************\n");
             }
         } else if (!b_get) {
             //LOGD("funding_tx not detect: ");
-            //TXIDD(ln_funding_txid(p_conf->p_channel));
+            //TXIDD(ln_funding_info_txid(p_conf->p_channel));
         } else {
             continue;
         }
@@ -1636,7 +1638,7 @@ static void *thread_poll_start(void *pArg)
         //  両方を満たす可能性があるため、先に poll_funding_wait()を行って pChannel->cnl_anno の準備を済ませる。
         if ( p_conf->annosig_send_req &&
              (p_conf->funding_confirm >= LN_ANNOSIGS_CONFIRM) &&
-             (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_channel)) ) {
+             (p_conf->funding_confirm >= ln_funding_info_minimum_depth(&p_conf->p_channel->funding_info)) ) {
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             utl_buf_t buf = UTL_BUF_INIT;
@@ -1707,7 +1709,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    if (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_channel)) {
+    if (p_conf->funding_confirm >= ln_funding_info_minimum_depth(&p_conf->p_channel->funding_info)) {
         LOGD("confirmation OK: %d\n", p_conf->funding_confirm);
         //funding_tx確定
         bool ret = set_short_channel_id(p_conf);
@@ -1737,7 +1739,8 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             LOGE("fail: set_short_channel_id()\n");
         }
     } else {
-        LOGD("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_channel));
+        LOGD("confirmation waiting...: %d/%d\n",
+            p_conf->funding_confirm, ln_funding_info_minimum_depth(&p_conf->p_channel->funding_info));
     }
 
     //DBGTRACE_END
@@ -2291,19 +2294,19 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->ret) {
         //fundingの監視は thread_poll_start()に任せる
-        TXIDD(ln_funding_txid(p_conf->p_channel));
+        TXIDD(ln_funding_info_txid(&p_conf->p_channel->funding_info));
         p_conf->funding_waiting = true;
 
         btcrpc_set_channel(ln_remote_node_id(p_conf->p_channel),
                 ln_short_channel_id(p_conf->p_channel),
-                ln_funding_txid(p_conf->p_channel),
-                ln_funding_txindex(p_conf->p_channel),
-                ln_funding_redeem(p_conf->p_channel),
+                ln_funding_info_txid(&p_conf->p_channel->funding_info),
+                ln_funding_info_txindex(&p_conf->p_channel->funding_info),
+                ln_funding_info_wit_script(&p_conf->p_channel->funding_info),
                 ln_funding_blockhash(p_conf->p_channel),
-                ln_last_conf_get(p_conf->p_channel));
+                ln_funding_last_confirm_get(p_conf->p_channel));
 
         const char *p_str;
-        if (ln_is_funder(p_conf->p_channel)) {
+        if (ln_funding_info_is_funder(&p_conf->p_channel->funding_info, true)) {
             p_str = "funder";
         } else {
             p_str = "fundee";
@@ -3542,12 +3545,12 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
     cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str_sci));
     //funding_tx
-    utl_str_bin2str_rev(str, ln_funding_txid(p_channel), BTC_SZ_TXID);
+    utl_str_bin2str_rev(str, ln_funding_info_txid(&p_channel->funding_info), BTC_SZ_TXID);
     cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
-    cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_channel)));
+    cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_info_txindex(&p_channel->funding_info)));
     //confirmation
     uint32_t confirm;
-    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_channel));
+    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_info_txid(&p_channel->funding_info));
     if (b_get) {
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
     }
@@ -3559,9 +3562,9 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     //local_msat
     cJSON_AddItemToObject(local, "msatoshi", cJSON_CreateNumber64(ln_local_msat(p_channel)));
     //commit_num(local)
-    cJSON_AddItemToObject(local, "commit_num", cJSON_CreateNumber(ln_commit_tx_local(p_channel)->commit_num));
+    cJSON_AddItemToObject(local, "commit_num", cJSON_CreateNumber(ln_commit_info_local(p_channel)->commit_num));
     //num_htlc_outputs(local)
-    cJSON_AddItemToObject(local, "num_htlc_outputs", cJSON_CreateNumber(ln_commit_tx_local(p_channel)->num_htlc_outputs));
+    cJSON_AddItemToObject(local, "num_htlc_outputs", cJSON_CreateNumber(ln_commit_info_local(p_channel)->num_htlc_outputs));
     cJSON_AddItemToObject(result, "local", local);
 
     //remote
@@ -3569,14 +3572,14 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     //remote_msat
     cJSON_AddItemToObject(remote, "msatoshi", cJSON_CreateNumber64(ln_remote_msat(p_channel)));
     //commit_num(remote)
-    cJSON_AddItemToObject(remote, "commit_num", cJSON_CreateNumber(ln_commit_tx_remote(p_channel)->commit_num));
+    cJSON_AddItemToObject(remote, "commit_num", cJSON_CreateNumber(ln_commit_info_remote(p_channel)->commit_num));
     //num_htlc_outputs(remote)
-    cJSON_AddItemToObject(remote, "num_htlc_outputs", cJSON_CreateNumber(ln_commit_tx_remote(p_channel)->num_htlc_outputs));
+    cJSON_AddItemToObject(remote, "num_htlc_outputs", cJSON_CreateNumber(ln_commit_info_remote(p_channel)->num_htlc_outputs));
     cJSON_AddItemToObject(result, "remote", remote);
 
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (ln_commit_tx_local(p_channel)->num_htlc_outputs) {
+    if (ln_commit_info_local(p_channel)->num_htlc_outputs) {
         cJSON *htlcs = cJSON_CreateArray();
         for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
             const ln_update_t *p_update = ln_update(p_channel, lp);
@@ -3639,17 +3642,17 @@ static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result)
     utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
     cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
     //funding_tx
-    utl_str_bin2str_rev(str, ln_funding_txid(p_channel), BTC_SZ_TXID);
+    utl_str_bin2str_rev(str, ln_funding_info_txid(&p_channel->funding_info), BTC_SZ_TXID);
     cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
-    cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_channel)));
+    cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_info_txindex(&p_channel->funding_info)));
     //confirmation
     uint32_t confirm;
-    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_channel));
+    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_info_txid(&p_channel->funding_info));
     if (b_get) {
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
     }
     //minimum_depth
-    cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(p_channel)));
+    cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_funding_info_minimum_depth(&p_channel->funding_info)));
     //feerate_per_kw
     cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
 }
