@@ -241,8 +241,6 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 
 static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result);
 static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result);
-static void show_channel_funding(const lnapp_conf_t *pAppConf, cJSON *result);
-static void show_channel_connonly(const lnapp_conf_t *pAppConf, cJSON *result);
 
 static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const char *msg, int line);
 
@@ -563,20 +561,21 @@ void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char
     }
 
     ln_channel_t *p_channel = pAppConf->p_channel;
+    char str[256];
 
     cJSON *result = cJSON_CreateObject();
     cJSON_AddItemToObject(result, "role", cJSON_CreateString(pSvrCli));
+    cJSON_AddItemToObject(result, "status", cJSON_CreateString(ln_status_string(p_channel)));
+    //peer node_id
+    utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
 
-    if (p_channel && ln_short_channel_id(p_channel)) {
+    if (ln_short_channel_id(p_channel)) {
         show_channel_have_chan(pAppConf, result);
-    } else if (p_channel && pAppConf->funding_waiting) {
+    } else if (pAppConf->funding_waiting) {
         show_channel_fundwait(pAppConf, result);
-    } else if (p_channel && ln_funding_info_funding_now(&p_channel->funding_info)) {
-        show_channel_funding(pAppConf, result);
-    } else if (btc_keys_check_pub(pAppConf->node_id)) {
-        show_channel_connonly(pAppConf, result);
     } else {
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
+        //
     }
 
     if ((pAppConf->err != 0) && (pAppConf->p_errstr != NULL)) {
@@ -2944,6 +2943,8 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
                         str_sci, node_id,
                         txidstr);
             ptarmd_call_script(PTARMD_EVT_CLOSED, param);
+
+            stop_threads(p_conf);
         } else {
             LOGE("fail: broadcast\n");
         }
@@ -3531,12 +3532,6 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     ln_channel_t *p_channel = pAppConf->p_channel;
     char str[256];
 
-    const char *p_status = ln_status_string(p_channel);
-    cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
-
-    //peer node_id
-    utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
-    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     //channel_id
     utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
     cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
@@ -3633,11 +3628,6 @@ static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result)
     ln_channel_t *p_channel = pAppConf->p_channel;
     char str[256];
 
-    cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
-
-    //peer node_id
-    utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
-    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     //channel_id
     utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
     cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
@@ -3655,34 +3645,6 @@ static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result)
     cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_funding_info_minimum_depth(&p_channel->funding_info)));
     //feerate_per_kw
     cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
-}
-
-
-static void show_channel_funding(const lnapp_conf_t *pAppConf, cJSON *result)
-{
-    cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
-
-    //peer node_id
-    char str[256];
-    utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
-    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-}
-
-
-static void show_channel_connonly(const lnapp_conf_t *pAppConf, cJSON *result)
-{
-    const char *p_conn;
-    if (lnapp_is_inited(pAppConf)) {
-        p_conn = "connected";
-    } else {
-        p_conn = "wait_connection";
-    }
-    cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
-
-    //peer node_id
-    char str[256];
-    utl_str_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
-    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
 }
 
 
