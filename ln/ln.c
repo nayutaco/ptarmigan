@@ -63,7 +63,7 @@
 #include "ln_signer.h"
 #include "ln_local.h"
 #include "ln_msg.h"
-#include "ln_htlctx.h"
+#include "ln_htlc_tx.h"
 #include "ln.h"
 
 #define M_DBG_VERBOSE
@@ -970,7 +970,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
-    ln_htlctx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
+    ln_htlc_tx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;
@@ -983,28 +983,28 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     // LOGD("key-pub : ");
     // DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
-    ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_NONE;
+    ln_htlc_tx_sig_type_t htlcsign = LN_HTLC_TX_SIG_NONE;
     switch (pChannel->p_revoked_type[WitIndex]) {
     case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
-        htlcsign = LN_HTLCTX_SIG_REVOKE_OFFER;
+        htlcsign = LN_HTLC_TX_SIG_REVOKE_OFFER;
         break;
     case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
-        htlcsign = LN_HTLCTX_SIG_REVOKE_RECV;
+        htlcsign = LN_HTLC_TX_SIG_REVOKE_RECV;
         break;
     default:
         LOGD("index=%d, %d\n", WitIndex, pChannel->p_revoked_type[WitIndex]);
         assert(0);
     }
     bool ret;
-    if (htlcsign != LN_HTLCTX_SIG_NONE) {
+    if (htlcsign != LN_HTLC_TX_SIG_NONE) {
         uint8_t sig[LN_SZ_SIGNATURE];
-        ret = ln_htlctx_sign_rs(pTx,
+        ret = ln_htlc_tx_sign_rs(pTx,
                 sig,
                 Value,
                 &signkey,
                 &pChannel->p_revoked_wit[WitIndex]);
         if (ret) {
-            ret = ln_htlctx_set_vin0_rs(pTx,
+            ret = ln_htlc_tx_set_vin0_rs(pTx,
                 sig,
                 NULL,
                 NULL,

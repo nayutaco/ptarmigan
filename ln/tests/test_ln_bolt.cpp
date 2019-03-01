@@ -45,7 +45,7 @@ extern "C" {
 #include "ln_script.c"
 #include "ln_commit_tx.c"
 #include "ln_commit_tx_util.c"
-#include "ln_htlctx.c"
+#include "ln_htlc_tx.c"
 #include "ln_noise.c"
 #include "ln_signer.c"
 #include "ln_invoice.c"

@@ -19,8 +19,8 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ln_htlctx.c
- *  @brief  ln_htlctx
+/** @file   ln_htlc_tx.c
+ *  @brief  ln_htlc_tx
  */
 #include <stdio.h>
 #include <inttypes.h>
@@ -32,14 +32,14 @@
 
 #include "ln_local.h"
 #include "ln_signer.h"
-#include "ln_htlctx.h"
+#include "ln_htlc_tx.h"
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-bool HIDDEN ln_htlctx_create(
+bool HIDDEN ln_htlc_tx_create(
     btc_tx_t *pTx,
     uint64_t Value,
     const utl_buf_t *pWitScript,
@@ -73,7 +73,7 @@ bool HIDDEN ln_htlctx_create(
 }
 
 
-bool HIDDEN ln_htlctx_sign(
+bool HIDDEN ln_htlc_tx_sign(
     btc_tx_t *pTx,
     utl_buf_t *pSig,
     uint64_t Value,
@@ -81,13 +81,13 @@ bool HIDDEN ln_htlctx_sign(
     const utl_buf_t *pWitScript)
 {
     uint8_t sig[LN_SZ_SIGNATURE];
-    if (!ln_htlctx_sign_rs(pTx, sig, Value, pKeys, pWitScript)) return false;
+    if (!ln_htlc_tx_sign_rs(pTx, sig, Value, pKeys, pWitScript)) return false;
     if (!btc_sig_rs2der(pSig, sig)) return false;
     return true;
 }
 
 
-bool HIDDEN ln_htlctx_sign_rs(
+bool HIDDEN ln_htlc_tx_sign_rs(
     btc_tx_t *pTx,
     uint8_t *pSig,
     uint64_t Value,
@@ -113,17 +113,17 @@ bool HIDDEN ln_htlctx_sign_rs(
 }
 
 
-bool HIDDEN ln_htlctx_set_vin0(
+bool HIDDEN ln_htlc_tx_set_vin0(
     btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const utl_buf_t *pRemoteSig,
     const uint8_t *pPreimage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,
-    ln_htlctx_sig_type_t HtlcSigType)
+    ln_htlc_tx_sig_type_t HtlcSigType)
 {
     switch (HtlcSigType) {
-    case LN_HTLCTX_SIG_TIMEOUT_SUCCESS:
+    case LN_HTLC_TX_SIG_TIMEOUT_SUCCESS:
         {
             assert(pLocalSig);
             assert(pRemoteSig);
@@ -143,7 +143,7 @@ bool HIDDEN ln_htlctx_set_vin0(
             if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
         }
         break;
-    case LN_HTLCTX_SIG_REMOTE_OFFER:
+    case LN_HTLC_TX_SIG_REMOTE_OFFER:
         {
             // <remotehtlcsig>              remote's remote -> local
             // <payment-preimage>
@@ -158,7 +158,7 @@ bool HIDDEN ln_htlctx_set_vin0(
             if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
         }
         break;
-    case LN_HTLCTX_SIG_REMOTE_RECV:
+    case LN_HTLC_TX_SIG_REMOTE_RECV:
         {
             // <remotehtlcsig>              remote's remote -> local
             // 0
@@ -170,8 +170,8 @@ bool HIDDEN ln_htlctx_set_vin0(
             if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
         }
         break;
-    case LN_HTLCTX_SIG_REVOKE_RECV:
-    case LN_HTLCTX_SIG_REVOKE_OFFER:
+    case LN_HTLC_TX_SIG_REVOKE_RECV:
+    case LN_HTLC_TX_SIG_REVOKE_OFFER:
         {
             // <revocation_sig>
             // <revocationpubkey>
@@ -193,14 +193,14 @@ bool HIDDEN ln_htlctx_set_vin0(
 }
 
 
-bool HIDDEN ln_htlctx_set_vin0_rs(
+bool HIDDEN ln_htlc_tx_set_vin0_rs(
     btc_tx_t *pTx,
     const uint8_t *pLocalSig,
     const uint8_t *pRemoteSig,
     const uint8_t *pPreimage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,
-    ln_htlctx_sig_type_t HtlcSigType)
+    ln_htlc_tx_sig_type_t HtlcSigType)
 {
     bool ret = false;
     utl_buf_t local_sig = UTL_BUF_INIT;
@@ -216,7 +216,7 @@ bool HIDDEN ln_htlctx_set_vin0_rs(
         p_remote_sig = &remote_sig;
     }
 
-    if (!ln_htlctx_set_vin0(
+    if (!ln_htlc_tx_set_vin0(
         pTx,
         p_local_sig,
         p_remote_sig,
@@ -234,7 +234,7 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_htlctx_verify(
+bool HIDDEN ln_htlc_tx_verify(
     const btc_tx_t *pTx,
     uint64_t Value,
     const uint8_t *pLocalPubKey,
