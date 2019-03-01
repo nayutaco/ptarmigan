@@ -50,6 +50,7 @@
 #include "ln_common.h"
 #include "ln_funding_info.h"
 #include "ln_commit_info.h"
+#include "ln_update_info.h"
 
 
 #ifdef __cplusplus
@@ -74,9 +75,6 @@ extern "C" {
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
-#define LN_HTLC_OFFERED_MAX_XXX         (6)         ///<
-#define LN_HTLC_RECEIVED_MAX            (6)         ///<
-#define LN_HTLC_MAX_XXX                 (LN_HTLC_OFFERED_MAX_XXX + LN_HTLC_RECEIVED_MAX)
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_FEERATE_PER_KW               (500)       ///< estimate feeできなかった場合のfeerate_per_kw
@@ -271,7 +269,7 @@ typedef struct {
     int             num;                            ///< p_txのtransaction数
     btc_tx_t        *p_tx;                          ///< トランザクション
                                                     ///<    添字:[0]commit_tx [1]to_local [2]to_remote [3-]HTLC
-    uint16_t        *p_htlc_idxs;                   ///< pChannel->htlcs[]のidx
+    uint16_t        *p_htlc_idxs;                   ///< pChannel->update_info.htlcs[]のidx
                                                     ///<    添字:[3]以上で有効
     utl_buf_t       tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
@@ -358,16 +356,13 @@ struct ln_channel_t {
     uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_02]channel_id
-    uint64_t                    short_channel_id;               ///< [NORM_03]short_channel_id
-
-    ln_update_t                 updates[LN_UPDATE_MAX];         ///< [NORM_04]updates
-    uint64_t                    next_htlc_id;                   ///< [NORM_01]update_add_htlcで使うidの管理 //XXX: Append immediately before sending
-    ln_htlc_t                   htlcs[LN_HTLC_RECEIVED_MAX];    ///< [NORM_05]追加したHTLC //XXX:
+    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_01]channel_id
+    uint64_t                    short_channel_id;               ///< [NORM_02]short_channel_id
+    ln_update_info_t            update_info;                    ///< [NORM_03]
 
     //commitment transaction(local/remote)
-    ln_commit_info_t                 commit_info_local;                   ///< [COMM_01]local commit_tx用
-    ln_commit_info_t                 commit_info_remote;                  ///< [COMM_02]remote commit_tx用
+    ln_commit_info_t            commit_info_local;              ///< [COMM_01]local commit_tx用
+    ln_commit_info_t            commit_info_remote;             ///< [COMM_02]remote commit_tx用
     //commitment transaction(固有)
     uint32_t                    feerate_per_kw;                 ///< [COMM_03]feerate_per_kw
 

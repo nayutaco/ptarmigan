@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-50))     ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-51))     ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -206,8 +206,11 @@
          add `ln_update_t::neighbor_idx`
     -48: fix ln_update_t::enabled
     -49: update `ln_update_t` and `ln_htlc_t`
-    -50: rename `ln_funding_tx_t` -> `ln_funding_info_t` 
-         rename `ln_commit_t` -> `ln_commit_info_t` 
+    -50: rename `ln_funding_tx_t` -> `ln_funding_info_t`
+         rename `ln_commit_t` -> `ln_commit_info_t`
+    -51: `ln_channel_t::updates` -> `ln_channel_t::update_info.updates`
+         `ln_channel_t::htlcs` -> `ln_channel_t::update_info.htlcs`
+         `ln_channel_t::next_htlc_id` -> `ln_channel_t::update_info.next_htlc_id`
  */
 
 
@@ -438,11 +441,11 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     //norm
     //
-    M_ITEM(ln_channel_t, next_htlc_id),         //[NORM_01]
-    M_ITEM(ln_channel_t, channel_id),           //[NORM_02]
-    M_ITEM(ln_channel_t, short_channel_id),     //[NORM_03]
-    M_ITEM(ln_channel_t, updates),              //[NORM_04]
-    //[NORM_05]htlcs --> HTLC
+    M_ITEM(ln_channel_t, channel_id),           //[NORM_01]
+    M_ITEM(ln_channel_t, short_channel_id),     //[NORM_02]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, updates),      //[NORM_03]
+    //[NORM_03]htlcs --> HTLC
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id), //[NORM_03]
 
     //
     //comm
@@ -506,7 +509,7 @@ static const backup_param_t DBCHANNEL_COPY[] = {
     M_ITEM(ln_channel_t, peer_node_id),
     M_ITEM(ln_channel_t, channel_id),
     M_ITEM(ln_channel_t, short_channel_id),
-    M_ITEM(ln_channel_t, next_htlc_id),
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id),
     MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txid),
     MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txindex),
     M_ITEM(ln_channel_t, keys_local),
@@ -914,9 +917,9 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool
     }
 
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_init(&pChannel->htlcs[idx].buf_payment_preimage);
-        utl_buf_init(&pChannel->htlcs[idx].buf_onion_reason);
-        utl_buf_init(&pChannel->htlcs[idx].buf_shared_secret);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_onion_reason);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_shared_secret);
     }
 
     //可変サイズ
@@ -1038,7 +1041,7 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *p_db_param)
 
     //htlcsと関連するpreimage削除
     preimage_close_t param;
-    param.p_htlcs = pChannel->htlcs;
+    param.p_htlcs = pChannel->update_info.htlcs;
     ln_db_preimage_search(preimage_close_func, &param);
 
     //add_htlc
@@ -3777,11 +3780,12 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
         memcpy((uint8_t *)pOutChannel + DBCHANNEL_VALUES[lp].offset, (uint8_t *)pInChannel + DBCHANNEL_VALUES[lp].offset,  DBCHANNEL_VALUES[lp].datalen);
     }
 
-    memcpy(pOutChannel->updates,  pInChannel->updates, M_SIZE(ln_channel_t, updates));
-    memcpy(pOutChannel->htlcs,  pInChannel->htlcs, M_SIZE(ln_channel_t, htlcs));
-    // scriptpubkeys --> keys
-    //memcpy(&pOutChannel->script_pubkeys_local, &pInChannel->script_pubkeys_local, sizeof(ln_derkey_script_pubkeys_t));
-    //memcpy(&pOutChannel->script_pubkeys_remote, &pInChannel->script_pubkeys_remote, sizeof(ln_derkey_script_pubkeys_t));
+    memcpy(
+        pOutChannel->update_info.updates,  pInChannel->update_info.updates,
+        M_SIZE(ln_update_info_t, updates));
+    memcpy(
+        pOutChannel->update_info.htlcs,  pInChannel->update_info.htlcs,
+        M_SIZE(ln_update_info_t, htlcs));
 
     //復元データ
     utl_buf_alloccopy(&pOutChannel->funding_info.wit_script, pInChannel->funding_info.wit_script.buf, pInChannel->funding_info.wit_script.len);
@@ -3850,7 +3854,8 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    uint8_t *OFFSET = ((uint8_t *)pChannel) + offsetof(ln_channel_t, htlcs);
+    uint8_t *OFFSET =
+        ((uint8_t *)pChannel) + offsetof(ln_channel_t, update_info) + offsetof(ln_update_info_t, htlcs);
 
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
@@ -3882,7 +3887,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_data = M_KEY_PREIMAGE;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&pChannel->htlcs[lp].buf_payment_preimage, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&pChannel->update_info.htlcs[lp].buf_payment_preimage, data.mv_data, data.mv_size);
         } else {
             //LOGE("ERR: %s(preimage)\n", mdb_strerror(retval));
         }
@@ -3891,7 +3896,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_data = M_KEY_ONIONROUTE;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&pChannel->htlcs[lp].buf_onion_reason, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&pChannel->update_info.htlcs[lp].buf_onion_reason, data.mv_data, data.mv_size);
         } else {
             //LOGE("ERR: %s(onion_route)\n", mdb_strerror(retval));
             retval = 0;     //FALLTHROUGH
@@ -3901,7 +3906,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_data = M_KEY_SHAREDSECRET;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&pChannel->htlcs[lp].buf_shared_secret, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&pChannel->update_info.htlcs[lp].buf_shared_secret, data.mv_data, data.mv_size);
         } else {
             //LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
             retval = 0;     //FALLTHROUGH
@@ -3926,7 +3931,8 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    uint8_t *OFFSET = ((uint8_t *)pChannel) + offsetof(ln_channel_t, htlcs);
+    uint8_t *OFFSET =
+        ((uint8_t *)pChannel) + offsetof(ln_channel_t, update_info) + offsetof(ln_update_info_t, htlcs);
 
     utl_str_bin2str(dbname + M_PREFIX_LEN, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
@@ -3952,11 +3958,11 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         }
 
         //可変
-        if (pChannel->htlcs[lp].buf_payment_preimage.len > 0) {
+        if (pChannel->update_info.htlcs[lp].buf_payment_preimage.len > 0) {
             key.mv_size = M_SZ_PREIMAGE;
             key.mv_data = M_KEY_PREIMAGE;
-            data.mv_size = pChannel->htlcs[lp].buf_payment_preimage.len;
-            data.mv_data = pChannel->htlcs[lp].buf_payment_preimage.buf;
+            data.mv_size = pChannel->update_info.htlcs[lp].buf_payment_preimage.len;
+            data.mv_data = pChannel->update_info.htlcs[lp].buf_payment_preimage.buf;
             retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
             if (retval != 0) {
                 LOGE("ERR: %s(preimage)\n", mdb_strerror(retval));
@@ -3967,8 +3973,8 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_size = M_SZ_ONIONROUTE;
         key.mv_data = M_KEY_ONIONROUTE;
-        data.mv_size = pChannel->htlcs[lp].buf_onion_reason.len;
-        data.mv_data = pChannel->htlcs[lp].buf_onion_reason.buf;
+        data.mv_size = pChannel->update_info.htlcs[lp].buf_onion_reason.len;
+        data.mv_data = pChannel->update_info.htlcs[lp].buf_onion_reason.buf;
         retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
         if (retval != 0) {
             LOGE("ERR: %s(onion_route)\n", mdb_strerror(retval));
@@ -3976,8 +3982,8 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         }
 
         key.mv_data = M_KEY_SHAREDSECRET;
-        data.mv_size = pChannel->htlcs[lp].buf_shared_secret.len;
-        data.mv_data = pChannel->htlcs[lp].buf_shared_secret.buf;
+        data.mv_size = pChannel->update_info.htlcs[lp].buf_shared_secret.len;
+        data.mv_data = pChannel->update_info.htlcs[lp].buf_shared_secret.buf;
         retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
         if (retval != 0) {
             LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));

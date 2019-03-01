@@ -117,7 +117,7 @@ typedef struct lnapp_conf_t {
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
-    pthread_mutex_t mux_channel;       ///< ln_channel_t処理中のmutex
+    pthread_mutex_t mux_channel;    ///< ln_channel_t処理中のmutex
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
     pthread_mutex_t mux_sendque;    ///< BOLT送信キュー用mutex

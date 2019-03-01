@@ -113,12 +113,12 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
     uint16_t update_idx;
     uint16_t htlc_idx;
 
-    p_update = ln_update_get_empty(pChannel->updates, &update_idx);
+    p_update = ln_update_get_empty(pChannel->update_info.updates, &update_idx);
     if (!p_update) {
         M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free updates");
         return false;
     }
-    p_htlc = ln_htlc_get_empty(pChannel->htlcs, &htlc_idx);
+    p_htlc = ln_htlc_get_empty(pChannel->update_info.htlcs, &htlc_idx);
     if (!p_htlc) {
         M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free htlcs");
         return false;
@@ -190,11 +190,11 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     ln_htlc_t *p_htlc = NULL;
     uint16_t update_idx_add_htlc;
     for (update_idx_add_htlc = 0; update_idx_add_htlc < LN_UPDATE_MAX; update_idx_add_htlc++) {
-        p_update_add_htlc = &pChannel->updates[update_idx_add_htlc];
+        p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
         if (!LN_UPDATE_ENABLED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_LOCAL_ADD_HTLC_SEND_ENABLED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) continue;
-        p_htlc = &pChannel->htlcs[p_update_add_htlc->htlc_idx];
+        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->htlc_idx];
         if (p_htlc->id != msg.id) continue;
         break;
     }
@@ -214,7 +214,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     }
 
     if (!ln_update_set_del_htlc_recv(
-        pChannel->updates, p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FULFILL_HTLC)) {
+        pChannel->update_info.updates, p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FULFILL_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fulfill htlc");
         return false;
     }
@@ -257,11 +257,11 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
     ln_htlc_t *p_htlc = NULL;
     uint16_t update_idx_add_htlc;
     for (update_idx_add_htlc = 0; update_idx_add_htlc < LN_UPDATE_MAX; update_idx_add_htlc++) {
-        p_update_add_htlc = &pChannel->updates[update_idx_add_htlc];
+        p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
         if (!LN_UPDATE_ENABLED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_LOCAL_ADD_HTLC_SEND_ENABLED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) continue;
-        p_htlc = &pChannel->htlcs[p_update_add_htlc->htlc_idx];
+        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->htlc_idx];
         if (p_htlc->id != msg.id) continue;
         break;
     }
@@ -271,7 +271,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
     }
 
     if (!ln_update_set_del_htlc_recv(
-        pChannel->updates, p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FAIL_HTLC)) {
+        pChannel->update_info.updates, p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FAIL_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail htlc");
         return false;
     }
@@ -324,11 +324,11 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
     ln_htlc_t *p_htlc = NULL;
     uint16_t update_idx_add_htlc;
     for (update_idx_add_htlc = 0; update_idx_add_htlc < LN_UPDATE_MAX; update_idx_add_htlc++) {
-        p_update_add_htlc = &pChannel->updates[update_idx_add_htlc];
+        p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
         if (!LN_UPDATE_ENABLED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_LOCAL_ADD_HTLC_SEND_ENABLED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) continue;
-        p_htlc = &pChannel->htlcs[p_update_add_htlc->htlc_idx];
+        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->htlc_idx];
         if (p_htlc->id != msg.id) continue;
         break;
     }
@@ -338,7 +338,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
     }
 
     if (!ln_update_set_del_htlc_recv(
-        pChannel->updates, p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC)) {
+        pChannel->update_info.updates, p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail malformed htlc");
         return false;
     }
@@ -390,7 +390,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     }
 
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (!LN_UPDATE_LOCAL_SOME_UPDATE_ENABLED(p_update)) continue;
         LOGD(" [%d]cs_recv=1\n", idx);
@@ -493,13 +493,13 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     pChannel->commit_info_remote.revoke_num = pChannel->commit_info_remote.commit_num - 1;
 
     for (uint16_t update_idx = 0; update_idx < LN_UPDATE_MAX; update_idx++) {
-        ln_update_t *p_update = &pChannel->updates[update_idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (!LN_UPDATE_REMOTE_COMSIGING(p_update)) continue;
         revack_exchanged = true;
 
         if (LN_UPDATE_LOCAL_ADD_HTLC_RECV_ENABLED(p_update)) {
-            ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
             if (p_htlc->neighbor_short_channel_id) {
                 LOGD("forward: %d\n", p_htlc->neighbor_idx);
                 fwds[num_fwds].next_short_channel_id = p_htlc->neighbor_short_channel_id;
@@ -530,7 +530,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 }
             }
         } else if (LN_UPDATE_LOCAL_DEL_HTLC_RECV_ENABLED(p_update)) {
-            ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
             if (p_update->type != LN_UPDATE_TYPE_FULFILL_HTLC) {
                 bwds[num_bwds].ret = false;
                 bwds[num_bwds].update_type = p_update->type;
@@ -589,7 +589,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     }
 
     for (uint16_t update_idx = 0; update_idx < LN_UPDATE_MAX; update_idx++) {
-        ln_update_t *p_update = &pChannel->updates[update_idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (!LN_UPDATE_LOCAL_DEL_HTLC_RECV_ENABLED(p_update)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update)) continue;
@@ -723,7 +723,7 @@ bool ln_set_add_htlc_send(
         pChannel, pHtlcId, pReason, &htlc_idx, pPacket, AmountMsat,
         CltvValue, pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
 
-    ln_update_t *p_update = ln_update_get_update_enabled_but_none(pChannel->updates, htlc_idx);
+    ln_update_t *p_update = ln_update_get_update_enabled_but_none(pChannel->update_info.updates, htlc_idx);
     assert(p_update);
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
     LN_DBG_UPDATE_PRINT(p_update);
@@ -751,7 +751,7 @@ bool ln_set_add_htlc_send_fwd(
         pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
 
     //typeは #ln_recv_idle_proc()のHTLC final経由で #ln_add_htlc_start_fwd()を呼び出して設定
-    ln_update_t *p_update = ln_update_get_update_enabled_but_none(pChannel->updates, htlc_idx);
+    ln_update_t *p_update = ln_update_get_update_enabled_but_none(pChannel->update_info.updates, htlc_idx);
     *pNextHtlcIdx = htlc_idx;
     assert(p_update);
     LN_DBG_UPDATE_PRINT(p_update);
@@ -762,7 +762,7 @@ bool ln_set_add_htlc_send_fwd(
 void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t NextHtlcIdx)
 {
     LOGD("BEGIN\n");
-    ln_update_t *p_update = ln_update_get_update_enabled_but_none(pChannel->updates, NextHtlcIdx);
+    ln_update_t *p_update = ln_update_get_update_enabled_but_none(pChannel->update_info.updates, NextHtlcIdx);
     assert(p_update);
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
     LN_DBG_UPDATE_PRINT(p_update);
@@ -773,17 +773,17 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t
 {
     LOGD("BEGIN\n");
 
-    ln_update_t *p_update_add_htlc = ln_update_get_update_add_htlc(pChannel->updates, HtlcIdx);
+    ln_update_t *p_update_add_htlc = ln_update_get_update_add_htlc(pChannel->update_info.updates, HtlcIdx);
     assert(p_update_add_htlc);
     if (!LN_UPDATE_LOCAL_ADD_HTLC_RECV_ENABLED(p_update_add_htlc)) return false;
     if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) return false;
 
     ln_update_t *p_update_del_htlc = ln_update_set_del_htlc_send(
-        pChannel->updates, HtlcIdx, LN_UPDATE_TYPE_FULFILL_HTLC);
+        pChannel->update_info.updates, HtlcIdx, LN_UPDATE_TYPE_FULFILL_HTLC);
     assert(p_update_del_htlc);
     
     if (pPreimage) {
-        ln_htlc_t *p_htlc = &pChannel->htlcs[HtlcIdx];
+        ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
         if (!utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
         //M_DB_CHANNEL_SAVE(pChannel); //XXX: Since the forwarding data of update is stored separately, this is not necessary
     }
@@ -797,12 +797,12 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
 {
     LOGD("BEGIN\n");
 
-    ln_update_t *p_update_add_htlc = ln_update_get_update_add_htlc(pChannel->updates, HtlcIdx);
+    ln_update_t *p_update_add_htlc = ln_update_get_update_add_htlc(pChannel->update_info.updates, HtlcIdx);
     if (!LN_UPDATE_LOCAL_ADD_HTLC_RECV_ENABLED(p_update_add_htlc)) return false;
 
     if (LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) {
         ln_update_t *p_update_del_htlc = ln_update_set_del_htlc_send(
-            pChannel->updates, HtlcIdx, UpdateType);
+            pChannel->update_info.updates, HtlcIdx, UpdateType);
         assert(p_update_del_htlc);
         LN_DBG_UPDATE_PRINT(p_update_del_htlc);
     } else {
@@ -810,7 +810,7 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
     }
     
     if (pReason) {
-        ln_htlc_t *p_htlc = &pChannel->htlcs[HtlcIdx];
+        ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
         utl_buf_free(&p_htlc->buf_onion_reason);
         ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
     }
@@ -825,7 +825,7 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 
     uint16_t num_updates = 0;
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         num_updates++;
         if (LN_UPDATE_COMSIGING(p_update)) {
@@ -836,7 +836,7 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 
     if (num_updates) {
         for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-            ln_update_t *p_update = &pChannel->updates[idx];
+            ln_update_t *p_update = &pChannel->update_info.updates[idx];
             if (!LN_UPDATE_ENABLED(p_update)) continue;
             if (LN_UPDATE_WILL_SEND(p_update)) {
                 if (p_update->type == LN_UPDATE_TYPE_ADD_HTLC) {
@@ -866,7 +866,7 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 
     bool b_comsig_needed = false;
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (!LN_UPDATE_WILL_COMSIG_SEND(p_update)) continue;
         b_comsig_needed = true;
@@ -888,7 +888,7 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 void ln_channel_reestablish_after(ln_channel_t *pChannel)
 {
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
-    LN_DBG_UPDATES_PRINT(pChannel->updates);
+    LN_DBG_UPDATES_PRINT(pChannel->update_info.updates);
 
     LOGD("pChannel->reest_revoke_num=%" PRIu64 "\n", pChannel->reest_revoke_num);
     LOGD("pChannel->reest_commit_num=%" PRIu64 "\n", pChannel->reest_commit_num);
@@ -906,7 +906,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //XXX: If the corresponding `revoke_andk_ack` is received, channel should be failed
         LOGD("$$$ resend: previous update message\n");
         for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-            ln_update_t *p_update = &pChannel->updates[idx];
+            ln_update_t *p_update = &pChannel->update_info.updates[idx];
             if (!LN_UPDATE_ENABLED(p_update)) continue;
             if (!LN_UPDATE_REMOTE_COMSIGING(p_update)) continue;
             LN_UPDATE_ENABLE_RESEND_UPDATE(p_update);
@@ -1020,8 +1020,8 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
 
 static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
 
     typedef enum {
         RESULT_OK,
@@ -1221,7 +1221,7 @@ static bool check_recv_add_htlc_bolt4_common(ln_channel_t *pChannel, utl_push_t 
  * @param[in,out]       pChannel
  * @param[out]          pDataOut        onion packetデコード結果
  * @param[out]          pPushReason     error reason
- * @param[in,out]       pHtlc           activeなpChannel->htlcs[Index]
+ * @param[in,out]       pHtlc           activeなpChannel->update_info.htlcs[Index]
  * @param[out]          pPreimage       pAddHtlc->payment_hashに該当するpreimage
  * @param[in]           Height          current block height
  * @retval  true    成功
@@ -1329,7 +1329,7 @@ static bool check_recv_add_htlc_bolt4_final(
  * @param[in,out]       pChannel
  * @param[out]          pDataOut        onion packetデコード結果
  * @param[out]          pPushReason     error reason
- * @param[in,out]       pHtlc           activeなpChannel->htlcs[Index]
+ * @param[in,out]       pHtlc           activeなpChannel->update_info.htlcs[Index]
  * @param[in]           Height          current block height
  * @retval  true    成功
  */
@@ -1507,13 +1507,13 @@ static bool store_peer_percommit_secret(ln_channel_t *pChannel, const uint8_t *p
 
 static void clear_htlc(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
     if (!LN_UPDATE_ENABLED(p_update)) {
         memset(p_update, 0x00, sizeof(ln_update_t));
         return;
     }
 
-    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
     ln_db_preimage_del(p_htlc->buf_payment_preimage.buf);
     utl_buf_free(&p_htlc->buf_payment_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
@@ -1521,8 +1521,8 @@ static void clear_htlc(ln_channel_t *pChannel, uint16_t UpdateIdx)
     memset(p_htlc, 0x00, sizeof(ln_htlc_t));
 
     uint16_t corresponding_update_idx;
-    if (ln_update_get_corresponding_update(pChannel->updates, &corresponding_update_idx, UpdateIdx)) {
-        memset(&pChannel->updates[corresponding_update_idx], 0x00, sizeof(ln_update_t));
+    if (ln_update_get_corresponding_update(pChannel->update_info.updates, &corresponding_update_idx, UpdateIdx)) {
+        memset(&pChannel->update_info.updates[corresponding_update_idx], 0x00, sizeof(ln_update_t));
     }
 
     memset(p_update, 0x00, sizeof(ln_update_t));
@@ -1564,7 +1564,7 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     }
 
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (!LN_UPDATE_REMOTE_SOME_UPDATE_ENABLED(p_update)) continue;
         LOGD(" [%d]cs_send=1\n", idx);
@@ -1609,7 +1609,7 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
 
     bool b_htlc_completed = false;
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (LN_UPDATE_LOCAL_SOME_UPDATE_ENABLED(p_update)) {
             LOGD(" [%d]ra_send=1\n", idx);
@@ -1762,22 +1762,22 @@ static bool set_add_htlc(
         LOGE("fail: create update_add_htlc\n");
         return false;
     }
-    if (!ln_update_get_empty(pChannel->updates, &update_idx)) {
+    if (!ln_update_get_empty(pChannel->update_info.updates, &update_idx)) {
         M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free updates");
         return false;
     }
-    if (!ln_htlc_get_empty(pChannel->htlcs, &htlc_idx)) {
+    if (!ln_htlc_get_empty(pChannel->update_info.htlcs, &htlc_idx)) {
         M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free htlcs");
         return false;
     }
-    p_update = &pChannel->updates[update_idx];
-    p_htlc = &pChannel->htlcs[htlc_idx];
+    p_update = &pChannel->update_info.updates[update_idx];
+    p_htlc = &pChannel->update_info.htlcs[htlc_idx];
     p_update->htlc_idx = htlc_idx;
     p_update->enabled = true;
     p_htlc->enabled = true;
     LOGD("OK\n");
 
-    p_htlc->id = pChannel->next_htlc_id++;
+    p_htlc->id = pChannel->update_info.next_htlc_id++;
         //XXX: Add on sending (Then a natural value is added at the time of resend at reestablish)
     p_htlc->amount_msat = AmountMsat;
     p_htlc->cltv_expiry = CltvValue;
@@ -1807,7 +1807,7 @@ static bool set_add_htlc(
     *pHtlcIdx = htlc_idx;
     *pHtlcId = p_htlc->id;
     LOGD("HTLC add : neighbor_short_channel_id=%" PRIu64 "\n", p_htlc->neighbor_short_channel_id);
-    LOGD("           pChannel->updates[%u].flags = 0x%04x\n", update_idx, p_update->flags);
+    LOGD("           pChannel->update_info.updates[%u].flags = 0x%04x\n", update_idx, p_update->flags);
     return true;
 }
 
@@ -1819,9 +1819,9 @@ static bool set_add_htlc(
  */
 static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+    LOGD("pChannel->update_info.updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
 
     ln_msg_update_add_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1850,9 +1850,9 @@ static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
  */
 static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+    LOGD("pChannel->update_info.updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
 
     ln_msg_update_fulfill_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1878,9 +1878,9 @@ static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
  */
 static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+    LOGD("pChannel->update_info.updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
 
     ln_msg_update_fail_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1906,9 +1906,9 @@ static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
  */
 static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    LOGD("pChannel->updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->updates[UpdateIdx].flags);
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+    LOGD("pChannel->update_info.updates[%u].flags = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].flags);
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
 
     ln_msg_update_fail_malformed_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1931,7 +1931,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Updat
 {
     bool ret = false;
 
-    ln_update_t *p_update = &pChannel->updates[UpdateIdx];
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
     ln_commit_info_t new_commit_info = pChannel->commit_info_remote;
     new_commit_info.commit_num++;
 
@@ -1956,13 +1956,13 @@ static uint64_t htlc_value_in_flight_msat(ln_channel_t *pChannel, bool bLocal)
 {
     uint64_t value = 0;
     for (uint16_t idx; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->updates[idx];
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (LN_UPDATE_ADD_HTLC_RECV_ENABLED(p_update, bLocal)) {
-            value += pChannel->htlcs[p_update->htlc_idx].amount_msat;
+            value += pChannel->update_info.htlcs[p_update->htlc_idx].amount_msat;
         }
         if (LN_UPDATE_DEL_HTLC_SEND_ENABLED(p_update, bLocal)) {
-            value -= pChannel->htlcs[p_update->htlc_idx].amount_msat;
+            value -= pChannel->update_info.htlcs[p_update->htlc_idx].amount_msat;
         }
     }
     return value;
