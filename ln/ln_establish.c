@@ -42,8 +42,8 @@
 
 #include "ln_db.h"
 #include "ln_signer.h"
-#include "ln_comtx.h"
-#include "ln_comtx_util.h"
+#include "ln_commit_tx.h"
+#include "ln_commit_tx_util.h"
 #include "ln_derkey.h"
 #include "ln_script.h"
 #include "ln.h"
@@ -319,7 +319,7 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     //obscured commitment tx number
     pChannel->commit_info_local.obscured_commit_num_mask = 
         pChannel->commit_info_remote.obscured_commit_num_mask =
-        ln_comtx_calc_obscured_commit_num_mask(
+        ln_commit_tx_calc_obscured_commit_num_mask(
             pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT],
             pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
     LOGD("obscured_commit_num_mask=0x%016" PRIx64 "\n", pChannel->commit_info_local.obscured_commit_num_mask);
@@ -401,13 +401,13 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //obscured commitment tx number
     pChannel->commit_info_remote.obscured_commit_num_mask =
         pChannel->commit_info_local.obscured_commit_num_mask =
-        ln_comtx_calc_obscured_commit_num_mask(pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT],
+        ln_commit_tx_calc_obscured_commit_num_mask(pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_PAYMENT],
         pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT]);
     LOGD("obscured_commit_num_mask=0x%016" PRIx64 "\n", pChannel->commit_info_remote.obscured_commit_num_mask);
 
     //initial commit tx(Remoteが持つTo-Local)
     //  HTLCは存在しないため、計算省略
-    if (!ln_comtx_create_remote( //close無し、署名作成無し
+    if (!ln_commit_tx_create_remote( //close無し、署名作成無し
         pChannel, &pChannel->commit_info_remote, NULL, NULL)) {
         LOGE("fail: ???\n");
         return false;
@@ -477,7 +477,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     //verify sign
     //  initial commit tx(自分が持つTo-Local)
     //    HTLCは存在しない
-    if (!ln_comtx_create_local( //closeもHTLC署名も無し
+    if (!ln_commit_tx_create_local( //closeもHTLC署名も無し
         pChannel, &pChannel->commit_info_local, NULL, NULL, 0)) {
         LOGE("fail: create_to_local\n");
         return false;
@@ -486,7 +486,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     //initial commit tx(Remoteが持つTo-Local)
     //  署名計算のみのため、計算後は破棄する
     //  HTLCは存在しないため、計算省略
-    if (!ln_comtx_create_remote( //close無し、署名作成無し
+    if (!ln_commit_tx_create_remote( //close無し、署名作成無し
         pChannel, &pChannel->commit_info_remote, NULL, NULL)) {
         LOGE("fail: ???\n");
         return false;
@@ -547,7 +547,7 @@ bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     //initial commit tx(自分が持つTo-Local)
     //  HTLCは存在しない
-    if (!ln_comtx_create_local( //closeもHTLC署名も無し
+    if (!ln_commit_tx_create_local( //closeもHTLC署名も無し
         pChannel, &pChannel->commit_info_local, NULL, NULL, 0)) {
         LOGE("fail: create_to_local\n");
         return false;

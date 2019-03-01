@@ -168,7 +168,7 @@ bool HIDDEN ln_script_scriptpk_check(const utl_buf_t *pScriptPk)
 
 bool HIDDEN ln_script_create_htlc(
     utl_buf_t *pWitScript,
-    ln_comtx_output_type_t Type,
+    ln_commit_tx_output_type_t Type,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,
@@ -176,10 +176,10 @@ bool HIDDEN ln_script_create_htlc(
     uint32_t CltvExpiry)
 {
     switch (Type) {
-    case LN_COMTX_OUTPUT_TYPE_OFFERED:
+    case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
         return create_offered_htlc(
             pWitScript, pLocalHtlcKey, pLocalRevoKey, pPaymentHash, pRemoteHtlcKey);
-    case LN_COMTX_OUTPUT_TYPE_RECEIVED:
+    case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
         return create_received_htlc(
             pWitScript, pLocalHtlcKey, pLocalRevoKey, pRemoteHtlcKey, pPaymentHash, CltvExpiry);
     default:

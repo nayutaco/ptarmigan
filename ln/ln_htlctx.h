@@ -32,7 +32,7 @@
 
 #include "btc_tx.h"
 
-#include "ln_comtx_util.h"
+#include "ln_commit_tx_util.h"
 
 //XXX: unit test
 
@@ -63,7 +63,7 @@ typedef enum {
  * @param[out]      pTx         TX情報
  * @param[in]       Value       vout amount
  * @param[in]       pWitScript  vout P2WSHスクリプト
- * @param[in]       Type        pScriptタイプ(LN_COMTX_OUTPUT_TYPE_xxx)
+ * @param[in]       Type        pScriptタイプ(LN_COMMIT_TX_OUTPUT_TYPE_xxx)
  * @param[in]       CltvExpiry  locktime(TypeがOffered HTLCの場合のみ)
  * @param[in]       pTxid       vin TXID
  * @param[in]       Index       vin index
@@ -72,7 +72,7 @@ bool HIDDEN ln_htlctx_create(
     btc_tx_t *pTx,
     uint64_t Value,
     const utl_buf_t *pWitScript,
-    ln_comtx_output_type_t Type,
+    ln_commit_tx_output_type_t Type,
     uint32_t CltvExpiry,
     const uint8_t *pTxid,
     int Index);

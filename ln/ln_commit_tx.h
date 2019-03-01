@@ -19,14 +19,14 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ln_comtx.h
+/** @file   ln_commit_tx.h
  *  @brief  commitment transaction
  */
-#ifndef LN_COMTX_H__
-#define LN_COMTX_H__
+#ifndef LN_COMMIT_TX_H__
+#define LN_COMMIT_TX_H__
 
 #include "ln.h"
-#include "ln_comtx_util.h"
+#include "ln_commit_tx_util.h"
 
 
 /** create local commitment transaction
@@ -54,7 +54,7 @@
  * @note
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
-bool HIDDEN ln_comtx_create_local(
+bool HIDDEN ln_commit_tx_create_local(
     ln_channel_t *pChannel,
     ln_commit_info_t *pCommitInfo,
     ln_close_force_t *pClose,
@@ -64,15 +64,15 @@ bool HIDDEN ln_comtx_create_local(
 
 /** create local commitment transaction info
  *
- * @param[in,out]       pComTxInfo
+ * @param[in,out]       pCommitTxInfo
  * @param[in,out]       pCommitInfo
  * @param[in,out]       pChannel
  * @retval              true        success
  */
-bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_commit_info_t *pCommitInfo, const ln_channel_t *pChannel);
+bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, const ln_commit_info_t *pCommitInfo, const ln_channel_t *pChannel);
 
 
-void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
+void HIDDEN ln_commit_tx_info_free(ln_commit_tx_info_t *pCommitTxInfo);
 
 
 /** 相手用 commitment transaction作成
@@ -99,7 +99,7 @@ void HIDDEN ln_comtx_info_free(ln_comtx_info_t *pComTxInfo);
  * @param[out]          ppHtlcSigs          commitment_signed送信用署名(NULLの場合は代入しない)
  * @retval  true    成功
  */
-bool HIDDEN ln_comtx_create_remote(
+bool HIDDEN ln_commit_tx_create_remote(
     const ln_channel_t *pChannel,
     ln_commit_info_t *pCommitInfoRemote,
     ln_close_force_t *pClose,
@@ -121,7 +121,7 @@ bool HIDDEN ln_comtx_create_remote(
  *      - #btc_script_2of2_create_redeem_sorted()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
  *          例えば、先に自分のデータ、後に相手のデータ、など。
  */
-bool ln_comtx_set_vin_p2wsh_2of2(
+bool ln_commit_tx_set_vin_p2wsh_2of2(
     btc_tx_t *pTx,
     int Index,
     btc_script_pubkey_order_t KeyOrder,
@@ -130,7 +130,7 @@ bool ln_comtx_set_vin_p2wsh_2of2(
     const utl_buf_t *pWitScript);
 
 
-bool ln_comtx_set_vin_p2wsh_2of2_rs(
+bool ln_commit_tx_set_vin_p2wsh_2of2_rs(
     btc_tx_t *pTx,
     int Index,
     btc_script_pubkey_order_t KeyOrder,
@@ -139,4 +139,4 @@ bool ln_comtx_set_vin_p2wsh_2of2_rs(
     const utl_buf_t *pWitScript);
 
 
-#endif /* LN_COMTX_H__ */
+#endif /* LN_COMMIT_TX_H__ */
