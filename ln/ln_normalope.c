@@ -42,7 +42,7 @@
 
 #include "ln_db.h"
 #include "ln_signer.h"
-#include "ln_comtx.h"
+#include "ln_commit_tx.h"
 #include "ln_derkey.h"
 #include "ln_script.h"
 #include "ln_onion.h"
@@ -382,7 +382,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
 
     //署名チェック＋保存: To-Local
     pChannel->commit_info_local.commit_num++;
-    if (!ln_comtx_create_local( //HTLC署名のみ(closeなし)
+    if (!ln_commit_tx_create_local( //HTLC署名のみ(closeなし)
         pChannel, &pChannel->commit_info_local, NULL,
         (const uint8_t (*)[LN_SZ_SIGNATURE])msg.p_htlc_signature, msg.num_htlcs)) {
         LOGE("fail: create_to_local\n");
@@ -1544,7 +1544,7 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
 
     //create sigs for remote commitment transaction
     pChannel->commit_info_remote.commit_num++;
-    if (!ln_comtx_create_remote(
+    if (!ln_commit_tx_create_remote(
         pChannel, &pChannel->commit_info_remote, NULL, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commitment transaction");
         goto LABEL_EXIT;
@@ -1938,7 +1938,7 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Updat
     ln_update_t bak = *p_update;
     LN_UPDATE_REMOTE_ENABLE_ADD_HTLC_RECV(p_update);
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
-    if (!ln_comtx_create_remote(pChannel, &new_commit_info, NULL, &p_htlc_sigs)) {
+    if (!ln_commit_tx_create_remote(pChannel, &new_commit_info, NULL, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
         goto LABEL_EXIT;
     }

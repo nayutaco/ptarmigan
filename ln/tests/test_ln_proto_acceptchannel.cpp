@@ -43,7 +43,7 @@ extern "C" {
 #include "ln_establish.c"
 #include "ln_node.c"
 #include "ln_onion.c"
-#include "ln_comtx_util.c"
+#include "ln_commit_tx_util.c"
 #include "ln_script.c"
 #include "ln_noise.c"
 #include "ln_signer.c"
@@ -64,7 +64,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_comtx_output_type_t, uint32_t);
+FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 
@@ -77,7 +77,7 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, c
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
-FAKE_VALUE_FUNC(bool, ln_comtx_create_remote, const ln_channel_t *, ln_commit_info_t *, ln_close_force_t *, fake_sig_t **);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, const ln_channel_t *, ln_commit_info_t *, ln_close_force_t *, fake_sig_t **);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -103,9 +103,9 @@ protected:
         RESET_FAKE(ln_msg_funding_created_read)
         RESET_FAKE(ln_msg_funding_signed_write)
         RESET_FAKE(ln_msg_funding_signed_read)
-        RESET_FAKE(ln_comtx_create_remote)
+        RESET_FAKE(ln_commit_tx_create_remote)
 
-        ln_comtx_create_remote_fake.return_val = true;
+        ln_commit_tx_create_remote_fake.return_val = true;
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, true);
     }

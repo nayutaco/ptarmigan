@@ -26,7 +26,7 @@
 #define LN_SCRIPT_H__
 
 #include "ln_derkey_ex.h"
-#include "ln_comtx_util.h"
+#include "ln_commit_tx_util.h"
 
 
 /**************************************************************************
@@ -85,7 +85,7 @@ bool HIDDEN ln_script_scriptpk_check(const utl_buf_t *pScriptPk);
  */
 bool HIDDEN ln_script_create_htlc(
     utl_buf_t *pScript,
-    ln_comtx_output_type_t Type,
+    ln_commit_tx_output_type_t Type,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,

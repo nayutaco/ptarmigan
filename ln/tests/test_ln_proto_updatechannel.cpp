@@ -60,7 +60,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_comtx_output_type_t, uint32_t);
+FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_is_prune, uint64_t , uint32_t );

@@ -43,7 +43,7 @@ bool HIDDEN ln_htlctx_create(
     btc_tx_t *pTx,
     uint64_t Value,
     const utl_buf_t *pWitScript,
-    ln_comtx_output_type_t Type,
+    ln_commit_tx_output_type_t Type,
     uint32_t CltvExpiry,
     const uint8_t *pTxid,
     int Index)
@@ -52,11 +52,11 @@ bool HIDDEN ln_htlctx_create(
     if (!btc_sw_add_vout_p2wsh_wit(pTx, Value, pWitScript)) return false;
     pTx->vout[0].opt = (uint16_t)Type;
     switch (Type) {
-    case LN_COMTX_OUTPUT_TYPE_RECEIVED:
+    case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
         LOGD("HTLC Success\n");
         pTx->locktime = 0;
         break;
-    case LN_COMTX_OUTPUT_TYPE_OFFERED:
+    case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
         LOGD("HTLC Timeout\n");
         pTx->locktime = CltvExpiry;
         break;

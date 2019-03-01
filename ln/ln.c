@@ -57,8 +57,8 @@
 #include "ln_noise.h"
 #include "ln_onion.h"
 #include "ln_script.h"
-#include "ln_comtx.h"
-#include "ln_comtx_util.h"
+#include "ln_commit_tx.h"
+#include "ln_commit_tx_util.h"
 #include "ln_derkey.h"
 #include "ln_signer.h"
 #include "ln_local.h"
@@ -756,7 +756,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_local.num_htlc_outputs);
 
     //local commit_tx
-    bool ret = ln_comtx_create_local( //closeのみ(HTLC署名無し)
+    bool ret = ln_commit_tx_create_local( //closeのみ(HTLC署名無し)
         pChannel, &pChannel->commit_info_local, pClose, NULL, 0);
     if (!ret) {
         LOGE("fail: create_to_local\n");
@@ -811,7 +811,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_remote.num_htlc_outputs);
 
     //remote commit_tx
-    bool ret = ln_comtx_create_remote(
+    bool ret = ln_commit_tx_create_remote(
         pChannel, &pChannel->commit_info_remote, pClose, NULL);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
@@ -926,7 +926,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
         } else {
             //HTLC Tx
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
-            ln_comtx_output_type_t type;
+            ln_commit_tx_output_type_t type;
             uint8_t payhash[BTC_SZ_HASH256];
             uint32_t expiry;
             bool srch = ln_db_phash_search(payhash, &type, &expiry,
@@ -944,7 +944,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                 btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
                 pChannel->p_revoked_type[htlc_idx] = type;
 
-                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_COMTX_OUTPUT_TYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
+                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
                 htlc_cnt++;
             } else {
                 LOGD("[%d]not detect\n", lp);
@@ -964,10 +964,10 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
 bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
-    ln_comtx_base_fee_info_t fee_info;
+    ln_commit_tx_base_fee_info_t fee_info;
     fee_info.feerate_per_kw = pChannel->feerate_per_kw;
-    ln_comtx_base_fee_calc(&fee_info, NULL, 0);
-    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_COMTX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
+    ln_commit_tx_base_fee_calc(&fee_info, NULL, 0);
+    uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
     ln_htlctx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
@@ -985,10 +985,10 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
 
     ln_htlctx_sig_type_t htlcsign = LN_HTLCTX_SIG_NONE;
     switch (pChannel->p_revoked_type[WitIndex]) {
-    case LN_COMTX_OUTPUT_TYPE_OFFERED:
+    case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
         htlcsign = LN_HTLCTX_SIG_REVOKE_OFFER;
         break;
-    case LN_COMTX_OUTPUT_TYPE_RECEIVED:
+    case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
         htlcsign = LN_HTLCTX_SIG_REVOKE_RECV;
         break;
     default:
@@ -1424,11 +1424,11 @@ void HIDDEN ln_revoked_buf_alloc(ln_channel_t *pChannel)
 
     pChannel->p_revoked_vout = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pChannel->revoked_num);
     pChannel->p_revoked_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pChannel->revoked_num);
-    pChannel->p_revoked_type = (ln_comtx_output_type_t *)UTL_DBG_MALLOC(sizeof(ln_comtx_output_type_t) * pChannel->revoked_num);
+    pChannel->p_revoked_type = (ln_commit_tx_output_type_t *)UTL_DBG_MALLOC(sizeof(ln_commit_tx_output_type_t) * pChannel->revoked_num);
     for (int lp = 0; lp < pChannel->revoked_num; lp++) {
         utl_buf_init(&pChannel->p_revoked_vout[lp]);
         utl_buf_init(&pChannel->p_revoked_wit[lp]);
-        pChannel->p_revoked_type[lp] = LN_COMTX_OUTPUT_TYPE_NONE;
+        pChannel->p_revoked_type[lp] = LN_COMMIT_TX_OUTPUT_TYPE_NONE;
     }
 }
 
@@ -1621,7 +1621,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static uint64_t calc_commit_num(const ln_commit_info_t *pCommitInfo, const btc_tx_t *pTx)
 {
-    uint64_t commit_num = ln_comtx_calc_commit_num_from_tx(
+    uint64_t commit_num = ln_commit_tx_calc_commit_num_from_tx(
         pTx->vin[0].sequence, pTx->locktime, pCommitInfo->obscured_commit_num_mask);
     LOGD("commit_num=%" PRIu64 "\n", commit_num);
     return commit_num;

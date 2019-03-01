@@ -296,10 +296,10 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         //ln_htlctx_create()後だから、OFFERED/RECEIVEDがわかる
         bool send_req = false;
         switch (p_tx->vout[0].opt) {
-        case LN_COMTX_OUTPUT_TYPE_OFFERED:
+        case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
             send_req = close_unilateral_local_offered(pChannel, &del, !unspent, &close_dat, lp, pDbParam);
             break;
-        case LN_COMTX_OUTPUT_TYPE_RECEIVED:
+        case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
             send_req = close_unilateral_local_received(!unspent);
             break;
         default:
@@ -809,7 +809,7 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
                         }
                     }
                 } else {
-                    if ((p_tx->vout_cnt > 0) && (p_tx->vout[0].opt == LN_COMTX_OUTPUT_TYPE_OFFERED)) {
+                    if ((p_tx->vout_cnt > 0) && (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED)) {
                         //preimageを取得できていない
                         LOGD("  not have preimage\n");
                         close_unilateral_remote_offered(pChannel, &del, &close_dat, lp, pDbParam);
@@ -908,8 +908,8 @@ static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
     if (ret) {
         LOGD("$$$ broadcast\n");
 
-        if ( (pTx->vout[0].opt == LN_COMTX_OUTPUT_TYPE_OFFERED) ||
-             (pTx->vout[0].opt == LN_COMTX_OUTPUT_TYPE_RECEIVED) ) {
+        if ( (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ||
+             (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ) {
             for (int lp = 0; lp < Num; lp++) {
                 if (pHtlcTx[lp].vin_cnt > 0) {
                     LOGD("$$$ to_local tx[%d] ==> DB\n", lp);

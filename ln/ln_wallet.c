@@ -40,7 +40,7 @@
 #include "btc_script.h"
 
 #include "ln_db.h"
-#include "ln_comtx.h"
+#include "ln_commit_tx.h"
 #include "ln_derkey.h"
 #include "ln_script.h"
 #include "ln.h"

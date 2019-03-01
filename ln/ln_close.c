@@ -42,7 +42,7 @@
 
 #include "ln_db.h"
 #include "ln_signer.h"
-#include "ln_comtx.h"
+#include "ln_commit_tx.h"
 #include "ln_derkey.h"
 #include "ln_script.h"
 #include "ln.h"
@@ -357,7 +357,7 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //set vin[0]
     if (bVerify) {
-        ln_comtx_set_vin_p2wsh_2of2_rs(
+        ln_commit_tx_set_vin_p2wsh_2of2_rs(
             pTx, 0, pChannel->funding_info.key_order, pChannel->commit_info_remote.remote_sig,
             pChannel->commit_info_local.remote_sig, &pChannel->funding_info.wit_script);
 
