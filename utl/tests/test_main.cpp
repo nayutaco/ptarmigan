@@ -20,6 +20,7 @@ extern "C" {
 #include "utl_time.c"
 #include "utl_int.c"
 #include "utl_mem.c"
+#include "utl_queue.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -49,4 +50,5 @@ TEST_F(utl, first)
 #include "testinc_str.cpp"
 #include "testinc_time.cpp"
 #include "testinc_int.cpp"
+#include "testinc_queue.cpp"
 
