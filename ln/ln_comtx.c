@@ -281,7 +281,7 @@ bool HIDDEN ln_comtx_info_create_local(ln_comtx_info_t *pComTxInfo, const ln_com
         sizeof(ln_comtx_htlc_info_t *) * (LN_HTLC_MAX_XXX));
     if (!pComTxInfo->pp_htlc_info) goto LABEL_EXIT;
     if (!create_local_htlc_info_and_amount(
-        pChannel->updates, pChannel->htlcs, pComTxInfo->pp_htlc_info, &pComTxInfo->num_htlc_infos,
+        pChannel->update_info.updates, pChannel->update_info.htlcs, pComTxInfo->pp_htlc_info, &pComTxInfo->num_htlc_infos,
         &pComTxInfo->local_msat, &pComTxInfo->remote_msat)) goto LABEL_EXIT;
 
     //HTLCs (script)
@@ -393,7 +393,7 @@ bool ln_comtx_create_remote(
     pp_htlc_info = (ln_comtx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_comtx_htlc_info_t *) * LN_HTLC_MAX_XXX);
     if (!pp_htlc_info) goto LABEL_EXIT;
     if (!create_remote_htlc_info_and_amount(
-        pChannel->updates, pChannel->htlcs, pp_htlc_info, &num_htlc_infos,
+        pChannel->update_info.updates, pChannel->update_info.htlcs, pp_htlc_info, &num_htlc_infos,
         &comtx_info.local_msat, &comtx_info.remote_msat)) goto LABEL_EXIT;
 
     //HTLC info (script)
@@ -788,7 +788,7 @@ static bool create_local_spent__verify(
         //XXX: save the commitment_signed message?
         //OKなら各HTLCに保持
         //  相手がunilateral closeした後に送信しなかったら、この署名を使う
-        memcpy(pChannel->htlcs[p_htlc_info->htlc_idx].remote_sig, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+        memcpy(pChannel->update_info.htlcs[p_htlc_info->htlc_idx].remote_sig, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
         btc_tx_free(&tx);
         htlc_num++;
     }
@@ -859,7 +859,7 @@ static bool create_local_spent_htlc__htlc_tx(
     if (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) {
         ret_img = search_preimage(
             preimage,
-            pChannel->htlcs[pHtlcInfo->htlc_idx].payment_hash,
+            pChannel->update_info.htlcs[pHtlcInfo->htlc_idx].payment_hash,
             true);
         LOGD("[received]have preimage=%s\n", (ret_img) ? "yes" : "NO");
         if (!ret_img) {
@@ -880,7 +880,7 @@ static bool create_local_spent_htlc__htlc_tx(
         return false;
     }
     if (!ln_htlctx_set_vin0_rs(
-        pTxHtlc, local_sig, pChannel->htlcs[pHtlcInfo->htlc_idx].remote_sig,
+        pTxHtlc, local_sig, pChannel->update_info.htlcs[pHtlcInfo->htlc_idx].remote_sig,
         (pHtlcInfo->type == LN_COMTX_OUTPUT_TYPE_RECEIVED) ? preimage : NULL,
         NULL, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_TIMEOUT_SUCCESS)) {
         LOGE("fail: set htlc_tx vout\n");
@@ -1047,7 +1047,7 @@ static bool create_remote_spent__with_close(
             btc_tx_init(&tx); //force clear
         }
         const ln_comtx_htlc_info_t *p_htlc_info = ppHtlcInfo[htlc_idx];
-        const uint8_t *p_payhash = pChannel->htlcs[p_htlc_info->htlc_idx].payment_hash;
+        const uint8_t *p_payhash = pChannel->update_info.htlcs[p_htlc_info->htlc_idx].payment_hash;
         uint64_t fee_sat =
             (p_htlc_info->type == LN_COMTX_OUTPUT_TYPE_OFFERED) ?
             pBaseFeeInfo->htlc_timeout_fee : pBaseFeeInfo->htlc_success_fee;

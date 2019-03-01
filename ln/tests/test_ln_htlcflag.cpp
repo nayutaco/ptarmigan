@@ -165,7 +165,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fulfill)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     //ready update_add_htlc
@@ -454,7 +454,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_offer_fail)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     //ready update_add_htlc
@@ -743,7 +743,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fulfill)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     //recv update_add_htlc
@@ -1032,7 +1032,7 @@ TEST_F(ln_htlc_flag, htlc_flag_macro_recv_fail)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     //recv update_add_htlc
@@ -1321,8 +1321,8 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
-    ln_htlc_t *p_htlc = &channel.htlcs[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
+    ln_htlc_t *p_htlc = &channel.update_info.htlcs[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     p_update->htlc_idx = 0;
@@ -1382,7 +1382,7 @@ TEST_F(ln_htlc_flag, htlc_flag_update_add_htlc_resend)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     p_update->enabled = true;
@@ -1409,7 +1409,7 @@ TEST_F(ln_htlc_flag, htlc_flag_update_del_htlc_resend)
     ln_channel_t channel;
     LnInit(&channel);
 
-    ln_update_t *p_update = &channel.updates[0];
+    ln_update_t *p_update = &channel.update_info.updates[0];
     ln_update_flags_t *p_flags = &p_update->flags;
 
     p_update->enabled = true;

@@ -160,10 +160,10 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
         printf(INDENT3 M_QQ("pending") ": [\n");
         int cnt = 0;
         for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
-            const ln_update_t *p_update = &pChannel->updates[lp];
+            const ln_update_t *p_update = &pChannel->update_info.updates[lp];
             if (!LN_UPDATE_ENABLED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-            const ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+            const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
             if (cnt) {
                 printf(",\n");
             }
@@ -342,15 +342,15 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
 
     //normal operation
-    printf(INDENT3 M_QQ("next_htlc_id") ": %" PRIu64 ",\n", pChannel->next_htlc_id);
+    printf(INDENT3 M_QQ("next_htlc_id") ": %" PRIu64 ",\n", pChannel->update_info.next_htlc_id);
 
     printf(INDENT3 M_QQ("htlcs") ": [\n");
     int cnt = 0;
     for (lp = 0; lp < LN_UPDATE_MAX; lp++) {
-        const ln_update_t *p_update = &pChannel->updates[lp];
+        const ln_update_t *p_update = &pChannel->update_info.updates[lp];
         if (!LN_UPDATE_ENABLED(p_update)) continue;
         if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-        const ln_htlc_t *p_htlc = &pChannel->htlcs[p_update->htlc_idx];
+        const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
         if (cnt > 0) {
             printf(",\n");
         }

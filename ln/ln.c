@@ -208,9 +208,9 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
     btc_tx_init(&pChannel->tx_closing);
 
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_init(&pChannel->htlcs[idx].buf_payment_preimage);
-        utl_buf_init(&pChannel->htlcs[idx].buf_onion_reason);
-        utl_buf_init(&pChannel->htlcs[idx].buf_shared_secret);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_onion_reason);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_shared_secret);
     }
 
     pChannel->lfeature_remote = 0;
@@ -248,9 +248,9 @@ void ln_term(ln_channel_t *pChannel)
 
     ln_derkey_term(&pChannel->keys_local, &pChannel->keys_remote);
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_free(&pChannel->htlcs[idx].buf_payment_preimage);
-        utl_buf_free(&pChannel->htlcs[idx].buf_onion_reason);
-        utl_buf_free(&pChannel->htlcs[idx].buf_shared_secret);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
     }
     //LOGD("END\n");
 }
@@ -1260,7 +1260,7 @@ const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_channel_t *pChannel)
 
 const ln_update_t *ln_update(const ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
-    return (UpdateIdx < LN_UPDATE_MAX) ? &pChannel->updates[UpdateIdx] : NULL;
+    return (UpdateIdx < LN_UPDATE_MAX) ? &pChannel->update_info.updates[UpdateIdx] : NULL;
 }
 
 
@@ -1280,16 +1280,16 @@ const ln_update_t *ln_update_by_htlc_idx(const ln_channel_t *pChannel, uint16_t 
 
 const ln_htlc_t *ln_htlc(const ln_channel_t *pChannel, uint16_t HtlcIdx)
 {
-    return (HtlcIdx < LN_HTLC_RECEIVED_MAX) ? &pChannel->htlcs[HtlcIdx] : NULL;
+    return (HtlcIdx < LN_HTLC_RECEIVED_MAX) ? &pChannel->update_info.htlcs[HtlcIdx] : NULL;
 }
 
 
 bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t UpdateIdx, uint32_t BlockCount)
 {
     return (UpdateIdx < LN_UPDATE_MAX) &&
-        LN_UPDATE_ENABLED(&pChannel->updates[UpdateIdx]) &&
-        LN_UPDATE_TIMEOUT_CHECK_NEEDED(&pChannel->updates[UpdateIdx]) &&
-        (pChannel->htlcs[pChannel->updates[UpdateIdx].htlc_idx].cltv_expiry <= BlockCount);
+        LN_UPDATE_ENABLED(&pChannel->update_info.updates[UpdateIdx]) &&
+        LN_UPDATE_TIMEOUT_CHECK_NEEDED(&pChannel->update_info.updates[UpdateIdx]) &&
+        (pChannel->update_info.htlcs[pChannel->update_info.updates[UpdateIdx].htlc_idx].cltv_expiry <= BlockCount);
 }
 
 
@@ -1559,9 +1559,9 @@ static void channel_clear(ln_channel_t *pChannel)
     btc_tx_free(&pChannel->tx_closing);
 
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_free(&pChannel->htlcs[idx].buf_payment_preimage);
-        utl_buf_free(&pChannel->htlcs[idx].buf_onion_reason);
-        utl_buf_free(&pChannel->htlcs[idx].buf_shared_secret);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
     }
 
     memset(pChannel->peer_node_id, 0, BTC_SZ_PUBKEY);
@@ -1642,6 +1642,6 @@ void ln_dbg_commitnum(const ln_channel_t *pChannel)
     LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)pChannel->commit_info_local.revoke_num);
     LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)pChannel->commit_info_remote.revoke_num);
     LOGD("------------------------------------------\n");
-    LOGD("next_htlc_id: %" PRIu64 "\n", pChannel->next_htlc_id);
+    LOGD("next_htlc_id: %" PRIu64 "\n", pChannel->update_info.next_htlc_id);
     LOGD("------------------------------------------\n");
 }
