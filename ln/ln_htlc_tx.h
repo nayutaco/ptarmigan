@@ -19,11 +19,11 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ln_htlctx.h
- *  @brief  ln_htlctx
+/** @file   ln_htlc_tx.h
+ *  @brief  ln_htlc_tx
  */
-#ifndef LN_HTLCTX_H__
-#define LN_HTLCTX_H__
+#ifndef LN_HTLC_TX_H__
+#define LN_HTLC_TX_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -41,17 +41,17 @@
  * typedefs
  **************************************************************************/
 
-/** @struct ln_htlctx_sig_type_t
- *  @brief  ln_htlctx_sig_type_t
+/** @struct ln_htlc_tx_sig_type_t
+ *  @brief  ln_htlc_tx_sig_type_t
  */
 typedef enum {
-    LN_HTLCTX_SIG_NONE,              ///< 未設定
-    LN_HTLCTX_SIG_TIMEOUT_SUCCESS,   ///< HTLC Timeout/Success
-    LN_HTLCTX_SIG_REMOTE_OFFER,      ///< 相手が送信したcommit_txのOffered HTLC
-    LN_HTLCTX_SIG_REMOTE_RECV,       ///< 相手が送信したcommit_txのReceived HTLC
-    LN_HTLCTX_SIG_REVOKE_RECV,       ///< revoked transactionのreceived HTLC output
-    LN_HTLCTX_SIG_REVOKE_OFFER,      ///< revoked transactionのoffered HTLC output
-} ln_htlctx_sig_type_t;
+    LN_HTLC_TX_SIG_NONE,              ///< 未設定
+    LN_HTLC_TX_SIG_TIMEOUT_SUCCESS,   ///< HTLC Timeout/Success
+    LN_HTLC_TX_SIG_REMOTE_OFFER,      ///< 相手が送信したcommit_txのOffered HTLC
+    LN_HTLC_TX_SIG_REMOTE_RECV,       ///< 相手が送信したcommit_txのReceived HTLC
+    LN_HTLC_TX_SIG_REVOKE_RECV,       ///< revoked transactionのreceived HTLC output
+    LN_HTLC_TX_SIG_REVOKE_OFFER,      ///< revoked transactionのoffered HTLC output
+} ln_htlc_tx_sig_type_t;
 
 
 /********************************************************************
@@ -68,7 +68,7 @@ typedef enum {
  * @param[in]       pTxid       vin TXID
  * @param[in]       Index       vin index
  */
-bool HIDDEN ln_htlctx_create(
+bool HIDDEN ln_htlc_tx_create(
     btc_tx_t *pTx,
     uint64_t Value,
     const utl_buf_t *pWitScript,
@@ -87,10 +87,10 @@ bool HIDDEN ln_htlctx_create(
  * @param[in]       pRemoteSig      commit_tx相手からの署名
  * @param[in]       pPreimage       非NULL:payment_preimageでHTLC-Successとして署名, NULL:HTLC-Timeoutとして署名
  * @param[in]       pWitScript      voutとなるスクリプト
- * @param[in]       HtlcSigType     #ln_htlctx_sig_type_t
+ * @param[in]       HtlcSigType     #ln_htlc_tx_sig_type_t
  * @return      true:成功
  */
-bool HIDDEN ln_htlctx_sign(
+bool HIDDEN ln_htlc_tx_sign(
     btc_tx_t *pTx,
     utl_buf_t *pSig,
     uint64_t Value,
@@ -98,7 +98,7 @@ bool HIDDEN ln_htlctx_sign(
     const utl_buf_t *pWitScript);
 
 
-bool HIDDEN ln_htlctx_sign_rs(
+bool HIDDEN ln_htlc_tx_sign_rs(
     btc_tx_t *pTx,
     uint8_t *pSig,
     uint64_t Value,
@@ -106,24 +106,24 @@ bool HIDDEN ln_htlctx_sign_rs(
     const utl_buf_t *pWitScript);
 
 
-bool HIDDEN ln_htlctx_set_vin0(
+bool HIDDEN ln_htlc_tx_set_vin0(
     btc_tx_t *pTx,
     const utl_buf_t *pLocalSig,
     const utl_buf_t *pRemoteSig,
     const uint8_t *pPreimage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,
-    ln_htlctx_sig_type_t HtlcSigType);
+    ln_htlc_tx_sig_type_t HtlcSigType);
 
 
-bool HIDDEN ln_htlctx_set_vin0_rs(
+bool HIDDEN ln_htlc_tx_set_vin0_rs(
     btc_tx_t *pTx,
     const uint8_t *pLocalSig,
     const uint8_t *pRemoteSig,
     const uint8_t *pPreimage,
     const btc_keys_t *pRevoKeys,
     const utl_buf_t *pWitScript,
-    ln_htlctx_sig_type_t HtlcSigType);
+    ln_htlc_tx_sig_type_t HtlcSigType);
 
 
 /** Offered/Receveid HTLC Transaction署名verify
@@ -137,7 +137,7 @@ bool HIDDEN ln_htlctx_set_vin0_rs(
  * @param[in]       pWitScript      voutとなるスクリプト
  * @return      true:成功
  */
-bool HIDDEN ln_htlctx_verify(const btc_tx_t *pTx,
+bool HIDDEN ln_htlc_tx_verify(const btc_tx_t *pTx,
     uint64_t Value,
     const uint8_t *pLocalPubKey,
     const utl_buf_t *pLocalSig,
@@ -146,4 +146,4 @@ bool HIDDEN ln_htlctx_verify(const btc_tx_t *pTx,
     const utl_buf_t *pWitScript);
 
 
-#endif /* LN_HTLCTX_H__ */
+#endif /* LN_HTLC_TX_H__ */

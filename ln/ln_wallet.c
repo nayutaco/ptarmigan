@@ -135,15 +135,15 @@ bool HIDDEN ln_wallet_script_to_remote_set_vin0(btc_tx_t *pTx, const btc_keys_t 
 }
 
 
-bool HIDDEN ln_wallet_htlctx_set_vin0(
+bool HIDDEN ln_wallet_htlc_tx_set_vin0(
     btc_tx_t *pTx,
     const uint8_t *pHtlcPrivKey,
     const uint8_t *pPreimage,
     const utl_buf_t *pWitScript,
-    ln_htlctx_sig_type_t HtlcSigType)
+    ln_htlc_tx_sig_type_t HtlcSigType)
 {
     switch (HtlcSigType) {
-    case LN_HTLCTX_SIG_REMOTE_OFFER:
+    case LN_HTLC_TX_SIG_REMOTE_OFFER:
         {
             // <remotehtlcsig> BUT set htlc private key (NOT BOLT)
             // <payment-preimage> BUT optional (NOT BOLT)
@@ -159,7 +159,7 @@ bool HIDDEN ln_wallet_htlctx_set_vin0(
             if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
         }
         break;
-    case LN_HTLCTX_SIG_REMOTE_RECV:
+    case LN_HTLC_TX_SIG_REMOTE_RECV:
         {
             // <remotehtlcsig> BUT set htlc private key (NOT BOLT)
             // 0

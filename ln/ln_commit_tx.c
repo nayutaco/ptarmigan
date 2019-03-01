@@ -45,7 +45,7 @@
 #include "ln_wallet.h"
 #include "ln_commit_tx.h"
 #include "ln_commit_tx_util.h"
-#include "ln_htlctx.h"
+#include "ln_htlc_tx.h"
 
 
 /**************************************************************************
@@ -683,7 +683,7 @@ static bool create_local_spent__close(
 
             //htlc tx
             btc_tx_t htlc_tx = BTC_TX_INIT;
-            if (!ln_htlctx_create(
+            if (!ln_htlc_tx_create(
                 &htlc_tx, (pTxCommit->vout[vout_idx].value - fee_sat), pWitScriptToLocal,
                 p_htlc_info->type, p_htlc_info->cltv_expiry, pCommitInfo->txid, vout_idx)) {
                 btc_tx_free(&htlc_tx);
@@ -774,7 +774,7 @@ static bool create_local_spent__verify(
         assert(pTxCommit->vout[vout_idx].value >= pBaseFeeInfo->dust_limit_satoshi + fee_sat);
 
         btc_tx_t tx = BTC_TX_INIT;
-        if (!ln_htlctx_create(
+        if (!ln_htlc_tx_create(
             &tx, (pTxCommit->vout[vout_idx].value - fee_sat), pWitScriptToLocal,
             p_htlc_info->type, p_htlc_info->cltv_expiry, pCommitInfo->txid, vout_idx)) {
             btc_tx_free(&tx);
@@ -832,7 +832,7 @@ static bool create_local_verify_htlc(
 {
     utl_buf_t buf_sig = UTL_BUF_INIT;
     if (!btc_sig_rs2der(&buf_sig, pHtlcSig)) return false;
-    if (!ln_htlctx_verify(
+    if (!ln_htlc_tx_verify(
         pTx, Amount, NULL, NULL, pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
         &buf_sig, pScript)) {
         utl_buf_free(&buf_sig);
@@ -874,15 +874,15 @@ static bool create_local_spent_htlc__htlc_tx(
     }
 
     uint8_t local_sig[LN_SZ_SIGNATURE];
-    if (!ln_htlctx_sign_rs(
+    if (!ln_htlc_tx_sign_rs(
         pTxHtlc, local_sig, Amount, pHtlcKey, &pHtlcInfo->wit_script)) {
         LOGE("fail: sign htlc_tx\n");
         return false;
     }
-    if (!ln_htlctx_set_vin0_rs(
+    if (!ln_htlc_tx_set_vin0_rs(
         pTxHtlc, local_sig, pChannel->update_info.htlcs[pHtlcInfo->htlc_idx].remote_sig,
         (pHtlcInfo->type == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ? preimage : NULL,
-        NULL, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_TIMEOUT_SUCCESS)) {
+        NULL, &pHtlcInfo->wit_script, LN_HTLC_TX_SIG_TIMEOUT_SUCCESS)) {
         LOGE("fail: set htlc_tx vout\n");
         return false;
     }
@@ -1130,11 +1130,11 @@ static bool create_remote_spent_htlc__with_htlc_sig(
 
     LOGD("---HTLC[%d]\n", VoutIdx);
     btc_tx_t tx = BTC_TX_INIT;
-    if (!ln_htlctx_create(
+    if (!ln_htlc_tx_create(
         &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScriptToLocal, pHtlcInfo->type,
         pHtlcInfo->cltv_expiry, pCommitInfo->txid, VoutIdx)) goto LABEL_EXIT;
 
-    if (!ln_htlctx_sign_rs(
+    if (!ln_htlc_tx_sign_rs(
         &tx, pHtlcSig, pTxCommit->vout[VoutIdx].value, pHtlcKey, &pHtlcInfo->wit_script)) {
         LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
         goto LABEL_EXIT;
@@ -1188,7 +1188,7 @@ static bool create_remote_spent_htlc__with_close(
 {
     LOGD("---HTLC[%d]\n", VoutIdx);
     btc_tx_t tx = BTC_TX_INIT;
-    if (!ln_htlctx_create(
+    if (!ln_htlc_tx_create(
         &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScriptToLocal,
         pHtlcInfo->type, pHtlcInfo->cltv_expiry, pCommitInfo->txid, VoutIdx)) return false;
 
@@ -1198,8 +1198,8 @@ static bool create_remote_spent_htlc__with_close(
             LOGD("[offered]have preimage\n");
             utl_buf_free(&tx.vout[0].script);
             tx.locktime = 0;
-            if (!ln_wallet_htlctx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-                &tx, pHtlcKey->priv, preimage, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_REMOTE_OFFER)) goto LABEL_ERROR;
+            if (!ln_wallet_htlc_tx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+                &tx, pHtlcKey->priv, preimage, &pHtlcInfo->wit_script, LN_HTLC_TX_SIG_REMOTE_OFFER)) goto LABEL_ERROR;
         } else {
             LOGD("[offered]no preimage\n");
         }
@@ -1207,8 +1207,8 @@ static bool create_remote_spent_htlc__with_close(
         LOGD("[received]\n");
         utl_buf_free(&tx.vout[0].script);
         tx.locktime = pHtlcInfo->cltv_expiry;
-        if (!ln_wallet_htlctx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-            &tx, pHtlcKey->priv, NULL, &pHtlcInfo->wit_script, LN_HTLCTX_SIG_REMOTE_RECV)) goto LABEL_ERROR;
+        if (!ln_wallet_htlc_tx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+            &tx, pHtlcKey->priv, NULL, &pHtlcInfo->wit_script, LN_HTLC_TX_SIG_REMOTE_RECV)) goto LABEL_ERROR;
     }
 
     memcpy(pCloseTxHtlc, &tx, sizeof(tx));

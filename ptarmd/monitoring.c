@@ -293,7 +293,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         LOGD("       index: %d\n", p_tx->vin[0].index);
         LOGD("         --> unspent[%d]=%d\n", lp, unspent);
 
-        //ln_htlctx_create()後だから、OFFERED/RECEIVEDがわかる
+        //ln_htlc_tx_create()後だから、OFFERED/RECEIVEDがわかる
         bool send_req = false;
         switch (p_tx->vout[0].opt) {
         case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
@@ -314,9 +314,9 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
 
         if (send_req) {
             LOGD("sendreq[%d]: ", lp);
-            const btc_tx_t *p_htlctx = (const btc_tx_t *)close_dat.tx_buf.buf;
+            const btc_tx_t *p_htlc_tx = (const btc_tx_t *)close_dat.tx_buf.buf;
             int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
-            bool ret = close_unilateral_local_sendreq(&del, p_tx, p_htlctx, num);
+            bool ret = close_unilateral_local_sendreq(&del, p_tx, p_htlc_tx, num);
             if (ret && (lp == LN_CLOSE_IDX_COMMIT)) {
                 ln_close_change_stat(pChannel, NULL, pDbParam);
             }

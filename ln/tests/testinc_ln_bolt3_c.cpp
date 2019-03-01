@@ -1200,23 +1200,23 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -1922,23 +1922,23 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
         index = VOUTS[lp];
         if (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -2583,23 +2583,23 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -3244,23 +3244,23 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -3841,23 +3841,23 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -4438,23 +4438,23 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -4974,23 +4974,23 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -5510,23 +5510,23 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -5986,23 +5986,23 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
@@ -6461,23 +6461,23 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= base_fee_info.dust_limit_satoshi + fee)) {
             btc_tx_init(&tx2);
-            ln_htlctx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
+            ln_htlc_tx_create(&tx2, tx.vout[index].value - fee, &ws_buf, htlc_infos[lp].type, htlc_infos[lp].cltv_expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlc_infos[lp].type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received");
-            ret = ln_htlctx_sign(&tx2,
+            ret = ln_htlc_tx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script);
             ASSERT_TRUE(ret);
-            ret = ln_htlctx_set_vin0(&tx2,
+            ret = ln_htlc_tx_set_vin0(&tx2,
                         &local_sig,
                         &remote_sig,
                         PREIMAGES[lp],
                         &keys_local_commit,
                         &htlc_infos[lp].wit_script,
-                        LN_HTLCTX_SIG_TIMEOUT_SUCCESS);
+                        LN_HTLC_TX_SIG_TIMEOUT_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs = UTL_BUF_INIT;
             btc_tx_write(&tx2, &hs);
