@@ -965,7 +965,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
     ln_commit_tx_base_fee_info_t fee_info;
-    fee_info.feerate_per_kw = pChannel->feerate_per_kw;
+    fee_info.feerate_per_kw = pChannel->commit_info_remote.feerate_per_kw;
     ln_commit_tx_base_fee_calc(&fee_info, NULL, 0);
     uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
@@ -1200,13 +1200,15 @@ uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw)
 
 uint32_t ln_feerate_per_kw(const ln_channel_t *pChannel)
 {
-    return pChannel->feerate_per_kw;
+    return pChannel->commit_info_local.feerate_per_kw;
 }
 
 
 void ln_feerate_per_kw_set(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
-    pChannel->feerate_per_kw = FeeratePerKw;
+    //XXX: ???
+    pChannel->commit_info_local.feerate_per_kw = FeeratePerKw;
+    pChannel->commit_info_remote.feerate_per_kw = FeeratePerKw;
 }
 
 
@@ -1230,7 +1232,7 @@ bool ln_is_shutdown_sent(const ln_channel_t *pChannel)
 
 uint64_t ln_closing_signed_initfee(const ln_channel_t *pChannel)
 {
-    return (LN_FEE_COMMIT_BASE_WEIGHT * pChannel->feerate_per_kw / 1000);
+    return (LN_FEE_COMMIT_BASE_WEIGHT * pChannel->commit_info_local.feerate_per_kw / 1000);
 }
 
 

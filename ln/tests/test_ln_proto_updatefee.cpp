@@ -187,12 +187,13 @@ public:
         pChannel->commit_info_local.max_accepted_htlcs = 10;
         pChannel->commit_info_local.local_msat = 1000000;
         pChannel->commit_info_local.remote_msat = 1000000;
+        pChannel->commit_info_local.feerate_per_kw = 500;
         pChannel->commit_info_remote.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_info_remote.htlc_minimum_msat = 0;
         pChannel->commit_info_remote.max_accepted_htlcs = 10;
         pChannel->commit_info_remote.local_msat = 1000000;
         pChannel->commit_info_remote.remote_msat = 1000000;
-        pChannel->feerate_per_kw = 500;
+        pChannel->commit_info_remote.feerate_per_kw = 500;
         btc_tx_init(&pChannel->funding_info.tx_data);
         utl_buf_init(&pChannel->funding_info.wit_script);
         pChannel->p_callback = LnCallbackType;
@@ -318,7 +319,7 @@ TEST_F(ln, create_updatefee_same)
     ln_channel_t channel;
     LnInitSend(&channel);
 
-    bool ret = ln_update_fee_send(&channel, channel.feerate_per_kw);
+    bool ret = ln_update_fee_send(&channel, channel.commit_info_remote.feerate_per_kw);
     ASSERT_FALSE(ret);
 
     ln_term(&channel);
@@ -390,7 +391,7 @@ TEST_F(ln, recv_updatefee_ok)
     bool ret = ln_update_fee_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
-    ASSERT_EQ(500, channel.feerate_per_kw);
+    ASSERT_EQ(500, channel.commit_info_local.feerate_per_kw);
 
     ln_term(&channel);
 }
