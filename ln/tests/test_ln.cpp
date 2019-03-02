@@ -47,6 +47,7 @@ extern "C" {
 #include "ln_invoice.c"
 #include "ln_print.c"
 #include "ln_update.c"
+#include "ln_update_info.c"
 
 #include "ln.c"
 }

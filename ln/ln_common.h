@@ -28,6 +28,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "btc_sig.h"
+
 
 /**************************************************************************
  * macros

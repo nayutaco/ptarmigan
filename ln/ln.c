@@ -207,11 +207,7 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
     btc_tx_init(&pChannel->funding_info.tx_data);
     btc_tx_init(&pChannel->tx_closing);
 
-    for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
-        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_onion_reason);
-        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_shared_secret);
-    }
+    ln_update_info_init(&pChannel->update_info);
 
     pChannel->lfeature_remote = 0;
 
@@ -247,11 +243,7 @@ void ln_term(ln_channel_t *pChannel)
     channel_clear(pChannel);
 
     ln_derkey_term(&pChannel->keys_local, &pChannel->keys_remote);
-    for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
-        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
-        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
-    }
+    ln_update_info_free(&pChannel->update_info);
     //LOGD("END\n");
 }
 
