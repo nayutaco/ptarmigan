@@ -153,18 +153,17 @@ bool /*HIDDEN*/ ln_open_channel_send(
     pChannel->commit_info_local.channel_reserve_sat = msg.channel_reserve_satoshis;
     pChannel->commit_info_local.htlc_minimum_msat = msg.htlc_minimum_msat;
     pChannel->commit_info_local.max_accepted_htlcs = msg.max_accepted_htlcs;
-
     pChannel->commit_info_local.local_msat =
         pChannel->commit_info_remote.remote_msat =
         LN_SATOSHI2MSAT(msg.funding_satoshis) - msg.push_msat;
     pChannel->commit_info_local.remote_msat =
         pChannel->commit_info_remote.local_msat =
         msg.push_msat;
-
     pChannel->funding_info.funding_satoshis = msg.funding_satoshis;
-    pChannel->feerate_per_kw = msg.feerate_per_kw;
-
-    pChannel->commit_info_remote.to_self_delay = msg.to_self_delay; //XXX:
+    pChannel->commit_info_local.feerate_per_kw =
+        pChannel->commit_info_remote.feerate_per_kw =
+        msg.feerate_per_kw;
+    pChannel->commit_info_remote.to_self_delay = msg.to_self_delay;
 
     pChannel->funding_info.state =
         (ln_funding_state_t)(
@@ -211,13 +210,14 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     }
 
     //check feerate_per_kw
-    ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &pChannel->feerate_per_kw);
+    uint32_t feerate_per_kw;
+    ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &feerate_per_kw);
     if ( (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
-         !M_FEERATE_CHK_MIN_OK(pChannel->feerate_per_kw, msg.feerate_per_kw) ) {
+         !M_FEERATE_CHK_MIN_OK(feerate_per_kw, msg.feerate_per_kw) ) {
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too low");
         return false;
     }
-    if (!M_FEERATE_CHK_MAX_OK(pChannel->feerate_per_kw, msg.feerate_per_kw)) {
+    if (!M_FEERATE_CHK_MAX_OK(feerate_per_kw, msg.feerate_per_kw)) {
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too large");
         return false;
     }
@@ -258,7 +258,9 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
 
     //params for funding
     pChannel->funding_info.funding_satoshis = msg.funding_satoshis;
-    pChannel->feerate_per_kw = msg.feerate_per_kw;
+    pChannel->commit_info_remote.feerate_per_kw =
+        pChannel->commit_info_local.feerate_per_kw =
+        msg.feerate_per_kw;
     pChannel->commit_info_remote.remote_msat =
         pChannel->commit_info_local.local_msat =
         msg.push_msat;
@@ -840,7 +842,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //          pub: 1+33
         //      locktime: 4
     #warning issue #344: nested in BIP16 size
-        uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, pChannel->feerate_per_kw);
+        uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, pChannel->commit_info_local.feerate_per_kw);
         LOGD("fee=%" PRIu64 "\n", fee);
         if (pChannel->establish.p_fundin->amount >= pChannel->funding_info.funding_satoshis + fee) {
             pChannel->funding_info.tx_data.vout[1].value =

@@ -363,8 +363,6 @@ struct ln_channel_t {
     //commitment transaction(local/remote)
     ln_commit_info_t            commit_info_local;              ///< [COMM_01]local commit_tx用
     ln_commit_info_t            commit_info_remote;             ///< [COMM_02]remote commit_tx用
-    //commitment transaction(固有)
-    uint32_t                    feerate_per_kw;                 ///< [COMM_03]feerate_per_kw
 
     //noise protocol
     ln_noise_t                  noise;                          ///< [NOIS_01]noise protocol

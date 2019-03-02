@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-51))     ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-52))     ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -211,6 +211,8 @@
     -51: `ln_channel_t::updates` -> `ln_channel_t::update_info.updates`
          `ln_channel_t::htlcs` -> `ln_channel_t::update_info.htlcs`
          `ln_channel_t::next_htlc_id` -> `ln_channel_t::update_info.next_htlc_id`
+    -52: rm `ln_channel_t::feerate_per_kw`
+         add `ln_commit_info_t::feerate_per_kw`
  */
 
 
@@ -463,6 +465,7 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, revoke_num),                       //[COMM_01]
     MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, local_msat),                       //[COMM_01]
     MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, remote_msat),                      //[COMM_01]
+    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, feerate_per_kw),                   //[COMM_01]
     MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, obscured_commit_num_mask),         //[COMM_01]
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, dust_limit_sat),                  //[COMM_02]commit_info_remote
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, max_htlc_value_in_flight_msat),   //[COMM_02]
@@ -477,8 +480,8 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, revoke_num),                      //[COMM_02]
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, local_msat),                      //[COMM_02]
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, remote_msat),                     //[COMM_02]
+    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, feerate_per_kw),                  //[COMM_02]
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, obscured_commit_num_mask),        //[COMM_02]
-    M_ITEM(ln_channel_t, feerate_per_kw),                                               //[COMM_03]
 
     //
     //nois

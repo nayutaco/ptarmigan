@@ -648,9 +648,12 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     }
 
     //feerate_per_kw更新
-    old_fee = pChannel->feerate_per_kw;
-    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", pChannel->feerate_per_kw, msg.feerate_per_kw);
-    pChannel->feerate_per_kw = msg.feerate_per_kw;
+    old_fee = pChannel->commit_info_local.feerate_per_kw;
+    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n",
+        pChannel->commit_info_local.feerate_per_kw, msg.feerate_per_kw);
+    pChannel->commit_info_local.feerate_per_kw =
+        pChannel->commit_info_remote.feerate_per_kw = //XXX: ???
+        msg.feerate_per_kw;
     //M_DB_CHANNEL_SAVE(pChannel);  //確定するまでDB保存しない
 
     //fee更新通知
@@ -663,7 +666,8 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
 
 bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
-    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
+    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n",
+        pChannel->commit_info_remote.feerate_per_kw, FeeratePerKw);
 
     if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "no init/channel_reestablish finished");
@@ -678,7 +682,7 @@ bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
         return false;
     }
 
-    if (pChannel->feerate_per_kw == FeeratePerKw) {
+    if (pChannel->commit_info_remote.feerate_per_kw == FeeratePerKw) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "same feerate_per_kw");
         return false;
     }
@@ -695,7 +699,7 @@ bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
         LOGE("fail\n");
         return false;
     }
-    pChannel->feerate_per_kw = FeeratePerKw;
+    pChannel->commit_info_remote.feerate_per_kw = FeeratePerKw;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
@@ -873,7 +877,8 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
         break;
     }
 
-    if (!b_comsig_needed && ((FeeratePerKw != 0) && (pChannel->feerate_per_kw != FeeratePerKw))) {
+    if (!b_comsig_needed && ((FeeratePerKw != 0) &&
+        (pChannel->commit_info_remote.feerate_per_kw != FeeratePerKw))) {
         if (ln_update_fee_send(pChannel, FeeratePerKw)) {
             b_comsig_needed = true;
         }

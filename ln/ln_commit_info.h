@@ -57,8 +57,9 @@ typedef struct {
                                                         //      commit_info_remote: revoke_and_ack受信後、pChannel->commit_info_remote.commit_num - 1を代入
     uint64_t            local_msat;
     uint64_t            remote_msat;
+    uint32_t            feerate_per_kw;                 ///< feerate_per_kw
 
-    uint64_t            obscured_commit_num_mask;       ///< [FUND_03]commitment numberをXORするとobscured commitment numberになる値。
+    uint64_t            obscured_commit_num_mask;       ///< commitment numberをXORするとobscured commitment numberになる値。
     ln_funding_info_t   *p_funding_info;
     uint8_t             (*p_script_pubkeys)[BTC_SZ_PUBKEY];
 } ln_commit_info_t;
