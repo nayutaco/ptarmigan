@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-52))     ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-53))     ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -213,6 +213,7 @@
          `ln_channel_t::next_htlc_id` -> `ln_channel_t::update_info.next_htlc_id`
     -52: rm `ln_channel_t::feerate_per_kw`
          add `ln_commit_info_t::feerate_per_kw`
+    -53: add `ln_update_info_t::fee_updates`
  */
 
 
@@ -448,6 +449,7 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, update_info, ln_update_info_t, updates),      //[NORM_03]
     //[NORM_03]htlcs --> HTLC
     MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id), //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, fee_updates),  //[NORM_03]
 
     //
     //comm
@@ -3783,9 +3785,6 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
         memcpy((uint8_t *)pOutChannel + DBCHANNEL_VALUES[lp].offset, (uint8_t *)pInChannel + DBCHANNEL_VALUES[lp].offset,  DBCHANNEL_VALUES[lp].datalen);
     }
 
-    memcpy(
-        pOutChannel->update_info.updates,  pInChannel->update_info.updates,
-        M_SIZE(ln_update_info_t, updates));
     memcpy(
         pOutChannel->update_info.htlcs,  pInChannel->update_info.htlcs,
         M_SIZE(ln_update_info_t, htlcs));

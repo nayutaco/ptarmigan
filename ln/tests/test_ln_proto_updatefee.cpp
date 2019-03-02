@@ -48,6 +48,7 @@ extern "C" {
 // #include "ln_print.c"
 #include "ln_normalope.c"
 #include "ln_funding_info.c"
+#include "ln_update_info.c"
 
 #include "ln.c"
 }

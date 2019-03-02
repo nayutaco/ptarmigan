@@ -28,6 +28,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utl_buf.h"
+
+#include "btc_crypto.h"
+
 #include "ln_common.h"
 
 //XXX: unit test
@@ -37,8 +41,7 @@
  * macros
  **************************************************************************/
 
-#define LN_UPDATE_FEE_MAX                   (2) //XXX: Probably `update_fee` needs up to 2 slots
-#define LN_UPDATE_MAX                       (LN_HTLC_OFFERED_MAX_XXX * 2 + LN_HTLC_RECEIVED_MAX * 2 + LN_UPDATE_FEE_MAX)
+#define LN_UPDATE_MAX                       (LN_HTLC_OFFERED_MAX_XXX * 2 + LN_HTLC_RECEIVED_MAX * 2 + LN_FEE_UPDATE_MAX)
 
 // ln_update_flags_t.type
 #define LN_UPDATE_TYPE_NONE                 (0x0)
@@ -109,6 +112,15 @@ typedef struct {
 } ln_htlc_t;
 
 
+
+/** @struct     ln_fee_update_t
+ *  @brief      update fee
+ */
+typedef struct {
+    uint32_t feerate_per_kw;
+} ln_fee_update_t;
+
+
 /**************************************************************************
  * macro functions
  **************************************************************************/
@@ -163,6 +175,8 @@ typedef struct {
         LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
         LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
     )
+#define LN_UPDATE_LOCAL_FEE_SEND_ENABLED(pUpdate) \
+    LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
 
 
 #define LN_UPDATE_LOCAL_SOME_RECV_ENABLED(pUpdate) \
@@ -184,6 +198,8 @@ typedef struct {
         LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
         LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
     )
+#define LN_UPDATE_LOCAL_FEE_RECV_ENABLED(pUpdate) \
+    LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
 
 
 #define LN_UPDATE_REMOTE_SOME_SEND_ENABLED(pUpdate) \
@@ -207,6 +223,8 @@ typedef struct {
         LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
         LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
     )
+#define LN_UPDATE_REMOTE_FEE_SEND_ENABLED(pUpdate) \
+    LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
 
 
 #define LN_UPDATE_REMOTE_SOME_RECV_ENABLED(pUpdate) \
@@ -228,6 +246,8 @@ typedef struct {
         LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
         LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
     )
+#define LN_UPDATE_REMOTE_FEE_RECV_ENABLED(pUpdate) \
+    LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
 
 
 #define LN_UPDATE_WILL_SEND(pUpdate) \
@@ -339,28 +359,6 @@ uint32_t ln_update_flags2u32(ln_update_flags_t Flags);
 
 
 ln_update_t *ln_update_get_empty( ln_update_t *pUpdates, uint16_t *pUpdateIdx);
-
-
-bool ln_update_get_corresponding_update(
-    const ln_update_t *pUpdates, uint16_t *pCorrespondingUpdateIdx, uint16_t UpdateIdx);
-
-
-ln_update_t *ln_update_set_del_htlc_send(ln_update_t *pUpdates, uint16_t HtlcIdx, uint8_t Type);
-
-
-ln_update_t *ln_update_set_del_htlc_recv(ln_update_t *pUpdates, uint16_t HtlcIdx, uint8_t Type);
-
-
-ln_update_t *ln_update_get_update_enabled_but_none(ln_update_t *pUpdates, uint16_t HtlcIdx);
-
-
-ln_update_t *ln_update_get_update_add_htlc(ln_update_t *pUpdates, uint16_t HtlcIdx);
-
-
-ln_update_t *ln_update_get_update_del_htlc(ln_update_t *pUpdates, uint16_t HtlcIdx);
-
-
-const ln_update_t *ln_update_get_update_del_htlc_const(const ln_update_t *pUpdates, uint16_t HtlcIdx);
 
 
 ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx);

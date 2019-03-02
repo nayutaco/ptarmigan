@@ -68,8 +68,7 @@ typedef struct {
 
 //common
 static bool create_htlc_info_and_amount(
-    const ln_update_t *pUpdates,
-    const ln_htlc_t *pHtlcs,
+    const ln_update_info_t *pUpdateInfo,
     ln_commit_tx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -79,8 +78,7 @@ static bool create_htlc_info_and_amount(
 
 //local
 static bool create_local_htlc_info_and_amount(
-    const ln_update_t *pUpdates,
-    const ln_htlc_t *pHtlcs,
+    const ln_update_info_t *pUpdateInfo,
     ln_commit_tx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -137,8 +135,7 @@ static bool create_local_spent_htlc__spend_tx_for_htlc_tx(
 
 //remote
 static bool create_remote_htlc_info_and_amount(
-    const ln_update_t *pUpdates,
-    const ln_htlc_t *pHtlcs,
+    const ln_update_info_t *pUpdateInfo,
     ln_commit_tx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -281,7 +278,7 @@ bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, c
         sizeof(ln_commit_tx_htlc_info_t *) * (LN_HTLC_MAX_XXX));
     if (!pCommitTxInfo->pp_htlc_info) goto LABEL_EXIT;
     if (!create_local_htlc_info_and_amount(
-        pChannel->update_info.updates, pChannel->update_info.htlcs, pCommitTxInfo->pp_htlc_info, &pCommitTxInfo->num_htlc_infos,
+        &pChannel->update_info, pCommitTxInfo->pp_htlc_info, &pCommitTxInfo->num_htlc_infos,
         &pCommitTxInfo->local_msat, &pCommitTxInfo->remote_msat)) goto LABEL_EXIT;
 
     //HTLCs (script)
@@ -393,7 +390,7 @@ bool ln_commit_tx_create_remote(
     pp_htlc_info = (ln_commit_tx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_commit_tx_htlc_info_t *) * LN_HTLC_MAX_XXX);
     if (!pp_htlc_info) goto LABEL_EXIT;
     if (!create_remote_htlc_info_and_amount(
-        pChannel->update_info.updates, pChannel->update_info.htlcs, pp_htlc_info, &num_htlc_infos,
+        &pChannel->update_info, pp_htlc_info, &num_htlc_infos,
         &commit_tx_info.local_msat, &commit_tx_info.remote_msat)) goto LABEL_EXIT;
 
     //HTLC info (script)
@@ -572,14 +569,13 @@ LABEL_EXIT:
  ********************************************************************/
 
 static bool create_local_htlc_info_and_amount(
-    const ln_update_t *pUpdates,
-    const ln_htlc_t *pHtlcs,
+    const ln_update_info_t *pUpdateInfo,
     ln_commit_tx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
     uint64_t *pRemoteMsat)
 {
-    return create_htlc_info_and_amount(pUpdates, pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, true);
+    return create_htlc_info_and_amount(pUpdateInfo, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, true);
 }
 
 
@@ -914,20 +910,18 @@ static bool create_local_spent_htlc__spend_tx_for_htlc_tx(
 
 
 static bool create_remote_htlc_info_and_amount(
-    const ln_update_t *pUpdates,
-    const ln_htlc_t *pHtlcs,
+    const ln_update_info_t *pUpdateInfo,
     ln_commit_tx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
     uint64_t *pRemoteMsat)
 {
-    return create_htlc_info_and_amount(pUpdates, pHtlcs, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, false);
+    return create_htlc_info_and_amount(pUpdateInfo, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, false);
 }
 
 
 static bool create_htlc_info_and_amount(
-    const ln_update_t *pUpdates,
-    const ln_htlc_t *pHtlcs,
+    const ln_update_info_t *pUpdateInfo,
     ln_commit_tx_htlc_info_t **ppHtlcInfo,
     uint16_t *pHtlcInfoCnt,
     uint64_t *pLocalMsat,
@@ -936,33 +930,33 @@ static bool create_htlc_info_and_amount(
 {
     *pHtlcInfoCnt = 0;
     for (uint16_t update_idx = 0; update_idx < LN_UPDATE_MAX; update_idx++) {
-        const ln_update_t *p_update = &pUpdates[update_idx];
+        const ln_update_t *p_update = &pUpdateInfo->updates[update_idx];
         LOGD("flags = 0x%04x\n", p_update->flags);
         if (!LN_UPDATE_ENABLED(p_update)) continue;
 
         if (LN_UPDATE_UNCOMMITTED(p_update, bLocal)) {
             if (LN_UPDATE_ADD_HTLC_SEND_ENABLED(p_update, bLocal)) {
                 LOGD("add htlc send\n");
-                *pLocalMsat -= pHtlcs[p_update->htlc_idx].amount_msat;
+                *pLocalMsat -= pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
             } else if (LN_UPDATE_DEL_HTLC_RECV_ENABLED(p_update, bLocal)) {
                 if (LN_UPDATE_FULFILL_HTLC_RECV_ENABLED(p_update, bLocal)) {
                     LOGD("fulfill htlc recv\n");
-                    *pRemoteMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                    *pRemoteMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
                 } else {
                     LOGD("fail htlc recv\n");
-                    *pLocalMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                    *pLocalMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
                 }
                 continue;
             } else if (LN_UPDATE_ADD_HTLC_RECV_ENABLED(p_update, bLocal)) {
                 LOGD("add htlc recv\n");
-                *pRemoteMsat -= pHtlcs[p_update->htlc_idx].amount_msat;
+                *pRemoteMsat -= pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
             } else if (LN_UPDATE_DEL_HTLC_SEND_ENABLED(p_update, bLocal)) {
                 if (LN_UPDATE_FULFILL_HTLC_SEND_ENABLED(p_update, bLocal)) {
                     LOGD("fulfill htlc send\n");
-                    *pLocalMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                    *pLocalMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
                 } else {
                     LOGD("fail htlc send\n");
-                    *pRemoteMsat += pHtlcs[p_update->htlc_idx].amount_msat;
+                    *pRemoteMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
                 }
                 continue;
             } else {
@@ -970,8 +964,9 @@ static bool create_htlc_info_and_amount(
             }
         }
 
-        const ln_htlc_t *p_htlc = &pHtlcs[p_update->htlc_idx];
-        const ln_update_t *p_update_del_htlc = ln_update_get_update_del_htlc_const(pUpdates, p_update->htlc_idx);
+        const ln_htlc_t *p_htlc = &pUpdateInfo->htlcs[p_update->htlc_idx];
+        const ln_update_t *p_update_del_htlc = ln_update_info_get_update_del_htlc_const(
+            pUpdateInfo, p_update->htlc_idx);
         if (p_update_del_htlc && LN_UPDATE_SOME_UPDATE_ENABLED(p_update_del_htlc, bLocal)) {
             LOGD(" DEL UPDATE[%u] HTLC[%u] [id=%" PRIu64 "](%" PRIu64 ")\n",
                 update_idx, p_update->htlc_idx, p_htlc->id, p_htlc->amount_msat);
