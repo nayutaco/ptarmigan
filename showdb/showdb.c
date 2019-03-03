@@ -161,17 +161,17 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
         int cnt = 0;
         for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
             const ln_update_t *p_update = &pChannel->update_info.updates[lp];
-            if (!LN_UPDATE_ENABLED(p_update)) continue;
+            if (!LN_UPDATE_USED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
             const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
             if (cnt) {
                 printf(",\n");
             }
             const char *p_dir = NULL;
-            if (p_update->flags.up_send) {
+            if (LN_UPDATE_OFFERED(p_update)) {
                 p_dir = "offered";
                 offered += p_htlc->amount_msat;
-            } else if (p_update->flags.up_recv) {
+            } else if (LN_UPDATE_RECEIVED(p_update)) {
                 p_dir = "received";
                 received += p_htlc->amount_msat;
             } else {
@@ -348,7 +348,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     int cnt = 0;
     for (lp = 0; lp < LN_UPDATE_MAX; lp++) {
         const ln_update_t *p_update = &pChannel->update_info.updates[lp];
-        if (!LN_UPDATE_ENABLED(p_update)) continue;
+        if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
         const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
         if (cnt > 0) {
@@ -359,9 +359,9 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         if (p_htlc->neighbor_short_channel_id) {
             printf("hop");
         } else {
-            if (p_update->flags.up_send) {
+            if (LN_UPDATE_OFFERED(p_update)) {
                 printf("origin node");
-            } else if (p_update->flags.up_recv) {
+            } else if (LN_UPDATE_RECEIVED(p_update)) {
                 printf("final node");
             } else {
                 printf("unknown");
@@ -415,13 +415,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             p_str_fin_type = "unknown";
         }
 #endif
-        printf(INDENT6 M_QQ("flags") ": " M_QQ("0x%04x") ",\n", ln_update_flags2u32(p_update->flags));
+        printf(INDENT6 M_QQ("state") ": " M_QQ("0x%02x") ",\n", p_update->state);
         //printf(INDENT6 M_QQ("type") ": " M_QQ("%s") ",\n", p_str_type);
-        printf(INDENT6 M_QQ("up_send") ": %d,\n", p_update->flags.up_send);
-        printf(INDENT6 M_QQ("cs_send") ": %d,\n", p_update->flags.cs_send);
-        printf(INDENT6 M_QQ("ra_recv") ": %d,\n", p_update->flags.ra_recv);
-        printf(INDENT6 M_QQ("cs_recv") ": %d,\n", p_update->flags.cs_recv);
-        printf(INDENT6 M_QQ("ra_send") ": %d,\n", p_update->flags.ra_send);
         //printf(INDENT6 M_QQ("fin_type") ": " M_QQ("%s") "\n", p_str_fin_type);
         printf(INDENT5 "},\n");
         printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", p_htlc->amount_msat);

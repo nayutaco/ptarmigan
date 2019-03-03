@@ -351,16 +351,15 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_EQ(amount_msat, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(cltv_expiry, channel.update_info.htlcs[0].cltv_expiry);
     //
-    ASSERT_TRUE(LN_UPDATE_WILL_SEND(&channel.update_info.updates[0]));
+    ASSERT_TRUE(LN_UPDATE_WAIT_SEND(&channel.update_info.updates[0]));
     //
-    ln_update_flags_t *p_flags = &channel.update_info.updates[0].flags;
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
-    ASSERT_EQ(0, p_flags->up_recv);
-    ASSERT_EQ(0, p_flags->up_send);
-    ASSERT_EQ(0, p_flags->cs_send);
-    ASSERT_EQ(0, p_flags->ra_recv);
-    ASSERT_EQ(0, p_flags->cs_recv);
-    ASSERT_EQ(0, p_flags->ra_send);
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_CS_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
 
     ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
     ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
@@ -409,16 +408,15 @@ TEST_F(ln, create_add_htlc1)
     ASSERT_EQ(amount_msat, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(cltv_expiry, channel.update_info.htlcs[0].cltv_expiry);
     //
-    ASSERT_FALSE(LN_UPDATE_WILL_SEND(&channel.update_info.updates[0]));
+    ASSERT_FALSE(LN_UPDATE_WAIT_SEND(&channel.update_info.updates[0]));
     //
-    ln_update_flags_t *p_flags = &channel.update_info.updates[0].flags;
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
-    ASSERT_EQ(0, p_flags->up_recv);
-    ASSERT_EQ(1, p_flags->up_send);
-    ASSERT_EQ(0, p_flags->cs_send);
-    ASSERT_EQ(0, p_flags->ra_recv);
-    ASSERT_EQ(0, p_flags->cs_recv);
-    ASSERT_EQ(0, p_flags->ra_send);
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
+    ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_CS_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
 
     ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
     ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
@@ -480,16 +478,15 @@ TEST_F(ln, update_add_htlc_recv1)
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, channel.update_info.htlcs[0].cltv_expiry);
     //
-    ASSERT_FALSE(LN_UPDATE_WILL_SEND(&channel.update_info.updates[0]));
+    ASSERT_FALSE(LN_UPDATE_WAIT_SEND(&channel.update_info.updates[0]));
     //
-    ln_update_flags_t *p_flags = &channel.update_info.updates[0].flags;
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
-    ASSERT_EQ(1, p_flags->up_recv);
+    ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
     ASSERT_EQ(LN_UPDATE_TYPE_FULFILL_HTLC, channel.update_info.updates[0].fin_type);
-    ASSERT_EQ(0, p_flags->cs_send);
-    ASSERT_EQ(0, p_flags->ra_recv);
-    ASSERT_EQ(0, p_flags->cs_recv);
-    ASSERT_EQ(0, p_flags->ra_send);
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_CS_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
 
     ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
     ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
@@ -552,17 +549,16 @@ TEST_F(ln, update_add_htlc_recv2)
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, channel.update_info.htlcs[0].cltv_expiry);
     //
-    ASSERT_FALSE(LN_UPDATE_WILL_SEND(&channel.update_info.updates[0]));
+    ASSERT_FALSE(LN_UPDATE_WAIT_SEND(&channel.update_info.updates[0]));
     //
-    ln_update_flags_t *p_flags = &channel.update_info.updates[0].flags;
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
-    ASSERT_EQ(1, p_flags->up_recv);
+    ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
     ASSERT_EQ(LN_UPDATE_TYPE_FAIL_HTLC, channel.update_info.updates[0].fin_type);
-    ASSERT_EQ(0, p_flags->up_send);
-    ASSERT_EQ(0, p_flags->cs_send);
-    ASSERT_EQ(0, p_flags->ra_recv);
-    ASSERT_EQ(0, p_flags->cs_recv);
-    ASSERT_EQ(0, p_flags->ra_send);
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_CS_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
 
     ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
     ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
@@ -603,17 +599,16 @@ TEST_F(ln, update_add_htlc_recv3)
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, channel.update_info.htlcs[0].cltv_expiry);
     //
-    ASSERT_FALSE(LN_UPDATE_WILL_SEND(&channel.update_info.updates[0]));
+    ASSERT_FALSE(LN_UPDATE_WAIT_SEND(&channel.update_info.updates[0]));
     //
-    ln_update_flags_t *p_flags = &channel.update_info.updates[0].flags;
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
-    ASSERT_EQ(1, p_flags->up_recv);
+    ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
     ASSERT_EQ(LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC, channel.update_info.updates[0].fin_type);
-    ASSERT_EQ(0, p_flags->up_send);
-    ASSERT_EQ(0, p_flags->cs_send);
-    ASSERT_EQ(0, p_flags->ra_recv);
-    ASSERT_EQ(0, p_flags->cs_recv);
-    ASSERT_EQ(0, p_flags->ra_send);
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_CS_RECV));
+    ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
 
     ASSERT_EQ(1000000, channel.commit_info_local.local_msat);
     ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);

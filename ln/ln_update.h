@@ -44,36 +44,64 @@
 #define LN_UPDATE_MAX                       (LN_HTLC_OFFERED_MAX_XXX * 2 + LN_HTLC_RECEIVED_MAX * 2 + LN_FEE_UPDATE_MAX)
 
 // ln_update_flags_t.type
-#define LN_UPDATE_TYPE_NONE                 (0x0)
-#define LN_UPDATE_TYPE_ADD_HTLC             (0x1)
-#define LN_UPDATE_TYPE_FULFILL_HTLC         (0x2)
-#define LN_UPDATE_TYPE_FAIL_HTLC            (0x3)
-#define LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC  (0x4)
-#define LN_UPDATE_TYPE_FEE                  (0x5)
+#define LN_UPDATE_TYPE_NONE                 (0)
+#define LN_UPDATE_TYPE_ADD_HTLC             (1 << 0)
+#define LN_UPDATE_TYPE_FULFILL_HTLC         (1 << 1)
+#define LN_UPDATE_TYPE_FAIL_HTLC            (1 << 2)
+#define LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC  (1 << 3)
+#define LN_UPDATE_TYPE_FEE                  (1 << 4)
+
+
+#define LN_UPDATE_TYPE_MASK_FAIL_HTLC       ( \
+                                                LN_UPDATE_TYPE_FAIL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC \
+                                            )
+#define LN_UPDATE_TYPE_MASK_DEL_HTLC        ( \
+                                                LN_UPDATE_TYPE_FULFILL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC \
+                                            )
+#define LN_UPDATE_TYPE_MASK_HTLC            ( \
+                                                LN_UPDATE_TYPE_ADD_HTLC | \
+                                                LN_UPDATE_TYPE_FULFILL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC \
+                                            )
+#define LN_UPDATE_TYPE_MASK_ALL             ( \
+                                                LN_UPDATE_TYPE_ADD_HTLC | \
+                                                LN_UPDATE_TYPE_FULFILL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_HTLC | \
+                                                LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC | \
+                                                LN_UPDATE_TYPE_FEE \
+                                            )
+
+
+#define LN_UPDATE_STATE_FLAG_UP_SEND        (1 << 0)
+#define LN_UPDATE_STATE_FLAG_UP_RECV        (1 << 1)
+#define LN_UPDATE_STATE_FLAG_CS_SEND        (1 << 2)
+#define LN_UPDATE_STATE_FLAG_CS_RECV        (1 << 3)
+#define LN_UPDATE_STATE_FLAG_RA_SEND        (1 << 4)
+#define LN_UPDATE_STATE_FLAG_RA_RECV        (1 << 5)
+
+
+#define LN_UPDATE_STATE_OFFERED_WAIT_SEND   (0)
+#define LN_UPDATE_STATE_OFFERED_UP_SEND     (LN_UPDATE_STATE_OFFERED_WAIT_SEND | LN_UPDATE_STATE_FLAG_UP_SEND)
+#define LN_UPDATE_STATE_OFFERED_CS_SEND     (LN_UPDATE_STATE_OFFERED_UP_SEND | LN_UPDATE_STATE_FLAG_CS_SEND)
+#define LN_UPDATE_STATE_OFFERED_RA_RECV     (LN_UPDATE_STATE_OFFERED_CS_SEND | LN_UPDATE_STATE_FLAG_RA_RECV)
+#define LN_UPDATE_STATE_OFFERED_CS_RECV     (LN_UPDATE_STATE_OFFERED_RA_RECV | LN_UPDATE_STATE_FLAG_CS_RECV)
+#define LN_UPDATE_STATE_OFFERED_RA_SEND     (LN_UPDATE_STATE_OFFERED_CS_RECV | LN_UPDATE_STATE_FLAG_RA_SEND)
+
+
+#define LN_UPDATE_STATE_RECEIVED_UP_RECV    (LN_UPDATE_STATE_FLAG_UP_RECV)
+#define LN_UPDATE_STATE_RECEIVED_CS_RECV    (LN_UPDATE_STATE_RECEIVED_UP_RECV | LN_UPDATE_STATE_FLAG_CS_RECV)
+#define LN_UPDATE_STATE_RECEIVED_RA_SEND    (LN_UPDATE_STATE_RECEIVED_CS_RECV | LN_UPDATE_STATE_FLAG_RA_SEND)
+#define LN_UPDATE_STATE_RECEIVED_CS_SEND    (LN_UPDATE_STATE_RECEIVED_RA_SEND | LN_UPDATE_STATE_FLAG_CS_SEND)
+#define LN_UPDATE_STATE_RECEIVED_RA_RECV    (LN_UPDATE_STATE_RECEIVED_CS_SEND | LN_UPDATE_STATE_FLAG_RA_RECV)
 
 
 /********************************************************************
  * typedefs
  ********************************************************************/
-
-//forward definition
-//struct ln_channel_t;
-//typedef struct ln_channel_t ln_channel_t;
-
-
-/** @struct ln_update_flags_t
- *  @brief  UPDATE管理フラグ
- */
-typedef struct {
-    unsigned        up_send     : 1;    ///< update message sent
-    unsigned        up_recv     : 1;    ///< update message received
-    unsigned        cs_send     : 1;    ///< commitment_signed sent
-    unsigned        cs_recv     : 1;    ///< commitment_signed received
-    unsigned        ra_send     : 1;    ///< revoke_and_ack sent
-    unsigned        ra_recv     : 1;    ///< revoke_and_ack received
-    unsigned        reserved    : 2;    ///<
-} ln_update_flags_t;
-
 
 /** @struct     ln_update_t
  *  @brief      update message
@@ -81,9 +109,10 @@ typedef struct {
 typedef struct {
     bool                enabled;                        ///< XXX: Interim. Soon abolished
     uint8_t             type;                           ///<
-    ln_update_flags_t   flags;                          ///<
+    uint8_t             state;                          ///<
     uint16_t            htlc_idx;                       ///< index of `ln_htlc_t` array
     uint8_t             fin_type;                       ///<
+    bool                new_update;                     ///<
 } ln_update_t;
 
 
@@ -125,183 +154,116 @@ typedef struct {
  * macro functions
  **************************************************************************/
 
-/** @def    LN_UPDATE_EMPTY(pUpdate)
- *  @brief  ln_update_tの空き
- */
+#define LN_UPDATE_FLAG_SET(pUpdate, Flag) { \
+    (pUpdate)->state |= (Flag); \
+    (pUpdate)->new_update = true; \
+}
+#define LN_UPDATE_FLAG_UNSET(pUpdate, Flag) { /*for debug*/ \
+    (pUpdate)->state &= ~(Flag); \
+    (pUpdate)->new_update = true; \
+}
+#define LN_UPDATE_FLAG_IS_SET(pUpdate, Flag) ((pUpdate)->state & (Flag))
+#define LN_UPDATE_FLAG_IS_NOT_SET(pUpdate, Flag) (!LN_UPDATE_FLAG_IS_SET(pUpdate, Flag))
+#define LN_UPDATE_FLAG_IS_SUBSET_FLAGS(pUpdate, Flags) \
+    ( \
+        (((pUpdate)->state & (Flags)) == (Flags)) \
+    )
+
+    
 #define LN_UPDATE_EMPTY(pUpdate) \
     ( \
         ((pUpdate)->type == LN_UPDATE_TYPE_NONE) && \
         (!(pUpdate)->enabled) \
     )
+#define LN_UPDATE_USED(pUpdate) (!LN_UPDATE_EMPTY(pUpdate))
 
 
-/** @def    LN_UPDATE_ENABLED(pUpdate)
- *  @brief  ln_update_tとして有効
- */
-#define LN_UPDATE_ENABLED(pUpdate)    (!LN_UPDATE_EMPTY(pUpdate))
-
-
-#define LN_UPDATE_LOCAL_UNCOMMITTED(pUpdate) ((pUpdate)->flags.cs_recv == 0)
-#define LN_UPDATE_REMOTE_UNCOMMITTED(pUpdate) ((pUpdate)->flags.cs_send == 0)
+#define _LN_UPDATE_LOCAL_UNCOMMITTED(pUpdate) \
+    LN_UPDATE_FLAG_IS_NOT_SET((pUpdate), LN_UPDATE_STATE_FLAG_CS_RECV)
+#define _LN_UPDATE_REMOTE_UNCOMMITTED(pUpdate) \
+    LN_UPDATE_FLAG_IS_NOT_SET((pUpdate), LN_UPDATE_STATE_FLAG_CS_SEND)
 #define LN_UPDATE_UNCOMMITTED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_UNCOMMITTED(pUpdate) : LN_UPDATE_REMOTE_UNCOMMITTED(pUpdate))
+    ( \
+        (bLocal) ? \
+        _LN_UPDATE_LOCAL_UNCOMMITTED(pUpdate) : \
+        _LN_UPDATE_REMOTE_UNCOMMITTED(pUpdate) \
+    )
+
+
 #define LN_UPDATE_IRREVOCABLY_COMMITTED(pUpdate) \
     ( \
-        ((pUpdate)->flags.cs_send == 1) && \
-        ((pUpdate)->flags.cs_recv == 1) && \
-        ((pUpdate)->flags.ra_send == 1) && \
-        ((pUpdate)->flags.ra_recv == 1) \
+        (pUpdate)->state == LN_UPDATE_STATE_OFFERED_RA_SEND || \
+        (pUpdate)->state == LN_UPDATE_STATE_RECEIVED_RA_RECV \
     )
 
 
-#define LN_UPDATE_LOCAL_SOME_SEND_ENABLED(pUpdate) \
+//XXX: Private
+#define _LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, Type) \
     ( \
-        ((pUpdate)->flags.up_send == 1) && \
-        ((pUpdate)->flags.cs_send == 1) && \
-        ((pUpdate)->flags.ra_recv == 1) \
+        ((pUpdate)->type & Type) && \
+        LN_UPDATE_FLAG_IS_SUBSET_FLAGS(pUpdate, LN_UPDATE_STATE_OFFERED_RA_RECV) \
     )
-#define LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, Type) \
+#define _LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, Type) \
     ( \
-        ((pUpdate)->type == Type) && \
-        LN_UPDATE_LOCAL_SOME_SEND_ENABLED(pUpdate) \
+        ((pUpdate)->type & Type) && \
+        LN_UPDATE_FLAG_IS_SUBSET_FLAGS(pUpdate, LN_UPDATE_STATE_RECEIVED_UP_RECV) \
     )
-#define LN_UPDATE_LOCAL_ADD_HTLC_SEND_ENABLED(pUpdate) \
-    LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_ADD_HTLC)
-#define LN_UPDATE_LOCAL_FULFILL_HTLC_SEND_ENABLED(pUpdate) \
-    LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC)
-#define LN_UPDATE_LOCAL_DEL_HTLC_SEND_ENABLED(pUpdate) \
+#define _LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, Type) \
     ( \
-        LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC) || \
-        LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
-        LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
+        ((pUpdate)->type & Type) && \
+        LN_UPDATE_FLAG_IS_SUBSET_FLAGS(pUpdate, LN_UPDATE_STATE_RECEIVED_RA_SEND) \
     )
-#define LN_UPDATE_LOCAL_FEE_SEND_ENABLED(pUpdate) \
-    LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
+#define _LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, Type) \
+    ( \
+        ((pUpdate)->type & Type) && \
+        LN_UPDATE_FLAG_IS_SUBSET_FLAGS(pUpdate, LN_UPDATE_STATE_OFFERED_UP_SEND) \
+    )
 
 
-#define LN_UPDATE_LOCAL_SOME_RECV_ENABLED(pUpdate) \
+#define LN_UPDATE_SEND_ENABLED(pUpdate, Type, bLocal) \
     ( \
-        ((pUpdate)->flags.up_recv == 1) \
+        (bLocal) ? \
+        _LN_UPDATE_LOCAL_SEND_ENABLED(pUpdate, Type) : \
+        _LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, Type) \
     )
-#define LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, Type) \
+#define LN_UPDATE_RECV_ENABLED(pUpdate, Type, bLocal) \
     ( \
-        ((pUpdate)->type == Type) && \
-        LN_UPDATE_LOCAL_SOME_RECV_ENABLED(pUpdate) \
+        (bLocal) ? \
+        _LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, Type) : \
+        _LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, Type) \
     )
-#define LN_UPDATE_LOCAL_ADD_HTLC_RECV_ENABLED(pUpdate) \
-    LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_ADD_HTLC)
-#define LN_UPDATE_LOCAL_FULFILL_HTLC_RECV_ENABLED(pUpdate) \
-    LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC)
-#define LN_UPDATE_LOCAL_DEL_HTLC_RECV_ENABLED(pUpdate) \
+#define LN_UPDATE_ENABLED(pUpdate, Type, bLocal) \
     ( \
-        LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC) || \
-        LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
-        LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
+        LN_UPDATE_SEND_ENABLED(pUpdate, Type, bLocal) || \
+        LN_UPDATE_RECV_ENABLED(pUpdate, Type, bLocal) \
     )
-#define LN_UPDATE_LOCAL_FEE_RECV_ENABLED(pUpdate) \
-    LN_UPDATE_LOCAL_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
 
 
-#define LN_UPDATE_REMOTE_SOME_SEND_ENABLED(pUpdate) \
-    ( \
-        ((pUpdate)->flags.up_recv == 1) && \
-        ((pUpdate)->flags.cs_recv == 1) && \
-        ((pUpdate)->flags.ra_send == 1) \
-    )
-#define LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, Type) \
-    ( \
-        ((pUpdate)->type == Type) && \
-        LN_UPDATE_REMOTE_SOME_SEND_ENABLED(pUpdate) \
-    )
-#define LN_UPDATE_REMOTE_ADD_HTLC_SEND_ENABLED(pUpdate) \
-    LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_ADD_HTLC)
-#define LN_UPDATE_REMOTE_FULFILL_HTLC_SEND_ENABLED(pUpdate) \
-    LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC)
-#define LN_UPDATE_REMOTE_DEL_HTLC_SEND_ENABLED(pUpdate) \
-    ( \
-        LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC) || \
-        LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
-        LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
-    )
-#define LN_UPDATE_REMOTE_FEE_SEND_ENABLED(pUpdate) \
-    LN_UPDATE_REMOTE_SEND_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
-
-
-#define LN_UPDATE_REMOTE_SOME_RECV_ENABLED(pUpdate) \
-    ( \
-        ((pUpdate)->flags.up_send == 1) \
-    )
-#define LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, Type) \
-    ( \
-        ((pUpdate)->type == Type) && \
-        LN_UPDATE_REMOTE_SOME_RECV_ENABLED(pUpdate) \
-    )
-#define LN_UPDATE_REMOTE_ADD_HTLC_RECV_ENABLED(pUpdate) \
-    LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_ADD_HTLC)
-#define LN_UPDATE_REMOTE_FULFILL_HTLC_RECV_ENABLED(pUpdate) \
-    LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC)
-#define LN_UPDATE_REMOTE_DEL_HTLC_RECV_ENABLED(pUpdate) \
-    ( \
-        LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FULFILL_HTLC) || \
-        LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_HTLC) || \
-        LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) \
-    )
-#define LN_UPDATE_REMOTE_FEE_RECV_ENABLED(pUpdate) \
-    LN_UPDATE_REMOTE_RECV_ENABLED(pUpdate, LN_UPDATE_TYPE_FEE)
-
-
-#define LN_UPDATE_WILL_SEND(pUpdate) \
+#define LN_UPDATE_WAIT_SEND(pUpdate) \
     ( \
         ((pUpdate)->type != LN_UPDATE_TYPE_NONE) && \
-        ((pUpdate)->flags.up_send == 0) && \
-        ((pUpdate)->flags.up_recv == 0) \
+        ((pUpdate)->state == LN_UPDATE_STATE_OFFERED_WAIT_SEND) \
     )
 
 
-#define LN_UPDATE_WILL_COMSIG_SEND(pUpdate) \
+#define LN_UPDATE_WAIT_SEND_CS(pUpdate) \
     ( \
-        ( \
-            LN_UPDATE_REMOTE_SOME_SEND_ENABLED(pUpdate) || \
-            LN_UPDATE_REMOTE_SOME_RECV_ENABLED(pUpdate) \
-        ) && \
-        ( \
-            ((pUpdate)->flags.cs_send == 0) \
-        ) \
+        ((pUpdate)->state == LN_UPDATE_STATE_OFFERED_UP_SEND) || \
+        ((pUpdate)->state == LN_UPDATE_STATE_RECEIVED_RA_SEND) \
     )
 
 
-#define LN_UPDATE_ADD_HTLC_SEND_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_ADD_HTLC_SEND_ENABLED(pUpdate) : LN_UPDATE_REMOTE_ADD_HTLC_SEND_ENABLED(pUpdate))
-#define LN_UPDATE_DEL_HTLC_RECV_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_DEL_HTLC_RECV_ENABLED(pUpdate) : LN_UPDATE_REMOTE_DEL_HTLC_RECV_ENABLED(pUpdate))
-#define LN_UPDATE_FULFILL_HTLC_RECV_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_FULFILL_HTLC_RECV_ENABLED(pUpdate) : LN_UPDATE_REMOTE_FULFILL_HTLC_RECV_ENABLED(pUpdate))
-#define LN_UPDATE_ADD_HTLC_RECV_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_ADD_HTLC_RECV_ENABLED(pUpdate) : LN_UPDATE_REMOTE_ADD_HTLC_RECV_ENABLED(pUpdate))
-#define LN_UPDATE_DEL_HTLC_SEND_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_DEL_HTLC_SEND_ENABLED(pUpdate) : LN_UPDATE_REMOTE_DEL_HTLC_SEND_ENABLED(pUpdate))
-#define LN_UPDATE_FULFILL_HTLC_SEND_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_FULFILL_HTLC_SEND_ENABLED(pUpdate) : LN_UPDATE_REMOTE_FULFILL_HTLC_SEND_ENABLED(pUpdate))
-
-
-#define LN_UPDATE_LOCAL_SOME_UPDATE_ENABLED(pUpdate) \
-    ( \
-        LN_UPDATE_LOCAL_SOME_SEND_ENABLED(pUpdate) || \
-        LN_UPDATE_LOCAL_SOME_RECV_ENABLED(pUpdate) \
-    )
-#define LN_UPDATE_REMOTE_SOME_UPDATE_ENABLED(pUpdate) \
-    ( \
-        LN_UPDATE_REMOTE_SOME_SEND_ENABLED(pUpdate) || \
-        LN_UPDATE_REMOTE_SOME_RECV_ENABLED(pUpdate) \
-    )
-#define LN_UPDATE_SOME_UPDATE_ENABLED(pUpdate, bLocal) \
-    ((bLocal) ? LN_UPDATE_LOCAL_SOME_UPDATE_ENABLED(pUpdate) : LN_UPDATE_REMOTE_SOME_UPDATE_ENABLED(pUpdate))
-
-
+//XXX: Deprecated
 #define LN_UPDATE_LOCAL_COMSIGING(pUpdate) \
-    ((pUpdate)->flags.cs_recv && !(pUpdate)->flags.ra_send)
+    ( \
+        ((pUpdate)->state == LN_UPDATE_STATE_OFFERED_CS_RECV) || \
+        ((pUpdate)->state == LN_UPDATE_STATE_RECEIVED_CS_RECV) \
+    )
 #define LN_UPDATE_REMOTE_COMSIGING(pUpdate) \
-    ((pUpdate)->flags.cs_send && !(pUpdate)->flags.ra_recv)
+    ( \
+        ((pUpdate)->state == LN_UPDATE_STATE_OFFERED_CS_SEND) || \
+        ((pUpdate)->state == LN_UPDATE_STATE_RECEIVED_CS_SEND) \
+    )
 #define LN_UPDATE_COMSIGING(pUpdate) \
     ( \
         LN_UPDATE_LOCAL_COMSIGING(pUpdate) || \
@@ -309,28 +271,34 @@ typedef struct {
     )
 
 
-#define LN_UPDATE_REMOTE_ENABLE_ADD_HTLC_RECV(pUpdate) { \
-    memset(&(pUpdate)->flags, 0x00,  sizeof((pUpdate)->flags)); \
-    (pUpdate)->type = LN_UPDATE_TYPE_ADD_HTLC; \
-    (pUpdate)->flags.up_send = 1; \
-}
+#define LN_UPDATE_REMOTE_ENABLE_ADD_HTLC_RECV(pUpdate) \
+    { \
+        (pUpdate)->type = LN_UPDATE_TYPE_ADD_HTLC; \
+        (pUpdate)->state = LN_UPDATE_STATE_OFFERED_UP_SEND; \
+    }
 
 
-#define LN_UPDATE_TIMEOUT_CHECK_NEEDED(pHtlc) ( \
-    ((pHtlc)->type == LN_UPDATE_TYPE_ADD_HTLC) && \
-    ((pHtlc)->flags.up_send == 1) && \
-    ((pHtlc)->flags.cs_send == 1) \
-)
+#define LN_UPDATE_TIMEOUT_CHECK_NEEDED(pUpdate) \
+    ( \
+        ((pUpdate)->type == LN_UPDATE_TYPE_ADD_HTLC) && \
+        LN_UPDATE_FLAG_IS_SUBSET_FLAGS(pUpdate, LN_UPDATE_STATE_OFFERED_CS_SEND) \
+    )
 
 
-#define LN_UPDATE_ENABLE_RESEND_UPDATE(pUpdate) { \
-    assert((pUpdate)->flags.up_recv == 0); \
-    assert((pUpdate)->flags.cs_recv == 0); \
-    assert((pUpdate)->flags.ra_send == 0); \
-    assert((pUpdate)->flags.ra_recv == 0); \
-    (pUpdate)->flags.up_send = 0; \
-    (pUpdate)->flags.cs_send = 0; \
-}
+#define LN_UPDATE_ENABLE_RESEND_UPDATE(pUpdate) \
+    { \
+        (pUpdate)->state = LN_UPDATE_STATE_OFFERED_WAIT_SEND; \
+    }
+
+
+#define LN_UPDATE_RECEIVED(pUpdate) \
+    ( \
+        ((pUpdate)->state & LN_UPDATE_STATE_FLAG_UP_RECV) \
+    )
+#define LN_UPDATE_OFFERED(pUpdate) \
+    ( \
+        !LN_UPDATE_RECEIVED(pUpdate) \
+    )
 
 
 /**************************************************************************
@@ -351,14 +319,30 @@ static inline const char *ln_update_type_str(uint8_t type)
 }
 
 
+static inline const char *ln_update_state_str(uint8_t state)
+{
+    switch (state) {
+    case LN_UPDATE_STATE_OFFERED_WAIT_SEND: return "OFFERED_WAIT_SEND";
+    case LN_UPDATE_STATE_OFFERED_UP_SEND: return "OFFERED_UP_SEND";
+    case LN_UPDATE_STATE_OFFERED_CS_SEND: return "OFFERED_CS_SEND";
+    case LN_UPDATE_STATE_OFFERED_RA_RECV: return "OFFERED_RA_RECV";
+    case LN_UPDATE_STATE_OFFERED_CS_RECV: return "OFFERED_CS_RECV";
+    case LN_UPDATE_STATE_OFFERED_RA_SEND: return "OFFERED_RA_SEND";
+    case LN_UPDATE_STATE_RECEIVED_UP_RECV: return "RECEIVED_UP_RECV";
+    case LN_UPDATE_STATE_RECEIVED_CS_RECV: return "RECEIVED_CS_RECV";
+    case LN_UPDATE_STATE_RECEIVED_RA_SEND: return "RECEIVED_RA_SEND";
+    case LN_UPDATE_STATE_RECEIVED_CS_SEND: return "RECEIVED_CS_SEND";
+    case LN_UPDATE_STATE_RECEIVED_RA_RECV: return "RECEIVED_RA_RECV";
+    default: return "UNKNOWN";
+    }
+}
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-uint32_t ln_update_flags2u32(ln_update_flags_t Flags);
-
-
-ln_update_t *ln_update_get_empty( ln_update_t *pUpdates, uint16_t *pUpdateIdx);
+ln_update_t *ln_update_get_empty(ln_update_t *pUpdates, uint16_t *pUpdateIdx);
 
 
 ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx);
