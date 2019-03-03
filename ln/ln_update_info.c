@@ -87,7 +87,7 @@ bool ln_update_info_set_add_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdate
     p_update->enabled = true;
     p_htlc->enabled = true;
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
-    p_update->flags.up_recv = 1;
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
     *pUpdateIdx = update_idx;
     return true;
 }
@@ -101,18 +101,9 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
     }
 
     ln_update_t *p_update = &pInfo->updates[UpdateIdx];
-    switch (p_update->type) {
-    case LN_UPDATE_TYPE_NONE:
+    if (!(p_update->type & LN_UPDATE_TYPE_MASK_HTLC)) {
         memset(p_update, 0x00, sizeof(ln_update_t));
         return true;
-    case LN_UPDATE_TYPE_ADD_HTLC:
-    case LN_UPDATE_TYPE_FULFILL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-        break;
-    default:
-        assert(0);
-        return false;
     }
 
     if (p_update->htlc_idx >= ARRAY_SIZE(pInfo->htlcs)) {
@@ -146,29 +137,15 @@ bool ln_update_info_get_corresponding_update(
     const ln_update_info_t *pInfo, uint16_t *pCorrespondingUpdateIdx, uint16_t UpdateIdx)
 {
     const ln_update_t *p_update = &pInfo->updates[UpdateIdx];
-    if (LN_UPDATE_EMPTY(p_update)) return false;
-    switch (p_update->type) {
-    case LN_UPDATE_TYPE_ADD_HTLC:
-    case LN_UPDATE_TYPE_FULFILL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-        break;
-    default:
+    if (!LN_UPDATE_USED(p_update)) return false;
+    if (!(p_update->type & LN_UPDATE_TYPE_MASK_HTLC)) {
         return false;
     }
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         if (idx == UpdateIdx) continue; //skip myself
         const ln_update_t *p_update_2 = &pInfo->updates[idx];
-        if (LN_UPDATE_EMPTY(p_update_2)) continue;
-        switch (p_update_2->type) {
-        case LN_UPDATE_TYPE_ADD_HTLC:
-        case LN_UPDATE_TYPE_FULFILL_HTLC:
-        case LN_UPDATE_TYPE_FAIL_HTLC:
-        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-            break;
-        default:
-            continue;
-        }
+        if (!LN_UPDATE_USED(p_update_2)) continue;
+        if (!(p_update_2->type & LN_UPDATE_TYPE_MASK_HTLC)) continue;
         if (p_update_2->htlc_idx != p_update->htlc_idx) continue;
         *pCorrespondingUpdateIdx = idx;
         return true;
@@ -179,15 +156,7 @@ bool ln_update_info_get_corresponding_update(
 
 bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint16_t HtlcIdx, uint8_t Type)
 {
-    switch (Type) {
-    case LN_UPDATE_TYPE_FULFILL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-        break;
-    default:
-        assert(0);
-        return false;
-    }
+    assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
     if (ln_update_info_get_update_del_htlc_const(pInfo, HtlcIdx)) {
         //I have already received it
@@ -211,15 +180,7 @@ bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
 
 bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint16_t HtlcIdx, uint8_t Type)
 {
-    switch (Type) {
-    case LN_UPDATE_TYPE_FULFILL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_HTLC:
-    case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-        break;
-    default:
-        assert(0);
-        return false;
-    }
+    assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
     if (ln_update_info_get_update_del_htlc_const(pInfo, HtlcIdx)) {
         //I have already received it
@@ -234,7 +195,7 @@ bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdate
 
     p_update->enabled = true;
     p_update->type = Type;
-    p_update->flags.up_recv = 1;
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
     p_update->htlc_idx = HtlcIdx;
     *pUpdateIdx = update_idx;
     return true;
@@ -258,7 +219,7 @@ ln_update_t *ln_update_info_get_update_add_htlc(ln_update_info_t *pInfo, uint16_
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
-        if (!LN_UPDATE_ENABLED(p_update)) continue;
+        if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
         if (p_update->htlc_idx != HtlcIdx) continue;
         return p_update;
@@ -270,15 +231,8 @@ ln_update_t *ln_update_info_get_update_del_htlc(ln_update_info_t *pInfo, uint16_
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
-        if (!LN_UPDATE_ENABLED(p_update)) continue;
-        switch (p_update->type) {
-        case LN_UPDATE_TYPE_FULFILL_HTLC:
-        case LN_UPDATE_TYPE_FAIL_HTLC:
-        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-            break;
-        default:
-            continue;
-        }
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
         if (p_update->htlc_idx != HtlcIdx) continue;
         return p_update;
     }
@@ -290,17 +244,125 @@ const ln_update_t *ln_update_info_get_update_del_htlc_const(const ln_update_info
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
-        if (!LN_UPDATE_ENABLED(p_update)) continue;
-        switch (p_update->type) {
-        case LN_UPDATE_TYPE_FULFILL_HTLC:
-        case LN_UPDATE_TYPE_FAIL_HTLC:
-        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-            break;
-        default:
-            continue;
-        }
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
         if (p_update->htlc_idx != HtlcIdx) continue;
         return p_update;
     }
     return NULL;
+}
+
+
+bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update)) continue;
+        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
+        return true;
+    }
+    return false;
+}
+
+
+void ln_update_info_clear_irrevocably_committed_htlcs(ln_update_info_t *pInfo)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update)) continue;
+        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
+        /*ignore*/ ln_update_info_clear_htlc(pInfo, idx);
+    }
+}
+
+
+void ln_update_info_set_state_flag_all(ln_update_info_t *pInfo, uint8_t flag)
+{
+    switch (flag) {
+    case LN_UPDATE_STATE_FLAG_CS_SEND:
+        for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+            ln_update_t *p_update = &pInfo->updates[idx];
+            if (!LN_UPDATE_USED(p_update)) continue;
+            switch (p_update->state) {
+            case LN_UPDATE_STATE_OFFERED_UP_SEND:
+            case LN_UPDATE_STATE_RECEIVED_RA_SEND:
+                LN_UPDATE_FLAG_SET(p_update, flag);
+                break;
+            default:
+                ;
+            }
+        }
+        break;
+    case LN_UPDATE_STATE_FLAG_CS_RECV:
+        for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+            ln_update_t *p_update = &pInfo->updates[idx];
+            if (!LN_UPDATE_USED(p_update)) continue;
+            switch (p_update->state) {
+            case LN_UPDATE_STATE_OFFERED_RA_RECV:
+            case LN_UPDATE_STATE_RECEIVED_UP_RECV:
+                LN_UPDATE_FLAG_SET(p_update, flag);
+                break;
+            default:
+                ;
+            }
+        }
+        break;
+    case LN_UPDATE_STATE_FLAG_RA_SEND:
+        for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+            ln_update_t *p_update = &pInfo->updates[idx];
+            if (!LN_UPDATE_USED(p_update)) continue;
+            switch (p_update->state) {
+            case LN_UPDATE_STATE_OFFERED_CS_RECV:
+            case LN_UPDATE_STATE_RECEIVED_CS_RECV:
+                LN_UPDATE_FLAG_SET(p_update, flag);
+                break;
+            default:
+                ;
+            }
+        }
+        break;
+    case LN_UPDATE_STATE_FLAG_RA_RECV:
+        for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+            ln_update_t *p_update = &pInfo->updates[idx];
+            if (!LN_UPDATE_USED(p_update)) continue;
+            switch (p_update->state) {
+            case LN_UPDATE_STATE_OFFERED_CS_SEND:
+            case LN_UPDATE_STATE_RECEIVED_CS_SEND:
+                LN_UPDATE_FLAG_SET(p_update, flag);
+                break;
+            default:
+                ;
+            }
+        }
+        break;
+    default:
+        assert(0);
+    }
+}
+
+
+void ln_update_info_reset_new_update(ln_update_info_t *pInfo) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        p_update->new_update = false;
+    }
+}
+
+
+uint64_t ln_update_info_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal)
+{
+    uint64_t value = 0;
+    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
+            value += pInfo->htlcs[p_update->htlc_idx].amount_msat;
+        }
+        if (LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_MASK_DEL_HTLC, bLocal)) {
+            value -= pInfo->htlcs[p_update->htlc_idx].amount_msat;
+        }
+    }
+    return value;
 }

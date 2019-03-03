@@ -209,7 +209,8 @@ TEST_F(ln, init)
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ASSERT_TRUE(utl_mem_is_all_zero(&channel.update_info.updates[idx].flags, sizeof(ln_update_flags_t)));
+        ASSERT_TRUE(utl_mem_is_all_zero(
+            &channel.update_info.updates[idx].state, sizeof(channel.update_info.updates[idx].state)));
     }
     ASSERT_TRUE(DumpCheck(&channel.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
     ASSERT_TRUE(DumpCheck(&channel.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));

@@ -3578,14 +3578,14 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
         cJSON *htlcs = cJSON_CreateArray();
         for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
             const ln_update_t *p_update = ln_update(p_channel, lp);
-            if (!LN_UPDATE_ENABLED(p_update)) continue;
+            if (!LN_UPDATE_USED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
             const ln_htlc_t *p_htlc = ln_htlc(p_channel, p_update->htlc_idx);
             cJSON *htlc = cJSON_CreateObject();
             const char *p_type;
-            if (p_update->flags.up_send) {
+            if (LN_UPDATE_OFFERED(p_update)) {
                 p_type = "offered";
-            } else if (p_update->flags.up_recv) {
+            } else if (LN_UPDATE_RECEIVED(p_update)) {
                 p_type = "received";
             } else {
                 p_type = "unknown";
@@ -3598,9 +3598,9 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
             if (p_htlc->neighbor_short_channel_id) {
                 p_role = "hop";
             } else {
-                if (p_update->flags.up_send) {
+                if (LN_UPDATE_OFFERED(p_update)) {
                     p_role = "origin node";
-                } else if (p_update->flags.up_recv) {
+                } else if (LN_UPDATE_RECEIVED(p_update)) {
                     p_role = "final node";
                 } else {
                     p_role = "unknown";
@@ -3610,9 +3610,9 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
             if (p_htlc->neighbor_short_channel_id) {
                 char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
                 ln_short_channel_id_string(str_sci, p_htlc->neighbor_short_channel_id);
-                if (p_update->flags.up_send) {
+                if (LN_UPDATE_OFFERED(p_update)) {
                     cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
-                } else if (p_update->flags.up_recv) {
+                } else if (LN_UPDATE_RECEIVED(p_update)) {
                     cJSON_AddItemToObject(htlc, "to", cJSON_CreateString(str_sci));
                 }
             }
@@ -3660,7 +3660,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
         LOGD("remote_msat: %" PRIu64 "\n", ln_remote_msat(pChannel));
         for (uint16_t lp = 0; lp < LN_UPDATE_MAX; lp++) {
             const ln_update_t *p_update = ln_update(pChannel, lp);
-            if (!LN_UPDATE_ENABLED(p_update)) continue;
+            if (!LN_UPDATE_USED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
             const ln_htlc_t *p_htlc = ln_htlc(pChannel, p_update->htlc_idx);
             LOGD("  HTLC[%u]\n", lp);
@@ -3668,10 +3668,10 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
             LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
             LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
             if (!p_htlc->neighbor_short_channel_id) continue;
-            if (p_update->flags.up_send) {
+            if (LN_UPDATE_OFFERED(p_update)) {
                 LOGD("    from:        UPDATE[%u]%016" PRIx64 "\n",
                     p_htlc->neighbor_idx, p_htlc->neighbor_short_channel_id);
-            } else if (p_update->flags.up_recv) {
+            } else if (LN_UPDATE_RECEIVED(p_update)) {
                 LOGD("    to:          UPDATE[%u]%016" PRIx64 "\n",
                     p_htlc->neighbor_idx, p_htlc->neighbor_short_channel_id);
             }
