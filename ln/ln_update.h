@@ -146,6 +146,7 @@ typedef struct {
  *  @brief      update fee
  */
 typedef struct {
+    bool enabled;
     uint32_t feerate_per_kw;
 } ln_fee_update_t;
 
