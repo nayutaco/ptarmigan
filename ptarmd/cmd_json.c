@@ -1551,7 +1551,7 @@ LABEL_EXIT:
         result = cJSON_CreateString(str_txid);
     } else {
         if (err == 0) {
-            err = RPCERR_BLOCKCHAIN;
+            err = RPCERR_WALLET_ERR;
         }
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
