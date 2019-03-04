@@ -728,6 +728,24 @@ static inline int my_mdb_dbi_open(MDB_txn *txn, const char *name, unsigned int f
 #endif  //M_DB_DEBUG
 
 
+/** copy MDB_val
+ *
+ * @param[out]      pDst        destination data
+ * @param[in]       pSrc        source data
+ * @retval  (uint8_t *)pDst->mv_data
+ * @note
+ *      - mdb_cursor_put() sometime change `key`/`data` from mdb_cursor_get().
+ *          For safety use, mdb_cursor_put() use copied `key`.
+ */
+static inline uint8_t *mdb_val_alloccopy(MDB_val *pDst, const MDB_val *pSrc) {
+    void *p = UTL_DBG_MALLOC(pSrc->mv_size);
+    memcpy(p, pSrc->mv_data, pSrc->mv_size);
+    pDst->mv_size = pSrc->mv_size;
+    pDst->mv_data = p;
+    return (uint8_t *)p;
+}
+
+
 /********************************************************************
  * public functions
  ********************************************************************/
@@ -2386,22 +2404,22 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId)
     } else {
         LOGD("del annoinfo: ALL\n");
         //annocnl info
-        int retval_cnl = mdb_drop(mTxnAnno, dbi_cnl, 1);
-        if (retval_cnl != 0) {
-            LOGE("ERR: %s\n", mdb_strerror(retval_cnl));
-            retval = retval_cnl;
+        retval = mdb_drop(mTxnAnno, dbi_cnl, 1);
+        if (retval != 0) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
             //エラーでも継続
         }
 
         //annonod info
-        int retval_nod = mdb_drop(mTxnAnno, dbi_nod, 1);
-        if (retval_nod != 0) {
-            LOGE("ERR: %s\n", mdb_strerror(retval_nod));
-            retval = retval_nod;
+        retval = mdb_drop(mTxnAnno, dbi_nod, 1);
+        if (retval != 0) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            //エラーでも継続
         }
     }
 
     ln_db_anno_commit(true);
+    retval = 0;
 
     if (pNodeId != NULL) {
         LOGD("remove annoinfo: ");
@@ -2483,21 +2501,24 @@ bool ln_db_routeskip_work(bool bWork)
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
         const uint8_t *p_data = (const uint8_t *)data.mv_data;
         if (data.mv_size == sizeof(uint8_t)) {
+            mdb_val_alloccopy(&key, &key);
+
             uint64_t short_channel_id = *(uint64_t *)key.mv_data;
-            int retval_put = 0;
+            uint8_t wk = 0;
             if (bWork && (p_data[0] == LNDB_ROUTE_SKIP_TEMP)) {
                 LOGD("TEMP-->WORK: %016" PRIx64 "\n", short_channel_id);
-                uint8_t wk = LNDB_ROUTE_SKIP_WORK;
-                data.mv_data = &wk;
-                retval_put = mdb_cursor_put(cursor, &key, &data, 0);
+                wk = LNDB_ROUTE_SKIP_WORK;
             } else if (!bWork && (p_data[0] == LNDB_ROUTE_SKIP_WORK)) {
                 LOGD("WORK-->TEMP: %016" PRIx64 "\n", short_channel_id);
-                uint8_t wk = LNDB_ROUTE_SKIP_TEMP;
-                data.mv_data = &wk;
-                retval_put = mdb_put(db.txn, db.dbi, &key, &data, 0);
+                wk = LNDB_ROUTE_SKIP_TEMP;
             }
-            if (retval_put != 0) {
-                LOGD("through: mdb_put(%s)\n", mdb_strerror(retval_put));
+            if (wk != 0) {
+                data.mv_data = &wk;
+                int retval_put = mdb_cursor_put(cursor, &key, &data, MDB_CURRENT);
+                UTL_DBG_FREE(key.mv_data);
+                if (retval_put != 0) {
+                    LOGD("through: put(%s)\n", mdb_strerror(retval_put));
+                }
             }
         }
     }
@@ -2981,12 +3002,15 @@ bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry)
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
 
+        mdb_val_alloccopy(&key, &key);
+
         preimage_info_t info;
         memcpy(&info, p_info, data.mv_size);
         info.expiry = Expiry;
         data.mv_data = &info;
         data.mv_size = sizeof(preimage_info_t);
         retval = mdb_cursor_put(p_cur->cursor, &key, &data, MDB_CURRENT);
+        UTL_DBG_FREE(key.mv_data);
     }
     if (retval == 0) {
         LOGD("  change expiry: %" PRIu32 "\n", Expiry);
@@ -3213,7 +3237,6 @@ bool ln_db_revtx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDbParam
     }
 
     key.mv_size = LNDBK_RLEN;
-
     key.mv_data = LNDBK_RVV;
     utl_push_init(&push, &buf, 0);
     for (int lp = 0; lp < pChannel->revoked_num; lp++) {
@@ -3972,7 +3995,6 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
             }
         }
 
-        key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_size = M_SZ_ONIONROUTE;
         key.mv_data = M_KEY_ONIONROUTE;
         data.mv_size = pChannel->update_info.htlcs[lp].buf_onion_reason.len;
@@ -3983,6 +4005,7 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
             goto LABEL_EXIT;
         }
 
+        key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_data = M_KEY_SHAREDSECRET;
         data.mv_size = pChannel->update_info.htlcs[lp].buf_shared_secret.len;
         data.mv_data = pChannel->update_info.htlcs[lp].buf_shared_secret.buf;
@@ -4633,6 +4656,7 @@ static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
             if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
                 nums--;
                 if (nums > 0) {
+                    mdb_val_alloccopy(&key, &key);
                     uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * nums);
                     data.mv_size = BTC_SZ_PUBKEY * nums;
                     data.mv_data = p_data;
@@ -4644,6 +4668,7 @@ static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
                                 BTC_SZ_PUBKEY * (nums - lp));
                     mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
                     UTL_DBG_FREE(p_data);
+                    UTL_DBG_FREE(key.mv_data);
                 } else {
                     mdb_cursor_del(pCursor, 0);
                 }
