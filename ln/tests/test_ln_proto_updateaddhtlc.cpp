@@ -365,7 +365,7 @@ TEST_F(ln, set_add_htlc1)
     ASSERT_EQ(1000000, channel.commit_info_local.remote_msat);
     ASSERT_EQ(1000000, channel.commit_info_remote.local_msat);
     ASSERT_EQ(1000000, channel.commit_info_remote.remote_msat);
-    ASSERT_EQ(1, channel.update_info.next_htlc_id);
+    ASSERT_EQ(0, channel.update_info.next_htlc_id); //not set yet
     ASSERT_EQ(0, channel.commit_info_local.num_htlc_outputs);
     ASSERT_EQ(0, channel.commit_info_remote.num_htlc_outputs);
 
