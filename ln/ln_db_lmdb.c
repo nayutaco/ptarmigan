@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-54))     ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-55))     ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -215,6 +215,7 @@
          add `ln_commit_info_t::feerate_per_kw`
     -53: add `ln_update_info_t::fee_updates`
     -54: update `ln_update_info_t::updates`
+    -55: update `ln_update_info_t::fee_updates`
  */
 
 
