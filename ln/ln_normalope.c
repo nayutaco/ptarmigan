@@ -1662,8 +1662,7 @@ static bool set_add_htlc(
     ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
 
-    p_htlc->id = pChannel->update_info.next_htlc_id++;
-        //XXX: Add on sending (Then a natural value is added at the time of resend at reestablish)
+    p_htlc->id = 0; //XXX: set just before sending
     p_htlc->amount_msat = AmountMsat;
     p_htlc->cltv_expiry = CltvValue;
     memcpy(p_htlc->payment_hash, pPaymentHash, BTC_SZ_HASH256);
@@ -1710,7 +1709,7 @@ static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 
     ln_msg_update_add_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
-    msg.id = p_htlc->id;
+    msg.id = p_htlc->id = pChannel->update_info.next_htlc_id++;
     msg.amount_msat = p_htlc->amount_msat;
     msg.p_payment_hash = p_htlc->payment_hash;
     msg.cltv_expiry = p_htlc->cltv_expiry;
