@@ -266,6 +266,18 @@ bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo)
 }
 
 
+bool ln_update_info_commitment_signed_send_needs(ln_update_info_t *pInfo)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_WAIT_SEND_CS(p_update)) continue;
+        return true;
+    }
+    return false;
+}
+
+
 void ln_update_info_clear_irrevocably_committed_htlcs(ln_update_info_t *pInfo)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {

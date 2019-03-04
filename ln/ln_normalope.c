@@ -705,7 +705,6 @@ bool ln_set_add_htlc_send_fwd(
         pChannel, pHtlcId, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
         pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
 
-    //typeは #ln_recv_idle_proc()のHTLC final経由で #ln_add_htlc_start_fwd()を呼び出して設定
     ln_update_t *p_update = ln_update_info_get_update_enabled_but_none(&pChannel->update_info, htlc_idx);
     *pNextHtlcIdx = htlc_idx;
     assert(p_update);
@@ -784,58 +783,34 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     //XXX: should return the return code
     //LOGD("$$$ update_fee: %" PRIu32 " ==> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
 
-    uint16_t num_updates = 0;
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
-        num_updates++;
-        if (LN_UPDATE_COMSIGING(p_update)) {
-            //XXX: We should be able to send an update message at this timing
-            return;
-        }
-    }
-
-    if (num_updates) {
-        for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-            ln_update_t *p_update = &pChannel->update_info.updates[idx];
-            if (!LN_UPDATE_USED(p_update)) continue;
-            if (LN_UPDATE_WAIT_SEND(p_update)) {
-                if (p_update->type == LN_UPDATE_TYPE_ADD_HTLC) {
-                    /*ignore*/ update_add_htlc_send(pChannel, idx);
-                } else {
-                    if (!LN_DBG_FULFILL() || !LN_DBG_FULFILL_BWD()) {
-                        LOGD("DBG: no fulfill mode\n");
-                        continue;
-                    }
-                    switch (p_update->type) {
-                    case LN_UPDATE_TYPE_FULFILL_HTLC:
-                        /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
-                        break;
-                    case LN_UPDATE_TYPE_FAIL_HTLC:
-                        /*ignore*/ update_fail_htlc_send(pChannel, idx);
-                        break;
-                    case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-                        /*ignore*/ update_fail_malformed_htlc_send(pChannel, idx);
-                        break;
-                    default:
-                        assert(0);
-                    }
-                }
+        if (!LN_UPDATE_WAIT_SEND(p_update)) continue;
+        switch (p_update->type) {
+        case LN_UPDATE_TYPE_ADD_HTLC:
+            /*ignore*/ update_add_htlc_send(pChannel, idx);
+            break;
+        case LN_UPDATE_TYPE_FULFILL_HTLC:
+            if (LN_DBG_FULFILL() && LN_DBG_FULFILL_BWD()) {
+                /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
+            } else {
+                LOGD("DBG: no fulfill mode\n");
             }
+            break;
+        case LN_UPDATE_TYPE_FAIL_HTLC:
+            /*ignore*/ update_fail_htlc_send(pChannel, idx);
+            break;
+        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
+            /*ignore*/ update_fail_malformed_htlc_send(pChannel, idx);
+            break;
+        default:
+            ;
         }
     }
 
-    bool b_comsig_needed = false;
-    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pChannel->update_info.updates[idx];
-        if (!LN_UPDATE_USED(p_update)) continue;
-        if (!LN_UPDATE_WAIT_SEND_CS(p_update)) continue;
-        b_comsig_needed = true;
-        break;
-    }
-
-    if (!b_comsig_needed && ((FeeratePerKw != 0) &&
-        (pChannel->commit_info_remote.feerate_per_kw != FeeratePerKw))) {
+    bool b_comsig_needed = ln_update_info_commitment_signed_send_needs(&pChannel->update_info);
+    if (FeeratePerKw && (pChannel->commit_info_remote.feerate_per_kw != FeeratePerKw)) {
         if (ln_update_fee_send(pChannel, FeeratePerKw)) {
             b_comsig_needed = true;
         }
