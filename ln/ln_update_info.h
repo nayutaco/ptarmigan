@@ -74,9 +74,12 @@ const ln_update_t *ln_update_info_get_update_del_htlc_const(const ln_update_info
 
 bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo);
 
+bool ln_update_info_commitment_signed_send_needs(ln_update_info_t *pInfo);
+
 void ln_update_info_clear_irrevocably_committed_htlcs(ln_update_info_t *pInfo);
 
 void ln_update_info_reset_new_update(ln_update_info_t *pInfo);
+
 
 //cs or ra only
 void ln_update_info_set_state_flag_all(ln_update_info_t *pInfo, uint8_t flag);
