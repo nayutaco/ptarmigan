@@ -4654,24 +4654,30 @@ static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
         int nums = data.mv_size / BTC_SZ_PUBKEY;
         for (int lp = 0; lp < nums; lp++) {
             if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
+                mdb_val_alloccopy(&key, &key);
+
                 nums--;
                 if (nums > 0) {
-                    mdb_val_alloccopy(&key, &key);
                     uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * nums);
-                    data.mv_size = BTC_SZ_PUBKEY * nums;
-                    data.mv_data = p_data;
                     memcpy(p_data,
                                 (uint8_t *)data.mv_data,
                                 BTC_SZ_PUBKEY * lp);
                     memcpy(p_data + BTC_SZ_PUBKEY * lp,
                                 (uint8_t *)data.mv_data + BTC_SZ_PUBKEY * (lp + 1),
                                 BTC_SZ_PUBKEY * (nums - lp));
-                    mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
-                    UTL_DBG_FREE(p_data);
-                    UTL_DBG_FREE(key.mv_data);
+
+                    data.mv_size = BTC_SZ_PUBKEY * nums;
+                    data.mv_data = p_data;
                 } else {
-                    mdb_cursor_del(pCursor, 0);
+                    data.mv_size = 0;
+                    data.mv_data = NULL;
                 }
+                int retval = mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
+                if (retval != 0) {
+                    LOGE("ERR: %s\n", mdb_strerror(retval));
+                }
+                UTL_DBG_FREE(data.mv_data);
+                UTL_DBG_FREE(key.mv_data);
                 break;
             }
         }
