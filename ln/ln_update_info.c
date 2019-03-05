@@ -55,13 +55,13 @@ void ln_update_info_free(ln_update_info_t *pInfo) {
 
 bool ln_update_info_set_add_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx)
 {
-    uint16_t update_idx;
-    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
-    if (!p_update) return false;
     uint16_t htlc_idx;
     ln_htlc_t *p_htlc = ln_htlc_get_empty(pInfo->htlcs, &htlc_idx);
     if (!p_htlc) return false;
-    p_update->htlc_idx = htlc_idx;
+    uint16_t update_idx;
+    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
+    if (!p_update) return false;
+    p_update->type_specific_idx = htlc_idx;
     p_update->enabled = true;
     p_htlc->enabled = true;
     //p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
@@ -77,13 +77,13 @@ bool ln_update_info_set_add_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
 
 bool ln_update_info_set_add_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx)
 {
-    uint16_t update_idx;
-    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
-    if (!p_update) return false;
     uint16_t htlc_idx;
     ln_htlc_t *p_htlc = ln_htlc_get_empty(pInfo->htlcs, &htlc_idx);
     if (!p_htlc) return false;
-    p_update->htlc_idx = htlc_idx;
+    uint16_t update_idx;
+    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
+    if (!p_update) return false;
+    p_update->type_specific_idx = htlc_idx;
     p_update->enabled = true;
     p_htlc->enabled = true;
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
@@ -106,13 +106,13 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
         return true;
     }
 
-    if (p_update->htlc_idx >= ARRAY_SIZE(pInfo->htlcs)) {
+    if (p_update->type_specific_idx >= ARRAY_SIZE(pInfo->htlcs)) {
         assert(0);
         return false;
     }
 
     //clear htlc
-    ln_htlc_t *p_htlc = &pInfo->htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pInfo->htlcs[p_update->type_specific_idx];
     if (p_htlc->buf_payment_preimage.len) {
         /*ignore*/ ln_db_preimage_del(p_htlc->buf_payment_preimage.buf); //XXX: delete outside the function
     }
@@ -146,7 +146,7 @@ bool ln_update_info_get_corresponding_update(
         const ln_update_t *p_update_2 = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update_2)) continue;
         if (!(p_update_2->type & LN_UPDATE_TYPE_MASK_HTLC)) continue;
-        if (p_update_2->htlc_idx != p_update->htlc_idx) continue;
+        if (p_update_2->type_specific_idx != p_update->type_specific_idx) continue;
         *pCorrespondingUpdateIdx = idx;
         return true;
     }
@@ -158,12 +158,12 @@ bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
 {
     assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
-    if (ln_update_info_get_update_del_htlc_const(pInfo, HtlcIdx)) {
+    uint16_t update_idx;
+    if (ln_update_info_get_update(pInfo, &update_idx, LN_UPDATE_TYPE_MASK_DEL_HTLC, HtlcIdx)) {
         //I have already received it
         return false;
     }
 
-    uint16_t update_idx;
     ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
     if (!p_update) {
         return false;
@@ -172,7 +172,7 @@ bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
     p_update->enabled = true;
     p_update->type = Type;
     //p_update->flags.up_send = 1; //NOT set the flag, pre send
-    p_update->htlc_idx = HtlcIdx;
+    p_update->type_specific_idx = HtlcIdx;
     *pUpdateIdx = update_idx;
     return true;
 }
@@ -182,12 +182,12 @@ bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdate
 {
     assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
-    if (ln_update_info_get_update_del_htlc_const(pInfo, HtlcIdx)) {
+    uint16_t update_idx;
+    if (ln_update_info_get_update(pInfo, &update_idx, LN_UPDATE_TYPE_MASK_DEL_HTLC, HtlcIdx)) {
         //I have already received it
         return false;
     }
 
-    uint16_t update_idx;
     ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
     if (!p_update) {
         return false;
@@ -196,60 +196,165 @@ bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdate
     p_update->enabled = true;
     p_update->type = Type;
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
-    p_update->htlc_idx = HtlcIdx;
+    p_update->type_specific_idx = HtlcIdx;
     *pUpdateIdx = update_idx;
     return true;
 }
 
 
-ln_update_t *ln_update_info_get_update_enabled_but_none(ln_update_info_t *pInfo, uint16_t HtlcIdx)
+bool ln_update_info_set_fee_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
 {
-    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pInfo->updates[idx];
-        if (!p_update->enabled) continue;
-        if (p_update->type != LN_UPDATE_TYPE_NONE) continue;
-        if (p_update->htlc_idx != HtlcIdx) continue;
-        return p_update;
-    }
-    return NULL;
+    uint16_t fee_update_idx;
+    ln_fee_update_t *p_fee_update = ln_fee_update_get_empty(pInfo->fee_updates, &fee_update_idx);
+    if (!p_fee_update) return false;
+    uint16_t update_idx;
+    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
+    if (!p_update) return false;
+    p_update->type_specific_idx = fee_update_idx;
+    p_update->enabled = true;
+    p_fee_update->enabled = true;
+    p_fee_update->id = pInfo->next_fee_update_id++;
+    p_fee_update->feerate_per_kw = FeeratePerKw;
+    p_update->type = LN_UPDATE_TYPE_FEE;
+    *pUpdateIdx = update_idx;
+    return true;
 }
 
 
-ln_update_t *ln_update_info_get_update_add_htlc(ln_update_info_t *pInfo, uint16_t HtlcIdx)
+bool ln_update_info_set_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
 {
-    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+    uint16_t fee_update_idx;
+    ln_fee_update_t *p_fee_update = ln_fee_update_get_empty(pInfo->fee_updates, &fee_update_idx);
+    if (!p_fee_update) return false;
+    uint16_t update_idx;
+    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
+    if (!p_update) return false;
+    p_update->type_specific_idx = fee_update_idx;
+    p_update->enabled = true;
+    p_fee_update->enabled = true;
+    p_fee_update->id = pInfo->next_fee_update_id++;
+    p_fee_update->feerate_per_kw = FeeratePerKw;
+    p_update->type = LN_UPDATE_TYPE_FEE;
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
+    *pUpdateIdx = update_idx;
+    return true;
+}
+
+
+bool ln_update_info_clear_fee(ln_update_info_t *pInfo, uint16_t UpdateIdx)
+{
+    if (UpdateIdx >= ARRAY_SIZE(pInfo->updates)) {
+        assert(0);
+        return false;
+    }
+
+    ln_update_t *p_update = &pInfo->updates[UpdateIdx];
+    if (!(p_update->type & LN_UPDATE_TYPE_FEE)) {
+        memset(p_update, 0x00, sizeof(ln_update_t));
+        return true;
+    }
+
+    if (p_update->type_specific_idx >= ARRAY_SIZE(pInfo->fee_updates)) {
+        assert(0);
+        return false;
+    }
+
+    //clear fee_update
+    ln_fee_update_t *p_fee_update = &pInfo->fee_updates[p_update->type_specific_idx];
+    memset(p_fee_update, 0x00, sizeof(ln_fee_update_t));
+
+    //clear update
+    memset(p_update, 0x00, sizeof(ln_update_t));
+    return true;
+}
+
+
+bool ln_update_info_set_initial_fee_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
+{
+    if (!ln_update_info_set_fee_pre_send(pInfo, pUpdateIdx, FeeratePerKw)) return false;
+    pInfo->updates[*pUpdateIdx].state = LN_UPDATE_STATE_OFFERED_RA_SEND; //force to commit
+    return true;
+}
+
+
+bool ln_update_info_set_initial_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
+{
+    if (!ln_update_info_set_fee_recv(pInfo, pUpdateIdx, FeeratePerKw)) return false;
+    pInfo->updates[*pUpdateIdx].state = LN_UPDATE_STATE_RECEIVED_RA_RECV; //force to commit
+    return true;
+}
+
+
+bool ln_update_info_get_last_fee_update(ln_update_info_t *pInfo, uint16_t *pFeeUpdateIdx)
+{
+    *pFeeUpdateIdx = UINT16_MAX;
+    uint64_t id = 0;
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->fee_updates); idx++) {
+        ln_fee_update_t *p_fee_update = &pInfo->fee_updates[idx];
+        if (!p_fee_update->enabled) continue;
+        if (p_fee_update->id < id) continue;
+        id = p_fee_update->id;
+        *pFeeUpdateIdx = idx;
+    }
+    return *pFeeUpdateIdx == UINT16_MAX ? false : true;
+}
+
+
+void ln_update_info_prune_fee_updates(ln_update_info_t *pInfo)
+{
+    //Remove the older `fee_update`s with the same state
+
+    struct info {
+        uint16_t update_idx;
+        uint8_t update_state;
+        uint64_t fee_update_id;
+        bool need_to_be_pruned;
+    } infos[ARRAY_SIZE(pInfo->fee_updates)];
+    uint32_t num_infos = 0;
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
-        if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-        if (p_update->htlc_idx != HtlcIdx) continue;
-        return p_update;
+        if (p_update->type != LN_UPDATE_TYPE_FEE) continue;
+        assert(num_infos == ARRAY_SIZE(pInfo->fee_updates));
+        infos[num_infos].update_idx = idx;
+        infos[num_infos].update_state = p_update->state;
+        ln_fee_update_t *p_fee_update = &pInfo->fee_updates[p_update->type_specific_idx];
+        infos[num_infos].fee_update_id = p_fee_update->id;
+        infos[num_infos].need_to_be_pruned = false;
+        num_infos++;
     }
-    return NULL;
+
+    for (uint16_t i = 0; i < num_infos; i++) {
+        for (uint16_t j = i + 1; j < num_infos; j++) {
+            if (infos[i].update_state != infos[j].update_state) continue;
+            infos[infos[i].fee_update_id < infos[j].fee_update_id ? i : j].need_to_be_pruned = true;
+        }
+    }
+
+    for (uint16_t i = 0; i < num_infos; i++) {
+        if (!infos[i].need_to_be_pruned) continue;
+        bool ret = ln_update_info_clear_fee(pInfo, infos[i].update_idx);
+        assert(ret);
+        (void)ret;
+    }
 }
 
-ln_update_t *ln_update_info_get_update_del_htlc(ln_update_info_t *pInfo, uint16_t HtlcIdx)
-{
-    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-        ln_update_t *p_update = &pInfo->updates[idx];
-        if (!LN_UPDATE_USED(p_update)) continue;
-        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
-        if (p_update->htlc_idx != HtlcIdx) continue;
-        return p_update;
-    }
-    return NULL;
-}
 
-
-const ln_update_t *ln_update_info_get_update_del_htlc_const(const ln_update_info_t *pInfo, uint16_t HtlcIdx)
+bool ln_update_info_get_update(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
-        if (!LN_UPDATE_USED(p_update)) continue;
-        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
-        if (p_update->htlc_idx != HtlcIdx) continue;
-        return p_update;
+        if (!p_update->enabled) continue;
+        if (Type == LN_UPDATE_TYPE_NONE) {
+            if (p_update->type != LN_UPDATE_TYPE_NONE) continue;
+        } else {
+            if (!(p_update->type & Type)) continue;
+        }
+        if (p_update->type_specific_idx != TypeSpecificIdx) continue;
+        *pUpdateIdx = idx;
+        return true;
     }
-    return NULL;
+    return false;
 }
 
 
@@ -370,10 +475,10 @@ uint64_t ln_update_info_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool 
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
-            value += pInfo->htlcs[p_update->htlc_idx].amount_msat;
+            value += pInfo->htlcs[p_update->type_specific_idx].amount_msat;
         }
         if (LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_MASK_DEL_HTLC, bLocal)) {
-            value -= pInfo->htlcs[p_update->htlc_idx].amount_msat;
+            value -= pInfo->htlcs[p_update->type_specific_idx].amount_msat;
         }
     }
     return value;

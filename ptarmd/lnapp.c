@@ -3580,7 +3580,7 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
             const ln_update_t *p_update = ln_update(p_channel, lp);
             if (!LN_UPDATE_USED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-            const ln_htlc_t *p_htlc = ln_htlc(p_channel, p_update->htlc_idx);
+            const ln_htlc_t *p_htlc = ln_htlc(p_channel, p_update->type_specific_idx);
             cJSON *htlc = cJSON_CreateObject();
             const char *p_type;
             if (LN_UPDATE_OFFERED(p_update)) {
@@ -3662,7 +3662,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
             const ln_update_t *p_update = ln_update(pChannel, lp);
             if (!LN_UPDATE_USED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-            const ln_htlc_t *p_htlc = ln_htlc(pChannel, p_update->htlc_idx);
+            const ln_htlc_t *p_htlc = ln_htlc(pChannel, p_update->type_specific_idx);
             LOGD("  HTLC[%u]\n", lp);
             LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
             LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);

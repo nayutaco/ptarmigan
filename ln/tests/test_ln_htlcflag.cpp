@@ -1321,7 +1321,7 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     ln_update_t *p_update = &channel.update_info.updates[0];
     ln_htlc_t *p_htlc = &channel.update_info.htlcs[0];
 
-    p_update->htlc_idx = 0;
+    p_update->type_specific_idx = 0;
     p_update->enabled = true;
     p_htlc->cltv_expiry = 100;
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;

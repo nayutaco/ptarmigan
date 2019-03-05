@@ -939,16 +939,16 @@ static bool create_htlc_info_and_amount(
                 switch (p_update->type) {
                 case LN_UPDATE_TYPE_ADD_HTLC:
                     LOGD("add htlc send\n");
-                    *pLocalMsat -= pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
+                    *pLocalMsat -= pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
                     break;
                 case LN_UPDATE_TYPE_FULFILL_HTLC:
                     LOGD("fulfill htlc send\n");
-                    *pLocalMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
+                    *pLocalMsat += pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
                     break;
                 case LN_UPDATE_TYPE_FAIL_HTLC:
                 case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
                     LOGD("fail htlc send\n");
-                    *pRemoteMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
+                    *pRemoteMsat += pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
                     break;
                 default:
                     ;
@@ -957,16 +957,16 @@ static bool create_htlc_info_and_amount(
                 switch (p_update->type) {
                 case LN_UPDATE_TYPE_ADD_HTLC:
                     LOGD("add htlc recv\n");
-                    *pRemoteMsat -= pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
+                    *pRemoteMsat -= pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
                     break;
                 case LN_UPDATE_TYPE_FULFILL_HTLC:
                     LOGD("fulfill htlc recv\n");
-                    *pRemoteMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
+                    *pRemoteMsat += pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
                     break;
                 case LN_UPDATE_TYPE_FAIL_HTLC:
                 case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
                     LOGD("fail htlc recv\n");
-                    *pLocalMsat += pUpdateInfo->htlcs[p_update->htlc_idx].amount_msat;
+                    *pLocalMsat += pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
                     break;
                 default:
                     ;
@@ -976,12 +976,14 @@ static bool create_htlc_info_and_amount(
 
         if (!LN_UPDATE_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) continue;
 
-        const ln_htlc_t *p_htlc = &pUpdateInfo->htlcs[p_update->htlc_idx];
+        const ln_htlc_t *p_htlc = &pUpdateInfo->htlcs[p_update->type_specific_idx];
 
-        const ln_update_t *p_update_del_htlc = ln_update_info_get_update_del_htlc_const(pUpdateInfo, p_update->htlc_idx);
-        if (p_update_del_htlc && LN_UPDATE_ENABLED(p_update_del_htlc, LN_UPDATE_TYPE_MASK_ALL, bLocal)) {
+        uint16_t update_idx_del_htlc;
+        if (ln_update_info_get_update(
+            pUpdateInfo, &update_idx_del_htlc, LN_UPDATE_TYPE_MASK_DEL_HTLC, p_update->type_specific_idx) &&
+            LN_UPDATE_ENABLED(&pUpdateInfo->updates[update_idx_del_htlc], LN_UPDATE_TYPE_MASK_ALL, bLocal)) {
             LOGD(" DEL UPDATE[%u] HTLC[%u] [id=%" PRIu64 "](%" PRIu64 ")\n",
-                update_idx, p_update->htlc_idx, p_htlc->id, p_htlc->amount_msat);
+                update_idx, p_update->type_specific_idx, p_htlc->id, p_htlc->amount_msat);
             continue;
         }
 
@@ -997,14 +999,14 @@ static bool create_htlc_info_and_amount(
             goto LABEL_ERROR;
         }
 
-        p_info->htlc_idx = p_update->htlc_idx;
+        p_info->htlc_idx = p_update->type_specific_idx;
         p_info->cltv_expiry = p_htlc->cltv_expiry;
         p_info->amount_msat = p_htlc->amount_msat;
         p_info->payment_hash = p_htlc->payment_hash;
         ppHtlcInfo[*pHtlcInfoCnt] = p_info;
         (*pHtlcInfoCnt)++;
         LOGD(" ADD UPDATE[%u] HTLC[%u] [id=%" PRIu64 "](%" PRIu64 ")\n",
-            update_idx, p_update->htlc_idx, p_htlc->id, p_htlc->amount_msat);
+            update_idx, p_update->type_specific_idx, p_htlc->id, p_htlc->amount_msat);
     }
     return true;
 
