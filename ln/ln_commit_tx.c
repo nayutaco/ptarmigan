@@ -323,13 +323,16 @@ bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, c
     pCommitTxInfo->to_remote.pubkey = pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
 
     //fee
-    pCommitTxInfo->base_fee_info.feerate_per_kw = pCommitInfo->feerate_per_kw;
+    pCommitTxInfo->base_fee_info.feerate_per_kw =
+        ln_update_info_get_feerate_per_kw_pre_committed(&pChannel->update_info, bLocal);
     pCommitTxInfo->base_fee_info.dust_limit_satoshi = pCommitInfo->dust_limit_sat;
     /*void*/ ln_commit_tx_base_fee_calc(
-        &pCommitTxInfo->base_fee_info, (const ln_commit_tx_htlc_info_t **)pCommitTxInfo->pp_htlc_info, pCommitTxInfo->num_htlc_infos);
+        &pCommitTxInfo->base_fee_info, (const ln_commit_tx_htlc_info_t **)pCommitTxInfo->pp_htlc_info,
+        pCommitTxInfo->num_htlc_infos);
 
     pCommitTxInfo->b_trimmed = false;
-    ln_commit_tx_info_sub_fee_and_trim_outputs(pCommitTxInfo, ln_funding_info_is_funder(pCommitInfo->p_funding_info, bLocal));
+    ln_commit_tx_info_sub_fee_and_trim_outputs(pCommitTxInfo,
+        ln_funding_info_is_funder(pCommitInfo->p_funding_info, bLocal));
     pCommitTxInfo->num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(pCommitTxInfo);
 
     ret = true;
@@ -434,7 +437,8 @@ bool ln_commit_tx_create_remote(
     //commitment transaction
     LOGD("remote commitment_number=%" PRIu64 "\n", pCommitInfo->commit_num);
     //  fee
-    commit_tx_info.base_fee_info.feerate_per_kw = pCommitInfo->feerate_per_kw;
+    commit_tx_info.base_fee_info.feerate_per_kw =
+        ln_update_info_get_feerate_per_kw_pre_committed(&pChannel->update_info, bLocal);
     commit_tx_info.base_fee_info.dust_limit_satoshi = pCommitInfo->dust_limit_sat;
     /*void*/ ln_commit_tx_base_fee_calc(&commit_tx_info.base_fee_info, (const ln_commit_tx_htlc_info_t **)pp_htlc_info, num_htlc_infos);
     //

@@ -86,6 +86,7 @@ static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
+static bool update_fee_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool commitment_signed_send(ln_channel_t *pChannel);
 static bool revoke_and_ack_send(ln_channel_t *pChannel);
 static bool check_create_add_htlc(ln_channel_t *pChannel, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
@@ -598,61 +599,15 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
         return false;
     }
 
-    //feerate_per_kw更新
-    old_fee = pChannel->commit_info_local.feerate_per_kw;
-    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n",
-        pChannel->commit_info_local.feerate_per_kw, msg.feerate_per_kw);
-    pChannel->commit_info_local.feerate_per_kw =
-        pChannel->commit_info_remote.feerate_per_kw = //XXX: ???
-        msg.feerate_per_kw;
-    //M_DB_CHANNEL_SAVE(pChannel);  //確定するまでDB保存しない
+    uint16_t update_idx;
+    if (!ln_update_info_set_fee_recv(
+        &pChannel->update_info, &update_idx, msg.feerate_per_kw)) {
+        //internal error
+        return false;
+    }
 
     //fee更新通知
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV, &old_fee);
-
-    LOGD("END\n");
-    return true;
-}
-
-
-bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw)
-{
-    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n",
-        pChannel->commit_info_remote.feerate_per_kw, FeeratePerKw);
-
-    if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "no init/channel_reestablish finished");
-        return false;
-    }
-
-    //BOLT02
-    //  The node not responsible for paying the Bitcoin fee:
-    //    MUST NOT send update_fee.
-    if (!ln_funding_info_is_funder(&pChannel->funding_info, true)) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "not funder");
-        return false;
-    }
-
-    if (pChannel->commit_info_remote.feerate_per_kw == FeeratePerKw) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "same feerate_per_kw");
-        return false;
-    }
-    if (FeeratePerKw < LN_FEERATE_PER_KW_MIN) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "feerate_per_kw too low");
-        return false;
-    }
-
-    ln_msg_update_fee_t msg;
-    msg.p_channel_id = pChannel->channel_id;
-    msg.feerate_per_kw = FeeratePerKw;
-    utl_buf_t buf = UTL_BUF_INIT;
-    if (!ln_msg_update_fee_write(&buf, &msg)) {
-        LOGE("fail\n");
-        return false;
-    }
-    pChannel->commit_info_remote.feerate_per_kw = FeeratePerKw;
-    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
-    utl_buf_free(&buf);
 
     LOGD("END\n");
     return true;
@@ -755,7 +710,7 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t
         assert(0);
         return false;
     }
-    
+
     if (pPreimage) {
         ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
         if (!utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
@@ -790,7 +745,7 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
     } else {
         p_update_add_htlc->fin_type = UpdateType;
     }
-    
+
     if (pReason) {
         ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
         utl_buf_free(&p_htlc->buf_onion_reason);
@@ -802,8 +757,16 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
 
 void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
-    //XXX: should return the return code
-    //LOGD("$$$ update_fee: %" PRIu32 " ==> %" PRIu32 "\n", pChannel->feerate_per_kw, FeeratePerKw);
+    //XXX: should return the return code or SET_ERR
+
+    if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) return;
+
+    if (FeeratePerKw &&
+        ln_funding_info_is_funder(&pChannel->funding_info, true) &&
+        ln_update_info_fee_update_needs(&pChannel->update_info, FeeratePerKw)) {
+        uint16_t update_idx;
+        /*ignore*/ ln_update_info_set_fee_pre_send(&pChannel->update_info, &update_idx, FeeratePerKw);
+    }
 
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         ln_update_t *p_update = &pChannel->update_info.updates[idx];
@@ -811,35 +774,31 @@ void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
         if (!LN_UPDATE_WAIT_SEND(p_update)) continue;
         switch (p_update->type) {
         case LN_UPDATE_TYPE_ADD_HTLC:
-            /*ignore*/ update_add_htlc_send(pChannel, idx);
+            if (!update_add_htlc_send(pChannel, idx)) return;
             break;
         case LN_UPDATE_TYPE_FULFILL_HTLC:
             if (LN_DBG_FULFILL() && LN_DBG_FULFILL_BWD()) {
-                /*ignore*/ update_fulfill_htlc_send(pChannel, idx);
+                if (!update_fulfill_htlc_send(pChannel, idx)) return;
             } else {
                 LOGD("DBG: no fulfill mode\n");
             }
             break;
         case LN_UPDATE_TYPE_FAIL_HTLC:
-            /*ignore*/ update_fail_htlc_send(pChannel, idx);
+            if (!update_fail_htlc_send(pChannel, idx)) return;
             break;
         case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-            /*ignore*/ update_fail_malformed_htlc_send(pChannel, idx);
+            if (!update_fail_malformed_htlc_send(pChannel, idx)) return;
+            break;
+        case LN_UPDATE_TYPE_FEE:
+            if (!update_fee_send(pChannel, idx)) return;
             break;
         default:
             ;
         }
     }
 
-    bool b_comsig_needed = ln_update_info_commitment_signed_send_needs(&pChannel->update_info);
-    if (FeeratePerKw && (pChannel->commit_info_remote.feerate_per_kw != FeeratePerKw)) {
-        if (ln_update_fee_send(pChannel, FeeratePerKw)) {
-            b_comsig_needed = true;
-        }
-    }
-
-    if (b_comsig_needed) {
-        /*ignore*/ commitment_signed_send(pChannel);
+    if (ln_update_info_commitment_signed_send_needs(&pChannel->update_info)) {
+        if (!commitment_signed_send(pChannel)) return;
     }
 }
 
@@ -945,7 +904,7 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
 
     //加算した結果が自分のmax_htlc_value_in_flight_msatを超えるなら、チャネルを失敗させる。
     //      adds more than its max_htlc_value_in_flight_msat worth of offered HTLCs to its local commitment transaction
-    if (ln_update_info_htlc_value_in_flight_msat(&pChannel->update_info, true) >
+    if (ln_update_info_get_htlc_value_in_flight_msat(&pChannel->update_info, true) >
         pChannel->commit_info_local.max_htlc_value_in_flight_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "exceed local max_htlc_value_in_flight_msat");
         return false;
@@ -1473,11 +1432,6 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
     utl_buf_t buf = UTL_BUF_INIT;
 
-    if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "no init finished");
-        goto LABEL_EXIT;
-    }
-
     //create sigs for remote commitment transaction
     pChannel->commit_info_remote.commit_num++;
     if (!ln_commit_tx_create_remote(
@@ -1624,7 +1578,7 @@ static bool check_create_add_htlc(
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
-    if (ln_update_info_htlc_value_in_flight_msat(&pChannel->update_info, false) >
+    if (ln_update_info_get_htlc_value_in_flight_msat(&pChannel->update_info, false) >
         pChannel->commit_info_remote.max_htlc_value_in_flight_msat) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE,
             "exceed remote max_htlc_value_in_flight_msat(%" PRIu64 ")",
@@ -1801,6 +1755,7 @@ static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
+    utl_buf_free(&buf);
     return true;
 }
 
@@ -1829,6 +1784,39 @@ static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Upd
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
     LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
+    utl_buf_free(&buf);
+    return true;
+}
+
+
+/** send update_fee
+ *
+ * @param[in,out]       pChannel        channel情報
+ * @param[in]           UpdateIdx       index of the updates
+ */
+static bool update_fee_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
+{
+    LOGD("pChannel->update_info.updates[%u].state = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].state);
+    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
+    ln_fee_update_t *p_fee_udpate = &pChannel->update_info.fee_updates[p_update->type_specific_idx];
+
+    if (p_fee_udpate->feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "feerate_per_kw too low");
+        return false;
+    }
+
+    ln_msg_update_fee_t msg;
+    msg.p_channel_id = pChannel->channel_id;
+    msg.feerate_per_kw = p_fee_udpate->feerate_per_kw;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_update_fee_write(&buf, &msg)) {
+        LOGE("fail\n");
+        return false;
+    }
+    ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+    LOGD("send: %s\n", ln_msg_name(utl_int_pack_u16be(buf.buf)));
+    utl_buf_free(&buf);
     return true;
 }
 

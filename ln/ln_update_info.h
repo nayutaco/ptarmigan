@@ -30,7 +30,7 @@
 
 #include "ln_update.h"
 
-
+//
 /********************************************************************
  * macros
  ********************************************************************/
@@ -38,7 +38,14 @@
 #define LN_HTLC_OFFERED_MAX_XXX         (6)         ///<
 #define LN_HTLC_RECEIVED_MAX            (6)         ///<
 #define LN_HTLC_MAX_XXX                 (LN_HTLC_OFFERED_MAX_XXX + LN_HTLC_RECEIVED_MAX)
-#define LN_FEE_UPDATE_MAX               (6)
+
+//The number of possible states+1 is necessary.
+//  (Because the extra is to add new updates first)
+//  Since `update_fee` is performed only from a funder,
+//  it is sufficient to consider only one side.
+//  There are states that can not be taken at the same time,
+//  so it should be a little less.
+#define LN_FEE_UPDATE_MAX               (8)
 
 
 /********************************************************************
@@ -72,10 +79,13 @@ bool ln_update_info_set_fee_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateI
 bool ln_update_info_set_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw);
 bool ln_update_info_clear_fee(ln_update_info_t *pInfo, uint16_t UpdateIdx);
 
-bool ln_update_info_set_initial_fee_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw);
-bool ln_update_info_set_initial_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw);
-bool ln_update_info_get_last_fee_update(ln_update_info_t *pInfo, uint16_t *pFeeUpdateIdx);
+bool ln_update_info_set_initial_fee_send(ln_update_info_t *pInfo, uint32_t FeeratePerKw);
+bool ln_update_info_set_initial_fee_recv(ln_update_info_t *pInfo, uint32_t FeeratePerKw);
 void ln_update_info_prune_fee_updates(ln_update_info_t *pInfo);
+uint32_t ln_update_info_get_feerate_per_kw_pre_committed(const ln_update_info_t *pInfo, bool bLocal);
+uint32_t ln_update_info_get_feerate_per_kw_committed(const ln_update_info_t *pInfo, bool bLocal);
+uint16_t ln_update_info_get_num_fee_updates(ln_update_info_t *pInfo);
+bool ln_update_info_fee_update_needs(ln_update_info_t *pInfo, uint32_t FeeratePerKw);
 
 bool ln_update_info_get_update(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx);
 bool ln_update_info_get_corresponding_update(const ln_update_info_t *pInfo, uint16_t *pCorrespondingUpdateIdx, uint16_t UpdateIdx);
@@ -91,7 +101,7 @@ void ln_update_info_reset_new_update(ln_update_info_t *pInfo);
 //cs and ra only
 void ln_update_info_set_state_flag_all(ln_update_info_t *pInfo, uint8_t flag);
 
-uint64_t ln_update_info_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal);
+uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal);
 
 
 #endif /* LN_UPDATE_INFO_H__ */

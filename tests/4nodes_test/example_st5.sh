@@ -20,12 +20,15 @@ do
     loop=0
     for i in 3333 4444 5555 6666
     do
-        cnt=`./showdb -d node_$i -s | jq -e 'length'`
-        if [ $cnt -ne 0 ]; then
+        cnt=`./showdb -d node_$i -s | jq -e 'length'` || cnt=1000
+        if [ $cnt -eq 0 ]; then
+            echo node_$i closed
+        elif [ $cnt -eq 1000 ]; then
+            echo node_$i ???
+        else
             echo node_$i not closed
             sleep 5
             loop=1
-            continue
         fi
     done
 done

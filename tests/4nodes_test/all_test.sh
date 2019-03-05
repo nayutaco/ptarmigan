@@ -49,6 +49,15 @@ echo st4c end
 check_live
 check_log
 
+FEERATE_PER_KW=600
+echo update_fee $FEERATE_PER_KW start
+./example_st_update_fee_all.sh $FEERATE_PER_KW
+sleep 5 # XXX: TODO
+echo update_fee $FEERATE_PER_KW end
+
+check_live
+check_log
+
 echo st4d start
 ./example_st4d.sh
 sleep 5 # XXX: TODO
@@ -104,6 +113,15 @@ echo st4d start
 ./example_st4d.sh
 sleep 5 # XXX: TODO
 echo st4d end
+
+check_live
+check_log
+
+FEERATE_PER_KW=700
+echo update_fee $FEERATE_PER_KW start
+./example_st_update_fee_all.sh $FEERATE_PER_KW
+sleep 5 # XXX: TODO
+echo update_fee $FEERATE_PER_KW end
 
 check_live
 check_log
