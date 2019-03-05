@@ -923,14 +923,6 @@ uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw);
 uint32_t ln_feerate_per_kw(const ln_channel_t *pChannel);
 
 
-/** feerate_per_kw設定
- *
- * @param[in]           pChannel        channel info
- * @param[in]           FeeratePerKw    設定値
- */
-void ln_feerate_per_kw_set(ln_channel_t *pChannel, uint32_t FeeratePerKw);
-
-
 /** funding_txの予想されるfee(+α)取得
  *
  * @param[in]   FeeratePerKw        feerate_per_kw(open_channelのパラメータと同じ)

@@ -1013,6 +1013,7 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (p_appconf != NULL) {
         bool ret = lnapp_check_ponglist(p_appconf);
         if (!ret) {
+            LOGE("fail: node busy\n");
             err = RPCERR_BUSY;
             goto LABEL_EXIT;
         }
@@ -1674,6 +1675,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 
     bool nopong = lnapp_check_ponglist(p_appconf);
     if (!nopong) {
+        LOGE("fail: node busy\n");
         return RPCERR_BUSY;
     }
 
@@ -1976,6 +1978,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
         //接続中
         bool nopong = lnapp_check_ponglist(p_appconf);
         if (!nopong) {
+            LOGE("fail: node busy\n");
             err = RPCERR_BUSY;
             goto LABEL_EXIT;
         }

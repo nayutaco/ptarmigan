@@ -160,9 +160,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
         pChannel->commit_info_remote.local_msat =
         msg.push_msat;
     pChannel->funding_info.funding_satoshis = msg.funding_satoshis;
-    pChannel->commit_info_local.feerate_per_kw =
-        pChannel->commit_info_remote.feerate_per_kw =
-        msg.feerate_per_kw;
+    if (!ln_update_info_set_initial_fee_send(&pChannel->update_info, msg.feerate_per_kw)) return false;
     pChannel->commit_info_remote.to_self_delay = msg.to_self_delay;
 
     pChannel->funding_info.state =
@@ -258,9 +256,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
 
     //params for funding
     pChannel->funding_info.funding_satoshis = msg.funding_satoshis;
-    pChannel->commit_info_remote.feerate_per_kw =
-        pChannel->commit_info_local.feerate_per_kw =
-        msg.feerate_per_kw;
+    if (!ln_update_info_set_initial_fee_recv(&pChannel->update_info, msg.feerate_per_kw)) return false;
     pChannel->commit_info_remote.remote_msat =
         pChannel->commit_info_local.local_msat =
         msg.push_msat;
@@ -842,7 +838,9 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //          pub: 1+33
         //      locktime: 4
     #warning issue #344: nested in BIP16 size
-        uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, pChannel->commit_info_local.feerate_per_kw);
+        uint64_t fee = ln_calc_fee(
+            LN_SZ_FUNDINGTX_VSIZE,
+            ln_update_info_get_feerate_per_kw_committed(&pChannel->update_info, true));
         LOGD("fee=%" PRIu64 "\n", fee);
         if (pChannel->establish.p_fundin->amount >= pChannel->funding_info.funding_satoshis + fee) {
             pChannel->funding_info.tx_data.vout[1].value =

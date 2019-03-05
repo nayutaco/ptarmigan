@@ -33,6 +33,7 @@ extern "C" {
 #undef LOG_TAG
 #include "ln_derkey.c"
 #include "ln_derkey_ex.c"
+#include "ln_msg.c"
 // #include "ln_msg_anno.c"
 // #include "ln_msg_close.c"
 // #include "ln_msg_establish.c"
@@ -48,6 +49,7 @@ extern "C" {
 // #include "ln_print.c"
 #include "ln_normalope.c"
 #include "ln_funding_info.c"
+#include "ln_update.c"
 #include "ln_update_info.c"
 
 #include "ln.c"
@@ -188,22 +190,22 @@ public:
         pChannel->commit_info_local.max_accepted_htlcs = 10;
         pChannel->commit_info_local.local_msat = 1000000;
         pChannel->commit_info_local.remote_msat = 1000000;
-        pChannel->commit_info_local.feerate_per_kw = 500;
         pChannel->commit_info_remote.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_info_remote.htlc_minimum_msat = 0;
         pChannel->commit_info_remote.max_accepted_htlcs = 10;
         pChannel->commit_info_remote.local_msat = 1000000;
         pChannel->commit_info_remote.remote_msat = 1000000;
-        pChannel->commit_info_remote.feerate_per_kw = 500;
         btc_tx_init(&pChannel->funding_info.tx_data);
         utl_buf_init(&pChannel->funding_info.wit_script);
         pChannel->p_callback = LnCallbackType;
         memcpy(pChannel->channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     }
-    static void LnInitSend(ln_channel_t *pChannel)
+    static void LnInitSend(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     {
         LnInit(pChannel);
 
+        uint16_t update_idx;
+        ln_update_info_set_fee_pre_send(&pChannel->update_info, &update_idx, FeeratePerKw);
         pChannel->funding_info.role = LN_FUNDING_ROLE_FUNDER;
         ln_msg_update_fee_write_fake.return_val = true;
     }
@@ -218,110 +220,15 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
+#if 0
 //OK
 TEST_F(ln, create_updatefee_ok)
 {
     ln_channel_t channel;
-    LnInitSend(&channel);
+    LnInitSend(&channel, 500);
 
-    bool ret = ln_update_fee_send(&channel, 1000);
+    bool ret = update_fee_send(&channel, 0);
     ASSERT_TRUE(ret);
-
-    ln_term(&channel);
-}
-
-//not init
-TEST_F(ln, create_updatefee_noinit_send)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    channel.init_flag = M_INIT_FLAG_SEND | /*M_INIT_FLAG_RECV |*/ M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
-
-    bool ret = ln_update_fee_send(&channel, 1000);
-    ASSERT_FALSE(ret);
-
-    ln_term(&channel);
-}
-
-//not init
-TEST_F(ln, create_updatefee_noinit_recv)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    channel.init_flag = /*M_INIT_FLAG_SEND |*/ M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
-
-    bool ret = ln_update_fee_send(&channel, 1000);
-    ASSERT_FALSE(ret);
-
-    ln_term(&channel);
-}
-
-//not init
-TEST_F(ln, create_updatefee_noinit_reest_recv)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    channel.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND /*| M_INIT_FLAG_REEST_RECV*/;
-
-    bool ret = ln_update_fee_send(&channel, 1000);
-    ASSERT_FALSE(ret);
-
-    ln_term(&channel);
-}
-
-//not init
-TEST_F(ln, create_updatefee_noinit_reest_send)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    channel.init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV /*| M_INIT_FLAG_REEST_SEND */| M_INIT_FLAG_REEST_RECV;
-
-    bool ret = ln_update_fee_send(&channel, 1000);
-    ASSERT_FALSE(ret);
-
-    ln_term(&channel);
-}
-
-//not init
-TEST_F(ln, create_updatefee_noinit_both)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    channel.init_flag = 0;
-
-    bool ret = ln_update_fee_send(&channel, 1000);
-    ASSERT_FALSE(ret);
-
-    ln_term(&channel);
-}
-
-//fundee
-TEST_F(ln, create_updatefee_fundee)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    channel.funding_info.role = 0;
-
-    bool ret = ln_update_fee_send(&channel, 1000);
-    ASSERT_FALSE(ret);
-
-    ln_term(&channel);
-}
-
-//same
-TEST_F(ln, create_updatefee_same)
-{
-    ln_channel_t channel;
-    LnInitSend(&channel);
-
-    bool ret = ln_update_fee_send(&channel, channel.commit_info_remote.feerate_per_kw);
-    ASSERT_FALSE(ret);
 
     ln_term(&channel);
 }
@@ -330,9 +237,9 @@ TEST_F(ln, create_updatefee_same)
 TEST_F(ln, create_updatefee_low)
 {
     ln_channel_t channel;
-    LnInitSend(&channel);
+    LnInitSend(&channel, LN_FEERATE_PER_KW_MIN);
 
-    bool ret = ln_update_fee_send(&channel, LN_FEERATE_PER_KW_MIN);
+    bool ret = update_fee_send(&channel, 0);
     ASSERT_TRUE(ret);
 
     ln_term(&channel);
@@ -342,9 +249,9 @@ TEST_F(ln, create_updatefee_low)
 TEST_F(ln, create_updatefee_toolow)
 {
     ln_channel_t channel;
-    LnInitSend(&channel);
+    LnInitSend(&channel, LN_FEERATE_PER_KW_MIN - 1);
 
-    bool ret = ln_update_fee_send(&channel, LN_FEERATE_PER_KW_MIN - 1);
+    bool ret = update_fee_send(&channel, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&channel);
@@ -354,11 +261,11 @@ TEST_F(ln, create_updatefee_toolow)
 TEST_F(ln, create_updatefee_create)
 {
     ln_channel_t channel;
-    LnInitSend(&channel);
+    LnInitSend(&channel, 1000);
 
     ln_msg_update_fee_write_fake.return_val = false;
 
-    bool ret = ln_update_fee_send(&channel, 1000);
+    bool ret = update_fee_send(&channel, 0);
     ASSERT_FALSE(ret);
 
     ln_term(&channel);
@@ -392,7 +299,7 @@ TEST_F(ln, recv_updatefee_ok)
     bool ret = ln_update_fee_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, callback_called);
-    ASSERT_EQ(500, channel.commit_info_local.feerate_per_kw);
+    ASSERT_EQ(500, ln_update_info_get_feerate_per_kw_pre_committed(&channel.update_info, true));
 
     ln_term(&channel);
 }
@@ -659,3 +566,721 @@ TEST_F(ln, recv_updatefee_hi_out)
 
     ln_term(&channel);
 }
+#endif
+
+
+TEST_F(ln, update_fee_send)
+{
+    ln_update_info_t info;
+    ln_update_info_init(&info);
+    uint16_t update_idx;
+    uint32_t feerate_per_kw;
+    ln_update_t *p_update;
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(0, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(0, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(0, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(0, feerate_per_kw);
+
+    ASSERT_TRUE(ln_update_info_set_initial_fee_send(&info, 100));
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+
+    ln_update_info_free(&info);
+}
+
+
+TEST_F(ln, update_fee_recv)
+{
+    ln_update_info_t info;
+    ln_update_info_init(&info);
+    uint16_t update_idx;
+    uint32_t feerate_per_kw;
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(0, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(0, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(0, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(0, feerate_per_kw);
+
+    ASSERT_TRUE(ln_update_info_set_initial_fee_recv(&info, 100));
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ASSERT_TRUE(ln_update_info_set_fee_recv(&info, &update_idx, 200));
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(200, feerate_per_kw);
+
+    ln_update_info_free(&info);
+}
+
+
+TEST_F(ln, update_fee_send_multi)
+{
+    ln_update_info_t info;
+    ln_update_info_init(&info);
+    uint16_t update_idx;
+    uint32_t feerate_per_kw;
+    ln_update_t *p_update;
+
+    ASSERT_TRUE(ln_update_info_set_initial_fee_send(&info, 100));
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 600));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 700));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 800));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_free(&info);
+}
+
+
+TEST_F(ln, update_fee_send_multi_2)
+{
+    ln_update_info_t info;
+    ln_update_info_init(&info);
+    uint16_t update_idx;
+    uint32_t feerate_per_kw;
+    ln_update_t *p_update;
+
+    ASSERT_TRUE(ln_update_info_set_initial_fee_send(&info, 100));
+
+    //1
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 600));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 700));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 800));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    //2
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1200));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1500));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1600));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1700));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 1800));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(1800, feerate_per_kw);
+
+    ln_update_info_free(&info);
+}
+
+
+TEST_F(ln, update_fee_send_multi_3)
+{
+    ln_update_info_t info;
+    ln_update_info_init(&info);
+    uint16_t update_idx;
+    uint32_t feerate_per_kw;
+    ln_update_t *p_update;
+
+    ASSERT_TRUE(ln_update_info_set_initial_fee_send(&info, 100));
+
+    //1
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 600));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 700));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 800));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(100, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    //2 (the same pattern)
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 600));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 700));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 800));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(100, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, true);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_pre_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+    feerate_per_kw = ln_update_info_get_feerate_per_kw_committed(&info, false);
+    ASSERT_EQ(800, feerate_per_kw);
+
+    ln_update_info_free(&info);
+}
+
+
+TEST_F(ln, pruning)
+{
+    ln_update_info_t info;
+    ln_update_info_init(&info);
+    uint16_t update_idx;
+    ln_update_t *p_update;
+
+    ASSERT_TRUE(ln_update_info_set_initial_fee_send(&info, 100));
+
+    //100
+    ASSERT_EQ(1, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 100));
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    //100, 200
+    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    //100, 200, 300
+    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    //100, 300, 400
+    //  200 is pruned
+    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    //100, 400, 500
+    //  300 is pruned
+    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    //100, 500, 300
+    //  400 is pruned
+    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    ASSERT_TRUE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+    p_update = &info.updates[update_idx];
+    LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
+
+    //500, 300, 400
+    //  100 is pruned
+    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_SEND);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_RECV);
+
+    //Explicit pruning
+    ln_update_info_prune_fee_updates(&info);
+
+    //500, 400
+    //  300 is pruned
+    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_CS_RECV);
+
+    ln_update_info_set_state_flag_all(&info, LN_UPDATE_STATE_FLAG_RA_SEND);
+
+    //Explicit pruning
+    ln_update_info_prune_fee_updates(&info);
+
+    //400
+    //  500 is pruned
+    ASSERT_EQ(1, ln_update_info_get_num_fee_updates(&info));
+
+    //fail: same value
+    ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
+
+    ln_update_info_free(&info);
+}
+
+

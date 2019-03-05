@@ -98,14 +98,6 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t
 bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateType, const utl_buf_t *pReason);
 
 
-/** send update_fee message
- *
- * @param[in,out]       pChannel        channel info
- * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
- */
-bool HIDDEN ln_update_fee_send(ln_channel_t *pChannel, uint32_t FeeratePerKw);
-
-
 /** channel_reestablishメッセージ交換後
  *
  * @param[in,out]       pChannel        channel info

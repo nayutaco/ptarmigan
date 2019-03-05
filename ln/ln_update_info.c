@@ -30,6 +30,13 @@
 
 
 /**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+static uint32_t get_last_feerate_per_kw(ln_update_info_t *pInfo);
+
+
+/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -204,18 +211,29 @@ bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdate
 
 bool ln_update_info_set_fee_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
 {
+    if (!ln_update_info_fee_update_needs(pInfo, FeeratePerKw)) return false;
+
     uint16_t fee_update_idx;
     ln_fee_update_t *p_fee_update = ln_fee_update_get_empty(pInfo->fee_updates, &fee_update_idx);
     if (!p_fee_update) return false;
+
     uint16_t update_idx;
     ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
     if (!p_update) return false;
+
     p_update->type_specific_idx = fee_update_idx;
     p_update->enabled = true;
     p_fee_update->enabled = true;
     p_fee_update->id = pInfo->next_fee_update_id++;
     p_fee_update->feerate_per_kw = FeeratePerKw;
     p_update->type = LN_UPDATE_TYPE_FEE;
+
+    //*Older* updates with the same state are removed.
+    //  Therefore, what we added *now* should *NOT* be removed.
+    //  There should be enough slots so that `ln_fee_update_get_empty` will not fail
+    //  if we remove the older updates here.
+    ln_update_info_prune_fee_updates(pInfo);
+
     *pUpdateIdx = update_idx;
     return true;
 }
@@ -223,12 +241,16 @@ bool ln_update_info_set_fee_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateI
 
 bool ln_update_info_set_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
 {
+    if (!ln_update_info_fee_update_needs(pInfo, FeeratePerKw)) return false;
+
     uint16_t fee_update_idx;
     ln_fee_update_t *p_fee_update = ln_fee_update_get_empty(pInfo->fee_updates, &fee_update_idx);
     if (!p_fee_update) return false;
+
     uint16_t update_idx;
     ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
     if (!p_update) return false;
+
     p_update->type_specific_idx = fee_update_idx;
     p_update->enabled = true;
     p_fee_update->enabled = true;
@@ -236,6 +258,13 @@ bool ln_update_info_set_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, 
     p_fee_update->feerate_per_kw = FeeratePerKw;
     p_update->type = LN_UPDATE_TYPE_FEE;
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
+
+    //*Older* updates with the same state are removed.
+    //  Therefore, what we added *now* should *NOT* be removed.
+    //  There should be enough slots so that `ln_fee_update_get_empty` will not fail
+    //  if we remove the older updates here.
+    ln_update_info_prune_fee_updates(pInfo);
+
     *pUpdateIdx = update_idx;
     return true;
 }
@@ -269,34 +298,21 @@ bool ln_update_info_clear_fee(ln_update_info_t *pInfo, uint16_t UpdateIdx)
 }
 
 
-bool ln_update_info_set_initial_fee_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
+bool ln_update_info_set_initial_fee_send(ln_update_info_t *pInfo, uint32_t FeeratePerKw)
 {
-    if (!ln_update_info_set_fee_pre_send(pInfo, pUpdateIdx, FeeratePerKw)) return false;
-    pInfo->updates[*pUpdateIdx].state = LN_UPDATE_STATE_OFFERED_RA_SEND; //force to commit
+    uint16_t update_idx;
+    if (!ln_update_info_set_fee_pre_send(pInfo, &update_idx, FeeratePerKw)) return false;
+    pInfo->updates[update_idx].state = LN_UPDATE_STATE_OFFERED_RA_SEND; //force to commit
     return true;
 }
 
 
-bool ln_update_info_set_initial_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw)
+bool ln_update_info_set_initial_fee_recv(ln_update_info_t *pInfo, uint32_t FeeratePerKw)
 {
-    if (!ln_update_info_set_fee_recv(pInfo, pUpdateIdx, FeeratePerKw)) return false;
-    pInfo->updates[*pUpdateIdx].state = LN_UPDATE_STATE_RECEIVED_RA_RECV; //force to commit
+    uint16_t update_idx;
+    if (!ln_update_info_set_fee_recv(pInfo, &update_idx, FeeratePerKw)) return false;
+    pInfo->updates[update_idx].state = LN_UPDATE_STATE_RECEIVED_RA_RECV; //force to commit
     return true;
-}
-
-
-bool ln_update_info_get_last_fee_update(ln_update_info_t *pInfo, uint16_t *pFeeUpdateIdx)
-{
-    *pFeeUpdateIdx = UINT16_MAX;
-    uint64_t id = 0;
-    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->fee_updates); idx++) {
-        ln_fee_update_t *p_fee_update = &pInfo->fee_updates[idx];
-        if (!p_fee_update->enabled) continue;
-        if (p_fee_update->id < id) continue;
-        id = p_fee_update->id;
-        *pFeeUpdateIdx = idx;
-    }
-    return *pFeeUpdateIdx == UINT16_MAX ? false : true;
 }
 
 
@@ -315,7 +331,7 @@ void ln_update_info_prune_fee_updates(ln_update_info_t *pInfo)
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->type != LN_UPDATE_TYPE_FEE) continue;
-        assert(num_infos == ARRAY_SIZE(pInfo->fee_updates));
+        assert(num_infos < ARRAY_SIZE(pInfo->fee_updates));
         infos[num_infos].update_idx = idx;
         infos[num_infos].update_state = p_update->state;
         ln_fee_update_t *p_fee_update = &pInfo->fee_updates[p_update->type_specific_idx];
@@ -337,6 +353,61 @@ void ln_update_info_prune_fee_updates(ln_update_info_t *pInfo)
         assert(ret);
         (void)ret;
     }
+}
+
+
+uint32_t ln_update_info_get_feerate_per_kw_pre_committed(const ln_update_info_t *pInfo, bool bLocal)
+{
+    uint64_t id = 0;
+    uint32_t feerate_per_kw = 0;
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        const ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_ENABLED(p_update, LN_UPDATE_TYPE_FEE, bLocal)) continue;
+        const ln_fee_update_t *p_fee_update = &pInfo->fee_updates[p_update->type_specific_idx];
+        if (p_fee_update->id < id) continue;
+        id = p_fee_update->id;
+        feerate_per_kw = p_fee_update->feerate_per_kw;
+    }
+    return feerate_per_kw;
+}
+
+
+uint32_t ln_update_info_get_feerate_per_kw_committed(const ln_update_info_t *pInfo, bool bLocal)
+{
+    uint64_t id = 0;
+    uint32_t feerate_per_kw = 0;
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        const ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_ENABLED(p_update, LN_UPDATE_TYPE_FEE, bLocal)) continue;
+        if (LN_UPDATE_UNCOMMITTED(p_update, bLocal)) continue;
+        const ln_fee_update_t *p_fee_update = &pInfo->fee_updates[p_update->type_specific_idx];
+        if (p_fee_update->id < id) continue;
+        id = p_fee_update->id;
+        feerate_per_kw = p_fee_update->feerate_per_kw;
+    }
+    return feerate_per_kw;
+}
+
+
+uint16_t ln_update_info_get_num_fee_updates(ln_update_info_t *pInfo)
+{
+    uint16_t num_fee_updates = 0;
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->fee_updates); idx++) {
+        ln_fee_update_t *p_fee_update = &pInfo->fee_updates[idx];
+        if (!p_fee_update->enabled) continue;
+        num_fee_updates++;
+    }
+    return num_fee_updates;
+}
+
+
+bool ln_update_info_fee_update_needs(ln_update_info_t *pInfo, uint32_t FeeratePerKw)
+{
+    if (!FeeratePerKw) return false;
+    if (FeeratePerKw == get_last_feerate_per_kw(pInfo)) return false;
+    return true;
 }
 
 
@@ -468,7 +539,7 @@ void ln_update_info_reset_new_update(ln_update_info_t *pInfo) {
 }
 
 
-uint64_t ln_update_info_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal)
+uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal)
 {
     uint64_t value = 0;
     for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
@@ -483,3 +554,24 @@ uint64_t ln_update_info_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool 
     }
     return value;
 }
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static uint32_t get_last_feerate_per_kw(ln_update_info_t *pInfo)
+{
+    uint64_t id = 0;
+    uint32_t feerate_per_kw = 0;
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->fee_updates); idx++) {
+        ln_fee_update_t *p_fee_update = &pInfo->fee_updates[idx];
+        if (!p_fee_update->enabled) continue;
+        if (p_fee_update->id < id) continue;
+        id = p_fee_update->id;
+        feerate_per_kw = p_fee_update->feerate_per_kw;
+    }
+    return feerate_per_kw;
+}
+
+
