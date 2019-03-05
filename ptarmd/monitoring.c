@@ -662,7 +662,10 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
         //  commit_txが展開されてcltv_expiryブロック経過するまではBIP68エラーになる
         return true; //return send request
     }
-    const ln_update_t *p_update = ln_update_by_htlc_idx(pChannel, pCloseDat->p_htlc_idxs[lp]);
+    uint16_t update_idx;
+    if (!ln_update_info_get_update(
+        &pChannel->update_info, &update_idx, LN_UPDATE_TYPE_ADD_HTLC, pCloseDat->p_htlc_idxs[lp])) return false;
+    const ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     if (!p_update) return false;
     const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
     if (!p_htlc) return false;
@@ -844,8 +847,6 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
 
     //XXX: We should return a return value
 
-    const ln_update_t *p_update = ln_update_by_htlc_idx(pChannel, pCloseDat->p_htlc_idxs[lp]);
-    if (!p_update) return;
     const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
     if (!p_htlc) return;
 

@@ -60,6 +60,20 @@ ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx)
 }
 
 
+ln_fee_update_t *ln_fee_update_get_empty(ln_fee_update_t *pFeeUpdates, uint16_t *pFeeUpdateIdx)
+{
+    for (uint16_t idx = 0; idx < LN_FEE_UPDATE_MAX; idx++) {
+        ln_fee_update_t *p_fee_update = &pFeeUpdates[idx];
+        if (p_fee_update->enabled) continue;
+        if (pFeeUpdateIdx) {
+            *pFeeUpdateIdx = idx;
+        }
+        return p_fee_update;
+    }
+    return NULL;
+}
+
+
 #ifdef LN_DBG_PRINT
 void ln_update_print(const ln_update_t *pUpdate)
 {

@@ -110,7 +110,7 @@ typedef struct {
     bool                enabled;                        ///< XXX: Interim. Soon abolished
     uint8_t             type;                           ///<
     uint8_t             state;                          ///<
-    uint16_t            htlc_idx;                       ///< index of `ln_htlc_t` array
+    uint16_t            type_specific_idx;              ///<
     uint8_t             fin_type;                       ///<
     bool                new_update;                     ///<
 } ln_update_t;
@@ -146,8 +146,9 @@ typedef struct {
  *  @brief      update fee
  */
 typedef struct {
-    bool enabled;
-    uint32_t feerate_per_kw;
+    bool        enabled;
+    uint64_t    id;
+    uint32_t    feerate_per_kw;
 } ln_fee_update_t;
 
 
@@ -347,6 +348,9 @@ ln_update_t *ln_update_get_empty(ln_update_t *pUpdates, uint16_t *pUpdateIdx);
 
 
 ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx);
+
+
+ln_fee_update_t *ln_fee_update_get_empty(ln_fee_update_t *pFeeUpdates, uint16_t *pFeeUpdateIdx);
 
 
 #ifdef LN_DBG_PRINT

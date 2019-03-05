@@ -110,7 +110,7 @@ bool HIDDEN ln_update_add_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData
         return false;
     }
     ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     ln_msg_update_add_htlc_t msg;
     if (!ln_msg_update_add_htlc_read(&msg, pData, Len)) {
@@ -177,7 +177,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
         if (!LN_UPDATE_USED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_SEND_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) continue;
-        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->htlc_idx];
+        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->type_specific_idx];
         if (p_htlc->id != msg.id) continue;
         break;
     }
@@ -199,7 +199,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     uint16_t update_idx_del_htlc;
     if (!ln_update_info_set_del_htlc_recv(
         &pChannel->update_info, &update_idx_del_htlc,
-        p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FULFILL_HTLC)) {
+        p_update_add_htlc->type_specific_idx, LN_UPDATE_TYPE_FULFILL_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fulfill htlc");
         return false;
     }
@@ -246,7 +246,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
         if (!LN_UPDATE_USED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_SEND_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) continue;
-        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->htlc_idx];
+        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->type_specific_idx];
         if (p_htlc->id != msg.id) continue;
         break;
     }
@@ -258,7 +258,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
     uint16_t update_idx_del_htlc;
     if (!ln_update_info_set_del_htlc_recv(
         &pChannel->update_info, &update_idx_del_htlc,
-        p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FAIL_HTLC)) {
+        p_update_add_htlc->type_specific_idx, LN_UPDATE_TYPE_FAIL_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail htlc");
         return false;
     }
@@ -315,7 +315,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
         if (!LN_UPDATE_USED(p_update_add_htlc)) continue;
         if (!LN_UPDATE_SEND_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) continue;
-        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->htlc_idx];
+        p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->type_specific_idx];
         if (p_htlc->id != msg.id) continue;
         break;
     }
@@ -327,7 +327,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
     uint16_t update_idx_del_htlc;
     if (!ln_update_info_set_del_htlc_recv(
         &pChannel->update_info, &update_idx_del_htlc,
-        p_update_add_htlc->htlc_idx, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC)) {
+        p_update_add_htlc->type_specific_idx, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail malformed htlc");
         return false;
     }
@@ -481,7 +481,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         if (!p_update->new_update) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true)) {
             //XXX: Make sure to call back once...
-            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
             if (p_htlc->neighbor_short_channel_id) {
                 ln_cb_param_start_fwd_add_htlc_t cb_param;
                 LOGD("forward: %d\n", p_htlc->neighbor_idx);
@@ -495,20 +495,20 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 case LN_UPDATE_TYPE_FULFILL_HTLC:
                     LOGD("fin update type: %d\n", p_update->fin_type);
                     /*ignore*/ ln_fulfill_htlc_set(
-                        pChannel, p_update->htlc_idx, NULL); //XXX:
+                        pChannel, p_update->type_specific_idx, NULL); //XXX:
                         //XXX: Should callback to the final node and register the preimage
                     break;
                 case LN_UPDATE_TYPE_FAIL_HTLC:
                 case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
                     /*ignore*/ ln_fail_htlc_set(
-                        pChannel, p_update->htlc_idx, p_update->fin_type, NULL);
+                        pChannel, p_update->type_specific_idx, p_update->fin_type, NULL);
                         //XXX: Should callback to the (final) node
                 default:
                     ;
                 }
             }
         } else if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_MASK_FAIL_HTLC, true)) {
-            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
             ln_cb_param_start_bwd_del_htlc_t cb_param;
             cb_param.ret = false;
             cb_param.update_type = p_update->type;
@@ -678,8 +678,12 @@ bool ln_set_add_htlc_send(
         pChannel, pHtlcId, pReason, &htlc_idx, pPacket, AmountMsat,
         CltvValue, pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
 
-    ln_update_t *p_update = ln_update_info_get_update_enabled_but_none(&pChannel->update_info, htlc_idx);
-    assert(p_update);
+    uint16_t update_idx;
+    bool ret;
+    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, htlc_idx);
+    assert(ret);
+    (void)ret;
+    ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
     LN_DBG_UPDATE_PRINT(p_update);
     return true;
@@ -705,9 +709,13 @@ bool ln_set_add_htlc_send_fwd(
         pChannel, pHtlcId, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
         pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
 
-    ln_update_t *p_update = ln_update_info_get_update_enabled_but_none(&pChannel->update_info, htlc_idx);
+    uint16_t update_idx;
+    bool ret;
+    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, htlc_idx);
+    assert(ret);
+    (void)ret;
     *pNextHtlcIdx = htlc_idx;
-    assert(p_update);
+    ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     LN_DBG_UPDATE_PRINT(p_update);
     return true;
 }
@@ -716,8 +724,13 @@ bool ln_set_add_htlc_send_fwd(
 void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t NextHtlcIdx)
 {
     LOGD("BEGIN\n");
-    ln_update_t *p_update = ln_update_info_get_update_enabled_but_none(&pChannel->update_info, NextHtlcIdx);
-    assert(p_update);
+
+    uint16_t update_idx;
+    bool ret;
+    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, NextHtlcIdx);
+    assert(ret);
+    (void)ret;
+    ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
     LN_DBG_UPDATE_PRINT(p_update);
 }
@@ -727,8 +740,12 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t
 {
     LOGD("BEGIN\n");
 
-    ln_update_t *p_update_add_htlc = ln_update_info_get_update_add_htlc(&pChannel->update_info, HtlcIdx);
-    assert(p_update_add_htlc);
+    uint16_t update_idx_add_htlc;
+    bool ret;
+    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, HtlcIdx);
+    assert(ret);
+    (void)ret;
+    ln_update_t *p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
     if (!LN_UPDATE_RECV_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) return false;
     if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) return false;
 
@@ -754,7 +771,12 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
 {
     LOGD("BEGIN\n");
 
-    ln_update_t *p_update_add_htlc = ln_update_info_get_update_add_htlc(&pChannel->update_info, HtlcIdx);
+    uint16_t update_idx_add_htlc;
+    bool ret;
+    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, HtlcIdx);
+    assert(ret);
+    (void)ret;
+    ln_update_t *p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
     if (!LN_UPDATE_RECV_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) return false;
 
     if (LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) {
@@ -959,7 +981,7 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
 static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
     ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     typedef enum {
         RESULT_OK,
@@ -1045,7 +1067,7 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
     cb_param.p_hop = &hop_dataout;
     cb_param.amount_msat = p_htlc->amount_msat;
     cb_param.cltv_expiry = p_htlc->cltv_expiry;
-    cb_param.htlc_idx = p_update->htlc_idx;
+    cb_param.htlc_idx = p_update->type_specific_idx;
         //転送先にとっては、prev_update_idx
         //戻り値は転送先の  next_update_idx
     cb_param.p_onion_reason = &p_htlc->buf_onion_reason;
@@ -1660,7 +1682,7 @@ static bool set_add_htlc(
         return false;
     }
     ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     p_htlc->id = 0; //XXX: set just before sending
     p_htlc->amount_msat = AmountMsat;
@@ -1674,7 +1696,7 @@ static bool set_add_htlc(
         if (!utl_buf_alloccopy(
             &p_htlc->buf_shared_secret, pSharedSecrets->buf, pSharedSecrets->len)) {
             LOGD("ln_update_info_clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n",
-                pChannel->short_channel_id, update_idx, p_update->htlc_idx);
+                pChannel->short_channel_id, update_idx, p_update->type_specific_idx);
             ln_update_info_clear_htlc(&pChannel->update_info, update_idx);
             return false;
         }
@@ -1683,12 +1705,12 @@ static bool set_add_htlc(
     if (!check_create_remote_commit_tx(pChannel, update_idx)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
         LOGD("ln_update_info_clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n",
-            pChannel->short_channel_id, update_idx, p_update->htlc_idx);
+            pChannel->short_channel_id, update_idx, p_update->type_specific_idx);
         ln_update_info_clear_htlc(&pChannel->update_info, update_idx);
         return false;
     }
 
-    *pHtlcIdx = p_update->htlc_idx;
+    *pHtlcIdx = p_update->type_specific_idx;
     *pHtlcId = p_htlc->id;
     LOGD("HTLC add : neighbor_short_channel_id=%" PRIu64 "\n", p_htlc->neighbor_short_channel_id);
     LOGD("           pChannel->update_info.updates[%u].state = 0x%04x\n", update_idx, p_update->state);
@@ -1705,7 +1727,7 @@ static bool update_add_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
     LOGD("pChannel->update_info.updates[%u].state = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].state);
     ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     ln_msg_update_add_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1736,7 +1758,7 @@ static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
     LOGD("pChannel->update_info.updates[%u].state = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].state);
     ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     ln_msg_update_fulfill_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1764,7 +1786,7 @@ static bool update_fail_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
 {
     LOGD("pChannel->update_info.updates[%u].state = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].state);
     ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     ln_msg_update_fail_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
@@ -1792,7 +1814,7 @@ static bool update_fail_malformed_htlc_send(ln_channel_t *pChannel, uint16_t Upd
 {
     LOGD("pChannel->update_info.updates[%u].state = 0x%04x\n", UpdateIdx, pChannel->update_info.updates[UpdateIdx].state);
     ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
     ln_msg_update_fail_malformed_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;

@@ -975,9 +975,6 @@ const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_channel_t *pChannel);
 const ln_update_t *ln_update(const ln_channel_t *pChannel, uint16_t UpdateIdx);
 
 
-const ln_update_t *ln_update_by_htlc_idx(const ln_channel_t *pChannel, uint16_t HtlcIdx);
-
-
 /** htlc構造体取得
  *
  * @param[in]           pChannel        channel info

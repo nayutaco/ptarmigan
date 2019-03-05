@@ -163,7 +163,7 @@ static void ln_print_wallet(const ln_channel_t *pChannel)
             const ln_update_t *p_update = &pChannel->update_info.updates[lp];
             if (!LN_UPDATE_USED(p_update)) continue;
             if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-            const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+            const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
             if (cnt) {
                 printf(",\n");
             }
@@ -350,7 +350,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         const ln_update_t *p_update = &pChannel->update_info.updates[lp];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
-        const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->htlc_idx];
+        const ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
         if (cnt > 0) {
             printf(",\n");
         }

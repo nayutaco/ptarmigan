@@ -1258,20 +1258,6 @@ const ln_update_t *ln_update(const ln_channel_t *pChannel, uint16_t UpdateIdx)
 }
 
 
-const ln_update_t *ln_update_by_htlc_idx(const ln_channel_t *pChannel, uint16_t HtlcIdx)
-{
-    const ln_htlc_t *p_htlc = ln_htlc(pChannel, HtlcIdx);
-    if (!p_htlc->enabled) return NULL;
-    for (uint16_t update_idx = 0; update_idx < LN_UPDATE_MAX; update_idx++) {
-        const ln_update_t *p_update = ln_update(pChannel, update_idx);
-        if (!LN_UPDATE_USED(p_update)) continue;
-        if (p_update->htlc_idx != HtlcIdx) continue;
-        return p_update;
-    }
-    return NULL;
-}
-
-
 const ln_htlc_t *ln_htlc(const ln_channel_t *pChannel, uint16_t HtlcIdx)
 {
     return (HtlcIdx < LN_HTLC_RECEIVED_MAX) ? &pChannel->update_info.htlcs[HtlcIdx] : NULL;
@@ -1283,7 +1269,7 @@ bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t UpdateIdx
     return (UpdateIdx < LN_UPDATE_MAX) &&
         LN_UPDATE_USED(&pChannel->update_info.updates[UpdateIdx]) &&
         LN_UPDATE_TIMEOUT_CHECK_NEEDED(&pChannel->update_info.updates[UpdateIdx]) &&
-        (pChannel->update_info.htlcs[pChannel->update_info.updates[UpdateIdx].htlc_idx].cltv_expiry <= BlockCount);
+        (pChannel->update_info.htlcs[pChannel->update_info.updates[UpdateIdx].type_specific_idx].cltv_expiry <= BlockCount);
 }
 
 

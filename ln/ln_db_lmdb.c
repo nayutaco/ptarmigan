@@ -88,30 +88,30 @@
 #define M_WALTENV_DIR           "dbptarm_walt"              ///< 1st layer wallet
 
 
-#define M_CHANNEL_BUFS          (3)             ///< DB保存する可変長データ数
-                                                //      funding
-                                                //      local shutdown scriptPubKeyHash
-                                                //      remote shutdown scriptPubKeyHash
+#define M_CHANNEL_BUFS          (3)                         ///< DB保存する可変長データ数
+                                                            //      funding
+                                                            //      local shutdown scriptPubKeyHash
+                                                            //      remote shutdown scriptPubKeyHash
 
 #define M_PREFIX_LEN            (2)
-#define M_PREF_CHANNEL          "CN"            ///< channel
-#define M_PREF_SECRET           "SE"            ///< secret
-#define M_PREF_ADDHTLC          "HT"            ///< update_add_htlc関連
-#define M_PREF_REVOKED          "RV"            ///< revoked transaction用
-#define M_PREF_BAKCHANNEL       "cn"            ///< closed channel
+#define M_PREF_CHANNEL          "CN"                        ///< channel
+#define M_PREF_SECRET           "SE"                        ///< secret
+#define M_PREF_ADDHTLC          "HT"                        ///< update_add_htlc関連
+#define M_PREF_REVOKED          "RV"                        ///< revoked transaction用
+#define M_PREF_BAKCHANNEL       "cn"                        ///< closed channel
 
-#define M_DBI_ANNO_CNL          "channel_anno"          ///< 受信したchannel_announcement/channel_update
-#define M_DBI_ANNOINFO_CNL      "channel_annoinfo"      ///< channel_announcement/channel_updateの受信元・送信先
-#define M_DBI_ANNO_NODE         "node_anno"             ///< 受信したnode_announcement
-#define M_DBI_ANNOINFO_NODE     "node_annoinfo"         ///< node_announcementの受信元・送信先
-#define M_DBI_ANNOCHAN_RECV     "chananno_recv"         ///< channel_announcementのnode_id
-#define M_DBI_ANNOOWN           "annoown"               ///< 自分の持つchannel
-#define M_DBI_ROUTE_SKIP        LNDB_DBI_ROUTE_SKIP     ///< 送金失敗short_channel_id
-#define M_DBI_INVOICE           "route_invoice"         ///< 送金中invoice一時保存
-#define M_DBI_PREIMAGE          "preimage"              ///< preimage
-#define M_DBI_PAYHASH           "payhash"               ///< revoked transaction close用
-#define M_DBI_WALLET            "wallet"                ///< wallet
-#define M_DBI_VERSION           "version"               ///< verion
+#define M_DBI_ANNO_CNL          "channel_anno"              ///< 受信したchannel_announcement/channel_update
+#define M_DBI_ANNOINFO_CNL      "channel_annoinfo"          ///< channel_announcement/channel_updateの受信元・送信先
+#define M_DBI_ANNO_NODE         "node_anno"                 ///< 受信したnode_announcement
+#define M_DBI_ANNOINFO_NODE     "node_annoinfo"             ///< node_announcementの受信元・送信先
+#define M_DBI_ANNOCHAN_RECV     "chananno_recv"             ///< channel_announcementのnode_id
+#define M_DBI_ANNOOWN           "annoown"                   ///< 自分の持つchannel
+#define M_DBI_ROUTE_SKIP        LNDB_DBI_ROUTE_SKIP         ///< 送金失敗short_channel_id
+#define M_DBI_INVOICE           "route_invoice"             ///< 送金中invoice一時保存
+#define M_DBI_PREIMAGE          "preimage"                  ///< preimage
+#define M_DBI_PAYHASH           "payhash"                   ///< revoked transaction close用
+#define M_DBI_WALLET            "wallet"                    ///< wallet
+#define M_DBI_VERSION           "version"                   ///< verion
 
 #define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_HTLC_STR           (3)     // "%03d" 0〜482
@@ -125,7 +125,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-55))     ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-56))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -216,6 +216,9 @@
     -53: add `ln_update_info_t::fee_updates`
     -54: update `ln_update_info_t::updates`
     -55: update `ln_update_info_t::fee_updates`
+    -56: add `ln_update_info_t::next_fee_update_id`
+         add `ln_fee_update_t::id`
+         rename `ln_update_t::htlc_idx` -> `ln_update_t::type_specific_idx`
  */
 
 
@@ -448,10 +451,11 @@ static const backup_param_t DBCHANNEL_VALUES[] = {
     //
     M_ITEM(ln_channel_t, channel_id),           //[NORM_01]
     M_ITEM(ln_channel_t, short_channel_id),     //[NORM_02]
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, updates),      //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, updates),              //[NORM_03]
     //[NORM_03]htlcs --> HTLC
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id), //[NORM_03]
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, fee_updates),  //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id),         //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, fee_updates),          //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_fee_update_id),   //[NORM_03]
 
     //
     //comm
