@@ -727,12 +727,6 @@ static void *thread_main_start(void *pArg)
     LIST_INIT(&p_conf->payroute_head);
     LIST_INIT(&p_conf->pong_head);
 
-    //gossip
-    p_conf->firstblock = 0;
-    p_conf->lastblock = 0;
-    p_conf->firsttimestamp = 0;
-    p_conf->lasttimestamp = 0;
-
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
     pthread_mutex_init(&p_conf->mux_send, NULL);
@@ -1240,33 +1234,27 @@ static bool exchange_init(lnapp_conf_t *p_conf)
     }
     LOGD("loop:%d, count:%d, flag_recv=%02x\n", p_conf->loop, count, p_conf->flag_recv);
 
-    bool del_sendinfo;
     if (ln_announcement_is_gossip_query(p_conf->p_channel)) {
         LOGD("$$$ gossip_queries\n");
-        del_sendinfo = true;
+
+        //未送信のものはすべて送信するか、今までのものは全部送信しないのか -> 後者を採用
+        ln_db_annoinfos_add(p_conf->node_id);
     } else {
-        del_sendinfo = ln_need_init_routing_sync(p_conf->p_channel);
+        bool del_sendinfo = ln_need_init_routing_sync(p_conf->p_channel);
         LOGD("$$$ initial_routing_sync local=%s, remote=%s\n",
             ((p_conf->routesync == PTARMD_ROUTESYNC_INIT) ? "YES" : "no"),
             (del_sendinfo) ? "YES" : "no");
         if (del_sendinfo) {
             //send all range
-            p_conf->lastblock = UINT32_MAX;
+
+            //annoinfo情報削除(node_id指定)
+            LOGD("remove announcement sent info\n");
+            ln_db_annoinfos_del(p_conf->node_id);
         } else {
             //only new received
-            p_conf->firsttimestamp = (uint32_t)utl_time_time();
+            ln_db_annoinfos_add(p_conf->node_id);
         }
-        p_conf->lasttimestamp = UINT32_MAX;
     }
-    if (del_sendinfo) {
-        //annoinfo情報削除(node_id指定)
-        //  gossip_queries: timestamp filter
-        //  initial_routing_sync: all
-        LOGD("remove announcement sent info\n");
-        ln_db_annoinfos_del(p_conf->node_id);
-    }
-
-
     return p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) != 0);
 }
 

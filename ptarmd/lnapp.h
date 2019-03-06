@@ -94,10 +94,6 @@ typedef struct lnapp_conf_t {
     
     //routing_sync
     ptarmd_routesync_t  routesync;              ///< local routing_sync
-    uint32_t            firstblock;             ///< [query/reply_channel_range]
-    uint32_t            lastblock;              ///< [query/reply_channel_range]
-    uint32_t            firsttimestamp;         ///< [gossip_timestamp_filter]
-    uint32_t            lasttimestamp;          ///< [gossip_timestamp_filter]
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中

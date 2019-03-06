@@ -297,6 +297,35 @@ typedef struct {
     uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
 } ln_anno_param_t;
 
+
+/** @typedef    ln_gquery_t
+ *  @brief
+ */
+typedef struct {
+    //for receiving query_channel_range
+    //  query_channel_rangeを1回受信すると、その範囲のreply_channel_rangeを返す。
+    //  reply_channel_rangeは複数回に分ける可能性がある(サイズ次第)。
+    //  ここでは、query_channel_range受信時にp_reply_rangeを全部準備する想定。
+    //  sent_reply_range_numは送信ごとにインクリメントし、reply_range_numと等しくなれば全送信完了。
+    uint32_t        sent_reply_range_num;   ///< sent reply_channel_range count
+    uint32_t        reply_range_num;        ///< p_reply_range count
+    struct {
+        uint32_t        id_num;             ///< p_encoded_ids size
+        uint8_t         *p_encoded_ids;     ///< encoded_short_ids
+    } *p_reply_range;
+
+    //for receiving query_short_channel_ids
+    //  query_short_channel_idsを1回受信すると、その分のannouncementを送信し、
+    //      最後にreply_short_channel_idsを送信する。
+    //      可能性として、query_short_channel_idsで要求された個数よりも
+    //          現状の数が少ないことがありうる(closeされた場合など)。
+    //      その場合はsent_reply_anno_numを進めて続けるので、どちらかといえばindexか？
+    uint32_t        sent_reply_anno_num;    ///< sent announcment count
+    uint32_t        reply_anno_num;         ///< p_reply_short_ids count
+    uint64_t        *p_reply_short_ids;     ///< decoded short_channel_ids
+} ln_gquery_t;
+
+
 /// @}
 
 
@@ -366,6 +395,9 @@ struct ln_channel_t {
 
     //noise protocol
     ln_noise_t                  noise;                          ///< [NOIS_01]noise protocol
+
+    //gossip_queries
+    ln_gquery_t                 gquery;                         ///< [GQRY_01]gossip_queries
 
     //last error
     int                         err;                            ///< [ERRO_01]error code(ln_err.h)
@@ -813,9 +845,9 @@ uint64_t ln_remote_msat(const ln_channel_t *pChannel);
 
 
 /** get payable local msat
- * 
+ *
  * (local msat) - (remote channel_reserve_sat)
- * 
+ *
  * @param[in]           pChannel        channel info
  * @return      local payable m-satoshi
  */
@@ -823,9 +855,9 @@ uint64_t ln_local_payable_msat(const ln_channel_t *pChannel);
 
 
 /** get payable remote msat
- * 
+ *
  * (remote msat) - (local channel_reserve_sat)
- * 
+ *
  * @param[in]           pChannel        channel info
  * @return      remote payable m-satoshi
  */
@@ -1173,7 +1205,7 @@ const ln_node_addr_t *ln_node_addr(void);
 
 
 /** get node alias
- * 
+ *
  */
 const char *ln_node_alias(void);
 
@@ -1181,9 +1213,9 @@ const char *ln_node_alias(void);
 const uint8_t *ln_node_getid(void);
 
 /** initialize node
- * 
+ *
  * @param[in]   pNode       initialize data
- * 
+ *
  * @note
  *      - pNode->keys not used
  */

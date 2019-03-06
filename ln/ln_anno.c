@@ -488,25 +488,60 @@ bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
 
 bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_channel_range_t *pMsg)
 {
+    bool ret;
+
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
     }
 
-#warning GQUERY TEST(no channel data)
+#warning GQUERY TEST
     ln_msg_reply_channel_range_t msg;
     msg.p_chain_hash = pMsg->p_chain_hash;
+
+    //get short_channel_ids from DB
+    //  heightからshort_channel_idを取得する
+    //  "ascending order"という仕様があるので、昇順
+
+    //get all short_channel_id
+    uint64_t short_channel_id = 0;
+    void *p_cur_cnl = NULL;         //channel
+    ret = ln_db_anno_transaction();
+    if (!ret) {
+        LOGE("fail\n");
+        return false;
+    }
+    ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNL);
+    if (!ret) {
+        LOGE("fail\n");
+        ln_db_anno_commit(false);
+        return false;
+    }
+    utl_buf_t short_ids;
+    utl_push_t push;
+    utl_push_init(&push, &short_ids, 0);
+    while (ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, NULL, NULL, NULL)) {
+        utl_push_data(&push, &short_channel_id, LN_SZ_SHORT_CHANNEL_ID);
+    }
+    ln_db_anno_cur_close(p_cur_cnl);
+    ln_db_anno_commit(false);
+
+    //encode
+    utl_buf_t encoded_ids;
+    ret = ln_msg_gossip_ids_encode(&encoded_ids, (const uint64_t *)short_ids.buf, short_ids.len / LN_SZ_SHORT_CHANNEL_ID);
+    utl_buf_free(&short_ids);
+
+    //send
     msg.first_blocknum = pMsg->first_blocknum;
     msg.number_of_blocks = pMsg->number_of_blocks;
     msg.complete = 1;
-    //encoded_short_ids need encode type
-    uint8_t zero = LN_GOSSIPQUERY_ENCODE_NONE;
-    msg.len = (uint16_t)sizeof(zero);
-    msg.p_encoded_short_ids = &zero;
+    msg.len = (uint16_t)encoded_ids.len;
+    msg.p_encoded_short_ids = encoded_ids.buf;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_reply_channel_range_write(&buf, &msg)) return false;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
+    utl_buf_free(&encoded_ids);
     return true;
 }
 

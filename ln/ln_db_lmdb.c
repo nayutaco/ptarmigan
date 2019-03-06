@@ -38,6 +38,7 @@
 #include "utl_str.h"
 #include "utl_dbg.h"
 #include "utl_time.h"
+#include "utl_int.h"
 
 #include "btc_crypto.h"
 #include "btc_sw.h"
@@ -125,7 +126,7 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-56))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-57))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -219,6 +220,7 @@
     -56: add `ln_update_info_t::next_fee_update_id`
          add `ln_fee_update_t::id`
          rename `ln_update_t::htlc_idx` -> `ln_update_t::type_specific_idx`
+    -57: channel_announcement/channel_update key: little endian -> big endian(for auto sort)
  */
 
 
@@ -229,7 +231,7 @@
 #define M_ANNOINFO_CNL_SET(keydata, key, short_channel_id, type) {\
     key.mv_size = sizeof(keydata);\
     key.mv_data = keydata;\
-    memcpy(keydata, &short_channel_id, LN_SZ_SHORT_CHANNEL_ID);\
+    utl_int_unpack_u64be(keydata, short_channel_id);\
     keydata[LN_SZ_SHORT_CHANNEL_ID] = type;\
 }
 
@@ -637,6 +639,7 @@ static int annonod_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const uin
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId);
 static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId);
+static void annoinfo_cur_add(MDB_cursor *pCursor, const uint8_t *pNodeId);
 static void anno_del_prune(void);
 
 static bool preimage_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
@@ -1442,8 +1445,8 @@ void ln_db_anno_commit(bool bCommit)
  *      note:
  *          - `key` is structed like below:
  *              ``` uint8_t key[9];
- *                  memcpy(key, &short_channel_id, 8);
- *                  key[8] = 'A';   ```
+ *                  key[0..7] = (BigEndian)short_channel_id;
+ *                  key[8] = 'A' or 'B' or 'C';   ```
  *-------------------------------------------------------------------
  *  dbi: "channel_annoinfo" (M_DBI_ANNOINFO_CNL, LN_DB_CUR_INFOCNL)
  *      key:  [channel_announcement]short_channel_id + 'A'
@@ -2433,6 +2436,64 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId)
     } else {
         LOGD("remove annoinfo: ALL\n");
     }
+
+LABEL_EXIT:
+    if (retval != 0) {
+        ln_db_anno_commit(false);
+    }
+
+    return retval == 0;
+}
+
+
+bool ln_db_annoinfos_add(const uint8_t *pNodeId)
+{
+    int         retval;
+    MDB_dbi     dbi_cnl;
+    MDB_dbi     dbi_nod;
+    MDB_cursor  *cursor;
+
+    bool ret = ln_db_anno_transaction();
+    if (!ret) {
+        LOGE("ERR: anno transaction\n");
+        retval = -1;
+        goto LABEL_EXIT;
+    }
+
+    retval = MDB_DBI_OPEN(mTxnAnno, M_DBI_ANNOINFO_CNL, 0, &dbi_cnl);
+    if (retval != 0) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = MDB_DBI_OPEN(mTxnAnno, M_DBI_ANNOINFO_NODE, 0, &dbi_nod);
+    if (retval != 0) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    LOGD("add annoinfo: ");
+    DUMPD(pNodeId, BTC_SZ_PUBKEY);
+
+    //annocnl info
+    retval = mdb_cursor_open(mTxnAnno, dbi_cnl, &cursor);
+    if (retval == 0) {
+        annoinfo_cur_add(cursor, pNodeId);
+        mdb_cursor_close(cursor);
+    } else {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+    }
+
+    //annonode info
+    retval = mdb_cursor_open(mTxnAnno, dbi_nod, &cursor);
+    if (retval == 0) {
+       annoinfo_cur_add(cursor, pNodeId);
+       //mdb_cursor_close(cursor);
+    } else {
+       LOGE("ERR: %s\n", mdb_strerror(retval));
+    }
+
+    ln_db_anno_commit(true);
+    retval = 0;
 
 LABEL_EXIT:
     if (retval != 0) {
@@ -4484,8 +4545,8 @@ static int annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pT
     int retval = mdb_cursor_get(cur, &key, &data, op);
     if (retval == 0) {
         if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
-            //key = short_channel_id + type
-            memcpy(pShortChannelId, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
+            //key = short_channel_id(BigEndian) + type
+            *pShortChannelId = utl_int_pack_u64be(key.mv_data);
             char type = *(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
             if (pType != NULL) {
                 *pType = type;
@@ -4658,34 +4719,75 @@ static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
 
     while (mdb_cursor_get(pCursor, &key, &data, MDB_NEXT) == 0) {
         int nums = data.mv_size / BTC_SZ_PUBKEY;
-        for (int lp = 0; lp < nums; lp++) {
+        int lp;
+        for (lp = 0; lp < nums; lp++) {
             if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
-                mdb_val_alloccopy(&key, &key);
-
-                nums--;
-                if (nums > 0) {
-                    uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * nums);
-                    memcpy(p_data,
-                                (uint8_t *)data.mv_data,
-                                BTC_SZ_PUBKEY * lp);
-                    memcpy(p_data + BTC_SZ_PUBKEY * lp,
-                                (uint8_t *)data.mv_data + BTC_SZ_PUBKEY * (lp + 1),
-                                BTC_SZ_PUBKEY * (nums - lp));
-
-                    data.mv_size = BTC_SZ_PUBKEY * nums;
-                    data.mv_data = p_data;
-                } else {
-                    data.mv_size = 0;
-                    data.mv_data = NULL;
-                }
-                int retval = mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
-                if (retval != 0) {
-                    LOGE("ERR: %s\n", mdb_strerror(retval));
-                }
-                UTL_DBG_FREE(data.mv_data);
-                UTL_DBG_FREE(key.mv_data);
                 break;
             }
+        }
+        if (lp < nums) {
+            mdb_val_alloccopy(&key, &key);
+
+            nums--;
+            if (nums > 0) {
+                uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * nums);
+                memcpy(p_data,
+                            (uint8_t *)data.mv_data,
+                            BTC_SZ_PUBKEY * lp);
+                memcpy(p_data + BTC_SZ_PUBKEY * lp,
+                            (uint8_t *)data.mv_data + BTC_SZ_PUBKEY * (lp + 1),
+                            BTC_SZ_PUBKEY * (nums - lp));
+
+                data.mv_size = BTC_SZ_PUBKEY * nums;
+                data.mv_data = p_data;
+            } else {
+                data.mv_size = 0;
+                data.mv_data = NULL;
+            }
+            int retval = mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
+            if (retval != 0) {
+                LOGE("ERR: %s\n", mdb_strerror(retval));
+            }
+            UTL_DBG_FREE(data.mv_data);
+            UTL_DBG_FREE(key.mv_data);
+        }
+    }
+}
+
+
+/** annoinfoからnode_idを削除(channel, node共通)
+ *
+ * @param[in]   pCursor
+ * @param[in]   pNodeId
+ */
+static void annoinfo_cur_add(MDB_cursor *pCursor, const uint8_t *pNodeId)
+{
+    MDB_val     key, data;
+
+    while (mdb_cursor_get(pCursor, &key, &data, MDB_NEXT) == 0) {
+        int nums = data.mv_size / BTC_SZ_PUBKEY;
+        int lp;
+        for (lp = 0; lp < nums; lp++) {
+            if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
+                break;
+            }
+        }
+        if (lp >= nums) {
+            mdb_val_alloccopy(&key, &key);
+
+            nums++;
+            uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * nums);
+            memcpy(p_data, data.mv_data, data.mv_size);
+            memcpy(p_data + data.mv_size, pNodeId, BTC_SZ_PUBKEY);
+
+            data.mv_size = BTC_SZ_PUBKEY * nums;
+            data.mv_data = p_data;
+            int retval = mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
+            if (retval != 0) {
+                LOGE("ERR: %s\n", mdb_strerror(retval));
+            }
+            UTL_DBG_FREE(data.mv_data);
+            UTL_DBG_FREE(key.mv_data);
         }
     }
 }
