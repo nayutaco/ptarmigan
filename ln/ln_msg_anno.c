@@ -51,7 +51,7 @@
  * macros
  ********************************************************************/
 
-#define M_ZLIB_CHUNK	        (1024)
+#define M_ZLIB_CHUNK            (1024)
 
 #ifdef DEVELOPER_MODE
 #define DBG_PRINT_READ_CNL

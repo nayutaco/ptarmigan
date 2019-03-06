@@ -547,12 +547,19 @@ bool ln_db_annoown_del(uint64_t ShortChannelId);
  ********************************************************************/
 
 /** channel_announcement/channel_update/node_announcement送受信ノード情報削除
- * announcement送信済みのnode_idを保持しているので、起動時に全削除する。
- * また、チャネル接続時には接続先node_idの情報を削除する。
+ * announcement送信済みnode_idから削除する。
  *
  * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
  */
 bool ln_db_annoinfos_del(const uint8_t *pNodeId);
+
+
+/** channel_announcement/channel_update/node_announcement送受信ノード情報追加
+ * announcement送信済みnode_idに追加する。
+ *
+ * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
+ */
+bool ln_db_annoinfos_add(const uint8_t *pNodeId);
 
 
 /********************************************************************

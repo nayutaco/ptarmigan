@@ -863,7 +863,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 
             uint64_t short_channel_id;
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-            memcpy(&short_channel_id, key.mv_data, sizeof(short_channel_id));
+            short_channel_id = utl_int_pack_u64be(key.mv_data);
             ln_short_channel_id_string(str_sci, short_channel_id);
             printf("%s\n", str_sci);
         } else if ((dbtype == LN_LMDB_DBTYPE_ANNOINFO_NODE) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
