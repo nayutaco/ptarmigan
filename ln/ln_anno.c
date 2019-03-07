@@ -520,8 +520,13 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
     utl_buf_t short_ids;
     utl_push_t push;
     utl_push_init(&push, &short_ids, 0);
-    while (ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, NULL, NULL, NULL)) {
-        utl_push_data(&push, &short_channel_id, LN_SZ_SHORT_CHANNEL_ID);
+    char type;
+    while (ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, NULL, NULL)) {
+        //LOGD("short_channel_id=%016" PRIx64 ", type=%c\n", short_channel_id, type);
+        if (type == LN_DB_CNLANNO_ANNO) {
+            //channel_announcementがあるものだけ送信する
+            utl_push_data(&push, &short_channel_id, LN_SZ_SHORT_CHANNEL_ID);
+        }
     }
     ln_db_anno_cur_close(p_cur_cnl);
     ln_db_anno_commit(false);
