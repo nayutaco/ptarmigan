@@ -556,6 +556,23 @@ uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, b
 }
 
 
+uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLocal)
+{
+    uint16_t num = 0;
+    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
+            num++;
+        }
+        if (LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_MASK_DEL_HTLC, bLocal)) {
+            num--;
+        }
+    }
+    return num;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
