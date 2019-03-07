@@ -477,7 +477,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     show_channel_param(p_channel, stderr, "close channel", __LINE__);
 
     const char *p_str;
-    if (!ln_shutdown_send(p_channel)) {
+    if (ln_shutdown_send(p_channel)) {
         p_str = "close: good way(local) start";
     } else {
         p_str = "fail close: good way(local) start";
@@ -2931,6 +2931,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
                         str_sci, node_id,
                         txidstr);
             ptarmd_call_script(PTARMD_EVT_CLOSED, param);
+            ptarmd_eventlog(NULL, "close: good way: %s", txidstr);
 
             stop_threads(p_conf);
         } else {

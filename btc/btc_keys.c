@@ -391,7 +391,7 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
     const uint8_t *pkh;
     int prefix = btc_script_scriptpk_prefix(&pkh, pScriptPk);
-    if (prefix != BTC_PREF_MAX) return false;
+    if (prefix == BTC_PREF_MAX) return false;
     if (!hash2addr(pAddr, pkh, prefix)) return false;
     return true;
 }
