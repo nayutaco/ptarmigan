@@ -103,5 +103,7 @@ void ln_update_info_set_state_flag_all(ln_update_info_t *pInfo, uint8_t flag);
 
 uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal);
 
+uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLocal);
+
 
 #endif /* LN_UPDATE_INFO_H__ */
