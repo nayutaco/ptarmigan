@@ -415,7 +415,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
             p_str_fin_type = "unknown";
         }
 #endif
-        printf(INDENT6 M_QQ("state") ": " M_QQ("0x%02x") ",\n", p_update->state);
+        printf(INDENT6 M_QQ("state") ": " M_QQ("0x%02x") "\n", p_update->state);
         //printf(INDENT6 M_QQ("type") ": " M_QQ("%s") ",\n", p_str_type);
         //printf(INDENT6 M_QQ("fin_type") ": " M_QQ("%s") "\n", p_str_fin_type);
         printf(INDENT5 "},\n");
