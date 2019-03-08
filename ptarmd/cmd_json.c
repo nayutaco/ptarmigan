@@ -79,7 +79,7 @@
 
 typedef struct {
     bool b_local;
-    const uint8_t *p_nodeid;
+    const uint8_t *p_node_id;
     cJSON *result;
 } getcommittx_t;
 
@@ -138,8 +138,8 @@ static int cmd_connect_proc(const peer_conn_t *pConn);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
 static int cmd_stop_proc(void);
 static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jrpc_context *ctx);
-static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat);
-static int cmd_eraseinvoice_proc(const uint8_t *pPayHash);
+static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat);
+static int cmd_eraseinvoice_proc(const uint8_t *pPaymentHash);
 static int cmd_routepay_proc1(
                 ln_invoice_t **ppInvoiceData,
                 ln_routing_result_t *pRouteResult,
@@ -164,7 +164,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId);
 
 static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn);
 static char *create_bolt11(
-                const uint8_t *pPayHash,
+                const uint8_t *pPaymentHash,
                 uint64_t Amount,
                 uint32_t Expiry,
                 const ln_r_field_t *pRField,
@@ -278,7 +278,7 @@ int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
 }
 
 
-int cmd_json_pay_retry(const uint8_t *pPayHash)
+int cmd_json_pay_retry(const uint8_t *pPaymentHash)
 {
     bool ret;
     int retval = ENOENT;
@@ -286,7 +286,7 @@ int cmd_json_pay_retry(const uint8_t *pPayHash)
     uint64_t add_amount_msat;
 
     LOGD("pay_retry\n");
-    ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPayHash);   //p_invoiceはUTL_DBG_MALLOC()される
+    ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPaymentHash);   //p_invoiceはUTL_DBG_MALLOC()される
     if (ret) {
         retval = cmd_json_pay(p_invoice, add_amount_msat);
     } else {
@@ -301,12 +301,12 @@ int cmd_json_pay_retry(const uint8_t *pPayHash)
 void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr)
 {
     //log file
-    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
     char fname[256];
     FILE *fp;
 
-    utl_str_bin2str(str_payhash, pPaymentHash, BTC_SZ_HASH256);
-    sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
+    utl_str_bin2str(str_payment_hash, pPaymentHash, BTC_SZ_HASH256);
+    sprintf(fname, FNAME_INVOICE_LOG, str_payment_hash);
     fp = fopen(fname, "a");
     if (fp != NULL) {
         char time[UTL_SZ_TIME_FMT_STR + 1];
@@ -412,7 +412,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //basic info
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
-    utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+    utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddNumber64ToObject(result, "total_local_msat", total_amount);
@@ -779,7 +779,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON_AddItemToArray(result, json);
         }
     }
-    ln_db_preimage_cur_close(p_cur);
+    ln_db_preimage_cur_close(p_cur, false);
 
     return result;
 }
@@ -900,7 +900,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("payment\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_transferable_nodeid(payconf.hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = ptarmd_search_transferable_node_id(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
 
         bool inited = lnapp_is_inited(p_appconf);
@@ -929,7 +929,7 @@ LABEL_EXIT:
     if (ctx->error_code != 0) {
         ln_db_invoice_del(payconf.payment_hash);
         //一時的なスキップは削除する
-        ln_db_routeskip_drop(true);
+        ln_db_route_skip_drop(true);
     }
 
     return result;
@@ -944,7 +944,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     LOGD("$$$ [JSONRPC]routepay\n");
 
-    ln_db_routeskip_work(true);
+    ln_db_route_skip_work(true);
     mPayTryCount = 0;
     return cmd_routepay_cont(ctx, params, id);
 }
@@ -1009,7 +1009,7 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    lnapp_conf_t *p_appconf = ptarmd_search_transferable_nodeid(rt_ret.hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = ptarmd_search_transferable_node_id(rt_ret.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
         bool ret = lnapp_check_ponglist(p_appconf);
         if (!ret) {
@@ -1036,7 +1036,7 @@ LABEL_EXIT:
         //paymentはretryを行うが、JSON-RPCのreplyは初回のみ有効
         if (retry) {
             LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
-            ln_db_routeskip_save(rt_ret.hop_datain[0].short_channel_id, true);
+            ln_db_route_skip_save(rt_ret.hop_datain[0].short_channel_id, true);
             cmd_json_pay(p_invoice, add_amount_msat);
             result = cJSON_CreateString("searching payment route...");
         } else {
@@ -1045,17 +1045,17 @@ LABEL_EXIT:
             ctx->error_message = error_str_cjson(err);
 
             ln_db_invoice_del(p_invoice_data->payment_hash);
-            ln_db_routeskip_work(false);
+            ln_db_route_skip_work(false);
             cmd_json_pay_result(p_invoice_data->payment_hash, "give up");
 
             //log
-            char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+            char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
             char time[UTL_SZ_TIME_FMT_STR + 1];
 
-            utl_str_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
-            sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
+            utl_str_bin2str(str_payment_hash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
+            sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payment_hash);
             LOGD("%s\n", mLastPayErr);
-            ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
+            ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payment_hash, ctx->error_message);
         }
     }
     UTL_DBG_FREE(p_invoice_data);
@@ -1130,7 +1130,7 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("$$$ [JSONRPC]getlasterror\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(conn.node_id);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(conn.node_id);
     if (p_appconf != NULL) {
         //接続中
         LOGD("error code: %d\n", p_appconf->err);
@@ -1242,7 +1242,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     result = cJSON_CreateObject();
     getcommittx_t param;
     param.b_local = true;
-    param.p_nodeid = conn.node_id;
+    param.p_node_id = conn.node_id;
     param.result = result;
     ln_db_channel_search_readonly(comp_func_getcommittx, &param);
 
@@ -1589,7 +1589,7 @@ static int cmd_connect_proc(const peer_conn_t *pConn)
 
     int retry = M_RETRY_CONN_CHK;
     while (retry--) {
-        lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pConn->node_id);
+        lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pConn->node_id);
         if ((p_appconf != NULL) && lnapp_is_looping(p_appconf) && lnapp_is_connected(p_appconf)) {
             break;
         }
@@ -1613,7 +1613,7 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
     LOGD("disconnect\n");
 
     int err;
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
     if (p_appconf != NULL) {
         lnapp_stop(p_appconf);
         err = 0;
@@ -1649,7 +1649,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 {
     LOGD("fund\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
     if (p_appconf == NULL) {
         //未接続
         return RPCERR_NOCONN;
@@ -1708,11 +1708,11 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 
 /** invoice作成
  *
- * @param[out]  pPayHash
+ * @param[out]  pPaymentHash
  * @param[in]   AmountMsat
  * @retval  エラーコード
  */
-static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
+static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat)
 {
     LOGD("invoice\n");
 
@@ -1727,22 +1727,22 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
     ln_db_preimage_save(&preimage, NULL);
     ptarmd_preimage_unlock();
 
-    ln_payment_hash_calc(pPayHash, preimage.preimage);
+    ln_payment_hash_calc(pPaymentHash, preimage.preimage);
     return 0;
 }
 
 
 /** invoice削除
  *
- * @param[in]   pPayHash
+ * @param[in]   pPaymentHash
  * @retval  エラーコード
  */
-static int cmd_eraseinvoice_proc(const uint8_t *pPayHash)
+static int cmd_eraseinvoice_proc(const uint8_t *pPaymentHash)
 {
     bool ret;
 
-    if (pPayHash != NULL) {
-        ret = ln_db_preimage_del_hash(pPayHash);
+    if (pPaymentHash != NULL) {
+        ret = ln_db_preimage_del_hash(pPaymentHash);
     } else {
         ret = ln_db_preimage_del(NULL);
     }
@@ -1792,7 +1792,7 @@ static int cmd_routepay_proc1(
     p_invoice_data->amount_msat += AddAmountMsat;
 
     lnerr_route_t rerr = ln_routing_calculate(pRouteResult,
-                    ln_node_getid(),
+                    ln_node_get_id(),
                     p_invoice_data->pubkey,
                     BlockCnt + p_invoice_data->min_final_cltv_expiry,
                     p_invoice_data->amount_msat,
@@ -1874,13 +1874,13 @@ static int cmd_routepay_proc2(
     if (mPayTryCount == 1) {
         //初回ログ
         uint64_t total_amount = ln_node_total_msat();
-        char str_payhash[BTC_SZ_HASH256 * 2 + 1];
-        utl_str_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+        char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
+        utl_str_bin2str(str_payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
         char str_payee[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
 
         ptarmd_eventlog(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
-                    str_payhash, str_payee, total_amount, pInvoiceData->amount_msat);
+                    str_payment_hash, str_payee, total_amount, pInvoiceData->amount_msat);
     }
 
     return err;
@@ -1892,12 +1892,12 @@ static void cmd_routepay_save_info(
                 int32_t BlockCnt)
 {
     //log file
-    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
     char fname[256];
     FILE *fp;
 
-    utl_str_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
-    sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
+    utl_str_bin2str(str_payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+    sprintf(fname, FNAME_INVOICE_LOG, str_payment_hash);
 
     //file existance check
     struct stat buf;
@@ -1912,7 +1912,7 @@ static void cmd_routepay_save_info(
         char time[UTL_SZ_TIME_FMT_STR + 1];
 
         fprintf(fp, "----------- invoice -----------\n");
-        fprintf(fp, "payment_hash: %s\n", str_payhash);
+        fprintf(fp, "payment_hash: %s\n", str_payment_hash);
         fprintf(fp, "amount_msat: %" PRIu64 "\n", pInvoiceData->amount_msat);
         fprintf(fp, "current blockcount: %" PRId32 "\n", BlockCnt);
         fprintf(fp, "min_final_cltv_expiry: %" PRId32 "\n", pInvoiceData->min_final_cltv_expiry);
@@ -1928,15 +1928,15 @@ static void cmd_routepay_save_route(
                 const char *pResultStr)
 {
     //log file
-    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
     char fname[256];
     FILE *fp;
 
-    utl_str_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
-    sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
+    utl_str_bin2str(str_payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+    sprintf(fname, FNAME_INVOICE_LOG, str_payment_hash);
     fp = fopen(fname, "a");
     if (fp != NULL) {
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         char str_pubkey[BTC_SZ_PUBKEY * 2 + 1];
 
         fprintf(fp, "\n----------- route -----------\n");
@@ -1973,7 +1973,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
     LOGD("mutual close\n");
 
     int err;
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
     if (p_appconf != NULL) {
         //接続中
         bool nopong = lnapp_check_ponglist(p_appconf);
@@ -2023,7 +2023,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
     if (haveCnl) {
         bool ret = lnapp_close_channel_force(pNodeId);
         if (ret) {
-            lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
+            lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
             if (p_appconf != NULL) {
                 lnapp_stop(p_appconf);
             }
@@ -2057,7 +2057,7 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
     }
     pConn->routesync = PTARMD_ROUTESYNC_DEFAULT;
 
-    //peer_nodeid, peer_addr, peer_port
+    //peer_node_id, peer_addr, peer_port
     json = cJSON_GetArrayItem(params, (*pIndex)++);
     if (json && (json->type == cJSON_String)) {
         bool ret = utl_str_str2bin(pConn->node_id, BTC_SZ_PUBKEY, json->valuestring);
@@ -2071,7 +2071,7 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
         LOGE("fail: node_id\n");
         return RPCERR_PARSE;
     }
-    if (memcmp(ln_node_getid(), pConn->node_id, BTC_SZ_PUBKEY) == 0) {
+    if (memcmp(ln_node_get_id(), pConn->node_id, BTC_SZ_PUBKEY) == 0) {
         //node_idが自分と同じ
         LOGE("fail: same own node_id\n");
         return RPCERR_NODEID;
@@ -2114,7 +2114,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
     param.pp_field = ppRField;
     param.amount_msat = AmountMsat;
     param.p_fieldnum = pRFieldNum;
-    ln_db_channel_search_nk_readonly(comp_func_cnl, &param);
+    ln_db_channel_search_readonly_nokey(comp_func_cnl, &param);
 
     if (*pRFieldNum != 0) {
         LOGD("add r_field: %d\n", *pRFieldNum);
@@ -2170,7 +2170,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
  *
  */
 static char *create_bolt11(
-                const uint8_t *pPayHash,
+                const uint8_t *pPaymentHash,
                 uint64_t Amount,
                 uint32_t Expiry,
                 const ln_r_field_t *pRField,
@@ -2196,7 +2196,7 @@ static char *create_bolt11(
     char *p_invoice = NULL;
     if (type != BTC_BLOCK_CHAIN_UNKNOWN) {
         ln_invoice_create(&p_invoice, type,
-                pPayHash, Amount, Expiry, pRField, RFieldNum, MinFinalCltvExpiry);
+                pPaymentHash, Amount, Expiry, pRField, RFieldNum, MinFinalCltvExpiry);
     }
     return p_invoice;
 }
@@ -2242,7 +2242,7 @@ static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void
 
     getcommittx_t *param = (getcommittx_t *)p_param;
 
-    if (memcmp(param->p_nodeid, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
+    if (memcmp(param->p_node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
         lnapp_conf_t appconf;
         appconf.p_channel = pChannel;
         lnapp_get_committx(&appconf, param->result, param->b_local);

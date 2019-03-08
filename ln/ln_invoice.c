@@ -654,7 +654,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
+bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPaymentHash, uint64_t Amount, uint32_t Expiry,
                         const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry)
 {
     ln_invoice_t *p_invoice_data;
@@ -671,8 +671,8 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     p_invoice_data->amount_msat = Amount;
     p_invoice_data->expiry = Expiry;
     p_invoice_data->min_final_cltv_expiry = MinFinalCltvExpiry;
-    memcpy(p_invoice_data->pubkey, ln_node_getid(), BTC_SZ_PUBKEY);
-    memcpy(p_invoice_data->payment_hash, pPayHash, BTC_SZ_HASH256);
+    memcpy(p_invoice_data->pubkey, ln_node_get_id(), BTC_SZ_PUBKEY);
+    memcpy(p_invoice_data->payment_hash, pPaymentHash, BTC_SZ_HASH256);
     p_invoice_data->r_field_num = RFieldNum;
     memcpy(p_invoice_data->r_field, pRField, sizeof(ln_r_field_t) * RFieldNum);
 

@@ -23,14 +23,14 @@
  *  @brief  for LMDB implementation
  *  @note
  *      - environment/dbi
- *          -# dbptarm_chnl
+ *          -# channel
  *              -# "CN" + channel_id
  *              -# "SE" + channel_id
  *              -# "HT" + channel_id + "ddd"(0〜LN_HTLC_MAX-1)
  *              -# "RV" + channel_id
  *              -# "cn" + channel_id
  *              -# "version"
- *          -# dbptarm_anno
+ *          -# anno
  *              -# "channel_anno"
  *                  - key: short_channel_id + SUFFIX
  *                  - data: timestamp + announcement packet
@@ -38,7 +38,7 @@
  *                      - SUFFIX='B': channel_update(lower node_id)
  *                      - SUFFIX='C': channel_update(upper node_id)
  *                  - usage: save announcement packet.
- *              -# "channel_annoinfo"
+ *              -# "channel_anno_info"
  *                  - key: short_channel_id + SUFFIX("A" or "B" or "C")
  *                  - data: receiving/sending node_ids
  *                  - usage: check already sent.
@@ -46,26 +46,26 @@
  *                  - key: node_id
  *                  - data: timestamp + node_announcement packet
  *                  - usage: save node_announcement packet(including own node)
- *                  - memo: skip if "chananno_recv" not registered.
- *              -# "node_annoinfo"
+ *                  - memo: skip if "channal_anno_recv" not registered.
+ *              -# "node_anno_info"
  *                  - key: node_id
  *                  - data: receiving/sending node_ids
  *                  - usage: check already sent.
- *              -# "chananno_recv"
+ *              -# "channal_anno_recv"
  *                  - key: node_id(channel_announcement's node_id_1 and node_id_2)
  *                  - data: (none)
  *                  - usage: save node_announcement packet if exist node_id.
  *                          this db save on receiving channel_announcement.
- *              -# "annoown"
+ *              -# "channel_owned"
  *                  - key: channel_id(own node)
  *                  - data: (none)
  *                  - usage: for check local channel or not.
- *          -# dbptarm_node
+ *          -# node
  *              -# "route_skip"
  *                  - key: short_channel_id
  *                  - data: (none)=permanently skip, 0x01=temporary skip, 0x02=routing low priority
  *                  - usage: ignore route if exists and data == skip.
- *              -# "route_invoice"
+ *              -# "invoice"
  *                  - key: payment_hash
  *                  - data: BOLT11 string + additional amount_msat
  *                  - usage: save at start payment. drop at fail all retry.
@@ -73,11 +73,11 @@
  *                  - key: preimage
  *                  - data: amount_msat + creation timestamp + expiry block
  *                  - usage: save created invoice
- *              -# "payhash"
+ *              -# "payment_hash"
  *                  - key: vout script
  *                  - data: HTLC type + expiry + payment_hash
  *                  - usage: for revoked transaction close. is this need yet?
- *          -# dbptarm_walt
+ *          -# wallet
  *              -# "wallet"
  *                  - key: outpoint(txid + index)
  *                  - data:
@@ -107,21 +107,22 @@ extern "C" {
  ********************************************************************/
 
 //key名
-#define LNDBK_RVV               "rvv"           ///< [revoked]vout
-#define LNDBK_RVW               "rvw"           ///< [revoked]witness
-#define LNDBK_RVT               "rvt"           ///< [revoked]HTLC type
-#define LNDBK_RVS               "rvs"           ///< [revoked]script
-#define LNDBK_RVN               "rvn"           ///< [revoked]num
-#define LNDBK_RVC               "rvc"           ///< [revoked]count
-#define LNDBK_VER               "ver"           ///< [version]version
-#define LNDBK_NODEID            "mynodeid"      ///< [version]自node_id
+#define LN_DB_KEY_RVV               "rvv"           ///< [revoked]vout
+#define LN_DB_KEY_RVW               "rvw"           ///< [revoked]witness
+#define LN_DB_KEY_RVT               "rvt"           ///< [revoked]HTLC type
+#define LN_DB_KEY_RVS               "rvs"           ///< [revoked]script
+#define LN_DB_KEY_RVN               "rvn"           ///< [revoked]num
+#define LN_DB_KEY_RVC               "rvc"           ///< [revoked]count
 
-#define LNDBK_LEN(key)          (sizeof(key) - 1)       ///< key長
-#define LNDBK_RLEN              (3)                     ///< [revoked]key長
+#define LN_DB_KEY_VERSION           "version"       ///< [version]version
+#define LN_DB_KEY_NODEID            "node_id"        ///< [version]自node_id
 
-#define LNDB_DBI_ROUTE_SKIP     "route_skip"
-#define LNDB_ROUTE_SKIP_TEMP    ((uint8_t)1)    // 一時的にskip
-#define LNDB_ROUTE_SKIP_WORK    ((uint8_t)2)    // 一時的にrouteに含める
+#define LN_DB_KEY_LEN(key)          (sizeof(key) - 1)   ///< key長
+#define LN_DB_KEY_RLEN              (3)                 ///< [revoked]key長
+
+#define LN_DB_DBI_ROUTE_SKIP        "route_skip"
+#define LN_DB_ROUTE_SKIP_TEMP       ((uint8_t)1)    // 一時的にskip
+#define LN_DB_ROUTE_SKIP_WORK       ((uint8_t)2)    // 一時的にrouteに含める
 
 
 /**************************************************************************
@@ -132,24 +133,24 @@ typedef enum {
     LN_LMDB_DBTYPE_UNKNOWN,
     LN_LMDB_DBTYPE_CHANNEL,
     LN_LMDB_DBTYPE_SECRET,
-    LN_LMDB_DBTYPE_ADD_HTLC,
-    LN_LMDB_DBTYPE_REVOKED,
-    LN_LMDB_DBTYPE_BKCHANNEL,
+    LN_LMDB_DBTYPE_HTLC,
+    LN_LMDB_DBTYPE_REVOKED_TX,
+    LN_LMDB_DBTYPE_CHANNEL_BACKUP,
     LN_LMDB_DBTYPE_WALLET,
-    LN_LMDB_DBTYPE_ANNO_CNL,
-    LN_LMDB_DBTYPE_ANNO_NODE,
-    LN_LMDB_DBTYPE_ANNOINFO_CNL,
-    LN_LMDB_DBTYPE_ANNOINFO_NODE,
+    LN_LMDB_DBTYPE_CNLANNO,
+    LN_LMDB_DBTYPE_NODEANNO,
+    LN_LMDB_DBTYPE_CNLANNO_INFO,
+    LN_LMDB_DBTYPE_NODEANNO_INFO,
     LN_LMDB_DBTYPE_ROUTE_SKIP,
     LN_LMDB_DBTYPE_INVOICE,
     LN_LMDB_DBTYPE_PREIMAGE,
-    LN_LMDB_DBTYPE_PAYHASH,
+    LN_LMDB_DBTYPE_PAYMENT_HASH,
     LN_LMDB_DBTYPE_VERSION,
 } ln_lmdb_dbtype_t;
 
 
 typedef struct {
-    MDB_txn     *txn;
+    MDB_txn     *p_txn;
     MDB_dbi     dbi;
 } ln_lmdb_db_t;
 
@@ -161,11 +162,11 @@ typedef struct {
  */
 typedef struct {
     //ln_lmdb_db_t
-    MDB_txn     *txn;
+    MDB_txn     *p_txn;
     MDB_dbi     dbi;
 
     //cursor
-    MDB_cursor  *cursor;
+    MDB_cursor  *p_cursor;
 } lmdb_cursor_t;
 
 
@@ -176,39 +177,39 @@ typedef struct {
 /** LMDBパス設定
  *
  * LMDBのenvironmentを格納するパスを指定する。
- * 指定したパスの中に、dbchnl/ と dbnode/ を作成する。
+ * 指定したパスの中に、dbchannel/ と dbnode/ を作成する。
  *
  * @param[in]   pPath       DBを作成するディレクトリ
  */
-void ln_lmdb_set_path(const char *pPath);
+bool ln_lmdb_set_home_dir(const char *pPath);
 
 
 /** LMDB channelパス取得
  *
- * @return  dbptarm_chnlパス
+ * @return  channelパス
  */
-const char *ln_lmdb_get_chnlpath(void);
+const char *ln_lmdb_get_channel_db_path(void);
 
 
 /** LMDB nodeパス取得
  *
- * @return  dbptarm_nodeパス
+ * @return  nodeパス
  */
-const char *ln_lmdb_get_nodepath(void);
+const char *ln_lmdb_get_node_db_path(void);
 
 
 /** LMDB annoパス取得
  *
- * @return  dbptarm_annoパス
+ * @return  annoパス
  */
-const char *ln_lmdb_get_annopath(void);
+const char *ln_lmdb_get_anno_db_path(void);
 
 
-/** LMDB waltパス取得
+/** LMDB walletパス取得
  *
- * @return  dbptarm_waltパス
+ * @return  walletパス
  */
-const char *ln_lmdb_get_waltpath(void);
+const char *ln_lmdb_get_wallet_db_path(void);
 
 
 /** channel情報読込み
@@ -222,32 +223,32 @@ const char *ln_lmdb_get_waltpath(void);
  *      -
  *      - 新規 pChannel に読込を行う場合は、事前に #ln_init()を行っておくこと(seedはNULLでよい)
  */
-int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *txn, MDB_dbi dbi, bool bRestore);
+int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, bool bRestore);
 
 
 /** closeしたDB("cn")を出力
  *
  */
-void ln_lmdb_bkchannel_show(MDB_txn *txn, MDB_dbi dbi);
+void ln_lmdb_channel_backup_show(MDB_txn *pTxn, MDB_dbi Dbi);
 
 
 /**
  *
  */
-int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
+int ln_lmdb_cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
 /**
  *
  *
  */
-int ln_lmdb_annonod_cur_load(MDB_cursor *cur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+int ln_lmdb_nodeanno_cur_load(MDB_cursor *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);
 
 
-int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, int32_t *ver, char *wif, char *alias, uint16_t *p_port, uint8_t *genesis);
+int ln_db_lmdb_get_my_node_id(MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis);
 
 
 bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc, void *pFuncParam);

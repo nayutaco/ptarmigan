@@ -12,10 +12,10 @@
   i.e. "run option file generation program -> use ptarmcli with commandline option and that file"
 - Currently, the number of simultaneous connections is limited to a total of 20 (10 connections from the peer node, 10 connections from yourself).
 - JSON-RPC port number is the specified Lightning Network protocol port number + 1.
-- When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / dbptarm` is the database directory.
+- When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / db` is the database directory.
   Even if you exit `ptarmd` software, re-running `ptarmd` in the `ptarmigan / install / node` directory will start up as the same Lightning Network node.
-  If re-startup is not successful, remove the `dbptarm` directory and run it as a new node.
-- When version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
+  If re-startup is not successful, remove the `db` directory and run it as a new node.
+- When version up with DB change is done, you need DB clean(`rm -rf db`).
 
 ## Overview of Payment for Starblocks
 

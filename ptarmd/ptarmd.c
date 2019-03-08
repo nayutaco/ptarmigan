@@ -184,7 +184,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
         }
         fprintf(fp, "port=%d\n", p_addr->port);
         fprintf(fp, "node_id=");
-        utl_dbg_dump(fp, ln_node_getid(), BTC_SZ_PUBKEY, true);
+        utl_dbg_dump(fp, ln_node_get_id(), BTC_SZ_PUBKEY, true);
         fclose(fp);
     }
 
@@ -216,7 +216,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
         // $2: node_id
         char param[256];
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         sprintf(param, "0x0x0 %s", node_id);
         ptarmd_call_script(PTARMD_EVT_STARTED, param);
     }
@@ -354,7 +354,7 @@ LABEL_EXIT:
 }
 
 
-lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id)
+lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id)
 {
     lnapp_conf_t *p_appconf;
 
@@ -366,9 +366,9 @@ lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id)
 }
 
 
-lnapp_conf_t *ptarmd_search_transferable_nodeid(const uint8_t *p_node_id)
+lnapp_conf_t *ptarmd_search_transferable_node_id(const uint8_t *p_node_id)
 {
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(p_node_id);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(p_node_id);
     if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_channel) != LN_STATUS_NORMAL)) {
         p_appconf = NULL;
     }
@@ -394,9 +394,9 @@ void ptarmd_nodefail_add(
     }
 
     if (NodeDesc == LN_ADDR_DESC_TYPE_IPV4) {
-        char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
-        LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+        char node_id_str[BTC_SZ_PUBKEY * 2 + 1];
+        utl_str_bin2str(node_id_str, pNodeId, BTC_SZ_PUBKEY);
+        LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", node_id_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)UTL_DBG_MALLOC(sizeof(nodefaillist_t));
         memcpy(nf->node_id, pNodeId, BTC_SZ_PUBKEY);
@@ -414,8 +414,8 @@ bool ptarmd_nodefail_get(
     bool detect = false;
 
     if (NodeDesc == LN_ADDR_DESC_TYPE_IPV4) {
-        char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
+        char node_id_str[BTC_SZ_PUBKEY * 2 + 1];
+        utl_str_bin2str(node_id_str, pNodeId, BTC_SZ_PUBKEY);
 
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {
@@ -423,7 +423,7 @@ bool ptarmd_nodefail_get(
                  (strcmp(p->ipaddr, pAddr) == 0) &&
                  (p->port == Port) ) {
                 if (bRemove) {
-                    LOGD("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+                    LOGD("get nodefail list: %s@%s:%" PRIu16 "\n", node_id_str, pAddr, Port);
                     LIST_REMOVE(p, list);
                 }
                 detect = true;
@@ -591,7 +591,7 @@ static void load_channel_settings(void)
  *
  * @param[in,out]   pChannel        DBから取得したchannel
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         comp_param_cnl_t構造体
+ * @param[in,out]   p_param         cmp_param_channel_t構造体
  */
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {

@@ -174,9 +174,9 @@ static bool create_remote_spent_htlc__with_close(
     const btc_keys_t *pHtlcKey,
     uint64_t Fee,
     uint32_t VoutIdx,
-    const uint8_t *pPayHash);
+    const uint8_t *pPaymentHash);
 
-static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPayHash, bool bClosing);
+static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPaymentHash, bool bClosing);
 static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 
@@ -408,12 +408,11 @@ bool ln_commit_tx_create_remote(
             pp_htlc_info[lp]->cltv_expiry)) goto LABEL_EXIT;
     }
 
-#ifdef LN_UGLY_NORMAL //XXX:
     for (int lp = 0; lp < num_htlc_infos; lp++) {
         //payment_hash, type, expiry保存
         utl_buf_t vout = UTL_BUF_INIT;
         if (!btc_script_p2wsh_create_scriptpk(&vout, &pp_htlc_info[lp]->wit_script)) goto LABEL_EXIT;
-        if (!ln_db_phash_save(
+        if (!ln_db_payment_hash_save(
             pp_htlc_info[lp]->payment_hash,
             vout.buf,
             pp_htlc_info[lp]->type,
@@ -423,7 +422,6 @@ bool ln_commit_tx_create_remote(
         }
         utl_buf_free(&vout);
     }
-#endif  //LN_UGLY_NORMAL
 
     LOGD("-------\n");
     LOGD("(remote)local_msat  %" PRIu64 " --> %" PRIu64 "\n", pCommitInfo->local_msat, commit_tx_info.local_msat);
@@ -1060,14 +1058,14 @@ static bool create_remote_spent__with_close(
             btc_tx_init(&tx); //force clear
         }
         const ln_commit_tx_htlc_info_t *p_htlc_info = ppHtlcInfo[htlc_idx];
-        const uint8_t *p_payhash = pChannel->update_info.htlcs[p_htlc_info->htlc_idx].payment_hash;
+        const uint8_t *p_payment_hash = pChannel->update_info.htlcs[p_htlc_info->htlc_idx].payment_hash;
         uint64_t fee_sat =
             (p_htlc_info->type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ?
             pBaseFeeInfo->htlc_timeout_fee : pBaseFeeInfo->htlc_success_fee;
 
         if (!create_remote_spent_htlc__with_close(
             pCommitInfo, &pCloseTxHtlcs[htlc_num], pTxCommit, pWitScriptToLocal, p_htlc_info,
-            &htlckey, fee_sat, vout_idx, p_payhash)) return false;
+            &htlckey, fee_sat, vout_idx, p_payment_hash)) return false;
         pClose->p_htlc_idxs[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
         htlc_num++;
     }
@@ -1185,7 +1183,7 @@ LABEL_EXIT:
  * @param[in]       pHtlcKey
  * @param[in]       Fee
  * @param[in]       VoutIdx
- * @param[in]       pPayHash
+ * @param[in]       pPaymentHash
  * @retval  true    成功
  */
 static bool create_remote_spent_htlc__with_close(
@@ -1197,7 +1195,7 @@ static bool create_remote_spent_htlc__with_close(
     const btc_keys_t *pHtlcKey,
     uint64_t Fee,
     uint32_t VoutIdx,
-    const uint8_t *pPayHash)
+    const uint8_t *pPaymentHash)
 {
     LOGD("---HTLC[%d]\n", VoutIdx);
     btc_tx_t tx = BTC_TX_INIT;
@@ -1207,7 +1205,7 @@ static bool create_remote_spent_htlc__with_close(
 
     if (pHtlcInfo->type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
         uint8_t preimage[LN_SZ_PREIMAGE];
-        if (search_preimage(preimage, pPayHash, true)) {
+        if (search_preimage(preimage, pPaymentHash, true)) {
             LOGD("[offered]have preimage\n");
             utl_buf_free(&tx.vout[0].script);
             tx.locktime = 0;
@@ -1236,22 +1234,22 @@ LABEL_ERROR:
 /** payment_hashと一致するpreimage検索
  *
  * @param[out]      pPreimage
- * @param[in]       pPayHash        payment_hash
+ * @param[in]       pPaymentHash        payment_hash
  * @param[in]       bClosing        true:一致したexpiryをUINT32_MAXに変更する
  * @retval  true    検索成功
  */
-static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPayHash, bool bClosing)
+static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPaymentHash, bool bClosing)
 {
     if (!LN_DBG_MATCH_PREIMAGE()) {
         LOGE("DBG: HTLC preimage mismatch\n");
         return false;
     }
-    // LOGD("pPayHash(%d)=", bClosing);
-    // DUMPD(pPayHash, BTC_SZ_HASH256);
+    // LOGD("pPaymentHash(%d)=", bClosing);
+    // DUMPD(pPaymentHash, BTC_SZ_HASH256);
 
     preimage_t param;
     param.image = pPreimage;
-    param.hash = pPayHash;
+    param.hash = pPaymentHash;
     param.b_closing = bClosing;
     if (!ln_db_preimage_search(search_preimage_func, &param)) return false;
     return true;

@@ -61,10 +61,10 @@ int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat);
 
 /** 再送
  *
- * @param[in]       pPayHash
+ * @param[in]       pPaymentHash
  * @return  Linuxエラーコード
  */
-int cmd_json_pay_retry(const uint8_t *pPayHash);
+int cmd_json_pay_retry(const uint8_t *pPaymentHash);
 
 
 /** add invoice log: result

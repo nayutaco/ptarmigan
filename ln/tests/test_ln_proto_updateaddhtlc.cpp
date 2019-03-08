@@ -57,15 +57,15 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
 
-FAKE_VOID_FUNC(ln_db_preimage_cur_close, void *);
-FAKE_VALUE_FUNC(bool, ln_db_annocnlupd_load, utl_buf_t *, uint32_t *, uint64_t, uint8_t, void*);
+FAKE_VOID_FUNC(ln_db_preimage_cur_close, void *, bool);
+FAKE_VALUE_FUNC(bool, ln_db_cnlupd_load, utl_buf_t *, uint32_t *, uint64_t, uint8_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_del, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_channel_search_nk_readonly, ln_db_func_cmp_t, void *);
-FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
+FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly_nokey, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_payment_hash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 
@@ -88,14 +88,14 @@ protected:
     virtual void SetUp() {
         //utl_log_init_stderr();
         RESET_FAKE(ln_db_preimage_cur_close)
-        RESET_FAKE(ln_db_annocnlupd_load)
+        RESET_FAKE(ln_db_cnlupd_load)
         RESET_FAKE(ln_db_preimage_del)
         RESET_FAKE(ln_db_preimage_cur_open)
         RESET_FAKE(ln_db_preimage_cur_get)
         RESET_FAKE(ln_db_channel_search)
         RESET_FAKE(ln_db_channel_search_readonly)
-        RESET_FAKE(ln_db_channel_search_nk_readonly)
-        RESET_FAKE(ln_db_phash_save)
+        RESET_FAKE(ln_db_channel_search_readonly_nokey)
+        RESET_FAKE(ln_db_payment_hash_save)
         RESET_FAKE(ln_db_preimage_search)
         RESET_FAKE(ln_db_preimage_set_expiry)
         RESET_FAKE(ln_msg_open_channel_read)
@@ -329,18 +329,18 @@ TEST_F(ln, set_add_htlc1)
     uint8_t onion[LN_SZ_ONION_ROUTE];
     uint64_t amount_msat = 123;
     uint32_t cltv_expiry = 98765;
-    uint8_t payhash[BTC_SZ_HASH256];
+    uint8_t payment_hash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
     uint16_t prev_idx = 3;
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     channel.noise.p_handshake = NULL;
-    memset(payhash, 0xdd, BTC_SZ_HASH256);
+    memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
     /*** TEST ***/
     ret = ln_set_add_htlc_send(&channel, &htlcid, &buf_reason, onion,
-                amount_msat, cltv_expiry, payhash,
+                amount_msat, cltv_expiry, payment_hash,
                 prev_schid, prev_idx, &shared_secret);
 
     /*** CHECK ***/
@@ -385,16 +385,16 @@ TEST_F(ln, create_add_htlc1)
     uint8_t onion[LN_SZ_ONION_ROUTE];
     uint64_t amount_msat = 123;
     uint32_t cltv_expiry = 98765;
-    uint8_t payhash[BTC_SZ_HASH256];
+    uint8_t payment_hash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
     uint16_t prev_idx = 3;
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
-    memset(payhash, 0xdd, BTC_SZ_HASH256);
+    memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
     ret = ln_set_add_htlc_send(&channel, &htlcid, &buf_reason, onion,
-                amount_msat, cltv_expiry, payhash,
+                amount_msat, cltv_expiry, payment_hash,
                 prev_schid, prev_idx, &shared_secret);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, buf_reason.len);

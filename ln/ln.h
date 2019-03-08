@@ -64,8 +64,9 @@ extern "C" {
 #define LN_PORT_DEFAULT                 (9735)
 
 #define LN_SZ_CHANNEL_ID                (32)        ///< (size) channel_id
+#define LN_SZ_CHANNEL_ID_STR            (LN_SZ_CHANNEL_ID * 2)  ///< (size) channel_id
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< (size) short_channel_id
-#define LN_SZ_SHORTCHANNELID_STR        (127)       ///< (size) short_channel_id string
+#define LN_SZ_SHORT_CHANNEL_ID_STR      (127)       ///< (size) short_channel_id string
 #define LN_SZ_ALIAS_STR                 (32)        ///< (size) node alias //XXX:
 #define LN_SZ_PREIMAGE                  (32)        ///< (size) preimage
 #define LN_SZ_ONION_ROUTE               (1366)      ///< (size) onion-routing-packet
@@ -108,10 +109,6 @@ extern "C" {
 #define LN_RCLOSE_IDX_TO_LOCAL           (0)         ///< to_local
 #define LN_RCLOSE_IDX_TO_REMOTE          (1)         ///< to_remote
 #define LN_RCLOSE_IDX_HTLC               (2)         ///< HTLC
-
-#define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
-                                                    ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
-                                                    ///< 相手のアクションが必要となる
 
 #define LN_INIT_LF_OPT_DATALOSS_REQ     (1 << 0)    ///< option_data_loss_protect
 #define LN_INIT_LF_OPT_DATALOSS         (1 << 1)    ///< option_data_loss_protect
@@ -501,7 +498,7 @@ const uint8_t *ln_creationhash_get(void);
  *
  * @param[in,out]       pChannel        channel info
  */
-void ln_peer_set_nodeid(ln_channel_t *pChannel, const uint8_t *pNodeId);
+void ln_peer_set_node_id(ln_channel_t *pChannel, const uint8_t *pNodeId);
 
 
 /** Channel Establish設定
@@ -555,7 +552,7 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_
 
 /** get BOLT short_channel_id string
  *
- * @param[out]  pStr            return value(length > LN_SZ_SHORTCHANNELID_STR)
+ * @param[out]  pStr            return value(length > LN_SZ_SHORT_CHANNEL_ID_STR)
  * @param[in]   ShortChannelId  short_channel_id
  */
 void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId);
@@ -771,7 +768,7 @@ void ln_payment_hash_calc(uint8_t *pHash, const uint8_t *pPreimage);
  * @param[in]   Len
  * @retval  true        解析成功
  */
-bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
+bool ln_get_ids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
 
 
 /** 最後に接続したアドレス保存
@@ -1219,7 +1216,7 @@ const ln_node_addr_t *ln_node_addr(void);
 const char *ln_node_alias(void);
 
 
-const uint8_t *ln_node_getid(void);
+const uint8_t *ln_node_get_id(void);
 
 /** initialize node
  *

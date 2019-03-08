@@ -10,7 +10,7 @@
 
 ### options
 
-* `-d` : DB directory(= contain `dbptarm` directory). use current directory if not specified.
+* `-d` : DB directory(= contain `db` directory). use current directory if not specified.
 * `-w` : wallet info
 * `-s` : self info
 * `-q` : closed self info

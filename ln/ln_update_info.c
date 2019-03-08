@@ -43,7 +43,7 @@ static uint32_t get_last_feerate_per_kw(ln_update_info_t *pInfo);
 void ln_update_info_init(ln_update_info_t *pInfo) {
     memset(pInfo, 0x00, sizeof(ln_update_info_t));
     for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->htlcs); idx++) {
-        utl_buf_init(&pInfo->htlcs[idx].buf_payment_preimage);
+        utl_buf_init(&pInfo->htlcs[idx].buf_preimage);
         utl_buf_init(&pInfo->htlcs[idx].buf_onion_reason);
         utl_buf_init(&pInfo->htlcs[idx].buf_shared_secret);
     }
@@ -52,7 +52,7 @@ void ln_update_info_init(ln_update_info_t *pInfo) {
 
 void ln_update_info_free(ln_update_info_t *pInfo) {
     for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->htlcs); idx++) {
-        utl_buf_free(&pInfo->htlcs[idx].buf_payment_preimage);
+        utl_buf_free(&pInfo->htlcs[idx].buf_preimage);
         utl_buf_free(&pInfo->htlcs[idx].buf_onion_reason);
         utl_buf_free(&pInfo->htlcs[idx].buf_shared_secret);
     }
@@ -120,10 +120,10 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
 
     //clear htlc
     ln_htlc_t *p_htlc = &pInfo->htlcs[p_update->type_specific_idx];
-    if (p_htlc->buf_payment_preimage.len) {
-        /*ignore*/ ln_db_preimage_del(p_htlc->buf_payment_preimage.buf); //XXX: delete outside the function
+    if (p_htlc->buf_preimage.len) {
+        /*ignore*/ ln_db_preimage_del(p_htlc->buf_preimage.buf); //XXX: delete outside the function
     }
-    utl_buf_free(&p_htlc->buf_payment_preimage);
+    utl_buf_free(&p_htlc->buf_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_free(&p_htlc->buf_shared_secret);
     memset(p_htlc, 0x00, sizeof(ln_htlc_t));

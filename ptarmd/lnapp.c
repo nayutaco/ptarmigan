@@ -324,7 +324,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         LOGE("fail: short_channel_id mismatch\n");
         LOGE("    hop  : %016" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         LOGE("    mine : %016" PRIx64 "\n", ln_short_channel_id(p_channel));
-        ln_db_routeskip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
+        ln_db_route_skip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
         goto LABEL_EXIT;
     }
 
@@ -385,12 +385,12 @@ LABEL_EXIT:
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(pAppConf->p_channel));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         utl_str_bin2str(hashstr, pPay->payment_hash, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
         snprintf(param, sizeof(param), "%s %s "
                     "%" PRIu64 " "
@@ -416,7 +416,7 @@ LABEL_EXIT:
         // set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
 
         // //ルートが見つからなくなるまでリトライする
-        // ln_db_routeskip_save(ln_short_channel_id(pAppConf->p_channel), true);   //一時的
+        // ln_db_route_skip_save(ln_short_channel_id(pAppConf->p_channel), true);   //一時的
         // cmd_json_pay_retry(pPay->payment_hash);
         // ret = true;         //再送はtrue
     }
@@ -756,7 +756,7 @@ static void *thread_main_start(void *pArg)
     utl_dbg_dump(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
-    ln_peer_set_nodeid(p_channel, p_conf->node_id);
+    ln_peer_set_node_id(p_channel, p_conf->node_id);
     load_channel_settings(p_conf);
 
     /////////////////////////
@@ -923,10 +923,10 @@ static void *thread_main_start(void *pArg)
         // $2: node_id
         // $3: peer_id
         // $4: recieved_localfeatures
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
@@ -975,10 +975,10 @@ LABEL_SHUTDOWN:
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
@@ -1165,7 +1165,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         if (buf.len == BTC_SZ_PUBKEY) {
             //既に接続済みのlnappがある場合、そちらを切断させる
             //  socket切断を識別できないまま再接続されることがあるため
-            lnapp_conf_t *p_exist_conf = ptarmd_search_connected_nodeid(buf.buf);
+            lnapp_conf_t *p_exist_conf = ptarmd_search_connected_node_id(buf.buf);
             if (p_exist_conf != NULL) {
                 LOGD("stop already connected lnapp\n");
                 lnapp_stop(p_exist_conf);
@@ -1201,7 +1201,7 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
         LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_short_channel_id_set_param(p_conf->p_channel, bheight, bindex);
         ln_funding_blockhash_set(p_conf->p_channel, mined_hash);
-        ln_db_annoown_save(ln_short_channel_id(p_conf->p_channel));
+        ln_db_channel_owned_save(ln_short_channel_id(p_conf->p_channel));
         LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_channel), ret);
     }
 
@@ -1303,7 +1303,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     // $2: node_id
     // $3: local_msat
     // $4: funding_txid
-    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
     char txidstr[BTC_SZ_TXID * 2 + 1];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     char param[M_SZ_SCRIPT_PARAM];
@@ -1311,7 +1311,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
     utl_str_bin2str_rev(txidstr, ln_funding_info_txid(&p_conf->p_channel->funding_info), BTC_SZ_TXID);
-    utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+    utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
     snprintf(param, sizeof(param), "%s %s "
                 "%" PRIu64 " "
                 "%s",
@@ -1724,7 +1724,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
                         ln_shutdown_scriptpk_local(p_conf->p_channel)->len);
             }
 
-            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+            char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
             ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
             ptarmd_eventlog(ln_channel_id(p_conf->p_channel),
                     "funding_locked: short_channel_id=%s, close_addr=%s",
@@ -1864,22 +1864,22 @@ static bool anno_proc(lnapp_conf_t *p_conf)
         goto LABEL_EXIT;
     }
 
-    ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNL);
+    ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNLANNO);
     if (!ret) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
-    ret = ln_db_anno_cur_open(&p_cur_node, LN_DB_CUR_NODE);
+    ret = ln_db_anno_cur_open(&p_cur_node, LN_DB_CUR_NODEANNO);
     if (!ret) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
-    ret = ln_db_anno_cur_open(&p_cur_infocnl, LN_DB_CUR_INFOCNL);
+    ret = ln_db_anno_cur_open(&p_cur_infocnl, LN_DB_CUR_CNLANNO_INFO);
     if (!ret) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
-    ret = ln_db_anno_cur_open(&p_cur_infonode, LN_DB_CUR_INFONODE);
+    ret = ln_db_anno_cur_open(&p_cur_infonode, LN_DB_CUR_NODEANNO_INFO);
     if (!ret) {
         LOGE("fail\n");
         goto LABEL_EXIT;
@@ -1893,7 +1893,7 @@ static bool anno_proc(lnapp_conf_t *p_conf)
         uint32_t timestamp;
         utl_buf_t buf_cnl = UTL_BUF_INIT;
 
-        ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, &timestamp, &buf_cnl);
+        ret = ln_db_cnlanno_cur_get(p_cur_cnl, &short_channel_id, &type, &timestamp, &buf_cnl);
         if (!ret) {
             //次回は最初から検索する
             LOGD("annolist end\n");
@@ -1905,8 +1905,8 @@ static bool anno_proc(lnapp_conf_t *p_conf)
             //BOLT#7: Pruning the Network View
             if ((type == LN_DB_CNLANNO_UPD0) || (type == LN_DB_CNLANNO_UPD1)) {
                 uint64_t now = (uint64_t)utl_time_time();
-                if (ln_db_annocnlupd_is_prune(now, timestamp)) {
-                    ln_db_annocnl_cur_del(p_cur_cnl);
+                if (ln_db_cnlupd_need_to_prune(now, timestamp)) {
+                    ln_db_cnlanno_cur_del(p_cur_cnl);
                 }
             }
             //LOGD("continue1: %" PRIx64 ":%c\n", short_channel_id, type);
@@ -1963,7 +1963,7 @@ LABEL_EXIT:
 
     ln_db_anno_commit(true);
     if (short_channel_id != 0) {
-        (void)ln_db_annocnlall_del(short_channel_id);
+        (void)ln_db_cnlanno_del(short_channel_id);
     }
 
     LOGD("END: %016" PRIx64 "\n", p_conf->last_anno_cnl);
@@ -1999,7 +1999,7 @@ static bool anno_send(
     utl_buf_t buf_upd[2] = { UTL_BUF_INIT, UTL_BUF_INIT };  //channel_update(dir=0,1)
     for (size_t lp = 0; lp < ARRAY_SIZE(buf_upd); lp++) {
         uint64_t sci;
-        bool ret = ln_db_annocnl_cur_get(p_cur_cnl, &sci, &type, &timestamp, &buf_upd[lp]);
+        bool ret = ln_db_cnlanno_cur_get(p_cur_cnl, &sci, &type, &timestamp, &buf_upd[lp]);
         if (ret && (sci == short_channel_id) && (type == (char)(LN_DB_CNLANNO_UPD0 + lp))) {
             ret = anno_prev_check(short_channel_id, timestamp);
             if (ret) {
@@ -2007,7 +2007,7 @@ static bool anno_send(
             } else {
                 LOGD("pre_upd: delete channel_update %016" PRIx64 " %c\n", short_channel_id, type);
                 //channel_updateをDBから削除
-                ln_db_annocnl_cur_del(p_cur_cnl);
+                ln_db_cnlanno_cur_del(p_cur_cnl);
                 utl_buf_free(&buf_upd[lp]);
             }
         } else if (!ret) {
@@ -2016,7 +2016,7 @@ static bool anno_send(
             break;
         } else {
             //LOGD("back\n");
-            ret = ln_db_annocnl_cur_back(p_cur_cnl);
+            ret = ln_db_cnlanno_cur_back(p_cur_cnl);
             utl_buf_free(&buf_upd[lp]);
         }
     }
@@ -2057,13 +2057,13 @@ static bool anno_prev_check(uint64_t short_channel_id, uint32_t timestamp)
 {
     bool ret = true;
 
-    if (ln_db_annoown_check(short_channel_id)) {
+    if (ln_db_channel_owned_check(short_channel_id)) {
         return true;
     }
 
     //BOLT#7: Pruning the Network View
     uint64_t now = (uint64_t)utl_time_time();
-    if (ln_db_annocnlupd_is_prune(now, timestamp)) {
+    if (ln_db_cnlupd_need_to_prune(now, timestamp)) {
         //古いため送信しない
         char time[UTL_SZ_TIME_FMT_STR + 1];
         LOGD("older channel_update: prune(%016" PRIx64 "): %s(now=%" PRIu32 ", tm=%" PRIu32 ")\n", short_channel_id, utl_time_fmt(time, timestamp), now, timestamp);
@@ -2080,11 +2080,11 @@ static bool anno_prev_check(uint64_t short_channel_id, uint32_t timestamp)
  */
 static bool anno_send_cnl(lnapp_conf_t *p_conf, uint64_t short_channel_id, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl)
 {
-    bool chk = ln_db_annocnlinfo_search_nodeid(p_cur_infocnl, short_channel_id, type, ln_remote_node_id(p_conf->p_channel));
+    bool chk = ln_db_cnlanno_info_search_node_id(p_cur_infocnl, short_channel_id, type, ln_remote_node_id(p_conf->p_channel));
     if (!chk) {
         LOGD("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
         send_peer_noise(p_conf, p_buf_cnl);
-        ln_db_annocnlinfo_add_nodeid(p_cur_infocnl, short_channel_id, type, false, ln_remote_node_id(p_conf->p_channel));
+        ln_db_cnlanno_info_add_node_id(p_cur_infocnl, short_channel_id, type, false, ln_remote_node_id(p_conf->p_channel));
         chk = true;
     } else {
         //LOGD("CHAN already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
@@ -2101,7 +2101,7 @@ static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_i
 {
     uint64_t short_channel_id;
     uint8_t node[2][BTC_SZ_PUBKEY];
-    bool ret = ln_getids_cnl_anno(&short_channel_id, node[0], node[1], p_buf_cnl->buf, p_buf_cnl->len);
+    bool ret = ln_get_ids_cnl_anno(&short_channel_id, node[0], node[1], p_buf_cnl->buf, p_buf_cnl->len);
     if (!ret) {
         return false;
     }
@@ -2109,15 +2109,15 @@ static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_i
     utl_buf_t buf_node = UTL_BUF_INIT;
 
     for (int lp = 0; lp < 2; lp++) {
-        ret = ln_db_annonodinfo_search_nodeid(p_cur_infonode, node[lp], ln_remote_node_id(p_conf->p_channel));
+        ret = ln_db_nodeanno_info_search_node_id(p_cur_infonode, node[lp], ln_remote_node_id(p_conf->p_channel));
         if (!ret) {
-            ret = ln_db_annonod_cur_load(p_cur_node, &buf_node, NULL, node[lp]);
+            ret = ln_db_nodeanno_cur_load(p_cur_node, &buf_node, NULL, node[lp]);
             if (ret) {
                 LOGD("send node_anno(%d): ", lp);
                 DUMPD(node[lp], BTC_SZ_PUBKEY);
                 send_peer_noise(p_conf, &buf_node);
                 utl_buf_free(&buf_node);
-                ln_db_annonodinfo_add_nodeid(p_cur_infonode, node[lp], false, ln_remote_node_id(p_conf->p_channel));
+                ln_db_nodeanno_info_add_node_id(p_cur_infonode, node[lp], false, ln_remote_node_id(p_conf->p_channel));
             }
         } else {
             //LOGD("NODE already sent: short_channel_id=%016" PRIx64 ", node%d\n", short_channel_id, lp);
@@ -2343,7 +2343,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & M_FLAGRECV_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         ptarmd_eventlog(ln_channel_id(p_conf->p_channel),
                 "open: recv funding_locked short_channel_id=%s",
@@ -2453,14 +2453,14 @@ static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_param_nofity_ad
 {
     p_addhtlc->ret = true;
 
-    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
-    utl_str_bin2str(str_payhash, p_addhtlc->p_payment, BTC_SZ_HASH256);
-    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
+    utl_str_bin2str(str_payment_hash, p_addhtlc->p_payment, BTC_SZ_HASH256);
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
 
     ptarmd_eventlog(NULL,
             "payment final node: payment_hash=%s, short_channel_id=%s",
-            str_payhash, str_sci);
+            str_payment_hash, str_sci);
 }
 
 
@@ -2494,12 +2494,12 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         utl_str_bin2str(hashstr, p_addhtlc->p_payment, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
         snprintf(param, sizeof(param), "%s %s "
                     "%" PRIu64 " "
@@ -2608,7 +2608,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
         // $2: node_id
         // $3: payment_hash
         // $4: payment_preimage
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         uint8_t payment_hash[BTC_SZ_HASH256];
@@ -2617,7 +2617,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         utl_str_bin2str(imgstr, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
         snprintf(param, sizeof(param), "%s %s "
                     "%s "
@@ -2634,7 +2634,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
         p_fulfill->ret = true;
     } else {
         //fail channel if fail backwind channel
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_prevconf->p_channel));
 
         LOGD("close: bad way(local): fail backward(%s)\n", str_sci);
@@ -2653,13 +2653,13 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_param_notify_fu
     ln_payment_hash_calc(hash, p_fulfill->p_preimage);
     cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
-    ln_db_routeskip_work(false);
+    ln_db_route_skip_work(false);
     p_fulfill->ret = true;
 
     //log
-    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
-    utl_str_bin2str(str_payhash, hash, BTC_SZ_HASH256);
-    ptarmd_eventlog(NULL, "payment fulfill[id=%" PRIu64 "]: payment_hash=%s, amount_msat=%" PRIu64, p_fulfill->next_id, str_payhash, p_fulfill->amount_msat);
+    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
+    utl_str_bin2str(str_payment_hash, hash, BTC_SZ_HASH256);
+    ptarmd_eventlog(NULL, "payment fulfill[id=%" PRIu64 "]: payment_hash=%s, amount_msat=%" PRIu64, p_fulfill->next_id, str_payment_hash, p_fulfill->amount_msat);
 }
 
 
@@ -2693,10 +2693,10 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
         // $1: short_channel_id
         // $2: node_id
         // $3: info
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
         snprintf(param, sizeof(param), "%s %s "
                     "\"%s\"",
@@ -2729,7 +2729,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_del_
         }
         pthread_mutex_unlock(&p_prevconf->mux_channel);
 
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         ptarmd_eventlog(
             NULL, "delete HTLC: short_channel_id=%s, fin_type=%d",
@@ -2787,7 +2787,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_de
         //      ...
         //      [hop_num - 2]payeeへの最終OINONデータ
         //      [hop_num - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
-        char suggest[LN_SZ_SHORTCHANNELID_STR + 1];
+        char suggest[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         const payment_conf_t *p_payconf = payroute_get(p_conf, p_bwd->next_htlc_id);
         if (p_payconf != NULL) {
             // for (int lp = 0; lp < p_payconf->hop_num; lp++) {
@@ -2808,7 +2808,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_de
                 strcpy(suggest, "invalid");
             }
             if (short_channel_id != 0) {
-                ln_db_routeskip_save(short_channel_id, btemp);
+                ln_db_route_skip_save(short_channel_id, btemp);
                 ln_short_channel_id_string(suggest, short_channel_id);
                 p_bwd->ret = true;
             }
@@ -2841,13 +2841,13 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
     // $1: short_channel_id
     // $2: node_id
     // $3: local_msat
-    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
     char param[M_SZ_SCRIPT_PARAM];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     uint64_t total_amount = ln_node_total_msat();
 
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
-    utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+    utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
     snprintf(param, sizeof(param), "%s %s "
                 "%" PRIu64,
                 str_sci, node_id,
@@ -2929,13 +2929,13 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
             // $1: short_channel_id
             // $2: node_id
             // $3: closing_txid
-            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+            char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
             ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
             char param[M_SZ_SCRIPT_PARAM];
             char txidstr[BTC_SZ_TXID * 2 + 1];
             utl_str_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
             char node_id[BTC_SZ_PUBKEY * 2 + 1];
-            utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+            utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
             snprintf(param, sizeof(param), "%s %s "
                         "%s",
                         str_sci, node_id,
@@ -3177,11 +3177,11 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $1: short_channel_id
         // $2: node_id
         // $3: err_str
-        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
         char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         snprintf(param, len_max, "%s %s "
                     "\"%s\"",
                     str_sci, node_id,
@@ -3535,7 +3535,7 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     utl_str_bin2str(str, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
     cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
     //short_channel_id
-    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
     cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str_sci));
     //funding_tx
@@ -3607,7 +3607,7 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
             }
             cJSON_AddItemToObject(htlc, "role", cJSON_CreateString(p_role));
             if (p_htlc->neighbor_short_channel_id) {
-                char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+                char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
                 ln_short_channel_id_string(str_sci, p_htlc->neighbor_short_channel_id);
                 if (LN_UPDATE_OFFERED(p_update)) {
                     cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
