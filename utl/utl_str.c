@@ -204,10 +204,10 @@ bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value)
 }
 
 
-bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr)
+bool utl_str_copy_and_fill_zeros(char *pDst, const char *pSrc, uint32_t Size)
 {
-    if (Size < strlen(pStr)) return false;
-    strncpy((char *)pBuf, pStr, Size); //`strncpy` fills zeros
+    if (Size < strlen(pSrc)) return false;
+    strncpy(pDst, pSrc, Size); //`strncpy` fills zeros
     return true;
 }
 

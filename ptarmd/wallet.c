@@ -122,7 +122,7 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
             ret = btc_sw_sighash(&wallet.tx, txhash, lp, amount, &script_code);
             break;
         case LN_DB_WALLET_TYPE_TO_LOCAL:
-        case LN_DB_WALLET_TYPE_HTLCOUT:
+        case LN_DB_WALLET_TYPE_HTLC_OUTPUT:
             ret = btc_sw_sighash_p2wsh_wit(&wallet.tx, txhash, lp, amount,
                                                 &p_vin->witness[p_vin->wit_item_cnt-1]);
             break;
@@ -202,8 +202,8 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     LOGD("amount=%" PRIu64 "\n", pWallet->amount);
     LOGD("cnt=%d\n", pWallet->wit_item_cnt);
     for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
-        LOGD("[%d][%d]", lp, pWallet->p_wit[lp].len);
-        DUMPD(pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
+        LOGD("[%d][%d]", lp, pWallet->p_wit_items[lp].len);
+        DUMPD(pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
     }
 
     bool ret;
@@ -230,7 +230,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         return false;
     }
 
-    if (pWallet->p_wit[0].len != BTC_SZ_PRIVKEY) {
+    if (pWallet->p_wit_items[0].len != BTC_SZ_PRIVKEY) {
         *p_wlt->pp_result = UTL_DBG_STRDUP("FATAL: maybe BUG");
         LOGE("%s\n", *p_wlt->pp_result);
         return false;
@@ -271,7 +271,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     p_wlt->amount += pWallet->amount;
     btc_vin_t *p_vin = btc_tx_add_vin(&p_wlt->tx,
                             pWallet->p_txid, pWallet->index);
-    utl_buf_t *p_wit = btc_tx_add_wit(p_vin);
+    utl_buf_t *p_wit_items = btc_tx_add_wit(p_vin);
 
     p_vin->sequence = pWallet->sequence;
     if (p_wlt->tx.locktime < pWallet->locktime) {
@@ -282,27 +282,27 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     //  [32:privkey]
     //     ↓↓↓
     //  [32:privkey] + [1:type] + [8:amount]
-    LOGD("wit[0][%d] ", pWallet->p_wit[0].len);
-    DUMPD(pWallet->p_wit[0].buf, pWallet->p_wit[0].len);
-    utl_buf_realloc(p_wit,
+    LOGD("wit[0][%d] ", pWallet->p_wit_items[0].len);
+    DUMPD(pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len);
+    utl_buf_realloc(p_wit_items,
             BTC_SZ_PRIVKEY + sizeof(uint8_t) + sizeof(uint64_t));
-    uint8_t *p = p_wit->buf;
-    memcpy(p, pWallet->p_wit[0].buf, pWallet->p_wit[0].len);
+    uint8_t *p = p_wit_items->buf;
+    memcpy(p, pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len);
     p += BTC_SZ_PRIVKEY;
     *p = pWallet->type;
     p++;
     memcpy(p, &pWallet->amount, sizeof(uint64_t));
     //p += sizeof(uint64_t);
 
-    LOGD("  --> wit[0][%d] ", p_wit[0].len);
-    DUMPD(p_wit[0].buf, p_wit[0].len);
+    LOGD("  --> wit[0][%d] ", p_wit_items[0].len);
+    DUMPD(p_wit_items[0].buf, p_wit_items[0].len);
 
     //残りwitをコピー
     for (uint8_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
-        utl_buf_t *p_wit = btc_tx_add_wit(p_vin);
-        utl_buf_alloccopy(p_wit, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
-        LOGD("wit[%d][%d] ", lp, p_wit->len);
-        DUMPD(p_wit->buf, p_wit->len);
+        utl_buf_t *p_wit_items = btc_tx_add_wit(p_vin);
+        utl_buf_alloccopy(p_wit_items, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
+        LOGD("wit[%d][%d] ", lp, p_wit_items->len);
+        DUMPD(p_wit_items->buf, p_wit_items->len);
     }
 
     return false;       //継続

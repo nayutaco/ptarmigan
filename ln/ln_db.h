@@ -43,37 +43,37 @@ extern "C" {
 #define LN_DB_CNLANNO_UPD0          'B'     ///< channel_announcement用KEYの末尾: channel_update dir=0
 #define LN_DB_CNLANNO_UPD1          'C'     ///< channel_announcement用KEYの末尾: channel_update dir=1
 
-#define LN_DB_WALLET_TYPE_TO_LOCAL   ((uint8_t)1)
-#define LN_DB_WALLET_TYPE_TO_REMOTE  ((uint8_t)2)
-#define LN_DB_WALLET_TYPE_HTLCOUT   ((uint8_t)3)
+#define LN_DB_WALLET_TYPE_TO_LOCAL      ((uint8_t)1)
+#define LN_DB_WALLET_TYPE_TO_REMOTE     ((uint8_t)2)
+#define LN_DB_WALLET_TYPE_HTLC_OUTPUT   ((uint8_t)3)
 
-#define LN_DB_WALLET_INIT(t)        { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_item_cnt*/, NULL/*p_wit*/ }
+#define LN_DB_WALLET_INIT(t)    { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_item_cnt*/, NULL/*p_wit_items*/ }
 
 
 /**************************************************************************
  * typedefs
  **************************************************************************/
 
-/** @typedef    ln_db_routeskip_t
- *  @brief      result ln_db_routeskip_search()
+/** @typedef    ln_db_route_skip_t
+ *  @brief      result ln_db_route_skip_search()
  */
 typedef enum {
-    LN_DB_ROUTESKIP_NONE,       ///< not found
-    LN_DB_ROUTESKIP_TEMP,       ///< found: temporary skip
-    LN_DB_ROUTESKIP_PERM,       ///< found: permanentry skip
-    LN_DB_ROUTESKIP_WORK,       ///< low priority channel
-    LN_DB_ROUTESKIP_ERROR       ///< DB error
-} ln_db_routeskip_t;
+    LN_DB_ROUTE_SKIP_NONE,       ///< not found
+    LN_DB_ROUTE_SKIP_TEMP,       ///< found: temporary skip
+    LN_DB_ROUTE_SKIP_PERM,       ///< found: permanentry skip
+    LN_DB_ROUTE_SKIP_WORK,       ///< low priority channel
+    LN_DB_ROUTE_SKIP_ERROR       ///< DB error
+} ln_db_route_skip_t;
 
 
 /** @typedef    ln_db_cur_t
  *  @brief      cursorオープンするannouncement種別
  */
 typedef enum {
-    LN_DB_CUR_CNL,              ///< channel_announcement/channel_update
-    LN_DB_CUR_NODE,             ///< node_announcement
-    LN_DB_CUR_INFOCNL,          ///< channel_announcement/channel_update送信済み
-    LN_DB_CUR_INFONODE,         ///< node_announcement送信済み
+    LN_DB_CUR_CNLANNO,          ///< channel_announcement/channel_update
+    LN_DB_CUR_NODEANNO,         ///< node_announcement
+    LN_DB_CUR_CNLANNO_INFO,     ///< channel_announcement/channel_update送信済み
+    LN_DB_CUR_NODEANNO_INFO,    ///< node_announcement送信済み
 } ln_db_cur_t;
 
 
@@ -104,7 +104,7 @@ typedef struct {
     uint32_t    sequence;                   ///< <sequence>
     uint32_t    locktime;                   ///< <locktime>
     uint32_t    wit_item_cnt;
-    utl_buf_t   *p_wit;                     ///< p_wit[wit_item_cnt]
+    utl_buf_t   *p_wit_items;               ///< p_wit_items[wit_item_cnt]
 } ln_db_wallet_t;
 
 
@@ -116,35 +116,35 @@ typedef struct {
  * 最後までfalseを返し、DBの走査が終わると、#ln_db_channel_search()はfalseを返す。
  *
  * @param[in]       pChannel        channel from DB
- * @param[in]       p_db_param      DB情報(ln_dbで使用する)
- * @param[in]       p_param         #ln_db_channel_search()に渡したデータポインタ
+ * @param[in]       pDbParam      DB情報(ln_dbで使用する)
+ * @param[in]       pParam         #ln_db_channel_search()に渡したデータポインタ
  * @retval  true    比較終了(#ln_db_channel_search()の戻り値もtrue)
  * @retval  false   比較継続
  */
-typedef bool (*ln_db_func_cmp_t)(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+typedef bool (*ln_db_func_cmp_t)(ln_channel_t *pChannel, void *pDbParam, void *pParam);
 
 
 /** @typedef    ln_db_func_preimage_t
  *  @brief      比較関数(#ln_db_preimage_search())
  *
  * @param[in]       pChannel        channel from DB
- * @param[in]       p_db_param      DB情報(ln_dbで使用する)
- * @param[in]       p_param         #ln_db_preimage_search()に渡したデータポインタ
+ * @param[in]       pDbParam      DB情報(ln_dbで使用する)
+ * @param[in]       pParam         #ln_db_preimage_search()に渡したデータポインタ
  * @retval  true    比較終了
  * @retval  false   比較継続
  */
-typedef bool (*ln_db_func_preimage_t)(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+typedef bool (*ln_db_func_preimage_t)(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *pDbParam, void *pParam);
 
 
 /** @typedef    ln_db_func_wallet_t
  *  @brief      比較関数(#ln_db_wallet_search())
  *
  * @param[in]       pChannel        channel from DB
- * @param[in]       p_param         #ln_db_wallet_search()に渡したデータポインタ
+ * @param[in]       pParam         #ln_db_wallet_search()に渡したデータポインタ
  * @retval  true    比較終了
  * @retval  false   比較継続
  */
-typedef bool (*ln_db_func_wallet_t)(const ln_db_wallet_t *pWallet, void *p_param);
+typedef bool (*ln_db_func_wallet_t)(const ln_db_wallet_t *pWallet, void *pParam);
 
 
 /********************************************************************
@@ -175,7 +175,7 @@ void ln_db_term(void);
  *
  * @retval  true    カレントディレクトリにDBディレクトリがある
  */
-bool ln_db_have_dbdir(void);
+bool ln_db_have_db_dir(void);
 
 
 /********************************************************************
@@ -213,12 +213,12 @@ bool ln_db_channel_del(const uint8_t *pChannelId);
 /** channel削除(DB paramあり)
  *
  * @param[in]       pChannel
- * @param[in,out]   p_db_param      呼び出されたコールバック関数のパラメータ
+ * @param[in,out]   pDbParam      呼び出されたコールバック関数のパラメータ
  * @retval      true    成功
  * @note
  *      - #ln_db_channel_search() 経由を想定
  */
-bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *p_db_param);
+bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam);
 
 
 /** channel情報検索
@@ -261,7 +261,7 @@ bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
  * @note
  *      - 戻り値がtrueの場合、検索関数のpChannelは解放しない。必要があれば#ln_term()を実行すること。
  */
-bool ln_db_channel_search_nk_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
+bool ln_db_channel_search_readonly_nokey(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 /** load pChannel->status
@@ -288,12 +288,6 @@ bool ln_db_channel_save_status(const ln_channel_t *pChannel, void *pDbParam);
  * @retval  save result
  */
 bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbParam);
-
-
-/** short_channel_idが自分が持つチャネルかどうか
- *
- */
-bool ln_db_channel_chk_mynode(uint64_t ShortChannelId);
 
 
 /** secret保存
@@ -330,7 +324,7 @@ void ln_db_anno_commit(bool bCommit);
  * @param[in]       ShortChannelId
  * @retval      true    成功
  */
-bool ln_db_annocnl_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
+bool ln_db_cnlanno_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
 
 
 /** channel_announcement書込み
@@ -342,7 +336,7 @@ bool ln_db_annocnl_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
  * @param[in]       pNodeId2        channel_announcementのnode_id2
  * @retval      true    成功
  */
-bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
+bool ln_db_cnlanno_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
                         const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
@@ -355,7 +349,7 @@ bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, cons
  * @param[in]       pDbParam            非NULL:指定されたdb paramを使用する
  * @retval      true    成功
  */
-bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir, void *pDbParam);
+bool ln_db_cnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir, void *pDbParam);
 
 
 /** channel_update書込み
@@ -365,7 +359,7 @@ bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t Sh
  * @param[in]       pSendId             channel_updateの送信元/先ノード
  * @retval      true    成功
  */
-bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update_t *pUpd, const uint8_t *pSendId);
+bool ln_db_cnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update_t *pUpd, const uint8_t *pSendId);
 
 
 /** channel pruning判定
@@ -374,7 +368,7 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update
  * @param[in]       TimeStamp       channel_updateの時刻(EPOCH)
  * @retval      true    削除してよし
  */
-bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp);
+bool ln_db_cnlupd_need_to_prune(uint64_t Now, uint32_t TimesStamp);
 
 
 /** channel_announcement系の送受信情報削除
@@ -384,7 +378,7 @@ bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp);
  * @param[in]       short_channel_id(0の場合、全削除)
  * @retval      true    成功
  */
-bool ln_db_annocnlall_del(uint64_t short_channel_id);
+bool ln_db_cnlanno_del(uint64_t short_channel_id);
 
 
 /********************************************************************
@@ -398,7 +392,7 @@ bool ln_db_annocnlall_del(uint64_t short_channel_id);
  * @param[in]       pNodeId         検索するnode_id
  * @retval      true    成功
  */
-bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
+bool ln_db_nodeanno_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 
 
 /** node_announcement書込み
@@ -410,7 +404,7 @@ bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_
  * @note
  *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
-bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announcement_t *pAnno, const uint8_t *pSendId);
+bool ln_db_nodeanno_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announcement_t *pAnno, const uint8_t *pSendId);
 
 
 /********************************************************************
@@ -440,10 +434,10 @@ void ln_db_anno_cur_close(void *pCur);
  * @param[in,out]   pCur
  * @param[in]       ShortChannelId
  * @param[in]       Type
- * @param[in]       bClr                true:保存したノードを削除してから追加する
+ * @param[in]       bClear                true:保存したノードを削除してから追加する
  * @param[in]       pNodeId             追加するnode_id
  */
-bool ln_db_annocnlinfo_add_nodeid(void *pCur, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pNodeId);
+bool ln_db_cnlanno_info_add_node_id(void *pCur, uint64_t ShortChannelId, char Type, bool bClear, const uint8_t *pNodeId);
 
 
 /** channel_announcement関連情報送信済み検索
@@ -454,7 +448,7 @@ bool ln_db_annocnlinfo_add_nodeid(void *pCur, uint64_t ShortChannelId, char Type
  * @param[in]       pNodeId             対象node_id
  * @retval  true    pNodeIdへ送信済み
  */
-bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char Type, const uint8_t *pNodeId);
+bool ln_db_cnlanno_info_search_node_id(void *pCur, uint64_t ShortChannelId, char Type, const uint8_t *pNodeId);
 
 
 /** channel_announcement関連情報の順次取得
@@ -466,55 +460,55 @@ bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char T
  * @param[out]      pBuf                    取得したデータ(p_typeに応じて内容は変わる)
  * @retval  true    成功
  */
-bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
+bool ln_db_cnlanno_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
 /** channel_announcement関連情報の前方移動
  *
  */
-bool ln_db_annocnl_cur_back(void *pCur);
+bool ln_db_cnlanno_cur_back(void *pCur);
 
 
-/** ln_db_annocnl_cur_get()したDBの削除
+/** ln_db_cnlanno_cur_get()したDBの削除
  *
  * @param[in]       pCur
  * @retval  true    成功
  */
-bool ln_db_annocnl_cur_del(void *pCur);
+bool ln_db_cnlanno_cur_del(void *pCur);
 
 
 /** node_announcement取得
  *
  */
-bool ln_db_annonod_cur_load(void *pCur, utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
+bool ln_db_nodeanno_cur_load(void *pCur, utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 
 
 /** node_announcement送信済み検索
  *
  * @retval  true        送信済み
  */
-bool ln_db_annonodinfo_search_nodeid(void *pCur, const uint8_t *pNodeId, const uint8_t *pSendId);
+bool ln_db_nodeanno_info_search_node_id(void *pCur, const uint8_t *pNodeId, const uint8_t *pSendId);
 
 
 /** node_announcement送信元/先ノード追加
  *
  * @param[in,out]   pCur
  * @param[in]       pNodeId
- * @param[in]       bClr                true:保存したノードを削除してから追加する
- * @param[in]       pSendId             送信元/先ノード(NULLでbClr=true時はクリアのみ行う)
+ * @param[in]       bClear                true:保存したノードを削除してから追加する
+ * @param[in]       pSendId             送信元/先ノード(NULLでbClear=true時はクリアのみ行う)
  */
-bool ln_db_annonodinfo_add_nodeid(void *pCur, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId);
+bool ln_db_nodeanno_info_add_node_id(void *pCur, const uint8_t *pNodeId, bool bClear, const uint8_t *pSendId);
 
 
 /** node_announcement順次取得
  *
- * @param[in,out]   pCur            #ln_db_annonod_cur_open()でオープンしたDB cursor
+ * @param[in,out]   pCur            #ln_db_nodeanno_cur_open()でオープンしたDB cursor
  * @param[out]      pBuf            node_announcementパケット
  * @param[out]      pTimeStamp      保存時刻
  * @param[out]      pNodeId         node_announcementのnode_id
  * @retval      true    成功
  */
-bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+bool ln_db_nodeanno_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
 /********************************************************************
@@ -525,7 +519,7 @@ bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, ui
  *      受信したshort_channel_idが自分の持つものかどうか調べるためのDB
  *
  */
-bool ln_db_annoown_save(uint64_t ShortChannelId);
+bool ln_db_channel_owned_save(uint64_t ShortChannelId);
 
 /** 自short_channel_idチェック
  *
@@ -533,17 +527,17 @@ bool ln_db_annoown_save(uint64_t ShortChannelId);
  * @attention
  *      #ln_db_anno_transaction()でtransaction取得済みであること
  */
-bool ln_db_annoown_check(uint64_t ShortChannelId);
+bool ln_db_channel_owned_check(uint64_t ShortChannelId);
 
 
 /** 自short_channel_id削除
  *
  */
-bool ln_db_annoown_del(uint64_t ShortChannelId);
+bool ln_db_channel_owned_del(uint64_t ShortChannelId);
 
 
 /********************************************************************
- * annocnl, annonod共通
+ * cnlanno, nodeanno共通
  ********************************************************************/
 
 /** channel_announcement/channel_update/node_announcement送受信ノード情報削除
@@ -574,14 +568,14 @@ bool ln_db_annoinfos_add(const uint8_t *pNodeId);
  * @param[in]   bTemp               true:一時的なskip
  * @retval  true    成功
  */
-bool ln_db_routeskip_save(uint64_t ShortChannelId, bool bTemp);
+bool ln_db_route_skip_save(uint64_t ShortChannelId, bool bTemp);
 
 
-/** "routeskip" temporary skip <--> temporary work
+/** "route_skip" temporary skip <--> temporary work
  *
  * @param[in]   bWork               true:skip-->work, false:work-->skip
  */
-bool ln_db_routeskip_work(bool bWork);
+bool ln_db_route_skip_work(bool bWork);
 
 
 /** "route_skip" スキップ情報にshort_channel_idが登録されているか
@@ -589,14 +583,14 @@ bool ln_db_routeskip_work(bool bWork);
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @return      result
  */
-ln_db_routeskip_t ln_db_routeskip_search(uint64_t ShortChannelId);
+ln_db_route_skip_t ln_db_route_skip_search(uint64_t ShortChannelId);
 
 
 /** "route_skip" DB削除
  *
  * @param[in]   bTemp               true:一時的なskipのみ削除 / false:全削除
  */
-bool ln_db_routeskip_drop(bool bTemp);
+bool ln_db_route_skip_drop(bool bTemp);
 
 
 /********************************************************************
@@ -606,13 +600,13 @@ bool ln_db_routeskip_drop(bool bTemp);
 /** "routepay" invoice保存
  *
  */
-bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint8_t *pPayHash);
+bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint8_t *pPaymentHash);
 
 
 /** "routepay" invoice取得
  *
  */
-bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_t *pPayHash);
+bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_t *pPaymentHash);
 
 
 /** "routepay" 全payment_hash取得
@@ -620,13 +614,13 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
  * @attention
  *      - 内部で UTL_DBG_REALLOC()するため、使用後に UTL_DBG_FREE()すること
  */
-int ln_db_invoice_get(uint8_t **ppPayHash);
+int ln_db_invoice_get(uint8_t **ppPaymentHash);
 
 
 /** "routepay" invoice削除
  *
  */
-bool ln_db_invoice_del(const uint8_t *pPayHash);
+bool ln_db_invoice_del(const uint8_t *pPaymentHash);
 
 
 /** "routepay" DB削除
@@ -659,18 +653,18 @@ bool ln_db_preimage_del(const uint8_t *pPreimage);
 /** preimage検索
  *
  * @param[in]       pFunc
- * @param[in,out]   p_param
+ * @param[in,out]   pFuncParam
  * @retval  true    pFuncがtrueを返した(その時点で検索を中断している)
  */
-bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *p_param);
+bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *pFuncParam);
 
 
 /** preimage削除(payment_hash検索)
  *
- * @param[in]       pPreimageHash
+ * @param[in]       pPaymentHash
  * @retval  true
  */
-bool ln_db_preimage_del_hash(const uint8_t *pPreimageHash);
+bool ln_db_preimage_del_hash(const uint8_t *pPaymentHash);
 
 
 /** preimage cursorオープン
@@ -684,9 +678,10 @@ bool ln_db_preimage_cur_open(void **ppCur);
 /** preimage cursorクローズ
  *
  * @param[in]       pCur
+ * @param[in]       bCommit commit or abort
  * @retval  true
  */
-void ln_db_preimage_cur_close(void *pCur);
+void ln_db_preimage_cur_close(void *pCur, bool bCommit);
 
 
 /** preimage取得
@@ -705,34 +700,31 @@ bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreima
 bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry);
 
 
-#ifdef LN_UGLY_NORMAL
 /********************************************************************
  * payment_hash
  ********************************************************************/
 
 /** payment_hash保存
  *
- * @param[in]       pPayHash        保存するpayment_hash
- * @param[in]       pVout           pPayHashを含むvoutスクリプトを#btc_script_p2wsh_create_scriptpk()した結果。大きさはLNL_SZ_WITPROG_WSH。
+ * @param[in]       pPaymentHash        保存するpayment_hash
+ * @param[in]       pVout           pPaymentHashを含むvoutスクリプトを#btc_script_p2wsh_create_scriptpk()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_COMMIT_TX_OUTPUT_TYPE_OFFERED / LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
  * @retval  true
  */
-bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_commit_tx_output_type_t Type, uint32_t Expiry);
+bool ln_db_payment_hash_save(const uint8_t *pPaymentHash, const uint8_t *pVout, ln_commit_tx_output_type_t Type, uint32_t Expiry);
 
 
 /** payment_hash検索
  *
- * @param[out]      pPayHash        保存するpayment_hash
+ * @param[out]      pPaymentHash        保存するpayment_hash
  * @param[out]      pType           pVoutのHTLC種別(LN_COMMIT_TX_OUTPUT_TYPE_OFFERED / LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED)
  * @param[out]      pExpiry         Expiry
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
  * @retval  true
  */
-bool ln_db_phash_search(uint8_t *pPayHash, ln_commit_tx_output_type_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
-
-#endif  //LN_UGLY_NORMAL
+bool ln_db_payment_hash_search(uint8_t *pPaymentHash, ln_commit_tx_output_type_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
 
 
 /********************************************************************
@@ -745,7 +737,7 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_commit_tx_output_type_t *pType, ui
  * @param[in,out]   pDbParam
  * @retval  true        .
  */
-bool ln_db_revtx_load(ln_channel_t *pChannel, void *pDbParam);
+bool ln_db_revoked_tx_load(ln_channel_t *pChannel, void *pDbParam);
 
 
 /** revoked transaction情報保存
@@ -755,7 +747,7 @@ bool ln_db_revtx_load(ln_channel_t *pChannel, void *pDbParam);
  * @param[in,out]   pDbParam
  * @retval  true        .
  */
-bool ln_db_revtx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDbParam);
+bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDbParam);
 
 
 /********************************************************************
@@ -798,10 +790,10 @@ bool ln_db_wallet_del(const uint8_t *pTxid, uint32_t Index);
 /** DB version check
  *
  * @param[out]      pMyNodeId       (非NULL時)node_id
- * @param[out]      pGType          (非NULL時)genesis hash type
+ * @param[out]      pBlockChain          (非NULL時)genesis hash type
  * @retval  true    チェックOK
  */
-bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType);
+bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain);
 
 
 /********************************************************************
@@ -813,6 +805,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_block_chain_t *pGType);
  *
  */
 bool ln_db_reset(void);
+
 
 #ifdef __cplusplus
 }

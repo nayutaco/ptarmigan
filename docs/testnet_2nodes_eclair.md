@@ -6,7 +6,7 @@
   * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
   * tag 2018-03-13
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf db`).
 
 ----
 

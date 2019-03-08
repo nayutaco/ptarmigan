@@ -83,7 +83,7 @@ using namespace boost;
  **************************************************************************/
 
 extern "C" {
-    bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
+    bool ln_get_ids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
     bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
@@ -120,7 +120,7 @@ struct nodes_t {
         uint64_t    htlc_minimum_msat;
         uint32_t    fee_base_msat;
         uint32_t    fee_prop_millionths;
-        ln_db_routeskip_t   routeskip;              //ln_db_routeskip_search()
+        ln_db_route_skip_t   route_skip;              //ln_db_route_skip_search()
     } ninfo[2];         //[0]channel_updateのdir0, [1]channel_updateのdir1
 };
 
@@ -165,7 +165,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf, ln_db_routeskip_t rskip)
+static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf, ln_db_route_skip_t rskip)
 {
     nodes_t *p_nodes;
 
@@ -177,7 +177,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
      *
      * 通常、channel_announcementとchannel_updateは両方存在するが、announcement前は相手からchannel_updateだけ送信することがある。
      *      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
-     * ただし、channelのnodeidはchannel_announcementが保持しているため、自分が持つshort_chennl_idと一致する場合のみroutingに加える。
+     * ただし、channelのnode_idはchannel_announcementが保持しているため、自分が持つshort_chennl_idと一致する場合のみroutingに加える。
      */
 
     switch (type) {
@@ -186,13 +186,13 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
         p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
         p_nodes = &p_result->p_nodes[p_result->node_num - 1];
 
-        ln_getids_cnl_anno(
+        ln_get_ids_cnl_anno(
                             &p_nodes->short_channel_id,
                             p_nodes->ninfo[0].node_id,
                             p_nodes->ninfo[1].node_id,
                             p_buf->buf, p_buf->len);
-        p_nodes->ninfo[0].routeskip = rskip;
-        p_nodes->ninfo[1].routeskip = rskip;
+        p_nodes->ninfo[0].route_skip = rskip;
+        p_nodes->ninfo[1].route_skip = rskip;
         p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
         p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
 
@@ -253,8 +253,8 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
     M_DBGLOG("      status=%d\n", ln_status_get(pChannel));
     if ((pChannel->short_channel_id != 0) && (ln_status_get(pChannel) == LN_STATUS_NORMAL)) {
         //チャネルは開設している && normal operation
-        ln_db_routeskip_t rskip = ln_db_routeskip_search(pChannel->short_channel_id);
-        if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
+        ln_db_route_skip_t rskip = ln_db_route_skip_search(pChannel->short_channel_id);
+        if ((rskip != LN_DB_ROUTE_SKIP_NONE) && (rskip != LN_DB_ROUTE_SKIP_WORK)) {
             M_DBGLOG("skip DB: %016" PRIx64 "\n", pChannel->short_channel_id);
             return false;
         }
@@ -278,7 +278,7 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
             p_nodes_result->ninfo[lp].htlc_minimum_msat = 0;
             p_nodes_result->ninfo[lp].fee_base_msat = 0;
             p_nodes_result->ninfo[lp].fee_prop_millionths = 0;
-            p_nodes_result->ninfo[lp].routeskip = rskip;
+            p_nodes_result->ninfo[lp].route_skip = rskip;
         }
 
         M_DBGLOGV("[channel]nodenum=%d\n",  p_param_channel->p_result->node_num);
@@ -309,8 +309,8 @@ static void add_r_field(
     for (uint8_t lp = 0; lp < AddNum; lp++) {
         nodes_t *p_nodes = &p_result->p_nodes[p_result->node_num + count];
 
-        ln_db_routeskip_t rskip = ln_db_routeskip_search(pAddRoute[lp].short_channel_id);
-        if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
+        ln_db_route_skip_t rskip = ln_db_route_skip_search(pAddRoute[lp].short_channel_id);
+        if ((rskip != LN_DB_ROUTE_SKIP_NONE) && (rskip != LN_DB_ROUTE_SKIP_WORK)) {
             M_DBGLOG("skip DB: %016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
             continue;
         }
@@ -327,7 +327,7 @@ static void add_r_field(
         p_nodes->ninfo[dir].fee_prop_millionths = pAddRoute[lp].fee_prop_millionths;
         p_nodes->ninfo[dir].cltv_expiry_delta = pAddRoute[lp].cltv_expiry_delta;
         p_nodes->ninfo[dir].htlc_minimum_msat = 0;
-        p_nodes->ninfo[dir].routeskip = rskip;
+        p_nodes->ninfo[dir].route_skip = rskip;
         count++;
 
         M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", p_nodes->short_channel_id);
@@ -357,7 +357,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 
     param_channel.p_result = p_result;
     param_channel.p_payer = pPayerId;
-    ln_db_channel_search_nk_readonly(comp_func_channel, &param_channel);
+    ln_db_channel_search_readonly_nokey(comp_func_channel, &param_channel);
 
     //channel_anno
     void *p_cur;
@@ -369,15 +369,15 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
         return true;
     }
 
-    ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNL);
+    ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNLANNO);
     if (ret) {
         uint64_t short_channel_id;
         char type;
         utl_buf_t buf_cnl = UTL_BUF_INIT;
 
-        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
-            ln_db_routeskip_t rskip = ln_db_routeskip_search(short_channel_id);
-            if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
+        while ((ret = ln_db_cnlanno_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
+            ln_db_route_skip_t rskip = ln_db_route_skip_search(short_channel_id);
+            if ((rskip != LN_DB_ROUTE_SKIP_NONE) && (rskip != LN_DB_ROUTE_SKIP_WORK)) {
                 M_DBGLOG("skip DB: %016" PRIx64 "\n", short_channel_id);
                 utl_buf_free(&buf_cnl);
                 continue;
@@ -449,9 +449,9 @@ lnerr_route_t ln_routing_calculate(
     }
     LOGD("node_num: %d\n", rt_res.node_num);
 
-    LOGD("start nodeid : ");
+    LOGD("start node_id : ");
     DUMPD(pPayerId, BTC_SZ_PUBKEY);
-    LOGD("end nodeid   : ");
+    LOGD("end node_id   : ");
     DUMPD(pPayeeId, BTC_SZ_PUBKEY);
 
     graph_t groute;
@@ -505,7 +505,7 @@ lnerr_route_t ln_routing_calculate(
                 groute[e1].node_id = rt_res.p_nodes[lp].ninfo[0].node_id;
 
                 groute[e1].weight = edgefee(AmountMsat, groute[e1].fee_base_msat, groute[e1].fee_prop_millionths);
-                if (rt_res.p_nodes[lp].ninfo[0].routeskip == LN_DB_ROUTESKIP_WORK) {
+                if (rt_res.p_nodes[lp].ninfo[0].route_skip == LN_DB_ROUTE_SKIP_WORK) {
                     M_DBGLOG("HEAVY1: %016" PRIx64 "\n", groute[e1].short_channel_id);
                     groute[e1].weight *= 100;
                 }
@@ -523,7 +523,7 @@ lnerr_route_t ln_routing_calculate(
                 groute[e2].node_id = rt_res.p_nodes[lp].ninfo[1].node_id;
 
                 groute[e2].weight = edgefee(AmountMsat, groute[e2].fee_base_msat, groute[e2].fee_prop_millionths);
-                if (rt_res.p_nodes[lp].ninfo[1].routeskip == LN_DB_ROUTESKIP_WORK) {
+                if (rt_res.p_nodes[lp].ninfo[1].route_skip == LN_DB_ROUTE_SKIP_WORK) {
                     M_DBGLOG("HEAVY2: %016" PRIx64 "\n", groute[e2].short_channel_id);
                     groute[e2].weight *= 100;
                 }
@@ -688,7 +688,7 @@ void ln_routing_clear_skipdb(void)
 {
     bool bret;
 
-    bret = ln_db_routeskip_drop(false);
+    bret = ln_db_route_skip_drop(false);
     LOGD("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
 
     bret = ln_db_invoice_drop();

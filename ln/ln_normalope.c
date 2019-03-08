@@ -713,7 +713,7 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t
 
     if (pPreimage) {
         ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
-        if (!utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
+        if (!utl_buf_alloccopy(&p_htlc->buf_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
         //M_DB_CHANNEL_SAVE(pChannel); //XXX: Since the forwarding data of update is stored separately, this is not necessary
     }
 
@@ -1005,7 +1005,7 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
             result = RESULT_FAIL;
             goto LABEL_EXIT;
         }
-        utl_buf_alloccopy(&p_htlc->buf_payment_preimage, preimage, LN_SZ_PREIMAGE);
+        utl_buf_alloccopy(&p_htlc->buf_preimage, preimage, LN_SZ_PREIMAGE);
         utl_buf_free(&p_htlc->buf_onion_reason);
     } else {
         if (!check_recv_add_htlc_bolt4_forward(pChannel, &hop_dataout, &push_htlc, p_htlc, height)) {
@@ -1176,7 +1176,7 @@ static bool check_recv_add_htlc_bolt4_final(
         if (memcmp(preimage_hash, p_htlc->payment_hash, BTC_SZ_HASH256)) continue;
         break;
     }
-    ln_db_preimage_cur_close(p_cur);
+    ln_db_preimage_cur_close(p_cur, false);
     if (!detect) {
         //C1. if the payment hash has already been paid:
         //      ★(採用)MAY treat the payment hash as unknown.★
@@ -1296,8 +1296,8 @@ static bool check_recv_add_htlc_bolt4_forward(
         return false;
     }
     uint8_t dir = ln_order_to_dir(ln_node_id_order(pChannel, peer_id));
-    if (!ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir, NULL)) {
-        LOGE("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n",
+    if (!ln_db_cnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir, NULL)) {
+        LOGE("fail: ln_db_cnlupd_load: %016" PRIx64 ", dir=%d\n",
             pDataOut->short_channel_id, dir);
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
         utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
@@ -1722,7 +1722,7 @@ static bool update_fulfill_htlc_send(ln_channel_t *pChannel, uint16_t UpdateIdx)
     ln_msg_update_fulfill_htlc_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.id = p_htlc->id;
-    msg.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
+    msg.p_payment_preimage = p_htlc->buf_preimage.buf;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!ln_msg_update_fulfill_htlc_write(&buf, &msg)) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");

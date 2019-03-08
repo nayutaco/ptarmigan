@@ -125,7 +125,7 @@ typedef struct {
     uint64_t            amount_msat;                    ///< 8:  amount_msat
     uint32_t            cltv_expiry;                    ///< 4:  cltv_expirty
     uint8_t             payment_hash[BTC_SZ_HASH256];   ///< 32: payment_hash
-    utl_buf_t           buf_payment_preimage;           ///< 32: payment_preimage
+    utl_buf_t           buf_preimage;           ///< 32: payment_preimage
     utl_buf_t           buf_onion_reason;               ///<
                                                         //  update_add_htlc
                                                         //      1366: onion_routing_packet

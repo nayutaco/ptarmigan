@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
     }
     uint16_t port = 0;
     if (optind == argc) {
-        if (ln_db_have_dbdir()) {
+        if (ln_db_have_db_dir()) {
             char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
             char alias[LN_SZ_ALIAS_STR + 1] = "";
 
@@ -416,7 +416,7 @@ static void optfunc_disconnect(int *pOption, bool *pConn)
             "{"
                 M_STR("method", "disconnect") M_NEXT
                 M_QQ("params") ":[ "
-                    //peer_nodeid, peer_addr, peer_port
+                    //peer_node_id, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d"
                 " ]"
             "}",
@@ -485,7 +485,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
             "{"
                 M_STR("method", "fund") M_NEXT
                 M_QQ("params") ":[ "
-                    //peer_nodeid, peer_addr, peer_port
+                    //peer_node_id, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
                     //txid, txindex, funding_sat, push_sat, feerate_per_kw
                     M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
@@ -605,18 +605,18 @@ static void optfunc_payment(int *pOption, bool *pConn)
         return;
     }
 
-    char payhash[BTC_SZ_HASH256 * 2 + 1];
+    char payment_hash[BTC_SZ_HASH256 * 2 + 1];
     //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
     char forward[BTC_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
 
-    utl_str_bin2str(payhash, payconf.payment_hash, BTC_SZ_HASH256);
+    utl_str_bin2str(payment_hash, payconf.payment_hash, BTC_SZ_HASH256);
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "PAY") M_NEXT
             M_QQ("params") ":[ "
                 //payment_hash, hop_num
                 M_QQ("%s") ",%d, [\n",
-            payhash, payconf.hop_num);
+            payment_hash, payconf.hop_num);
 
     for (int lp = 0; lp < payconf.hop_num; lp++) {
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
@@ -667,7 +667,7 @@ static void optfunc_close(int *pOption, bool *pConn)
         "{"
             M_STR("method", "close") M_NEXT
             M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
+                //peer_node_id, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d%s"
             " ]"
         "}",
@@ -686,7 +686,7 @@ static void optfunc_getlasterr(int *pOption, bool *pConn)
         "{"
             M_STR("method", "getlasterror") M_NEXT
             M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
+                //peer_node_id, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d"
             " ]"
         "}",
@@ -731,7 +731,7 @@ static void optfunc_getcommittx(int *pOption, bool *pConn)
         "{"
             M_STR("method", "getcommittx") M_NEXT
             M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
+                //peer_node_id, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d%s"
             " ]"
         "}",
@@ -954,7 +954,7 @@ static void connect_rpc(void)
         "{"
             M_STR("method", "connect") M_NEXT
             M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
+                //peer_node_id, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d,%d"
             " ]"
         "}",

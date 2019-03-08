@@ -256,22 +256,22 @@ TEST_F(str, invalid_itoa)
 
 TEST_F(str, copy_and_fill_zeros)
 {
-    const char      *str = "abcdefgh";
+    const char      *src = "abcdefgh";
     const uint8_t   answer[16] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
-    uint8_t         buf[16] = {0};
+    char            dst[16] = {0};
 
-    memset(buf, 0xcc, sizeof(buf)); //clear
-    ASSERT_FALSE(utl_str_copy_and_fill_zeros(buf, 7, str));
+    memset(dst, 0xcc, sizeof(dst)); //clear
+    ASSERT_FALSE(utl_str_copy_and_fill_zeros(dst, src, 7));
 
-    memset(buf, 0xcc, sizeof(buf)); //clear
-    ASSERT_TRUE(utl_str_copy_and_fill_zeros(buf, 8, str));
-    ASSERT_EQ(0, memcmp(buf, answer, 8));
-    ASSERT_EQ(buf[8], 0xcc); //check that do not overrun
+    memset(dst, 0xcc, sizeof(dst)); //clear
+    ASSERT_TRUE(utl_str_copy_and_fill_zeros(dst, src, 8));
+    ASSERT_EQ(0, memcmp(dst, answer, 8));
+    ASSERT_EQ(dst[8], (char)0xcc); //check that do not overrun
 
-    memset(buf, 0xcc, sizeof(buf)); //clear
-    ASSERT_TRUE(utl_str_copy_and_fill_zeros(buf, 9, str));
-    ASSERT_EQ(0, memcmp(buf, answer, 9));
-    ASSERT_EQ(buf[9], 0xcc); //check that do not overrun
+    memset(dst, 0xcc, sizeof(dst)); //clear
+    ASSERT_TRUE(utl_str_copy_and_fill_zeros(dst, src, 9));
+    ASSERT_EQ(0, memcmp(dst, answer, 9));
+    ASSERT_EQ(dst[9], (char)0xcc); //check that do not overrun
 }
 
 

@@ -372,7 +372,7 @@ lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id);
  * @retval  非NULL      検索成功
  * @retval  NULL        検索失敗
  */
-lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id);
+lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id);
 
 
 /** 転送可能lnapp_conf_t取得(node_id)
@@ -381,7 +381,7 @@ lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id);
  * @retval  非NULL      検索成功
  * @retval  NULL        検索失敗
  */
-lnapp_conf_t *ptarmd_search_transferable_nodeid(const uint8_t *p_node_id);
+lnapp_conf_t *ptarmd_search_transferable_node_id(const uint8_t *p_node_id);
 
 
 /** ノード接続失敗リスト追加

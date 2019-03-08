@@ -52,16 +52,16 @@
 typedef struct {
     const uint8_t *p_node_id;
     ln_channel_t *p_channel;
-} comp_param_cnl_t;
+} cmp_param_channel_t;
 
 
-/** @struct comp_param_srcnodeid_t
+/** @struct cmp_param_src_node_id_t
  *  @brief  #ln_node_search_node_id()用
  */
 typedef struct {
     uint8_t *p_node_id;
     uint64_t short_channel_id;
-} comp_param_srcnodeid_t;
+} cmp_param_src_node_id_t;
 
 
 /**************************************************************************
@@ -77,7 +77,7 @@ static ln_node_t    mNode;
 
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static bool comp_func_total_msat(ln_channel_t *pChannel, void *p_db_param, void *p_param);
-static bool comp_func_srch_nodeid(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static bool comp_func_srch_node_id(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 //static bool comp_node_addr(const ln_node_addr_t *pAddr1, const ln_node_addr_t *pAddr2);
 static void print_node(void);
 
@@ -86,7 +86,7 @@ static void print_node(void);
  * public functions
  **************************************************************************/
 
-const uint8_t *ln_node_getid(void)
+const uint8_t *ln_node_get_id(void)
 {
     return mNode.keys.pub;
 }
@@ -165,14 +165,14 @@ bool ln_node_init(const ln_node_t *pNode)
     }
 
     //compare current
-    if (ln_db_annonod_load(&buf_node_old, NULL, mNode.keys.pub)) {
+    if (ln_db_nodeanno_load(&buf_node_old, NULL, mNode.keys.pub)) {
         if (!utl_buf_equal(&buf_node_old, &buf_node_new)) {
             LOGD("$$$ change node_announcement\n");
-            (void)ln_db_annonod_save(&buf_node_new, &msg, NULL); //XXX:
+            (void)ln_db_nodeanno_save(&buf_node_new, &msg, NULL); //XXX:
         }
     } else {
         LOGD("new\n");
-        if (!ln_db_annonod_save(&buf_node_new, &msg, NULL)) goto LABEL_EXIT;
+        if (!ln_db_nodeanno_save(&buf_node_new, &msg, NULL)) goto LABEL_EXIT;
     }
 
     LOGD("my node_id: ");
@@ -200,7 +200,7 @@ bool ln_node_search_channel(ln_channel_t *pChannel, const uint8_t *pNodeId)
     LOGD("search id:");
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
-    comp_param_cnl_t param;
+    cmp_param_channel_t param;
 
     param.p_node_id = pNodeId;
     param.p_channel = pChannel;
@@ -214,7 +214,7 @@ bool ln_node_search_channel(ln_channel_t *pChannel, const uint8_t *pNodeId)
 
 bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *pNodeAnnoBuf, const uint8_t *pNodeId)
 {
-    if (!ln_db_annonod_load(pNodeAnnoBuf, NULL, pNodeId)) return false;
+    if (!ln_db_nodeanno_load(pNodeAnnoBuf, NULL, pNodeId)) return false;
     if (!ln_msg_node_announcement_read(pNodeAnno, pNodeAnnoBuf->buf, pNodeAnnoBuf->len)) {
         LOGE("fail: read node_announcement\n");
         utl_buf_free(pNodeAnnoBuf);
@@ -227,7 +227,7 @@ bool ln_node_search_nodeanno(ln_msg_node_announcement_t *pNodeAnno, utl_buf_t *p
 uint64_t ln_node_total_msat(void)
 {
     uint64_t amount = 0;
-    ln_db_channel_search_nk_readonly(comp_func_total_msat, &amount);
+    ln_db_channel_search_readonly_nokey(comp_func_total_msat, &amount);
     return amount;
 }
 
@@ -295,10 +295,10 @@ bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
 
 bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId)
 {
-    comp_param_srcnodeid_t param;
+    cmp_param_src_node_id_t param;
     param.p_node_id = pNodeId;
     param.short_channel_id = ShortChannelId;
-    bool ret = ln_db_channel_search_nk_readonly(comp_func_srch_nodeid, &param);
+    bool ret = ln_db_channel_search_readonly_nokey(comp_func_srch_node_id, &param);
     LOGD("ret=%d\n", ret);
     return ret;
 }
@@ -312,12 +312,12 @@ bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId)
  *
  * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         comp_param_cnl_t構造体
+ * @param[in,out]   p_param         cmp_param_channel_t構造体
  */
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
-    comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
+    cmp_param_channel_t *p = (cmp_param_channel_t *)p_param;
 
     bool ret = (memcmp(pChannel->peer_node_id, p->p_node_id, BTC_SZ_PUBKEY) == 0);
     if (ret) {
@@ -329,7 +329,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
             if (p->p_channel->short_channel_id != 0) {
                 utl_buf_t buf = UTL_BUF_INIT;
 
-                bool bret2 = ln_db_annocnl_load(&p->p_channel->cnl_anno, p->p_channel->short_channel_id);
+                bool bret2 = ln_db_cnlanno_load(&p->p_channel->cnl_anno, p->p_channel->short_channel_id);
                 if (bret2) {
                     utl_buf_alloccopy(&p->p_channel->cnl_anno, buf.buf, buf.len);
                 }
@@ -370,13 +370,13 @@ static bool comp_func_total_msat(ln_channel_t *pChannel, void *p_db_param, void 
  *
  * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         comp_param_srcnodeid_t
+ * @param[in,out]   p_param         cmp_param_src_node_id_t
  */
-static bool comp_func_srch_nodeid(ln_channel_t *pChannel, void *p_db_param, void *p_param)
+static bool comp_func_srch_node_id(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
-    comp_param_srcnodeid_t *p_srch = (comp_param_srcnodeid_t *)p_param;
+    cmp_param_src_node_id_t *p_srch = (cmp_param_src_node_id_t *)p_param;
     bool ret = (ln_short_channel_id(pChannel) == p_srch->short_channel_id);
     if (ret) {
         memcpy(p_srch->p_node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY);

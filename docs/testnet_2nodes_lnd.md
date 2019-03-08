@@ -6,7 +6,7 @@
   * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
 * [ptarmigan](https://github.com/nayutaco/ptarmigan/)
   * tag: 2018-03-13
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf db`).
 
 ----
 

@@ -19,7 +19,7 @@ routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CL
   * payee node_id
 
 * -d DB_DIR
-  * DB directory(= contain `dbptarm`)
+  * DB directory(= contain `db`)
     * default: current directory
 
 * -a AMOUNT_MSAT

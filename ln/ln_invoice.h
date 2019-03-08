@@ -65,7 +65,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
  *
  * @param[out]      ppInvoice
  * @param[in]       Type            LN_INVOICE_xxx
- * @param[in]       pPayHash
+ * @param[in]       pPaymentHash
  * @param[in]       Amount
  * @param[in]       Expiry          invoice expiry
  * @param[in]       pRField
@@ -75,7 +75,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
  * @attention
  *      - ppInoviceはUTL_DBG_MALLOC()で確保するため、、使用後にUTL_DBG_FREE()すること
  */
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
+bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPaymentHash, uint64_t Amount, uint32_t Expiry,
                         const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry);
 
 #ifdef __cplusplus

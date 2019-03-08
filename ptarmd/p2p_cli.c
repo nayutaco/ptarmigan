@@ -127,7 +127,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, int *pErrCode)
         *pErrCode = RPCERR_NODEID;
         goto LABEL_EXIT;
     }
-    lnapp_conf_t *p_conf = ptarmd_search_connected_nodeid(pConn->node_id);
+    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pConn->node_id);
     if (p_conf != NULL) {
         LOGE("fail: already connected.\n");
         *pErrCode = RPCERR_ALCONN;

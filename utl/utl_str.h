@@ -149,12 +149,12 @@ bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value);
 
 /** copy null-terminated string to the buffer and fill zeros
  *
- * @param[out]      pBuf        buffer
+ * @param[out]      pDst        string
+ * @param[in]       pSrc        null-terminated string
  * @param[in]       Size        size of the buffer
- * @param[in]       pStr        null-terminated string
  * @return      true        success
  */
-bool utl_str_copy_and_fill_zeros(uint8_t *pBuf, uint32_t Size, const char *pStr);
+bool utl_str_copy_and_fill_zeros(char *pDst, const char *pSrc, uint32_t Size);
 
 
 /** make null-terminated string from non-null-terminated string

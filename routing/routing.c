@@ -68,7 +68,7 @@ static FILE *fp_err;
  * external prototypes
  ********************************************************************/
 
-void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno);
+void ln_lmdb_set_env(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno);
 
 
 /********************************************************************
@@ -84,13 +84,13 @@ int main(int argc, char* argv[])
 
     fp_err = stderr;
 
-    uint8_t send_nodeid[BTC_SZ_PUBKEY];
-    uint8_t recv_nodeid[BTC_SZ_PUBKEY];
+    uint8_t send_node_id[BTC_SZ_PUBKEY];
+    uint8_t recv_node_id[BTC_SZ_PUBKEY];
     uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     uint64_t amtmsat = 0;
     bool output_json = false;
     char *payment_hash = NULL;
-    ln_lmdb_set_path(".");
+    ln_lmdb_set_home_dir(".");
 
     int opt;
     int options = 0;
@@ -98,11 +98,11 @@ int main(int argc, char* argv[])
         switch (opt) {
         case 'd':
             //db directory
-            ln_lmdb_set_path(optarg);
+            ln_lmdb_set_home_dir(optarg);
             break;
         case 's':
             //sender(payer)
-            bret = utl_str_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
+            bret = utl_str_str2bin(send_node_id, sizeof(send_node_id), optarg);
             if (!bret) {
                 fprintf(fp_err, "invalid arg: payer node id\n");
                 return -1;
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
             break;
         case 'r':
             //receiver(payee)
-            bret = utl_str_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
+            bret = utl_str_str2bin(recv_node_id, sizeof(recv_node_id), optarg);
             if (!bret) {
                 fprintf(fp_err, "invalid arg: payee node id\n");
                 return -1;
@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
             fprintf(fp_err, "fail: need -s and -r\n");
             return -2;
         }
-        if (memcmp(send_nodeid, recv_nodeid, BTC_SZ_PUBKEY) == 0) {
+        if (memcmp(send_node_id, recv_node_id, BTC_SZ_PUBKEY) == 0) {
             fprintf(fp_err, "fail: same payer and payee\n");
             return -3;
         }
@@ -198,9 +198,9 @@ int main(int argc, char* argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbChannel, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbChannel, ln_lmdb_get_chnlpath(), 0, 0664);
+    ret = mdb_env_open(pDbChannel, ln_lmdb_get_channel_db_path(), 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_chnlpath());
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_channel_db_path());
         return -5;
     }
 
@@ -208,9 +208,9 @@ int main(int argc, char* argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbNode, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbNode, ln_lmdb_get_nodepath(), 0, 0664);
+    ret = mdb_env_open(pDbNode, ln_lmdb_get_node_db_path(), 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_nodepath());
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_node_db_path());
         return -6;
     }
 
@@ -218,16 +218,16 @@ int main(int argc, char* argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbAnno, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbAnno, ln_lmdb_get_annopath(), 0, 0664);
+    ret = mdb_env_open(pDbAnno, ln_lmdb_get_anno_db_path(), 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_annopath());
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_anno_db_path());
         return -6;
     }
-    ln_lmdb_setenv(pDbChannel, pDbNode, pDbAnno);
+    ln_lmdb_set_env(pDbChannel, pDbNode, pDbAnno);
 
-    uint8_t my_nodeid[BTC_SZ_PUBKEY];
+    uint8_t my_node_id[BTC_SZ_PUBKEY];
     btc_block_chain_t gtype;
-    bret = ln_db_ver_check(my_nodeid, &gtype);
+    bret = ln_db_version_check(my_node_id, &gtype);
     if (!bret) {
         fprintf(fp_err, "fail: DB version mismatch\n");
         return -7;
@@ -249,8 +249,8 @@ int main(int argc, char* argv[])
 
     if ((options & OPT_CLEARSDB) == 0) {
         ln_routing_result_t result;
-        lnerr_route_t rerr = ln_routing_calculate(&result, send_nodeid,
-                    recv_nodeid, cltv_expiry, amtmsat, 0, NULL);
+        lnerr_route_t rerr = ln_routing_calculate(&result, send_node_id,
+                    recv_node_id, cltv_expiry, amtmsat, 0, NULL);
         if (rerr == LNROUTE_OK) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {

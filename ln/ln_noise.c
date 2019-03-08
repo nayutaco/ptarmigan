@@ -141,7 +141,7 @@ bool HIDDEN ln_noise_handshake_init(ln_noise_t *pCtx, const uint8_t *pNodeId)
     } else {
         //nose handshake responder
         LOGD("responder\n");
-        pNodeId = ln_node_getid();
+        pNodeId = ln_node_get_id();
         pBolt->state = WAIT_ACT_ONE;
     }
     //initiatorは相手node_id, responderは自node_id
@@ -841,7 +841,7 @@ static bool actthree_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pR
     unsigned long long tlen;
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     c, &clen,
-                    ln_node_getid(), BTC_SZ_PUBKEY,   //s.pub.serializeCompressed()
+                    ln_node_get_id(), BTC_SZ_PUBKEY,   //s.pub.serializeCompressed()
                     pBolt->h, BTC_SZ_HASH256,  //additional data
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
@@ -861,7 +861,7 @@ static bool actthree_sender(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pR
                     BTC_SZ_PUBKEY,                //in length
                     nonce,                          //12byte
                     pBolt->h, BTC_SZ_HASH256,      //AAD
-                    ln_node_getid(),                //input
+                    ln_node_get_id(),                //input
                     c,                              //output
                     c + BTC_SZ_PUBKEY);           //MAC
     mbedtls_chachapoly_free(&ctx);

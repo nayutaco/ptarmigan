@@ -322,7 +322,7 @@ const uint8_t *ln_creationhash_get(void)
 }
 
 
-void ln_peer_set_nodeid(ln_channel_t *pChannel, const uint8_t *pNodeId)
+void ln_peer_set_node_id(ln_channel_t *pChannel, const uint8_t *pNodeId)
 {
     memcpy(pChannel->peer_node_id, pNodeId, BTC_SZ_PUBKEY);
 }
@@ -425,7 +425,7 @@ void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId)
     uint32_t bindex;
     uint32_t vindex;
     ln_short_channel_id_get_param(&height, &bindex, &vindex, ShortChannelId);
-    snprintf(pStr, LN_SZ_SHORTCHANNELID_STR, "%" PRIu32 "x%" PRIu32 "x%" PRIu32, height, bindex, vindex);
+    snprintf(pStr, LN_SZ_SHORT_CHANNEL_ID_STR, "%" PRIu32 "x%" PRIu32 "x%" PRIu32, height, bindex, vindex);
 }
 
 
@@ -621,7 +621,7 @@ bool ln_channel_update_get_peer(const ln_channel_t *pChannel, utl_buf_t *pCnlUpd
 
     btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
     uint8_t dir = (order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) ? 0 : 1;  //相手のchannel_update
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, pChannel->short_channel_id, dir, NULL);
+    ret = ln_db_cnlupd_load(pCnlUpd, NULL, pChannel->short_channel_id, dir, NULL);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_channel_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
@@ -919,9 +919,9 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
             //HTLC Tx
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
             ln_commit_tx_output_type_t type;
-            uint8_t payhash[BTC_SZ_HASH256];
+            uint8_t payment_hash[BTC_SZ_HASH256];
             uint32_t expiry;
-            bool srch = ln_db_phash_search(payhash, &type, &expiry,
+            bool srch = ln_db_payment_hash_search(payment_hash, &type, &expiry,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 uint16_t htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
@@ -930,7 +930,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
                         pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
-                        payhash,
+                        payment_hash,
                         expiry);
                 utl_buf_init(&pChannel->p_revoked_vout[htlc_idx]);
                 btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
@@ -1027,7 +1027,7 @@ void ln_payment_hash_calc(uint8_t *pHash, const uint8_t *pPreimage)
  * @param[in]   Len
  * @retval  true        解析成功
  */
-bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len)
+bool ln_get_ids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len)
 {
     ln_msg_channel_announcement_t msg;
     bool ret = ln_msg_channel_announcement_read(&msg, pData, Len);
@@ -1323,7 +1323,7 @@ bool ln_open_channel_announce(const ln_channel_t *pChannel)
     //送信しても良い状況であればannouncement_signaturesを起動時に送信する
     if (ret) {
         utl_buf_t buf_cnl_anno = UTL_BUF_INIT;
-        bool havedb = ln_db_annocnl_load(&buf_cnl_anno, pChannel->short_channel_id);
+        bool havedb = ln_db_cnlanno_load(&buf_cnl_anno, pChannel->short_channel_id);
         if (havedb) {
             ln_msg_channel_announcement_print(buf_cnl_anno.buf, buf_cnl_anno.len);
         }
@@ -1452,7 +1452,7 @@ btc_script_pubkey_order_t ln_node_id_order(const ln_channel_t *pChannel, const u
     btc_script_pubkey_order_t order;
 
     int lp;
-    const uint8_t *p_nodeid = ln_node_getid();
+    const uint8_t *p_node_id = ln_node_get_id();
     const uint8_t *p_peerid;
     if (pNodeId == NULL) {
         p_peerid = pChannel->peer_node_id;
@@ -1460,11 +1460,11 @@ btc_script_pubkey_order_t ln_node_id_order(const ln_channel_t *pChannel, const u
         p_peerid = pNodeId;
     }
     for (lp = 0; lp < BTC_SZ_PUBKEY; lp++) {
-        if (p_nodeid[lp] != p_peerid[lp]) {
+        if (p_node_id[lp] != p_peerid[lp]) {
             break;
         }
     }
-    if ((lp < BTC_SZ_PUBKEY) && (p_nodeid[lp] < p_peerid[lp])) {
+    if ((lp < BTC_SZ_PUBKEY) && (p_node_id[lp] < p_peerid[lp])) {
         LOGD("my node= first\n");
         order = BTC_SCRYPT_PUBKEY_ORDER_ASC;
     } else {
@@ -1532,7 +1532,7 @@ static void channel_clear(ln_channel_t *pChannel)
     btc_tx_free(&pChannel->tx_closing);
 
     for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
-        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_payment_preimage);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
     }
