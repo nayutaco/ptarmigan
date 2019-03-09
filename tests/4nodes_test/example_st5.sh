@@ -21,7 +21,7 @@ do
     for i in 3333 4444 5555 6666
     do
         TMPFILE=./tmp.st5
-        ./showdb -d node_$i -s >$TMPFILE
+        ./showdb -d node_$i -s >$TMPFILE || (ERR=$?; echo showdb failed=$ERR; exit $ERR)
         cnt=`cat $TMPFILE | jq -e 'length'`
         if [ $cnt -eq 0 ]; then
             echo node_$i closed
