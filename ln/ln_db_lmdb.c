@@ -1152,14 +1152,14 @@ bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
 bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-#warning NOT READONLY
+//ToDo: NOT READONLY
     return channel_search(pFunc, pFuncParam, true, true);
 }
 
 
 bool ln_db_channel_search_nk_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-#warning NOT READONLY
+//ToDo: NOT READONLY
     return channel_search(pFunc, pFuncParam, true, false);
 }
 

@@ -495,7 +495,7 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
         return false;
     }
 
-#warning GQUERY TEST
+//ToDo: GQUERY TEST
     ln_msg_reply_channel_range_t msg;
     msg.p_chain_hash = pMsg->p_chain_hash;
 

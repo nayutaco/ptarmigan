@@ -837,7 +837,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //          sig: 1+72
         //          pub: 1+33
         //      locktime: 4
-    #warning issue #344: nested in BIP16 size
+        //ToDo: issue #344: nested in BIP16 size
         uint64_t fee = ln_calc_fee(
             LN_SZ_FUNDINGTX_VSIZE,
             ln_update_info_get_feerate_per_kw_committed(&pChannel->update_info, true));
