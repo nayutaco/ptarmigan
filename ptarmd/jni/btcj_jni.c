@@ -578,7 +578,7 @@ bool btcj_getnewaddress(char *pAddr)
 //-----------------------------------------------------------------------------
 bool btcj_estimatefee(uint64_t *pFeeSatoshi, int Blks)
 {
-#warning FIX: Dynamic fee
+//ToDo: FIX: Dynamic fee
     (void)Blks;
     jlong ret = (*env)->CallLongMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_ESTIMATEFEE]);
     check_exception(env);

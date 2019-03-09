@@ -2895,7 +2895,7 @@ static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
     const ln_cb_param_update_closing_fee_t *p_closed_fee = (const ln_cb_param_update_closing_fee_t *)p_param;
     LOGD("received fee: %" PRIu64 "\n", p_closed_fee->fee_sat);
 
-#warning How to decide shutdown fee
+    //ToDo: How to decide shutdown fee
     ln_shutdown_update_fee(p_conf->p_channel, p_closed_fee->fee_sat);
 }
 
