@@ -68,7 +68,7 @@ BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 #CFLAGS += -mthumb -mabi=aapcs
 #CFLAGS += -mfloat-abi=soft
 
-CFLAGS += -W -Wall -Wno-error=unused-function -fno-common
+CFLAGS += -W -Wall -Werror -Werror -Wno-error=unused-function -fno-common
 
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing

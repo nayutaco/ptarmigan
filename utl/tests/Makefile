@@ -22,7 +22,7 @@ CPPFLAGS += -DPTARM_DEBUG_MEM
 #CPPFLAGS += -DPTARM_USE_PRINTFUNC
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --coverage -fpermissive
+CXXFLAGS += -g -Wall -Werror -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --coverage -fpermissive
 #CXXFLAGS += -fsanitize=leak
 #CXXFLAGS += -fsanitize=address
 CXXFLAGS += -I..
