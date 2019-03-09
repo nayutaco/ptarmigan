@@ -414,7 +414,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         goto LABEL_ERROR;
     }
 
-    LOGD("$$$ revoke_num: %" PRIu64 "\n", pChannel->commit_info_local.revoke_num);
+    LOGD("$$$ revoke_num: %" PRIu64 "\n", pChannel->commit_info_remote.revoke_num);
     LOGD("$$$ prev per_commit_pt: ");
     DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
 
