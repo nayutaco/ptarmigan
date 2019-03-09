@@ -12,7 +12,7 @@ LDFLAGS += -pthread -lln -lbtc -lutl -llmdb -lbase58 -lmbedcrypto -lz -lstdc++
 all: routing
 
 routing: ../ln/libln.a ../btc/libbtc.a ../utl/libutl.a $(SRC)
-	$(CC) -W -Wall $(CFLAGS) -o $(OBJ) $(SRC) $(LDFLAGS)
+	$(CC) -W -Wall -Werror $(CFLAGS) -o $(OBJ) $(SRC) $(LDFLAGS)
 
 clean:
 	-rm -rf $(OBJ)

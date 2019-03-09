@@ -53,7 +53,7 @@ BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 ######################################
 
 CFLAGS += -std=gnu99
-CFLAGS += -W -Wall
+CFLAGS += -W -Wall -Werror
 
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
