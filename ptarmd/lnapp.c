@@ -101,6 +101,13 @@
 #define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
 #define M_WAIT_CHANREEST_MSEC   (3600000)   //channel_reestablish受信待ち[msec]
 
+//lnapp_conf_t.flag_recv
+#define M_FLAGRECV_INIT             (0x01)  ///< receive init
+#define M_FLAGRECV_INIT_EXCHANGED   (0x02)  ///< exchange init
+#define M_FLAGRECV_REESTABLISH      (0x04)  ///< receive channel_reestablish
+#define M_FLAGRECV_FUNDINGLOCKED    (0x08)  ///< receive funding locked
+#define M_FLAGRECV_END              (0x80)  ///< 初期化完了
+
 #define M_ANNO_UNIT             (10)        ///< 1回のanno_proc()での処理単位
 #define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
 
@@ -120,19 +127,6 @@
 #define DBGTRACE_BEGIN
 #define DBGTRACE_END
 #endif
-
-
-/********************************************************************
- * typedefs
- ********************************************************************/
-
-//lnapp_conf_t.flag_recv
-enum {
-    RECV_MSG_INIT           = 0x01,     ///< init
-    RECV_MSG_REESTABLISH    = 0x02,     ///< channel_reestablish
-    RECV_MSG_FUNDINGLOCKED  = 0x04,     ///< funding locked
-    RECV_MSG_END            = 0x80,     ///< 初期化完了
-};
 
 
 /********************************************************************
@@ -526,7 +520,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
 
 void lnapp_set_feerate(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
 {
-    if ((pAppConf->flag_recv & RECV_MSG_END) == 0) {
+    if ((pAppConf->flag_recv & M_FLAGRECV_END) == 0) {
         return;
     }
 
@@ -668,13 +662,13 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 
 bool lnapp_is_connected(const lnapp_conf_t *pAppConf)
 {
-    return (pAppConf->flag_recv & RECV_MSG_INIT) == RECV_MSG_INIT;
+    return (pAppConf->flag_recv & M_FLAGRECV_INIT) == M_FLAGRECV_INIT;
 }
 
 
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
 {
-    return (pAppConf->flag_recv & RECV_MSG_END) == RECV_MSG_END;
+    return (pAppConf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END;
 }
 
 
@@ -811,6 +805,7 @@ static void *thread_main_start(void *pArg)
         LOGE("fail: exchange init\n");
         goto LABEL_JOIN;
     }
+    p_conf->flag_recv |= M_FLAGRECV_INIT_EXCHANGED;
 
     //送金先
     if (ln_shutdown_scriptpk_local(p_channel)->len == 0) {
@@ -908,7 +903,7 @@ static void *thread_main_start(void *pArg)
 
     //初期化完了
     LOGD("*** message inited ***\n");
-    p_conf->flag_recv |= RECV_MSG_END;
+    p_conf->flag_recv |= M_FLAGRECV_END;
 
     // send `channel_update` for private/before publish channel
     send_cnlupd_before_announce(p_conf);
@@ -1228,7 +1223,7 @@ static bool exchange_init(lnapp_conf_t *p_conf)
     //コールバックでのINIT受信通知待ち
     LOGD("wait: init\n");
     uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
-    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
+    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & M_FLAGRECV_INIT) == 0)) {
         utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
@@ -1247,15 +1242,15 @@ static bool exchange_init(lnapp_conf_t *p_conf)
         if (del_sendinfo) {
             //send all range
 
-            //annoinfo情報削除(node_id指定)
+            //annoinfo情報削除(node_id指定, short_channel_idすべて)
             LOGD("remove announcement sent info\n");
-            ln_db_annoinfos_del(p_conf->node_id);
+            ln_db_annoinfos_del(p_conf->node_id, NULL, 0);
         } else {
             //only new received
             ln_db_annoinfos_add(p_conf->node_id);
         }
     }
-    return p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) != 0);
+    return p_conf->loop && ((p_conf->flag_recv & M_FLAGRECV_INIT) != 0);
 }
 
 
@@ -1273,12 +1268,12 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
     //コールバックでのchannel_reestablish受信通知待ち
     LOGD("wait: channel_reestablish\n");
     uint32_t count = M_WAIT_CHANREEST_MSEC / M_WAIT_RECV_MSG_MSEC;
-    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
+    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & M_FLAGRECV_REESTABLISH) == 0)) {
         utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
     LOGD("loop:%d, count:%d, flag_recv=%02x\n", p_conf->loop, count, p_conf->flag_recv);
-    return p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) != 0);
+    return p_conf->loop && ((p_conf->flag_recv & M_FLAGRECV_REESTABLISH) != 0);
 }
 
 
@@ -1295,7 +1290,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 
     //コールバックでのfunding_locked受信通知待ち
     LOGD("wait: funding_locked\n");
-    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_FUNDINGLOCKED) == 0)) {
+    while (p_conf->loop && ((p_conf->flag_recv & M_FLAGRECV_FUNDINGLOCKED) == 0)) {
         utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
     }
     LOGD("exchange: funding_locked\n");
@@ -1474,6 +1469,13 @@ static void *thread_recv_start(void *pArg)
                 stop_threads(p_conf);
                 break;
             }
+            if (type == MSGTYPE_INIT) {
+                LOGD("$$$ init exchange...\n");
+                while ((p_conf->flag_recv & M_FLAGRECV_INIT_EXCHANGED) == 0) {
+                    utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
+                }
+                LOGD("$$$ init exchanged\n");
+            }
             //LOGD("mux_channel: end\n");
             pthread_mutex_unlock(&p_conf->mux_channel);
         }
@@ -1569,7 +1571,7 @@ static void *thread_poll_start(void *pArg)
             break;
         }
 
-        if ((p_conf->flag_recv & RECV_MSG_INIT) == 0) {
+        if ((p_conf->flag_recv & M_FLAGRECV_INIT) == 0) {
             //まだ接続していない
             continue;
         }
@@ -1794,7 +1796,7 @@ static void *thread_anno_start(void *pArg)
             }
         }
 
-        if ((p_conf->flag_recv & RECV_MSG_END) == 0) {
+        if ((p_conf->flag_recv & M_FLAGRECV_END) == 0) {
             //まだ接続完了していない
             continue;
         }
@@ -2078,7 +2080,7 @@ static bool anno_send_cnl(lnapp_conf_t *p_conf, uint64_t short_channel_id, char 
         ln_db_annocnlinfo_add_nodeid(p_cur_infocnl, short_channel_id, type, false, ln_remote_node_id(p_conf->p_channel));
         chk = true;
     } else {
-        LOGD("CHAN already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
+        //LOGD("CHAN already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
     }
     return chk;
 }
@@ -2111,7 +2113,7 @@ static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_i
                 ln_db_annonodinfo_add_nodeid(p_cur_infonode, node[lp], false, ln_remote_node_id(p_conf->p_channel));
             }
         } else {
-            LOGD("NODE already sent: short_channel_id=%016" PRIx64 ", node%d\n", short_channel_id, lp);
+            //LOGD("NODE already sent: short_channel_id=%016" PRIx64 ", node%d\n", short_channel_id, lp);
         }
     }
     return true;
@@ -2227,7 +2229,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     //init受信待ち合わせ解除(*1)
-    p_conf->flag_recv |= RECV_MSG_INIT;
+    p_conf->flag_recv |= M_FLAGRECV_INIT;
 }
 
 
@@ -2238,7 +2240,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     //channel_reestablish受信待ち合わせ解除(*3)
-    p_conf->flag_recv |= RECV_MSG_REESTABLISH;
+    p_conf->flag_recv |= M_FLAGRECV_REESTABLISH;
 }
 
 
@@ -2331,7 +2333,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
+    if ((p_conf->flag_recv & M_FLAGRECV_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_channel));
@@ -2341,7 +2343,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
     }
 
     //funding_locked受信待ち合わせ解除(*4)
-    p_conf->flag_recv |= RECV_MSG_FUNDINGLOCKED;
+    p_conf->flag_recv |= M_FLAGRECV_FUNDINGLOCKED;
 }
 
 
@@ -3223,7 +3225,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 
     pthread_mutex_lock(&p_conf->mux_channel);
 
-    if ((p_conf->flag_recv & RECV_MSG_END) == RECV_MSG_END) {
+    if ((p_conf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END) {
         ln_recv_idle_proc(p_conf->p_channel, p_conf->feerate_per_kw);
     }
 

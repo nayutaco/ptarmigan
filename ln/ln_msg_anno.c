@@ -170,7 +170,9 @@ static void announcement_signatures_print(const ln_msg_announcement_signatures_t
     LOGD("-[announcement_signatures]-------------------------------\n");
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    ln_short_channel_id_string(str_sci, pMsg->short_channel_id);
+    LOGD("short_channel_id: %s(%016" PRIx64 ")\n", str_sci, pMsg->short_channel_id);
     LOGD("node_signature: ");
     DUMPD(pMsg->p_node_signature, LN_SZ_SIGNATURE);
     LOGD("bitcoin_signature: ");
@@ -267,7 +269,9 @@ static void channel_announcement_print(const ln_msg_channel_announcement_t *pMsg
     DUMPD(pMsg->p_features, pMsg->len);
     LOGD("chain_hash: ");
     DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
-    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    ln_short_channel_id_string(str_sci, pMsg->short_channel_id);
+    LOGD("short_channel_id: %s(%016" PRIx64 ")\n", str_sci, pMsg->short_channel_id);
     LOGD("node_id_1: ");
     DUMPD(pMsg->p_node_id_1, BTC_SZ_PUBKEY);
     LOGD("node_id_2: ");
@@ -643,7 +647,9 @@ static void channel_update_print(const ln_msg_channel_update_t *pMsg)
     //DUMPD(pMsg->signature, LN_SZ_SIGNATURE);
     //LOGD("chain_hash: ");
     //DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
-    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    ln_short_channel_id_string(str_sci, pMsg->short_channel_id);
+    LOGD("short_channel_id: %s(%016" PRIx64 ")\n", str_sci, pMsg->short_channel_id);
     LOGD("timestamp: %u\n", pMsg->timestamp);
     char time[UTL_SZ_TIME_FMT_STR + 1];
     LOGD("timestamp(fmt): %s\n", utl_time_fmt(time, pMsg->timestamp));

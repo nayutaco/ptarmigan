@@ -83,7 +83,14 @@ LIST_HEAD(ponglisthead_t, ponglist_t);
  */
 typedef struct lnapp_conf_t {
     //p2p_svr/cli用
-    volatile int    sock;                       ///< -1:未接続
+    volatile int    sock;                   ///< -1:socket未接続
+
+    //lnappワーク
+    volatile bool   loop;                   ///< true:channel動作中
+    volatile uint8_t    flag_recv;          ///< 受信フラグ(M_FLAGRECV_xxx)
+
+
+    //p2p_svr/cli用
     pthread_t       th;                         ///< pthread id
     char            conn_str[SZ_CONN_STR + 1];  ///< 接続成功ログ/接続失敗リスト用
     uint16_t        conn_port;                  ///< 接続成功ログ/接続失敗リスト用
@@ -91,20 +98,16 @@ typedef struct lnapp_conf_t {
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocol handshakeのinitiator
     uint8_t         node_id[BTC_SZ_PUBKEY];     ///< 接続先(initiator==true時)
-    
+
     //routing_sync
     ptarmd_routesync_t  routesync;              ///< local routing_sync
 
     //lnappワーク
-    volatile bool   loop;                   ///< true:channel動作中
     ln_channel_t    *p_channel;             ///< channelのコンテキスト
-
     int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
-
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
 
-    volatile uint8_t    flag_recv;          ///< 受信フラグ(RECV_MSG_xxx)
 
     //BOLT送信キュー
     utl_buf_t       buf_sendque;            ///< send data array before noise encode
@@ -167,7 +170,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFundingConf);
  *******************************************/
 
 /** [lnapp]check pong list
- * 
+ *
  *  @retval     true    not receive pong against previous ping sending.
  */
 bool lnapp_check_ponglist(const lnapp_conf_t *pAppConf);

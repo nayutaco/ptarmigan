@@ -390,6 +390,7 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEnc
         return false;
     }
 
+    //ToDo: GQUERY TEST(相手が持つすべてを要求している)
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_query_short_channel_ids_t msg;
     msg.p_chain_hash = ln_genesishash_get();
@@ -410,7 +411,18 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
     }
 
     ln_msg_query_short_channel_ids_t msg;
-    ln_msg_query_short_channel_ids_read(&msg, pData, Len);
+    if (!ln_msg_query_short_channel_ids_read(&msg, pData, Len)) {
+        LOGE("fail: read query_short_channel_ids\n");
+        return false;
+    }
+    uint64_t *p_short_channel_ids;
+    size_t ids;
+    if (!ln_msg_gossip_ids_decode(&p_short_channel_ids, &ids, msg.p_encoded_short_ids, msg.len)) {
+        return false;
+    }
+    ln_db_annoinfos_del(ln_remote_node_id(pChannel), p_short_channel_ids, ids);
+    UTL_DBG_FREE(p_short_channel_ids);
+
     return true;
 }
 
@@ -495,7 +507,6 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
         return false;
     }
 
-//ToDo: GQUERY TEST
     ln_msg_reply_channel_range_t msg;
     msg.p_chain_hash = pMsg->p_chain_hash;
 
