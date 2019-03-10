@@ -1471,10 +1471,17 @@ static void *thread_recv_start(void *pArg)
             }
             if (type == MSGTYPE_INIT) {
                 LOGD("$$$ init exchange...\n");
-                while ((p_conf->flag_recv & M_FLAGRECV_INIT_EXCHANGED) == 0) {
+                uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+                while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & M_FLAGRECV_INIT_EXCHANGED) == 0)) {
                     utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
+                    count--;
                 }
-                LOGD("$$$ init exchanged\n");
+                if (count > 0) {
+                    LOGD("$$$ init exchanged\n");
+                } else {
+                    LOGE("fail: init exchange timeout\n");
+                    stop_threads(p_conf);
+                }
             }
             //LOGD("mux_channel: end\n");
             pthread_mutex_unlock(&p_conf->mux_channel);
