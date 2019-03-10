@@ -265,7 +265,7 @@ bool ln_db_channel_search_nk_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 /** load pChannel->status
- * 
+ *
  * @param[in,out]       pChannel        channel info
  * @retval  load result
  * @note
@@ -275,7 +275,7 @@ bool ln_db_channel_load_status(ln_channel_t *pChannel);
 
 
 /** save pChannel->status
- * 
+ *
  * @param[in]           pChannel        channel info
  * @retval  save result
  */
@@ -283,7 +283,7 @@ bool ln_db_channel_save_status(const ln_channel_t *pChannel, void *pDbParam);
 
 
 /** save pChannel->last_confirm
- * 
+ *
  * @param[in]           pChannel        channel info
  * @retval  save result
  */
@@ -441,9 +441,9 @@ void ln_db_anno_cur_close(void *pCur);
  * @param[in]       ShortChannelId
  * @param[in]       Type
  * @param[in]       bClr                true:保存したノードを削除してから追加する
- * @param[in]       pSendId             送信元/先ノード
+ * @param[in]       pNodeId             追加するnode_id
  */
-bool ln_db_annocnlinfo_add_nodeid(void *pCur, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pSendId);
+bool ln_db_annocnlinfo_add_nodeid(void *pCur, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pNodeId);
 
 
 /** channel_announcement関連情報送信済み検索
@@ -451,10 +451,10 @@ bool ln_db_annocnlinfo_add_nodeid(void *pCur, uint64_t ShortChannelId, char Type
  * @param[in]       pCur
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @param[in]       Type                検索するchannel_announcement/channel_update[1/2]
- * @param[in]       pSendId             対象node_id
- * @retval  true    pSendIdへ送信済み
+ * @param[in]       pNodeId             対象node_id
+ * @retval  true    pNodeIdへ送信済み
  */
-bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
+bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char Type, const uint8_t *pNodeId);
 
 
 /** channel_announcement関連情報の順次取得
@@ -470,7 +470,7 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 
 
 /** channel_announcement関連情報の前方移動
- * 
+ *
  */
 bool ln_db_annocnl_cur_back(void *pCur);
 
@@ -550,8 +550,10 @@ bool ln_db_annoown_del(uint64_t ShortChannelId);
  * announcement送信済みnode_idから削除する。
  *
  * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
+ * @param[in]       pShortChannelId     (pNodeId非NULL時)削除対象のshort_channel_id(NULL時は全削除)
+ * @param[in]       Num                 pShortChannelId数
  */
-bool ln_db_annoinfos_del(const uint8_t *pNodeId);
+bool ln_db_annoinfos_del(const uint8_t *pNodeId, const uint64_t *pShortChannelId, size_t Num);
 
 
 /** channel_announcement/channel_update/node_announcement送受信ノード情報追加
@@ -576,7 +578,7 @@ bool ln_db_routeskip_save(uint64_t ShortChannelId, bool bTemp);
 
 
 /** "routeskip" temporary skip <--> temporary work
- * 
+ *
  * @param[in]   bWork               true:skip-->work, false:work-->skip
  */
 bool ln_db_routeskip_work(bool bWork);
