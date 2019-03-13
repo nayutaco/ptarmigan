@@ -389,6 +389,10 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEnc
         LOGE("fail: not gossip_queries\n");
         return false;
     }
+    if (pChannel->gquery.wait_query_short_channel_ids_end) {
+        LOGE("fail: already query_short_channel_ids\n");
+        return false;
+    }
 
     //ToDo: GQUERY TEST(相手が持つすべてを要求している)
     utl_buf_t buf = UTL_BUF_INIT;
@@ -397,6 +401,7 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEnc
     msg.len = Len;
     msg.p_encoded_short_ids = pEncodedIds;
     if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
+    pChannel->gquery.wait_query_short_channel_ids_end = true;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
@@ -420,7 +425,9 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
     if (!ln_msg_gossip_ids_decode(&p_short_channel_ids, &ids, msg.p_encoded_short_ids, msg.len)) {
         return false;
     }
-    ln_db_annoinfos_del(ln_remote_node_id(pChannel), p_short_channel_ids, ids);
+    if (!ln_db_annoinfos_del(ln_remote_node_id(pChannel), p_short_channel_ids, ids)) {
+        return false;
+    }
     UTL_DBG_FREE(p_short_channel_ids);
 
     return true;
@@ -454,9 +461,15 @@ bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const ui
         LOGE("fail: not gossip_queries\n");
         return false;
     }
-
+    if (!pChannel->gquery.wait_query_short_channel_ids_end) {
+        LOGE("fail: query_short_channel_ids not sent\n");
+        return false;
+    }
     ln_msg_reply_short_channel_ids_end_t msg;
-    ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len);
+    if (!ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len)) {
+        return false;
+    }
+    pChannel->gquery.wait_query_short_channel_ids_end = false;
     return true;
 }
 
@@ -493,8 +506,13 @@ bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
     }
 
     ln_msg_query_channel_range_t msg;
-    ln_msg_query_channel_range_read(&msg, pData, Len);
-    return ln_reply_channel_range_send(pChannel, &msg);
+    if (!ln_msg_query_channel_range_read(&msg, pData, Len)) {
+        return false;
+    }
+    if (!ln_reply_channel_range_send(pChannel, &msg)) {
+        return false;
+    }
+    return true;
 }
 
 
@@ -517,13 +535,11 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
     //get all short_channel_id
     uint64_t short_channel_id = 0;
     void *p_cur_cnl = NULL;         //channel
-    ret = ln_db_anno_transaction();
-    if (!ret) {
+    if (!ln_db_anno_transaction()) {
         LOGE("fail\n");
         return false;
     }
-    ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNL);
-    if (!ret) {
+    if (!ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNL)) {
         LOGE("fail\n");
         ln_db_anno_commit(false);
         return false;
@@ -543,9 +559,13 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
     ln_db_anno_commit(false);
 
     //encode
-    utl_buf_t encoded_ids;
+    utl_buf_t encoded_ids = UTL_BUF_INIT;
     ret = ln_msg_gossip_ids_encode(&encoded_ids, (const uint64_t *)short_ids.buf, short_ids.len / LN_SZ_SHORT_CHANNEL_ID);
     utl_buf_free(&short_ids);
+    if (!ret) {
+        utl_buf_free(&encoded_ids);
+        return false;
+    }
 
     //send
     msg.first_blocknum = pMsg->first_blocknum;

@@ -345,7 +345,7 @@ static void connect_nodelist(void)
     conf_connect_init(p_conf);
     bool bconf = conf_connect_load(FNAME_CONF_CONNLIST, p_conf);
     if (!bconf) {
-        LOGD("not connect list\n");
+        LOGD("no connect list\n");
         return;
     }
     for (int lp = 0; lp < PTARMD_CONNLIST_MAX; lp++) {

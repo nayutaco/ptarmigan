@@ -284,9 +284,6 @@ LABEL_EXIT:
 }
 
 
-//////////////////////////////////////////////////
-//
-//      https://github.com/rustyrussell/ccan/tree/master/ccan/crypto/shachain
 void HIDDEN ln_derkey_storage_create_secret(uint8_t *pSecret, const uint8_t *pSeed, uint64_t Index)
 {
     LOGD("index=%016" PRIx64 "\n", Index);
