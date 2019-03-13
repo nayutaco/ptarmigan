@@ -1585,7 +1585,7 @@ static void *thread_poll_start(void *pArg)
 
         poll_ping(p_conf);
 
-        if (utl_mem_is_all_zero(ln_funding_info_txid(&p_conf->p_channel->funding_info), BTC_SZ_TXID)) {
+        if (ln_status_get(p_conf->p_channel) < LN_STATUS_ESTABLISH) {
             //fundingしていない
             continue;
         }
@@ -2290,6 +2290,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->ret) {
         //fundingの監視は thread_poll_start()に任せる
+        LOGD("$$$ watch funding_txid: ");
         TXIDD(ln_funding_info_txid(&p_conf->p_channel->funding_info));
         p_conf->funding_waiting = true;
 
