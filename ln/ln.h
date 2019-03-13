@@ -307,12 +307,21 @@ typedef struct {
     //  reply_channel_rangeは複数回に分ける可能性がある(サイズ次第)。
     //  ここでは、query_channel_range受信時にp_reply_rangeを全部準備する想定。
     //  sent_reply_range_numは送信ごとにインクリメントし、reply_range_numと等しくなれば全送信完了。
-    uint32_t        sent_reply_range_num;   ///< sent reply_channel_range count
-    uint32_t        reply_range_num;        ///< p_reply_range count
-    struct {
-        uint32_t        id_num;             ///< p_encoded_ids size
-        uint8_t         *p_encoded_ids;     ///< encoded_short_ids
-    } *p_reply_range;
+    //
+    //  だが。
+    //  reply_channel_rangeで返すべきデータがBOLT messageの最大長になるとしよう。
+    //  encoded_short_idsはきっとzlib圧縮されているだろう。
+    //  BOLTの考察で、zlib圧縮して65,535byteだった場合、short_channel_idsであれば
+    //  展開後のサイズは3,669,960byteくらいが最大になる、とのことであった。
+    //      https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#query-messages
+    //  short_channel_id数にすると46万程度。
+    //  現状では46万ものチャネル情報はないため、複数回のreply_channel_range返信は後回しとする。
+    // uint32_t        sent_reply_range_num;   ///< sent reply_channel_range count
+    // uint32_t        reply_range_num;        ///< p_reply_range count
+    // struct {
+    //     uint32_t        id_num;             ///< p_encoded_ids size
+    //     uint8_t         *p_encoded_ids;     ///< encoded_short_ids
+    // } *p_reply_range;
 
     //for receiving query_short_channel_ids
     //  query_short_channel_idsを1回受信すると、その分のannouncementを送信し、
@@ -323,6 +332,14 @@ typedef struct {
     uint32_t        sent_reply_anno_num;    ///< sent announcment count
     uint32_t        reply_anno_num;         ///< p_reply_short_ids count
     uint64_t        *p_reply_short_ids;     ///< decoded short_channel_ids
+
+    //for sending query_short_channel_ids
+    //  query_short_channel_idsを1回送信すると、reply_short_channel_ids_endを
+    //  受信するまではquery_short_channel_idsを送信できない。
+    //  node接続後に問い合わせて、それ以降問い合わせたいことがあるかどうかはわからないが、
+    //  一応管理しておく。
+    bool            wait_query_short_channel_ids_end;   //true:reply_short_channel_ids_end待ち
+                                                        // == can't send query_short_channel_ids
 } ln_gquery_t;
 
 
