@@ -46,6 +46,9 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/property_map/property_map.hpp>
+#ifdef M_GRAPHVIZ
+#include <boost/graph/graphviz.hpp>
+#endif  //M_GRAPHVIZ
 
 #include "ln_routing.h"
 
@@ -620,6 +623,60 @@ lnerr_route_t ln_routing_calculate(
     pResult->hop_datain[pResult->hop_num - 1].amt_to_forward = msat[pResult->hop_num - 1];
     pResult->hop_datain[pResult->hop_num - 1].outgoing_cltv_value = cltv[pResult->hop_num - 1];
     memcpy(pResult->hop_datain[pResult->hop_num - 1].pubkey, p_next, BTC_SZ_PUBKEY);
+
+#ifdef M_GRAPHVIZ
+    // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
+    std::ofstream dot_file("gossip.dot");
+
+    dot_file << "digraph D {\n"
+             //<< "  rankdir=LR\n"
+             //<< "  ratio=\"fill\"\n"
+             << "  graph[layout=circo];\n"
+             //<< "  edge[style=\"bold\"];\n"
+             << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
+             ;
+
+    graph_traits < graph_t >::edge_iterator ei, ei_end;
+    for (boost::tie(ei, ei_end) = edges(groute); ei != ei_end; ++ei) {
+        graph_traits < graph_t >::edge_descriptor e = *ei;
+        graph_traits < graph_t >::vertex_descriptor u = source(e, groute);
+        graph_traits < graph_t >::vertex_descriptor v = target(e, groute);
+        if (u != v) {
+            char node1[128] = "\"";
+            char node2[128] = "\"";
+            const uint8_t *p_node1 = groute[u].p_node;
+            const uint8_t *p_node2 = groute[v].p_node;
+            for (int lp = 0; lp < 6; lp++) {
+                char s[3];
+                sprintf(s, "%02x", p_node1[lp]);
+                strcat(node1, s);
+                sprintf(s, "%02x", p_node2[lp]);
+                strcat(node2, s);
+            }
+            strcat(node1, "\"");
+            strcat(node2, "\"");
+            int col = memcmp(p_node1, p_node2, BTC_SZ_PUBKEY);
+            if (col > 0) {
+                dot_file << node1 << " -> " << node2
+                        << "["
+                        << "label=\""
+                        << std::hex << groute[e].short_channel_id << std::dec
+                        //<< ","
+                        //<< groute[e].fee_base_msat
+                        //<< ","
+                        //<< groute[e].fee_prop_millionths
+                        //<< ","
+                        //<< groute[e].cltv_expiry_delta
+                        << "\""
+                        << ", color=\"black\""
+                        << ", fontcolor=\"#804040\""
+                        << ", arrowhead=\"none\""
+                        << "]" << std::endl;
+            }
+        }
+    }
+    dot_file << "}";
+#endif  //M_GRAPHVIZ
 
     UTL_DBG_FREE(rt_res.p_nodes);
 
