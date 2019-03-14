@@ -871,6 +871,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
 static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *pHtlc)
 {
     const ln_htlc_t *p_htlc = pHtlc;
+    uint16_t num_received_htlcs;
 
     //shutdown
     if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV) {
@@ -897,11 +898,16 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
     //  if a sending node adds more than its max_accepted_htlcs HTLCs to its local commitment transaction
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (pChannel->commit_info_local.max_accepted_htlcs <
-        ln_update_info_get_num_received_htlcs(&pChannel->update_info, true)) {
+    num_received_htlcs = ln_update_info_get_num_received_htlcs(&pChannel->update_info, true);
+    if (pChannel->commit_info_local.max_accepted_htlcs < num_received_htlcs) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d < %d",
-            pChannel->commit_info_local.max_accepted_htlcs,
-            ln_update_info_get_num_received_htlcs(&pChannel->update_info, true));
+            pChannel->commit_info_local.max_accepted_htlcs, num_received_htlcs);
+        return false;
+    }
+    //LN_HTLC_RECEIVED_MAX is the impl. limit
+    if (LN_HTLC_RECEIVED_MAX < num_received_htlcs) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over LN_HTLC_RECEIVED_MAX: %d < %d",
+            LN_HTLC_RECEIVED_MAX, num_received_htlcs);
         return false;
     }
 
@@ -1537,6 +1543,7 @@ static bool check_create_add_htlc(
     ln_channel_t *pChannel, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value)
 {
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_closing_signed_initfee(pChannel));
+    uint16_t num_received_htlcs;
     if (pReason) {
         utl_buf_free(pReason);
     }
@@ -1566,11 +1573,16 @@ static bool check_create_add_htlc(
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
     //XXX: bug
     //  don't compare with the number of HTLC outputs but HTLCs (including trimmed ones)
-    if (pChannel->commit_info_remote.max_accepted_htlcs <=
-        ln_update_info_get_num_received_htlcs(&pChannel->update_info, false)) {
+    num_received_htlcs = ln_update_info_get_num_received_htlcs(&pChannel->update_info, false);
+    if (pChannel->commit_info_remote.max_accepted_htlcs <= num_received_htlcs) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "over max_accepted_htlcs : %d <= %d",
-            pChannel->commit_info_remote.max_accepted_htlcs,
-            ln_update_info_get_num_received_htlcs(&pChannel->update_info, false));
+            pChannel->commit_info_remote.max_accepted_htlcs, num_received_htlcs);
+        goto LABEL_ERROR;
+    }
+    //LN_HTLC_OFFERED_MAX is the impl. limit
+    if (LN_HTLC_OFFERED_MAX <= num_received_htlcs) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "over LN_HTLC_OFFERED_MAX : %d <= %d",
+            LN_HTLC_OFFERED_MAX, num_received_htlcs);
         goto LABEL_ERROR;
     }
 

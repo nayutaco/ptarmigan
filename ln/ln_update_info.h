@@ -35,9 +35,9 @@
  * macros
  ********************************************************************/
 
-#define LN_HTLC_OFFERED_MAX_XXX         (6)         ///<
-#define LN_HTLC_RECEIVED_MAX            (6)         ///<
-#define LN_HTLC_MAX_XXX                 (LN_HTLC_OFFERED_MAX_XXX + LN_HTLC_RECEIVED_MAX)
+#define LN_HTLC_OFFERED_MAX             (6)
+#define LN_HTLC_RECEIVED_MAX            (6)
+#define LN_HTLC_MAX                     (LN_HTLC_OFFERED_MAX + LN_HTLC_RECEIVED_MAX)
 
 //The number of possible states+1 is necessary.
 //  (Because the extra is to add new updates first)
@@ -54,7 +54,7 @@
 
 typedef struct {
     ln_update_t                 updates[LN_UPDATE_MAX];         ///< updates
-    ln_htlc_t                   htlcs[LN_HTLC_RECEIVED_MAX];    ///< htlcs
+    ln_htlc_t                   htlcs[LN_HTLC_MAX];             ///< htlcs
     uint64_t                    next_htlc_id;                   ///< update_add_htlcで使うidの管理 //XXX: Append immediately before sending
     ln_fee_update_t             fee_updates[LN_FEE_UPDATE_MAX]; ///< fee update
     uint64_t                    next_fee_update_id;             ///< fee update id

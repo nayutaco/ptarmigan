@@ -267,7 +267,7 @@ bool HIDDEN ln_commit_tx_info_create(
 
     //HTLCs (amount)
     pCommitTxInfo->pp_htlc_info = (ln_commit_tx_htlc_info_t **)UTL_DBG_MALLOC(
-        sizeof(ln_commit_tx_htlc_info_t *) * (LN_HTLC_MAX_XXX));
+        sizeof(ln_commit_tx_htlc_info_t *) * (LN_HTLC_MAX));
     if (!pCommitTxInfo->pp_htlc_info) goto LABEL_EXIT;
     if (!create_htlc_info_and_amount(
         pUpdateInfo, pCommitTxInfo->pp_htlc_info, &pCommitTxInfo->num_htlc_infos,
