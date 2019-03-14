@@ -271,8 +271,6 @@ static volatile int g_cnt[2];
 #define MDB_TXN_CHECK_WALLET(a)     if (mdb_txn_env(a) != mpEnvWallet) { LOGE("ERR: txn not WALLET\n"); abort(); }
 #endif
 
-#define M_DEBUG_KEYS
-
 
 /********************************************************************
  * typedefs
@@ -551,6 +549,7 @@ static const struct {
         ETYPE_FUNDTXIDX,    //funding_local.txindex
         ETYPE_LOCALKEYS,    //keys_local
         ETYPE_REMOTEKEYS,   //keys_remote
+        ETYPE_SHORT_CHANNEL_ID,     //short_channel_id
         //ETYPE_REMOTECOMM,   //funding_remote.prev_percommit
     } type;
     int length;
@@ -558,7 +557,7 @@ static const struct {
 } DBCHANNEL_COPYIDX[] = {
     { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },      // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
-    { ETYPE_UINT64X,    1, true },                  // short_channel_id
+    { ETYPE_SHORT_CHANNEL_ID,   1, true },          // short_channel_id
     { ETYPE_UINT64U,    1, true },                  // num_htlc_ids
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_txindex
@@ -1245,14 +1244,6 @@ bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbPara
 void ln_lmdb_channel_backup_show(MDB_txn *pTxn, MDB_dbi Dbi)
 {
     MDB_val         key, data;
-#ifdef M_DEBUG_KEYS
-    ln_funding_info_t funding_info;
-    ln_derkey_local_keys_t keys_local;
-    ln_derkey_remote_keys_t keys_remote;
-    memset(&funding_info, 0x00, sizeof(funding_info));
-    memset(&keys_local, 0x00, sizeof(keys_local));
-    memset(&keys_remote, 0x00, sizeof(keys_remote));
-#endif  //M_DEBUG_KEYS
 
     for (size_t lp = 0; lp < ARRAY_SIZE(DBCHANNEL_COPY); lp++) {
         key.mv_size = strlen(DBCHANNEL_COPY[lp].p_name);
@@ -1262,83 +1253,54 @@ void ln_lmdb_channel_backup_show(MDB_txn *pTxn, MDB_dbi Dbi)
             LOGE("fail: %s\n", DBCHANNEL_COPY[lp].p_name);
             continue;
         }
+        if (!DBCHANNEL_COPYIDX[lp].disp) {
+            continue;
+        }
 
         const uint8_t *p = (const uint8_t *)data.mv_data;
-        if ((lp != 0) && (DBCHANNEL_COPYIDX[lp].disp)) {
+        if (lp != 0) {
             printf(",\n");
         }
-        if (DBCHANNEL_COPYIDX[lp].disp) {
-            printf("      \"%s\": ", DBCHANNEL_COPY[lp].p_name);
-        }
+        printf("      \"%s\": ", DBCHANNEL_COPY[lp].p_name);
         switch (DBCHANNEL_COPYIDX[lp].type) {
         case ETYPE_BYTEPTR: //const uint8_t*
         //case ETYPE_REMOTECOMM:
-            if (DBCHANNEL_COPYIDX[lp].disp) {
-                printf("\"");
-                utl_dbg_dump(stdout, p, DBCHANNEL_COPYIDX[lp].length, false);
-                printf("\"");
-            }
+            printf("\"");
+            utl_dbg_dump(stdout, p, DBCHANNEL_COPYIDX[lp].length, false);
+            printf("\"");
             break;
         case ETYPE_UINT64U:
-            if (DBCHANNEL_COPYIDX[lp].disp) {
-                printf("%" PRIu64 "", *(const uint64_t *)p);
-            }
+            printf("%" PRIu64 "", *(const uint64_t *)p);
             break;
         case ETYPE_UINT64X:
-            if (DBCHANNEL_COPYIDX[lp].disp) {
-                printf("\"%016" PRIx64 "\"", *(const uint64_t *)p);
-            }
+            printf("\"%016" PRIx64 "\"", *(const uint64_t *)p);
             break;
         case ETYPE_UINT16:
         case ETYPE_FUNDTXIDX:
-            if (DBCHANNEL_COPYIDX[lp].disp) {
-                printf("%" PRIu16, *(const uint16_t *)p);
-            }
-#ifdef M_DEBUG_KEYS
-            if (DBCHANNEL_COPYIDX[lp].type == ETYPE_FUNDTXIDX) {
-                funding_info.txindex = *(const uint16_t *)p;
-            }
-#endif  //M_DEBUG_KEYS
+            printf("%" PRIu16, *(const uint16_t *)p);
             break;
         case ETYPE_TXID: //txid
         case ETYPE_FUNDTXID:
-            if (DBCHANNEL_COPYIDX[lp].disp) {
-                printf("\"");
-                btc_dbg_dump_txid(stdout, p);
-                printf("\"");
-            }
-#ifdef M_DEBUG_KEYS
-            if (DBCHANNEL_COPYIDX[lp].type == ETYPE_FUNDTXID) {
-                memcpy(funding_info.txid, p, DBCHANNEL_COPYIDX[lp].length);
-            }
-#endif  //M_DEBUG_KEYS
+            printf("\"");
+            btc_dbg_dump_txid(stdout, p);
+            printf("\"");
             break;
         case ETYPE_LOCALKEYS: //keys_local
-#ifdef M_DEBUG_KEYS
-            {
-                memcpy(&keys_local, p, sizeof(ln_derkey_local_keys_t));
-            }
-#endif  //M_DEBUG_KEYS
             break;
         case ETYPE_REMOTEKEYS: //keys_remote
-#ifdef M_DEBUG_KEYS
+            break;
+        case ETYPE_SHORT_CHANNEL_ID: //short_channel_id
             {
-                memcpy(&keys_remote, p, sizeof(ln_derkey_remote_keys_t));
+                char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+                ln_short_channel_id_string(str_sci, *(const uint64_t *)p);
+                printf("\"%s\"", str_sci);
             }
-#endif  //M_DEBUG_KEYS
             break;
         default:
             ;
         }
     }
-#ifdef M_DEBUG_KEYS
-    if ( ((keys_local.basepoints[0][0] == 0x02) || (keys_local.basepoints[0][0] == 0x03)) &&
-         ((keys_remote.basepoints[0][0] == 0x02) || (keys_remote.basepoints[0][0] == 0x03))) {
-        printf("\n");
-        //ln_update_script_pubkeys(&local, &remote);
-        //ln_print_keys(&local, &remote);
-    }
-#endif  //M_DEBUG_KEYS
+    printf("\n");
 }
 
 
@@ -3436,7 +3398,7 @@ bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index)
         MDB_TXN_ABORT(db.p_txn);
         return false;
     }
-    
+
     if (pBuf) {
         if (!utl_buf_alloccopy(pBuf, data.mv_data, data.mv_size)) {
             LOGE("fail: ???");
@@ -3444,7 +3406,7 @@ bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index)
             return false;
         }
     }
-   
+
     MDB_TXN_COMMIT(db.p_txn);
     return true;
 }
@@ -3506,7 +3468,7 @@ bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
 
     key.mv_size = sizeof(outpoint);
     key.mv_data = outpoint;
-    data.mv_size = 
+    data.mv_size =
         sizeof(uint8_t) +   //type
         sizeof(uint64_t) +  //amount
         sizeof(uint32_t) +  //sequence
@@ -4458,7 +4420,7 @@ static int cnlanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
         }
         return retval;
     }
-    
+
     if (!utl_buf_alloccopy(pCnlAnno, data.mv_data, data.mv_size)) {
         return -1;
     }
