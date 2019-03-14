@@ -2001,7 +2001,7 @@ bool ln_db_cnlanno_info_search_node_id(void *pCur, uint64_t ShortChannelId, char
 
     cnlanno_info_set(key_data, &key, ShortChannelId, Type);
     int retval = mdb_get(mpTxnAnno, p_cur->dbi, &key, &data);
-    if (retval == 0) {
+    if (retval) {
         //LOGE("ERR: %s\n", mdb_strerror(retval));
         return false;
     }
