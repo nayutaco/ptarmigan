@@ -62,14 +62,19 @@ bool HIDDEN ln_commit_tx_create_local(
     uint16_t NumHtlcSigs);
 
 
-/** create local commitment transaction info
+/** create commitment transaction info
  *
  * @param[in,out]       pCommitTxInfo
- * @param[in,out]       pCommitInfo
- * @param[in,out]       pChannel
+ * @param[in]           pCommitInfo
+ * @param[in]           pUpdateInfo
+ * @param[in]           bLocal
  * @retval              true        success
  */
-bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, const ln_commit_info_t *pCommitInfo, const ln_channel_t *pChannel);
+bool HIDDEN ln_commit_tx_info_create(
+    ln_commit_tx_info_t *pCommitTxInfo,
+    const ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
+    bool bLocal);
 
 
 void HIDDEN ln_commit_tx_info_free(ln_commit_tx_info_t *pCommitTxInfo);
