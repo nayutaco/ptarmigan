@@ -1467,9 +1467,8 @@ static void *thread_recv_start(void *pArg)
                 LOGD("DISC: fail recv message\n");
                 lnapp_close_channel_force(ln_remote_node_id(p_conf->p_channel));
                 stop_threads(p_conf);
-                break;
             }
-            if (type == MSGTYPE_INIT) {
+            if ((p_conf->loop) && (type == MSGTYPE_INIT)) {
                 LOGD("$$$ init exchange...\n");
                 uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
                 while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & M_FLAGRECV_INIT_EXCHANGED) == 0)) {
@@ -3047,6 +3046,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(p_conf->p_channel));
         LOGD("=========================================\n");
     }
+    LOGD("$$$ stopped\n");
 }
 
 

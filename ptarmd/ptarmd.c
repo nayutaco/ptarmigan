@@ -251,13 +251,13 @@ void ptarmd_stop(void)
 {
     if (mRunning) {
         mRunning = false;
-        LOGD("stopage order\n");
+        LOGD("$$$ stopage order\n");
         cmd_json_stop();
         monitor_stop();
         p2p_svr_stop_all();
         p2p_cli_stop_all();
     } else {
-        LOGD("stopped\n");
+        LOGD("$$$ stopped\n");
     }
 }
 
