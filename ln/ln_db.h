@@ -108,6 +108,18 @@ typedef struct {
 } ln_db_wallet_t;
 
 
+//XXX: comment
+/** @typedef    ln_db_forward_t
+ *  @brief      ln_db_forward
+ */
+typedef struct {
+    uint64_t    next_short_channel_id;
+    uint64_t    prev_short_channel_id;
+    uint64_t    prev_htlc_id;
+    utl_buf_t   *p_msg;
+} ln_db_forward_t;
+
+
 /** @typedef    ln_db_func_cmp_t
  *  @brief      比較関数(#ln_db_channel_search())
  *
@@ -378,7 +390,7 @@ bool ln_db_cnlupd_need_to_prune(uint64_t Now, uint32_t TimesStamp);
  * @param[in]       short_channel_id(0の場合、全削除)
  * @retval      true    成功
  */
-bool ln_db_cnlanno_del(uint64_t short_channel_id);
+bool ln_db_cnlanno_del(uint64_t ShortChannelId);
 
 
 /********************************************************************
@@ -794,6 +806,40 @@ bool ln_db_wallet_del(const uint8_t *pTxid, uint32_t Index);
  * @retval  true    チェックOK
  */
 bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain);
+
+
+/********************************************************************
+ * forward
+ ********************************************************************/
+
+//XXX: comment
+bool ln_db_forward_add_htlc_save(const ln_db_forward_t* pForward);
+bool ln_db_forward_add_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
+bool ln_db_forward_add_htlc_drop(uint64_t NextShortChannelId);
+
+
+//XXX: comment
+bool ln_db_forward_del_htlc_save(const ln_db_forward_t* pForward);
+bool ln_db_forward_del_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
+bool ln_db_forward_del_htlc_drop(uint64_t NextShortChannelId);
+
+
+/********************************************************************
+ * forward cursor
+ ********************************************************************/
+
+//XXX: comment
+bool ln_db_forward_add_htlc_cur_open(void **ppCur, uint64_t NextShortChannelId);
+void ln_db_forward_add_htlc_cur_close(void *pCur, bool bCommit);
+bool ln_db_forward_add_htlc_cur_get(
+    void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg);
+
+
+//XXX: comment
+bool ln_db_forward_del_htlc_cur_open(void **ppCur, uint64_t NextShortChannelId);
+void ln_db_forward_del_htlc_cur_close(void *pCur, bool bCommit);
+bool ln_db_forward_del_htlc_cur_get(
+    void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg);
 
 
 /********************************************************************

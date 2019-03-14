@@ -26,7 +26,7 @@
  *          -# channel
  *              -# "CN" + channel_id
  *              -# "SE" + channel_id
- *              -# "HT" + channel_id + "ddd"(0〜LN_HTLC_MAX-1)
+ *              -# "HT" + channel_id + "ddd"(0 - LN_HTLC_MAX-1)
  *              -# "RV" + channel_id
  *              -# "cn" + channel_id
  *              -# "version"
@@ -88,6 +88,13 @@
  *                      - [17]: data num
  *                      - [18-]: len + data
  *                  - usage: closed output for `emptywallet`.
+ *          -# forward
+ *              -# "AD" + next_short_channel_id
+ *                  - key: prev_short_channel_id[8] + prev_htlc_id[8]
+ *                  - data: msg of update_add_htlc
+ *              -# "DL" + next_short_channel_id
+ *                  - key: prev_short_channel_id[8] + prev_htlc_id[8]
+ *                  - data: msg of update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc
  */
 #ifndef LN_DB_LMDB_H__
 #define LN_DB_LMDB_H__
@@ -146,6 +153,8 @@ typedef enum {
     LN_LMDB_DB_TYPE_PREIMAGE,
     LN_LMDB_DB_TYPE_PAYMENT_HASH,
     LN_LMDB_DB_TYPE_VERSION,
+    LN_LMDB_DB_TYPE_FORWARD_ADD,
+    LN_LMDB_DB_TYPE_FORWARD_DEL,
 } ln_lmdb_db_type_t;
 
 
@@ -210,6 +219,13 @@ const char *ln_lmdb_get_anno_db_path(void);
  * @return  walletパス
  */
 const char *ln_lmdb_get_wallet_db_path(void);
+
+
+/** LMDB forwardパス取得
+ *
+ * @return  forwardパス
+ */
+const char *ln_lmdb_get_forward_db_path(void);
 
 
 /** channel情報読込み
