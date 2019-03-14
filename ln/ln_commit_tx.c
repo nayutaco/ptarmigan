@@ -77,12 +77,6 @@ static bool create_htlc_info_and_amount(
 
 
 //local
-static bool create_local_htlc_info_and_amount(
-    const ln_update_info_t *pUpdateInfo,
-    ln_commit_tx_htlc_info_t **ppHtlcInfo,
-    uint16_t *pHtlcInfoCnt,
-    uint64_t *pLocalMsat,
-    uint64_t *pRemoteMsat);
 static bool create_local_set_vin0_and_verify(
     btc_tx_t *pTxCommit,
     const ln_funding_info_t *pFundingInfo,
@@ -134,12 +128,6 @@ static bool create_local_spent_htlc__spend_tx_for_htlc_tx(
 
 
 //remote
-static bool create_remote_htlc_info_and_amount(
-    const ln_update_info_t *pUpdateInfo,
-    ln_commit_tx_htlc_info_t **ppHtlcInfo,
-    uint16_t *pHtlcInfoCnt,
-    uint64_t *pLocalMsat,
-    uint64_t *pRemoteMsat);
 static bool create_remote_spent__with_close(
     const ln_channel_t *pChannel,
     const ln_commit_info_t *pCommitInfo,
@@ -196,7 +184,8 @@ bool HIDDEN ln_commit_tx_create_local(
     bool ret = false;
 
     ln_commit_tx_info_t commit_tx_info;
-    if (!ln_commit_tx_info_create_local(&commit_tx_info, pCommitInfo, pChannel)) return false;
+    if (!ln_commit_tx_info_create(
+        &commit_tx_info, pCommitInfo, &pChannel->update_info, true)) return false;
 
     uint8_t local_sig[LN_SZ_SIGNATURE];
     btc_tx_t tx_commit = BTC_TX_INIT;
@@ -257,9 +246,12 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, const ln_commit_info_t *pCommitInfo, const ln_channel_t *pChannel)
+bool HIDDEN ln_commit_tx_info_create(
+    ln_commit_tx_info_t *pCommitTxInfo,
+    const ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
+    bool bLocal)
 {
-    bool bLocal = true;    
 
     bool ret = false;
 
@@ -268,7 +260,7 @@ bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, c
     pCommitTxInfo->local_msat = pCommitInfo->local_msat;
     pCommitTxInfo->remote_msat = pCommitInfo->remote_msat;
 
-    LOGD("local commitment_number=%" PRIu64 "\n", pCommitInfo->commit_num);
+    LOGD("commitment_number=%" PRIu64 "\n", pCommitInfo->commit_num);
     //
     pCommitTxInfo->obscured_commit_num =
         ln_commit_tx_calc_obscured_commit_num(pCommitInfo->obscured_commit_num_mask, pCommitInfo->commit_num);
@@ -277,18 +269,18 @@ bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, c
     pCommitTxInfo->pp_htlc_info = (ln_commit_tx_htlc_info_t **)UTL_DBG_MALLOC(
         sizeof(ln_commit_tx_htlc_info_t *) * (LN_HTLC_MAX_XXX));
     if (!pCommitTxInfo->pp_htlc_info) goto LABEL_EXIT;
-    if (!create_local_htlc_info_and_amount(
-        &pChannel->update_info, pCommitTxInfo->pp_htlc_info, &pCommitTxInfo->num_htlc_infos,
-        &pCommitTxInfo->local_msat, &pCommitTxInfo->remote_msat)) goto LABEL_EXIT;
+    if (!create_htlc_info_and_amount(
+        pUpdateInfo, pCommitTxInfo->pp_htlc_info, &pCommitTxInfo->num_htlc_infos,
+        &pCommitTxInfo->local_msat, &pCommitTxInfo->remote_msat, bLocal)) goto LABEL_EXIT;
 
     //HTLCs (script)
     for (int lp = 0; lp < pCommitTxInfo->num_htlc_infos; lp++) {
         if (!ln_script_create_htlc(
             &pCommitTxInfo->pp_htlc_info[lp]->wit_script,
             pCommitTxInfo->pp_htlc_info[lp]->type,
-            pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-            pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-            pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
             pCommitTxInfo->pp_htlc_info[lp]->payment_hash,
             pCommitTxInfo->pp_htlc_info[lp]->cltv_expiry)) goto LABEL_EXIT;
     }
@@ -314,17 +306,17 @@ bool HIDDEN ln_commit_tx_info_create_local(ln_commit_tx_info_t *pCommitTxInfo, c
     pCommitTxInfo->to_local.satoshi = LN_MSAT2SATOSHI(pCommitTxInfo->local_msat);
     if (!ln_script_create_to_local(
         &pCommitTxInfo->to_local.wit_script,
-        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-        pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
+        pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
         pCommitInfo->to_self_delay)) return false;
 
     //to_remote
     pCommitTxInfo->to_remote.satoshi = LN_MSAT2SATOSHI(pCommitTxInfo->remote_msat);
-    pCommitTxInfo->to_remote.pubkey = pChannel->keys_local.script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
+    pCommitTxInfo->to_remote.pubkey = pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
 
     //fee
     pCommitTxInfo->base_fee_info.feerate_per_kw =
-        ln_update_info_get_feerate_per_kw_pre_committed(&pChannel->update_info, bLocal);
+        ln_update_info_get_feerate_per_kw_pre_committed(pUpdateInfo, bLocal);
     pCommitTxInfo->base_fee_info.dust_limit_satoshi = pCommitInfo->dust_limit_sat;
     /*void*/ ln_commit_tx_base_fee_calc(
         &pCommitTxInfo->base_fee_info, (const ln_commit_tx_htlc_info_t **)pCommitTxInfo->pp_htlc_info,
@@ -366,96 +358,30 @@ bool ln_commit_tx_create_remote(
 {
     LOGD("BEGIN\n");
 
-    bool bLocal = false;
-
     bool ret = false;
 
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = 0;
-    ln_commit_tx_htlc_info_t **pp_htlc_info = 0;
-    utl_buf_t wit_script_to_local = UTL_BUF_INIT;
     btc_tx_t tx_commit = BTC_TX_INIT;
-    uint16_t num_htlc_infos = 0;
 
     ln_commit_tx_info_t commit_tx_info;
-    memset(&commit_tx_info, 0x00, sizeof(ln_commit_tx_info_t));
+    if (!ln_commit_tx_info_create(
+        &commit_tx_info, pCommitInfo, &pChannel->update_info, false)) return false;
 
-    commit_tx_info.local_msat = pCommitInfo->local_msat;
-    commit_tx_info.remote_msat = pCommitInfo->remote_msat;
-
-    //to_local
-    if (!ln_script_create_to_local(
-        &wit_script_to_local,
-        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-        pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
-        pCommitInfo->to_self_delay)) return false;
-
-    //HTLC info (amount)
-    pp_htlc_info = (ln_commit_tx_htlc_info_t **)UTL_DBG_MALLOC(sizeof(ln_commit_tx_htlc_info_t *) * LN_HTLC_MAX_XXX);
-    if (!pp_htlc_info) goto LABEL_EXIT;
-    if (!create_remote_htlc_info_and_amount(
-        &pChannel->update_info, pp_htlc_info, &num_htlc_infos,
-        &commit_tx_info.local_msat, &commit_tx_info.remote_msat)) goto LABEL_EXIT;
-
-    //HTLC info (script)
-    for (int lp = 0; lp < num_htlc_infos; lp++) {
-        if (!ln_script_create_htlc(
-            &pp_htlc_info[lp]->wit_script,
-            pp_htlc_info[lp]->type,
-            pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-            pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-            pChannel->keys_remote.script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
-            pp_htlc_info[lp]->payment_hash,
-            pp_htlc_info[lp]->cltv_expiry)) goto LABEL_EXIT;
-    }
-
-    for (int lp = 0; lp < num_htlc_infos; lp++) {
+    for (int lp = 0; lp < commit_tx_info.num_htlc_infos; lp++) {
         //payment_hash, type, expiry保存
         utl_buf_t vout = UTL_BUF_INIT;
-        if (!btc_script_p2wsh_create_scriptpk(&vout, &pp_htlc_info[lp]->wit_script)) goto LABEL_EXIT;
+        if (!btc_script_p2wsh_create_scriptpk(
+            &vout, &commit_tx_info.pp_htlc_info[lp]->wit_script)) goto LABEL_EXIT;
         if (!ln_db_payment_hash_save(
-            pp_htlc_info[lp]->payment_hash,
+            commit_tx_info.pp_htlc_info[lp]->payment_hash,
             vout.buf,
-            pp_htlc_info[lp]->type,
-            pp_htlc_info[lp]->cltv_expiry)) {
+            commit_tx_info.pp_htlc_info[lp]->type,
+            commit_tx_info.pp_htlc_info[lp]->cltv_expiry)) {
             utl_buf_free(&vout);
             goto LABEL_EXIT;
         }
         utl_buf_free(&vout);
     }
-
-    LOGD("-------\n");
-    LOGD("(remote)local_msat  %" PRIu64 " --> %" PRIu64 "\n", pCommitInfo->local_msat, commit_tx_info.local_msat);
-    LOGD("(remote)remote_msat %" PRIu64 " --> %" PRIu64 "\n", pCommitInfo->remote_msat, commit_tx_info.remote_msat);
-    for (int lp = 0; lp < num_htlc_infos; lp++) {
-        LOGD("  have HTLC[%d] %" PRIu64 " (%s)\n", lp, pp_htlc_info[lp]->amount_msat, (pp_htlc_info[lp]->type != LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ? "received" : "offered");
-    }
-    LOGD("-------\n");
-
-
-    //commitment transaction
-    LOGD("remote commitment_number=%" PRIu64 "\n", pCommitInfo->commit_num);
-    //  fee
-    commit_tx_info.base_fee_info.feerate_per_kw =
-        ln_update_info_get_feerate_per_kw_pre_committed(&pChannel->update_info, bLocal);
-    commit_tx_info.base_fee_info.dust_limit_satoshi = pCommitInfo->dust_limit_sat;
-    /*void*/ ln_commit_tx_base_fee_calc(&commit_tx_info.base_fee_info, (const ln_commit_tx_htlc_info_t **)pp_htlc_info, num_htlc_infos);
-    //
-    commit_tx_info.fund.txid = ln_funding_info_txid(pCommitInfo->p_funding_info);
-    commit_tx_info.fund.txid_index = ln_funding_info_txindex(pCommitInfo->p_funding_info);
-    commit_tx_info.fund.satoshi = pCommitInfo->p_funding_info->funding_satoshis;
-    commit_tx_info.fund.p_wit_script = &pCommitInfo->p_funding_info->wit_script;
-    commit_tx_info.to_local.satoshi = LN_MSAT2SATOSHI(commit_tx_info.local_msat);
-    commit_tx_info.to_local.wit_script = wit_script_to_local;
-    commit_tx_info.to_remote.satoshi = LN_MSAT2SATOSHI(commit_tx_info.remote_msat);
-    commit_tx_info.to_remote.pubkey = pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
-    commit_tx_info.obscured_commit_num =
-        ln_commit_tx_calc_obscured_commit_num(pCommitInfo->obscured_commit_num_mask, pCommitInfo->commit_num);
-    commit_tx_info.pp_htlc_info = pp_htlc_info;
-    commit_tx_info.num_htlc_infos = num_htlc_infos;
-    commit_tx_info.b_trimmed = false;
-    //
-    ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx_info, ln_funding_info_is_funder(pCommitInfo->p_funding_info, bLocal));
-    commit_tx_info.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx_info);
 
     //check num_htlc_outputs
     if (pClose) {
@@ -480,8 +406,8 @@ bool ln_commit_tx_create_remote(
 
     if (pClose) {
         if (!create_remote_spent__with_close(
-            pChannel, pCommitInfo, pClose, &tx_commit, &wit_script_to_local,
-            (const ln_commit_tx_htlc_info_t **)pp_htlc_info, &commit_tx_info.base_fee_info)) goto LABEL_EXIT;
+            pChannel, pCommitInfo, pClose, &tx_commit, &commit_tx_info.to_local.wit_script,
+            (const ln_commit_tx_htlc_info_t **)commit_tx_info.pp_htlc_info, &commit_tx_info.base_fee_info)) goto LABEL_EXIT;
         memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(btc_tx_t));
         btc_tx_free(&tx_commit); //force clear
     }
@@ -492,8 +418,8 @@ bool ln_commit_tx_create_remote(
             p_htlc_sigs = *ppHtlcSigs;
         }
         if (!create_remote_spent__with_htlc_sigs(
-            pChannel, pCommitInfo, p_htlc_sigs, &tx_commit, &wit_script_to_local,
-            (const ln_commit_tx_htlc_info_t **)pp_htlc_info, &commit_tx_info.base_fee_info)) goto LABEL_EXIT;
+            pChannel, pCommitInfo, p_htlc_sigs, &tx_commit, &commit_tx_info.to_local.wit_script,
+            (const ln_commit_tx_htlc_info_t **)commit_tx_info.pp_htlc_info, &commit_tx_info.base_fee_info)) goto LABEL_EXIT;
     }
 
     ret = true;
@@ -503,14 +429,7 @@ LABEL_EXIT:
         UTL_DBG_FREE(p_htlc_sigs);
     }
     btc_tx_free(&tx_commit);
-    utl_buf_free(&wit_script_to_local);
-    if (pp_htlc_info) {
-        for (int lp = 0; lp < num_htlc_infos; lp++) {
-            ln_commit_tx_htlc_info_free(pp_htlc_info[lp]);
-            UTL_DBG_FREE(pp_htlc_info[lp]);
-        }
-        UTL_DBG_FREE(pp_htlc_info);
-    }
+    ln_commit_tx_info_free(&commit_tx_info);
     return ret;
 }
 
@@ -569,17 +488,6 @@ LABEL_EXIT:
 /********************************************************************
  * private functions
  ********************************************************************/
-
-static bool create_local_htlc_info_and_amount(
-    const ln_update_info_t *pUpdateInfo,
-    ln_commit_tx_htlc_info_t **ppHtlcInfo,
-    uint16_t *pHtlcInfoCnt,
-    uint64_t *pLocalMsat,
-    uint64_t *pRemoteMsat)
-{
-    return create_htlc_info_and_amount(pUpdateInfo, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, true);
-}
-
 
 /** set vin[0] and verify sigs
  *
@@ -908,17 +816,6 @@ static bool create_local_spent_htlc__spend_tx_for_htlc_tx(
     LOGD("*** HTLC out Tx ***\n");
     M_DBG_PRINT_TX2(pTxSpend);
     return true;
-}
-
-
-static bool create_remote_htlc_info_and_amount(
-    const ln_update_info_t *pUpdateInfo,
-    ln_commit_tx_htlc_info_t **ppHtlcInfo,
-    uint16_t *pHtlcInfoCnt,
-    uint64_t *pLocalMsat,
-    uint64_t *pRemoteMsat)
-{
-    return create_htlc_info_and_amount(pUpdateInfo, ppHtlcInfo, pHtlcInfoCnt, pLocalMsat, pRemoteMsat, false);
 }
 
 
