@@ -792,7 +792,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
-    int err;
+    int err = 0;
     bool ret;
     int32_t blockcnt;
     cJSON *json;
@@ -909,6 +909,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
             const char *p_result = NULL;
             ret = lnapp_payment(p_appconf, &payconf, &p_result);
             if (ret) {
+                LOGD("payment start\n");
                 result = cJSON_CreateString("Progressing");
             } else {
                 err = RPCERR_PAY_STOP;
@@ -923,12 +924,10 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 LABEL_EXIT:
     if (err) {
+        LOGD("err=%d\n", err);
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
-    }
-    if (ctx->error_code != 0) {
         ln_db_invoice_del(payconf.payment_hash);
-        //一時的なスキップは削除する
         ln_db_route_skip_drop(true);
     }
 
