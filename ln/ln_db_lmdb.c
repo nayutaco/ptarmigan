@@ -129,7 +129,7 @@
 #define M_KEY_SHARED_SECRET     "shared_secret"
 #define M_SZ_SHARED_SECRET      (sizeof(M_KEY_SHARED_SECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-59))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-60))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -228,6 +228,7 @@
          rm `ln_commit_info_t::feerate_per_kw`
     -59: updated a lot!
          change db paths and db names and so on
+    -60: increase the num of htlcs (6 -> 12)
  */
 
 
@@ -968,7 +969,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, boo
         goto LABEL_EXIT;
     }
 
-    for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_shared_secret);
@@ -1101,7 +1102,7 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
     //htlcs
     memcpy(db_name, M_PREF_HTLC, M_SZ_PREF_STR);
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
-    for (int lp = 0; lp < LN_HTLC_RECEIVED_MAX; lp++) {
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         channel_htlc_db_name(db_name, lp);
         //LOGD("[%d]db_name: %s\n", lp, db_name);
 
@@ -3920,7 +3921,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(db_name, M_PREF_HTLC, M_SZ_PREF_STR);
 
-    for (int lp = 0; lp < LN_HTLC_RECEIVED_MAX; lp++) {
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         channel_htlc_db_name(db_name, lp);
         //LOGD("[%d]db_name: %s\n", lp, db_name);
         retval = MDB_DBI_OPEN(pDb->p_txn, db_name, 0, &dbi);
@@ -4017,7 +4018,7 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     memcpy(db_name, M_PREF_HTLC, M_SZ_PREF_STR);
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
 
-    for (int lp = 0; lp < LN_HTLC_RECEIVED_MAX; lp++) {
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         channel_htlc_db_name(db_name, lp);
         //LOGD("[%d]db_name: %s\n", lp, db_name);
         retval = MDB_DBI_OPEN(pDb->p_txn, db_name, MDB_CREATE, &dbi);
@@ -5170,7 +5171,7 @@ static bool preimage_cmp_all_func(const uint8_t *pPreimage, uint64_t Amount, uin
     DUMPD(pPreimage, LN_SZ_PREIMAGE);
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
-    for (int lp = 0; lp < LN_HTLC_RECEIVED_MAX; lp++) {
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         if (memcmp(preimage_hash, param->p_htlcs[lp].payment_hash, BTC_SZ_HASH256)) continue;
         //match
         int retval = mdb_cursor_del(p_cur->p_cursor, 0);

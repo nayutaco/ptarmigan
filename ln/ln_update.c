@@ -48,7 +48,7 @@ ln_update_t *ln_update_get_empty(ln_update_t *pUpdates, uint16_t *pUpdateIdx)
 
 ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx)
 {
-    for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_htlc_t *p_htlc = &pHtlcs[idx];
         if (p_htlc->enabled) continue;
         if (pHtlcIdx) {

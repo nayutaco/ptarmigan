@@ -41,7 +41,7 @@
  * macros
  **************************************************************************/
 
-#define LN_UPDATE_MAX                       (LN_HTLC_OFFERED_MAX_XXX * 2 + LN_HTLC_RECEIVED_MAX * 2 + LN_FEE_UPDATE_MAX)
+#define LN_UPDATE_MAX                       (LN_HTLC_OFFERED_MAX * 2 + LN_HTLC_RECEIVED_MAX * 2 + LN_FEE_UPDATE_MAX)
 
 // ln_update_flags_t.type
 #define LN_UPDATE_TYPE_NONE                 (0)

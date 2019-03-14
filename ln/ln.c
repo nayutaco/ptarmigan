@@ -1253,7 +1253,7 @@ const ln_update_t *ln_update(const ln_channel_t *pChannel, uint16_t UpdateIdx)
 
 const ln_htlc_t *ln_htlc(const ln_channel_t *pChannel, uint16_t HtlcIdx)
 {
-    return (HtlcIdx < LN_HTLC_RECEIVED_MAX) ? &pChannel->update_info.htlcs[HtlcIdx] : NULL;
+    return (HtlcIdx < LN_HTLC_MAX) ? &pChannel->update_info.htlcs[HtlcIdx] : NULL;
 }
 
 
@@ -1531,7 +1531,7 @@ static void channel_clear(ln_channel_t *pChannel)
     btc_tx_free(&pChannel->funding_info.tx_data);
     btc_tx_free(&pChannel->tx_closing);
 
-    for (uint16_t idx = 0; idx < LN_HTLC_RECEIVED_MAX; idx++) {
+    for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
