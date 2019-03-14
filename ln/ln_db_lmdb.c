@@ -3450,9 +3450,9 @@ bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
         return false;
     }
 
-    int         retval;
-    MDB_val     key, data;
-    ln_lmdb_db_t db;
+    int             retval;
+    MDB_val         key, data;
+    ln_lmdb_db_t    db;
     uint8_t outpoint[BTC_SZ_TXID + sizeof(uint32_t)];
 
     memcpy(outpoint, pWallet->p_txid, BTC_SZ_TXID);
@@ -3487,29 +3487,30 @@ bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
         MDB_TXN_ABORT(db.p_txn);
         return false;
     }
-    data.mv_data = p_wit_items;
-    *p_wit_items = pWallet->type;
-    p_wit_items++;
-    memcpy(p_wit_items, &pWallet->amount, sizeof(uint64_t));
-    p_wit_items += sizeof(uint64_t);
-    memcpy(p_wit_items, &pWallet->sequence, sizeof(uint32_t));
-    p_wit_items += sizeof(uint32_t);
-    memcpy(p_wit_items, &pWallet->locktime, sizeof(uint32_t));
-    p_wit_items += sizeof(uint32_t);
-    *p_wit_items = (uint8_t)(pWallet->wit_item_cnt);
-    p_wit_items++;
+    uint8_t *p_pos = p_wit_items;
+    *p_pos = pWallet->type;
+    p_pos++;
+    memcpy(p_pos, &pWallet->amount, sizeof(uint64_t));
+    p_pos += sizeof(uint64_t);
+    memcpy(p_pos, &pWallet->sequence, sizeof(uint32_t));
+    p_pos += sizeof(uint32_t);
+    memcpy(p_pos, &pWallet->locktime, sizeof(uint32_t));
+    p_pos += sizeof(uint32_t);
+    *p_pos = (uint8_t)(pWallet->wit_item_cnt);
+    p_pos++;
     for (uint32_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
-        *p_wit_items = (uint8_t)pWallet->p_wit_items[lp].len;
-        p_wit_items++;
-        memcpy(p_wit_items, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
-        p_wit_items += pWallet->p_wit_items[lp].len;
+        *p_pos = (uint8_t)pWallet->p_wit_items[lp].len;
+        p_pos++;
+        memcpy(p_pos, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
+        p_pos += pWallet->p_wit_items[lp].len;
     }
 
+    data.mv_data = p_wit_items;
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.p_txn);
         UTL_DBG_FREE(p_wit_items);
+        MDB_TXN_ABORT(db.p_txn);
         return false;
     }
 
