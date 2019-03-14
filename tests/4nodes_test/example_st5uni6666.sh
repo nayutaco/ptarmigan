@@ -49,7 +49,7 @@ sleep 5
 # final nodeがfulfillしないまま
 ./ptarmcli -c conf/peer${ACCIDENT_PEER}.conf -xforce ${ACCIDENT_PORT}
 
-./generate 1
+./generate.sh 1
 
 # node_6666がpreimageを持っているので、node_6666がHTLC Success Txを展開するはず
 # それをnode_5555が見て、preimageを回収してfulfillをしていくはず
