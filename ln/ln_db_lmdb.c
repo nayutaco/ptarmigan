@@ -84,12 +84,16 @@
 #define M_WALLET_MAXDBS         (MAX_CHANNELS)              ///< 同時オープンできるDB数
 #define M_WALLET_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
+#define M_FORWARD_MAXDBS        (MAX_CHANNELS)              ///< 同時オープンできるDB数
+#define M_FORWARD_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
+
 #define M_DB_PATH_STR_MAX       (PATH_MAX - 1)              //path max but exclude null char
 #define M_DB_DIR                "db"
 #define M_CHANNEL_ENV_DIR       "channel"                   ///< channel
 #define M_NODE_ENV_DIR          "node"                      ///< node
 #define M_ANNO_ENV_DIR          "anno"                      ///< announcement
 #define M_WALLET_ENV_DIR        "wallet"                    ///< 1st layer wallet
+#define M_FORWARD_ENV_DIR       "forward"                   ///< forward
 
 
 #define M_NUM_CHANNEL_BUFS      (3)                         ///< DB保存するvariable長データ数
@@ -103,6 +107,8 @@
 #define M_PREF_HTLC             "HT"                        ///< htlc
 #define M_PREF_REVOKED_TX       "RV"                        ///< revoked transaction
 #define M_PREF_CHANNEL_BACKUP   "cn"                        ///< closed channel backup
+#define M_PREF_FORWARD_ADD_HTLC "AD"                        ///< forward add htlc msg
+#define M_PREF_FORWARD_DEL_HTLC "DL"                        ///< forward del htlc msg
 
 #define M_DBI_CNLANNO           "channel_anno"              ///< 受信したchannel_announcement/channel_update
 #define M_DBI_CNLANNO_INFO      "channel_anno_info"         ///< channel_announcement/channel_updateの受信元・送信先
@@ -117,10 +123,12 @@
 #define M_DBI_WALLET            "wallet"                    ///< wallet
 #define M_DBI_VERSION           "version"                   ///< verion
 
-#define M_SZ_DB_NAME_STR            (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
+#define M_SZ_CHANNEL_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
+#define M_SZ_FORWARD_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_SHORT_CHANNEL_ID * 2)
 #define M_SZ_HTLC_IDX_STR           (3)     // "%03d" 0-482
 #define M_SZ_CNLANNO_INFO_KEY       (LN_SZ_SHORT_CHANNEL_ID + sizeof(char))
 #define M_SZ_NODEANNO_INFO_KEY      (BTC_SZ_PUBKEY)
+#define M_SZ_FORWARD_KEY            (LN_SZ_SHORT_CHANNEL_ID + sizeof(uint64_t))
 
 #define M_KEY_PREIMAGE          "preimage"
 #define M_SZ_PREIMAGE           (sizeof(M_KEY_PREIMAGE) - 1)
@@ -258,6 +266,7 @@
 #define MDB_TXN_CHECK_NODE(a)       //none
 #define MDB_TXN_CHECK_ANNO(a)       //none
 #define MDB_TXN_CHECK_WALLET(a)     //none
+#define MDB_TXN_CHECK_FORWARD(a)    //none
 #else
 static volatile int g_cnt[2];
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
@@ -270,6 +279,7 @@ static volatile int g_cnt[2];
 #define MDB_TXN_CHECK_NODE(a)       if (mdb_txn_env(a) != mpEnvNode) { LOGE("ERR: txn not NODE\n"); abort(); }
 #define MDB_TXN_CHECK_ANNO(a)       if (mdb_txn_env(a) != mpEnvAnno) { LOGE("ERR: txn not ANNO\n"); abort(); }
 #define MDB_TXN_CHECK_WALLET(a)     if (mdb_txn_env(a) != mpEnvWallet) { LOGE("ERR: txn not WALLET\n"); abort(); }
+#define MDB_TXN_CHECK_FORWARD(a)    if (mdb_txn_env(a) != mpEnvForward) { LOGE("ERR: txn not FORWARD\n"); abort(); }
 #endif
 
 
@@ -348,15 +358,19 @@ typedef struct {
  ********************************************************************/
 
 //LMDB
-static MDB_env      *mpEnvChannel = NULL;        //channel
-static MDB_env      *mpEnvNode = NULL;           //node
-static MDB_env      *mpEnvAnno = NULL;           //announcement
-static MDB_env      *mpEnvWallet = NULL;         //wallet
+static MDB_env      *mpEnvChannel = NULL;       //channel
+static MDB_env      *mpEnvNode = NULL;          //node
+static MDB_env      *mpEnvAnno = NULL;          //announcement
+static MDB_env      *mpEnvWallet = NULL;        //wallet
+static MDB_env      *mpEnvForward = NULL;       //forward
+
 static char         mPath[M_DB_PATH_STR_MAX + 1];
+
 static char         mPathChannel[M_DB_PATH_STR_MAX + 1];
 static char         mPathNode[M_DB_PATH_STR_MAX + 1];
 static char         mPathAnno[M_DB_PATH_STR_MAX + 1];
 static char         mPathWallet[M_DB_PATH_STR_MAX + 1];
+static char         mPathForward[M_DB_PATH_STR_MAX + 1];
 
 static pthread_mutex_t  mMuxAnno;
 static MDB_txn          *mpTxnAnno;
@@ -602,6 +616,7 @@ static const init_param_t INIT_PARAM[] = {
     { &mpEnvAnno, mPathAnno, M_ANNO_MAXDBS, M_ANNO_MAPSIZE, MDB_NOSYNC },
     //M_INIT_PARAM_WALLET
     { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 0 },
+    { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 0 },
 };
 
 
@@ -633,7 +648,7 @@ static int cnlanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
 static int cnlanno_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
 static int cnlupd_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
 static int cnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln_msg_channel_update_t *pUpd);
-static int cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf, MDB_cursor_op op);
+static int cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf, MDB_cursor_op Op);
 static int nodeanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 static int nodeanno_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const uint8_t *pNodeId, uint32_t Timestamp);
 
@@ -666,6 +681,22 @@ static int wallet_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, in
 
 static int version_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
 static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
+
+static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
+static int forward_save(ln_lmdb_db_t *pDb, const ln_db_forward_t *pForward);
+static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNamePrefix);
+static int forward_del(ln_lmdb_db_t *pDb, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
+static bool forward_del_2(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const char *pDbNamePrefix);
+static bool forward_drop(uint64_t NextShortChannelId, const char *pDbNamePrefix);
+static bool forward_cur_open(void **ppCur, uint64_t NextShortChannelId, const char *pDbNamePrefix);
+static void forward_cur_close(void *pCur, bool bCommit);
+static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
+static bool forward_cur_get(void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg);
+static int forward_cur_load(
+    MDB_cursor *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg, MDB_cursor_op Op);
+static void forward_set_db_name(char *pDbName, uint64_t NextShortChannelId, const char *pDbNamePrefix);
+static void forward_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
+static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId);
 
 static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
 static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
@@ -793,12 +824,14 @@ bool ln_lmdb_set_home_dir(const char *pPath)
     if (!set_path(mPathNode, sizeof(mPathNode), mPath, M_NODE_ENV_DIR)) return false;
     if (!set_path(mPathAnno, sizeof(mPathAnno), mPath, M_ANNO_ENV_DIR)) return false;
     if (!set_path(mPathWallet, sizeof(mPathWallet), mPath, M_WALLET_ENV_DIR)) return false;
+    if (!set_path(mPathForward, sizeof(mPathForward), mPath, M_FORWARD_ENV_DIR)) return false;
 
     LOGD("db dir: %s\n", mPath);
     LOGD("  channel: %s\n", mPathChannel);
     LOGD("  node: %s\n", mPathNode);
     LOGD("  anno: %s\n", mPathAnno);
     LOGD("  wallet: %s\n", mPathWallet);
+    LOGD("  forward: %s\n", mPathForward);
     return true;
 }
 
@@ -832,6 +865,12 @@ const char *ln_lmdb_get_anno_db_path(void)
 const char *ln_lmdb_get_wallet_db_path(void)
 {
     return mPathWallet;
+}
+
+
+const char *ln_lmdb_get_forward_db_path(void)
+{
+    return mPathForward;
 }
 
 
@@ -940,6 +979,8 @@ void ln_db_term(void)
 
     pthread_mutex_destroy(&mMuxAnno);
 
+    mdb_env_close(mpEnvForward);
+    mpEnvForward = NULL;
     mdb_env_close(mpEnvWallet);
     mpEnvWallet = NULL;
     mdb_env_close(mpEnvAnno);
@@ -1038,7 +1079,7 @@ bool ln_db_channel_save(const ln_channel_t *pChannel)
 {
     int             retval;
     ln_lmdb_db_t    db;
-    char            db_name[M_SZ_DB_NAME_STR + 1];
+    char            db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
 
     db.p_txn = NULL;
 
@@ -1089,7 +1130,7 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
 {
     int             retval;
     MDB_dbi         dbi;
-    char            db_name[M_SZ_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
+    char            db_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
     lmdb_cursor_t   *p_cur = (lmdb_cursor_t *)pDbParam;
 
     MDB_TXN_CHECK_CHANNEL(p_cur->p_txn);
@@ -1190,7 +1231,7 @@ bool ln_db_channel_load_status(ln_channel_t *pChannel)
 {
     int             retval;
     ln_lmdb_db_t    db;
-    char            db_name[M_SZ_DB_NAME_STR + 1];
+    char            db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
     const fixed_item_t DBCHANNEL_KEY = M_ITEM(ln_channel_t, status);
 
     db.p_txn = NULL;
@@ -1309,7 +1350,7 @@ bool ln_db_secret_save(ln_channel_t *pChannel)
 {
     int             retval;
     ln_lmdb_db_t    db;
-    char            db_name[M_SZ_DB_NAME_STR + 1];
+    char            db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
 
     memcpy(db_name, M_PREF_SECRET, M_SZ_PREF_STR);
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
@@ -3162,7 +3203,7 @@ bool ln_db_revoked_tx_load(ln_channel_t *pChannel, void *pDbParam)
     MDB_val     key, data;
     MDB_txn     *p_txn;
     MDB_dbi     dbi;
-    char        db_name[M_SZ_DB_NAME_STR + 1];
+    char        db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
 
     p_txn = ((ln_lmdb_db_t *)pDbParam)->p_txn;
     assert(p_txn);
@@ -3267,7 +3308,7 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
 {
     MDB_val key, data;
     ln_lmdb_db_t   db;
-    char        db_name[M_SZ_DB_NAME_STR + 1];
+    char        db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
     utl_buf_t buf = UTL_BUF_INIT;
     utl_push_t push;
 
@@ -3723,6 +3764,7 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName)
     if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_HTLC;
     if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_REVOKED_TX;
     if (strncmp(pDbName, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CHANNEL_BACKUP;
+
     if (strcmp(pDbName, M_DBI_WALLET) == 0) return LN_LMDB_DB_TYPE_WALLET;
     if (strcmp(pDbName, M_DBI_CNLANNO) == 0) return LN_LMDB_DB_TYPE_CNLANNO;
     if (strcmp(pDbName, M_DBI_NODEANNO) == 0) return LN_LMDB_DB_TYPE_NODEANNO;
@@ -3733,6 +3775,9 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName)
     if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) return LN_LMDB_DB_TYPE_PREIMAGE;
     if (strcmp(pDbName, M_DBI_PAYMENT_HASH) == 0) return LN_LMDB_DB_TYPE_PAYMENT_HASH;
     if (strcmp(pDbName, M_DBI_VERSION) == 0) return LN_LMDB_DB_TYPE_VERSION;
+
+    if (strncmp(pDbName, M_PREF_FORWARD_ADD_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_ADD;
+    if (strncmp(pDbName, M_PREF_FORWARD_DEL_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_DEL;
     return LN_LMDB_DB_TYPE_UNKNOWN;
 }
 
@@ -3858,6 +3903,86 @@ void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pI
 
 
 /********************************************************************
+ * forward
+ ********************************************************************/
+
+bool ln_db_forward_add_htlc_save(const ln_db_forward_t* pForward)
+{
+    return forward_save_2(pForward, M_PREF_FORWARD_ADD_HTLC);
+}
+
+
+bool ln_db_forward_add_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
+{
+    return forward_del_2(NextShortChannelId, PrevShortChannelId, PrevHtlcId, M_PREF_FORWARD_ADD_HTLC);
+}
+
+
+bool ln_db_forward_add_htlc_drop(uint64_t NextShortChannelId)
+{
+    return forward_drop(NextShortChannelId, M_PREF_FORWARD_ADD_HTLC);
+}
+
+
+bool ln_db_forward_del_htlc_save(const ln_db_forward_t* pForward)
+{
+    return forward_save_2(pForward, M_PREF_FORWARD_DEL_HTLC);
+}
+
+
+bool ln_db_forward_del_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
+{
+    return forward_del_2(NextShortChannelId, PrevShortChannelId, PrevHtlcId, M_PREF_FORWARD_DEL_HTLC);
+}
+
+
+bool ln_db_forward_del_htlc_drop(uint64_t NextShortChannelId)
+{
+    return forward_drop(NextShortChannelId, M_PREF_FORWARD_DEL_HTLC);
+}
+
+
+/********************************************************************
+ * forward cursor
+ ********************************************************************/
+
+bool ln_db_forward_add_htlc_cur_open(void **ppCur, uint64_t NextShortChannelId)
+{
+    return forward_cur_open(ppCur, NextShortChannelId, M_PREF_FORWARD_ADD_HTLC);
+}
+
+
+void ln_db_forward_add_htlc_cur_close(void *pCur, bool bCommit)
+{
+    forward_cur_close(pCur, bCommit);
+}
+
+
+bool ln_db_forward_add_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg)
+{
+    return forward_cur_get(pCur, pPrevShortChannelId, pPrevHtlcId, pMsg);
+}
+
+
+bool ln_db_forward_del_htlc_cur_open(void **ppCur, uint64_t NextShortChannelId)
+{
+    return forward_cur_open(ppCur, NextShortChannelId, M_PREF_FORWARD_DEL_HTLC);
+}
+
+
+void ln_db_forward_del_htlc_cur_close(void *pCur, bool bCommit)
+{
+    forward_cur_close(pCur, bCommit);
+}
+
+
+bool ln_db_forward_del_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg)
+{
+    return forward_cur_get(pCur, pPrevShortChannelId, pPrevHtlcId, pMsg);
+}
+
+
+/********************************************************************
  * private functions
  ********************************************************************/
 
@@ -3914,7 +4039,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     int         retval = -1;
     MDB_dbi     dbi;
     MDB_val     key, data;
-    char        db_name[M_SZ_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
+    char        db_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
 
     uint8_t *OFFSET =
         ((uint8_t *)pChannel) + offsetof(ln_channel_t, update_info) + offsetof(ln_update_info_t, htlcs);
@@ -4011,7 +4136,7 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     int         retval;
     MDB_dbi     dbi;
     MDB_val     key, data;
-    char        db_name[M_SZ_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
+    char        db_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
 
     uint8_t *OFFSET =
         ((uint8_t *)pChannel) + offsetof(ln_channel_t, update_info) + offsetof(ln_update_info_t, htlcs);
@@ -4165,7 +4290,7 @@ static int channel_item_save(const ln_channel_t *pChannel, const fixed_item_t *p
     db.p_txn = NULL;
 
     if (p_bak_db_param == NULL) {
-        char    db_name[M_SZ_DB_NAME_STR + 1];
+        char    db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
         memcpy(db_name, M_PREF_CHANNEL, M_SZ_PREF_STR);
         utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
         retval = channel_db_open(&db, db_name, 0, 0);
@@ -4201,7 +4326,7 @@ LABEL_EXIT:
 static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
 {
     int     retval;
-    char    db_name[M_SZ_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
+    char    db_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
 
     memcpy(db_name, M_PREF_SECRET, M_SZ_PREF_STR);
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
@@ -4297,7 +4422,7 @@ static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable)
  *
  * @note
  *      - "HT" + xxxxxxxx...xx[32*2] + "ddd"
- *        |<-- M_SZ_DB_NAME_STR  -->|
+ *        |<-- M_SZ_CHANNEL_DB_NAME_STR  -->|
  *
  * @attention
  *      - 予め pDbName に M_PREF_HTLC と channel_idはコピーしておくこと
@@ -4305,7 +4430,7 @@ static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable)
 static void channel_htlc_db_name(char *pDbName, int num)
 {
     assert(num <= 999);
-    snprintf(pDbName + M_SZ_DB_NAME_STR, M_SZ_HTLC_IDX_STR + 1, "%03d", num);
+    snprintf(pDbName + M_SZ_CHANNEL_DB_NAME_STR, M_SZ_HTLC_IDX_STR + 1, "%03d", num);
 }
 
 
@@ -4348,13 +4473,13 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
     }
 
     MDB_val key;
-    char    name[M_SZ_DB_NAME_STR + 1];
+    char    name[M_SZ_CHANNEL_DB_NAME_STR + 1];
     name[sizeof(name) - 1] = '\0';
     while ((retval = mdb_cursor_get(cur.p_cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-        if (key.mv_size != M_SZ_DB_NAME_STR) continue;
+        if (key.mv_size != M_SZ_CHANNEL_DB_NAME_STR) continue;
         if (memcmp(key.mv_data, M_PREF_CHANNEL, M_SZ_PREF_STR)) continue;
 
-        memcpy(name, key.mv_data, M_SZ_DB_NAME_STR);
+        memcpy(name, key.mv_data, M_SZ_CHANNEL_DB_NAME_STR);
         retval = MDB_DBI_OPEN(cur.p_txn, name, 0, &cur.dbi);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
@@ -4537,11 +4662,11 @@ static int cnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln_msg
  *
  *  dbi: "channel_anno"
  */
-static int cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf, MDB_cursor_op op)
+static int cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf, MDB_cursor_op Op)
 {
     MDB_val key, data;
 
-    int retval = mdb_cursor_get(pCur, &key, &data, op);
+    int retval = mdb_cursor_get(pCur, &key, &data, Op);
     if (retval) {
         if (retval != MDB_NOTFOUND) {
             LOGE("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
@@ -5327,6 +5452,254 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
         }
     }
     return 0;
+}
+
+
+/********************************************************************
+ * private functions: forward
+ ********************************************************************/
+
+static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb)
+{
+    return db_open(pDb, mpEnvForward, pDbName, OptTxn, OptDb);
+}
+
+
+static int forward_save(ln_lmdb_db_t *pDb, const ln_db_forward_t *pForward)
+{
+    MDB_val key, data;
+    uint8_t key_data[M_SZ_FORWARD_KEY];
+
+    forward_set_key(key_data, &key, pForward->prev_short_channel_id, pForward->prev_htlc_id);
+    data.mv_size = pForward->p_msg->len;
+    data.mv_data = pForward->p_msg->buf;
+    int retval = mdb_put(pDb->p_txn, pDb->dbi, &key, &data, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+    return 0;
+}
+
+
+static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNamePrefix)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
+
+    db.p_txn = NULL;
+
+    forward_set_db_name(db_name, pForward->next_short_channel_id, pDbNamePrefix);
+    retval = forward_db_open(&db, db_name, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    retval = forward_save(&db, pForward);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    db.p_txn = NULL;
+
+LABEL_EXIT:
+    if (retval) {
+        LOGE("fail: save\n");
+    }
+    if (db.p_txn) {
+        MDB_TXN_ABORT(db.p_txn);
+    }
+    return retval == 0;
+}
+
+
+static int forward_del(ln_lmdb_db_t *pDb, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
+{
+    MDB_val key;
+    uint8_t key_data[M_SZ_FORWARD_KEY];
+
+    forward_set_key(key_data, &key, PrevShortChannelId, PrevHtlcId);
+    int retval = mdb_del(pDb->p_txn, pDb->dbi, &key, NULL);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+    return 0;
+}
+
+
+static bool forward_del_2(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const char *pDbNamePrefix)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
+
+    forward_set_db_name(db_name, NextShortChannelId, pDbNamePrefix);
+    retval = forward_db_open(&db, db_name, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    retval = forward_del(&db, PrevShortChannelId, PrevHtlcId);
+    if (retval && (retval != MDB_NOTFOUND)) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
+}
+
+
+static bool forward_drop(uint64_t NextShortChannelId, const char *pDbNamePrefix)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
+
+    forward_set_db_name(db_name, NextShortChannelId, pDbNamePrefix);
+    retval = forward_db_open(&db, db_name, 0, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    retval = mdb_drop(db.p_txn, db.dbi, 1);
+    if (retval && (retval != MDB_NOTFOUND)) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
+}
+
+
+static bool forward_cur_open(void **ppCur, uint64_t NextShortChannelId, const char *pDbNamePrefix)
+{
+    int             retval;
+    lmdb_cursor_t   *p_cur;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
+
+    *ppCur = NULL;
+
+    p_cur  = (lmdb_cursor_t *)UTL_DBG_MALLOC(sizeof(lmdb_cursor_t));
+    if (!p_cur) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+
+    forward_set_db_name(db_name, NextShortChannelId, pDbNamePrefix);
+    retval = forward_db_open(&db, db_name, 0, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        UTL_DBG_FREE(p_cur);
+        return false;
+    }
+
+    retval = mdb_cursor_open(p_cur->p_txn, p_cur->dbi, &p_cur->p_cursor);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        UTL_DBG_FREE(p_cur);
+        return false;
+    }
+
+    *ppCur = p_cur;
+    return true;
+}
+
+
+static void forward_cur_close(void *pCur, bool bCommit)
+{
+    if (!pCur) return;
+
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    MDB_CURSOR_CLOSE(p_cur->p_cursor);
+
+    if (!p_cur->p_txn) return;
+    MDB_TXN_CHECK_FORWARD(p_cur->p_txn);
+    if (bCommit) {
+        MDB_TXN_COMMIT(p_cur->p_txn);
+    } else {
+        MDB_TXN_ABORT(p_cur->p_txn);
+    }
+}
+
+
+static bool forward_cur_get(void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    int retval = forward_cur_load(p_cur->p_cursor, pPrevShortChannelId, pPrevHtlcId, pMsg, MDB_NEXT_NODUP);
+    if (retval) {
+        return false;
+    }
+    return true;
+}
+
+
+static int forward_cur_load(
+    MDB_cursor *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg, MDB_cursor_op Op)
+{
+    MDB_val key, data;
+
+    int retval = mdb_cursor_get(pCur, &key, &data, Op);
+    if (retval) {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
+        }
+        return retval;
+    }
+
+    //key
+    if (!forward_parse_key(&key, pPrevShortChannelId, pPrevHtlcId)) {
+        LOGE("fail: invalid key length: %d\n", (int)key.mv_size);
+        DUMPD(key.mv_data, key.mv_size);
+        return -1;
+    }
+
+    //data
+    if (!utl_buf_alloccopy(pMsg, (uint8_t *)data.mv_data, data.mv_size)) {
+        LOGE("fail: ???\n");
+        return -1;
+    }
+    return 0;
+}
+
+
+static void forward_set_db_name(char *pDbName, uint64_t NextShortChannelId, const char *pDbNamePrefix)
+{
+    uint8_t next_short_channel_id[LN_SZ_SHORT_CHANNEL_ID];
+    memcpy(pDbName, pDbNamePrefix, M_SZ_PREF_STR);
+    utl_int_unpack_u64be(next_short_channel_id, NextShortChannelId);
+    utl_str_bin2str(pDbName + M_SZ_PREF_STR, next_short_channel_id, LN_SZ_SHORT_CHANNEL_ID);
+}
+
+
+static void forward_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
+{
+    pKey->mv_size = M_SZ_FORWARD_KEY;
+    pKey->mv_data = pKeyData;
+    utl_int_unpack_u64be(pKeyData, PrevShortChannelId);
+    utl_int_unpack_u64be(pKeyData + sizeof(uint64_t), PrevHtlcId);
+}
+
+
+static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId)
+{
+    if (pKey->mv_size != M_SZ_FORWARD_KEY) {
+        return false;
+    }
+    *pPrevShortChannelId = utl_int_pack_u64be(pKey->mv_data);
+    *pPrevHtlcId = utl_int_pack_u64be(pKey->mv_data + sizeof(uint64_t));
+    return true;
 }
 
 
