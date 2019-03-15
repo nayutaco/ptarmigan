@@ -439,7 +439,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //payment info
     uint8_t *p_hash;
-    int cnt = ln_db_invoice_get(&p_hash);
+    int cnt = ln_db_invoice_load_payment_hashs(&p_hash);
     if (cnt > 0) {
         cJSON *result_hash = cJSON_CreateArray();
         uint8_t *p = p_hash;

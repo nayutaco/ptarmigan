@@ -425,7 +425,7 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
     if (!ln_msg_gossip_ids_decode(&p_short_channel_ids, &ids, msg.p_encoded_short_ids, msg.len)) {
         return false;
     }
-    if (!ln_db_annoinfos_del(ln_remote_node_id(pChannel), p_short_channel_ids, ids)) {
+    if (!ln_db_annoinfos_del_node_id(ln_remote_node_id(pChannel), p_short_channel_ids, ids)) {
         return false;
     }
     UTL_DBG_FREE(p_short_channel_ids);
