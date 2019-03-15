@@ -117,10 +117,10 @@
 #define M_DBI_WALLET            "wallet"                    ///< wallet
 #define M_DBI_VERSION           "version"                   ///< verion
 
-#define M_SZ_DB_NAME_STR        (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
-#define M_SZ_HTLC_IDX_STR       (3)     // "%03d" 0-482
-#define M_SZ_CNLANNO_INFO       (LN_SZ_SHORT_CHANNEL_ID + sizeof(char))
-#define M_SZ_NODEANNO_INFO      (BTC_SZ_PUBKEY)
+#define M_SZ_DB_NAME_STR            (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
+#define M_SZ_HTLC_IDX_STR           (3)     // "%03d" 0-482
+#define M_SZ_CNLANNO_INFO_KEY       (LN_SZ_SHORT_CHANNEL_ID + sizeof(char))
+#define M_SZ_NODEANNO_INFO_KEY      (BTC_SZ_PUBKEY)
 
 #define M_KEY_PREIMAGE          "preimage"
 #define M_SZ_PREIMAGE           (sizeof(M_KEY_PREIMAGE) - 1)
@@ -645,10 +645,10 @@ static bool annoinfos_trim_node_id_nodeanno(
     const uint8_t *pNodeId, uint64_t ShortChannelId, MDB_dbi DbiNodeannoInfo, ln_lmdb_db_t *pDb);
 static bool annoinfos_del_all(MDB_dbi DbiCnlannoInfo, MDB_dbi DbiNodeannoInfo);
 
-static void cnlanno_info_set(uint8_t *pKeyData, MDB_val *pKey, uint64_t ShortChannelId, char Type);
-static bool cnlanno_info_get(MDB_val *pKey, uint64_t *pShortChannelId, char *pType);
-static void nodeanno_info_set(uint8_t *pKeyData, MDB_val *pKey, const uint8_t *pNodeId);
-//static bool nodeanno_info_get(MDB_val *pKey, uint8_t *pNodeId);
+static void cnlanno_info_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t ShortChannelId, char Type);
+static bool cnlanno_info_parse_key(MDB_val *pKey, uint64_t *pShortChannelId, char *pType);
+static void nodeanno_info_set_key(uint8_t *pKeyData, MDB_val *pKey, const uint8_t *pNodeId);
+//static bool nodeanno_info_parse_key(MDB_val *pKey, uint8_t *pNodeId);
 
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool annoinfo_search_node_id(MDB_val *pMdbData, const uint8_t *pNodeId);
@@ -1704,7 +1704,7 @@ bool ln_db_cnlanno_del(uint64_t ShortChannelId)
     int         retval;
     MDB_dbi     dbi, dbi_info;
     MDB_val     key;
-    uint8_t     key_data[M_SZ_CNLANNO_INFO];
+    uint8_t     key_data[M_SZ_CNLANNO_INFO_KEY];
 
     if (!ln_db_anno_transaction()) {
         LOGE("ERR: anno transaction\n");
@@ -1727,7 +1727,7 @@ bool ln_db_cnlanno_del(uint64_t ShortChannelId)
 
     char SUFFIX[] = { LN_DB_CNLANNO_ANNO, LN_DB_CNLANNO_UPD0, LN_DB_CNLANNO_UPD1 };
     for (size_t lp = 0; lp < ARRAY_SIZE(SUFFIX); lp++) {
-        cnlanno_info_set(key_data, &key, ShortChannelId, SUFFIX[lp]);
+        cnlanno_info_set_key(key_data, &key, ShortChannelId, SUFFIX[lp]);
         retval = mdb_del(mpTxnAnno, dbi, &key, NULL);
         if (retval && (retval != MDB_NOTFOUND)) {
             LOGE("ERR[%c]: %s\n", SUFFIX[lp], mdb_strerror(retval));
@@ -1963,10 +1963,10 @@ bool ln_db_cnlanno_info_add_node_id(void *pCur, uint64_t ShortChannelId, char Ty
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     MDB_val key, data;
-    uint8_t key_data[M_SZ_CNLANNO_INFO];
+    uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
     bool detect = false;
 
-    cnlanno_info_set(key_data, &key, ShortChannelId, Type);
+    cnlanno_info_set_key(key_data, &key, ShortChannelId, Type);
     if (bClear) {
         data.mv_size = 0;
     } else {
@@ -1997,9 +1997,9 @@ bool ln_db_cnlanno_info_search_node_id(void *pCur, uint64_t ShortChannelId, char
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_CNLANNO_INFO];
+    uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
 
-    cnlanno_info_set(key_data, &key, ShortChannelId, Type);
+    cnlanno_info_set_key(key_data, &key, ShortChannelId, Type);
     int retval = mdb_get(mpTxnAnno, p_cur->dbi, &key, &data);
     if (retval) {
         //LOGE("ERR: %s\n", mdb_strerror(retval));
@@ -2096,9 +2096,9 @@ bool ln_db_nodeanno_info_search_node_id(void *pCur, const uint8_t *pNodeId, cons
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_NODEANNO_INFO];
+    uint8_t key_data[M_SZ_NODEANNO_INFO_KEY];
 
-    nodeanno_info_set(key_data, &key, pNodeId);
+    nodeanno_info_set_key(key_data, &key, pNodeId);
     int retval = mdb_get(mpTxnAnno, p_cur->dbi, &key, &data);
     if (retval) {
         if (retval != MDB_NOTFOUND) {
@@ -2125,10 +2125,10 @@ bool ln_db_nodeanno_info_add_node_id(void *pCur, const uint8_t *pNodeId, bool bC
 
     lmdb_cursor_t   *p_cur = (lmdb_cursor_t *)pCur;
     MDB_val         key, data;
-    uint8_t         key_data[M_SZ_NODEANNO_INFO];
+    uint8_t         key_data[M_SZ_NODEANNO_INFO_KEY];
     bool            detect = false;
 
-    nodeanno_info_set(key_data, &key, pNodeId);
+    nodeanno_info_set_key(key_data, &key, pNodeId);
     if (bClear) {
         data.mv_size = 0;
     } else {
@@ -2319,7 +2319,7 @@ bool ln_db_channel_owned_del(uint64_t ShortChannelId)
  * [anno]cnlanno, nodeanno共通
  ********************************************************************/
 
-bool ln_db_annoinfos_del(const uint8_t *pNodeId, const uint64_t *pShortChannelIds, size_t Num)
+bool ln_db_annoinfos_del_node_id(const uint8_t *pNodeId, const uint64_t *pShortChannelIds, size_t Num)
 {
     int         retval;
     MDB_dbi     dbi_cnlanno_info;
@@ -2372,7 +2372,7 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId, const uint64_t *pShortChannelId
 }
 
 
-bool ln_db_annoinfos_add(const uint8_t *pNodeId)
+bool ln_db_annoinfos_add_node_id(const uint8_t *pNodeId)
 {
     int         retval;
     MDB_dbi     dbi_cnl;
@@ -2740,7 +2740,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
 }
 
 
-int ln_db_invoice_get(uint8_t **ppPaymentHash) //XXX: return error code
+int ln_db_invoice_load_payment_hashs(uint8_t **ppPaymentHash) //XXX: return error code
 {
     int             retval;
     MDB_val         key, data;
@@ -3427,7 +3427,7 @@ bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index)
  *          len: data
  *      }
  */
-bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
+bool ln_db_wallet_save(const ln_db_wallet_t *pWallet)
 {
     // LOGD("txid=");
     // TXIDD(pWallet->p_txid);
@@ -4412,9 +4412,9 @@ static int cnlanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
     LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_CNLANNO_INFO];
+    uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
 
-    cnlanno_info_set(key_data, &key, ShortChannelId, LN_DB_CNLANNO_ANNO);
+    cnlanno_info_set_key(key_data, &key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     int retval = mdb_get(mpTxnAnno, pDb->dbi, &key, &data);
     if (retval) {
         if (retval != MDB_NOTFOUND) {
@@ -4442,9 +4442,9 @@ static int cnlanno_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t S
     LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_CNLANNO_INFO];
+    uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
 
-    cnlanno_info_set(key_data, &key, ShortChannelId, LN_DB_CNLANNO_ANNO);
+    cnlanno_info_set_key(key_data, &key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     data.mv_size = pCnlAnno->len;
     data.mv_data = pCnlAnno->buf;
     int retval = mdb_put(mpTxnAnno, pDb->dbi, &key, &data, 0);
@@ -4470,9 +4470,9 @@ static int cnlupd_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlUpd, uint32_t *pTimeSta
     LOGV("short_channel_id=%016" PRIx64 ", dir=%d\n", ShortChannelId, Dir);
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_CNLANNO_INFO];
+    uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
 
-    cnlanno_info_set(
+    cnlanno_info_set_key(
         key_data, &key, ShortChannelId,
         Dir ?  LN_DB_CNLANNO_UPD1 : LN_DB_CNLANNO_UPD0);
     int retval = mdb_get(mpTxnAnno, pDb->dbi, &key, &data);
@@ -4505,9 +4505,9 @@ static int cnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln_msg
     LOGV("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_CNLANNO_INFO];
+    uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
 
-    cnlanno_info_set(
+    cnlanno_info_set_key(
         key_data, &key, pUpd->short_channel_id,
         ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD1 : LN_DB_CNLANNO_UPD0);
     utl_buf_t buf = UTL_BUF_INIT;
@@ -4550,7 +4550,7 @@ static int cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *p
     }
 
     char type;
-    if (!cnlanno_info_get(&key, pShortChannelId, &type)) {
+    if (!cnlanno_info_parse_key(&key, pShortChannelId, &type)) {
         LOGE("fail: invalid key length: %d\n", (int)key.mv_size);
         DUMPD(key.mv_data, key.mv_size);
         return -1;
@@ -4596,9 +4596,9 @@ static int cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *p
 static int nodeanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId)
 {
     MDB_val key, data;
-    uint8_t key_data[M_SZ_NODEANNO_INFO];
+    uint8_t key_data[M_SZ_NODEANNO_INFO_KEY];
 
-    nodeanno_info_set(key_data, &key, pNodeId);
+    nodeanno_info_set_key(key_data, &key, pNodeId);
     int retval = mdb_get(mpTxnAnno, pDb->dbi, &key, &data);
     if (retval) {
         if (retval != MDB_NOTFOUND) {
@@ -4635,9 +4635,9 @@ static int nodeanno_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const ui
     DUMPV(pNodeId, BTC_SZ_PUBKEY);
 
     MDB_val key, data;
-    uint8_t key_data[M_SZ_NODEANNO_INFO];
+    uint8_t key_data[M_SZ_NODEANNO_INFO_KEY];
 
-    nodeanno_info_set(key_data, &key, pNodeId);
+    nodeanno_info_set_key(key_data, &key, pNodeId);
     utl_buf_t buf = UTL_BUF_INIT;
     if (!utl_buf_alloc(&buf, sizeof(uint32_t) + pNodeAnno->len)) {
         LOGE("fail: ???\n");
@@ -4716,11 +4716,11 @@ static bool annoinfos_trim_node_id_selected(
         LOGD(" %d: %016" PRIx64 "\n", lp, pShortChannelIds[lp]);
 
         MDB_val key, data;
-        uint8_t key_data[M_SZ_CNLANNO_INFO];
+        uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
 
         const char TYPES[] = { LN_DB_CNLANNO_ANNO, LN_DB_CNLANNO_UPD0, LN_DB_CNLANNO_UPD1 };
         for (size_t type = 0; type < ARRAY_SIZE(TYPES); type++) {
-            cnlanno_info_set(key_data, &key, pShortChannelIds[lp], TYPES[type]);
+            cnlanno_info_set_key(key_data, &key, pShortChannelIds[lp], TYPES[type]);
             int retval = mdb_get(mpTxnAnno, DbiCnlannoInfo, &key, &data);
             if (retval) {
                 LOGD("nof found: %016" PRIx64 " %c\n", pShortChannelIds[lp], TYPES[type]);
@@ -4774,13 +4774,13 @@ static bool annoinfos_trim_node_id_nodeanno(
         return true;
     }
     MDB_val key, data;
-    uint8_t key_data[M_SZ_NODEANNO_INFO];
+    uint8_t key_data[M_SZ_NODEANNO_INFO_KEY];
 
     const uint8_t *p_node_id[2];
     p_node_id[0] = msg.p_node_id_1;
     p_node_id[1] = msg.p_node_id_2;
     for (int lp = 0; lp < 2; lp++) {
-        nodeanno_info_set(key_data, &key, p_node_id[lp]);
+        nodeanno_info_set_key(key_data, &key, p_node_id[lp]);
         int retval = mdb_get(mpTxnAnno, DbiNodeannoInfo, &key, &data);
         if (retval) {
             //XXX: ???
@@ -4831,18 +4831,18 @@ static bool annoinfos_del_all(MDB_dbi DbiCnlannoInfo, MDB_dbi DbiNodeannoInfo)
 }
 
 
-static void cnlanno_info_set(uint8_t *pKeyData, MDB_val *pKey, uint64_t ShortChannelId, char Type)
+static void cnlanno_info_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t ShortChannelId, char Type)
 {
-    pKey->mv_size = M_SZ_CNLANNO_INFO;
+    pKey->mv_size = M_SZ_CNLANNO_INFO_KEY;
     pKey->mv_data = pKeyData;
     utl_int_unpack_u64be(pKeyData, ShortChannelId);
     pKeyData[LN_SZ_SHORT_CHANNEL_ID] = Type;
 }
 
 
-static bool cnlanno_info_get(MDB_val *pKey, uint64_t *pShortChannelId, char *pType)
+static bool cnlanno_info_parse_key(MDB_val *pKey, uint64_t *pShortChannelId, char *pType)
 {
-    if (pKey->mv_size != M_SZ_CNLANNO_INFO) {
+    if (pKey->mv_size != M_SZ_CNLANNO_INFO_KEY) {
         return false;
     }
     *pShortChannelId = utl_int_pack_u64be(pKey->mv_data);
@@ -4851,18 +4851,18 @@ static bool cnlanno_info_get(MDB_val *pKey, uint64_t *pShortChannelId, char *pTy
 }
 
 
-static void nodeanno_info_set(uint8_t *pKeyData, MDB_val *pKey, const uint8_t *pNodeId)
+static void nodeanno_info_set_key(uint8_t *pKeyData, MDB_val *pKey, const uint8_t *pNodeId)
 {
-    pKey->mv_size = M_SZ_NODEANNO_INFO;
+    pKey->mv_size = M_SZ_NODEANNO_INFO_KEY;
     pKey->mv_data = pKeyData;
     memcpy(pKeyData, pNodeId, BTC_SZ_PUBKEY);
 }
 
 
 //ToDo: 最終的にいらないなら削除
-// static bool nodeanno_info_get(MDB_val *pKey, uint8_t *pNodeId)
+// static bool nodeanno_info_parse_key(MDB_val *pKey, uint8_t *pNodeId)
 // {
-//     if (pKey->mv_size != M_SZ_NODEANNO_INFO) {
+//     if (pKey->mv_size != M_SZ_NODEANNO_INFO_KEY) {
 //         return false;
 //     }
 //     memcpy(pNodeId, pKey->mv_data, BTC_SZ_PUBKEY);

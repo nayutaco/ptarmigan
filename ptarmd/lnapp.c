@@ -1233,7 +1233,7 @@ static bool exchange_init(lnapp_conf_t *p_conf)
         LOGD("$$$ gossip_queries\n");
 
         //未送信のものはすべて送信するか、今までのものは全部送信しないのか -> 後者を採用
-        ln_db_annoinfos_add(p_conf->node_id);
+        ln_db_annoinfos_add_node_id(p_conf->node_id);
     } else {
         bool del_sendinfo = ln_need_init_routing_sync(p_conf->p_channel);
         LOGD("$$$ initial_routing_sync local=%s, remote=%s\n",
@@ -1244,10 +1244,10 @@ static bool exchange_init(lnapp_conf_t *p_conf)
 
             //annoinfo情報削除(node_id指定, short_channel_idすべて)
             LOGD("remove announcement sent info\n");
-            ln_db_annoinfos_del(p_conf->node_id, NULL, 0);
+            ln_db_annoinfos_del_node_id(p_conf->node_id, NULL, 0);
         } else {
             //only new received
-            ln_db_annoinfos_add(p_conf->node_id);
+            ln_db_annoinfos_add_node_id(p_conf->node_id);
         }
     }
     return p_conf->loop && ((p_conf->flag_recv & M_FLAGRECV_INIT) != 0);

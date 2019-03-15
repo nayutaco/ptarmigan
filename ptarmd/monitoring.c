@@ -248,7 +248,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
 
                 ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
                 set_wallet_data(&wlt, p_tx);
-                ln_db_wallet_add(&wlt);
+                ln_db_wallet_save(&wlt);
             }
             continue;
         case LN_CLOSE_IDX_TO_REMOTE:
@@ -772,7 +772,7 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
                     };
                     wlt.wit_item_cnt = 2;
                     wlt.p_wit_items = witbuf;
-                    (void)ln_db_wallet_add(&wlt);
+                    (void)ln_db_wallet_save(&wlt);
                 }
             } else {
                 LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
@@ -805,7 +805,7 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, void *pDbParam)
                                 ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
                                 set_wallet_data(&wlt, p_tx);
                                 wlt.amount = close_dat.p_tx[LN_CLOSE_IDX_COMMIT].vout[wlt.index].value;     //HTLC_txはfeeが引かれているためoriginalの値を使う
-                                ln_db_wallet_add(&wlt);
+                                ln_db_wallet_save(&wlt);
                             }
                         } else {
                             del = false;
@@ -917,7 +917,7 @@ static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
 
                     ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
                     set_wallet_data(&wlt, &pHtlcTx[lp]);
-                    ln_db_wallet_add(&wlt);
+                    ln_db_wallet_save(&wlt);
                 }
             }
         }
@@ -1069,7 +1069,7 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
             set_wallet_data(&wlt, &tx);
             wlt.sequence = ln_commit_info_remote(pChannel)->to_self_delay;
-            ln_db_wallet_add(&wlt);
+            ln_db_wallet_save(&wlt);
         }
 
         btc_tx_free(&tx);
@@ -1104,7 +1104,7 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
                 { pub, sizeof(pub) }
             };
             wlt.p_wit_items = witbuf;
-            (void)ln_db_wallet_add(&wlt);
+            (void)ln_db_wallet_save(&wlt);
         }
 
         btc_tx_free(&tx);

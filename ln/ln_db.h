@@ -547,7 +547,7 @@ bool ln_db_channel_owned_del(uint64_t ShortChannelId);
  * @param[in]       pShortChannelId     (pNodeId非NULL時)削除対象のshort_channel_id(NULL時は全削除)
  * @param[in]       Num                 pShortChannelId数
  */
-bool ln_db_annoinfos_del(const uint8_t *pNodeId, const uint64_t *pShortChannelId, size_t Num);
+bool ln_db_annoinfos_del_node_id(const uint8_t *pNodeId, const uint64_t *pShortChannelId, size_t Num);
 
 
 /** channel_announcement/channel_update/node_announcement送受信ノード情報追加
@@ -555,7 +555,7 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId, const uint64_t *pShortChannelId
  *
  * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
  */
-bool ln_db_annoinfos_add(const uint8_t *pNodeId);
+bool ln_db_annoinfos_add_node_id(const uint8_t *pNodeId);
 
 
 /********************************************************************
@@ -614,7 +614,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
  * @attention
  *      - 内部で UTL_DBG_REALLOC()するため、使用後に UTL_DBG_FREE()すること
  */
-int ln_db_invoice_get(uint8_t **ppPaymentHash);
+int ln_db_invoice_load_payment_hashs(uint8_t **ppPaymentHash);
 
 
 /** "routepay" invoice削除
@@ -768,7 +768,7 @@ bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index);
  *
  * @retval  true    成功
  */
-bool ln_db_wallet_add(const ln_db_wallet_t *pWallet);
+bool ln_db_wallet_save(const ln_db_wallet_t *pWallet);
 
 
 /** wallet DB検索
