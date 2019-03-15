@@ -130,23 +130,23 @@ extern "C" {
  **************************************************************************/
 
 typedef enum {
-    LN_LMDB_DBTYPE_UNKNOWN,
-    LN_LMDB_DBTYPE_CHANNEL,
-    LN_LMDB_DBTYPE_SECRET,
-    LN_LMDB_DBTYPE_HTLC,
-    LN_LMDB_DBTYPE_REVOKED_TX,
-    LN_LMDB_DBTYPE_CHANNEL_BACKUP,
-    LN_LMDB_DBTYPE_WALLET,
-    LN_LMDB_DBTYPE_CNLANNO,
-    LN_LMDB_DBTYPE_NODEANNO,
-    LN_LMDB_DBTYPE_CNLANNO_INFO,
-    LN_LMDB_DBTYPE_NODEANNO_INFO,
-    LN_LMDB_DBTYPE_ROUTE_SKIP,
-    LN_LMDB_DBTYPE_INVOICE,
-    LN_LMDB_DBTYPE_PREIMAGE,
-    LN_LMDB_DBTYPE_PAYMENT_HASH,
-    LN_LMDB_DBTYPE_VERSION,
-} ln_lmdb_dbtype_t;
+    LN_LMDB_DB_TYPE_UNKNOWN,
+    LN_LMDB_DB_TYPE_CHANNEL,
+    LN_LMDB_DB_TYPE_SECRET,
+    LN_LMDB_DB_TYPE_HTLC,
+    LN_LMDB_DB_TYPE_REVOKED_TX,
+    LN_LMDB_DB_TYPE_CHANNEL_BACKUP,
+    LN_LMDB_DB_TYPE_WALLET,
+    LN_LMDB_DB_TYPE_CNLANNO,
+    LN_LMDB_DB_TYPE_NODEANNO,
+    LN_LMDB_DB_TYPE_CNLANNO_INFO,
+    LN_LMDB_DB_TYPE_NODEANNO_INFO,
+    LN_LMDB_DB_TYPE_ROUTE_SKIP,
+    LN_LMDB_DB_TYPE_INVOICE,
+    LN_LMDB_DB_TYPE_PREIMAGE,
+    LN_LMDB_DB_TYPE_PAYMENT_HASH,
+    LN_LMDB_DB_TYPE_VERSION,
+} ln_lmdb_db_type_t;
 
 
 typedef struct {
@@ -245,7 +245,7 @@ int ln_lmdb_cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *
 int ln_lmdb_nodeanno_cur_load(MDB_cursor *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
-ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);
+ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName);
 
 
 int ln_db_lmdb_get_my_node_id(MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis);
