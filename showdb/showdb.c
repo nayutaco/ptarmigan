@@ -827,7 +827,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
+static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_type_t db_type)
 {
     if ((showflag & SHOW_ANNOINFO) == 0) {
         return;
@@ -844,7 +844,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 
     MDB_val key, data;
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        if ((dbtype == LN_LMDB_DBTYPE_CNLANNO_INFO) && (key.mv_size == M_SZ_CNLANNO_INFO)) {
+        if ((db_type == LN_LMDB_DB_TYPE_CNLANNO_INFO) && (key.mv_size == M_SZ_CNLANNO_INFO)) {
             const uint8_t *keyname = (const uint8_t *)key.mv_data;
             switch (keyname[M_SZ_CNLANNO_INFO - 1]) {
             case LN_DB_CNLANNO_ANNO:
@@ -866,7 +866,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
             short_channel_id = utl_int_pack_u64be(key.mv_data);
             ln_short_channel_id_string(str_sci, short_channel_id);
             printf("%s\n", str_sci);
-        } else if ((dbtype == LN_LMDB_DBTYPE_NODEANNO_INFO) && (key.mv_size == M_SZ_NODEANNO_INFO)) {
+        } else if ((db_type == LN_LMDB_DB_TYPE_NODEANNO_INFO) && (key.mv_size == M_SZ_NODEANNO_INFO)) {
             printf("node_announcement: ");
             utl_dbg_dump(stdout, key.mv_data, M_SZ_NODEANNO_INFO, true);
         } else {
@@ -1297,41 +1297,41 @@ int main(int argc, char *argv[])
             if (list) {
                 list++;
             } else {
-                ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
-                switch (dbtype) {
-                case LN_LMDB_DBTYPE_CHANNEL:
+                ln_lmdb_db_type_t db_type = ln_lmdb_get_db_type(name);
+                switch (db_type) {
+                case LN_LMDB_DB_TYPE_CHANNEL:
                     dumpit_channel(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_SECRET:
-                case LN_LMDB_DBTYPE_HTLC:
-                    //LN_LMDB_DBTYPE_CHANNELで読み込むので、スルー
+                case LN_LMDB_DB_TYPE_SECRET:
+                case LN_LMDB_DB_TYPE_HTLC:
+                    //LN_LMDB_DB_TYPE_CHANNELで読み込むので、スルー
                     break;
-                case LN_LMDB_DBTYPE_CHANNEL_BACKUP:
+                case LN_LMDB_DB_TYPE_CHANNEL_BACKUP:
                     dumpit_bkchannel(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_WALLET:
+                case LN_LMDB_DB_TYPE_WALLET:
                     dumpit_wallet(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_CNLANNO:
+                case LN_LMDB_DB_TYPE_CNLANNO:
                     dumpit_channel_anno(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_NODEANNO:
+                case LN_LMDB_DB_TYPE_NODEANNO:
                     dumpit_node(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_CNLANNO_INFO:
-                case LN_LMDB_DBTYPE_NODEANNO_INFO:
-                    dumpit_annoinfo(txn, dbi2, dbtype);
+                case LN_LMDB_DB_TYPE_CNLANNO_INFO:
+                case LN_LMDB_DB_TYPE_NODEANNO_INFO:
+                    dumpit_annoinfo(txn, dbi2, db_type);
                     break;
-                case LN_LMDB_DBTYPE_ROUTE_SKIP:
+                case LN_LMDB_DB_TYPE_ROUTE_SKIP:
                     dumpit_route_skip(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_INVOICE:
+                case LN_LMDB_DB_TYPE_INVOICE:
                     dumpit_invoice(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_PREIMAGE:
+                case LN_LMDB_DB_TYPE_PREIMAGE:
                     dumpit_preimage(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_VERSION:
+                case LN_LMDB_DB_TYPE_VERSION:
                     dumpit_version(txn, dbi2);
                     break;
                 default:

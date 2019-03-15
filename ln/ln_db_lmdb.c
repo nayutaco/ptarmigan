@@ -3716,24 +3716,24 @@ int ln_db_lmdb_get_my_node_id(
  * others
  ********************************************************************/
 
-ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
+ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName)
 {
-    if (strncmp(pDbName, M_PREF_CHANNEL, M_SZ_PREF_STR) == 0) return LN_LMDB_DBTYPE_CHANNEL;
-    if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DBTYPE_SECRET;
-    if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DBTYPE_HTLC;
-    if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DBTYPE_REVOKED_TX;
-    if (strncmp(pDbName, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR) == 0) return LN_LMDB_DBTYPE_CHANNEL_BACKUP;
-    if (strcmp(pDbName, M_DBI_WALLET) == 0) return LN_LMDB_DBTYPE_WALLET;
-    if (strcmp(pDbName, M_DBI_CNLANNO) == 0) return LN_LMDB_DBTYPE_CNLANNO;
-    if (strcmp(pDbName, M_DBI_NODEANNO) == 0) return LN_LMDB_DBTYPE_NODEANNO;
-    if (strcmp(pDbName, M_DBI_CNLANNO_INFO) == 0) return LN_LMDB_DBTYPE_CNLANNO_INFO;
-    if (strcmp(pDbName, M_DBI_NODEANNO_INFO) == 0) return LN_LMDB_DBTYPE_NODEANNO_INFO;
-    if (strcmp(pDbName, M_DBI_ROUTE_SKIP) == 0) return LN_LMDB_DBTYPE_ROUTE_SKIP;
-    if (strcmp(pDbName, M_DBI_INVOICE) == 0) return LN_LMDB_DBTYPE_INVOICE;
-    if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) return LN_LMDB_DBTYPE_PREIMAGE;
-    if (strcmp(pDbName, M_DBI_PAYMENT_HASH) == 0) return LN_LMDB_DBTYPE_PAYMENT_HASH;
-    if (strcmp(pDbName, M_DBI_VERSION) == 0) return LN_LMDB_DBTYPE_VERSION;
-    return LN_LMDB_DBTYPE_UNKNOWN;
+    if (strncmp(pDbName, M_PREF_CHANNEL, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CHANNEL;
+    if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_SECRET;
+    if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_HTLC;
+    if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_REVOKED_TX;
+    if (strncmp(pDbName, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CHANNEL_BACKUP;
+    if (strcmp(pDbName, M_DBI_WALLET) == 0) return LN_LMDB_DB_TYPE_WALLET;
+    if (strcmp(pDbName, M_DBI_CNLANNO) == 0) return LN_LMDB_DB_TYPE_CNLANNO;
+    if (strcmp(pDbName, M_DBI_NODEANNO) == 0) return LN_LMDB_DB_TYPE_NODEANNO;
+    if (strcmp(pDbName, M_DBI_CNLANNO_INFO) == 0) return LN_LMDB_DB_TYPE_CNLANNO_INFO;
+    if (strcmp(pDbName, M_DBI_NODEANNO_INFO) == 0) return LN_LMDB_DB_TYPE_NODEANNO_INFO;
+    if (strcmp(pDbName, M_DBI_ROUTE_SKIP) == 0) return LN_LMDB_DB_TYPE_ROUTE_SKIP;
+    if (strcmp(pDbName, M_DBI_INVOICE) == 0) return LN_LMDB_DB_TYPE_INVOICE;
+    if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) return LN_LMDB_DB_TYPE_PREIMAGE;
+    if (strcmp(pDbName, M_DBI_PAYMENT_HASH) == 0) return LN_LMDB_DB_TYPE_PAYMENT_HASH;
+    if (strcmp(pDbName, M_DBI_VERSION) == 0) return LN_LMDB_DB_TYPE_VERSION;
+    return LN_LMDB_DB_TYPE_UNKNOWN;
 }
 
 
