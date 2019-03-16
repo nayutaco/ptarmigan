@@ -409,7 +409,7 @@ bool ln_commit_tx_create_remote(
             pChannel, pCommitInfo, pClose, &tx_commit, &commit_tx_info.to_local.wit_script,
             (const ln_commit_tx_htlc_info_t **)commit_tx_info.pp_htlc_info, &commit_tx_info.base_fee_info)) goto LABEL_EXIT;
         memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(btc_tx_t));
-        btc_tx_free(&tx_commit); //force clear
+        btc_tx_init(&tx_commit); //force clear
     }
     if (ppHtlcSigs) {
         if (commit_tx_info.num_htlc_outputs) {
