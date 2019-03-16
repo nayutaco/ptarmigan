@@ -4486,7 +4486,7 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
             continue;
         }
 
-        memset(p_channel, 0, sizeof(ln_channel_t));
+        ln_init(p_channel, NULL, NULL);
         retval = ln_lmdb_channel_load(p_channel, cur.p_txn, cur.dbi, bRestore);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));

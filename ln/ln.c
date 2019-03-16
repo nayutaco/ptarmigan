@@ -191,7 +191,7 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
     //noise protocol handshake済みの場合があるため、初期値かどうかに関係なく残す
     memcpy(&noise_bak, &pChannel->noise, sizeof(noise_bak));
     ptr_bak = pChannel->p_param;
-    memset(pChannel, 0, sizeof(ln_channel_t));
+    memset(pChannel, 0x00, sizeof(ln_channel_t));
     memcpy(&pChannel->noise, &noise_bak, sizeof(noise_bak));
     pChannel->p_param = ptr_bak;
 
@@ -213,7 +213,9 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
 
     pChannel->p_callback = pFunc;
 
-    memcpy(&pChannel->anno_param, pAnnoParam, sizeof(ln_anno_param_t));
+    if (pAnnoParam) {
+        memcpy(&pChannel->anno_param, pAnnoParam, sizeof(ln_anno_param_t));
+    }
     LOGD("cltv_expiry_delta=%" PRIu16 "\n", pChannel->anno_param.cltv_expiry_delta);
     LOGD("htlc_minimum_msat=%" PRIu64 "\n", pChannel->anno_param.htlc_minimum_msat);
     LOGD("fee_base_msat=%" PRIu32 "\n", pChannel->anno_param.fee_base_msat);
