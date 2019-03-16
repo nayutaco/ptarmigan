@@ -953,6 +953,7 @@ static bool create_remote_spent__with_close(
             }
             memcpy(&pClose->p_tx[LN_CLOSE_IDX_TO_REMOTE], &tx, sizeof(tx));
             btc_tx_init(&tx); //force clear
+            continue;
         }
         const ln_commit_tx_htlc_info_t *p_htlc_info = ppHtlcInfo[htlc_idx];
         const uint8_t *p_payment_hash = pChannel->update_info.htlcs[p_htlc_info->htlc_idx].payment_hash;
