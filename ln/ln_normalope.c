@@ -91,9 +91,9 @@ static bool commitment_signed_send(ln_channel_t *pChannel);
 static bool revoke_and_ack_send(ln_channel_t *pChannel);
 static bool check_create_add_htlc(ln_channel_t *pChannel, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
 static bool set_add_htlc(
-    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pHtlcIdx,
-    const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint16_t PrevHtlcIdx, const utl_buf_t *pSharedSecrets);
+    ln_channel_t *pChannel, utl_buf_t *pReason, uint16_t *pHtlcIdx, const uint8_t *pPacket,
+    uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
+    uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx);
 
 
@@ -199,8 +199,7 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
 
     uint16_t update_idx_del_htlc;
     if (!ln_update_info_set_del_htlc_recv(
-        &pChannel->update_info, &update_idx_del_htlc,
-        p_update_add_htlc->type_specific_idx, LN_UPDATE_TYPE_FULFILL_HTLC)) {
+        &pChannel->update_info, &update_idx_del_htlc, p_htlc->id, LN_UPDATE_TYPE_FULFILL_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fulfill htlc");
         return false;
     }
@@ -208,9 +207,8 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     ln_cb_param_notify_fulfill_htlc_recv_t cb_param;
     cb_param.ret = false;
     cb_param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
-    cb_param.prev_htlc_idx = p_htlc->neighbor_idx;
+    cb_param.prev_htlc_id = p_htlc->neighbor_id;
     cb_param.p_preimage = msg.p_payment_preimage;
-    cb_param.next_id = p_htlc->id;
     cb_param.amount_msat = p_htlc->amount_msat;
     //XXX: In the current implementation it will be called more than once in a retry at reconnection
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV, &cb_param);
@@ -258,8 +256,7 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
 
     uint16_t update_idx_del_htlc;
     if (!ln_update_info_set_del_htlc_recv(
-        &pChannel->update_info, &update_idx_del_htlc,
-        p_update_add_htlc->type_specific_idx, LN_UPDATE_TYPE_FAIL_HTLC)) {
+        &pChannel->update_info, &update_idx_del_htlc, p_htlc->id, LN_UPDATE_TYPE_FAIL_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail htlc");
         return false;
     }
@@ -327,8 +324,7 @@ bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uin
 
     uint16_t update_idx_del_htlc;
     if (!ln_update_info_set_del_htlc_recv(
-        &pChannel->update_info, &update_idx_del_htlc,
-        p_update_add_htlc->type_specific_idx, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC)) {
+        &pChannel->update_info, &update_idx_del_htlc, p_htlc->id, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC)) {
         M_SET_ERR(pChannel, LNERR_INV_ID, "fail malformed htlc");
         return false;
     }
@@ -485,9 +481,9 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
             if (p_htlc->neighbor_short_channel_id) {
                 ln_cb_param_start_fwd_add_htlc_t cb_param;
-                LOGD("forward: %d\n", p_htlc->neighbor_idx);
+                LOGD("forward: %" PRIu64 "\n", p_htlc->neighbor_id);
                 cb_param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
-                cb_param.next_htlc_idx = p_htlc->neighbor_idx;
+                cb_param.prev_htlc_id = p_htlc->id;
                 ln_callback(pChannel, LN_CB_TYPE_START_FWD_ADD_HTLC, &cb_param);
             }
             if (LN_DBG_FULFILL()) {
@@ -496,13 +492,13 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 case LN_UPDATE_TYPE_FULFILL_HTLC:
                     LOGD("fin update type: %d\n", p_update->fin_type);
                     /*ignore*/ ln_fulfill_htlc_set(
-                        pChannel, p_update->type_specific_idx, NULL); //XXX:
+                        pChannel, p_htlc->id, NULL); //XXX:
                         //XXX: Should callback to the final node and register the preimage
                     break;
                 case LN_UPDATE_TYPE_FAIL_HTLC:
                 case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
                     /*ignore*/ ln_fail_htlc_set(
-                        pChannel, p_update->type_specific_idx, p_update->fin_type, NULL);
+                        pChannel, p_htlc->id, p_update->fin_type, NULL);
                         //XXX: Should callback to the (final) node
                 default:
                     ;
@@ -516,8 +512,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             cb_param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
             cb_param.p_reason = &p_htlc->buf_onion_reason;
             cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-            cb_param.prev_htlc_idx = p_htlc->neighbor_idx;
-            cb_param.next_htlc_id = p_htlc->id;
+            cb_param.prev_htlc_id = p_htlc->neighbor_id;
             cb_param.p_payment_hash = p_htlc->payment_hash;
             if (p_update->type == LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) {
                 if (p_htlc->buf_onion_reason.len < 2) {
@@ -615,9 +610,9 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
 
 
 bool ln_set_add_htlc_send(
-    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, const uint8_t *pPacket,
+    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket,
     uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
-    uint16_t PrevHtlcIdx, const utl_buf_t *pSharedSecrets)
+    uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
 
@@ -630,8 +625,8 @@ bool ln_set_add_htlc_send(
 
     uint16_t htlc_idx;
     if (!set_add_htlc(
-        pChannel, pHtlcId, pReason, &htlc_idx, pPacket, AmountMsat,
-        CltvValue, pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
+        pChannel, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
+        pPaymentHash, PrevShortChannelId, PrevHtlcId, pSharedSecrets)) return false;
 
     uint16_t update_idx;
     bool ret;
@@ -646,9 +641,9 @@ bool ln_set_add_htlc_send(
 
 
 bool ln_set_add_htlc_send_fwd(
-    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pNextHtlcIdx,
-    const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint16_t PrevHtlcIdx, const utl_buf_t *pSharedSecrets)
+    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket, uint64_t AmountMsat,
+    uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
+    uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
 
@@ -661,28 +656,27 @@ bool ln_set_add_htlc_send_fwd(
 
     uint16_t htlc_idx;
     if (!set_add_htlc(
-        pChannel, pHtlcId, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
-        pPaymentHash, PrevShortChannelId, PrevHtlcIdx, pSharedSecrets)) return false;
+        pChannel, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
+        pPaymentHash, PrevShortChannelId, PrevHtlcId, pSharedSecrets)) return false;
 
     uint16_t update_idx;
     bool ret;
     ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, htlc_idx);
     assert(ret);
     (void)ret;
-    *pNextHtlcIdx = htlc_idx;
     ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     LN_DBG_UPDATE_PRINT(p_update);
     return true;
 }
 
 
-void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t NextHtlcIdx)
+void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevHtlcIdx)
 {
     LOGD("BEGIN\n");
 
     uint16_t update_idx;
     bool ret;
-    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, NextHtlcIdx);
+    ret = ln_update_info_get_update_add_htlc_forward(&pChannel->update_info, &update_idx, PrevHtlcIdx);
     assert(ret);
     (void)ret;
     ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
@@ -691,44 +685,36 @@ void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint16_t NextHtlcIdx)
 }
 
 
-bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, const uint8_t *pPreimage)
+bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t *pPreimage)
 {
     LOGD("BEGIN\n");
 
-    uint16_t update_idx_add_htlc;
-    bool ret;
-    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, HtlcIdx);
-    assert(ret);
-    (void)ret;
-    ln_update_t *p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
-    if (!LN_UPDATE_RECV_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) return false;
-    if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) return false;
-
-    uint16_t update_idx_del_htlc;
+    uint16_t update_idx;
     if (!ln_update_info_set_del_htlc_pre_send(
-        &pChannel->update_info, &update_idx_del_htlc, HtlcIdx, LN_UPDATE_TYPE_FULFILL_HTLC)) {
+        &pChannel->update_info, &update_idx, HtlcId, LN_UPDATE_TYPE_FULFILL_HTLC)) {
         assert(0);
         return false;
     }
 
+    const ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     if (pPreimage) {
-        ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
+        ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
         if (!utl_buf_alloccopy(&p_htlc->buf_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
         //M_DB_CHANNEL_SAVE(pChannel); //XXX: Since the forwarding data of update is stored separately, this is not necessary
     }
 
-    LN_DBG_UPDATE_PRINT(&pChannel->update_info.updates[update_idx_del_htlc]);
+    LN_DBG_UPDATE_PRINT(p_update);
     return true;
 }
 
 
-bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateType, const utl_buf_t *pReason)
+bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateType, const utl_buf_t *pReason)
 {
     LOGD("BEGIN\n");
 
     uint16_t update_idx_add_htlc;
     bool ret;
-    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, HtlcIdx);
+    ret = ln_update_info_get_update_add_htlc_recv(&pChannel->update_info, &update_idx_add_htlc, HtlcId);
     assert(ret);
     (void)ret;
     ln_update_t *p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
@@ -737,7 +723,7 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
     if (LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) {
         uint16_t update_idx_del_htlc;
         if (!ln_update_info_set_del_htlc_pre_send(
-            &pChannel->update_info, &update_idx_del_htlc, HtlcIdx, UpdateType)) {
+            &pChannel->update_info, &update_idx_del_htlc, HtlcId, UpdateType)) {
             assert(0);
             return false;
         }
@@ -747,7 +733,7 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint16_t HtlcIdx, uint8_t UpdateTy
     }
 
     if (pReason) {
-        ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[HtlcIdx];
+        ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->type_specific_idx];
         utl_buf_free(&p_htlc->buf_onion_reason);
         ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
     }
@@ -1030,14 +1016,11 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
     //update_add_htlc受信通知
     //  hop nodeの場合、転送先ln_channel_tのupdates[],htlcs[]に設定まで行う
     cb_param.ret = true;
-    cb_param.id = p_htlc->id;
+    cb_param.prev_htlc_id = p_htlc->id;
     cb_param.p_payment = p_htlc->payment_hash;
     cb_param.p_hop = &hop_dataout;
     cb_param.amount_msat = p_htlc->amount_msat;
     cb_param.cltv_expiry = p_htlc->cltv_expiry;
-    cb_param.htlc_idx = p_update->type_specific_idx;
-        //転送先にとっては、prev_update_idx
-        //戻り値は転送先の  next_update_idx
     cb_param.p_onion_reason = &p_htlc->buf_onion_reason;
     cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV, &cb_param);
@@ -1066,7 +1049,6 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
     } else {
         LOGD("hop node: will forward another channel\n");
         p_htlc->neighbor_short_channel_id = hop_dataout.short_channel_id;
-        p_htlc->neighbor_idx = cb_param.htlc_idx;
     }
 
 LABEL_EXIT:
@@ -1632,9 +1614,9 @@ LABEL_ERROR:
 
 
 static bool set_add_htlc(
-    ln_channel_t *pChannel, uint64_t *pHtlcId, utl_buf_t *pReason, uint16_t *pHtlcIdx,
-    const uint8_t *pPacket, uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint16_t PrevHtlcIdx, const utl_buf_t *pSharedSecrets)
+    ln_channel_t *pChannel, utl_buf_t *pReason, uint16_t *pHtlcIdx, const uint8_t *pPacket,
+    uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
+    uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
     LOGD("  AmountMsat=%" PRIu64 "\n", AmountMsat);
@@ -1661,7 +1643,7 @@ static bool set_add_htlc(
     memcpy(p_htlc->payment_hash, pPaymentHash, BTC_SZ_HASH256);
     utl_buf_alloccopy(&p_htlc->buf_onion_reason, pPacket, LN_SZ_ONION_ROUTE);
     p_htlc->neighbor_short_channel_id = PrevShortChannelId;
-    p_htlc->neighbor_idx = PrevHtlcIdx;
+    p_htlc->neighbor_id = PrevHtlcId;
     utl_buf_free(&p_htlc->buf_shared_secret);
     if (pSharedSecrets) {
         if (!utl_buf_alloccopy(
@@ -1682,7 +1664,6 @@ static bool set_add_htlc(
     }
 
     *pHtlcIdx = p_update->type_specific_idx;
-    *pHtlcId = p_htlc->id;
     LOGD("HTLC add : neighbor_short_channel_id=%" PRIu64 "\n", p_htlc->neighbor_short_channel_id);
     LOGD("           pChannel->update_info.updates[%u].state = 0x%04x\n", update_idx, p_update->state);
     return true;

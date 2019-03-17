@@ -124,6 +124,7 @@ typedef struct lnapp_conf_t {
     struct rcvidlelisthead_t    rcvidle_head;   //受信アイドル時キュー
     struct routelisthead_t      payroute_head;  //payment
     struct ponglisthead_t       pong_head;      //pong.num_pong_bytes
+    uint64_t                    dummy_htlc_id;
 
     //send announcement
     uint64_t        last_anno_cnl;                      ///< [#send_channel_anno()]最後にannouncementしたchannel

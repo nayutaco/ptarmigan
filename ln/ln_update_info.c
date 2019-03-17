@@ -25,8 +25,8 @@
 #include <inttypes.h>
 
 #include "ln_db_lmdb.h"
-
 #include "ln_update_info.h"
+#include "ln_local.h"
 
 
 /**************************************************************************
@@ -161,50 +161,80 @@ bool ln_update_info_get_corresponding_update(
 }
 
 
-bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint16_t HtlcIdx, uint8_t Type)
+bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId, uint8_t Type)
 {
     assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
-    uint16_t update_idx;
-    if (ln_update_info_get_update(pInfo, &update_idx, LN_UPDATE_TYPE_MASK_DEL_HTLC, HtlcIdx)) {
-        //I have already received it
+    uint16_t update_idx_add_htlc;
+    if (!ln_update_info_get_update_add_htlc_recv(pInfo, &update_idx_add_htlc, HtlcId)) {
+        //we don't have the corresponding update_add_htlc
+        LOGE("fail: ???\n");
         return false;
     }
 
-    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
+    if (!LN_UPDATE_IRREVOCABLY_COMMITTED(&pInfo->updates[update_idx_add_htlc])) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+
+    uint16_t update_idx_del_htlc;
+    if (ln_update_info_get_update(
+        pInfo, &update_idx_del_htlc, LN_UPDATE_TYPE_MASK_DEL_HTLC, pInfo->updates[update_idx_add_htlc].type_specific_idx)) {
+        //I have already received it
+        LOGE("fail: ???\n");
+        return false;
+    }
+
+    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx_del_htlc);
     if (!p_update) {
+        LOGE("fail: ???\n");
         return false;
     }
 
     p_update->enabled = true;
     p_update->type = Type;
     //p_update->flags.up_send = 1; //NOT set the flag, pre send
-    p_update->type_specific_idx = HtlcIdx;
-    *pUpdateIdx = update_idx;
+    p_update->type_specific_idx = pInfo->updates[update_idx_add_htlc].type_specific_idx;
+    *pUpdateIdx = update_idx_del_htlc;
     return true;
 }
 
 
-bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint16_t HtlcIdx, uint8_t Type)
+bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId, uint8_t Type)
 {
     assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
-    uint16_t update_idx;
-    if (ln_update_info_get_update(pInfo, &update_idx, LN_UPDATE_TYPE_MASK_DEL_HTLC, HtlcIdx)) {
-        //I have already received it
+    uint16_t update_idx_add_htlc;
+    if (!ln_update_info_get_update_add_htlc_send(pInfo, &update_idx_add_htlc, HtlcId)) {
+        //we don't have the corresponding update_add_htlc
+        LOGE("fail: ???\n");
         return false;
     }
 
-    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx);
+    if (!LN_UPDATE_IRREVOCABLY_COMMITTED(&pInfo->updates[update_idx_add_htlc])) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+
+    uint16_t update_idx_del_htlc;
+    if (ln_update_info_get_update(
+        pInfo, &update_idx_del_htlc, LN_UPDATE_TYPE_MASK_DEL_HTLC, pInfo->updates[update_idx_add_htlc].type_specific_idx)) {
+        //I have already received it
+        LOGE("fail: ???\n");
+        return false;
+    }
+
+    ln_update_t *p_update = ln_update_get_empty(pInfo->updates, &update_idx_del_htlc);
     if (!p_update) {
+        LOGE("fail: ???\n");
         return false;
     }
 
     p_update->enabled = true;
     p_update->type = Type;
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
-    p_update->type_specific_idx = HtlcIdx;
-    *pUpdateIdx = update_idx;
+    p_update->type_specific_idx = pInfo->updates[update_idx_add_htlc].type_specific_idx;
+    *pUpdateIdx = update_idx_del_htlc;
     return true;
 }
 
@@ -429,6 +459,50 @@ bool ln_update_info_get_update(const ln_update_info_t *pInfo, uint16_t *pUpdateI
 }
 
 
+bool ln_update_info_get_update_add_htlc_send(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        const ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
+        if (pInfo->htlcs[p_update->type_specific_idx].id != HtlcId) continue;
+        *pUpdateIdx = idx;
+        return true;
+    }
+    return false;
+}
+
+
+bool ln_update_info_get_update_add_htlc_forward(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevHtlcId)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        const ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true) &&
+            p_update->type != LN_UPDATE_TYPE_NONE) continue;
+        if (pInfo->htlcs[p_update->type_specific_idx].neighbor_id != PrevHtlcId) continue;
+        *pUpdateIdx = idx;
+        return true;
+    }
+    return false;
+}
+
+
+bool ln_update_info_get_update_add_htlc_recv(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        const ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (!LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
+        if (pInfo->htlcs[p_update->type_specific_idx].id != HtlcId) continue;
+        *pUpdateIdx = idx;
+        return true;
+    }
+    return false;
+}
+
+
 bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
@@ -597,5 +671,3 @@ static uint32_t get_last_feerate_per_kw(ln_update_info_t *pInfo)
     }
     return feerate_per_kw;
 }
-
-
