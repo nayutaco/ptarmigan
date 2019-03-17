@@ -324,14 +324,13 @@ TEST_F(ln, set_add_htlc1)
 
     bool ret;
 
-    uint64_t htlcid;
     utl_buf_t buf_reason = UTL_BUF_INIT;
     uint8_t onion[LN_SZ_ONION_ROUTE];
     uint64_t amount_msat = 123;
     uint32_t cltv_expiry = 98765;
     uint8_t payment_hash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
-    uint16_t prev_idx = 3;
+    uint64_t prev_htlc_id = 3;
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
@@ -339,15 +338,15 @@ TEST_F(ln, set_add_htlc1)
     memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
     /*** TEST ***/
-    ret = ln_set_add_htlc_send(&channel, &htlcid, &buf_reason, onion,
+    ret = ln_set_add_htlc_send(&channel, &buf_reason, onion,
                 amount_msat, cltv_expiry, payment_hash,
-                prev_schid, prev_idx, &shared_secret);
+                prev_schid, prev_htlc_id, &shared_secret);
 
     /*** CHECK ***/
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, buf_reason.len);
     ASSERT_EQ(prev_schid, channel.update_info.htlcs[0].neighbor_short_channel_id);
-    ASSERT_EQ(prev_idx, channel.update_info.htlcs[0].neighbor_idx);
+    ASSERT_EQ(prev_htlc_id, channel.update_info.htlcs[0].neighbor_id);
     ASSERT_EQ(amount_msat, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(cltv_expiry, channel.update_info.htlcs[0].cltv_expiry);
     //
@@ -380,22 +379,21 @@ TEST_F(ln, create_add_htlc1)
 
     bool ret;
 
-    uint64_t htlcid;
     utl_buf_t buf_reason = UTL_BUF_INIT;
     uint8_t onion[LN_SZ_ONION_ROUTE];
     uint64_t amount_msat = 123;
     uint32_t cltv_expiry = 98765;
     uint8_t payment_hash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
-    uint16_t prev_idx = 3;
+    uint64_t prev_htlc_id = 3;
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
-    ret = ln_set_add_htlc_send(&channel, &htlcid, &buf_reason, onion,
+    ret = ln_set_add_htlc_send(&channel, &buf_reason, onion,
                 amount_msat, cltv_expiry, payment_hash,
-                prev_schid, prev_idx, &shared_secret);
+                prev_schid, prev_htlc_id, &shared_secret);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, buf_reason.len);
 
@@ -404,7 +402,7 @@ TEST_F(ln, create_add_htlc1)
 
     /*** CHECK ***/
     ASSERT_EQ(prev_schid, channel.update_info.htlcs[0].neighbor_short_channel_id);
-    ASSERT_EQ(prev_idx, channel.update_info.htlcs[0].neighbor_idx);
+    ASSERT_EQ(prev_htlc_id, channel.update_info.htlcs[0].neighbor_id);
     ASSERT_EQ(amount_msat, channel.update_info.htlcs[0].amount_msat);
     ASSERT_EQ(cltv_expiry, channel.update_info.htlcs[0].cltv_expiry);
     //

@@ -137,7 +137,7 @@ typedef struct {
     utl_buf_t           buf_shared_secret;              ///< failuremsg暗号化用
 
     uint64_t            neighbor_short_channel_id;      ///<
-    uint16_t            neighbor_idx;                   ///<
+    uint64_t            neighbor_id;                    ///<
 } ln_htlc_t;
 
 

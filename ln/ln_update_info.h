@@ -72,8 +72,8 @@ bool ln_update_info_set_add_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
 bool ln_update_info_set_add_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx);
 bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx);
 
-bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint16_t HtlcIdx, uint8_t Type);
-bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint16_t HtlcIdx, uint8_t Type);
+bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId, uint8_t Type);
+bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId, uint8_t Type);
 
 bool ln_update_info_set_fee_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw);
 bool ln_update_info_set_fee_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint32_t FeeratePerKw);
@@ -87,7 +87,12 @@ uint32_t ln_update_info_get_feerate_per_kw_committed(const ln_update_info_t *pIn
 uint16_t ln_update_info_get_num_fee_updates(ln_update_info_t *pInfo);
 bool ln_update_info_fee_update_needs(ln_update_info_t *pInfo, uint32_t FeeratePerKw);
 
-bool ln_update_info_get_update(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx);
+bool ln_update_info_get_update(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx);
+bool ln_update_info_get_update_add_htlc_send(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId);
+bool ln_update_info_get_update_add_htlc_forward(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevHtlcId);
+bool ln_update_info_get_update_add_htlc_recv(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId);
 bool ln_update_info_get_corresponding_update(const ln_update_info_t *pInfo, uint16_t *pCorrespondingUpdateIdx, uint16_t UpdateIdx);
 
 bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo);

@@ -137,7 +137,7 @@
 #define M_KEY_SHARED_SECRET     "shared_secret"
 #define M_SZ_SHARED_SECRET      (sizeof(M_KEY_SHARED_SECRET) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-60))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-61))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -237,6 +237,8 @@
     -59: updated a lot!
          change db paths and db names and so on
     -60: increase the num of htlcs (6 -> 12)
+    -61: rm `ln_htlc_id::neighbor_idx`
+         add `ln_htlc_id::neighbor_id`
  */
 
 

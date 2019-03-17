@@ -83,8 +83,8 @@ typedef void (*ln_callback_t)(ln_channel_t *pChannel, ln_cb_type_t type, void *p
  */
 typedef struct {
     btc_tx_t                *p_tx;
-    uint64_t                amount;     //(SPV未使用)fund-inするamount[satoshi]
-    bool                    ret;        //署名結果
+    uint64_t                amount;                 //(SPV未使用)fund-inするamount[satoshi]
+    bool                    ret;                    //署名結果
 } ln_cb_param_sign_funding_tx_t;
 
 
@@ -92,11 +92,11 @@ typedef struct {
  *  @brief  funding_tx安定待ち要求(#LN_CB_TYPE_WAIT_FUNDING_TX)
  */
 typedef struct {
-    const btc_tx_t          *p_tx_funding;              ///< funding_tx
-    const uint8_t           *p_txid;                    ///< funding txid
-    bool                    b_send;                     ///< true:funding_txを送信する
-    bool                    anno_sigs;                  ///< true:announce_signaturesを送信する
-    bool                    ret;                        ///< true:funding_tx送信成功
+    const btc_tx_t          *p_tx_funding;          ///< funding_tx
+    const uint8_t           *p_txid;                ///< funding txid
+    bool                    b_send;                 ///< true:funding_txを送信する
+    bool                    anno_sigs;              ///< true:announce_signaturesを送信する
+    bool                    ret;                    ///< true:funding_tx送信成功
 } ln_cb_param_wait_funding_tx_t;
 
 
@@ -113,21 +113,20 @@ typedef struct {
  *  @brief  update_add_htlc受信通知(#LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV)
  */
 typedef struct {
-    bool                        ret;                    ///< callback処理結果
-    uint64_t                    id;                     ///< HTLC id
-    const uint8_t               *p_payment;             ///< payment_hash
-    const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
-    uint64_t                    amount_msat;            ///<
-    uint32_t                    cltv_expiry;            ///<
-    uint16_t                    htlc_idx;               ///< XXX: should use htlc_id
-    utl_buf_t                   *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
-    const utl_buf_t             *p_shared_secret;       ///< onion shared secret
+    bool                    ret;                    ///< callback処理結果
+    uint64_t                prev_htlc_id;           ///< HTLC id
+    const uint8_t           *p_payment;             ///< payment_hash
+    const ln_hop_dataout_t  *p_hop;                 ///< onion解析結果
+    uint64_t                amount_msat;            ///<
+    uint32_t                cltv_expiry;            ///<
+    utl_buf_t               *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
+    const utl_buf_t         *p_shared_secret;       ///< onion shared secret
 } ln_cb_param_nofity_add_htlc_recv_t;
 
 
 typedef struct {
-    uint64_t                    next_short_channel_id;
-    uint16_t                    next_htlc_idx;        ///< XXX: should use htlc_id
+    uint64_t                next_short_channel_id;
+    uint64_t                prev_htlc_id;
 } ln_cb_param_start_fwd_add_htlc_t;
 
 
@@ -137,8 +136,7 @@ typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
     const utl_buf_t         *p_shared_secret;       ///< shared secret
-    uint16_t                prev_htlc_idx;          ///< XXX: should use htlc_id
-    uint64_t                next_htlc_id;           ///< HTLC id (caller's)
+    uint64_t                prev_htlc_id;           ///<
     const uint8_t           *p_payment_hash;        ///< payment_hash
     uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code
 } ln_cb_param_start_bwd_del_htlc_t;
@@ -150,9 +148,8 @@ typedef struct {
 typedef struct {
     bool                    ret;                    ///< callback処理結果
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    uint16_t                prev_htlc_idx;          ///< XXX: should use htlc_id
+    uint64_t                prev_htlc_id;           ///<
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
-    uint64_t                next_id;                ///< HTLC id (caller's)
     uint64_t                amount_msat;            ///< HTLC amount
 } ln_cb_param_notify_fulfill_htlc_recv_t;
 

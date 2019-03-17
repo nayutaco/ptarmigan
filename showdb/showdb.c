@@ -439,7 +439,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
         ln_short_channel_id_string(str_sci, p_htlc->neighbor_short_channel_id);
         printf(INDENT5 M_QQ("neighbor_short_channel_id") ": " M_QQ("%s (%016" PRIx64 ")") ",\n",
             str_sci, p_htlc->neighbor_short_channel_id);
-        printf(INDENT5 M_QQ("neighbor_idx") ": %" PRIu16 ",\n", p_htlc->neighbor_idx);
+        printf(INDENT5 M_QQ("neighbor_id") ": %" PRIu64 ",\n", p_htlc->neighbor_id);
         printf(INDENT5 M_QQ("onion_reason") ": \"");
         if (p_htlc->buf_onion_reason.len > 35) {
             printf("length=%d, ", p_htlc->buf_onion_reason.len);
