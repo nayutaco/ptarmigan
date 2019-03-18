@@ -44,7 +44,7 @@ extern "C" {
  * @param[in]   pArg        未使用
  * @retval      未使用
  */
-void *monitor_thread_start(void *pArg);
+void *monitor_start(void *pArg);
 
 
 /** モニタループ停止
