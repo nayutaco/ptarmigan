@@ -132,7 +132,7 @@ static void monchanlist_add(monchanlist_t *pList);
  * public functions
  **************************************************************************/
 
-void *monitor_thread_start(void *pArg)
+void *monitor_start(void *pArg)
 {
     (void)pArg;
 

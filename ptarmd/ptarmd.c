@@ -200,8 +200,8 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     pthread_create(&th_svr, NULL, &p2p_svr_start, NULL);
 
     //チャネル監視用
-    pthread_t th_poll;
-    pthread_create(&th_poll, NULL, &monitor_thread_start, NULL);
+    pthread_t th_mon;
+    pthread_create(&th_mon, NULL, &monitor_start, NULL);
 
     uint64_t total_amount = ln_node_total_msat();
     ptarmd_eventlog(NULL, "----------START----------");
@@ -228,7 +228,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
-    pthread_join(th_poll, NULL);
+    pthread_join(th_mon, NULL);
 
     LOGD("end\n");
     total_amount = ln_node_total_msat();
