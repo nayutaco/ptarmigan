@@ -421,7 +421,7 @@ TEST_F(lnapp, proc_ok1)
 {
     lnapp_conf_t conf;
     memset(&conf, 0, sizeof(conf));
-    conf.loop = true;
+    conf.active = true;
 
     ln_db_anno_transaction_fake.return_val = true;
     ln_db_anno_cur_open_fake.return_val = true;

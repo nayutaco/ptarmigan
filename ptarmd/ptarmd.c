@@ -331,7 +331,7 @@ lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id)
         LOGE("fail: not connected\n");
         goto LABEL_EXIT;
     }
-    if (!lnapp_is_looping(p_appconf)) {
+    if (!lnapp_is_active(p_appconf)) {
         LOGE("fail: not working\n");
         goto LABEL_EXIT;
     }
