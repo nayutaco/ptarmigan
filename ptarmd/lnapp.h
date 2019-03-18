@@ -145,7 +145,7 @@ typedef struct lnapp_conf_t {
  * prototypes
  ********************************************************************/
 
-void lnapp_init(void);
+void lnapp_global_init(void);
 
 
 /** [lnapp]開始

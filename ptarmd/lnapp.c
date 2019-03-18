@@ -243,7 +243,7 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
  * public functions
  ********************************************************************/
 
-void lnapp_init(void)
+void lnapp_global_init(void)
 {
     //announcementデフォルト値
     load_announce_settings();
