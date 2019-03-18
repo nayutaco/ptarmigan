@@ -255,24 +255,3 @@ void p2p_svr_show_channel(cJSON *pResult)
     }
 }
 
-
-bool p2p_svr_is_looping(void)
-{
-    bool ret = false;
-    int connects = 0;
-
-    for (int lp = 0; lp < M_SOCK_SERVER_MAX; lp++) {
-        if (mAppConf[lp].sock != -1) {
-            connects++;
-            ret = lnapp_is_looping(&mAppConf[lp]);
-            if (ret) {
-                break;
-            }
-        }
-    }
-    if (connects == 0) {
-        ret = true;
-    }
-
-    return ret;
-}
