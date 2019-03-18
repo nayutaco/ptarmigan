@@ -66,8 +66,7 @@
 
 #include "ptarmd.h"
 #include "btcrpc.h"
-#include "p2p_svr.h"
-#include "p2p_cli.h"
+#include "p2p.h"
 #include "lnapp.h"
 #include "monitoring.h"
 #include "cmd_json.h"
@@ -168,7 +167,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     }
     const ln_node_addr_t *p_addr = ln_node_addr();
 
-    p2p_cli_init();
+    p2p_init();
 
     //peer config出力(内部テストで使用している)
     FILE *fp = fopen(FNAME_FMT_NODECONF, "w");
@@ -197,7 +196,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
 
     //接続待ち受け用
     pthread_t th_svr;
-    pthread_create(&th_svr, NULL, &p2p_svr_start, NULL);
+    pthread_create(&th_svr, NULL, &p2p_listener_start, NULL);
 
     //チャネル監視用
     pthread_t th_mon;
@@ -254,8 +253,8 @@ void ptarmd_stop(void)
         LOGD("$$$ stopage order\n");
         cmd_json_stop();
         monitor_stop();
-        p2p_svr_stop_all();
-        p2p_cli_stop_all();
+        p2p_stop_all();
+        p2p_stop_all();
     } else {
         LOGD("$$$ stopped\n");
     }
@@ -315,9 +314,9 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf;
 
-    p_appconf = p2p_cli_search_short_channel_id(short_channel_id);
+    p_appconf = p2p_search_short_channel_id(short_channel_id);
     if (p_appconf == NULL) {
-        p_appconf = p2p_svr_search_short_channel_id(short_channel_id);
+        p_appconf = p2p_search_short_channel_id(short_channel_id);
     }
     return p_appconf;
 }
@@ -358,9 +357,9 @@ lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id)
 {
     lnapp_conf_t *p_appconf;
 
-    p_appconf = p2p_cli_search_node(p_node_id);
+    p_appconf = p2p_search_node(p_node_id);
     if (p_appconf == NULL) {
-        p_appconf = p2p_svr_search_node(p_node_id);
+        p_appconf = p2p_search_node(p_node_id);
     }
     return p_appconf;
 }

@@ -43,8 +43,7 @@
 
 #include "ptarmd.h"
 #include "btcrpc.h"
-#include "p2p_svr.h"
-#include "p2p_cli.h"
+#include "p2p.h"
 #include "lnapp.h"
 #include "monitoring.h"
 #include "wallet.h"
@@ -248,7 +247,7 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
     utl_str_bin2str(nodestr, pNodeId, BTC_SZ_PUBKEY);
     LOGD("connect:%s@%s:%d\n", nodestr, pIpAddr, Port);
 
-    bool ret = p2p_cli_connect_test(pIpAddr, Port);
+    bool ret = p2p_connect_test(pIpAddr, Port);
     if (!ret) {
         LOGE("fail: connect test\n");
         return -1;
@@ -433,8 +432,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 #endif
 
     //peer info
-    p2p_svr_show_channel(result_peer);
-    p2p_cli_show_channel(result_peer);
+    p2p_show_channel(result_peer);
     cJSON_AddItemToObject(result, "peers", result_peer);
 
     //payment info
@@ -1576,7 +1574,7 @@ static int cmd_connect_proc(const peer_conn_t *pConn)
     LOGD("connect\n");
 
     int err;
-    bool ret = p2p_cli_start(pConn, &err);
+    bool ret = p2p_initiator_start(pConn, &err);
     if (!ret) {
         return err;
     }
