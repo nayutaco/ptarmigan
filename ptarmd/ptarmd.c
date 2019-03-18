@@ -312,13 +312,7 @@ void ptarmd_preimage_unlock(void)
 
 lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 {
-    lnapp_conf_t *p_appconf;
-
-    p_appconf = p2p_search_short_channel_id(short_channel_id);
-    if (p_appconf == NULL) {
-        p_appconf = p2p_search_short_channel_id(short_channel_id);
-    }
-    return p_appconf;
+    return p2p_search_short_channel_id(short_channel_id);
 }
 
 
@@ -355,13 +349,7 @@ LABEL_EXIT:
 
 lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id)
 {
-    lnapp_conf_t *p_appconf;
-
-    p_appconf = p2p_search_node(p_node_id);
-    if (p_appconf == NULL) {
-        p_appconf = p2p_search_node(p_node_id);
-    }
-    return p_appconf;
+    return p2p_search_node(p_node_id);
 }
 
 
