@@ -72,9 +72,4 @@ int p2p_svr_connected_peer(void);
 void p2p_svr_show_channel(cJSON *pResult);
 
 
-/** [p2p_svr]ループ状態取得
- *
- */
-bool p2p_svr_is_looping(void);
-
 #endif /* P2P_SVR_H__ */

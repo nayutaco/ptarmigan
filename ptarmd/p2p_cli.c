@@ -264,45 +264,11 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 }
 
 
-int p2p_cli_connected_peer(void)
-{
-    int cnt = 0;
-    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
-        if (lnapp_is_looping(&mAppConf[lp])) {
-            cnt++;
-        }
-    }
-    return cnt;
-}
-
-
 void p2p_cli_show_channel(cJSON *pResult)
 {
     for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
         lnapp_show_channel(&mAppConf[lp], pResult, "client");
     }
-}
-
-
-bool p2p_cli_is_looping(void)
-{
-    bool ret = false;
-    int connects = 0;
-
-    for (int lp = 0; lp < M_SOCK_CLIENT_MAX; lp++) {
-        if (mAppConf[lp].sock != -1) {
-            connects++;
-            ret = lnapp_is_looping(&mAppConf[lp]);
-            if (ret) {
-                break;
-            }
-        }
-    }
-    if (connects == 0) {
-        ret = true;
-    }
-
-    return ret;
 }
 
 
