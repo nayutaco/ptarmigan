@@ -24,7 +24,7 @@
  *  @brief  channel処理
  *  @note   <pre>
  *                +-----------------------------------------------+
- * p2p_svr/cli--->| channel thread                                |
+ *      p2p--->   | channel thread                                |
  *                |                                               |
  *                +--+-------+-------------------+----------------+
  *            create |       | create            | create
@@ -543,7 +543,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 }
 
 
-void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli)
+void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult)
 {
     if ((!pAppConf->active) || (pAppConf->sock < 0)) {
         return;
@@ -553,7 +553,11 @@ void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char
     char str[256];
 
     cJSON *result = cJSON_CreateObject();
-    cJSON_AddItemToObject(result, "role", cJSON_CreateString(pSvrCli));
+    if (pAppConf->initiator) {
+        cJSON_AddItemToObject(result, "role", cJSON_CreateString("client"));
+    } else {
+        cJSON_AddItemToObject(result, "role", cJSON_CreateString("server"));
+    }
     cJSON_AddItemToObject(result, "status", cJSON_CreateString(ln_status_string(p_channel)));
     //peer node_id
     utl_str_bin2str(str, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);

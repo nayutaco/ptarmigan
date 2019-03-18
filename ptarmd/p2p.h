@@ -19,11 +19,11 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   p2p_svr.h
- *  @brief  ptarmd server動作 header
+/** @file   p2p.h
+ *  @brief  p2p
  */
-#ifndef P2P_SVR_H__
-#define P2P_SVR_H__
+#ifndef P2P_H__
+#define P2P_H__
 
 #include <stdint.h>
 
@@ -31,45 +31,73 @@
 
 #include "lnapp.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-/** [p2p_svr]開始
+/** [p2p]初期化
  *
  */
-void *p2p_svr_start(void *pArg);
+void p2p_init(void);
 
 
-/** [p2p_svr]全停止
+/** [p2p]接続テスト
+ * 
+ */
+bool p2p_connect_test(const char *pIpAddr, uint16_t Port);
+
+
+/** [p2p]開始
  *
  */
-void p2p_svr_stop_all(void);
+bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode);
 
 
-/** [p2p_svr]node_idによる検索
+/** [p2p] 接続情報を保存
  *
  */
-lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId);
+bool p2p_store_peer_conn(const peer_conn_t* pPeerConn);
 
 
-/** [p2p_svr]short_channel_idによる検索
+/** [p2p] 接続情報を復元
  *
  */
-lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id);
+bool p2p_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId);
 
 
-/** [p2p_svr]動作中lnapp数取得
+/** [p2p]開始
  *
  */
-int p2p_svr_connected_peer(void);
+void *p2p_listener_start(void *pArg);
 
 
-/** [p2p_svr]動作中lnapp全出力
+/** [p2p]全停止
  *
  */
-void p2p_svr_show_channel(cJSON *pResult);
+void p2p_stop_all(void);
 
 
-#endif /* P2P_SVR_H__ */
+/** [p2p]node_idによる検索
+ *
+ */
+lnapp_conf_t *p2p_search_node(const uint8_t *pNodeId);
+
+
+/** [p2p]short_channel_idによる検索
+ *
+ */
+lnapp_conf_t *p2p_search_short_channel_id(uint64_t short_channel_id);
+
+
+/** [p2p]動作中lnapp全出力
+ *
+ */
+void p2p_show_channel(cJSON *pResult);
+
+
+#endif /* P2P_H__ */

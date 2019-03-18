@@ -82,15 +82,11 @@ LIST_HEAD(ponglisthead_t, ponglist_t);
  *  @brief  アプリ側のチャネル管理情報
  */
 typedef struct lnapp_conf_t {
-    //p2p_svr/cli用
-    volatile int    sock;                   ///< -1:socket未接続
-
     //lnappワーク
     volatile bool       active;             ///< true:channel動作中
     volatile uint8_t    flag_recv;          ///< 受信フラグ(M_FLAGRECV_xxx)
 
-
-    //p2p_svr/cli用
+    volatile int    sock;               ///< -1:socket未接続
     pthread_t       th;                         ///< pthread id
     char            conn_str[SZ_CONN_STR + 1];  ///< 接続成功ログ/接続失敗リスト用
     uint16_t        conn_port;                  ///< 接続成功ログ/接続失敗リスト用
@@ -230,7 +226,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 /** [lnapp]lnapp出力
  *
  */
-void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli);
+void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult);
 
 
 /** [lnapp]現在のcommit_tx出力

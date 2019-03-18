@@ -37,8 +37,7 @@
 #include "ln_wallet.h"
 
 #include "ptarmd.h"
-#include "p2p_svr.h"
-#include "p2p_cli.h"
+#include "p2p.h"
 #include "lnapp.h"
 #include "btcrpc.h"
 #include "cmd_json.h"
@@ -568,7 +567,7 @@ static bool channel_reconnect(ln_channel_t *pChannel)
     //conn_addr[0]
     //clientとして接続したときの接続先情報があれば、そこに接続する
     peer_conn_t last_peer_conn;
-    if (p2p_cli_load_peer_conn(&last_peer_conn, p_node_id)) {
+    if (p2p_load_peer_conn(&last_peer_conn, p_node_id)) {
         strcpy(conn_addr[0].ipaddr, last_peer_conn.ipaddr);
         conn_addr[0].port = last_peer_conn.port;
         LOGD("conn_addr[0]: %s:%d\n", conn_addr[0].ipaddr, conn_addr[0].port);
