@@ -1589,7 +1589,7 @@ static int cmd_connect_proc(const peer_conn_t *pConn)
     int retry = M_RETRY_CONN_CHK;
     while (retry--) {
         lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pConn->node_id);
-        if ((p_appconf != NULL) && lnapp_is_looping(p_appconf) && lnapp_is_connected(p_appconf)) {
+        if ((p_appconf != NULL) && lnapp_is_active(p_appconf) && lnapp_is_connected(p_appconf)) {
             break;
         }
         sleep(1);

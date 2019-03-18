@@ -86,7 +86,7 @@ typedef struct lnapp_conf_t {
     volatile int    sock;                   ///< -1:socket未接続
 
     //lnappワーク
-    volatile bool   loop;                   ///< true:channel動作中
+    volatile bool       active;             ///< true:channel動作中
     volatile uint8_t    flag_recv;          ///< 受信フラグ(M_FLAGRECV_xxx)
 
 
@@ -244,7 +244,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal);
  *
  * @retval  true        channel active
  */
-bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
+bool lnapp_is_active(const lnapp_conf_t *pAppConf);
 
 
 /** [lnapp]接続済み状態取得
