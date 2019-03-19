@@ -1157,7 +1157,8 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
     int32_t bindex = 0;
     uint8_t mined_hash[BTC_SZ_HASH256];
     bool ret = btcrpc_get_short_channel_param(
-        ln_remote_node_id(p_conf->p_channel), &bheight, &bindex, mined_hash, ln_funding_info_txid(&p_conf->p_channel->funding_info));
+        ln_remote_node_id(p_conf->p_channel), &bheight, &bindex, mined_hash,
+        ln_funding_info_txid(&p_conf->p_channel->funding_info));
     if (ret) {
         LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_short_channel_id_set_param(p_conf->p_channel, bheight, bindex);
@@ -1573,11 +1574,9 @@ static void *thread_poll_start(void *pArg)
                 TXIDD(ln_funding_info_txid(&p_conf->p_channel->funding_info));
                 LOGD2("***********************************\n");
             }
-        } else if (!b_get) {
+        } else {
             //LOGD("funding_tx not detect: ");
             //TXIDD(ln_funding_info_txid(p_conf->p_channel));
-        } else {
-            continue;
         }
 
         //funding_tx
