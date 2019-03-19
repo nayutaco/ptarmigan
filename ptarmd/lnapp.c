@@ -142,7 +142,7 @@ static ln_anno_param_t        mAnnoParam;       ///< announcementパラメータ
  * prototypes
  ********************************************************************/
 
-static void *thread_main_start(void *pArg);
+static void *thread_channel_start(void *pArg);
 static bool wait_peer_connected(lnapp_conf_t *p_conf);
 static bool noise_handshake(lnapp_conf_t *p_conf);
 static bool set_short_channel_id(lnapp_conf_t *p_conf);
@@ -252,7 +252,7 @@ void lnapp_global_init(void)
 
 void lnapp_start(lnapp_conf_t *pAppConf)
 {
-    pthread_create(&pAppConf->th, NULL, &thread_main_start, pAppConf);
+    pthread_create(&pAppConf->th, NULL, &thread_channel_start, pAppConf);
 }
 
 
@@ -683,7 +683,7 @@ bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
-static void *thread_main_start(void *pArg)
+static void *thread_channel_start(void *pArg)
 {
     bool ret;
     int retval;
@@ -3165,7 +3165,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
     }
     if ((Err != 0) && (pErrStr != NULL)) {
         size_t len_max = strlen(pErrStr) + 128;
-        p_conf->p_errstr = (char *)UTL_DBG_MALLOC(len_max);        //UTL_DBG_FREE: thread_main_start()
+        p_conf->p_errstr = (char *)UTL_DBG_MALLOC(len_max);        //UTL_DBG_FREE: thread_channel_start()
         strcpy(p_conf->p_errstr, pErrStr);
         LOGD("$$$[ERROR RECEIVED] %s\n", p_conf->p_errstr);
 
