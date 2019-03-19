@@ -62,7 +62,6 @@ typedef enum {
     LN_CB_TYPE_UPDATE_CLOSING_FEE,          ///< closing_signed受信通知(FEE不一致)
     LN_CB_TYPE_NOTIFY_CLOSING_END,          ///< closing_signed受信通知(FEE一致)
     LN_CB_TYPE_SEND_MESSAGE,                ///< peerへの送信要求
-    LN_CB_TYPE_QUEUE_MESSAGE,               ///< 送信キュー保存(廃止予定)
     LN_CB_TYPE_GET_LATEST_FEERATE,          ///< feerate_per_kw取得要求
     LN_CB_TYPE_GET_BLOCK_COUNT,             ///< getblockcount
     LN_CB_TYPE_NOTIFY_PONG_RECV,            ///< pong received

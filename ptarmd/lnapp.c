@@ -202,7 +202,6 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
-static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param);
 static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -223,10 +222,6 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
-
-static void send_queue_push(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
-static void send_queue_flush(lnapp_conf_t *p_conf);
-static void send_queue_clear(lnapp_conf_t *p_conf);
 
 static bool getnewaddress(utl_buf_t *pBuf);
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
@@ -698,14 +693,12 @@ static void *thread_channel_start(void *pArg)
     p_conf->annodb_stamp = 0;
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
-    utl_buf_init(&p_conf->buf_sendque);
     LIST_INIT(&p_conf->payroute_head);
     LIST_INIT(&p_conf->pong_head);
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
     pthread_mutex_init(&p_conf->mux_send, NULL);
-    pthread_mutex_init(&p_conf->mux_sendque, NULL);
     {
         pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
         memcpy(&p_conf->mux_channel, &mux_channel, sizeof(mux_channel));
@@ -878,9 +871,6 @@ static void *thread_channel_start(void *pArg)
         }
     }
 
-    // flush buffered BOLT message
-    send_queue_flush(p_conf);
-
     //初期化完了
     LOGD("*** message inited ***\n");
     p_conf->flag_recv |= M_FLAGRECV_END;
@@ -973,12 +963,10 @@ LABEL_SHUTDOWN:
     UTL_DBG_FREE(p_conf->p_errstr);
     ln_term(p_channel);
     payroute_clear(p_conf);
-    send_queue_clear(p_conf);
     p_conf->sock = -1;
     p_conf->active = false;
     UTL_DBG_FREE(p_channel);
 
-    pthread_mutex_destroy(&p_conf->mux_sendque);
     pthread_mutex_destroy(&p_conf->mux_send);
     pthread_mutex_destroy(&p_conf->mux_channel);
     pthread_mutex_destroy(&p_conf->mux);
@@ -992,7 +980,6 @@ LABEL_SHUTDOWN:
         LIST_REMOVE(p_conf->payroute_head.lh_first, list);
         UTL_DBG_FREE(p_conf->payroute_head.lh_first);
     }
-    utl_buf_free(&p_conf->buf_sendque);
 
     LOGD("[exit]lnapp thread\n");
 
@@ -2151,7 +2138,6 @@ static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param
         { "  LN_CB_TYPE_UPDATE_CLOSING_FEE: closing_signed receive(not same fee)", cb_closed_fee },
         { "  LN_CB_TYPE_NOTIFY_CLOSING_END: closing_signed receive(same fee)", cb_closed },
         { "  LN_CB_TYPE_SEND_MESSAGE: send request", cb_send_req },
-        { "  LN_CB_TYPE_QUEUE_MESSAGE: add send queue", cb_send_queue },
         { "  LN_CB_TYPE_GET_LATEST_FEERATE: get feerate_per_kw", cb_get_latest_feerate },
         { "  LN_CB_TYPE_GET_BLOCK_COUNT: getblockcount", cb_getblockcount },
         { "  LN_CB_TYPE_NOTIFY_PONG_RECV: pong receive", cb_pong_recv },
@@ -2949,17 +2935,6 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_TYPE_QUEUE_MESSAGE: BOLTメッセージをキュー保存
-static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param)
-{
-    utl_buf_t *p_buf = (utl_buf_t *)p_param;
-
-    pthread_mutex_lock(&p_conf->mux_sendque);
-    send_queue_push(p_conf, p_buf);
-    pthread_mutex_unlock(&p_conf->mux_sendque);
-}
-
-
 //LN_CB_TYPE_GET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw取得
 static void cb_get_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -3322,64 +3297,6 @@ static void payroute_print(lnapp_conf_t *p_conf)
         p = LIST_NEXT(p, list);
     }
     LOGD("------------------------------------\n");
-}
-
-
-/**
- *
- * @param[in,out]       p_conf
- * @param[in]           pBuf        追加対象
- * @note
- *      - pBufはshallow copyするため、呼び元でUTL_DBG_FREEしないこと
- */
-static void send_queue_push(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
-{
-    LOGD("data=");
-    DUMPD(pBuf->buf, pBuf->len);
-
-    //add queue before noise encoded data
-    size_t len = p_conf->buf_sendque.len / sizeof(utl_buf_t);
-    LOGD("que=%p, bytes=%d\n", p_conf->buf_sendque.buf, p_conf->buf_sendque.len);
-    utl_buf_realloc(&p_conf->buf_sendque, sizeof(utl_buf_t) * (len + 1));
-    memcpy(p_conf->buf_sendque.buf + sizeof(utl_buf_t) * len, pBuf, sizeof(utl_buf_t));
-    LOGD("que=%p, bytes=%d\n", p_conf->buf_sendque.buf, p_conf->buf_sendque.len);
-
-    for (size_t lp = 0; lp < p_conf->buf_sendque.len / sizeof(utl_buf_t); lp++) {
-        const utl_buf_t *p = (const utl_buf_t *)(p_conf->buf_sendque.buf + lp * sizeof(utl_buf_t));
-        LOGD("buf[%d]=", lp);
-        DUMPD(p->buf, p->len);
-    }
-}
-
-
-static void send_queue_flush(lnapp_conf_t *p_conf)
-{
-    if (p_conf->buf_sendque.len == 0) {
-        return;
-    }
-
-    size_t len = p_conf->buf_sendque.len / sizeof(utl_buf_t);
-    for (size_t lp = 0; lp < len; lp++) {
-        uint8_t *p = p_conf->buf_sendque.buf + sizeof(utl_buf_t) * lp;
-        send_peer_noise(p_conf, (utl_buf_t *)p);
-        utl_buf_free((utl_buf_t *)p);
-    }
-    utl_buf_free(&p_conf->buf_sendque);
-}
-
-
-static void send_queue_clear(lnapp_conf_t *p_conf)
-{
-    if (p_conf->buf_sendque.len == 0) {
-        return;
-    }
-
-    size_t len = p_conf->buf_sendque.len / sizeof(utl_buf_t);
-    for (size_t lp = 0; lp < len; lp++) {
-        uint8_t *p = p_conf->buf_sendque.buf + sizeof(utl_buf_t) * lp;
-        utl_buf_free((utl_buf_t *)p);
-    }
-    utl_buf_free(&p_conf->buf_sendque);
 }
 
 
