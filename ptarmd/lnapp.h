@@ -179,12 +179,6 @@ bool lnapp_check_ponglist(const lnapp_conf_t *pAppConf);
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const char **ppResult);
 
 
-/** [lnapp]channel間処理転送
- *
- */
-void lnapp_transfer_channel(lnapp_conf_t *pAppConf, rcvidle_cmd_t Cmd, utl_buf_t *pBuf);
-
-
 /*******************************************
  * close関連
  *******************************************/

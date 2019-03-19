@@ -324,11 +324,11 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         LOGE("fail: short_channel_id mismatch\n");
         LOGE("    hop  : %016" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         LOGE("    mine : %016" PRIx64 "\n", ln_short_channel_id(p_channel));
-        ln_db_route_skip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
+        ln_db_route_skip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的 //XXX: ???
         goto LABEL_EXIT;
     }
 
-    //amount, CLTVチェック(最後の値はチェックしない)
+    //amount, CLTVチェック(最後の値はチェックしない) //XXX: ???
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
         if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
             LOGE("[%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")\n",
@@ -347,6 +347,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
     }
 
     btc_rng_rand(session_key, sizeof(session_key));
+        //XXX: should save session_key or shared_secret in the origin node?
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, BTC_SZ_HASH256);
@@ -420,22 +421,6 @@ LABEL_EXIT:
     DBGTRACE_END
 
     return ret;
-}
-
-
-/*******************************************
- * 転送/巻き戻しのための lnappコンテキスト移動
- *      転送/巻き戻しを行うため、lnappをまたぐ必要がある。
- *      pthreadがlnappで別になるため、受信スレッドのidle処理を介して移動させる。
- *******************************************/
-
-void lnapp_transfer_channel(lnapp_conf_t *pAppConf, rcvidle_cmd_t Cmd, utl_buf_t *pBuf)
-{
-    DBGTRACE_BEGIN
-
-    rcvidle_push(pAppConf, Cmd, pBuf);
-
-    DBGTRACE_END
 }
 
 
@@ -3193,9 +3178,6 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 /**************************************************************************
  * 受信アイドル時処理
  *
- *      - update_add_htlc受信によるupdate_add_htlcの転送(中継node)
- *      - update_add_htlc受信によるupdate_fulfill_htlcの巻き戻し(last node)
- *      - update_add_htlc受信によるupdate_fail_htlcの巻き戻し(last node)
  *      - announcement_signatures
  **************************************************************************/
 
