@@ -159,6 +159,7 @@ static void poll_ping(lnapp_conf_t *p_conf);
 static void poll_funding_wait(lnapp_conf_t *p_conf);
 static void poll_normal_operating(lnapp_conf_t *p_conf);
 static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
+static bool send_announcement_signatures(lnapp_conf_t *p_conf);
 
 static void *thread_anno_start(void *pArg);
 static bool anno_proc(lnapp_conf_t *p_conf);
@@ -215,10 +216,7 @@ static void load_announce_settings(void);
 
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 
-static void rcvidle_push(lnapp_conf_t *p_conf, rcvidle_cmd_t Cmd, utl_buf_t *pBuf);
-static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf);
-static void rcvidle_clear(lnapp_conf_t *p_conf);
-static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf);
+static void recv_idle_proc(lnapp_conf_t *p_conf);
 
 static void payroute_push(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId);
 static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId);
@@ -506,7 +504,7 @@ void lnapp_set_feerate(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
 
     //XXX: pthread_mutex_lock(&pAppConf->mux_channel);
     if ((FeeratePerKw >= LN_FEERATE_PER_KW_MIN) && (pAppConf->feerate_per_kw != FeeratePerKw)) {
-        pAppConf->feerate_per_kw = FeeratePerKw;    //use #rcvidle_pop_and_exec()
+        pAppConf->feerate_per_kw = FeeratePerKw;    //use #recv_idle_proc()
         LOGD("feerate_per_kw=%" PRIu32 "\n", pAppConf->feerate_per_kw);
     }
     //XXX: pthread_mutex_unlock(&pAppConf->mux_channel);
@@ -708,7 +706,6 @@ static void *thread_channel_start(void *pArg)
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
     pthread_mutex_init(&p_conf->mux_send, NULL);
-    pthread_mutex_init(&p_conf->mux_rcvidle, NULL);
     pthread_mutex_init(&p_conf->mux_sendque, NULL);
     {
         pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
@@ -977,14 +974,12 @@ LABEL_SHUTDOWN:
     UTL_DBG_FREE(p_conf->p_errstr);
     ln_term(p_channel);
     payroute_clear(p_conf);
-    rcvidle_clear(p_conf);
     send_queue_clear(p_conf);
     p_conf->sock = -1;
     p_conf->active = false;
     UTL_DBG_FREE(p_channel);
 
     pthread_mutex_destroy(&p_conf->mux_sendque);
-    pthread_mutex_destroy(&p_conf->mux_rcvidle);
     pthread_mutex_destroy(&p_conf->mux_send);
     pthread_mutex_destroy(&p_conf->mux_channel);
     pthread_mutex_destroy(&p_conf->mux);
@@ -1503,7 +1498,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
             //timeout
 
             // 受信アイドル処理
-            rcvidle_pop_and_exec(p_conf);
+            recv_idle_proc(p_conf);
 
             if (ToMsec > 0) {
                 ToMsec--;
@@ -1612,17 +1607,8 @@ static void *thread_poll_start(void *pArg)
             poll_normal_operating(p_conf);
         }
 
-        //announcement_signatures
-        //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
-        //  両方を満たす可能性があるため、先に poll_funding_wait()を行って pChannel->cnl_anno の準備を済ませる。
-        if ( p_conf->annosig_send_req &&
-             (p_conf->funding_confirm >= LN_ANNOSIGS_CONFIRM) &&
-             (p_conf->funding_confirm >= ln_funding_info_minimum_depth(&p_conf->p_channel->funding_info)) ) {
-            // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
-            //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
-            utl_buf_t buf = UTL_BUF_INIT;
-            rcvidle_push(p_conf, RCVIDLE_ANNOSIGNS, &buf);
-            p_conf->annosig_send_req = false;
+        if (!send_announcement_signatures(p_conf)) {
+            break;
         }
     }
 
@@ -1723,6 +1709,30 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
     }
 
     //DBGTRACE_END
+}
+
+
+static bool send_announcement_signatures(lnapp_conf_t *p_conf)
+{
+    //announcement_signatures
+    //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
+    //  両方を満たす可能性があるため、先に poll_funding_wait()を行って pChannel->cnl_anno の準備を済ませる。
+    //  BOLT#7: announcement_signaturesは最低でも 6confirmations必要
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+    if (!p_conf->annosig_send_req) return true;
+    if (p_conf->funding_confirm < LN_ANNOSIGS_CONFIRM) return true;
+    if (p_conf->funding_confirm <
+        ln_funding_info_minimum_depth(&p_conf->p_channel->funding_info)) return true;
+
+    pthread_mutex_lock(&p_conf->mux_channel);
+    bool ret = ln_announcement_signatures_send(p_conf->p_channel);
+    if (!ret) {
+        LOGE("fail: create announcement_signatures\n");
+        stop_threads(p_conf);
+    }
+    pthread_mutex_unlock(&p_conf->mux_channel);
+    p_conf->annosig_send_req = false;
+    return ret;
 }
 
 
@@ -3177,40 +3187,15 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 
 /**************************************************************************
  * 受信アイドル時処理
- *
- *      - announcement_signatures
  **************************************************************************/
-
-/** [受信アイドル]push
- *
- * 受信アイドル時に行いたい処理をリングバッファにためる。
- * 主に、update_add/fulfill/fail_htlcの転送・巻き戻し処理に使われる。
- */
-static void rcvidle_push(lnapp_conf_t *p_conf, rcvidle_cmd_t Cmd, utl_buf_t *pBuf)
-{
-    pthread_mutex_lock(&p_conf->mux_rcvidle);
-
-    rcvidlelist_t *p_rcvidle = (rcvidlelist_t *)UTL_DBG_MALLOC(sizeof(rcvidlelist_t));       //UTL_DBG_FREE: rcvidle_pop_and_exec()
-    p_rcvidle->cmd = Cmd;
-    if (pBuf != NULL) {
-        memcpy(&p_rcvidle->buf, pBuf, sizeof(utl_buf_t));
-    } else {
-        utl_buf_init(&p_rcvidle->buf);
-    }
-    LIST_INSERT_HEAD(&p_conf->rcvidle_head, p_rcvidle, list);
-
-    pthread_mutex_unlock(&p_conf->mux_rcvidle);
-}
 
 
 /** 処理要求キューの処理実施
  *
  * 受信処理のアイドル時(タイムアウトした場合)に呼び出される。
  */
-static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
+static void recv_idle_proc(lnapp_conf_t *p_conf)
 {
-    pthread_mutex_lock(&p_conf->mux_rcvidle);
-
     pthread_mutex_lock(&p_conf->mux_channel);
 
     if ((p_conf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END) {
@@ -3218,63 +3203,6 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     }
 
     pthread_mutex_unlock(&p_conf->mux_channel);
-
-    struct rcvidlelist_t *p_rcvidle = LIST_FIRST(&p_conf->rcvidle_head);
-    if (p_rcvidle == NULL) {
-        //empty
-        pthread_mutex_unlock(&p_conf->mux_rcvidle);
-        return;
-    }
-
-    bool ret = false;
-
-    switch (p_rcvidle->cmd) {
-    case RCVIDLE_ANNOSIGNS:
-        LOGD("RCVIDLE_ANNOSIGNS\n");
-        ret = rcvidle_announcement_signs(p_conf);
-        break;
-    default:
-        break;
-    }
-    if (ret) {
-        //解放
-        LIST_REMOVE(p_rcvidle, list);
-        utl_buf_free(&p_rcvidle->buf);       //UTL_DBG_MALLOC: change_context()
-        UTL_DBG_FREE(p_rcvidle);            //UTL_DBG_MALLOC: rcvidle_push
-    } else {
-        LOGD("retry\n");
-    }
-
-    pthread_mutex_unlock(&p_conf->mux_rcvidle);
-}
-
-
-/** 受信アイドル時キューの全削除
- *
- */
-static void rcvidle_clear(lnapp_conf_t *p_conf)
-{
-    rcvidlelist_t *p = LIST_FIRST(&p_conf->rcvidle_head);
-    while (p != NULL) {
-        rcvidlelist_t *tmp = LIST_NEXT(p, list);
-        LIST_REMOVE(p, list);
-        utl_buf_free(&p->buf);
-        UTL_DBG_FREE(p);
-        p = tmp;
-    }
-}
-
-
-static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
-{
-    pthread_mutex_lock(&p_conf->mux_channel);
-    bool ret = ln_announcement_signatures_send(p_conf->p_channel);
-    if (!ret) {
-        LOGE("fail: create announcement_signatures\n");
-        stop_threads(p_conf);
-    }
-    pthread_mutex_unlock(&p_conf->mux_channel);
-    return ret;
 }
 
 
