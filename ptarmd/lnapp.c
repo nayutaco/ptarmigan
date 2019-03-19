@@ -699,7 +699,6 @@ static void *thread_channel_start(void *pArg)
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
     utl_buf_init(&p_conf->buf_sendque);
-    LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
     LIST_INIT(&p_conf->pong_head);
 
@@ -992,10 +991,6 @@ LABEL_SHUTDOWN:
     while (p_conf->payroute_head.lh_first != NULL) {
         LIST_REMOVE(p_conf->payroute_head.lh_first, list);
         UTL_DBG_FREE(p_conf->payroute_head.lh_first);
-    }
-    while (p_conf->rcvidle_head.lh_first != NULL) {
-        LIST_REMOVE(p_conf->rcvidle_head.lh_first, list);
-        UTL_DBG_FREE(p_conf->rcvidle_head.lh_first);
     }
     utl_buf_free(&p_conf->buf_sendque);
 
