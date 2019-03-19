@@ -43,18 +43,6 @@ extern "C" {
 
 typedef struct cJSON cJSON;
 
-/** @struct     rcvidlelist_t
- *  @brief      update_add_htlc, update_fulfill_htlc, update_fail_htlcの転送リスト
- */
-typedef struct rcvidlelist_t {
-    LIST_ENTRY(rcvidlelist_t) list;
-    rcvidle_cmd_t   cmd;            ///< 要求
-    utl_buf_t       buf;            ///< 転送先で送信するパケット用パラメータ
-} rcvidlelist_t;
-
-LIST_HEAD(rcvidlelisthead_t, rcvidlelist_t);
-
-
 /** @struct     routelist_t
  *  @brief      送金情報リスト
  */
@@ -116,7 +104,6 @@ typedef struct lnapp_conf_t {
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_sendque;    ///< BOLT送信キュー用mutex
 
-    struct rcvidlelisthead_t    rcvidle_head;   //受信アイドル時キュー
     struct routelisthead_t      payroute_head;  //payment
     struct ponglisthead_t       pong_head;      //pong.num_pong_bytes
     uint64_t                    dummy_htlc_id;

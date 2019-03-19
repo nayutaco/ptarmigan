@@ -128,18 +128,6 @@ extern "C" {
  * typedefs
  ********************************************************************/
 
-/** @enum   rcvidle_cmd_t
- *  @brief  受信アイドル処理要求
- *  @note
- *      - 要求が発生するタイミングと実行するタイミングをずらす場合に使用する。
- *      - 主に、BOLTメッセージ受信(update_add/fulfill/fail_htlc)を別チャネルに転送するために用いる。
- */
-typedef enum {
-    RCVIDLE_NONE,                   ///< 要求無し
-    RCVIDLE_ANNOSIGNS,              ///< announcement_signatures送信要求
-} rcvidle_cmd_t;
-
-
 /** @enum   ptarmd_event_t
  *  @brief  call script event
  */
