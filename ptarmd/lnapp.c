@@ -3034,6 +3034,7 @@ static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param)
 static void stop_threads(lnapp_conf_t *p_conf)
 {
     LOGD("$$$ stop\n");
+    pthread_mutex_lock(&p_conf->mux);
     if (p_conf->active) {
         p_conf->active = false;
         //mainloop待ち合わせ解除(*2)
@@ -3042,6 +3043,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(p_conf->p_channel));
         LOGD("=========================================\n");
     }
+    pthread_mutex_unlock(&p_conf->mux);
     LOGD("$$$ stopped\n");
 }
 
