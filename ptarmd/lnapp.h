@@ -110,6 +110,7 @@ typedef struct lnapp_conf_t {
     ptarmd_routesync_t  routesync;              ///< local routing_sync
 
     //lnappワーク
+    ln_channel_t    channel;                ///< channelのコンテキスト
     ln_channel_t    *p_channel;             ///< channelのコンテキスト
     int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            funding_waiting;        ///< true:funding_txの安定待ち
@@ -139,6 +140,12 @@ typedef struct lnapp_conf_t {
  ********************************************************************/
 
 void lnapp_global_init(void);
+
+
+void lnapp_init(lnapp_conf_t *pAppConf);
+
+
+void lnapp_term(lnapp_conf_t *pAppConf);
 
 
 /** [lnapp]開始
