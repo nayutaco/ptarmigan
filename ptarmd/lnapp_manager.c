@@ -41,7 +41,7 @@ void lnapp_manager_init(void)
 {
     memset(&mAppConf, 0x00, sizeof(mAppConf));
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        //lnapp_init(&mAppConf[lp]);
+        lnapp_init(&mAppConf[lp]);
     }
 }
 
@@ -50,7 +50,7 @@ void lnapp_manager_term(void)
 {
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         if (mAppConf[lp].state == LNAPP_STATE_NONE) continue;
-        //lnapp_term(&mAppConf[lp]);
+        lnapp_term(&mAppConf[lp]);
     }
 }
 
@@ -115,7 +115,7 @@ void lnapp_manager_term_node(const uint8_t *pNodeId)
         if (memcmp(pNodeId, p_conf->node_id, BTC_SZ_PUBKEY)) continue;
         if (p_conf->state != LNAPP_STATE_INIT) break;
         if (mAppConf[lp].ref_counter) break;
-        //lnapp_term(&mAppConf[lp]);
+        lnapp_term(&mAppConf[lp]);
         break;
     }
     pthread_mutex_unlock(&mMuxAppconf);

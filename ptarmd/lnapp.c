@@ -243,6 +243,48 @@ void lnapp_global_init(void)
 }
 
 
+void lnapp_init(lnapp_conf_t *pAppConf)
+{
+    memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
+    pAppConf->sock = -1;
+    pthread_cond_init(&pAppConf->cond, NULL);
+    pthread_mutex_init(&pAppConf->mux, NULL);
+    pthread_mutex_init(&pAppConf->mux_channel, NULL);
+    pthread_mutex_init(&pAppConf->mux_send, NULL);
+    pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+    memcpy(&pAppConf->mux_channel, &mux_channel, sizeof(mux_channel));
+    pAppConf->p_channel = &pAppConf->channel;
+    pAppConf->p_channel->p_param = pAppConf;
+    pAppConf->ping_counter = 1;
+    LIST_INIT(&pAppConf->payroute_head);
+    LIST_INIT(&pAppConf->pong_head);
+}
+
+
+void lnapp_term(lnapp_conf_t *pAppConf)
+{
+    pthread_cond_destroy(&pAppConf->cond);
+    pthread_mutex_destroy(&pAppConf->mux);
+    pthread_mutex_destroy(&pAppConf->mux_channel);
+    pthread_mutex_destroy(&pAppConf->mux_send);
+
+    UTL_DBG_FREE(pAppConf->p_errstr);
+    payroute_clear(pAppConf);
+
+    while (pAppConf->pong_head.lh_first != NULL) {
+        LIST_REMOVE(pAppConf->pong_head.lh_first, list);
+        UTL_DBG_FREE(pAppConf->pong_head.lh_first);
+    }
+    while (pAppConf->payroute_head.lh_first != NULL) {
+        LIST_REMOVE(pAppConf->payroute_head.lh_first, list);
+        UTL_DBG_FREE(pAppConf->payroute_head.lh_first);
+    }
+
+    memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
+    pAppConf->sock = -1;
+}
+
+
 void lnapp_start(lnapp_conf_t *pAppConf)
 {
     pthread_create(&pAppConf->th, NULL, &thread_channel_start, pAppConf);
