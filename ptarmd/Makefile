@@ -45,6 +45,7 @@ endif
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd.c
 C_SOURCE_FILES += $(PRJ_PATH)/p2p.c
 C_SOURCE_FILES += $(PRJ_PATH)/lnapp.c
+C_SOURCE_FILES += $(PRJ_PATH)/lnapp_manager.c
 C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
 C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
 C_SOURCE_FILES += $(PRJ_PATH)/conf.c
