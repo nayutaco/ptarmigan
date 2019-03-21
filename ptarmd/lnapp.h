@@ -66,11 +66,34 @@ typedef struct ponglist_t {
 LIST_HEAD(ponglisthead_t, ponglist_t);
 
 
+//XXX: comment
+typedef enum lnapp_state_t {
+    LNAPP_STATE_NONE,
+    LNAPP_STATE_INIT = 0x01,
+    LNAPP_STATE_INACTIVE = 0x02,
+    LNAPP_STATE_ACTIVE = 0x04,
+    LNAPP_STATE_CLOSED = 0x08,
+    LNAPP_STATE_EXISTS =
+        LNAPP_STATE_INIT |LNAPP_STATE_INACTIVE | LNAPP_STATE_ACTIVE | LNAPP_STATE_CLOSED,
+} lnapp_state_t;
+
+
 /** @struct lnapp_conf_t
  *  @brief  アプリ側のチャネル管理情報
  */
 typedef struct lnapp_conf_t {
-    //lnappワーク
+    lnapp_state_t       state;
+    uint32_t            ref_counter;
+
+    //排他制御
+    //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
+    pthread_cond_t  cond;           ///< muxの待ち合わせ
+    pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
+    pthread_mutex_t mux_channel;    ///< ln_channel_t処理中のmutex
+    pthread_mutex_t mux_send;       ///< socket送信中のmutex
+
+    /////////////////////////////////////////////////
+
     volatile bool       active;             ///< true:channel動作中
     volatile uint8_t    flag_recv;          ///< 受信フラグ(M_FLAGRECV_xxx)
 
@@ -91,13 +114,6 @@ typedef struct lnapp_conf_t {
     int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
-
-    //排他制御
-    //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
-    pthread_cond_t  cond;           ///< muxの待ち合わせ
-    pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
-    pthread_mutex_t mux_channel;    ///< ln_channel_t処理中のmutex
-    pthread_mutex_t mux_send;       ///< socket送信中のmutex
 
     struct routelisthead_t      payroute_head;  //payment
     struct ponglisthead_t       pong_head;      //pong.num_pong_bytes
