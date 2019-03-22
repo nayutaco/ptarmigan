@@ -1776,8 +1776,9 @@ static int cmd_routepay_proc1(
     cmd_routepay_save_info(*ppInvoiceData, BlockCnt);
 
     ln_invoice_t *p_invoice_data = *ppInvoiceData;
-    if ( (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
-        (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
+    if ( (p_invoice_data->hrp_type != LN_INVOICE_MAINNET) &&
+         (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
+         (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
         LOGE("fail: mismatch blockchain\n");
         return RPCERR_INVOICE_FAIL;
     }
