@@ -435,7 +435,7 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 }
 
 
-bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount)
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount)
 {
     int code = 0;
 
