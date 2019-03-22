@@ -70,8 +70,9 @@ int cmd_json_pay_retry(const uint8_t *pPaymentHash);
 /** add invoice log: result
  * 
  * @param[in]       pPaymentHash        payment_hash
+ * @param[in]       pPaymentPreimage    payment_preimage(NULL if not have)
  * @param[in]       pResultStr          result
  */
-void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr);
+void cmd_json_pay_result(const uint8_t *pPaymentHash, const uint8_t *pPaymentPreimage, const char *pResultStr);
 
 #endif  //CMD_JSON_H__
