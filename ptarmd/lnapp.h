@@ -142,6 +142,9 @@ typedef struct lnapp_conf_t {
 void lnapp_global_init(void);
 
 
+bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake);
+
+
 void lnapp_init(lnapp_conf_t *pAppConf);
 
 
