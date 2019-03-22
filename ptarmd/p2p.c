@@ -213,6 +213,20 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         LOGE("fail: store peer conn");
     }
 
+    peer_conn_handshake_t conn_handshake;
+    //strcpy(conn_handshake.conn.ipaddr, p_conf->conn_str);
+    //conn_handshake.conn.port = p_conf->conn_port;
+    memcpy(conn_handshake.conn.node_id, mAppConf[idx].node_id, BTC_SZ_PUBKEY);
+    //conn_handshake.conn.routesync = p_conf->routesync;
+    conn_handshake.sock = mAppConf[idx].sock;
+    conn_handshake.initiator = mAppConf[idx].initiator;
+    if (!lnapp_handshake(&conn_handshake)) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+    //memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+    mAppConf[idx].channel.noise = conn_handshake.noise;
+
     lnapp_start(&mAppConf[idx]);
     bret = true;
 
@@ -342,6 +356,20 @@ void *p2p_listener_start(void *pArg)
 
             LOGD("[server]connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
             //fprintf(stderr, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+
+            peer_conn_handshake_t conn_handshake;
+            //strcpy(conn_handshake.conn.ipaddr, p_conf->conn_str);
+            //conn_handshake.conn.port = p_conf->conn_port;
+            //memcpy(conn_handshake.conn.node_id, p_conf->node_id, BTC_SZ_PUBKEY);
+            //conn_handshake.conn.routesync = p_conf->routesync;
+            conn_handshake.sock = mAppConf[idx].sock;
+            conn_handshake.initiator = mAppConf[idx].initiator;
+            if (!lnapp_handshake(&conn_handshake)) {
+                //LOGE("fail: ???\n");
+                continue;
+            }
+            memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+            mAppConf[idx].channel.noise = conn_handshake.noise;
 
             lnapp_start(&mAppConf[idx]);
         } else {
