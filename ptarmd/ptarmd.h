@@ -173,6 +173,19 @@ typedef struct {
 } peer_conn_t;
 
 
+/** @struct     peer_conn_t
+ *  @brief      peer接続情報
+ *  @note
+ *      - #peer_conf_t と同じ構造だが、別にしておく(統合する可能性あり)
+ */
+typedef struct {
+    peer_conn_t         conn;
+    int                 sock;
+    bool                initiator;
+    ln_noise_t          noise;
+} peer_conn_handshake_t;
+
+
 /** @struct     funding_conf_t
  *  @brief      funding情報
  */

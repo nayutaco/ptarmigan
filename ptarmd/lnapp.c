@@ -145,6 +145,7 @@ static ln_anno_param_t        mAnnoParam;       ///< announcementパラメータ
 static void *thread_channel_start(void *pArg);
 static bool wait_peer_connected(lnapp_conf_t *p_conf);
 static bool noise_handshake(lnapp_conf_t *p_conf);
+static bool noise_handshake_2(peer_conn_handshake_t *pConnHandshake);
 static bool set_short_channel_id(lnapp_conf_t *p_conf);
 static bool exchange_init(lnapp_conf_t *p_conf);
 static bool exchange_reestablish(lnapp_conf_t *p_conf);
@@ -748,27 +749,41 @@ static void *thread_channel_start(void *pArg)
 
     p_conf->active = true;
 
-    LOGD("wait peer connected...\n");
-    ret = wait_peer_connected(p_conf);
-    if (!ret) {
-        goto LABEL_SHUTDOWN;
+    if (p_conf->initiator) {
+        LOGD("wait peer connected...\n");
+        ret = wait_peer_connected(p_conf);
+        if (!ret) {
+            goto LABEL_SHUTDOWN;
+        }
+
+        ret = noise_handshake(p_conf);
+        if (!ret) {
+            ptarmd_nodefail_add(
+                p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_ADDR_DESC_TYPE_IPV4);
+            goto LABEL_SHUTDOWN;
+        }
+
+        (void)ptarmd_nodefail_get(
+            p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_ADDR_DESC_TYPE_IPV4, true);
+
+        LOGD("connected peer(sock=%d): ", p_conf->sock);
+        DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
+        fprintf(stderr, "connected peer: ");
+        utl_dbg_dump(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
+    } else {
+        peer_conn_handshake_t conn_handshake;
+        //strcpy(conn_handshake.conn.ipaddr, p_conf->conn_str);
+        //conn_handshake.conn.port = p_conf->conn_port;
+        //memcpy(conn_handshake.conn.node_id, p_conf->node_id, BTC_SZ_PUBKEY);
+        //conn_handshake.conn.routesync = p_conf->routesync;
+        conn_handshake.sock = p_conf->sock;
+        conn_handshake.initiator = p_conf->initiator;
+        if (!noise_handshake_2(&conn_handshake)) {
+            goto LABEL_SHUTDOWN;
+        }
+        memcpy(p_conf->node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+        p_conf->p_channel->noise = conn_handshake.noise;
     }
-
-    //noise protocol handshake
-    ret = noise_handshake(p_conf);
-    if (!ret) {
-        //ノード接続失敗リストに追加
-        ptarmd_nodefail_add(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_ADDR_DESC_TYPE_IPV4);
-        goto LABEL_SHUTDOWN;
-    }
-
-    //失敗リストに乗っている可能性があるため、削除
-    (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_ADDR_DESC_TYPE_IPV4, true);
-
-    LOGD("connected peer(sock=%d): ", p_conf->sock);
-    DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
-    fprintf(stderr, "connected peer: ");
-    utl_dbg_dump(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
     ln_peer_set_node_id(p_channel, p_conf->node_id);
@@ -1186,6 +1201,56 @@ LABEL_EXIT:
     ln_handshake_free(p_conf->p_channel);
 
     return result;
+}
+
+
+static bool noise_handshake_2(peer_conn_handshake_t *pConnHandshake)
+{
+    bool ret = false;
+
+    lnapp_conf_t conf;
+    lnapp_init(&conf);
+    ln_init(&conf.channel, NULL, NULL);
+
+    conf.active = true;
+    conf.sock = pConnHandshake->sock;
+    conf.initiator = pConnHandshake->initiator;
+    if (pConnHandshake->initiator) {
+        memcpy(conf.node_id, pConnHandshake->conn.node_id, BTC_SZ_PUBKEY);
+    }
+
+    LOGD("wait peer connected...\n");
+    if (!wait_peer_connected(&conf)) {
+        goto LABEL_EXIT;
+    }
+
+    strcpy(conf.conn_str, pConnHandshake->conn.ipaddr);
+    conf.conn_port = pConnHandshake->conn.port;
+    conf.routesync = pConnHandshake->conn.routesync;
+
+    if (!noise_handshake(&conf)) {
+        ptarmd_nodefail_add(
+            conf.node_id, conf.conn_str, conf.conn_port, LN_ADDR_DESC_TYPE_IPV4);
+        goto LABEL_EXIT;
+    }
+
+    (void)ptarmd_nodefail_get(
+        conf.node_id, conf.conn_str, conf.conn_port, LN_ADDR_DESC_TYPE_IPV4, true);
+
+    LOGD("connected peer(sock=%d): ", conf.sock);
+    DUMPD(conf.node_id, BTC_SZ_PUBKEY);
+    fprintf(stderr, "connected peer: ");
+    utl_dbg_dump(stderr, conf.node_id, BTC_SZ_PUBKEY, true);
+
+    memcpy(pConnHandshake->conn.node_id, conf.node_id, BTC_SZ_PUBKEY);
+    pConnHandshake->noise = conf.channel.noise;
+
+    ret = true;
+
+LABEL_EXIT:
+    ln_term(&conf.channel);
+    lnapp_term(&conf);
+    return ret;
 }
 
 
