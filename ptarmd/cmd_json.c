@@ -153,6 +153,7 @@ static int cmd_routepay_proc2(
                 uint64_t AddAmountMsat);
 static void cmd_routepay_save_info(
                 const ln_invoice_t *pInvoiceData,
+                const char *pInvoiceStr,
                 int32_t BlockCnt);
 static void cmd_routepay_save_route(
                 const ln_invoice_t *pInvoiceData,
@@ -297,7 +298,7 @@ int cmd_json_pay_retry(const uint8_t *pPaymentHash)
 }
 
 
-void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr)
+void cmd_json_pay_result(const uint8_t *pPaymentHash, const uint8_t *pPaymentPreimage, const char *pResultStr)
 {
     //log file
     char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
@@ -310,6 +311,11 @@ void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr)
     if (fp != NULL) {
         char time[UTL_SZ_TIME_FMT_STR + 1];
         fprintf(fp, "  result(%s)=%s\n", utl_time_str_time(time), pResultStr);
+        if (pPaymentPreimage != NULL) {
+            char str_payment_preimage[BTC_SZ_HASH256 * 2 + 1];
+            utl_str_bin2str(str_payment_preimage, pPaymentPreimage, BTC_SZ_HASH256);
+            fprintf(fp, "  preimage:%s\n", str_payment_preimage);
+        }
         fclose(fp);
     }
 }
@@ -1043,7 +1049,7 @@ LABEL_EXIT:
 
             ln_db_invoice_del(p_invoice_data->payment_hash);
             ln_db_route_skip_work(false);
-            cmd_json_pay_result(p_invoice_data->payment_hash, "give up");
+            cmd_json_pay_result(p_invoice_data->payment_hash, NULL, "give up");
 
             //log
             char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
@@ -1773,7 +1779,7 @@ static int cmd_routepay_proc1(
     }
 
     //save routing information
-    cmd_routepay_save_info(*ppInvoiceData, BlockCnt);
+    cmd_routepay_save_info(*ppInvoiceData, pInvoice, BlockCnt);
 
     ln_invoice_t *p_invoice_data = *ppInvoiceData;
     if ( (p_invoice_data->hrp_type != LN_INVOICE_MAINNET) &&
@@ -1887,6 +1893,7 @@ static int cmd_routepay_proc2(
 
 static void cmd_routepay_save_info(
                 const ln_invoice_t *pInvoiceData,
+                const char *pInvoiceStr,
                 int32_t BlockCnt)
 {
     //log file
@@ -1910,6 +1917,7 @@ static void cmd_routepay_save_info(
         char time[UTL_SZ_TIME_FMT_STR + 1];
 
         fprintf(fp, "----------- invoice -----------\n");
+        fprintf(fp, "invoice: %s\n", pInvoiceStr);
         fprintf(fp, "payment_hash: %s\n", str_payment_hash);
         fprintf(fp, "amount_msat: %" PRIu64 "\n", pInvoiceData->amount_msat);
         fprintf(fp, "current blockcount: %" PRId32 "\n", BlockCnt);

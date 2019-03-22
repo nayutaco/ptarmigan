@@ -2642,7 +2642,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_param_notify_fu
 
     uint8_t hash[BTC_SZ_HASH256];
     ln_payment_hash_calc(hash, p_fulfill->p_preimage);
-    cmd_json_pay_result(hash, "success");
+    cmd_json_pay_result(hash, p_fulfill->p_preimage, "success");
     ln_db_invoice_del(hash);
     ln_db_route_skip_work(false);
     p_fulfill->ret = true;
@@ -2810,7 +2810,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_de
         char errstr[512];
         char *reasonstr = ln_onion_get_errstr(&onionerr);
         snprintf(errstr, sizeof(errstr), M_ERRSTR_REASON, reasonstr, hop, suggest);
-        cmd_json_pay_result(p_bwd->p_payment_hash, errstr);
+        cmd_json_pay_result(p_bwd->p_payment_hash, NULL, errstr);
         UTL_DBG_FREE(reasonstr);
         UTL_DBG_FREE(onionerr.p_data);
     } else {
