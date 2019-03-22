@@ -819,8 +819,8 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //FEE計算
         // LEN+署名(72) + LEN+公開鍵(33)
         //  この時点では、pChannel->funding_info.tx_data に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
-        //  feeを決めるためにvsizeを算出したいが、
         //
+        //    (length)
         //      version:4
         //      flag:1
         //      mark:1
@@ -855,7 +855,8 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     } else {
         //for SPV
         //fee計算と署名はSPVに任せる(LN_CB_TYPE_SIGN_FUNDING_TXで吸収する)
-        //その代わり、ln_funding_info_txindex(&pChannel->funding_info)は固定値にならない。
+
+        //funding address(vout[0])
         btc_sw_add_vout_p2wsh_wit(
             &pChannel->funding_info.tx_data, pChannel->funding_info.funding_satoshis, &pChannel->funding_info.wit_script);
         btc_tx_add_vin(&pChannel->funding_info.tx_data, ln_funding_info_txid(&pChannel->funding_info), 0); //dummy
