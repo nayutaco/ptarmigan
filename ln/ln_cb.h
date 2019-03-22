@@ -82,7 +82,8 @@ typedef void (*ln_callback_t)(ln_cb_type_t Type, void *pCommonParam, void *pType
  */
 typedef struct {
     btc_tx_t                *p_tx;
-    uint64_t                amount;                 //(SPV未使用)fund-inするamount[satoshi]
+    utl_buf_t               buf_tx;                 //
+    uint64_t                fundin_amount;          //(SPV未使用)fund-inするamount[satoshi]
     bool                    ret;                    //署名結果
 } ln_cb_param_sign_funding_tx_t;
 

@@ -2220,10 +2220,10 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)p_param;
 
-    utl_buf_t buf_tx = UTL_BUF_INIT;
-    btc_tx_write(p_sig->p_tx, &buf_tx);
-    p_sig->ret = btcrpc_sign_fundingtx(p_sig->p_tx, buf_tx.buf, buf_tx.len, p_sig->amount);
-    utl_buf_free(&buf_tx);
+    p_sig->ret = btcrpc_sign_fundingtx(
+                        p_sig->p_tx,
+                        p_sig->buf_tx.buf, p_sig->buf_tx.len,
+                        p_sig->fundin_amount);
 }
 
 
