@@ -135,35 +135,36 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         goto LABEL_EXIT;
     }
 
+    //pre check
     for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
         if (mAppConf[idx].sock == -1) {
             break;
         }
     }
-    if (idx >= (int)ARRAY_SIZE(mAppConf)) {
+    if (idx == (int)ARRAY_SIZE(mAppConf)) {
         LOGE("client full\n");
         *pErrCode = RPCERR_FULLCLI;
         goto LABEL_EXIT;
     }
 
-    mAppConf[idx].sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (mAppConf[idx].sock < 0) {
+    sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
         LOGE("socket\n");
         *pErrCode = RPCERR_SOCK;
         goto LABEL_EXIT;
     }
-    fcntl(mAppConf[idx].sock, F_SETFL, O_NONBLOCK);
+    fcntl(sock, F_SETFL, O_NONBLOCK);
 
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;
     sv_addr.sin_addr.s_addr = inet_addr(pConn->ipaddr);
     sv_addr.sin_port = htons(pConn->port);
     errno = 0;
-    ret = connect(mAppConf[idx].sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    ret = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if ((ret < 0) && (errno == EINPROGRESS)) {
         //timeout check
         struct pollfd fds;
-        fds.fd = mAppConf[idx].sock;
+        fds.fd = sock;
         fds.events = POLLIN | POLLOUT;
         int polr = poll(&fds, 1, M_TIMEOUT_MSEC);
         if (polr > 0) {
@@ -175,8 +176,8 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     if (ret < 0) {
         LOGE("connect: %s\n", strerror(errno));
         *pErrCode = RPCERR_CONNECT;
-        close(mAppConf[idx].sock);
-        mAppConf[idx].sock = -1;
+        close(sock);
+        sock = -1;
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
@@ -193,20 +194,11 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
 
         goto LABEL_EXIT;
     }
-    sock = mAppConf[idx].sock;
     LOGD("connected: sock=%d\n", sock);
 
     fprintf(stderr, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
     fprintf(stderr, "[client]node_id=");
     utl_dbg_dump(stderr, pConn->node_id, BTC_SZ_PUBKEY, true);
-
-    //スレッド起動
-    mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
-    memcpy(mAppConf[idx].node_id, pConn->node_id, BTC_SZ_PUBKEY);
-    //mAppConf[idx].cmd = DCMD_CONNECT;
-    strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
-    mAppConf[idx].conn_port = pConn->port;
-    mAppConf[idx].routesync = pConn->routesync;
 
     //store for reconnection
     if (!p2p_store_peer_conn(pConn)) {
@@ -214,19 +206,35 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     }
 
     peer_conn_handshake_t conn_handshake;
-    //strcpy(conn_handshake.conn.ipaddr, p_conf->conn_str);
-    //conn_handshake.conn.port = p_conf->conn_port;
-    memcpy(conn_handshake.conn.node_id, mAppConf[idx].node_id, BTC_SZ_PUBKEY);
-    //conn_handshake.conn.routesync = p_conf->routesync;
-    conn_handshake.sock = mAppConf[idx].sock;
-    conn_handshake.initiator = mAppConf[idx].initiator;
+    conn_handshake.initiator = true;
+    conn_handshake.sock = sock;
+    conn_handshake.conn = *pConn;
     if (!lnapp_handshake(&conn_handshake)) {
-        LOGE("fail: ???\n");
+        LOGE("fail: handshake\n");
+        *pErrCode = RPCERR_CONNECT;
+        close(sock);
         goto LABEL_EXIT;
     }
-    //memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
-    mAppConf[idx].channel.noise = conn_handshake.noise;
 
+    for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
+        if (mAppConf[idx].sock == -1) {
+            break;
+        }
+    }
+    if (idx == (int)ARRAY_SIZE(mAppConf)) {
+        LOGE("client full\n");
+        *pErrCode = RPCERR_FULLCLI;
+        close(sock);
+        goto LABEL_EXIT;
+    }
+
+    mAppConf[idx].initiator = conn_handshake.initiator;
+    mAppConf[idx].sock = conn_handshake.sock;
+    strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
+    mAppConf[idx].conn_port = pConn->port;
+    memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+    mAppConf[idx].routesync = pConn->routesync;
+    mAppConf[idx].channel.noise = conn_handshake.noise;
     lnapp_start(&mAppConf[idx]);
     bret = true;
 
@@ -328,56 +336,67 @@ void *p2p_listener_start(void *pArg)
             break;
         }
 
+        //pre check
         int idx;
         for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
             if (mAppConf[idx].sock == -1) {
                 break;
             }
         }
-        if (idx < (int)ARRAY_SIZE(mAppConf)) {
-            socklen_t cl_len = sizeof(cl_addr);
-            //fprintf(stderr, "accept...\n");
-            mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
-            if (mAppConf[idx].sock < 0) {
-                LOGE("accept: %s\n", strerror(errno));
-                break;
-            }
-            if (!mLoop) {
-                LOGD("stop\n");
-                close(mAppConf[idx].sock);
-                break;
-            }
-
-            //スレッド起動
-            mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
-            memset(mAppConf[idx].node_id, 0, BTC_SZ_PUBKEY);
-            inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
-            mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
-
-            LOGD("[server]connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
-            //fprintf(stderr, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
-
-            peer_conn_handshake_t conn_handshake;
-            //strcpy(conn_handshake.conn.ipaddr, p_conf->conn_str);
-            //conn_handshake.conn.port = p_conf->conn_port;
-            //memcpy(conn_handshake.conn.node_id, p_conf->node_id, BTC_SZ_PUBKEY);
-            //conn_handshake.conn.routesync = p_conf->routesync;
-            conn_handshake.sock = mAppConf[idx].sock;
-            conn_handshake.initiator = mAppConf[idx].initiator;
-            if (!lnapp_handshake(&conn_handshake)) {
-                //LOGE("fail: ???\n");
-                continue;
-            }
-            memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
-            mAppConf[idx].channel.noise = conn_handshake.noise;
-
-            lnapp_start(&mAppConf[idx]);
-        } else {
-            //空き無し
+        if (idx == (int)ARRAY_SIZE(mAppConf)) {
             int delsock = accept(sock, NULL, NULL);
             close(delsock);
             LOGE("no empty socket\n");
+            continue;
         }
+
+        socklen_t cl_len = sizeof(cl_addr);
+        //fprintf(stderr, "accept...\n");
+        int sock_2 = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
+        if (sock_2 < 0) {
+            LOGE("accept: %s\n", strerror(errno));
+            break;
+        }
+        if (!mLoop) {
+            LOGD("stop\n");
+            close(sock_2);
+            break;
+        }
+
+        char    conn_str[SZ_CONN_STR + 1];
+        inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, conn_str, SZ_CONN_STR);
+        LOGD("[server]connect from addr=%s, port=%d\n", conn_str, ntohs(cl_addr.sin_port));
+        //fprintf(stderr, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+
+        peer_conn_handshake_t conn_handshake;
+        conn_handshake.initiator = false;
+        conn_handshake.sock = sock_2;
+        memset(&conn_handshake.conn, 0x00, sizeof(conn_handshake.conn));
+        if (!lnapp_handshake(&conn_handshake)) {
+            LOGE("fail: handshake\n");
+            close(sock_2);
+            continue;
+        }
+
+        for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
+            if (mAppConf[idx].sock == -1) {
+                break;
+            }
+        }
+        if (idx == (int)ARRAY_SIZE(mAppConf)) {
+            LOGE("no empty socket\n");
+            close(sock_2);
+            continue;
+        }
+
+        mAppConf[idx].initiator = conn_handshake.initiator;
+        mAppConf[idx].sock = conn_handshake.sock;
+        inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
+        mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
+        memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+        mAppConf[idx].routesync = conn_handshake.conn.routesync;
+        mAppConf[idx].channel.noise = conn_handshake.noise;
+        lnapp_start(&mAppConf[idx]);
     }
 
 LABEL_EXIT:
