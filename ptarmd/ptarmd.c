@@ -336,7 +336,7 @@ lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id)
         LOGE("fail: not pingpong\n");
         goto LABEL_EXIT;
     }
-    if (ln_status_get(p_appconf->p_channel) != LN_STATUS_NORMAL) {
+    if (ln_status_get(&p_appconf->channel) != LN_STATUS_NORMAL) {
         LOGE("fail: bad status\n");
         goto LABEL_EXIT;
     }
@@ -356,7 +356,7 @@ lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id)
 lnapp_conf_t *ptarmd_search_transferable_node_id(const uint8_t *p_node_id)
 {
     lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(p_node_id);
-    if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_channel) != LN_STATUS_NORMAL)) {
+    if ((p_appconf != NULL) && (ln_status_get(&p_appconf->channel) != LN_STATUS_NORMAL)) {
         p_appconf = NULL;
     }
     return p_appconf;
