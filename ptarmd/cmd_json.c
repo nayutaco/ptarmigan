@@ -174,6 +174,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static bool get_committx(ln_channel_t *pChannel, cJSON *pResult, bool bLocal);
 static char *strdup_cjson(const char *pStr);
 static char *error_str_cjson(int errCode);
 
@@ -1664,7 +1665,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         return RPCERR_ALOPEN;
     }
 
-    bool is_funding = ln_funding_info_funding_now(&p_appconf->p_channel->funding_info);
+    bool is_funding = ln_funding_info_funding_now(&p_appconf->channel.funding_info);
     if (is_funding) {
         //開設しようとしてチャネルが開設中
         return RPCERR_OPENING;
@@ -1860,7 +1861,7 @@ static int cmd_routepay_proc2(
         } else {
             LOGE("fail: lnapp_payment(0x%016" PRIx64 ")\n", pRouteResult->hop_datain[0].short_channel_id);
             if (p_result == NULL) {
-                p_result = ln_errmsg(pAppConf->p_channel);
+                p_result = ln_errmsg(&pAppConf->channel);
             }
             if (p_result == NULL) {
                 p_result = "fail payment";
@@ -1989,7 +1990,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
             goto LABEL_EXIT;
         }
 
-        ln_status_t stat = ln_status_get(p_appconf->p_channel);
+        ln_status_t stat = ln_status_get(&p_appconf->channel);
         if ((stat < LN_STATUS_ESTABLISH) || (LN_STATUS_NORMAL < stat)) {
             err = RPCERR_NOCHANNEL;
             goto LABEL_EXIT;
@@ -2249,12 +2250,80 @@ static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void
     getcommittx_t *param = (getcommittx_t *)p_param;
 
     if (memcmp(param->p_node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
-        lnapp_conf_t appconf;
-        appconf.p_channel = pChannel;
-        lnapp_get_committx(&appconf, param->result, param->b_local);
+        get_committx(pChannel, param->result, param->b_local);
     }
 
     return false;
+}
+
+
+static bool get_committx(ln_channel_t *pChannel, cJSON *pResult, bool bLocal)
+{
+    LOGD("bLocal=%d\n", bLocal);
+
+    ln_close_force_t close_dat;
+    bool ret;
+    if (bLocal) {
+        ret = ln_close_create_unilateral_tx(pChannel, &close_dat);
+    } else {
+        ret = ln_close_create_tx(pChannel, &close_dat);
+    }
+    if (ret) {
+        cJSON *result = cJSON_CreateObject();
+        utl_buf_t buf = UTL_BUF_INIT;
+
+#if 1
+        if (close_dat.p_tx[LN_CLOSE_IDX_COMMIT].vout_cnt > 0) {
+            btc_tx_write(&close_dat.p_tx[LN_CLOSE_IDX_COMMIT], &buf);
+            char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
+            utl_str_bin2str(transaction, buf.buf, buf.len);
+            utl_buf_free(&buf);
+
+            cJSON_AddItemToObject(result, "committx", cJSON_CreateString(transaction));
+            UTL_DBG_FREE(transaction);
+        }
+#else
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (close_dat.p_tx[lp].vout_cnt > 0) {
+                btc_tx_write(&close_dat.p_tx[lp], &buf);
+                char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
+                utl_str_bin2str(transaction, buf.buf, buf.len);
+                utl_buf_free(&buf);
+
+                char title[128];
+                if (lp == LN_CLOSE_IDX_COMMIT) {
+                    strcpy(title, "committx");
+                } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
+                    strcpy(title, "to_local");
+                } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
+                    strcpy(title, "to_remote");
+                } else {
+                    snprintf(title, sizeof(title), "htlc%d", lp - LN_CLOSE_IDX_HTLC);
+                }
+                cJSON_AddItemToObject(result, title, cJSON_CreateString(transaction));
+                UTL_DBG_FREE(transaction);
+            }
+        }
+
+        int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
+        btc_tx_t *p_tx = (btc_tx_t *)close_dat.tx_buf.buf;
+        for (int lp = 0; lp < num; lp++) {
+            btc_tx_write(&p_tx[lp], &buf);
+            char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);    //UTL_DBG_FREE: この中
+            utl_str_bin2str(transaction, buf.buf, buf.len);
+            utl_buf_free(&buf);
+
+            cJSON_AddItemToObject(result, "htlc_out", cJSON_CreateString(transaction));
+            UTL_DBG_FREE(transaction);
+        }
+#endif
+        const char *p_title = (bLocal) ? "local" : "remote";
+        cJSON_AddItemToObject(pResult, p_title, result);
+
+        ln_close_free_forcetx(&close_dat);
+    }
+
+    return ret;
 }
 
 

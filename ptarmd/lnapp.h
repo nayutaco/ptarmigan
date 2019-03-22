@@ -111,7 +111,6 @@ typedef struct lnapp_conf_t {
 
     //lnappワーク
     ln_channel_t    channel;                ///< channelのコンテキスト
-    ln_channel_t    *p_channel;             ///< channelのコンテキスト
     int             ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
