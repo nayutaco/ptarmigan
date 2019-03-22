@@ -179,9 +179,9 @@ typedef struct {
  *      - #peer_conf_t と同じ構造だが、別にしておく(統合する可能性あり)
  */
 typedef struct {
-    peer_conn_t         conn;
-    int                 sock;
     bool                initiator;
+    int                 sock;
+    peer_conn_t         conn;
     ln_noise_t          noise;
 } peer_conn_handshake_t;
 

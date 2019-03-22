@@ -13,6 +13,7 @@ grep -n -e "\/E" -e "fail\:"  tests/4nodes_test/node_*/logs/log | \
         -e "recv_peer]fail: timeout(" \
         -e "already connected" \
         -e "cmd_json_connect]fail: connect test" \
-        -e "Connection reset by peer"
+        -e "Connection reset by peer" \
+        -e "handshake"
 cd -
 )
