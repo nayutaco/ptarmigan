@@ -312,8 +312,8 @@ void cmd_json_pay_result(const uint8_t *pPaymentHash, const uint8_t *pPaymentPre
         char time[UTL_SZ_TIME_FMT_STR + 1];
         fprintf(fp, "  result(%s)=%s\n", utl_time_str_time(time), pResultStr);
         if (pPaymentPreimage != NULL) {
-            char str_payment_preimage[BTC_SZ_HASH256 * 2 + 1];
-            utl_str_bin2str(str_payment_preimage, pPaymentPreimage, BTC_SZ_HASH256);
+            char str_payment_preimage[LN_SZ_PREIMAGE * 2 + 1];
+            utl_str_bin2str(str_payment_preimage, pPaymentPreimage, LN_SZ_PREIMAGE);
             fprintf(fp, "  preimage:%s\n", str_payment_preimage);
         }
         fclose(fp);
