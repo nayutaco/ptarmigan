@@ -43,6 +43,7 @@ extern "C" {
 #include "utl_dbg.h"
 
 #include "ln.h"
+#include "ln_noise.h"
 #include "ln_db.h"
 
 

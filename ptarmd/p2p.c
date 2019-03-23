@@ -235,7 +235,7 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     mAppConf[idx].conn_port = pConn->port;
     memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
     mAppConf[idx].routesync = pConn->routesync;
-    mAppConf[idx].channel.noise = conn_handshake.noise;
+    mAppConf[idx].noise = conn_handshake.noise;
     lnapp_start(&mAppConf[idx]);
     bret = true;
 
@@ -397,7 +397,7 @@ void *p2p_listener_start(void *pArg)
         mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
         memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
         mAppConf[idx].routesync = conn_handshake.conn.routesync;
-        mAppConf[idx].channel.noise = conn_handshake.noise;
+        mAppConf[idx].noise = conn_handshake.noise;
         lnapp_start(&mAppConf[idx]);
     }
 

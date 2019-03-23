@@ -172,7 +172,6 @@ public:
         ln_anno_param_t anno_param;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
-        pChannel->noise.p_handshake = NULL;
         anno_param.cltv_expiry_delta = 10;
         anno_param.htlc_minimum_msat = 1000;
         anno_param.fee_base_msat = 20;
@@ -333,7 +332,6 @@ TEST_F(ln, set_add_htlc1)
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
-    channel.noise.p_handshake = NULL;
     memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
     /*** TEST ***/

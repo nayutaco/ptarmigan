@@ -85,6 +85,7 @@ typedef struct lnapp_conf_t {
     lnapp_state_t       state;
     uint32_t            ref_counter;
     ln_channel_t        channel;                ///< channelのコンテキスト
+    ln_noise_t          noise;
 
     //排他制御
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。

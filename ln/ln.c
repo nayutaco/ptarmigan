@@ -54,7 +54,6 @@
 #include "ln_anno.h"
 
 #include "ln_node.h"
-#include "ln_noise.h"
 #include "ln_onion.h"
 #include "ln_script.h"
 #include "ln_commit_tx.h"
@@ -185,14 +184,10 @@ static unsigned long mDebug;
 
 bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callback_t pFunc)
 {
-    ln_noise_t noise_bak;
     void *ptr_bak;
 
-    //noise protocol handshake済みの場合があるため、初期値かどうかに関係なく残す
-    memcpy(&noise_bak, &pChannel->noise, sizeof(noise_bak));
     ptr_bak = pChannel->p_param;
     memset(pChannel, 0x00, sizeof(ln_channel_t));
-    memcpy(&pChannel->noise, &noise_bak, sizeof(noise_bak));
     pChannel->p_param = ptr_bak;
 
     utl_buf_init(&pChannel->shutdown_scriptpk_local);
@@ -461,31 +456,6 @@ void ln_shutdown_set_vout_addr(ln_channel_t *pChannel, const utl_buf_t *pScriptP
     DUMPD(pScriptPk->buf, pScriptPk->len);
     utl_buf_free(&pChannel->shutdown_scriptpk_local);
     utl_buf_alloccopy(&pChannel->shutdown_scriptpk_local, pScriptPk->buf, pScriptPk->len);
-}
-
-
-bool ln_handshake_start(ln_channel_t *pChannel, utl_buf_t *pBuf, const uint8_t *pNodeId)
-{
-    if (!ln_noise_handshake_init(&pChannel->noise, pNodeId)) return false;
-    if (pNodeId != NULL) {
-        if (!ln_noise_handshake_start(&pChannel->noise, pBuf, pNodeId)) return false;
-    }
-    return true;
-}
-
-
-bool ln_handshake_recv(ln_channel_t *pChannel, bool *pCont, utl_buf_t *pBuf)
-{
-    if (!ln_noise_handshake_recv(&pChannel->noise, pBuf)) return false;
-    //continue?
-    *pCont = ln_noise_handshake_state(&pChannel->noise);
-    return true;
-}
-
-
-void ln_handshake_free(ln_channel_t *pChannel)
-{
-    ln_noise_handshake_free(&pChannel->noise);
 }
 
 

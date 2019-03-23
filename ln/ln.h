@@ -42,7 +42,6 @@
 #include "ln_onion.h"
 #include "ln_derkey.h"
 #include "ln_derkey_ex.h"
-#include "ln_noise.h"
 #include "ln_node.h"
 #include "ln_script.h"
 #include "ln_update.h"
@@ -407,9 +406,6 @@ struct ln_channel_t {
     ln_commit_info_t            commit_info_local;              ///< [COMM_01]local commit_tx用
     ln_commit_info_t            commit_info_remote;             ///< [COMM_02]remote commit_tx用
 
-    //noise protocol
-    ln_noise_t                  noise;                          ///< [NOIS_01]noise protocol
-
     //gossip_queries
     ln_gquery_t                 gquery;                         ///< [GQRY_01]gossip_queries
 
@@ -564,35 +560,6 @@ void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId);
  * @param[in]           pScriptPk       shutdown時の送金先ScriptPubKey
  */
 void ln_shutdown_set_vout_addr(ln_channel_t *pChannel, const utl_buf_t *pScriptPk);
-
-
-/** noise handshake開始
- *
- * @param[in,out]       pChannel    channel info
- * @param[out]          pBuf        送信データ
- * @param[in]           pNodeId     送信側:接続先ノードID, 受信側:NULL
- * @retval      true    成功
- */
-bool ln_handshake_start(ln_channel_t *pChannel, utl_buf_t *pBuf, const uint8_t *pNodeId);
-
-
-/** noise handshake受信
- *
- * @param[in,out]       pChannel    channel info
- * @param[out]          pCont       true:次も受信を継続する(戻り値がtrue時のみ有効)
- * @param[in,out]       pBuf        in:受信データ, out:送信データ
- * @retval      true    成功
- */
-bool ln_handshake_recv(ln_channel_t *pChannel, bool *pCont, utl_buf_t *pBuf);
-
-
-/** noise handshakeメモリ解放
- *
- * @param[in,out]       pChannel    channel info
- * @note
- *      - handshakeを中断した場合に呼び出す
- */
-void ln_handshake_free(ln_channel_t *pChannel);
 
 
 /** Lightningメッセージ受信処理

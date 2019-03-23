@@ -176,7 +176,6 @@ public:
         ln_anno_param_t anno_param;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
-        pChannel->noise.p_handshake = NULL;
         anno_param.cltv_expiry_delta = 10;
         anno_param.htlc_minimum_msat = 1000;
         anno_param.fee_base_msat = 20;

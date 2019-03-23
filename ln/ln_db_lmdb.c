@@ -505,11 +505,6 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, obscured_commit_num_mask),        //[COMM_02]
 
     //
-    //nois
-    //
-    //[NOIS_01]noise
-
-    //
     //erro
     //
     //[ERRO_01]err
