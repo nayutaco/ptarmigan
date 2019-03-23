@@ -175,7 +175,7 @@ static bool anno_prev_check(uint64_t short_channel_id, uint32_t timestamp);
 static bool anno_send_cnl(lnapp_conf_t *p_conf, uint64_t short_channel_id, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl);
 static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl);
 
-static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param);
+static void notify_cb(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam);
 static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param);
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -294,7 +294,7 @@ bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
 
     lnapp_conf_t conf;
     lnapp_init(&conf);
-    ln_init(&conf.channel, NULL, NULL);
+    ln_init(&conf.channel, NULL, NULL, NULL, NULL);
 
     conf.active = true;
     conf.sock = pConnHandshake->sock;
@@ -561,7 +561,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     bool ret;
     ln_channel_t channel;
 
-    ln_init(&channel, &mAnnoParam, NULL);
+    ln_init(&channel, &mAnnoParam, NULL, NULL, NULL);
 
     ret = ln_node_search_channel(&channel, pNodeId);
     if (!ret) {
@@ -699,9 +699,7 @@ static void *thread_channel_start(void *pArg)
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
 
-    ln_init(p_channel, &mAnnoParam, notify_cb);
-    memcpy(p_channel->peer_node_id, p_conf->node_id, BTC_SZ_PUBKEY);
-    p_channel->p_param = p_conf;
+    ln_init(p_channel, &mAnnoParam, p_conf->node_id, notify_cb, p_conf);
 
     p_conf->ping_counter = 1;       //send soon
     p_conf->funding_waiting = false;
@@ -2095,11 +2093,12 @@ static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_i
  **************************************************************************/
 
 //コールバック分岐
-static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param)
+static void notify_cb(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam)
 {
     //DBGTRACE_BEGIN
 
-    lnapp_conf_t *p_conf = (lnapp_conf_t *)ln_get_param(pChannel);
+    lnapp_conf_t *p_conf = (lnapp_conf_t*)pCommonParam;
+    void *p_param = pTypeSpecificParam;
 
     const struct {
         const char *p_msg;
@@ -2131,13 +2130,13 @@ static void notify_cb(ln_channel_t *pChannel, ln_cb_type_t reason, void *p_param
         { "  LN_CB_TYPE_NOTIFY_PONG_RECV: pong receive", cb_pong_recv },
     };
 
-    if (reason < LN_CB_TYPE_MAX) {
-        if (MAP[reason].p_msg != NULL) {
-            LOGD("%s\n", MAP[reason].p_msg);
+    if (Type < LN_CB_TYPE_MAX) {
+        if (MAP[Type].p_msg != NULL) {
+            LOGD("%s\n", MAP[Type].p_msg);
         }
-        (*MAP[reason].func)(p_conf, p_param);
+        (*MAP[Type].func)(p_conf, p_param);
     } else {
-        LOGE("fail: invalid reason: %d\n", reason);
+        LOGE("fail: invalid Type: %d\n", Type);
     }
 
     //DBGTRACE_END

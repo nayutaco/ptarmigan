@@ -182,13 +182,10 @@ static unsigned long mDebug;
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callback_t pFunc)
-{
-    void *ptr_bak;
-
-    ptr_bak = pChannel->p_param;
+bool ln_init(
+    ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam,
+    const uint8_t *pPeerNodeId, ln_callback_t pFunc, void *pParam) {
     memset(pChannel, 0x00, sizeof(ln_channel_t));
-    pChannel->p_param = ptr_bak;
 
     utl_buf_init(&pChannel->shutdown_scriptpk_local);
     utl_buf_init(&pChannel->shutdown_scriptpk_remote);
@@ -206,15 +203,20 @@ bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callb
 
     pChannel->lfeature_remote = 0;
 
-    pChannel->p_callback = pFunc;
-
     if (pAnnoParam) {
         memcpy(&pChannel->anno_param, pAnnoParam, sizeof(ln_anno_param_t));
+        LOGD("cltv_expiry_delta=%" PRIu16 "\n", pChannel->anno_param.cltv_expiry_delta);
+        LOGD("htlc_minimum_msat=%" PRIu64 "\n", pChannel->anno_param.htlc_minimum_msat);
+        LOGD("fee_base_msat=%" PRIu32 "\n", pChannel->anno_param.fee_base_msat);
+        LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_param.fee_prop_millionths);
     }
-    LOGD("cltv_expiry_delta=%" PRIu16 "\n", pChannel->anno_param.cltv_expiry_delta);
-    LOGD("htlc_minimum_msat=%" PRIu64 "\n", pChannel->anno_param.htlc_minimum_msat);
-    LOGD("fee_base_msat=%" PRIu32 "\n", pChannel->anno_param.fee_base_msat);
-    LOGD("fee_prop_millionths=%" PRIu32 "\n", pChannel->anno_param.fee_prop_millionths);
+
+    if (pPeerNodeId) {
+        memcpy(pChannel->peer_node_id, pPeerNodeId, BTC_SZ_PUBKEY);
+    }
+
+    pChannel->p_callback = pFunc;
+    pChannel->p_param = pParam;
 
     //seed
     ln_derkey_init(&pChannel->keys_local, &pChannel->keys_remote);
@@ -1408,7 +1410,7 @@ void ln_callback(ln_channel_t *pChannel, ln_cb_type_t Req, void *pParam)
         return;
     }
 
-    (*pChannel->p_callback)(pChannel, Req, pParam);
+    (*pChannel->p_callback)(Req, pChannel->p_param, pParam);
 }
 
 

@@ -431,10 +431,14 @@ struct ln_channel_t {
  *
  * @param[in,out]       pChannel        channel info
  * @param[in]           pAnnoParam      announcementパラメータ
+ * @param[in]           pPeerNodeId
  * @param[in]           pFunc           通知用コールバック関数
+ * @param[in]           pParam
  * @retval      true    成功
  */
-bool ln_init(ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam, ln_callback_t pFunc);
+bool ln_init(
+    ln_channel_t *pChannel, const ln_anno_param_t *pAnnoParam,
+    const uint8_t *pPeerNodeId, ln_callback_t pFunc, void *pParam);
 
 
 /** 終了

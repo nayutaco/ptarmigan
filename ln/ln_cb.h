@@ -74,7 +74,7 @@ typedef enum {
  *  @note
  *      - p_paramで渡すデータを上位層で保持しておきたい場合、コピーを取ること
  */
-typedef void (*ln_callback_t)(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param);
+typedef void (*ln_callback_t)(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam);
 
 
 /** @struct ln_cb_param_sign_funding_tx_t
