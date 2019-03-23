@@ -286,10 +286,10 @@ public:
         }
         return ret;
     }
-    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-        (void)pChannel; (void)p_param;
+    static void LnCallbackType(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+        (void)pCommonParam; (void)pTypeSpecificParam;
         const char *p_str;
-        switch (type) {
+        switch (Type) {
         case LN_CB_TYPE_NOTIFY_ERROR: p_str = "LN_CB_TYPE_NOTIFY_ERROR"; break;
         case LN_CB_TYPE_NOTIFY_INIT_RECV: p_str = "LN_CB_TYPE_NOTIFY_INIT_RECV"; break;
         case LN_CB_TYPE_NOTIFY_REESTABLISH_RECV: p_str = "LN_CB_TYPE_NOTIFY_REESTABLISH_RECV"; break;
@@ -313,7 +313,7 @@ public:
         default:
             p_str = "unknown";
         }
-        printf("*** callback: %s(%d)\n", p_str, type);
+        printf("*** callback: %s(%d)\n", p_str, Type);
     }
     static void LnInit(ln_channel_t *pChannel)
     {
@@ -325,7 +325,7 @@ public:
         anno_param.fee_base_msat = 20;
         anno_param.fee_prop_millionths = 200;
 
-        ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
+        ln_init(pChannel, &anno_param, NULL, (ln_callback_t)0x123456, NULL);
         pChannel->init_flag = M_INIT_FLAG_SEND | M_INIT_FLAG_RECV | M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
         pChannel->commit_info_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_info_local.htlc_minimum_msat = 0;
@@ -364,8 +364,9 @@ TEST_F(ln, recv_updatechannel_ok)
     static int callback_called = 0;
     class dummy {
     public:
-        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            if (type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            if (Type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
                 callback_called++;
             }
         }
@@ -425,8 +426,9 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_in)
     static int callback_called = 0;
     class dummy {
     public:
-        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            if (type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            if (Type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
                 callback_called++;
             }
         }
@@ -486,8 +488,9 @@ TEST_F(ln, recv_updatechannel_timestamp_toofar_out)
     static int callback_called = 0;
     class dummy {
     public:
-        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            if (type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            if (Type == LN_CB_TYPE_NOTIFY_ANNODB_UPDATE) {
                 callback_called++;
             }
         }

@@ -137,10 +137,10 @@ public:
         }
         return ret;
     }
-    static void LnCallbackType(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-        (void)pChannel; (void)p_param;
+    static void LnCallbackType(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+        (void)pCommonParam; (void)pTypeSpecificParam;
         const char *p_str;
-        switch (type) {
+        switch (Type) {
         case LN_CB_TYPE_NOTIFY_ERROR: p_str = "LN_CB_TYPE_NOTIFY_ERROR"; break;
         case LN_CB_TYPE_NOTIFY_INIT_RECV: p_str = "LN_CB_TYPE_NOTIFY_INIT_RECV"; break;
         case LN_CB_TYPE_NOTIFY_REESTABLISH_RECV: p_str = "LN_CB_TYPE_NOTIFY_REESTABLISH_RECV"; break;
@@ -164,7 +164,7 @@ public:
         default:
             p_str = "unknown";
         }
-        printf("*** callback: %s(%d)\n", p_str, type);
+        printf("*** callback: %s(%d)\n", p_str, Type);
     }
     static void LnInit(ln_channel_t *pChannel)
     {
@@ -175,7 +175,7 @@ public:
         anno_param.htlc_minimum_msat = 1000;
         anno_param.fee_base_msat = 20;
         anno_param.fee_prop_millionths = 200;
-        ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
+        ln_init(pChannel, &anno_param, NULL, (ln_callback_t)0x123456, NULL);
         pChannel->commit_info_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_info_local.htlc_minimum_msat = 0;
         pChannel->commit_info_local.max_accepted_htlcs = 10;
@@ -252,14 +252,14 @@ TEST_F(ln, init)
     anno_param.htlc_minimum_msat = 1000;
     anno_param.fee_base_msat = 20;
     anno_param.fee_prop_millionths = 200;
-    ln_init(&channel, &anno_param, (ln_callback_t)0x123456);
+    ln_init(&channel, &anno_param, NULL, (ln_callback_t)0x123456, (void *)0x654321);
 
     ASSERT_EQ(LN_STATUS_NONE, channel.status);
     for (int idx = 0; idx < LN_UPDATE_MAX; idx++) {
         ASSERT_TRUE(utl_mem_is_all_zero(
             &channel.update_info.updates[idx].state, sizeof(channel.update_info.updates[idx].state)));
     }
-    ASSERT_EQ(0xcccccccccccccccc, channel.p_param);
+    ASSERT_EQ(0x654321, channel.p_param);
     ASSERT_EQ(0x123456, channel.p_callback);
 
     ln_term(&channel);
@@ -278,11 +278,12 @@ TEST_F(ln, ln_accept_channel_recv_ok)
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
-        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            switch (type) {
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            switch (Type) {
             case LN_CB_TYPE_SIGN_FUNDING_TX:
                 {
-                    ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)p_param;
+                    ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)pTypeSpecificParam;
                     p_sig->ret = true;  //署名OK
                 }
                 break;
@@ -356,11 +357,12 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
-        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            switch (type) {
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            switch (Type) {
             case LN_CB_TYPE_SIGN_FUNDING_TX:
                 {
-                    ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)p_param;
+                    ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)pTypeSpecificParam;
                     p_sig->ret = true;  //署名OK
                 }
                 break;
@@ -434,11 +436,12 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
-        static void callback(ln_channel_t *pChannel, ln_cb_type_t type, void *p_param) {
-            switch (type) {
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            switch (Type) {
             case LN_CB_TYPE_SIGN_FUNDING_TX:
                 {
-                    ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)p_param;
+                    ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)pTypeSpecificParam;
                     p_sig->ret = true;  //署名OK
                 }
                 break;

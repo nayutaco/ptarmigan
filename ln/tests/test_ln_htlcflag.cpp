@@ -141,7 +141,7 @@ public:
         anno_param.htlc_minimum_msat = 1000;
         anno_param.fee_base_msat = 20;
         anno_param.fee_prop_millionths = 200;
-        ln_init(pChannel, &anno_param, (ln_callback_t)0x123456);
+        ln_init(pChannel, &anno_param, NULL, (ln_callback_t)0x123456, NULL);
         pChannel->commit_info_local.dust_limit_sat = BTC_DUST_LIMIT;
         pChannel->commit_info_local.htlc_minimum_msat = 0;
         pChannel->commit_info_local.max_accepted_htlcs = 10;
