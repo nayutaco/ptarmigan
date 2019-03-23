@@ -228,6 +228,7 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         goto LABEL_EXIT;
     }
 
+    //XXX: lnapp_init(&mAppConf[idx]);
     mAppConf[idx].initiator = conn_handshake.initiator;
     mAppConf[idx].sock = conn_handshake.sock;
     strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
@@ -389,6 +390,7 @@ void *p2p_listener_start(void *pArg)
             continue;
         }
 
+        //XXX: lnapp_init(&mAppConf[idx]);
         mAppConf[idx].initiator = conn_handshake.initiator;
         mAppConf[idx].sock = conn_handshake.sock;
         inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
