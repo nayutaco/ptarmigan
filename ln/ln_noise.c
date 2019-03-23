@@ -111,7 +111,7 @@ static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[
  * public functions
  ********************************************************************/
 
-bool HIDDEN ln_noise_handshake_init(ln_noise_t *pCtx, const uint8_t *pNodeId)
+bool ln_noise_handshake_init(ln_noise_t *pCtx, const uint8_t *pNodeId)
 {
     bool ret;
 
@@ -151,7 +151,7 @@ bool HIDDEN ln_noise_handshake_init(ln_noise_t *pCtx, const uint8_t *pNodeId)
 }
 
 
-bool HIDDEN ln_noise_handshake_start(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pNodeId)
+bool ln_noise_handshake_start(ln_noise_t *pCtx, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
     struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
 
@@ -172,7 +172,7 @@ bool HIDDEN ln_noise_handshake_start(ln_noise_t *pCtx, utl_buf_t *pBuf, const ui
 }
 
 
-bool HIDDEN ln_noise_handshake_recv(ln_noise_t *pCtx, utl_buf_t *pBuf)
+bool ln_noise_handshake_recv(ln_noise_t *pCtx, utl_buf_t *pBuf)
 {
     struct bolt8_t *pBolt = (struct bolt8_t *)pCtx->p_handshake;
     bool ret;
@@ -222,19 +222,19 @@ bool HIDDEN ln_noise_handshake_recv(ln_noise_t *pCtx, utl_buf_t *pBuf)
 }
 
 
-bool HIDDEN ln_noise_handshake_state(ln_noise_t *pCtx)
+bool ln_noise_handshake_state(ln_noise_t *pCtx)
 {
     return pCtx->p_handshake != NULL;
 }
 
 
-void HIDDEN ln_noise_handshake_free(ln_noise_t *pCtx)
+void ln_noise_handshake_free(ln_noise_t *pCtx)
 {
     UTL_DBG_FREE(pCtx->p_handshake);
 }
 
 
-bool /*HIDDEN*/ ln_noise_enc(ln_noise_t *pCtx, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
+bool ln_noise_enc(ln_noise_t *pCtx, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
 {
     bool ret = false;
     uint8_t nonce[12];

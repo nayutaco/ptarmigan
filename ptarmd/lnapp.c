@@ -231,6 +231,10 @@ static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result);
 
 static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const char *msg, int line);
 
+static bool handshake_start(lnapp_conf_t *pConf, utl_buf_t *pBuf, const uint8_t *pNodeId);
+static bool handshake_recv(lnapp_conf_t *pConf, bool *pCont, utl_buf_t *pBuf);
+static void handshake_free(lnapp_conf_t *pConf);
+
 
 /********************************************************************
  * public functions
@@ -323,7 +327,7 @@ bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
     utl_dbg_dump(stderr, conf.node_id, BTC_SZ_PUBKEY, true);
 
     memcpy(pConnHandshake->conn.node_id, conf.node_id, BTC_SZ_PUBKEY);
-    pConnHandshake->noise = conf.channel.noise;
+    pConnHandshake->noise = conf.noise;
 
     ret = true;
 
@@ -695,10 +699,8 @@ static void *thread_channel_start(void *pArg)
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
 
-    ln_noise_t noise = p_conf->channel.noise;
     ln_init(p_channel, &mAnnoParam, notify_cb);
     memcpy(p_channel->peer_node_id, p_conf->node_id, BTC_SZ_PUBKEY);
-    p_channel->noise = noise;
     p_channel->p_param = p_conf;
 
     p_conf->ping_counter = 1;       //send soon
@@ -1024,7 +1026,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         //initiatorはnode_idを知っている
 
         //send: act one
-        ret = ln_handshake_start(&p_conf->channel, &buf, p_conf->node_id);
+        ret = handshake_start(p_conf, &buf, p_conf->node_id);
         if (!ret) {
             LOGE("fail: ln_handshake_start\n");
             goto LABEL_EXIT;
@@ -1048,7 +1050,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         LOGD("** RECV act two ! **\n");
         utl_buf_free(&buf);
         utl_buf_alloccopy(&buf, rbuf, 50);
-        ret = ln_handshake_recv(&p_conf->channel, &b_cont, &buf);
+        ret = handshake_recv(p_conf, &b_cont, &buf);
         if (!ret || b_cont) {
             LOGE("fail: ln_handshake_recv1\n");
             goto LABEL_EXIT;
@@ -1066,7 +1068,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         //responderはnode_idを知らない
 
         //recv: act one
-        ret = ln_handshake_start(&p_conf->channel, &buf, NULL);
+        ret = handshake_start(p_conf, &buf, NULL);
         if (!ret) {
             LOGE("fail: ln_handshake_start\n");
             goto LABEL_EXIT;
@@ -1081,7 +1083,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         }
         LOGD("** RECV act one ! **\n");
         utl_buf_alloccopy(&buf, rbuf, 50);
-        ret = ln_handshake_recv(&p_conf->channel, &b_cont, &buf);
+        ret = handshake_recv(p_conf, &b_cont, &buf);
         if (!ret || !b_cont) {
             LOGE("fail: ln_handshake_recv1\n");
             goto LABEL_EXIT;
@@ -1106,7 +1108,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         LOGD("** RECV act three ! **\n");
         utl_buf_free(&buf);
         utl_buf_alloccopy(&buf, rbuf, 66);
-        ret = ln_handshake_recv(&p_conf->channel, &b_cont, &buf);
+        ret = handshake_recv(p_conf, &b_cont, &buf);
         if (!ret || b_cont) {
             LOGE("fail: ln_handshake_recv2\n");
             goto LABEL_EXIT;
@@ -1131,7 +1133,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 LABEL_EXIT:
     LOGD("noise handshake: %d\n", result);
     utl_buf_free(&buf);
-    ln_handshake_free(&p_conf->channel);
+    handshake_free(p_conf);
 
     return result;
 }
@@ -1384,7 +1386,7 @@ static void *thread_recv_start(void *pArg)
         }
         assert(len == LN_SZ_NOISE_HEADER);
         if (len == LN_SZ_NOISE_HEADER) {
-            len = ln_noise_dec_len(&p_conf->channel.noise, head, len);
+            len = ln_noise_dec_len(&p_conf->noise, head, len);
         } else {
             break;
         }
@@ -1399,7 +1401,7 @@ static void *thread_recv_start(void *pArg)
         }
         if (len_msg == len) {
             buf_recv.len = len;
-            ret = ln_noise_dec_msg(&p_conf->channel.noise, &buf_recv);
+            ret = ln_noise_dec_msg(&p_conf->noise, &buf_recv);
             if (!ret) {
                 LOGD("DECODE: loop end\n");
                 stop_threads(p_conf);
@@ -3039,7 +3041,7 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
     struct pollfd fds;
     ssize_t len = -1;
 
-    bool ret = ln_noise_enc(&p_conf->channel.noise, &buf_enc, pBuf);
+    bool ret = ln_noise_enc(&p_conf->noise, &buf_enc, pBuf);
     if (!ret) {
         LOGE("fail: noise encode\n");
         goto LABEL_EXIT;
@@ -3492,3 +3494,29 @@ static void show_channel_param(const ln_channel_t *pChannel, FILE *fp, const cha
     }
     LOGD("=(%s:%d)=============================================\n", msg, line);
 }
+
+
+static bool handshake_start(lnapp_conf_t *pConf, utl_buf_t *pBuf, const uint8_t *pNodeId)
+{
+    if (!ln_noise_handshake_init(&pConf->noise, pNodeId)) return false;
+    if (pNodeId != NULL) {
+        if (!ln_noise_handshake_start(&pConf->noise, pBuf, pNodeId)) return false;
+    }
+    return true;
+}
+
+
+static bool handshake_recv(lnapp_conf_t *pConf, bool *pCont, utl_buf_t *pBuf)
+{
+    if (!ln_noise_handshake_recv(&pConf->noise, pBuf)) return false;
+    //continue?
+    *pCont = ln_noise_handshake_state(&pConf->noise);
+    return true;
+}
+
+
+static void handshake_free(lnapp_conf_t *pConf)
+{
+    ln_noise_handshake_free(&pConf->noise);
+}
+

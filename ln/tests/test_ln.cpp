@@ -168,7 +168,6 @@ public:
         ln_anno_param_t anno_param;
 
         memset(pChannel, 0xcc, sizeof(ln_channel_t));
-        pChannel->noise.p_handshake = NULL;
         anno_param.cltv_expiry_delta = 10;
         anno_param.htlc_minimum_msat = 1000;
         anno_param.fee_base_msat = 20;
@@ -199,7 +198,6 @@ TEST_F(ln, init)
     ln_anno_param_t anno_param;
 
     memset(&channel, 0xcc, sizeof(channel));
-    channel.noise.p_handshake = NULL;
     anno_param.cltv_expiry_delta = 10;
     anno_param.htlc_minimum_msat = 1000;
     anno_param.fee_base_msat = 20;
@@ -211,8 +209,6 @@ TEST_F(ln, init)
         ASSERT_TRUE(utl_mem_is_all_zero(
             &channel.update_info.updates[idx].state, sizeof(channel.update_info.updates[idx].state)));
     }
-    ASSERT_TRUE(DumpCheck(&channel.noise.send_ctx, sizeof(ln_noise_ctx_t), 0xcc));
-    ASSERT_TRUE(DumpCheck(&channel.noise.recv_ctx, sizeof(ln_noise_ctx_t), 0xcc));
     ASSERT_EQ(0xcccccccccccccccc, channel.p_param);
     ASSERT_EQ(0x123456, channel.p_callback);
 
