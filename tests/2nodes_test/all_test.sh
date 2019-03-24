@@ -15,6 +15,7 @@ echo st2 start
 sleep 5 # wait conf file
 echo st2 end
 
+echo repeat OPEN/CLOSE
 while :
 do
 

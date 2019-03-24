@@ -302,6 +302,11 @@ bool ln_db_channel_save_status(const ln_channel_t *pChannel, void *pDbParam);
 bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbParam);
 
 
+/** channel DB close
+ */
+void ln_db_channel_close(const uint8_t *pChannelId);
+
+
 /** secret保存
  *
  */

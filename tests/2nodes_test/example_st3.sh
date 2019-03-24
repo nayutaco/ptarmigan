@@ -35,12 +35,13 @@ do
     NOD4=`./showdb -n -d node_4444 | jq '.[]|length'`
     echo CHAN3=$CHN3:$NOD3 CHAN4=$CHN4:$NOD4
 
-    if [ "$CHN3" -eq 3 ] && [ "$CHN4" -eq 3 ] && [ "$NOD3" -eq 2 ] && [ "$NOD4" -eq 2 ]; then
+    if [ "$CHN3" -gt 2 ] && [ "$CHN4" -gt 2 ] && [ "$NOD3" -eq 2 ] && [ "$NOD4" -eq 2 ]; then
         break
     fi
-    PTARMS3333=`./ptarmcli -l 3334 | grep -c node_id`
-    PTARMS4444=`./ptarmcli -l 4445 | grep -c node_id`
-    if [ ${PTARMS3333} -ne 1 ] || [ ${PTARMS4444} -ne 1 ]; then
+    PTARMS3333=`./ptarmcli -l 3334 | grep -c total_local_msat`
+    PTARMS4444=`./ptarmcli -l 4445 | grep -c total_local_msat`
+    echo CLI3=${PTARMS3333} CLI4=${PTARMS4444}
+    if [ ${PTARMS3333} -eq 0 ] || [ ${PTARMS4444} -eq 0 ]; then
         echo ptarmd exited
         exit 1
     fi
