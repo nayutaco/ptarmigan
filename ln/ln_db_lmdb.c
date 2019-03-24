@@ -628,6 +628,7 @@ static bool set_path(char *pPath, size_t Size, const char *pDir, const char *pNa
 static int db_open(ln_lmdb_db_t *pDb, MDB_env *env, const char *pDbName, int OptTxn, int OptDb);
 
 static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
+static void channel_db_close(ln_lmdb_db_t *pDb);
 static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
@@ -786,15 +787,17 @@ static inline void my_mdb_txn_abort(MDB_txn *pTxn, int Line) {
 static inline int my_mdb_dbi_open(MDB_txn *pTxn, const char *pName, unsigned int Flags, MDB_dbi *pDbi, int Line) {
     int retval = mdb_dbi_open(pTxn, pName, Flags, pDbi);
     LOGD("mdb_dbi_open(%d): retval=%d\n", Line, retval);
-    if (retval && (retval != MDB_NOTFOUND)) {
+    if (retval) {
         LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
+    } else {
+        LOGD("   DBI=%d\n", (int)*pDbi);
     }
     return retval;
 }
 
 static inline void my_mdb_dbi_close(MDB_env *env, MDB_dbi Dbi, int Line) {
     mdb_dbi_close(env, Dbi);
-    LOGD("mdb_dbi_close(%d)\n", Line);
+    LOGD("mdb_dbi_close(%d) DBI=%d\n", Line, (int)Dbi);
 }
 #endif  //M_DB_DEBUG
 
@@ -958,6 +961,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     uint8_t genesis[BTC_SZ_HASH256];
     retval = version_check(&db, &ver, pWif, pNodeName, pPort, genesis);
     MDB_TXN_COMMIT(db.p_txn);
+    MDB_DBI_CLOSE(mpEnvChannel, db.dbi);
     if (retval) {
         if (bStdErr) fprintf(stderr, "invalid version\n");
         goto LABEL_EXIT;
@@ -1122,6 +1126,7 @@ bool ln_db_channel_save(const ln_channel_t *pChannel)
     }
 
     MDB_TXN_COMMIT(db.p_txn);
+    channel_db_close(&db);
     db.p_txn = NULL;
 
 LABEL_EXIT:
@@ -1137,7 +1142,9 @@ LABEL_EXIT:
 
 bool ln_db_channel_del(const uint8_t *pChannelId)
 {
-    return ln_db_channel_search(channel_cmp_func_channel_del, (CONST_CAST void *)pChannelId);
+    bool ret = ln_db_channel_search(channel_cmp_func_channel_del, (CONST_CAST void *)pChannelId);
+    ln_db_channel_close(pChannelId);
+    return ret;
 }
 
 
@@ -1298,6 +1305,51 @@ bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbPara
 }
 
 
+void ln_db_channel_close(const uint8_t *pChannelId)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
+
+    LOGD("close start\n");
+
+    if (utl_mem_is_all_zero(pChannelId, LN_SZ_CHANNEL_ID)) {
+        LOGD("no channel opened\n");
+        return;
+    }
+
+    db.p_txn = NULL;
+
+    LOGD("close: channel\n");
+    memcpy(db_name, M_PREF_CHANNEL, M_SZ_PREF_STR);
+    utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannelId, LN_SZ_CHANNEL_ID);
+    retval = channel_db_open(&db, db_name, 0, 0);
+    if (retval == 0) {
+        MDB_DBI_CLOSE(mpEnvChannel, db.dbi);
+    } else {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+    }
+
+    char htlc_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
+    MDB_dbi dbi;
+    memcpy(htlc_name, M_PREF_HTLC, M_SZ_PREF_STR);
+    utl_str_bin2str(htlc_name + M_SZ_PREF_STR, pChannelId, LN_SZ_CHANNEL_ID);
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        LOGD("close: htlc[%d]\n", lp);
+        channel_htlc_db_name(htlc_name, lp);
+        retval = MDB_DBI_OPEN(db.p_txn, htlc_name, 0, &dbi);
+        if (retval == 0) {
+            MDB_DBI_CLOSE(mpEnvChannel, dbi);
+        } else {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
+    }
+
+    LOGD("close: end\n");
+    MDB_TXN_ABORT(db.p_txn);
+}
+
+
 void ln_lmdb_channel_backup_show(MDB_txn *pTxn, MDB_dbi Dbi)
 {
     MDB_val         key, data;
@@ -1378,6 +1430,7 @@ bool ln_db_secret_save(ln_channel_t *pChannel)
     retval = fixed_items_save(pChannel, &db, DBCHANNEL_SECRET, ARRAY_SIZE(DBCHANNEL_SECRET));
     if (retval == 0) {
         MDB_TXN_COMMIT(db.p_txn);
+        channel_db_close(&db);
     } else {
         MDB_TXN_ABORT(db.p_txn);
     }
@@ -3718,6 +3771,7 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain)
         return false;
     }
 
+    bool        ret = false;
     int32_t     ver;
     char        wif[BTC_SZ_WIF_STR_MAX + 1] = "";
     char        alias[LN_SZ_ALIAS_STR + 1] = "";
@@ -3732,8 +3786,7 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain)
     btc_keys_t key;
     btc_chain_t chain;
     if (!btc_keys_wif2keys(&key, &chain, wif)) {
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
+        goto LABEL_EXIT;
     }
 
     btc_block_chain_t type = btc_block_get_chain(genesis);
@@ -3742,8 +3795,7 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain)
         ((chain == BTC_TESTNET) && (type == BTC_BLOCK_CHAIN_BTCREGTEST))) {
         //ok
     } else {
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
+        goto LABEL_EXIT;
     }
 
     if (pMyNodeId) {
@@ -3752,8 +3804,11 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain)
     if (pBlockChain) {
         *pBlockChain = type;
     }
+    ret = true;
+
+LABEL_EXIT:
     MDB_TXN_ABORT(db.p_txn);
-    return true;
+    return ret;
 }
 
 
@@ -4038,6 +4093,12 @@ static bool set_path(char *pPath, size_t Size, const char *pDir, const char *pNa
 static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb)
 {
     return db_open(pDb, mpEnvChannel, pDbName , OptTxn, OptDb);
+}
+
+
+static void channel_db_close(ln_lmdb_db_t *pDb)
+{
+    MDB_DBI_CLOSE(mpEnvChannel, pDb->dbi);
 }
 
 
@@ -4330,6 +4391,7 @@ LABEL_EXIT:
     if (p_bak_db_param == NULL) {
         if (retval == 0) {
             MDB_TXN_COMMIT(db.p_txn);
+            channel_db_close(&db);
         } else {
             MDB_TXN_ABORT(db.p_txn);
         }
@@ -4427,6 +4489,7 @@ static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable)
     MDB_CURSOR_CLOSE(pCur->p_cursor);
     if (bWritable) {
         MDB_TXN_COMMIT(pCur->p_txn);
+        channel_db_close((ln_lmdb_db_t *)pCur);
     } else {
         MDB_TXN_ABORT(pCur->p_txn);
     }
@@ -4505,6 +4568,7 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
         retval = ln_lmdb_channel_load(p_channel, cur.p_txn, cur.dbi, bRestore);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
+            MDB_DBI_CLOSE(mpEnvChannel, cur.dbi);
             continue;
         }
 
