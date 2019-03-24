@@ -89,6 +89,7 @@ typedef struct lnapp_conf_t {
 
     //排他制御
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
+    //XXX: reset every connection
     pthread_cond_t      cond;                   ///< muxの待ち合わせ
     pthread_mutex_t     mux;                    ///< 処理待ち合わせ用のmutex
     pthread_mutex_t     mux_channel;            ///< ln_channel_t処理中のmutex
@@ -96,39 +97,51 @@ typedef struct lnapp_conf_t {
 
     /////////////////////////////////////////////////
 
+    //XXX: reset every connection
     volatile bool       active;                 ///< true:channel動作中
     volatile uint8_t    flag_recv;              ///< 受信フラグ(M_FLAGRECV_xxx)
 
+    //XXX: reset every connection
     volatile int        sock;                       ///< -1:socket未接続
     pthread_t           th;                         ///< pthread id
+
     char                conn_str[SZ_CONN_STR + 1];  ///< 接続成功ログ/接続失敗リスト用
     uint16_t            conn_port;                  ///< 接続成功ログ/接続失敗リスト用
 
     //制御内容通知
+    //XXX: reset every connection
     bool                initiator;              ///< true:Noise Protocol handshakeのinitiator
+    //XXX: don't reset
     uint8_t             node_id[BTC_SZ_PUBKEY]; ///< 接続先(initiator==true時)
 
     //routing_sync
+    //XXX: set every connection
     ptarmd_routesync_t  routesync;              ///< local routing_sync
 
     //lnappワーク
+    //XXX: reset every connection
     int                 ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool                funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t            funding_confirm;        ///< funding_txのconfirmation数
 
+    //XXX: reset every connection
     struct routelisthead_t  payroute_head;      //payment
     struct ponglisthead_t   pong_head;          //pong.num_pong_bytes
-    uint64_t                dummy_htlc_id;
+
+    uint64_t                dummy_htlc_id;      //XXX: save db
 
     //send announcement
+    //XXX: reset every connection
     uint64_t            last_anno_cnl;          ///< [#send_channel_anno()]最後にannouncementしたchannel
     bool                annosig_send_req;       ///< true: open_channel.announce_channel=1 and announcement_signatures not send
     bool                annodb_updated;         ///< true: flag to notify annodb update
     bool                annodb_cont;            ///< true: announcement連続送信中
     time_t              annodb_stamp;           ///< last annodb_updated change time
 
+    //XXX: reset every connection
     uint32_t            feerate_per_kw;
 
+    //XXX: reset every connection
     int                 err;                    ///< last error
     char                *p_errstr;              ///< last error string(UTL_DBG_MALLOC)
 
