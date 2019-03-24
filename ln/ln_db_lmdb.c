@@ -262,6 +262,7 @@
 #define MDB_TXN_ABORT(a)            { mdb_txn_abort(a); (a) = NULL; }
 #define MDB_TXN_COMMIT(a)           { my_mdb_txn_commit(a, __LINE__); (a) = NULL; }
 #define MDB_DBI_OPEN(a, b, c, d)    my_mdb_dbi_open(a, b, c, d, __LINE__)
+#define MDB_DBI_CLOSE(a, b)         mdb_dbi_close(a, b)
 #define MDB_CURSOR_CLOSE(a)         { mdb_cursor_close(a); (a) = NULL; }
 
 #define MDB_TXN_CHECK_CHANNEL(a)    //none
@@ -270,11 +271,12 @@
 #define MDB_TXN_CHECK_WALLET(a)     //none
 #define MDB_TXN_CHECK_FORWARD(a)    //none
 #else
-static volatile int g_cnt[2];
+static volatile int g_cnt[5];
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
 #define MDB_TXN_ABORT(a)            { my_mdb_txn_abort(a, __LINE__); (a) = NULL; }
 #define MDB_TXN_COMMIT(a)           { my_mdb_txn_commit(a, __LINE__); (a) = NULL; }
 #define MDB_DBI_OPEN(a, b, c, d)    my_mdb_dbi_open(a, b, c, d, __LINE__)
+#define MDB_DBI_CLOSE(a, b)         my_mdb_dbi_close(a, b, __LINE__)
 #define MDB_CURSOR_CLOSE(a)         { mdb_cursor_close(a); (a) = NULL; }
 
 #define MDB_TXN_CHECK_CHANNEL(a)    if (mdb_txn_env(a) != mpEnvChannel) { LOGE("ERR: txn not CHANNEL\n"); abort(); }
@@ -736,8 +738,19 @@ static inline int my_mdb_dbi_open(MDB_txn *pTxn, const char *pName, unsigned int
     return retval;
 }
 #else
+static inline int env_number(const MDB_env *env) {
+    int env_num = -1;
+    for (size_t lp = 0; lp < ARRAY_SIZE(INIT_PARAM); lp++) {
+        if (env == *(INIT_PARAM[lp].pp_env)) {
+            env_num = lp;
+            break;
+        }
+    }
+    return env_num;
+}
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *pParent, unsigned int Flags, MDB_txn **ppTxn, int Line) {
-    int ggg = (env == mpEnvChannel) ? 0 : 1;
+    assert(sizeof(g_cnt) <= sizeof(INIT_PARAM));
+    int ggg = env_number(env);
     g_cnt[ggg]++;
     LOGD("mdb_txn_begin:%d:[%d]opens=%d(%d)\n", Line, ggg, g_cnt[ggg], (int)Flags);
     MDB_envinfo stat;
@@ -752,10 +765,10 @@ static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *pParent, unsigned int 
 }
 
 static inline int my_mdb_txn_commit(MDB_txn *pTxn, int Line) {
-    int ggg = (mdb_txn_env(txn) == mpEnvChannel) ? 0 : 1;
+    int ggg = env_number(mdb_txn_env(pTxn));
     g_cnt[ggg]--;
     LOGD("mdb_txn_commit:%d:[%d]opend=%d\n", Line, ggg, g_cnt[ggg]);
-    int txn_retval = mdb_txn_commit(txn);
+    int txn_retval = mdb_txn_commit(pTxn);
     if (txn_retval) {
         LOGE("ERR: %s\n", mdb_strerror(txn_retval));
     }
@@ -763,20 +776,25 @@ static inline int my_mdb_txn_commit(MDB_txn *pTxn, int Line) {
 }
 
 static inline void my_mdb_txn_abort(MDB_txn *pTxn, int Line) {
-    int ggg = (mdb_txn_env(txn) == mpEnvChannel) ? 0 : 1;
+    int ggg = env_number(mdb_txn_env(pTxn));
     g_cnt[ggg]--;
     LOGD("mdb_txn_abort:%d:[%d]opend=%d\n", Line, ggg, g_cnt[ggg]);
-    mdb_txn_abort(txn);
+    mdb_txn_abort(pTxn);
 }
 
 
 static inline int my_mdb_dbi_open(MDB_txn *pTxn, const char *pName, unsigned int Flags, MDB_dbi *pDbi, int Line) {
-    int retval = mdb_dbi_open(txn, pName, Flags, pDbi);
+    int retval = mdb_dbi_open(pTxn, pName, Flags, pDbi);
     LOGD("mdb_dbi_open(%d): retval=%d\n", Line, retval);
     if (retval && (retval != MDB_NOTFOUND)) {
         LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
     }
     return retval;
+}
+
+static inline void my_mdb_dbi_close(MDB_env *env, MDB_dbi Dbi, int Line) {
+    mdb_dbi_close(env, Dbi);
+    LOGD("mdb_dbi_close(%d)\n", Line);
 }
 #endif  //M_DB_DEBUG
 
@@ -4076,7 +4094,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
                 &pChannel->update_info.htlcs[lp].buf_preimage, data.mv_data, data.mv_size)) {
                 LOGE("fail: ???\n");
                 retval = -1;
-                mdb_dbi_close(mpEnvChannel, dbi);
+                MDB_DBI_CLOSE(mpEnvChannel, dbi);
                 break;
             }
         } else {
@@ -4092,7 +4110,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
                 &pChannel->update_info.htlcs[lp].buf_onion_reason, data.mv_data, data.mv_size)) {
                 LOGE("fail: ???\n");
                 retval = -1;
-                mdb_dbi_close(mpEnvChannel, dbi);
+                MDB_DBI_CLOSE(mpEnvChannel, dbi);
                 break;
             }
         } else {
@@ -4108,14 +4126,14 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
                 &pChannel->update_info.htlcs[lp].buf_shared_secret, data.mv_data, data.mv_size)) {
                 LOGE("fail: ???\n");
                 retval = -1;
-                mdb_dbi_close(mpEnvChannel, dbi);
+                MDB_DBI_CLOSE(mpEnvChannel, dbi);
                 break;
             }
         } else {
             //LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
             retval = 0;     //FALLTHROUGH
         }
-        mdb_dbi_close(mpEnvChannel, dbi);
+        MDB_DBI_CLOSE(mpEnvChannel, dbi);
     }
 
     return retval;
