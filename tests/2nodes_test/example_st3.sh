@@ -38,6 +38,12 @@ do
     if [ "$CHN3" -eq 3 ] && [ "$CHN4" -eq 3 ] && [ "$NOD3" -eq 2 ] && [ "$NOD4" -eq 2 ]; then
         break
     fi
+    PTARMS3333=`./ptarmcli -l 3334 | grep -c node_id`
+    PTARMS4444=`./ptarmcli -l 4445 | grep -c node_id`
+    if [ ${PTARMS3333} -ne 1 ] || [ ${PTARMS4444} -ne 1 ]; then
+        echo ptarmd exited
+        exit 1
+    fi
     sleep 3
 done
 
