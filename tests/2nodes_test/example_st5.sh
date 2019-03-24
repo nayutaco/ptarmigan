@@ -11,3 +11,22 @@
 # mining
 sleep 3
 ./generate.sh 1
+
+loop=1
+while [ $loop -eq 1 ];
+do
+    loop=0
+    for i in 3333 4444
+    do
+        TMPFILE=./tmp.st5
+        ./showdb -d node_$i -s >$TMPFILE || (ERR=$?; echo showdb failed=$ERR; exit $ERR)
+        cnt=`cat $TMPFILE | jq -e 'length'`
+        if [ $cnt -eq 0 ]; then
+            echo node_$i closed
+        else
+            echo node_$i not closed
+            sleep 5
+            loop=1
+        fi
+    done
+done
