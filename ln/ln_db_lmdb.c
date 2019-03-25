@@ -1847,6 +1847,7 @@ bool ln_db_cnlanno_del(uint64_t ShortChannelId)
         }
     }
     ln_db_anno_commit(true);
+    LOGD("remove channel_announcement: %016" PRIx64 "\n", ShortChannelId);
     return true;
 }
 
