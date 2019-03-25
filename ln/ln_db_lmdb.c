@@ -1230,18 +1230,18 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
     //backup
     memcpy(db_name, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR);
     retval = MDB_DBI_OPEN(p_cur->p_txn, db_name, MDB_CREATE, &dbi);
-        if (retval == 0) {
-            ln_lmdb_db_t db;
+    if (retval == 0) {
+        ln_lmdb_db_t db;
 
-        db.p_txn = p_cur->p_txn;
-            db.dbi = dbi;
-            retval = fixed_items_save(pChannel, &db, DBCHANNEL_COPY, ARRAY_SIZE(DBCHANNEL_COPY));
-            if (retval) {
-                LOGE("fail\n");
-            }
-        } else {
-            LOGE("ERR: %s\n", mdb_strerror(retval));
+    db.p_txn = p_cur->p_txn;
+        db.dbi = dbi;
+        retval = fixed_items_save(pChannel, &db, DBCHANNEL_COPY, ARRAY_SIZE(DBCHANNEL_COPY));
+        if (retval) {
+            LOGE("fail\n");
         }
+    } else {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+    }
     return true;
 }
 
