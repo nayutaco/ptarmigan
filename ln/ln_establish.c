@@ -867,11 +867,11 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
 
     ln_cb_param_sign_funding_tx_t param;
     param.p_tx =  &pChannel->funding_info.tx_data;
+    utl_buf_init(&param.buf_tx);
     if (pChannel->establish.p_fundin != NULL) {
         btc_tx_write(param.p_tx, &param.buf_tx);
         param.fundin_amount = pChannel->establish.p_fundin->amount;
     } else {
-        utl_buf_init(&param.buf_tx);
         param.fundin_amount = 0;
     }
     ln_callback(pChannel, LN_CB_TYPE_SIGN_FUNDING_TX, &param);
