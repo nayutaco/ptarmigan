@@ -1233,7 +1233,7 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
     if (retval == 0) {
         ln_lmdb_db_t db;
 
-    db.p_txn = p_cur->p_txn;
+        db.p_txn = p_cur->p_txn;
         db.dbi = dbi;
         retval = fixed_items_save(pChannel, &db, DBCHANNEL_COPY, ARRAY_SIZE(DBCHANNEL_COPY));
         if (retval) {
