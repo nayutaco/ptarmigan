@@ -628,7 +628,6 @@ static bool set_path(char *pPath, size_t Size, const char *pDir, const char *pNa
 static int db_open(ln_lmdb_db_t *pDb, MDB_env *env, const char *pDbName, int OptTxn, int OptDb);
 
 static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
-static void channel_db_close(ln_lmdb_db_t *pDb);
 static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
 static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
@@ -761,6 +760,9 @@ static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *pParent, unsigned int 
     int retval = mdb_txn_begin(env, pParent, Flags, ppTxn);
     if (retval == 0) {
         LOGD("  txnid=%lu\n", (unsigned long)mdb_txn_id(*ppTxn));
+    } else {
+        LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) abort();
     }
     return retval;
 }
@@ -769,11 +771,12 @@ static inline int my_mdb_txn_commit(MDB_txn *pTxn, int Line) {
     int ggg = env_number(mdb_txn_env(pTxn));
     g_cnt[ggg]--;
     LOGD("mdb_txn_commit:%d:[%d]opend=%d\n", Line, ggg, g_cnt[ggg]);
-    int txn_retval = mdb_txn_commit(pTxn);
-    if (txn_retval) {
-        LOGE("ERR: %s\n", mdb_strerror(txn_retval));
+    int retval = mdb_txn_commit(pTxn);
+    if (retval) {
+        LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) abort();
     }
-    return txn_retval;
+    return retval;
 }
 
 static inline void my_mdb_txn_abort(MDB_txn *pTxn, int Line) {
@@ -787,10 +790,11 @@ static inline void my_mdb_txn_abort(MDB_txn *pTxn, int Line) {
 static inline int my_mdb_dbi_open(MDB_txn *pTxn, const char *pName, unsigned int Flags, MDB_dbi *pDbi, int Line) {
     int retval = mdb_dbi_open(pTxn, pName, Flags, pDbi);
     LOGD("mdb_dbi_open(%d): retval=%d\n", Line, retval);
-    if (retval) {
-        LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
-    } else {
+    if (retval == 0) {
         LOGD("   DBI=%d\n", (int)*pDbi);
+    } else {
+        LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) abort();
     }
     return retval;
 }
@@ -1126,7 +1130,6 @@ bool ln_db_channel_save(const ln_channel_t *pChannel)
     }
 
     MDB_TXN_COMMIT(db.p_txn);
-    channel_db_close(&db);
     db.p_txn = NULL;
 
 LABEL_EXIT:
@@ -1210,21 +1213,35 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
         LOGE("ERR: %s\n", mdb_strerror(retval));
     }
 
-    //backup
-    memcpy(db_name, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR);
-    retval = MDB_DBI_OPEN(p_cur->p_txn, db_name, MDB_CREATE, &dbi);
+    //secret
+    memcpy(db_name, M_PREF_SECRET, M_SZ_PREF_STR);
+    retval = MDB_DBI_OPEN(p_cur->p_txn, db_name, 0, &dbi);
     if (retval == 0) {
-        ln_lmdb_db_t db;
-
-        db.p_txn = p_cur->p_txn;
-        db.dbi = dbi;
-        retval = fixed_items_save(pChannel, &db, DBCHANNEL_COPY, ARRAY_SIZE(DBCHANNEL_COPY));
-        if (retval) {
-            LOGE("fail\n");
+        retval = mdb_drop(p_cur->p_txn, dbi, 1);
+        if (retval == 0) {
+            LOGD("drop: %s\n", db_name);
+        } else {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
         }
     } else {
         LOGE("ERR: %s\n", mdb_strerror(retval));
     }
+
+    //backup
+    memcpy(db_name, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR);
+    retval = MDB_DBI_OPEN(p_cur->p_txn, db_name, MDB_CREATE, &dbi);
+        if (retval == 0) {
+            ln_lmdb_db_t db;
+
+        db.p_txn = p_cur->p_txn;
+            db.dbi = dbi;
+            retval = fixed_items_save(pChannel, &db, DBCHANNEL_COPY, ARRAY_SIZE(DBCHANNEL_COPY));
+            if (retval) {
+                LOGE("fail\n");
+            }
+        } else {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
     return true;
 }
 
@@ -1320,11 +1337,20 @@ void ln_db_channel_close(const uint8_t *pChannelId)
 
     db.p_txn = NULL;
 
-    LOGD("close: channel\n");
     memcpy(db_name, M_PREF_CHANNEL, M_SZ_PREF_STR);
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannelId, LN_SZ_CHANNEL_ID);
     retval = channel_db_open(&db, db_name, 0, 0);
     if (retval == 0) {
+        LOGD("close: channel(%s)\n", db_name);
+        MDB_DBI_CLOSE(mpEnvChannel, db.dbi);
+    } else {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+    }
+
+    memcpy(db_name, M_PREF_SECRET, M_SZ_PREF_STR);
+    retval = MDB_DBI_OPEN(db.p_txn, db_name, 0, &db.dbi);
+    if (retval == 0) {
+        LOGD("close: secret(%s)\n", db_name);
         MDB_DBI_CLOSE(mpEnvChannel, db.dbi);
     } else {
         LOGE("ERR: %s\n", mdb_strerror(retval));
@@ -1335,10 +1361,10 @@ void ln_db_channel_close(const uint8_t *pChannelId)
     memcpy(htlc_name, M_PREF_HTLC, M_SZ_PREF_STR);
     utl_str_bin2str(htlc_name + M_SZ_PREF_STR, pChannelId, LN_SZ_CHANNEL_ID);
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        LOGD("close: htlc[%d]\n", lp);
         channel_htlc_db_name(htlc_name, lp);
         retval = MDB_DBI_OPEN(db.p_txn, htlc_name, 0, &dbi);
         if (retval == 0) {
+            LOGD("close: htlc(%s)\n", htlc_name);
             MDB_DBI_CLOSE(mpEnvChannel, dbi);
         } else {
             LOGE("ERR: %s\n", mdb_strerror(retval));
@@ -1430,7 +1456,6 @@ bool ln_db_secret_save(ln_channel_t *pChannel)
     retval = fixed_items_save(pChannel, &db, DBCHANNEL_SECRET, ARRAY_SIZE(DBCHANNEL_SECRET));
     if (retval == 0) {
         MDB_TXN_COMMIT(db.p_txn);
-        channel_db_close(&db);
     } else {
         MDB_TXN_ABORT(db.p_txn);
     }
@@ -4097,12 +4122,6 @@ static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, i
 }
 
 
-static void channel_db_close(ln_lmdb_db_t *pDb)
-{
-    MDB_DBI_CLOSE(mpEnvChannel, pDb->dbi);
-}
-
-
 /** channel: htlc読み込み
  *
  * @param[out]      pChannel
@@ -4392,7 +4411,6 @@ LABEL_EXIT:
     if (p_bak_db_param == NULL) {
         if (retval == 0) {
             MDB_TXN_COMMIT(db.p_txn);
-            channel_db_close(&db);
         } else {
             MDB_TXN_ABORT(db.p_txn);
         }
@@ -4490,7 +4508,6 @@ static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable)
     MDB_CURSOR_CLOSE(pCur->p_cursor);
     if (bWritable) {
         MDB_TXN_COMMIT(pCur->p_txn);
-        channel_db_close((ln_lmdb_db_t *)pCur);
     } else {
         MDB_TXN_ABORT(pCur->p_txn);
     }
