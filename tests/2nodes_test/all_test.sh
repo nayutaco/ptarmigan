@@ -1,4 +1,16 @@
-#!/bin/bash -ue
+#!/bin/bash
+
+LOOP=false
+
+if [ "$1" == "1" ]; then
+    echo "===== LOOP TEST ====="
+    LOOP=true
+elif [ "$1" == "2" ]; then
+    echo "===== ONCE TEST ====="
+    LOOP=stop
+else
+    echo "===== TEST ====="
+fi
 
 START=`date +%s`
 
@@ -15,7 +27,6 @@ echo st2 start
 sleep 5 # wait conf file
 echo st2 end
 
-echo repeat OPEN/CLOSE
 while :
 do
 
@@ -84,6 +95,12 @@ echo st5 start
 ./example_st5.sh
 sleep 5 # XXX: TODO
 echo st5 end
+
+if [ ${LOOP} == 'false' ]; then
+    break
+elif [ ${LOOP} == 'stop' ]; then
+    exit 0
+fi
 
 done
 

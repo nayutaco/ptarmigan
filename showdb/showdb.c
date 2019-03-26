@@ -64,19 +64,18 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
-#define SHOW_CHANNEL            (0x0001)
-#define SHOW_CHANNEL_WALLET     (0x0002)
-#define SHOW_ANNOCNL            (0x0004)
-#define SHOW_DEBUG              (0x0008)
-#define SHOW_ANNONODE           (0x0010)
-#define SHOW_CHANNEL_LISTCH     (0x0020)
-#define SHOW_ANNOINFO           (0x0040)
-#define SHOW_VERSION            (0x0080)
-#define SHOW_PREIMAGE           (0x0100)
-#define SHOW_ROUTE_SKIP          (0x0200)
-#define SHOW_INVOICE            (0x0400)
-#define SHOW_CLOSED_CH          (0x0800)
-#define SHOW_WALLET             (0x1000)
+#define SHOW_CHANNEL            (1 << 0)
+#define SHOW_CHANNEL_WALLET     (1 << 1)
+#define SHOW_ANNOCNL            (1 << 2)
+#define SHOW_DEBUG              (1 << 3)
+#define SHOW_ANNONODE           (1 << 4)
+#define SHOW_CHANNEL_LISTCH     (1 << 5)
+#define SHOW_ANNOINFO           (1 << 6)
+#define SHOW_VERSION            (1 << 7)
+#define SHOW_PREIMAGE           (1 << 8)
+#define SHOW_ROUTE_SKIP         (1 << 9)
+#define SHOW_INVOICE            (1 << 10)
+#define SHOW_WALLET             (1 << 11)
 
 #define M_SZ_CNLANNO_INFO       (sizeof(uint64_t) + 1)
 #define M_SZ_NODEANNO_INFO      (BTC_SZ_PUBKEY)
@@ -105,7 +104,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len);
 #else
 #define ln_print_announce(...)          //nothing
 #endif  //PTARM_USE_PRINTFUNC
-void ln_lmdb_set_env(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_wallet);
+void ln_lmdb_set_env(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_wallet, MDB_env *p_closed);
 
 
 /********************************************************************
@@ -123,6 +122,7 @@ static MDB_env      *mpDbChannel = NULL;
 static MDB_env      *mpDbNode = NULL;
 static MDB_env      *mpDbAnno = NULL;
 static MDB_env      *mpDbWalt = NULL;
+static MDB_env      *mpDbClosed = NULL;
 static FILE         *fp_err;
 
 
@@ -662,22 +662,6 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-static void dumpit_bkchannel(MDB_txn *txn, MDB_dbi dbi)
-{
-    //bkchannel
-    if (showflag & (SHOW_CLOSED_CH)) {
-        if (cnt5) {
-            printf(",\n");
-        } else {
-            printf(INDENT1 M_QQ("closed_channel") ": [\n");
-        }
-        printf(INDENT2 "{\n");
-        ln_lmdb_channel_backup_show(txn, dbi);
-        printf(INDENT2 "}");
-        cnt5++;
-    }
-}
-
 static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
 {
     (void)p_param;
@@ -1098,7 +1082,7 @@ int main(int argc, char *argv[])
 
     ret = mdb_env_create(&mpDbChannel);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbChannel, 10);
+    ret = mdb_env_set_maxdbs(mpDbChannel, 50);
     assert(ret == 0);
     ret = mdb_env_open(mpDbChannel, ln_lmdb_get_channel_db_path(), MDB_RDONLY, 0664);
     if (ret) {
@@ -1107,7 +1091,7 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbNode, 10);
+    ret = mdb_env_set_maxdbs(mpDbNode, 50);
     assert(ret == 0);
     ret = mdb_env_open(mpDbNode, ln_lmdb_get_node_db_path(), MDB_RDONLY, 0664);
     if (ret) {
@@ -1116,7 +1100,7 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbAnno);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbAnno, 10);
+    ret = mdb_env_set_maxdbs(mpDbAnno, 50);
     assert(ret == 0);
     ret = mdb_env_open(mpDbAnno, ln_lmdb_get_anno_db_path(), MDB_RDONLY, 0664);
     if (ret) {
@@ -1125,11 +1109,20 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbWalt);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbWalt, 10);
+    ret = mdb_env_set_maxdbs(mpDbWalt, 50);
     assert(ret == 0);
     ret = mdb_env_open(mpDbWalt, ln_lmdb_get_wallet_db_path(), MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_anno_db_path());
+        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_wallet_db_path());
+        //return -1;
+    }
+    ret = mdb_env_create(&mpDbClosed);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(mpDbClosed, 50);
+    assert(ret == 0);
+    ret = mdb_env_open(mpDbClosed, ln_lmdb_get_closed_db_path(), MDB_RDONLY, 0664);
+    if (ret) {
+        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_closed_db_path());
         //return -1;
     }
 
@@ -1159,8 +1152,8 @@ int main(int argc, char *argv[])
             p_env = mpDbChannel;
             break;
         case 'q':
-            showflag = SHOW_CLOSED_CH;
-            p_env = mpDbChannel;
+            showflag = SHOW_CHANNEL;
+            p_env = mpDbClosed;
             break;
         case 'c':
             showflag = SHOW_ANNOCNL;
@@ -1236,7 +1229,7 @@ int main(int argc, char *argv[])
     }
 
 
-    ln_lmdb_set_env(mpDbChannel, mpDbNode, mpDbAnno, mpDbWalt);
+    ln_lmdb_set_env(mpDbChannel, mpDbNode, mpDbAnno, mpDbWalt, mpDbClosed);
 
     btc_block_chain_t gtype;
     bool bret = ln_db_version_check(NULL, &gtype);
@@ -1297,17 +1290,14 @@ int main(int argc, char *argv[])
             if (list) {
                 list++;
             } else {
-                ln_lmdb_db_type_t db_type = ln_lmdb_get_db_type(name);
+                ln_lmdb_db_type_t db_type = ln_lmdb_get_db_type(p_env, name);
                 switch (db_type) {
                 case LN_LMDB_DB_TYPE_CHANNEL:
                     dumpit_channel(txn, dbi2);
                     break;
                 case LN_LMDB_DB_TYPE_SECRET:
                 case LN_LMDB_DB_TYPE_HTLC:
-                    //LN_LMDB_DB_TYPE_CHANNELで読み込むので、スルー
-                    break;
-                case LN_LMDB_DB_TYPE_CHANNEL_BACKUP:
-                    dumpit_bkchannel(txn, dbi2);
+                case LN_LMDB_DB_TYPE_REVOKED_TX:
                     break;
                 case LN_LMDB_DB_TYPE_WALLET:
                     dumpit_wallet(txn, dbi2);
@@ -1334,6 +1324,13 @@ int main(int argc, char *argv[])
                 case LN_LMDB_DB_TYPE_VERSION:
                     dumpit_version(txn, dbi2);
                     break;
+                case LN_LMDB_DB_TYPE_CLOSED_CHANNEL:
+                    dumpit_channel(txn, dbi2);
+                    break;
+                case LN_LMDB_DB_TYPE_CLOSED_SECRET:
+                case LN_LMDB_DB_TYPE_CLOSED_HTLC:
+                case LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX:
+                    break;
                 default:
                     fprintf(stderr, "unknown name[%s]\n", name);
                     break;
@@ -1353,6 +1350,7 @@ int main(int argc, char *argv[])
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
 
+    mdb_env_close(mpDbClosed);
     mdb_env_close(mpDbWalt);
     mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbNode);
