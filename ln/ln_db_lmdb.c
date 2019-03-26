@@ -87,7 +87,7 @@
 #define M_FORWARD_MAXDBS        (MAX_CHANNELS)              ///< 同時オープンできるDB数
 #define M_FORWARD_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
-#define M_CLOSED_MAXDBS         (2)                         ///< 同時オープンできるDB数
+#define M_CLOSED_MAXDBS         (10)                        ///< 同時オープンできるDB数
 #define M_CLOSED_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
 #define M_DB_PATH_STR_MAX       (PATH_MAX - 1)              //path max but exclude null char
@@ -277,7 +277,7 @@
 #define MDB_TXN_CHECK_FORWARD(a)    //none
 #define MDB_TXN_CHECK_CLOSED(a)     //none
 #else
-static volatile int g_cnt[5];
+static volatile int g_cnt[6];
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
 #define MDB_TXN_ABORT(a)            { my_mdb_txn_abort(a, __LINE__); (a) = NULL; }
 #define MDB_TXN_COMMIT(a)           { my_mdb_txn_commit(a, __LINE__); (a) = NULL; }
