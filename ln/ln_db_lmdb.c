@@ -87,6 +87,9 @@
 #define M_FORWARD_MAXDBS        (MAX_CHANNELS)              ///< 同時オープンできるDB数
 #define M_FORWARD_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
+#define M_CLOSED_MAXDBS         (2)                         ///< 同時オープンできるDB数
+#define M_CLOSED_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
+
 #define M_DB_PATH_STR_MAX       (PATH_MAX - 1)              //path max but exclude null char
 #define M_DB_DIR                "db"
 #define M_CHANNEL_ENV_DIR       "channel"                   ///< channel
@@ -94,6 +97,7 @@
 #define M_ANNO_ENV_DIR          "anno"                      ///< announcement
 #define M_WALLET_ENV_DIR        "wallet"                    ///< 1st layer wallet
 #define M_FORWARD_ENV_DIR       "forward"                   ///< forward
+#define M_CLOSED_ENV_DIR        "closed"                    ///< closed
 
 
 #define M_NUM_CHANNEL_BUFS      (3)                         ///< DB保存するvariable長データ数
@@ -106,7 +110,6 @@
 #define M_PREF_SECRET           "SE"                        ///< secret
 #define M_PREF_HTLC             "HT"                        ///< htlc
 #define M_PREF_REVOKED_TX       "RV"                        ///< revoked transaction
-#define M_PREF_CHANNEL_BACKUP   "cn"                        ///< closed channel backup
 #define M_PREF_FORWARD_ADD_HTLC "AD"                        ///< forward add htlc msg
 #define M_PREF_FORWARD_DEL_HTLC "DL"                        ///< forward del htlc msg
 
@@ -239,6 +242,8 @@
     -60: increase the num of htlcs (6 -> 12)
     -61: rm `ln_htlc_id::neighbor_idx`
          add `ln_htlc_id::neighbor_id`
+    -62: add closed channel environment
+         move backup db to closed channel environment
  */
 
 
@@ -270,6 +275,7 @@
 #define MDB_TXN_CHECK_ANNO(a)       //none
 #define MDB_TXN_CHECK_WALLET(a)     //none
 #define MDB_TXN_CHECK_FORWARD(a)    //none
+#define MDB_TXN_CHECK_CLOSED(a)     //none
 #else
 static volatile int g_cnt[5];
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
@@ -284,6 +290,7 @@ static volatile int g_cnt[5];
 #define MDB_TXN_CHECK_ANNO(a)       if (mdb_txn_env(a) != mpEnvAnno) { LOGE("ERR: txn not ANNO\n"); abort(); }
 #define MDB_TXN_CHECK_WALLET(a)     if (mdb_txn_env(a) != mpEnvWallet) { LOGE("ERR: txn not WALLET\n"); abort(); }
 #define MDB_TXN_CHECK_FORWARD(a)    if (mdb_txn_env(a) != mpEnvForward) { LOGE("ERR: txn not FORWARD\n"); abort(); }
+#define MDB_TXN_CHECK_CLOSED(a)     if (mdb_txn_env(a) != mpEnvClosed) { LOGE("ERR: txn not CLOSED\n"); abort(); }
 #endif
 
 
@@ -367,6 +374,7 @@ static MDB_env      *mpEnvNode = NULL;          //node
 static MDB_env      *mpEnvAnno = NULL;          //announcement
 static MDB_env      *mpEnvWallet = NULL;        //wallet
 static MDB_env      *mpEnvForward = NULL;       //forward
+static MDB_env      *mpEnvClosed = NULL;        //closed channel
 
 static char         mPath[M_DB_PATH_STR_MAX + 1];
 
@@ -375,6 +383,7 @@ static char         mPathNode[M_DB_PATH_STR_MAX + 1];
 static char         mPathAnno[M_DB_PATH_STR_MAX + 1];
 static char         mPathWallet[M_DB_PATH_STR_MAX + 1];
 static char         mPathForward[M_DB_PATH_STR_MAX + 1];
+static char         mPathClosed[M_DB_PATH_STR_MAX + 1];
 
 static pthread_mutex_t  mMuxAnno;
 static MDB_txn          *mpTxnAnno;
@@ -521,74 +530,6 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
 
 
 /**
- *  @var    DBCHANNEL_COPY
- *  @brief  値コピー用
- *  @note
- *      - DBCHANNEL_COPY[]とDBCHANNEL_COPYIDX[]を同時に更新すること
- */
-static const fixed_item_t DBCHANNEL_COPY[] = {
-    M_ITEM(ln_channel_t, peer_node_id),
-    M_ITEM(ln_channel_t, channel_id),
-    M_ITEM(ln_channel_t, short_channel_id),
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id),
-    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txid),
-    MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, txindex),
-    M_ITEM(ln_channel_t, keys_local),
-    M_ITEM(ln_channel_t, keys_remote),
-    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, commit_num),
-    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, revoke_num),
-    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, local_msat),
-    MM_ITEM(ln_channel_t, commit_info_local, ln_commit_info_t, remote_msat),
-    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, commit_num),
-    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, revoke_num),
-    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, local_msat),
-    MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, remote_msat),
-};
-
-
-/**
- *  @var    DBCHANNEL_COPYIDX
- *  @brief  値コピー用(index)
- *  @note
- *      - DBCHANNEL_COPY[]とDBCHANNEL_COPYIDX[]を同時に更新すること
- */
-static const struct {
-    enum {
-        ETYPE_BYTEPTR,      //const uint8_t*
-        ETYPE_UINT64U,      //uint64_t(unsigned decimal)
-        ETYPE_UINT64X,      //uint64_t(unsigned hex)
-        ETYPE_UINT16,       //uint16_t
-        ETYPE_TXID,         //txid
-        ETYPE_FUNDTXID,     //funding_local.txid
-        ETYPE_FUNDTXIDX,    //funding_local.txindex
-        ETYPE_LOCALKEYS,    //keys_local
-        ETYPE_REMOTEKEYS,   //keys_remote
-        ETYPE_SHORT_CHANNEL_ID,     //short_channel_id
-        //ETYPE_REMOTECOMM,   //funding_remote.prev_percommit
-    } type;
-    int length;
-    bool disp;      //true: showdbで表示する
-} DBCHANNEL_COPYIDX[] = {
-    { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },      // peer_node_id
-    { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
-    { ETYPE_SHORT_CHANNEL_ID,   1, true },          // short_channel_id
-    { ETYPE_UINT64U,    1, true },                  // num_htlc_ids
-    { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_txid
-    { ETYPE_FUNDTXIDX,  1, true },                  // funding_txindex
-    { ETYPE_LOCALKEYS,  1, false },                 // keys_local
-    { ETYPE_REMOTEKEYS, 1, false },                 // keys_remote
-    { ETYPE_UINT64U,    1, true },                  // commit_info_local.commit_num
-    { ETYPE_UINT64U,    1, true },                  // commit_info_local.revoke_num
-    { ETYPE_UINT64U,    1, true },                  // commit_info_local.local_msat
-    { ETYPE_UINT64U,    1, true },                  // commit_info_local.remote_msat
-    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.commit_num
-    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.revoke_num
-    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.local_msat
-    { ETYPE_UINT64U,    1, true },                  // commit_info_remote.remote_msat
-};
-
-
-/**
  *  @var    DBHTLC_VALUES
  *  @brief  HTLC
  */
@@ -616,6 +557,7 @@ static const init_param_t INIT_PARAM[] = {
     //M_INIT_PARAM_WALLET
     { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 0 },
     { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 0 },
+    { &mpEnvClosed, mPathClosed, M_CLOSED_MAXDBS, M_CLOSED_MAPSIZE, 0 },
 };
 
 
@@ -847,6 +789,7 @@ bool ln_lmdb_set_home_dir(const char *pPath)
     if (!set_path(mPathAnno, sizeof(mPathAnno), mPath, M_ANNO_ENV_DIR)) return false;
     if (!set_path(mPathWallet, sizeof(mPathWallet), mPath, M_WALLET_ENV_DIR)) return false;
     if (!set_path(mPathForward, sizeof(mPathForward), mPath, M_FORWARD_ENV_DIR)) return false;
+    if (!set_path(mPathClosed, sizeof(mPathClosed), mPath, M_CLOSED_ENV_DIR)) return false;
 
     LOGD("db dir: %s\n", mPath);
     LOGD("  channel: %s\n", mPathChannel);
@@ -854,6 +797,7 @@ bool ln_lmdb_set_home_dir(const char *pPath)
     LOGD("  anno: %s\n", mPathAnno);
     LOGD("  wallet: %s\n", mPathWallet);
     LOGD("  forward: %s\n", mPathForward);
+    LOGD("  closed: %s\n", mPathClosed);
     return true;
 }
 
@@ -893,6 +837,12 @@ const char *ln_lmdb_get_wallet_db_path(void)
 const char *ln_lmdb_get_forward_db_path(void)
 {
     return mPathForward;
+}
+
+
+const char *ln_lmdb_get_closed_db_path(void)
+{
+    return mPathClosed;
 }
 
 
@@ -1002,6 +952,8 @@ void ln_db_term(void)
 
     pthread_mutex_destroy(&mMuxAnno);
 
+    mdb_env_close(mpEnvClosed);
+    mpEnvClosed = NULL;
     mdb_env_close(mpEnvForward);
     mpEnvForward = NULL;
     mdb_env_close(mpEnvWallet);
@@ -1157,18 +1109,95 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
     MDB_dbi         dbi;
     char            db_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
     lmdb_cursor_t   *p_cur = (lmdb_cursor_t *)pDbParam;
+    MDB_cursor      *p_cursor = NULL;
+    MDB_txn         *txn_closed = NULL;
+    MDB_dbi         dbi_closed;
+    MDB_val         key, data;
+    char            chanid_str[LN_SZ_CHANNEL_ID * 2 + 1];
+
+    utl_str_bin2str(chanid_str, pChannel->channel_id, LN_SZ_CHANNEL_ID);
+
+    LOGD("del channel_id=%s\n", chanid_str);
 
     MDB_TXN_CHECK_CHANNEL(p_cur->p_txn);
+
+    //copy to closed
+    retval = MDB_DBI_OPEN(p_cur->p_txn, NULL, 0, &dbi);
+    if (retval == 0) {
+        retval = mdb_cursor_open(p_cur->p_txn, dbi, &p_cursor);
+    }
+    if (retval == 0) {
+        while (mdb_cursor_get(p_cursor, &key, NULL, MDB_NEXT_NODUP) == 0) {
+            MDB_dbi dbi2;
+            MDB_cursor *p_cursor2 = NULL;
+            if (memchr(key.mv_data, '\0', key.mv_size)) {
+                continue;
+            }
+            if ( (key.mv_size >= M_SZ_CHANNEL_DB_NAME_STR) &&
+                 (memcmp(key.mv_data + M_SZ_PREF_STR, chanid_str, LN_SZ_CHANNEL_ID * 2) == 0) ) {
+
+                //closed env
+                txn_closed = NULL;
+                char *name = (char *)UTL_DBG_MALLOC(key.mv_size + 1);
+                memcpy(name, key.mv_data, key.mv_size);
+                name[key.mv_size] = '\0';
+                LOGD("copy[%s]\n", name);
+                retval = MDB_TXN_BEGIN(mpEnvClosed, NULL, 0, &txn_closed);
+                if (retval == 0) {
+                    retval = MDB_DBI_OPEN(txn_closed, name, MDB_CREATE, &dbi_closed);
+                }
+                if (retval == 0) {
+                    retval = MDB_DBI_OPEN(p_cur->p_txn, name, 0, &dbi2);
+                }
+                UTL_DBG_FREE(name);
+                if (retval == 0) {
+                    retval = mdb_cursor_open(p_cur->p_txn, dbi2, &p_cursor2);
+                }
+                if (retval == 0) {
+                    while (mdb_cursor_get(p_cursor2, &key, &data, MDB_NEXT_NODUP) == 0) {
+                        int retval2 = mdb_put(txn_closed, dbi_closed, &key, &data, 0);
+                        if (retval2 != 0) {
+                            LOGE("ERR: %s\n", mdb_strerror(retval2));
+                        }
+                    }
+                }
+                if (p_cursor2 != NULL) {
+                    MDB_CURSOR_CLOSE(p_cursor2);
+                }
+                if (retval == 0) {
+                    MDB_TXN_COMMIT(txn_closed);
+                    MDB_DBI_CLOSE(mpEnvClosed, dbi_closed);
+                } else {
+                    MDB_TXN_ABORT(txn_closed);
+                }
+                if (retval != 0) {
+                    LOGE("ERR: %s\n", mdb_strerror(retval));
+                }
+            }
+        }
+    }
+    if (p_cursor != NULL) {
+        MDB_CURSOR_CLOSE(p_cursor);
+    }
+    if (retval == 0) {
+    } else {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (txn_closed != NULL) {
+            MDB_TXN_ABORT(txn_closed);
+        }
+    }
 
     //remove preimages
     preimage_close_t param;
     param.p_htlcs = pChannel->update_info.htlcs;
     ln_db_preimage_search(preimage_cmp_all_func, &param);
 
-    //htlcs
-    memcpy(db_name, M_PREF_HTLC, M_SZ_PREF_STR);
-    utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
+    //db_name base
+    memcpy(db_name + M_SZ_PREF_STR, chanid_str, LN_SZ_CHANNEL_ID * 2);
+
+   //htlcs
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        memcpy(db_name, M_PREF_HTLC, M_SZ_PREF_STR);
         channel_htlc_db_name(db_name, lp);
         //LOGD("[%d]db_name: %s\n", lp, db_name);
 
@@ -1186,9 +1215,11 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
         LOGD("drop: %s\n", db_name);
     }
 
+    //shorten
+    db_name[M_SZ_CHANNEL_DB_NAME_STR] = '\0';
+
     //revoked transaction
     memcpy(db_name, M_PREF_REVOKED_TX, M_SZ_PREF_STR);
-    utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
     retval = MDB_DBI_OPEN(p_cur->p_txn, db_name, 0, &dbi);
     if (retval == 0) {
         retval = mdb_drop(p_cur->p_txn, dbi, 1);
@@ -1222,22 +1253,6 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
             LOGD("drop: %s\n", db_name);
         } else {
             LOGE("ERR: %s\n", mdb_strerror(retval));
-        }
-    } else {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-    }
-
-    //backup
-    memcpy(db_name, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR);
-    retval = MDB_DBI_OPEN(p_cur->p_txn, db_name, MDB_CREATE, &dbi);
-    if (retval == 0) {
-        ln_lmdb_db_t db;
-
-        db.p_txn = p_cur->p_txn;
-        db.dbi = dbi;
-        retval = fixed_items_save(pChannel, &db, DBCHANNEL_COPY, ARRAY_SIZE(DBCHANNEL_COPY));
-        if (retval) {
-            LOGE("fail\n");
         }
     } else {
         LOGE("ERR: %s\n", mdb_strerror(retval));
@@ -1373,69 +1388,6 @@ void ln_db_channel_close(const uint8_t *pChannelId)
 
     LOGD("close: end\n");
     MDB_TXN_ABORT(db.p_txn);
-}
-
-
-void ln_lmdb_channel_backup_show(MDB_txn *pTxn, MDB_dbi Dbi)
-{
-    MDB_val         key, data;
-
-    for (size_t lp = 0; lp < ARRAY_SIZE(DBCHANNEL_COPY); lp++) {
-        key.mv_size = strlen(DBCHANNEL_COPY[lp].p_name);
-        key.mv_data = (CONST_CAST char*)DBCHANNEL_COPY[lp].p_name;
-        int retval = mdb_get(pTxn, Dbi, &key, &data);
-        if (retval) {
-            LOGE("fail: %s\n", DBCHANNEL_COPY[lp].p_name);
-            continue;
-        }
-        if (!DBCHANNEL_COPYIDX[lp].disp) {
-            continue;
-        }
-
-        const uint8_t *p = (const uint8_t *)data.mv_data;
-        if (lp != 0) {
-            printf(",\n");
-        }
-        printf("      \"%s\": ", DBCHANNEL_COPY[lp].p_name);
-        switch (DBCHANNEL_COPYIDX[lp].type) {
-        case ETYPE_BYTEPTR: //const uint8_t*
-        //case ETYPE_REMOTECOMM:
-            printf("\"");
-            utl_dbg_dump(stdout, p, DBCHANNEL_COPYIDX[lp].length, false);
-            printf("\"");
-            break;
-        case ETYPE_UINT64U:
-            printf("%" PRIu64 "", *(const uint64_t *)p);
-            break;
-        case ETYPE_UINT64X:
-            printf("\"%016" PRIx64 "\"", *(const uint64_t *)p);
-            break;
-        case ETYPE_UINT16:
-        case ETYPE_FUNDTXIDX:
-            printf("%" PRIu16, *(const uint16_t *)p);
-            break;
-        case ETYPE_TXID: //txid
-        case ETYPE_FUNDTXID:
-            printf("\"");
-            btc_dbg_dump_txid(stdout, p);
-            printf("\"");
-            break;
-        case ETYPE_LOCALKEYS: //keys_local
-            break;
-        case ETYPE_REMOTEKEYS: //keys_remote
-            break;
-        case ETYPE_SHORT_CHANNEL_ID: //short_channel_id
-            {
-                char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-                ln_short_channel_id_string(str_sci, *(const uint64_t *)p);
-                printf("\"%s\"", str_sci);
-            }
-            break;
-        default:
-            ;
-        }
-    }
-    printf("\n");
 }
 
 
@@ -3853,13 +3805,19 @@ int ln_db_lmdb_get_my_node_id(
  * others
  ********************************************************************/
 
-ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName)
+ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
 {
-    if (strncmp(pDbName, M_PREF_CHANNEL, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CHANNEL;
-    if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_SECRET;
-    if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_HTLC;
-    if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_REVOKED_TX;
-    if (strncmp(pDbName, M_PREF_CHANNEL_BACKUP, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CHANNEL_BACKUP;
+    if (pEnv == mpEnvChannel) {
+        if (strncmp(pDbName, M_PREF_CHANNEL, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CHANNEL;
+        if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_SECRET;
+        if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_HTLC;
+        if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_REVOKED_TX;
+    } else if (pEnv == mpEnvClosed) {
+        if (strncmp(pDbName, M_PREF_CHANNEL, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_CHANNEL;
+        if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_SECRET;
+        if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_HTLC;
+        if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX;
+    }
 
     if (strcmp(pDbName, M_DBI_WALLET) == 0) return LN_LMDB_DB_TYPE_WALLET;
     if (strcmp(pDbName, M_DBI_CNLANNO) == 0) return LN_LMDB_DB_TYPE_CNLANNO;
@@ -3874,6 +3832,7 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName)
 
     if (strncmp(pDbName, M_PREF_FORWARD_ADD_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_ADD;
     if (strncmp(pDbName, M_PREF_FORWARD_DEL_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_DEL;
+
     return LN_LMDB_DB_TYPE_UNKNOWN;
 }
 
@@ -3881,12 +3840,13 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName)
 /* showdb/routingから使用される。
  *
  */
-void ln_lmdb_set_env(MDB_env *pEnv, MDB_env *pNode, MDB_env *pAnno, MDB_env *pWallet)
+void ln_lmdb_set_env(MDB_env *pEnv, MDB_env *pNode, MDB_env *pAnno, MDB_env *pWallet, MDB_env *pClosed)
 {
     mpEnvChannel = pEnv;
     mpEnvNode = pNode;
     mpEnvAnno = pAnno;
     mpEnvWallet = pWallet;
+    mpEnvClosed = pClosed;
 }
 
 

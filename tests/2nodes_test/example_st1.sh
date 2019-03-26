@@ -2,7 +2,7 @@
 INSTALL_DIR=`pwd`/../../install
 CONFFILE=`pwd`/regtest.conf
 DATADIR=`pwd`
-SLEEP_TM=3
+SLEEP_TM=5
 
 cli() {
 	bitcoin-cli -conf=$CONFFILE -datadir=$DATADIR $@

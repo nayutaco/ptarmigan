@@ -142,7 +142,6 @@ typedef enum {
     LN_LMDB_DB_TYPE_SECRET,
     LN_LMDB_DB_TYPE_HTLC,
     LN_LMDB_DB_TYPE_REVOKED_TX,
-    LN_LMDB_DB_TYPE_CHANNEL_BACKUP,
     LN_LMDB_DB_TYPE_WALLET,
     LN_LMDB_DB_TYPE_CNLANNO,
     LN_LMDB_DB_TYPE_NODEANNO,
@@ -155,6 +154,10 @@ typedef enum {
     LN_LMDB_DB_TYPE_VERSION,
     LN_LMDB_DB_TYPE_FORWARD_ADD,
     LN_LMDB_DB_TYPE_FORWARD_DEL,
+    LN_LMDB_DB_TYPE_CLOSED_CHANNEL,
+    LN_LMDB_DB_TYPE_CLOSED_SECRET,
+    LN_LMDB_DB_TYPE_CLOSED_HTLC,
+    LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX,
 } ln_lmdb_db_type_t;
 
 
@@ -228,6 +231,13 @@ const char *ln_lmdb_get_wallet_db_path(void);
 const char *ln_lmdb_get_forward_db_path(void);
 
 
+/** LMDB closedパス取得
+ *
+ * @return  closedパス
+ */
+const char *ln_lmdb_get_closed_db_path(void);
+
+
 /** channel情報読込み
  *
  * @param[out]      pChannel
@@ -240,12 +250,6 @@ const char *ln_lmdb_get_forward_db_path(void);
  *      - 新規 pChannel に読込を行う場合は、事前に #ln_init()を行っておくこと(seedはNULLでよい)
  */
 int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, bool bRestore);
-
-
-/** closeしたDB("cn")を出力
- *
- */
-void ln_lmdb_channel_backup_show(MDB_txn *pTxn, MDB_dbi Dbi);
 
 
 /**
@@ -261,7 +265,7 @@ int ln_lmdb_cnlanno_cur_load(MDB_cursor *pCur, uint64_t *pShortChannelId, char *
 int ln_lmdb_nodeanno_cur_load(MDB_cursor *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
-ln_lmdb_db_type_t ln_lmdb_get_db_type(const char *pDbName);
+ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName);
 
 
 int ln_db_lmdb_get_my_node_id(MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis);
