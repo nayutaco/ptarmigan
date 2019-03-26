@@ -315,7 +315,7 @@ bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel)
     pChannel->commit_info_remote.to_self_delay = msg.to_self_delay; //XXX:
 
     //obscured commitment tx number
-    pChannel->commit_info_local.obscured_commit_num_mask = 
+    pChannel->commit_info_local.obscured_commit_num_mask =
         pChannel->commit_info_remote.obscured_commit_num_mask =
         ln_commit_tx_calc_obscured_commit_num_mask(
             pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_PAYMENT],
@@ -819,8 +819,8 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         //FEE計算
         // LEN+署名(72) + LEN+公開鍵(33)
         //  この時点では、pChannel->funding_info.tx_data に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
-        //  feeを決めるためにvsizeを算出したいが、
         //
+        //    (length)
         //      version:4
         //      flag:1
         //      mark:1
@@ -855,7 +855,8 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     } else {
         //for SPV
         //fee計算と署名はSPVに任せる(LN_CB_TYPE_SIGN_FUNDING_TXで吸収する)
-        //その代わり、ln_funding_info_txindex(&pChannel->funding_info)は固定値にならない。
+
+        //funding address(vout[0])
         btc_sw_add_vout_p2wsh_wit(
             &pChannel->funding_info.tx_data, pChannel->funding_info.funding_satoshis, &pChannel->funding_info.wit_script);
         btc_tx_add_vin(&pChannel->funding_info.tx_data, ln_funding_info_txid(&pChannel->funding_info), 0); //dummy
@@ -866,12 +867,15 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
 
     ln_cb_param_sign_funding_tx_t param;
     param.p_tx =  &pChannel->funding_info.tx_data;
+    utl_buf_init(&param.buf_tx);
     if (pChannel->establish.p_fundin != NULL) {
-        param.amount = pChannel->establish.p_fundin->amount;
+        btc_tx_write(param.p_tx, &param.buf_tx);
+        param.fundin_amount = pChannel->establish.p_fundin->amount;
     } else {
-        param.amount = 0;
+        param.fundin_amount = 0;
     }
     ln_callback(pChannel, LN_CB_TYPE_SIGN_FUNDING_TX, &param);
+    utl_buf_free(&param.buf_tx);
     if (!param.ret) {
         LOGE("fail: signature\n");
         btc_tx_free(&pChannel->funding_info.tx_data);

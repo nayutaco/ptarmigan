@@ -125,14 +125,14 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
 bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout);
 
 
-/** [bitcoin IF]signrawtransaction
- * @param[out]  pTx         signed transaction
- * @param[in]   pData       [bitcoind]raw transaction, [SPV]scriptPubKey
- * @param[in]   Len         pData length
- * @param[in]   Amount      [bitcoind]ignore, [SPV]send amount
+/** [bitcoin IF]signrawtransaction for funding transaction
+ * @param[in,out]  pTx      (in)[SPV]vout[0]=scriptPubKey, (out)signed transaction
+ * @param[in]   pData       [bitcoind]raw transaction, [SPV]ignore
+ * @param[in]   Len         [bitcoind]pData length, [SPV]ignore
+ * @param[in]   Amount      [bitcoind]fundin amount, [SPV]ignore
  * @retval  true        success
  */
-bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount);
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount);
 
 
 /** [bitcoin IF]sendrawtransaction
