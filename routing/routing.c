@@ -68,7 +68,7 @@ static FILE *fp_err;
  * external prototypes
  ********************************************************************/
 
-void ln_lmdb_set_env(MDB_env *pEnv, MDB_env *pNode, MDB_env *pAnno, MDB_env *pWallet, MDB_env *pClosed);
+void ln_lmdb_set_env(MDB_env *pEnv, MDB_env *pNode, MDB_env *pAnno, MDB_env *pWallet);
 
 
 /********************************************************************
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
         fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_anno_db_path());
         return -6;
     }
-    ln_lmdb_set_env(pDbChannel, pDbNode, pDbAnno, NULL, NULL);
+    ln_lmdb_set_env(pDbChannel, pDbNode, pDbAnno, NULL);
 
     uint8_t my_node_id[BTC_SZ_PUBKEY];
     btc_block_chain_t gtype;

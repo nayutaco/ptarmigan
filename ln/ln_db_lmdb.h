@@ -234,8 +234,11 @@ const char *ln_lmdb_get_forward_db_path(void);
 /** LMDB closedパス取得
  *
  * @return  closedパス
+ * @note
+ *  - closed envをchannelごとにするため、一時的に使用停止する。
+ *  - これにともない、showdbでもclosed channel情報を見えないようにしている。
  */
-const char *ln_lmdb_get_closed_db_path(void);
+//const char *ln_lmdb_get_closed_db_path(void);
 
 
 /** channel情報読込み

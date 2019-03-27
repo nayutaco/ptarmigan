@@ -272,7 +272,6 @@
 #define MDB_TXN_CHECK_ANNO(a)       //none
 #define MDB_TXN_CHECK_WALLET(a)     //none
 #define MDB_TXN_CHECK_FORWARD(a)    //none
-#define MDB_TXN_CHECK_CLOSED(a)     //none
 #else
 static volatile int g_cnt[6];
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
@@ -287,7 +286,6 @@ static volatile int g_cnt[6];
 #define MDB_TXN_CHECK_ANNO(a)       if (mdb_txn_env(a) != mpEnvAnno) { LOGE("ERR: txn not ANNO\n"); abort(); }
 #define MDB_TXN_CHECK_WALLET(a)     if (mdb_txn_env(a) != mpEnvWallet) { LOGE("ERR: txn not WALLET\n"); abort(); }
 #define MDB_TXN_CHECK_FORWARD(a)    if (mdb_txn_env(a) != mpEnvForward) { LOGE("ERR: txn not FORWARD\n"); abort(); }
-#define MDB_TXN_CHECK_CLOSED(a)     if (mdb_txn_env(a) != mpEnvClosed) { LOGE("ERR: txn not CLOSED\n"); abort(); }
 #endif
 
 
@@ -371,7 +369,6 @@ static MDB_env      *mpEnvNode = NULL;          //node
 static MDB_env      *mpEnvAnno = NULL;          //announcement
 static MDB_env      *mpEnvWallet = NULL;        //wallet
 static MDB_env      *mpEnvForward = NULL;       //forward
-static MDB_env      *mpEnvClosed = NULL;        //closed channel
 
 static char         mPath[M_DB_PATH_STR_MAX + 1];
 
@@ -380,7 +377,6 @@ static char         mPathNode[M_DB_PATH_STR_MAX + 1];
 static char         mPathAnno[M_DB_PATH_STR_MAX + 1];
 static char         mPathWallet[M_DB_PATH_STR_MAX + 1];
 static char         mPathForward[M_DB_PATH_STR_MAX + 1];
-static char         mPathClosed[M_DB_PATH_STR_MAX + 1];
 
 static pthread_mutex_t  mMuxAnno;
 static MDB_txn          *mpTxnAnno;
@@ -550,7 +546,6 @@ static const init_param_t INIT_PARAM[] = {
     { &mpEnvAnno, mPathAnno, M_ANNO_MAXDBS, M_ANNO_MAPSIZE, MDB_NOSYNC },
     { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 0 },
     { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 0 },
-    { &mpEnvClosed, mPathClosed, M_CLOSED_MAXDBS, M_CLOSED_MAPSIZE, 0 },
 };
 
 
@@ -575,6 +570,7 @@ static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_htlc_db_name(char *pDbName, int num);
 static bool channel_cmp_func_channel_del(ln_channel_t *pChannel, void *pDbParam, void *pParam);
 static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore);
+static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr);
 
 static int node_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
@@ -782,7 +778,6 @@ bool ln_lmdb_set_home_dir(const char *pPath)
     if (!set_path(mPathAnno, sizeof(mPathAnno), mPath, M_ANNO_ENV_DIR)) return false;
     if (!set_path(mPathWallet, sizeof(mPathWallet), mPath, M_WALLET_ENV_DIR)) return false;
     if (!set_path(mPathForward, sizeof(mPathForward), mPath, M_FORWARD_ENV_DIR)) return false;
-    if (!set_path(mPathClosed, sizeof(mPathClosed), mPath, M_CLOSED_ENV_DIR)) return false;
 
     LOGD("db dir: %s\n", mPath);
     LOGD("  channel: %s\n", mPathChannel);
@@ -790,7 +785,6 @@ bool ln_lmdb_set_home_dir(const char *pPath)
     LOGD("  anno: %s\n", mPathAnno);
     LOGD("  wallet: %s\n", mPathWallet);
     LOGD("  forward: %s\n", mPathForward);
-    LOGD("  closed: %s\n", mPathClosed);
     return true;
 }
 
@@ -833,10 +827,10 @@ const char *ln_lmdb_get_forward_db_path(void)
 }
 
 
-const char *ln_lmdb_get_closed_db_path(void)
-{
-    return mPathClosed;
-}
+// const char *ln_lmdb_get_closed_db_path(void)
+// {
+//     return mPathClosed;
+// }
 
 
 bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
@@ -945,8 +939,6 @@ void ln_db_term(void)
 
     pthread_mutex_destroy(&mMuxAnno);
 
-    mdb_env_close(mpEnvClosed);
-    mpEnvClosed = NULL;
     mdb_env_close(mpEnvForward);
     mpEnvForward = NULL;
     mdb_env_close(mpEnvWallet);
@@ -1102,10 +1094,6 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
     MDB_dbi         dbi;
     char            db_name[M_SZ_CHANNEL_DB_NAME_STR + M_SZ_HTLC_IDX_STR + 1];
     lmdb_cursor_t   *p_cur = (lmdb_cursor_t *)pDbParam;
-    MDB_cursor      *p_cursor = NULL;
-    MDB_txn         *txn_closed = NULL;
-    MDB_dbi         dbi_closed;
-    MDB_val         key, data;
     char            chanid_str[LN_SZ_CHANNEL_ID * 2 + 1];
 
     utl_str_bin2str(chanid_str, pChannel->channel_id, LN_SZ_CHANNEL_ID);
@@ -1114,71 +1102,8 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
 
     MDB_TXN_CHECK_CHANNEL(p_cur->p_txn);
 
-    //copy to closed
-    retval = MDB_DBI_OPEN(p_cur->p_txn, NULL, 0, &dbi);
-    if (retval == 0) {
-        retval = mdb_cursor_open(p_cur->p_txn, dbi, &p_cursor);
-    }
-    if (retval == 0) {
-        while (mdb_cursor_get(p_cursor, &key, NULL, MDB_NEXT_NODUP) == 0) {
-            MDB_dbi dbi2;
-            MDB_cursor *p_cursor2 = NULL;
-            if (memchr(key.mv_data, '\0', key.mv_size)) {
-                continue;
-            }
-            if ( (key.mv_size >= M_SZ_CHANNEL_DB_NAME_STR) &&
-                 (memcmp(key.mv_data + M_SZ_PREF_STR, chanid_str, LN_SZ_CHANNEL_ID * 2) == 0) ) {
-
-                //closed env
-                txn_closed = NULL;
-                char *name = (char *)UTL_DBG_MALLOC(key.mv_size + 1);
-                memcpy(name, key.mv_data, key.mv_size);
-                name[key.mv_size] = '\0';
-                LOGD("copy[%s]\n", name);
-                retval = MDB_TXN_BEGIN(mpEnvClosed, NULL, 0, &txn_closed);
-                if (retval == 0) {
-                    retval = MDB_DBI_OPEN(txn_closed, name, MDB_CREATE, &dbi_closed);
-                }
-                if (retval == 0) {
-                    retval = MDB_DBI_OPEN(p_cur->p_txn, name, 0, &dbi2);
-                }
-                UTL_DBG_FREE(name);
-                if (retval == 0) {
-                    retval = mdb_cursor_open(p_cur->p_txn, dbi2, &p_cursor2);
-                }
-                if (retval == 0) {
-                    while (mdb_cursor_get(p_cursor2, &key, &data, MDB_NEXT_NODUP) == 0) {
-                        int retval2 = mdb_put(txn_closed, dbi_closed, &key, &data, 0);
-                        if (retval2 != 0) {
-                            LOGE("ERR: %s\n", mdb_strerror(retval2));
-                        }
-                    }
-                }
-                if (p_cursor2 != NULL) {
-                    MDB_CURSOR_CLOSE(p_cursor2);
-                }
-                if (retval == 0) {
-                    MDB_TXN_COMMIT(txn_closed);
-                    MDB_DBI_CLOSE(mpEnvClosed, dbi_closed);
-                } else {
-                    MDB_TXN_ABORT(txn_closed);
-                }
-                if (retval != 0) {
-                    LOGE("ERR: %s\n", mdb_strerror(retval));
-                }
-            }
-        }
-    }
-    if (p_cursor != NULL) {
-        MDB_CURSOR_CLOSE(p_cursor);
-    }
-    if (retval == 0) {
-    } else {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        if (txn_closed != NULL) {
-            MDB_TXN_ABORT(txn_closed);
-        }
-    }
+    //copy to closed env
+    channel_move_closed(p_cur->p_txn, chanid_str);
 
     //remove preimages
     preimage_close_t param;
@@ -3805,7 +3730,7 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
         if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_SECRET;
         if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_HTLC;
         if (strncmp(pDbName, M_PREF_REVOKED_TX, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_REVOKED_TX;
-    } else if (pEnv == mpEnvClosed) {
+    } else {
         if (strncmp(pDbName, M_PREF_CHANNEL, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_CHANNEL;
         if (strncmp(pDbName, M_PREF_SECRET, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_SECRET;
         if (strncmp(pDbName, M_PREF_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_CLOSED_HTLC;
@@ -3833,13 +3758,12 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
 /* showdb/routingから使用される。
  *
  */
-void ln_lmdb_set_env(MDB_env *pEnv, MDB_env *pNode, MDB_env *pAnno, MDB_env *pWallet, MDB_env *pClosed)
+void ln_lmdb_set_env(MDB_env *pEnv, MDB_env *pNode, MDB_env *pAnno, MDB_env *pWallet)
 {
     mpEnvChannel = pEnv;
     mpEnvNode = pNode;
     mpEnvAnno = pAnno;
     mpEnvWallet = pWallet;
-    mpEnvClosed = pClosed;
 }
 
 
@@ -4559,6 +4483,107 @@ LABEL_EXIT:
     LOGD("found=%d(writable=%d)\n", found, bWritable);
     return found;
 }
+
+
+//copy channel DBs to closed env
+static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr)
+{
+    int             retval;
+    MDB_dbi         dbi;
+    MDB_txn         *txn_closed = NULL;
+    MDB_cursor      *p_cursor = NULL;
+    MDB_dbi         dbi_closed;
+    MDB_val         key, data;
+    MDB_env         *p_env_closed = NULL;
+    char            path_env[M_DB_PATH_STR_MAX + 1];
+
+    snprintf(path_env, sizeof(path_env), "%s/" M_CLOSED_ENV_DIR, mPath);
+    mkdir(path_env, 0755);
+    snprintf(path_env, sizeof(path_env), "%s/" M_CLOSED_ENV_DIR "/%s", mPath, pChannelStr);
+
+    init_param_t init_param;
+    init_param.pp_env = &p_env_closed;
+    init_param.p_path = path_env;
+    init_param.maxdbs = M_CLOSED_MAXDBS;
+    init_param.mapsize = M_CLOSED_MAPSIZE;
+    init_param.open_flag = 0;
+    retval = init_db_env(&init_param);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = MDB_DBI_OPEN(pTxn, NULL, 0, &dbi);
+    if (retval == 0) {
+        retval = mdb_cursor_open(pTxn, dbi, &p_cursor);
+    }
+    if (retval == 0) {
+        while (mdb_cursor_get(p_cursor, &key, NULL, MDB_NEXT_NODUP) == 0) {
+            MDB_dbi dbi2;
+            MDB_cursor *p_cursor2 = NULL;
+            if (memchr(key.mv_data, '\0', key.mv_size)) {
+                continue;
+            }
+            if ( (key.mv_size >= M_SZ_CHANNEL_DB_NAME_STR) &&
+                 (memcmp(key.mv_data + M_SZ_PREF_STR, pChannelStr, LN_SZ_CHANNEL_ID * 2) == 0) ) {
+
+                //closed env
+                txn_closed = NULL;
+                char *name = (char *)UTL_DBG_MALLOC(key.mv_size + 1);
+                memcpy(name, key.mv_data, key.mv_size);
+                name[key.mv_size] = '\0';
+                LOGD("copy[%s]\n", name);
+                retval = MDB_TXN_BEGIN(p_env_closed, NULL, 0, &txn_closed);
+                if (retval == 0) {
+                    retval = MDB_DBI_OPEN(txn_closed, name, MDB_CREATE, &dbi_closed);
+                }
+                if (retval == 0) {
+                    retval = MDB_DBI_OPEN(pTxn, name, 0, &dbi2);
+                }
+                UTL_DBG_FREE(name);
+                if (retval == 0) {
+                    retval = mdb_cursor_open(pTxn, dbi2, &p_cursor2);
+                }
+                if (retval == 0) {
+                    while (mdb_cursor_get(p_cursor2, &key, &data, MDB_NEXT_NODUP) == 0) {
+                        int retval2 = mdb_put(txn_closed, dbi_closed, &key, &data, 0);
+                        if (retval2 != 0) {
+                            LOGE("ERR: %s\n", mdb_strerror(retval2));
+                        }
+                    }
+                }
+                if (p_cursor2 != NULL) {
+                    MDB_CURSOR_CLOSE(p_cursor2);
+                }
+                if (retval == 0) {
+                    MDB_TXN_COMMIT(txn_closed);
+                    MDB_DBI_CLOSE(p_env_closed, dbi_closed);
+                } else {
+                    MDB_TXN_ABORT(txn_closed);
+                }
+                if (retval != 0) {
+                    LOGE("ERR: %s\n", mdb_strerror(retval));
+                }
+            }
+        }
+    }
+    if (p_cursor != NULL) {
+        MDB_CURSOR_CLOSE(p_cursor);
+    }
+    if (retval == 0) {
+        LOGD("copy OK\n");
+    } else {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (txn_closed != NULL) {
+            MDB_TXN_ABORT(txn_closed);
+        }
+    }
+    mdb_env_close(p_env_closed);
+
+LABEL_EXIT:
+    ;
+}
+
 
 
 /********************************************************************

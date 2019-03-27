@@ -104,7 +104,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len);
 #else
 #define ln_print_announce(...)          //nothing
 #endif  //PTARM_USE_PRINTFUNC
-void ln_lmdb_set_env(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_wallet, MDB_env *p_closed);
+void ln_lmdb_set_env(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_wallet);
 
 
 /********************************************************************
@@ -122,7 +122,6 @@ static MDB_env      *mpDbChannel = NULL;
 static MDB_env      *mpDbNode = NULL;
 static MDB_env      *mpDbAnno = NULL;
 static MDB_env      *mpDbWalt = NULL;
-static MDB_env      *mpDbClosed = NULL;
 static FILE         *fp_err;
 
 
@@ -1116,15 +1115,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_wallet_db_path());
         //return -1;
     }
-    ret = mdb_env_create(&mpDbClosed);
-    assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbClosed, 50);
-    assert(ret == 0);
-    ret = mdb_env_open(mpDbClosed, ln_lmdb_get_closed_db_path(), MDB_RDONLY, 0664);
-    if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_closed_db_path());
-        //return -1;
-    }
+    // ret = mdb_env_create(&mpDbClosed);
+    // assert(ret == 0);
+    // ret = mdb_env_set_maxdbs(mpDbClosed, 50);
+    // assert(ret == 0);
+    // ret = mdb_env_open(mpDbClosed, ln_lmdb_get_closed_db_path(), MDB_RDONLY, 0664);
+    // if (ret) {
+    //     fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_closed_db_path());
+    //     //return -1;
+    // }
 
     while (loop && ((opt = getopt_long(argc, argv, "hd:swlqcnakiWvD9:", OPTIONS, NULL)) != -1)) {
         switch (opt) {
@@ -1151,10 +1150,10 @@ int main(int argc, char *argv[])
             showflag = SHOW_CHANNEL_LISTCH;
             p_env = mpDbChannel;
             break;
-        case 'q':
-            showflag = SHOW_CHANNEL;
-            p_env = mpDbClosed;
-            break;
+        // case 'q':
+        //     showflag = SHOW_CHANNEL;
+        //     p_env = mpDbClosed;
+        //     break;
         case 'c':
             showflag = SHOW_ANNOCNL;
             p_env = mpDbAnno;
@@ -1219,7 +1218,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-W : 1st layer wallet info\n");
         fprintf(stderr, "\t\t-s : channel info\n");
         fprintf(stderr, "\t\t-l : channel list\n");
-        fprintf(stderr, "\t\t-q : closed channel info\n");
+        //fprintf(stderr, "\t\t-q : closed channel info\n");
         fprintf(stderr, "\t\t-c : channel_announcement/channel_update\n");
         fprintf(stderr, "\t\t-n : node_announcement\n");
         fprintf(stderr, "\t\t-a : (internal)announcement received/sent node_id list\n");
@@ -1229,7 +1228,7 @@ int main(int argc, char *argv[])
     }
 
 
-    ln_lmdb_set_env(mpDbChannel, mpDbNode, mpDbAnno, mpDbWalt, mpDbClosed);
+    ln_lmdb_set_env(mpDbChannel, mpDbNode, mpDbAnno, mpDbWalt);
 
     btc_block_chain_t gtype;
     bool bret = ln_db_version_check(NULL, &gtype);
@@ -1350,7 +1349,6 @@ int main(int argc, char *argv[])
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
 
-    mdb_env_close(mpDbClosed);
     mdb_env_close(mpDbWalt);
     mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbNode);
