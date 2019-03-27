@@ -1065,7 +1065,7 @@ int main(int argc, char *argv[])
         { "datadir", required_argument, NULL, 'd'},
         { "listchannel", no_argument, NULL, 's'},
         { "listchannelwallet", no_argument, NULL, 'w'},
-        { "show", no_argument, NULL, 'l'},
+        { "showchannel", no_argument, NULL, 'l'},
         { "listclosed", no_argument, NULL, 'q'},
         { "listgossipchannel", no_argument, NULL, 'c'},
         { "listgossipnode", no_argument, NULL, 'n'},
