@@ -1214,11 +1214,11 @@ int main(int argc, char *argv[])
             loop = false;
             showflag = 0;
             break;
-        }
         case 'D':
             //デバッグでstderrを出力させたい場合
             spoil_stderr = false;
             break;
+        }
     }
 
     if (showflag == 0) {
