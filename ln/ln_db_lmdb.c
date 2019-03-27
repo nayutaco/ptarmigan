@@ -239,8 +239,7 @@
     -60: increase the num of htlcs (6 -> 12)
     -61: rm `ln_htlc_id::neighbor_idx`
          add `ln_htlc_id::neighbor_id`
-    -62: add closed channel environment
-         move backup db to closed channel environment
+         add closed channel environment and move backup db to the environment
  */
 
 
