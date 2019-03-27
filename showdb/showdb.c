@@ -1062,6 +1062,8 @@ int main(int argc, char *argv[])
 #endif  //M_SPOIL_STDERR
     const struct option OPTIONS[] = {
         { "debug", no_argument, NULL, 'D' },
+        { "dir", no_argument, NULL, 'A'},
+        { "sample", required_argument, NULL, 'B'},
         { 0, 0, 0, 0 }
     };
 
@@ -1133,11 +1135,6 @@ int main(int argc, char *argv[])
             }
             ln_lmdb_set_home_dir(optarg);
             break;
-        case 'D':
-            //デバッグでstderrを出力させたい場合
-            spoil_stderr = false;
-            break;
-
         case 's':
             showflag = SHOW_CHANNEL;
             p_env = mpDbChannel;
@@ -1207,6 +1204,16 @@ int main(int argc, char *argv[])
             showflag = 0;
             break;
         }
+
+        //long option section
+        case 'D':
+            //デバッグでstderrを出力させたい場合
+            spoil_stderr = false;
+            break;
+        case 'A':
+        case 'B':
+            printf("sample");
+            break;
     }
 
     if (showflag == 0) {
@@ -1354,3 +1361,4 @@ int main(int argc, char *argv[])
     mdb_env_close(mpDbNode);
     mdb_env_close(mpDbChannel);
 }
+
