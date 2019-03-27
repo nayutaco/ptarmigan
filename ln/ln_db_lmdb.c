@@ -63,9 +63,6 @@
 
 //INIT_PARAM[]の添字
 #define M_INIT_PARAM_CHANNEL    (0)
-#define M_INIT_PARAM_NODE       (1)
-#define M_INIT_PARAM_ANNO       (2)
-#define M_INIT_PARAM_WALLET     (3)
 
 #define M_MAPSIZE_REMAIN_LIMIT  (2)                         ///< DB compactionを実施する残りpage
 
@@ -548,13 +545,9 @@ static const fixed_item_t DBHTLC_VALUES[] = {
 
 // LMDB initialize parameter
 static const init_param_t INIT_PARAM[] = {
-    //M_INIT_PARAM_CHANNEL
     { &mpEnvChannel, mPathChannel, M_CHANNEL_MAXDBS, M_CHANNEL_MAPSIZE, 0 },
-    //M_INIT_PARAM_NODE
     { &mpEnvNode, mPathNode, M_NODE_MAXDBS, M_NODE_MAPSIZE, 0 },
-    //M_INIT_PARAM_ANNO
     { &mpEnvAnno, mPathAnno, M_ANNO_MAXDBS, M_ANNO_MAPSIZE, MDB_NOSYNC },
-    //M_INIT_PARAM_WALLET
     { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 0 },
     { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 0 },
     { &mpEnvClosed, mPathClosed, M_CLOSED_MAXDBS, M_CLOSED_MAPSIZE, 0 },
@@ -642,11 +635,11 @@ static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint
 static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
 static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
 
-static int init_db_env(int InitParamIdx);
+static int init_db_env(const init_param_t  *p_param);
 static int rm_files(const char *pPath, const struct stat *pStat, int Type, struct FTW *pFtwb);
 static bool rmdir_recursively(const char *pPath);
-static int lmdb_init(int InitParamIdx);
-static int lmdb_compaction(int InitParamIdx);
+static int lmdb_init(const init_param_t  *p_param);
+static int lmdb_compaction(const init_param_t  *p_param);
 
 
 #ifndef M_DB_DEBUG
@@ -866,7 +859,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     }
 
     for (size_t lp = 0; lp < ARRAY_SIZE(INIT_PARAM); lp++) {
-        retval = init_db_env(lp);
+        retval = init_db_env(&INIT_PARAM[lp]);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -3862,7 +3855,7 @@ bool ln_db_reset(void)
     if (mPath[0] == '\0') {
         ln_lmdb_set_home_dir(".");
     }
-    retval = init_db_env(M_INIT_PARAM_CHANNEL);
+    retval = init_db_env(&INIT_PARAM[M_INIT_PARAM_CHANNEL]);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
         return false;
@@ -5828,31 +5821,30 @@ static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_it
  * private functions: initialize
  ********************************************************************/
 
-static int init_db_env(int InitParamIdx)
+static int init_db_env(const init_param_t  *p_param)
 {
     int retval;
 
-    retval = lmdb_init(InitParamIdx);
+    retval = lmdb_init(p_param);
     if (retval) {
-        LOGE("ERR: (%d)\n", InitParamIdx);
+        LOGE("ERR: (%s)\n", p_param->p_path);
         return retval;
     }
 
-    retval = lmdb_compaction(InitParamIdx);
+    retval = lmdb_compaction(p_param);
     if (retval) {
-        LOGE("ERR: (%d)\n", InitParamIdx);
+        LOGE("ERR: (%s)\n", p_param->p_path);
         return retval;
     }
-    LOGD("DB: OK(%d)\n", InitParamIdx);
+    LOGD("DB: OK(%s)\n", p_param->p_path);
 
     return 0;
 }
 
 
-static int lmdb_init(int InitParamIdx)
+static int lmdb_init(const init_param_t  *p_param)
 {
     int retval;
-    const init_param_t *p_param = &INIT_PARAM[InitParamIdx];
 
     LOGD("BEGIN(%s)\n", p_param->p_path);
 
@@ -5884,11 +5876,10 @@ static int lmdb_init(int InitParamIdx)
 }
 
 
-static int lmdb_compaction(int InitParamIdx)
+static int lmdb_compaction(const init_param_t  *p_param)
 {
     int                 retval;
     MDB_envinfo         info;
-    const init_param_t  *p_param = &INIT_PARAM[InitParamIdx];
     long                pagesize = sysconf(_SC_PAGESIZE);
 
     retval = mdb_env_info(*p_param->pp_env, &info);
@@ -5941,9 +5932,9 @@ static int lmdb_compaction(int InitParamIdx)
             LOGE("fail\n");
         }
 
-        //開き直す //XXX: why?
+        //開き直す //XXX: why? --> そのまま継続したかった or チェック
         mdb_env_close(*p_param->pp_env);
-        retval = lmdb_init(InitParamIdx);
+        retval = lmdb_init(p_param);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
             return retval;
