@@ -1062,8 +1062,19 @@ int main(int argc, char *argv[])
 #endif  //M_SPOIL_STDERR
     const struct option OPTIONS[] = {
         { "debug", no_argument, NULL, 'D' },
-        { "dir", no_argument, NULL, 'A'},
-        { "sample", required_argument, NULL, 'B'},
+        { "datadir", required_argument, NULL, 'd'},
+        { "listchannel", no_argument, NULL, 's'},
+        { "listchannelwallet", no_argument, NULL, 'w'},
+        { "show", no_argument, NULL, 'l'},
+        { "listclosed", no_argument, NULL, 'q'},
+        { "listgossipchannel", no_argument, NULL, 'c'},
+        { "listgossipnode", no_argument, NULL, 'n'},
+        { "listannounced", no_argument, NULL, 'a'},
+        { "listskip", no_argument, NULL, 'k'},
+        { "listinvoice", no_argument, NULL, 'i'},
+        { "listwallet", no_argument, NULL, 'W'},
+        { "version", no_argument, NULL, 'v'},
+        { "help", no_argument, NULL, 'h'},
         { 0, 0, 0, 0 }
     };
 
@@ -1204,15 +1215,9 @@ int main(int argc, char *argv[])
             showflag = 0;
             break;
         }
-
-        //long option section
         case 'D':
             //デバッグでstderrを出力させたい場合
             spoil_stderr = false;
-            break;
-        case 'A':
-        case 'B':
-            printf("sample");
             break;
     }
 
