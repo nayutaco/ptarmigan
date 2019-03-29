@@ -1482,14 +1482,7 @@ int main(int argc, char *argv[])
         0x00, 0x00, 0x00,
     };
 
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    btc_init(PTARM_MAINNET, true);
-#elif NETKIND==1
-    btc_init(PTARM_TESTNET, true);
-#endif
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
 
     rpc_conf_t rpc_conf;
 

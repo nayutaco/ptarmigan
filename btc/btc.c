@@ -59,7 +59,7 @@ bool HIDDEN     mNativeSegwit = true;       ///< true:segwitのトランザク�
  * public functions
  **************************************************************************/
 
-bool btc_init(btc_chain_t chain, bool bSegNative)
+bool btc_init(btc_block_chain_t chain, bool bSegNative)
 {
     bool ret = false;
 
@@ -69,19 +69,11 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
         return false;
     }
 
-    mPref[BTC_PREF_CHAIN] = (uint8_t)chain;
+    mPref[BTC_PREF_CHAINDETAIL] = chain;
     switch (chain) {
-    case BTC_TESTNET:
-        LOGD("$$$[testnet/regtest]\n");
-        mPref[BTC_PREF_WIF] = 0xef;
-        mPref[BTC_PREF_P2PKH] = 0x6f;
-        mPref[BTC_PREF_P2SH] = 0xc4;
-        mPref[BTC_PREF_ADDRVER] = 0x03;
-        mPref[BTC_PREF_ADDRVER_SH] = 0x28;
-        ret = true;
-        break;
-    case BTC_MAINNET:
+    case BTC_BLOCK_CHAIN_BTCMAIN:
         LOGD("$$$[mainnet]\n");
+        mPref[BTC_PREF_CHAIN] = (uint8_t)BTC_MAINNET;
         mPref[BTC_PREF_WIF] = 0x80;
         mPref[BTC_PREF_P2PKH] = 0x00;
         mPref[BTC_PREF_P2SH] = 0x05;
@@ -89,9 +81,21 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
         mPref[BTC_PREF_ADDRVER_SH] = 0x0a;
         ret = true;
         break;
+    case BTC_BLOCK_CHAIN_BTCTEST:
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
+        LOGD("$$$[testnet/regtest]\n");
+        mPref[BTC_PREF_CHAIN] = (uint8_t)BTC_TESTNET;
+        mPref[BTC_PREF_WIF] = 0xef;
+        mPref[BTC_PREF_P2PKH] = 0x6f;
+        mPref[BTC_PREF_P2SH] = 0xc4;
+        mPref[BTC_PREF_ADDRVER] = 0x03;
+        mPref[BTC_PREF_ADDRVER_SH] = 0x28;
+        ret = true;
+        break;
     default:
         LOGE("fail: unknown chain\n");
         assert(0);
+        break;
     }
 
     mNativeSegwit = bSegNative;

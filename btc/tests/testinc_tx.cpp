@@ -10,7 +10,7 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        btc_init(BTC_TESTNET, false);
+        btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);
     }
 
     virtual void TearDown() {

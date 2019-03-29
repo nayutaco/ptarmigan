@@ -11,7 +11,7 @@ protected:
         //RESET_FAKE(external_function)
         utl_log_init_stdout();
         utl_dbg_malloc_cnt_reset();
-        btc_init(BTC_MAINNET, false);
+        btc_init(BTC_BLOCK_CHAIN_BTCMAIN, false);
     }
 
     virtual void TearDown() {
@@ -554,7 +554,7 @@ TEST_F(extendedkey, bip49)
     btc_extkey_t extkey;
 
     btc_term();
-    btc_init(BTC_TESTNET, false);
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);
 
     b = btc_extkey_read_addr(&extkey, MASTERSEED);
     ASSERT_TRUE(b);

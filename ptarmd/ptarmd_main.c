@@ -41,11 +41,7 @@
  * macros
  **************************************************************************/
 
-#if defined(USE_BITCOIND)
 #define M_OPTSTRING     "p:n:a:c:d:xNh"
-#elif defined(USE_BITCOINJ)
-#define M_OPTSTRING     "p:n:a:d:xNh"
-#endif
 
 
 /********************************************************************
@@ -118,7 +114,6 @@ int main(int argc, char *argv[])
 
     conf_btcrpc_init(&rpc_conf);
     btc_block_chain_t chain = BTC_BLOCK_CHAIN_BTCMAIN;
-    btc_chain_t btcchain = BTC_MAINNET;
 
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
@@ -159,26 +154,23 @@ int main(int argc, char *argv[])
                 }
             }
             break;
-#if defined(USE_BITCOIND)
         case 'c':
+#if defined(USE_BITCOIND)
             //load btcconf file
             bret = conf_btcrpc_load(optarg, &rpc_conf);
             if (!bret) {
                 goto LABEL_EXIT;
             }
-            break;
 #endif
+            break;
         case 'N':
             //network
             if (strcmp(optarg, "mainnet") == 0) {
                 chain = BTC_BLOCK_CHAIN_BTCMAIN;
-                btcchain = BTC_MAINNET;
             } else if (strcmp(optarg, "testnet") == 0) {
                 chain = BTC_BLOCK_CHAIN_BTCTEST;
-                btcchain = BTC_TESTNET;
             } else if (strcmp(optarg, "regtest") == 0) {
                 chain = BTC_BLOCK_CHAIN_BTCREGTEST;
-                btcchain = BTC_TESTNET;
             } else {
                 goto LABEL_EXIT;
             }
@@ -214,12 +206,9 @@ int main(int argc, char *argv[])
         }
     }
 #elif defined(USE_BITCOINJ)
-    if (rpc_conf.gen == BTC_BLOCK_CHAIN_UNKNOWN) {
-        fprintf(stderr, "ERROR: you need select network.\n");
-        goto LABEL_EXIT;
-    }
+    rpc_conf.gen = chain;
 #endif
-    bret = btc_init(btcchain, true);
+    bret = btc_init(chain, true);
     if (!bret) {
         fprintf(stderr, "fail: btc_init()\n");
         return -1;

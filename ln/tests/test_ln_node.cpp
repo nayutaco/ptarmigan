@@ -48,7 +48,7 @@ protected:
     virtual void SetUp() {
         //utl_log_init_stderr();
         utl_dbg_malloc_cnt_reset();
-        btc_init(BTC_TESTNET, true);
+        btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
     }
 
     virtual void TearDown() {

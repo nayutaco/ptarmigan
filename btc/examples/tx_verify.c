@@ -32,7 +32,7 @@ const uint8_t PUB[] = {
 
 int main(void)
 {
-    btc_init(BTC_TESTNET, true);
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
 
     const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
     bool ret = btc_sig_verify(&sig, TXHASH, PUB);

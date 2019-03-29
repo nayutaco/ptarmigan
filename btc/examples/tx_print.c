@@ -50,7 +50,7 @@ static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 int main(void)
 {
     utl_log_init_stderr();
-    btc_init(BTC_TESTNET, true);
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
 
 #if 0
     printf("=======================================\n");

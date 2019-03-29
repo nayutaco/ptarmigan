@@ -69,14 +69,7 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
     utl_log_init();
 
     btc_chain_t chain;
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    chain = BTC_MAINNET;
-#elif NETKIND==1
-    chain = BTC_TESTNET;
-#endif
+    chain = BTC_BLOCK_CHAIN_BTCTEST;
     bret = btc_init(chain, true);
     if (!bret) {
         fprintf(stderr, "fail: btc_init()\n");

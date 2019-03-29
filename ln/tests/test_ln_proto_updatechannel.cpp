@@ -257,7 +257,7 @@ protected:
         ln_msg_channel_announcement_read_fake.return_val = true;
 
         utl_dbg_malloc_cnt_reset();
-        btc_init(BTC_TESTNET, true);
+        btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
     }
 
     virtual void TearDown() {
