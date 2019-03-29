@@ -80,11 +80,13 @@ static int handler_connect_conf(void* user, const char* section, const char* nam
 void conf_btcrpc_init(rpc_conf_t *pRpcConf)
 {
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
+    pRpcConf->gen = BTC_BLOCK_CHAIN_BTCMAIN;
 }
 
 
 bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
+    LOGD("load bitcoin.conf: %s\n", pConfFile);
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
         LOGE("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
@@ -211,11 +213,13 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
         strcpy(pconfig->rpcurl, value);
     } else if (strcmp(name, "testnet") == 0) {
         //testnet
+        pconfig->gen = BTC_BLOCK_CHAIN_BTCTEST;
         if (pconfig->rpcport == 0) {
             pconfig->rpcport = 18332;
         }
     } else if (strcmp(name, "regtest") == 0) {
         //regtest
+        pconfig->gen = BTC_BLOCK_CHAIN_BTCREGTEST;
         if (pconfig->rpcport == 0) {
             pconfig->rpcport = 18443;
         }

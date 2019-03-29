@@ -72,7 +72,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
     mPref[BTC_PREF_CHAIN] = (uint8_t)chain;
     switch (chain) {
     case BTC_TESTNET:
-        //LOGD("[testnet]\n");
+        LOGD("$$$[testnet/regtest]\n");
         mPref[BTC_PREF_WIF] = 0xef;
         mPref[BTC_PREF_P2PKH] = 0x6f;
         mPref[BTC_PREF_P2SH] = 0xc4;
@@ -81,7 +81,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
         ret = true;
         break;
     case BTC_MAINNET:
-        LOGD("[mainnet]\n");
+        LOGD("$$$[mainnet]\n");
         mPref[BTC_PREF_WIF] = 0x80;
         mPref[BTC_PREF_P2PKH] = 0x00;
         mPref[BTC_PREF_P2SH] = 0x05;
@@ -90,7 +90,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
         ret = true;
         break;
     default:
-        LOGE("unknown chain\n");
+        LOGE("fail: unknown chain\n");
         assert(0);
     }
 
