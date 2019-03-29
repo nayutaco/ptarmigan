@@ -247,7 +247,8 @@ int main(int argc, char *argv[])
     }
     btc_block_chain_t gentype = ln_genesishash_set(genesis);
     if (gentype != chain) {
-        fprintf(stderr, "ERROR: chain not match. check --network option\n");
+        fprintf(stderr, "ERROR: chain not match. check --network option and your chain\n");
+        fprintf(stderr, "\tbitcoin-cli getblockchaininfo | jq -e \'.chain\'\n");
         goto LABEL_EXIT;
     }
 
