@@ -219,10 +219,6 @@ int main(int argc, char *argv[])
         goto LABEL_EXIT;
     }
 #endif
-    if (rpc_conf.gen != chain) {
-        fprintf(stderr, "ERROR: chain not match. check --network option\n");
-        goto LABEL_EXIT;
-    }
     bret = btc_init(btcchain, true);
     if (!bret) {
         fprintf(stderr, "fail: btc_init()\n");
@@ -249,7 +245,11 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fail: bitcoin getblockhash\n");
         return -1;
     }
-    ln_genesishash_set(genesis);
+    btc_block_chain_t gentype = ln_genesishash_set(genesis);
+    if (gentype != chain) {
+        fprintf(stderr, "ERROR: chain not match. check --network option\n");
+        goto LABEL_EXIT;
+    }
 
     ptarmd_start(my_rpcport, &node);
 
