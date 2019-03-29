@@ -1250,18 +1250,7 @@ int main(int argc, char *argv[])
     }
 
     ln_genesishash_set(btc_block_get_genesis_hash(gtype));
-    switch (gtype) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        btc_init(BTC_MAINNET, true);
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        btc_init(BTC_TESTNET, true);
-        break;
-    default:
-        fprintf(fp_err, "fail: unknown chainhash in DB\n");
-        return -1;
-    }
+    btc_init(gtype, true);
 
     ret = mdb_txn_begin(p_env, NULL, MDB_RDONLY, &txn);
     if (ret != 0) {

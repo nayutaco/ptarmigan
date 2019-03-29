@@ -43,7 +43,7 @@ btc_keys_t    ln_bolt3_b::keys;
 TEST_F(ln_bolt3_b, fuding1)
 {
     utl_dbg_malloc_cnt_reset();
-    btc_init(BTC_TESTNET, true);
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
 
 
     static const uint8_t LOCAL_FUNDING_PUBKEY[] = {

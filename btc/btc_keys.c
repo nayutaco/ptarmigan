@@ -341,12 +341,15 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
         size_t witprog_len = sizeof(witprog);
         int witver;
         uint8_t hrp_type;
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
+        switch (mPref[BTC_PREF_CHAINDETAIL]) {
+        case BTC_BLOCK_CHAIN_BTCMAIN:
             hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
-        case BTC_TESTNET:
+        case BTC_BLOCK_CHAIN_BTCTEST:
             hrp_type = BTC_SEGWIT_ADDR_TESTNET;
+            break;
+        case BTC_BLOCK_CHAIN_BTCREGTEST:
+            hrp_type = BTC_SEGWIT_ADDR_REGTEST;
             break;
         default:
             return false;
@@ -456,6 +459,7 @@ static bool addr_is_segwit(const char *pAddr)
 
     if (pAddr[0] == 'b' && pAddr[1] == 'c' && pAddr[2] == '1') return true; //mainnet
     if (pAddr[0] == 't' && pAddr[1] == 'b' && pAddr[2] == '1') return true; //testnet
+    if (pAddr[0] == 'b' && pAddr[1] == 'c' && pAddr[2] == 'r' && pAddr[3] == 't' && pAddr[4] == '1') return true; //regtest
     return false;
 }
 
@@ -478,12 +482,15 @@ static bool hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix)
     if (Prefix == BTC_PREF_P2WPKH || Prefix == BTC_PREF_P2WSH) {
         uint8_t hrp_type;
 
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
+        switch (mPref[BTC_PREF_CHAINDETAIL]) {
+        case BTC_BLOCK_CHAIN_BTCMAIN:
             hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
-        case BTC_TESTNET:
+        case BTC_BLOCK_CHAIN_BTCTEST:
             hrp_type = BTC_SEGWIT_ADDR_TESTNET;
+            break;
+        case BTC_BLOCK_CHAIN_BTCREGTEST:
+            hrp_type = BTC_SEGWIT_ADDR_REGTEST;
             break;
         default:
             return false;

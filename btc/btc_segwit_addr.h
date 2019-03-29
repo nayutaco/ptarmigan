@@ -35,8 +35,10 @@ extern "C" {
 
 #define BTC_SEGWIT_ADDR_MAINNET     ((uint8_t)0)
 #define BTC_SEGWIT_ADDR_TESTNET     ((uint8_t)1)
-#define BTC_SEGWIT_ADDR_MAINNET2    ((uint8_t)2)
-#define BTC_SEGWIT_ADDR_TESTNET2    ((uint8_t)3)
+#define BTC_SEGWIT_ADDR_REGTEST     ((uint8_t)2)
+#define BTC_SEGWIT_ADDR_MAINNET2    ((uint8_t)3)
+#define BTC_SEGWIT_ADDR_TESTNET2    ((uint8_t)4)
+#define BTC_SEGWIT_ADDR_REGTEST2    ((uint8_t)5)
 
 size_t btc_bech32_encode_buf_len(const char *hrp, size_t data_len);
 

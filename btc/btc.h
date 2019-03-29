@@ -52,6 +52,7 @@ extern "C" {
 #define BTC_PREF_MAX            (6)             ///< 内部管理用
 #define BTC_PREF_P2WPKH         (7)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
 #define BTC_PREF_P2WSH          (8)             ///< Prefix: Native Pay-to-Witness-Script-Hash
+#define BTC_PREF_CHAINDETAIL    (9)             ///< mainnet/testnet/regtest
 
 #define BTC_DUST_LIMIT          ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
                                                 // 2018/02/11 17:54(JST)
@@ -107,6 +108,14 @@ typedef enum {
     BTC_TESTNET           ///< testnet, regtest
 } btc_chain_t;
 
+/** @enum btc_block_chain_t */
+typedef enum {
+    BTC_BLOCK_CHAIN_UNKNOWN,            ///< unknown chain
+    BTC_BLOCK_CHAIN_BTCMAIN,            ///< Bitcoin mainnet
+    BTC_BLOCK_CHAIN_BTCTEST,            ///< Bitcoin testnet
+    BTC_BLOCK_CHAIN_BTCREGTEST,         ///< Bitcoin regtest
+} btc_block_chain_t;
+
 
 /**************************************************************************
  * package variables
@@ -122,10 +131,10 @@ extern bool     HIDDEN mNativeSegwit;
 
 /** 初期化
  *
- * @param[in]       chain           BTC_MAINNET / BTC_TESTNET
+ * @param[in]       chain           BTC_BLOCK_CHAIN_BTCMAIN/BTCTEST/BTCREGTEST
  * @param[in]       bSegNative      true:segwit native transaction
  */
-bool btc_init(btc_chain_t net, bool bSegNative);
+bool btc_init(btc_block_chain_t net, bool bSegNative);
 
 
 /** 終了

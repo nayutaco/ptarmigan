@@ -52,7 +52,7 @@ int main(void)
 {
     utl_log_init_stderr();
 
-    btc_init(BTC_TESTNET, false);
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);
 
     pkh_to_p2wpkh();
     bech32wpkh_to_hash();

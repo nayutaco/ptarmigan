@@ -46,7 +46,7 @@ static const char charset[] = {
     'c', 'e', '6', 'm', 'u', 'a', '7', 'l'
 };
 static const char *hrp_str[] = {
-    "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
+    "bc", "tb", "bcrt", "BC", "TB", "BCRT", "lnbc", "lntb", "lnbcrt"
 };
 static const int8_t charset_rev[128] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -217,7 +217,7 @@ bool segwit_addr_encode(char* output, uint8_t hrp_type, int witver, const uint8_
     if (witver > 16) return false;
     if (witver == 0 && witprog_len != 20 && witprog_len != 32) return false;
     if (witprog_len < 2 || witprog_len > 40) return false;
-    if ((hrp_type != SEGWIT_ADDR_MAINNET) && (hrp_type != SEGWIT_ADDR_TESTNET)) return false;
+    if ((hrp_type != SEGWIT_ADDR_MAINNET) && (hrp_type != SEGWIT_ADDR_TESTNET) && (hrp_type != SEGWIT_ADDR_REGTEST)) return false;
     data[0] = witver;
     if (!convert_bits(data + 1, &datalen, 5, witprog, witprog_len, 8, true)) return false;
     ++datalen;
@@ -228,7 +228,7 @@ bool segwit_addr_decode(int* witver, uint8_t* witdata, size_t* witdata_len, uint
     uint8_t data[84];
     char hrp_actual[84];
     size_t data_len;
-    if ((hrp_type != SEGWIT_ADDR_MAINNET) && (hrp_type != SEGWIT_ADDR_TESTNET)) return false;
+    if ((hrp_type != SEGWIT_ADDR_MAINNET) && (hrp_type != SEGWIT_ADDR_TESTNET) && (hrp_type != SEGWIT_ADDR_REGTEST)) return false;
     if (!bech32_decode(hrp_actual, data, &data_len, addr, false)) return false;
     if (data_len == 0 || data_len > 65) return false;
     if (strncmp(hrp_str[hrp_type], hrp_actual, 2) != 0) return false;

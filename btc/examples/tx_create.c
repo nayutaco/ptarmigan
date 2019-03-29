@@ -42,7 +42,7 @@ static bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
  */
 int tx_create1(void)
 {
-    btc_init(BTC_TESTNET, false);       //VIN: not native
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);       //VIN: not native
 
     //
     //previous vout
@@ -161,7 +161,7 @@ int tx_create1(void)
  */
 int tx_create2(void)
 {
-    btc_init(BTC_TESTNET, true);        //VIN: native
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);        //VIN: native
 
     //
     //previous vout
@@ -272,7 +272,7 @@ int tx_create2(void)
  */
 int tx_create3(void)
 {
-    btc_init(BTC_TESTNET, true);        //VIN: native
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);        //VIN: native
 
     //
     //previous vout
@@ -373,7 +373,7 @@ int tx_create3(void)
  */
 int tx_create4(void)
 {
-    btc_init(BTC_TESTNET, false);       //VIN: not native
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);       //VIN: not native
 
     //
     //previous vout
@@ -477,7 +477,7 @@ int tx_create4(void)
  */
 int tx_create5(void)
 {
-    btc_init(BTC_TESTNET, false);       //VIN: not native
+    btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);       //VIN: not native
 
     //
     //previous vout
