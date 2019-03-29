@@ -86,7 +86,7 @@ make full
 cd install
 ./new_nodedir.sh
 cd node
-../ptarmd
+../ptarmd --network=testnet&
 ```
 
 Default mode is private node in which mode node does not announce IP address.  

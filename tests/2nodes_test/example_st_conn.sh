@@ -3,7 +3,7 @@
 killall ptarmd
 for i in 3333 4444
 do
-    ./ptarmd -d ./node_$i -c ../regtest.conf &
+    ./ptarmd -d ./node_$i -c ../regtest.conf --network=regtest &
 done
 
 sleep 1

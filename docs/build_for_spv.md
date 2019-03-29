@@ -47,7 +47,7 @@ source jdk.sh
 cd install
 ./new_nodedir.sh spv
 cd spv
-../ptarmd -t&
+../ptarmd --network=testnet&
 #start blockchain syncing...
 #   take a long time........
 ```

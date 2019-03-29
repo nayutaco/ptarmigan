@@ -7,7 +7,6 @@
         <dir name="ptarmd/inc/"/>
     </includedir>
     <defines>
-        <define name="NETKIND=1"/>
         <define name="PTARM_DEBUG=1"/>
         <define name="__ORDER_LITTLE_ENDIAN__=1"/>
     </defines>

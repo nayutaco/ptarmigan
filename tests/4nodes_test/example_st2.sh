@@ -7,5 +7,5 @@
 for i in 3333 4444 5555 6666
 do
     cp ../testfiles/channel_$i.conf ./node_$i/channel.conf
-    ./ptarmd -d ./node_$i -c ../regtest.conf -p $i &
+    ./ptarmd -d ./node_$i -c ../regtest.conf -p $i --network=regtest &
 done

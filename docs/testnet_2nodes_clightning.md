@@ -42,7 +42,7 @@ bitcoind -daemon
 cd install
 ./new_nodedir.sh
 cd node
-../ptarmd
+../ptarmd --network=testnet&
 ```
 
 5. [c-lightning] Running `c-lightning`
