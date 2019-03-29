@@ -219,9 +219,8 @@ typedef struct {
     char            rpcpasswd[SZ_RPC_PASSWD];
     char            rpcurl[SZ_RPC_URL];
     uint16_t        rpcport;
-#elif defined(USE_BITCOINJ)
-    btc_block_chain_t   gen;
 #endif
+    btc_block_chain_t   gen;
 } rpc_conf_t;
 
 

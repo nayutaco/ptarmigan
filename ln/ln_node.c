@@ -127,6 +127,8 @@ bool ln_node_init(const ln_node_t *pNode)
     }
 
     if (!btc_keys_wif2keys(&mNode.keys, &chain, wif)) goto LABEL_EXIT;
+    LOGD("chain=%d, get_chain=%d\n", chain, btc_get_chain());
+    if (chain != btc_get_chain()) goto LABEL_EXIT;
 
     //create new
     {

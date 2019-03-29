@@ -837,6 +837,8 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     int             retval;
     ln_lmdb_db_t    db;
 
+    LOGD("node: %s\n", pNodeName);
+
     if (mPath[0] == '\0') {
         ln_lmdb_set_home_dir(".");
     }

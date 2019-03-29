@@ -1,6 +1,3 @@
-# 0:mainnet, 1:testnet
-NETKIND=1
-
 # node type
 #    BITCOIND, BITCOINJ
 NODE_TYPE=BITCOIND
@@ -40,8 +37,6 @@ MAX_CHANNELS=10
 ######################################
 #common
 ######################################
-
-CFLAGS += -DNETKIND=$(NETKIND)
 
 ifeq ($(NODE_TYPE),BITCOIND)
 CFLAGS += -DUSE_BITCOIND

@@ -44,7 +44,7 @@
 #if defined(USE_BITCOIND)
 #define M_OPTSTRING     "p:n:a:c:d:xNh"
 #elif defined(USE_BITCOINJ)
-#define M_OPTSTRING     "p:n:a:mtrd:xNh"
+#define M_OPTSTRING     "p:n:a:d:xNh"
 #endif
 
 
@@ -70,8 +70,17 @@ int main(int argc, char *argv[])
     uint16_t my_rpcport = 0;
 
     const struct option OPTIONS[] = {
+        { "network", required_argument, NULL, 'N' },
+        { "port", required_argument, NULL, 'p' },
+        { "alias", required_argument, NULL, 'n' },
+#if defined(USE_BITCOIND)
+        { "conf", required_argument, NULL, 'c' },
+        { "announceip", required_argument, NULL, 'a' },
+#endif
+        { "datadir", required_argument, NULL, 'd' },
         { "color", required_argument, NULL, 'C' },
         { "rpcport", required_argument, NULL, 'P' },
+        { "help", no_argument, NULL, 'h' },
         { 0, 0, 0, 0 }
     };
 
@@ -106,22 +115,10 @@ int main(int argc, char *argv[])
     utl_log_init();
 #endif
 
-    btc_chain_t chain;
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    chain = BTC_MAINNET;
-#elif NETKIND==1
-    chain = BTC_TESTNET;
-#endif
-    bret = btc_init(chain, true);
-    if (!bret) {
-        fprintf(stderr, "fail: btc_init()\n");
-        return -1;
-    }
 
     conf_btcrpc_init(&rpc_conf);
+    btc_block_chain_t chain = BTC_BLOCK_CHAIN_BTCMAIN;
+    btc_chain_t btcchain = BTC_MAINNET;
 
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
@@ -170,29 +167,26 @@ int main(int argc, char *argv[])
                 goto LABEL_EXIT;
             }
             break;
-#elif defined(USE_BITCOINJ)
-        case 'm':
-            //mainnet
-            rpc_conf.gen = BTC_BLOCK_CHAIN_BTCMAIN;
-            break;
-        case 't':
-            //testnet
-            rpc_conf.gen = BTC_BLOCK_CHAIN_BTCTEST;
-            break;
-        case 'r':
-            //regtest
-            rpc_conf.gen = BTC_BLOCK_CHAIN_BTCREGTEST;
-            break;
 #endif
+        case 'N':
+            //network
+            if (strcmp(optarg, "mainnet") == 0) {
+                chain = BTC_BLOCK_CHAIN_BTCMAIN;
+                btcchain = BTC_MAINNET;
+            } else if (strcmp(optarg, "testnet") == 0) {
+                chain = BTC_BLOCK_CHAIN_BTCTEST;
+                btcchain = BTC_TESTNET;
+            } else if (strcmp(optarg, "regtest") == 0) {
+                chain = BTC_BLOCK_CHAIN_BTCREGTEST;
+                btcchain = BTC_TESTNET;
+            } else {
+                goto LABEL_EXIT;
+            }
+            break;
         case 'P':
             //my rpcport num
             my_rpcport = (uint16_t)atoi(optarg);
             break;
-        case 'N':
-            //node_announcementを全削除
-            bret = ln_db_reset();
-            fprintf(stderr, "db_reset: %d\n", bret);
-            return 0;
         case 'C':
             bret = false;
             if (strlen(optarg) == 6) {
@@ -225,6 +219,15 @@ int main(int argc, char *argv[])
         goto LABEL_EXIT;
     }
 #endif
+    if (rpc_conf.gen != chain) {
+        fprintf(stderr, "ERROR: chain not match. check --network option\n");
+        goto LABEL_EXIT;
+    }
+    bret = btc_init(btcchain, true);
+    if (!bret) {
+        fprintf(stderr, "fail: btc_init()\n");
+        return -1;
+    }
 
     //O'REILLY Japan: BINARY HACKS #52
     sigset_t ss;
@@ -248,35 +251,25 @@ int main(int argc, char *argv[])
     }
     ln_genesishash_set(genesis);
 
-#if NETKIND==0
-    LOGD("start bitcoin mainnet\n");
-#elif NETKIND==1
-    LOGD("start bitcoin testnet/regtest\n");
-#endif
-
     ptarmd_start(my_rpcport, &node);
 
     return 0;
 
 LABEL_EXIT:
     fprintf(stderr, "[usage]\n");
-    fprintf(stderr, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
+    fprintf(stderr, "\t%s [OPTION]...\n", argv[0]);
     fprintf(stderr, "\n");
-    fprintf(stderr, "\t\t-h : help\n");
-    fprintf(stderr, "\t\t-p PORT : node port(default: 9735 or previous saved)\n");
-    fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\" or previous saved)\n");
+    fprintf(stderr, "\t\t--help : help\n");
+    fprintf(stderr, "\t\t--network NETWORK : chain(mainnet/testnet/regtest)(default: mainnet)\n");
+    fprintf(stderr, "\t\t--port PORT : node port(default: 9735 or previous saved)\n");
+    fprintf(stderr, "\t\t--alias NAME : alias name(default: \"node_xxxxxxxxxxxx\" or previous saved)\n");
 #if defined(USE_BITCOIND)
-    fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
-    fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
-#elif defined(USE_BITCOINJ)
-    //fprintf(stderr, "\t\t-m MAINNET\n");
-    fprintf(stderr, "\t\t-t TESTNET\n");
-    fprintf(stderr, "\t\t-r REGTEST\n");
+    fprintf(stderr, "\t\t--conf BITCOIN_CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
+    fprintf(stderr, "\t\t--announceip IPADDRv4 : announce IPv4 address(default: none)\n");
 #endif
-    fprintf(stderr, "\t\t-d DIR_PATH : change working directory\n");
+    fprintf(stderr, "\t\t--datadir DIR_PATH : working directory(default: current)\n");
     fprintf(stderr, "\t\t--color RRGGBB : node color(default: 000000)\n");
     fprintf(stderr, "\t\t--rpcport PORT : JSON-RPC port(default: node port+1)\n");
-    fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
 }
 
