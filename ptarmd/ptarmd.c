@@ -220,6 +220,8 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
         ptarmd_call_script(PTARMD_EVT_STARTED, param);
     }
 
+    LOGD("start ptarmigan node.\n");    // CHECKPOINT: lightning-integration
+
     //ptarmcli受信用
     cmd_json_start(RpcPort != 0 ? RpcPort : p_addr->port + 1);
 
