@@ -288,7 +288,7 @@ const char *ln_status_string(const ln_channel_t *pChannel)
 }
 
 
-void ln_genesishash_set(const uint8_t *pHash)
+btc_block_chain_t ln_genesishash_set(const uint8_t *pHash)
 {
     memcpy(mGenesisChainHash, pHash, BTC_SZ_HASH256);
     btc_block_chain_t gen = btc_block_get_chain(mGenesisChainHash);
@@ -297,6 +297,7 @@ void ln_genesishash_set(const uint8_t *pHash)
     if (gen == BTC_BLOCK_CHAIN_UNKNOWN) {
         LOGE("fail: unknown genesis block hash\n");
     }
+    return gen;
 }
 
 

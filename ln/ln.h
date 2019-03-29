@@ -31,6 +31,7 @@
 #include "utl_common.h"
 
 #include "btc.h"
+#include "btc_block.h"
 #include "btc_crypto.h"
 #include "btc_sig.h"
 #include "btc_tx.h"
@@ -467,12 +468,13 @@ const char *ln_status_string(const ln_channel_t *pChannel);
 /** Genesis Block Hash設定
  *
  * @param[in]       pHash               Genesis Block Hash
+ * @return          blockchain type
  * @attention
  *      - JSON-RPCのgetblockhashで取得した値はエンディアンが逆転しているため、
  *          設定する場合にはエンディアンを逆にして pHashに与えること。
  *          https://github.com/lightningnetwork/lightning-rfc/issues/237
  */
-void ln_genesishash_set(const uint8_t *pHash);
+btc_block_chain_t ln_genesishash_set(const uint8_t *pHash);
 
 
 /** Genesis Block Hash取得
