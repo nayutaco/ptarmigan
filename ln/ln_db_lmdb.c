@@ -3842,7 +3842,7 @@ bool ln_db_reset(void)
 }
 
 
-void HIDDEN ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pInChannel)
+void ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pInChannel)
 {
     //XXX: check return code
 

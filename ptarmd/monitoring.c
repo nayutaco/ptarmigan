@@ -39,6 +39,7 @@
 #include "ptarmd.h"
 #include "p2p.h"
 #include "lnapp.h"
+#include "lnapp_manager.h"
 #include "btcrpc.h"
 #include "cmd_json.h"
 #include "monitoring.h"
@@ -86,7 +87,7 @@ LIST_HEAD(monchanlisthead_t, monchanlist_t);
  * private variables
  **************************************************************************/
 
-static volatile bool        mMonitoring;                ///< true:監視thread継続
+static volatile bool        mActive = true;             ///< true:監視thread継続
 static bool                 mDisableAutoConn;           ///< true:channelのある他nodeへの自動接続停止
 static uint32_t             mFeeratePerKw;              ///< 0:estimate fee / !0:use this value
 static monparam_t           mMonParam;
@@ -137,21 +138,21 @@ void *monitor_start(void *pArg)
 
     LOGD("[THREAD]monitor initialize\n");
 
-    mMonitoring = true;
     update_btc_values();
 
     //wait for accept user command before reconnect
     for (int lp = 0; lp < M_WAIT_START_SEC; lp++) {
         sleep(1);
-        if (!mMonitoring) {
+        if (!mActive) {
             break;
         }
     }
 
     connect_nodelist();
 
-    while (mMonitoring) {
+    while (mActive) {
         LOGD("$$$----begin\n");
+        lnapp_manager_prune_node();
         bool ret = update_btc_values();
         if (ret) {
             ln_db_channel_search(monfunc, &mMonParam);
@@ -160,7 +161,7 @@ void *monitor_start(void *pArg)
 
         for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
             sleep(1);
-            if (!mMonitoring) {
+            if (!mActive) {
                 LOGD("stop monitoring\n");
                 break;
             }
@@ -175,7 +176,8 @@ void *monitor_start(void *pArg)
 
 void monitor_stop(void)
 {
-    mMonitoring = false;
+    LOGD("stop\n");
+    mActive = false;
 }
 
 
@@ -396,7 +398,11 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
     if (del) {
         LOGD("delete from DB\n");
         ln_db_channel_owned_del(ln_short_channel_id(pChannel));
-        ret = ln_db_channel_del_param(pChannel, p_db_param);
+        if (p_db_param) {
+            ret = ln_db_channel_del_param(pChannel, p_db_param);
+        } else {
+            ret = ln_db_channel_del(pChannel->channel_id);
+        }
         if (ret) {
             ptarmd_eventlog(ln_channel_id(pChannel), "close: finish");
         } else {
