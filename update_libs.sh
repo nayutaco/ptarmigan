@@ -55,7 +55,7 @@ func_upd libev https://github.com/enki/libev.git master
 
 func_tag inih https://github.com/benhoyt/inih.git master refs/tags/r42
 func_tag lmdb https://github.com/LMDB/lmdb.git mdb.master refs/tags/LMDB_0.9.23
-func_tag mbedtls https://github.com/ARMmbed/mbedtls.git development mbedtls-2.16.0
+func_tag mbedtls https://github.com/ARMmbed/mbedtls.git development mbedtls-2.16.1
 func_tag jansson https://github.com/akheron/jansson.git master refs/tags/v2.12
 func_tag curl https://github.com/curl/curl.git master refs/tags/curl-7_63_0
 func_tag zlib https://github.com/madler/zlib.git master refs/tags/v1.2.11
