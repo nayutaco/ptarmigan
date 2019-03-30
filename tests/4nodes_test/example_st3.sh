@@ -56,9 +56,7 @@ mv node_6666/ptarm_*.conf conf/peer6666.conf
 
 # connect
 ./ptarmcli -c conf/peer3333.conf 4445
-sleep 1
 ./ptarmcli -c conf/peer3333.conf 5556
-sleep 1
 ./ptarmcli -c conf/peer5555.conf 6667
 sleep 1
 
@@ -67,14 +65,14 @@ sleep 1
 sleep 1
 ./ptarmcli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
 
-sleep 3
+sleep 2
 
 # node_5555からnode_3333へチャネルを開く。
 ./fund-test-in.sh > node_5555/fund5555_3333.conf
 sleep 1
 ./ptarmcli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
 
-sleep 3
+sleep 2
 
 # node_6666からnode_5555へチャネルを開く。
 ./fund-test-in.sh > node_6666/fund6666_5555.conf
@@ -83,7 +81,7 @@ sleep 1
 
 # 少し待つ
 echo wait...
-sleep 10
+sleep 2
 
 # mining
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
