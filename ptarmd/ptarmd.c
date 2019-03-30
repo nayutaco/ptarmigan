@@ -68,6 +68,7 @@
 #include "btcrpc.h"
 #include "p2p.h"
 #include "lnapp.h"
+#include "lnapp_manager.h"
 #include "monitoring.h"
 #include "cmd_json.h"
 
@@ -167,8 +168,6 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     }
     const ln_node_addr_t *p_addr = ln_node_addr();
 
-    p2p_init();
-
     //peer config出力(内部テストで使用している)
     FILE *fp = fopen(FNAME_FMT_NODECONF, "w");
     if (fp) {
@@ -193,6 +192,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     btcrpc_set_creationhash(ln_creationhash_get());
     set_channels();
     lnapp_global_init();
+    lnapp_manager_init();
 
     //接続待ち受け用
     pthread_t th_svr;
@@ -236,6 +236,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     ptarmd_eventlog(NULL,
             "ptarmd end: total_msat=%" PRIu64 "\n", total_amount);
 
+    lnapp_manager_term();
     btcrpc_term();
     ln_db_term();
     utl_log_term();
@@ -255,8 +256,7 @@ void ptarmd_stop(void)
         LOGD("$$$ stopage order\n");
         cmd_json_stop();
         monitor_stop();
-        p2p_stop_all();
-        p2p_stop_all();
+        p2p_stop();
     } else {
         LOGD("$$$ stopped\n");
     }

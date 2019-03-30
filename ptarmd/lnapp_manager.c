@@ -22,6 +22,8 @@
 #define LOG_TAG     "lnapp_manager"
 #include "utl_log.h"
 
+#include "ln_db.h"
+
 #include "lnapp.h"
 
 
@@ -34,41 +36,65 @@ pthread_mutex_t         mMuxAppconf = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 
 /********************************************************************
+ * prototypes
+ ********************************************************************/
+
+static bool load_channel(ln_channel_t *pChannel, void *pDbParam, void *pParam);
+
+
+/********************************************************************
  * public functions
  ********************************************************************/
 
 void lnapp_manager_init(void)
 {
     memset(&mAppConf, 0x00, sizeof(mAppConf));
-    for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        mAppConf[lp].state = LNAPP_STATE_NONE;
-    }
+    int idx = 0;
+    ln_db_channel_search_cont(load_channel, &idx); //XXX: error check
 }
 
 
 void lnapp_manager_term(void)
 {
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        if (mAppConf[lp].state == LNAPP_STATE_NONE) continue;
+        if (!mAppConf[lp].enabled) continue;
+        lnapp_stop(&mAppConf[lp]);
         lnapp_conf_term(&mAppConf[lp]);
     }
 }
 
 
-lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId, lnapp_state_t State)
+lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId)
 {
     pthread_mutex_lock(&mMuxAppconf);
     lnapp_conf_t *p_conf = NULL;
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        if (mAppConf[lp].state == LNAPP_STATE_NONE) continue;
-        if (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY)) continue;
-        if (!(mAppConf[lp].state & State)) continue;
+        if (!mAppConf[lp].enabled) continue;
+        if (memcmp(mAppConf[lp].node_id, pNodeId, BTC_SZ_PUBKEY)) continue;
         p_conf = &mAppConf[lp];
         p_conf->ref_counter++;
         break;
     }
     pthread_mutex_unlock(&mMuxAppconf);
     return p_conf;
+}
+
+
+void lnapp_manager_each_node(bool (*pCallback)(lnapp_conf_t *pConf, void *pParam), void *pParam)
+{
+    pthread_mutex_lock(&mMuxAppconf);
+    for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
+        if (!mAppConf[lp].enabled) continue;
+        mAppConf[lp].ref_counter++;
+        pthread_mutex_unlock(&mMuxAppconf);
+        bool ret = pCallback(&mAppConf[lp], pParam);
+        pthread_mutex_lock(&mMuxAppconf);
+        mAppConf[lp].ref_counter--;
+        if (!ret) {
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mMuxAppconf);
 }
 
 
@@ -76,18 +102,17 @@ lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId)
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        if (mAppConf[lp].state == LNAPP_STATE_NONE) continue;
-        if (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY)) continue;
+        if (!mAppConf[lp].enabled) continue;
+        if (memcmp(mAppConf[lp].node_id, pNodeId, BTC_SZ_PUBKEY)) continue;
         LOGE("fail: always exists\n");
         pthread_mutex_unlock(&mMuxAppconf);
         return NULL;
     }
     lnapp_conf_t *p_conf = NULL;
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        if (mAppConf[lp].state != LNAPP_STATE_NONE) continue;
+        if (mAppConf[lp].enabled) continue;
         p_conf = &mAppConf[lp];
         lnapp_conf_init(p_conf, pNodeId);
-        p_conf->state = LNAPP_STATE_INIT;
         p_conf->ref_counter++;
         break;
     }
@@ -96,41 +121,64 @@ lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId)
 }
 
 
-void lnapp_manager_decrement_ref(lnapp_conf_t **ppConf)
+void lnapp_manager_free_node_ref(lnapp_conf_t *pConf)
 {
-    if (!*ppConf) return;
     pthread_mutex_lock(&mMuxAppconf);
-    assert((*ppConf)->ref_counter);
-    (*ppConf)->ref_counter--;
+    assert(pConf->ref_counter);
+    pConf->ref_counter--;
     pthread_mutex_unlock(&mMuxAppconf);
-    *ppConf = NULL;
 }
 
 
 void lnapp_manager_term_node(const uint8_t *pNodeId)
 {
-    pthread_mutex_lock(&mMuxAppconf);
-    for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        lnapp_conf_t *p_conf = &mAppConf[lp];
-        if (p_conf->state == LNAPP_STATE_NONE) continue;
-        if (memcmp(pNodeId, p_conf->node_id, BTC_SZ_PUBKEY)) continue;
-        lnapp_conf_term(&mAppConf[lp]);
-        p_conf->state = LNAPP_STATE_NONE;
-        break;
-    }
-    pthread_mutex_unlock(&mMuxAppconf);
+    lnapp_conf_t *p_conf = lnapp_manager_get_node(pNodeId);
+    if (!p_conf) return;
+    lnapp_manager_free_node_ref(p_conf);
+    lnapp_manager_free_node_ref(p_conf);
 }
 
 
-void lnapp_manager_set_node_state(const uint8_t *pNodeId, lnapp_state_t State)
+void lnapp_manager_prune_node()
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        lnapp_conf_t *p_conf = &mAppConf[lp];
-        if (p_conf->state == LNAPP_STATE_NONE) continue;
-        if (memcmp(pNodeId, p_conf->node_id, BTC_SZ_PUBKEY)) continue;
-        p_conf->state = State;
-        break;
+        if (!mAppConf[lp].enabled) continue;
+        if (mAppConf[lp].ref_counter) continue;
+        //no lock required
+        if (ln_status_get(&mAppConf[lp].channel) >= LN_STATUS_ESTABLISH) continue;
+        LOGD("prune node: ");
+        DUMPD(mAppConf[lp].node_id, BTC_SZ_PUBKEY);
+        lnapp_stop(&mAppConf[lp]);
+        lnapp_conf_term(&mAppConf[lp]);
     }
     pthread_mutex_unlock(&mMuxAppconf);
 }
+
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
+
+static bool load_channel(ln_channel_t *pChannel, void *pDbParam, void *pParam)
+{
+    (void)pDbParam;
+
+    int *p_idx = (int *)pParam;
+
+    if (*p_idx >= MAX_CHANNELS) {
+        assert(0);
+        return false;
+    }
+
+    ln_channel_t *p_channel = &mAppConf[*p_idx].channel;
+    lnapp_conf_init(&mAppConf[*p_idx], pChannel->peer_node_id);
+    ln_db_copy_channel(p_channel, pChannel);
+    if (p_channel->short_channel_id) {
+        ln_db_cnlanno_load(&p_channel->cnl_anno, p_channel->short_channel_id);
+    }
+    ln_print_keys(p_channel);
+    (*p_idx)++;
+    return true;
+}
+

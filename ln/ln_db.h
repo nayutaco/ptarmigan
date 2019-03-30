@@ -310,6 +310,14 @@ bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbPara
 void ln_db_channel_close(const uint8_t *pChannelId);
 
 
+/** DBで保存している対象のデータだけコピーする
+ *
+ * @param[out]  pOutChannel
+ * @param[in]   pInChannel
+ */
+void ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pInChannel);
+
+
 /** secret保存
  *
  */

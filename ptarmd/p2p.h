@@ -79,7 +79,7 @@ void *p2p_listener_start(void *pArg);
 /** [p2p]全停止
  *
  */
-void p2p_stop_all(void);
+void p2p_stop(void);
 
 
 /** [p2p]node_idによる検索

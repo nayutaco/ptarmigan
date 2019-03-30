@@ -66,18 +66,6 @@ typedef struct ponglist_t {
 LIST_HEAD(ponglisthead_t, ponglist_t);
 
 
-//XXX: comment
-typedef enum lnapp_state_t {
-    LNAPP_STATE_NONE,
-    LNAPP_STATE_INIT = 0x01,
-    LNAPP_STATE_INACTIVE = 0x02,
-    LNAPP_STATE_ACTIVE = 0x04,
-    LNAPP_STATE_CLOSED = 0x08,
-    LNAPP_STATE_EXISTS =
-        LNAPP_STATE_INIT |LNAPP_STATE_INACTIVE | LNAPP_STATE_ACTIVE | LNAPP_STATE_CLOSED,
-} lnapp_state_t;
-
-
 /** @struct lnapp_conf_t
  *  @brief  アプリ側のチャネル管理情報
  */
@@ -86,12 +74,13 @@ typedef struct lnapp_conf_t {
     uint8_t             node_id[BTC_SZ_PUBKEY]; ///< 接続先(initiator==true時)
 
     //init
-    lnapp_state_t       state;
+    bool                enabled;
     uint32_t            ref_counter;
     ln_channel_t        channel;                ///< channelのコンテキスト
 
-    pthread_cond_t      cond;                   ///< muxの待ち合わせ
-    pthread_mutex_t     mux;                    ///< 処理待ち合わせ用のmutex
+    pthread_cond_t      cond;                   ///< threadの待ち合わせ
+    pthread_mutex_t     mux_th;                 ///< thread
+    pthread_mutex_t     mux_conf;               ///< conf
     pthread_mutex_t     mux_channel;            ///< ln_channel_t処理中のmutex
     pthread_mutex_t     mux_send;               ///< socket送信中のmutex
 

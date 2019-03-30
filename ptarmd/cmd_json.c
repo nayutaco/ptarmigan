@@ -231,13 +231,8 @@ void cmd_json_start(uint16_t Port)
 
 void cmd_json_stop(void)
 {
-    if (mRunning) {
-        jrpc_server_stop(&mJrpc);
-        LOGD("stop jrpc_server\n");
-        mRunning = false;
-    } else {
-        LOGD("stopeed\n");
-    }
+    LOGD("stop\n");
+    jrpc_server_stop(&mJrpc);
 }
 
 
@@ -2219,7 +2214,7 @@ static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
     struct sockaddr_in sv_addr;
 
     int sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
+    if (sock == -1) {
         return retval;
     }
     memset(&sv_addr, 0, sizeof(sv_addr));

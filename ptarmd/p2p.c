@@ -47,6 +47,7 @@
 #include "ptarmd.h"
 #include "p2p.h"
 #include "lnapp.h"
+#include "lnapp_manager.h"
 
 
 /********************************************************************
@@ -60,31 +61,34 @@
  * static variables
  ********************************************************************/
 
-static lnapp_conf_t     mAppConf[MAX_CHANNELS];
-
 static peer_conn_t mLastPeerConn;
 pthread_mutex_t mMuxLastPeerConn = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
-volatile bool           mLoop = true;
+volatile bool           mActive = true;
+
+
+/********************************************************************
+ * typedefs
+ ********************************************************************/
+
+typedef struct {
+    uint64_t short_channel_id;
+    uint8_t node_id[BTC_SZ_PUBKEY];
+    bool found;
+} param_search_node_t;
 
 
 /********************************************************************
  * prototypes
  ********************************************************************/
 
+static bool search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam);
+static bool show_channel(lnapp_conf_t *pConf, void *pParam);
+
 
 /********************************************************************
  * public functions
  ********************************************************************/
-
-void p2p_init(void)
-{
-    memset(&mAppConf, 0, sizeof(mAppConf));
-    for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        mAppConf[lp].sock = -1;
-    }
-}
-
 
 bool p2p_connect_test(const char *pIpAddr, uint16_t Port)
 {
@@ -92,7 +96,7 @@ bool p2p_connect_test(const char *pIpAddr, uint16_t Port)
     struct sockaddr_in sv_addr;
 
     int sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
+    if (sock == -1) {
         LOGE("socket\n");
         goto LABEL_EXIT;
     }
@@ -119,7 +123,6 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
 {
     bool bret = false;
     int ret;
-    int idx;
     int sock = -1;
     struct sockaddr_in sv_addr;
 
@@ -135,20 +138,8 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         goto LABEL_EXIT;
     }
 
-    //pre check
-    for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
-        if (mAppConf[idx].sock == -1) {
-            break;
-        }
-    }
-    if (idx == (int)ARRAY_SIZE(mAppConf)) {
-        LOGE("client full\n");
-        *pErrCode = RPCERR_FULLCLI;
-        goto LABEL_EXIT;
-    }
-
     sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
+    if (sock == -1) {
         LOGE("socket\n");
         *pErrCode = RPCERR_SOCK;
         goto LABEL_EXIT;
@@ -212,31 +203,41 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     if (!lnapp_handshake(&conn_handshake)) {
         LOGE("fail: handshake\n");
         *pErrCode = RPCERR_CONNECT;
-        close(sock);
         goto LABEL_EXIT;
     }
 
-    for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
-        if (mAppConf[idx].sock == -1) {
-            break;
+    p_conf = lnapp_manager_get_node(conn_handshake.conn.node_id);
+    if (p_conf) {
+        if (ln_status_is_closing(&p_conf->channel)) {
+            LOGD("fail: closing channel: %016" PRIx64 "\n", ln_short_channel_id(&p_conf->channel));
+            lnapp_manager_free_node_ref(p_conf);
+            *pErrCode = RPCERR_NOOPEN;
+            goto LABEL_EXIT;
+        }
+        lnapp_stop(p_conf);
+    } else {
+        LOGD("new node: ");
+        DUMPD(conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+        p_conf = lnapp_manager_get_new_node(conn_handshake.conn.node_id);
+        if (!p_conf) {
+            LOGE("fail: ???\n");
+            *pErrCode = RPCERR_FULLCLI;
+            goto LABEL_EXIT;
         }
     }
-    if (idx == (int)ARRAY_SIZE(mAppConf)) {
-        LOGE("client full\n");
-        *pErrCode = RPCERR_FULLCLI;
-        close(sock);
-        goto LABEL_EXIT;
-    }
 
-    lnapp_conf_init(&mAppConf[idx], conn_handshake.conn.node_id);
     lnapp_conf_start(
-        &mAppConf[idx], conn_handshake.initiator, conn_handshake.sock, pConn->ipaddr, pConn->port,
+        p_conf, conn_handshake.initiator, conn_handshake.sock, pConn->ipaddr, pConn->port,
         pConn->routesync, conn_handshake.noise);
-    lnapp_start(&mAppConf[idx]);
+    lnapp_start(p_conf);
+
     bret = true;
 
 LABEL_EXIT:
     LOGD("[exit]p2p: sock=%d\n", sock);
+    if (!bret && sock != -1) {
+        close(sock);
+    }
     return bret;
 }
 
@@ -278,7 +279,7 @@ void *p2p_listener_start(void *pArg)
     LOGD("[THREAD]listener initialize\n");
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
+    if (sock == -1) {
         LOGE("socket error: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
@@ -315,7 +316,7 @@ void *p2p_listener_start(void *pArg)
     fprintf(stderr, "listening...\n");
 
     struct pollfd fds;
-    while (mLoop) {
+    while (mActive) {
         fds.fd = sock;
         fds.events = POLLIN;
         int polr = poll(&fds, 1, M_TIMEOUT_MSEC);
@@ -328,33 +329,19 @@ void *p2p_listener_start(void *pArg)
         } else {
             //継続
         }
-        if (!mLoop) {
+        if (!mActive) {
             LOGD("stop\n");
             break;
-        }
-
-        //pre check
-        int idx;
-        for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
-            if (mAppConf[idx].sock == -1) {
-                break;
-            }
-        }
-        if (idx == (int)ARRAY_SIZE(mAppConf)) {
-            int delsock = accept(sock, NULL, NULL);
-            close(delsock);
-            LOGE("no empty socket\n");
-            continue;
         }
 
         socklen_t cl_len = sizeof(cl_addr);
         //fprintf(stderr, "accept...\n");
         int sock_2 = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
-        if (sock_2 < 0) {
+        if (sock_2 == -1) {
             LOGE("accept: %s\n", strerror(errno));
-            break;
+            continue;
         }
-        if (!mLoop) {
+        if (!mActive) {
             LOGD("stop\n");
             close(sock_2);
             break;
@@ -375,83 +362,112 @@ void *p2p_listener_start(void *pArg)
             continue;
         }
 
-        for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
-            if (mAppConf[idx].sock == -1) {
-                break;
+        lnapp_conf_t *p_conf;
+        p_conf = lnapp_manager_get_node(conn_handshake.conn.node_id);
+        if (p_conf) {
+            if (ln_status_is_closing(&p_conf->channel)) {
+                LOGD("fail: closing channel: %016" PRIx64 "\n", ln_short_channel_id(&p_conf->channel));
+                lnapp_manager_free_node_ref(p_conf);
+                close(sock_2);
+                continue;
+            }
+            lnapp_stop(p_conf);
+        } else {
+            LOGD("new node: ");
+            DUMPD(conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
+            p_conf = lnapp_manager_get_new_node(conn_handshake.conn.node_id);
+            if (!p_conf) {
+                LOGE("fail: ???\n");
+                close(sock_2);
+                continue;
             }
         }
-        if (idx == (int)ARRAY_SIZE(mAppConf)) {
-            LOGE("no empty socket\n");
-            close(sock_2);
-            continue;
-        }
 
-        lnapp_conf_init(&mAppConf[idx], conn_handshake.conn.node_id);
-        lnapp_conf_start(&mAppConf[idx], conn_handshake.initiator, conn_handshake.sock,
+        lnapp_conf_start(p_conf, conn_handshake.initiator, conn_handshake.sock,
             conn_str, (uint16_t)ntohs(cl_addr.sin_port),
             conn_handshake.conn.routesync, conn_handshake.noise);
-        lnapp_start(&mAppConf[idx]);
+        lnapp_start(p_conf);
     }
 
 LABEL_EXIT:
-    if (sock > 0) {
+    if (sock != -1) {
         close(sock);
     }
     LOGD("[exit]p2p thread: sock=%d\n", sock);
     ptarmd_stop();
-
     return NULL;
 }
 
 
-void p2p_stop_all(void)
+void p2p_stop(void)
 {
     LOGD("stop\n");
-    mLoop = false;
-    for (int lp = 0; lp < MAX_CHANNELS; lp++) {
-        if (mAppConf[lp].sock != -1) {
-            lnapp_stop(&mAppConf[lp]);
-        }
-    }
+    mActive = false;
 }
 
 
 lnapp_conf_t *p2p_search_node(const uint8_t *pNodeId)
 {
-    lnapp_conf_t *p_appconf = NULL;
-    int lp;
-    for (lp = 0; lp < MAX_CHANNELS; lp++) {
-        if (mAppConf[lp].active && (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY) == 0)) {
-            //LOGD("found: server %d\n", lp);
-            p_appconf = &mAppConf[lp];
-            break;
-        }
+    lnapp_conf_t *p_conf = lnapp_manager_get_node(pNodeId);
+    if (!p_conf) return NULL;
+    lnapp_manager_free_node_ref(p_conf); //XXX: the caller needs to be free
+    pthread_mutex_lock(&p_conf->mux_conf);
+    if (!p_conf->active) {
+        pthread_mutex_unlock(&p_conf->mux_conf);
+        return NULL;
     }
-
-    return p_appconf;
+    pthread_mutex_unlock(&p_conf->mux_conf);
+    return p_conf;
 }
 
 
 lnapp_conf_t *p2p_search_short_channel_id(uint64_t short_channel_id)
 {
-    lnapp_conf_t *p_appconf = NULL;
-    for (int lp = 0; lp < MAX_CHANNELS; lp++) {
-        if (mAppConf[lp].active && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
-            //LOGD("found: server[%016" PRIx64 "] %d\n", short_channel_id, lp);
-            p_appconf = &mAppConf[lp];
-            break;
-        }
-    }
-    //LOGD("p_appconf= %p\n", p_appconf);
+    param_search_node_t param;
+    param.short_channel_id = short_channel_id;
+    param.found = false;
 
-    return p_appconf;
+    lnapp_manager_each_node(search_node_by_short_channel_id, &param);
+    if (!param.found) return NULL;
+
+    return p2p_search_node(param.node_id);
 }
-
 
 void p2p_show_channel(cJSON *pResult)
 {
-    for (int lp = 0; lp < MAX_CHANNELS; lp++) {
-        lnapp_show_channel(&mAppConf[lp], pResult);
+    lnapp_manager_each_node(show_channel, pResult);
+}
+
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
+
+static bool search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam)
+{
+    bool ret;
+    param_search_node_t *p_param = (param_search_node_t *)pParam;
+    p_param->found = false;
+    pthread_mutex_lock(&pConf->mux_conf);
+    pthread_mutex_lock(&pConf->mux_channel);
+    ret = lnapp_match_short_channel_id(pConf, p_param->short_channel_id);
+    pthread_mutex_unlock(&pConf->mux_channel);
+    pthread_mutex_unlock(&pConf->mux_conf);
+    if (ret) {
+        p_param->found = true;
+        memcpy(p_param->node_id, pConf->node_id, BTC_SZ_PUBKEY);
+        return false; //XXX: stop
     }
+    return true;
+}
+
+
+static bool show_channel(lnapp_conf_t *pConf, void *pParam)
+{
+    cJSON *pResult = (cJSON *)pParam;
+    pthread_mutex_lock(&pConf->mux_conf);
+    lnapp_show_channel(pConf, pResult);
+    pthread_mutex_unlock(&pConf->mux_conf);
+    return true;
 }
 

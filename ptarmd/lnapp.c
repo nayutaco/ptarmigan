@@ -78,6 +78,7 @@
 #include "ptarmd.h"
 #include "cmd_json.h"
 #include "lnapp.h"
+#include "lnapp_manager.h"
 #include "conf.h"
 #include "btcrpc.h"
 #include "ln_db.h"
@@ -252,20 +253,19 @@ void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId)
     memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
 
     memcpy(pAppConf->node_id, pPeerNodeId, BTC_SZ_PUBKEY);
-    pAppConf->state = LNAPP_STATE_NONE;
+    pAppConf->enabled = true;
     pAppConf->ref_counter = 0;
     ln_init(&pAppConf->channel, &mAnnoParam, pPeerNodeId, notify_cb, pAppConf);
 
     pthread_cond_init(&pAppConf->cond, NULL);
-    pthread_mutex_init(&pAppConf->mux, NULL);
-    pthread_mutex_init(&pAppConf->mux_channel, NULL);
-    pthread_mutex_init(&pAppConf->mux_send, NULL);
+    pthread_mutex_init(&pAppConf->mux_th, NULL);
+    pthread_mutex_t mux_conf = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+    memcpy(&pAppConf->mux_conf, &mux_conf, sizeof(mux_conf));
     pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
     memcpy(&pAppConf->mux_channel, &mux_channel, sizeof(mux_channel));
+    pthread_mutex_init(&pAppConf->mux_send, NULL);
 
     load_channel_settings(pAppConf);
-
-    //XXX: load channel (if exists)
 }
 
 
@@ -274,7 +274,8 @@ void lnapp_conf_term(lnapp_conf_t *pAppConf)
     ln_term(&pAppConf->channel);
 
     pthread_cond_destroy(&pAppConf->cond);
-    pthread_mutex_destroy(&pAppConf->mux);
+    pthread_mutex_destroy(&pAppConf->mux_th);
+    pthread_mutex_destroy(&pAppConf->mux_conf);
     pthread_mutex_destroy(&pAppConf->mux_channel);
     pthread_mutex_destroy(&pAppConf->mux_send);
 
@@ -314,11 +315,15 @@ void lnapp_conf_start(
 
     pAppConf->err = 0;
     pAppConf->p_errstr = NULL;
+
+    pAppConf->channel.init_flag = 0;
 }
 
 
 void lnapp_conf_stop(lnapp_conf_t *pAppConf)
 {
+    pAppConf->active = false;
+
     payroute_clear(pAppConf);
     while (pAppConf->pong_head.lh_first) {
         LIST_REMOVE(pAppConf->pong_head.lh_first, list);
@@ -381,22 +386,43 @@ LABEL_EXIT:
 
 void lnapp_start(lnapp_conf_t *pAppConf)
 {
-    pthread_create(&pAppConf->th, NULL, &thread_channel_start, pAppConf);
+    pthread_mutex_lock(&pAppConf->mux_th);
+    if (pAppConf->th) {
+        LOGE("fail: ???\n");
+    } else {
+        pAppConf->active = true;
+        pthread_create(&pAppConf->th, NULL, &thread_channel_start, pAppConf);
+    }
+    pthread_mutex_unlock(&pAppConf->mux_th);
 }
 
 
 void lnapp_stop(lnapp_conf_t *pAppConf)
 {
-    if (pAppConf->th != 0) {
+    LOGD("$$$ stop\n");
+    pthread_mutex_lock(&pAppConf->mux_conf);
+    if (pAppConf->th) {
         LOGD("stop lnapp: sock=%d\n", pAppConf->sock);
         fprintf(stderr, "stop: ");
         utl_dbg_dump(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
+        pAppConf->active = false;
+        pthread_cond_signal(&pAppConf->cond);
+        LOGD("=========================================\n");
+        LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(&pAppConf->channel));
+        LOGD("=========================================\n");
+        LOGD("$$$ stopped\n");
+    }
+    pthread_mutex_unlock(&pAppConf->mux_conf);
 
-        stop_threads(pAppConf);
+    //wait for the thread to finish
+
+    pthread_mutex_lock(&pAppConf->mux_th);
+    if (pAppConf->th) {
         pthread_join(pAppConf->th, NULL);
         pAppConf->th = 0;
         fprintf(stderr, "joined\n");
     }
+    pthread_mutex_unlock(&pAppConf->mux_th);
 }
 
 
@@ -657,18 +683,18 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 
 void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult)
 {
-    if ((!pAppConf->active) || (pAppConf->sock < 0)) {
-        return;
-    }
-
     const ln_channel_t *p_channel = &pAppConf->channel;
     char str[256];
 
     cJSON *result = cJSON_CreateObject();
-    if (pAppConf->initiator) {
-        cJSON_AddItemToObject(result, "role", cJSON_CreateString("client"));
+    if (pAppConf->active) {
+        if (pAppConf->initiator) {
+            cJSON_AddItemToObject(result, "role", cJSON_CreateString("client"));
+        } else {
+            cJSON_AddItemToObject(result, "role", cJSON_CreateString("server"));
+        }
     } else {
-        cJSON_AddItemToObject(result, "role", cJSON_CreateString("server"));
+        cJSON_AddItemToObject(result, "role", cJSON_CreateString("none"));
     }
     cJSON_AddItemToObject(result, "status", cJSON_CreateString(ln_status_string(p_channel)));
     //peer node_id
@@ -725,33 +751,18 @@ bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
  */
 static void *thread_channel_start(void *pArg)
 {
-    bool ret;
-    int retval;
-    bool detect;
-    bool b_channelreestablished = false;
-
-    LOGD("[THREAD]ln_channel_t initialize\n");
+    bool    ret;
+    int     retval;
+    bool    b_channelreestablished = false;
 
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     ln_channel_t *p_channel = &p_conf->channel;
 
-    //スレッド
+    LOGD("[THREAD]ln_channel_t initialize\n");
+
     pthread_t   th_recv;        //peer受信
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
-
-    //p_conf->node_idがchannel情報を持っているかどうか。
-    //持っている場合、p_channelにDBから読み込みまで行われている。
-    detect = ln_node_search_channel(p_channel, p_conf->node_id);
-    LOGD("$$$ channel status=%d\n", ln_status_get(p_channel));
-    if (detect && ln_status_is_closing(p_channel)) {
-        LOGD("$$$ closing channel: %016" PRIx64 "\n", ln_short_channel_id(p_channel));
-        goto LABEL_SHUTDOWN;
-    }
-
-    //
-    //p_channelへの設定はこれ以降に行う
-    //
 
     p_conf->feerate_per_kw = ln_feerate_per_kw(p_channel);
 
@@ -796,11 +807,9 @@ static void *thread_channel_start(void *pArg)
     }
 
     // Establishチェック
-    if (detect) {
+    if (ln_status_get(p_channel) >= LN_STATUS_ESTABLISH) {
         // DBにchannel_id登録済み
         // →funding_txは展開されている
-        //
-        // p_channelの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
         LOGD("have channel\n");
 
         if (!ln_status_is_closing(p_channel)) {
@@ -918,23 +927,21 @@ static void *thread_channel_start(void *pArg)
         }
     }
 
-    pthread_mutex_lock(&p_conf->mux);
+    pthread_mutex_lock(&p_conf->mux_conf);
     while (p_conf->active) {
         LOGD("loop...\n");
 
         //mainloop待ち合わせ(*2)
-        pthread_cond_wait(&p_conf->cond, &p_conf->mux);
+        pthread_cond_wait(&p_conf->cond, &p_conf->mux_conf);
     }
-    pthread_mutex_unlock(&p_conf->mux);
+    pthread_mutex_unlock(&p_conf->mux_conf);
 
 LABEL_JOIN:
     LOGD("stop threads...\n");
-    stop_threads(p_conf);
     pthread_join(th_recv, NULL);
     pthread_join(th_poll, NULL);
     pthread_join(th_anno, NULL);
 
-LABEL_SHUTDOWN:
     LOGD("close sock=%d...\n", p_conf->sock);
     retval = close(p_conf->sock);
     if (retval < 0) {
@@ -943,35 +950,32 @@ LABEL_SHUTDOWN:
 
     LOGD("$$$ stop channel[%016" PRIx64 "]\n", ln_short_channel_id(p_channel));
 
-    if (p_conf->sock != -1) {
-        // method: disconnect
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: peer_id
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
-        char peer_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
-        char param[M_SZ_SCRIPT_PARAM];
-        snprintf(param, sizeof(param), "%s %s "
-                    "%s",
-                    str_sci, node_id,
-                    peer_id);
-        ptarmd_call_script(PTARMD_EVT_DISCONNECTED, param);
-    }
+    // method: disconnect
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: peer_id
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
+    char node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
+    char peer_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
+    char param[M_SZ_SCRIPT_PARAM];
+    snprintf(param, sizeof(param), "%s %s "
+                "%s",
+                str_sci, node_id,
+                peer_id);
+    ptarmd_call_script(PTARMD_EVT_DISCONNECTED, param);
 
     //クリア
     lnapp_conf_stop(p_conf);
-    lnapp_conf_term(p_conf); //XXX:
 
     //XXX:
-    p_conf->active = false;
     p_conf->sock = -1;
 
-    LOGD("[exit]lnapp thread\n");
+    lnapp_manager_free_node_ref(p_conf);
 
+    LOGD("[exit]lnapp thread\n");
     return NULL;
 }
 
@@ -1041,7 +1045,6 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         if (len_msg == 0) {
             //peerから切断された
             LOGD("DISC: loop end\n");
-            stop_threads(p_conf);
             goto LABEL_EXIT;
         }
         LOGD("** RECV act two ! **\n");
@@ -1075,7 +1078,6 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         if (len_msg == 0) {
             //peerから切断された
             LOGD("DISC: loop end\n");
-            stop_threads(p_conf);
             goto LABEL_EXIT;
         }
         LOGD("** RECV act one ! **\n");
@@ -1099,7 +1101,6 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         if (len_msg == 0) {
             //peerから切断された
             LOGD("DISC: loop end\n");
-            stop_threads(p_conf);
             goto LABEL_EXIT;
         }
         LOGD("** RECV act three ! **\n");
@@ -1111,20 +1112,14 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             goto LABEL_EXIT;
         }
 
-        //bufには相手のnode_idが返ってくる
-        if (buf.len == BTC_SZ_PUBKEY) {
-            //既に接続済みのlnappがある場合、そちらを切断させる
-            //  socket切断を識別できないまま再接続されることがあるため
-            lnapp_conf_t *p_exist_conf = ptarmd_search_connected_node_id(buf.buf);
-            if (p_exist_conf != NULL) {
-                LOGD("stop already connected lnapp\n");
-                lnapp_stop(p_exist_conf);
-            }
-
-            memcpy(p_conf->node_id, buf.buf, BTC_SZ_PUBKEY);
-
-            result = true;
+        if (buf.len != BTC_SZ_PUBKEY) {
+            LOGE("fail: peer node_id\n");
+            goto LABEL_EXIT;
         }
+
+        memcpy(p_conf->node_id, buf.buf, BTC_SZ_PUBKEY);
+
+        result = true;
     }
 
 LABEL_EXIT:
@@ -2988,7 +2983,7 @@ static void cb_pong_recv(lnapp_conf_t *p_conf, void *p_param)
 static void stop_threads(lnapp_conf_t *p_conf)
 {
     LOGD("$$$ stop\n");
-    pthread_mutex_lock(&p_conf->mux);
+    pthread_mutex_lock(&p_conf->mux_conf);
     if (p_conf->active) {
         p_conf->active = false;
         //mainloop待ち合わせ解除(*2)
@@ -2997,7 +2992,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(&p_conf->channel));
         LOGD("=========================================\n");
     }
-    pthread_mutex_unlock(&p_conf->mux);
+    pthread_mutex_unlock(&p_conf->mux_conf);
     LOGD("$$$ stopped\n");
 }
 
