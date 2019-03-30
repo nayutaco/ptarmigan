@@ -228,14 +228,10 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         goto LABEL_EXIT;
     }
 
-    //XXX: lnapp_init(&mAppConf[idx]);
-    mAppConf[idx].initiator = conn_handshake.initiator;
-    mAppConf[idx].sock = conn_handshake.sock;
-    strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
-    mAppConf[idx].conn_port = pConn->port;
-    memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
-    mAppConf[idx].routesync = pConn->routesync;
-    mAppConf[idx].noise = conn_handshake.noise;
+    lnapp_conf_init(&mAppConf[idx], conn_handshake.conn.node_id);
+    lnapp_conf_start(
+        &mAppConf[idx], conn_handshake.initiator, conn_handshake.sock, pConn->ipaddr, pConn->port,
+        pConn->routesync, conn_handshake.noise);
     lnapp_start(&mAppConf[idx]);
     bret = true;
 
@@ -390,14 +386,10 @@ void *p2p_listener_start(void *pArg)
             continue;
         }
 
-        //XXX: lnapp_init(&mAppConf[idx]);
-        mAppConf[idx].initiator = conn_handshake.initiator;
-        mAppConf[idx].sock = conn_handshake.sock;
-        inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
-        mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
-        memcpy(mAppConf[idx].node_id, conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
-        mAppConf[idx].routesync = conn_handshake.conn.routesync;
-        mAppConf[idx].noise = conn_handshake.noise;
+        lnapp_conf_init(&mAppConf[idx], conn_handshake.conn.node_id);
+        lnapp_conf_start(&mAppConf[idx], conn_handshake.initiator, conn_handshake.sock,
+            conn_str, (uint16_t)ntohs(cl_addr.sin_port),
+            conn_handshake.conn.routesync, conn_handshake.noise);
         lnapp_start(&mAppConf[idx]);
     }
 

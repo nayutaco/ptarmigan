@@ -247,6 +247,7 @@ void lnapp_global_init(void)
 }
 
 
+#if 1   //deprecated
 void lnapp_init(lnapp_conf_t *pAppConf)
 {
     memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
@@ -285,6 +286,92 @@ void lnapp_term(lnapp_conf_t *pAppConf)
 
     memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
     pAppConf->sock = -1;
+}
+#endif
+
+
+void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId)
+{
+    memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
+
+    memcpy(pAppConf->node_id, pPeerNodeId, BTC_SZ_PUBKEY);
+    pAppConf->state = LNAPP_STATE_NONE;
+    pAppConf->ref_counter = 0;
+    ln_init(&pAppConf->channel, &mAnnoParam, pPeerNodeId, notify_cb, pAppConf);
+
+    pthread_cond_init(&pAppConf->cond, NULL);
+    pthread_mutex_init(&pAppConf->mux, NULL);
+    pthread_mutex_init(&pAppConf->mux_channel, NULL);
+    pthread_mutex_init(&pAppConf->mux_send, NULL);
+    pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+    memcpy(&pAppConf->mux_channel, &mux_channel, sizeof(mux_channel));
+
+    load_channel_settings(pAppConf);
+
+    //XXX: load channel (if exists)
+}
+
+
+void lnapp_conf_term(lnapp_conf_t *pAppConf)
+{
+    ln_term(&pAppConf->channel);
+
+    pthread_cond_destroy(&pAppConf->cond);
+    pthread_mutex_destroy(&pAppConf->mux);
+    pthread_mutex_destroy(&pAppConf->mux_channel);
+    pthread_mutex_destroy(&pAppConf->mux_send);
+
+    memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
+}
+
+
+void lnapp_conf_start(
+    lnapp_conf_t *pAppConf, bool Initiator, int Sock, const char *pConnStr, uint16_t ConnPort,
+    ptarmd_routesync_t Routesync, ln_noise_t Noise)
+{
+    pAppConf->initiator = Initiator;
+    pAppConf->sock = Sock;
+    strncpy(pAppConf->conn_str, pConnStr, SZ_CONN_STR);
+    pAppConf->conn_port = ConnPort;
+    pAppConf->noise = Noise;
+    pAppConf->routesync = Routesync;
+
+    pAppConf->active = true;
+    pAppConf->flag_recv = 0;
+    pAppConf->ping_counter = 1;   //send soon
+
+    pAppConf->funding_waiting = false;
+    pAppConf->funding_confirm = 0;
+
+    pAppConf->last_anno_cnl = 0;
+    pAppConf->annosig_send_req = false;
+    pAppConf->annodb_updated = false;
+    pAppConf->annodb_cont = false;
+    pAppConf->annodb_stamp = 0;
+
+    pAppConf->dummy_htlc_id = 0;
+    pAppConf->feerate_per_kw = 0;
+
+    LIST_INIT(&pAppConf->payroute_head);
+    LIST_INIT(&pAppConf->pong_head);
+
+    pAppConf->err = 0;
+    pAppConf->p_errstr = NULL;
+}
+
+
+void lnapp_conf_stop(lnapp_conf_t *pAppConf)
+{
+    payroute_clear(pAppConf);
+    while (pAppConf->pong_head.lh_first) {
+        LIST_REMOVE(pAppConf->pong_head.lh_first, list);
+        UTL_DBG_FREE(pAppConf->pong_head.lh_first);
+    }
+    while (pAppConf->payroute_head.lh_first) {
+        LIST_REMOVE(pAppConf->payroute_head.lh_first, list);
+        UTL_DBG_FREE(pAppConf->payroute_head.lh_first);
+    }
+    UTL_DBG_FREE(pAppConf->p_errstr);
 }
 
 
@@ -699,35 +786,6 @@ static void *thread_channel_start(void *pArg)
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
 
-    ln_init(p_channel, &mAnnoParam, p_conf->node_id, notify_cb, p_conf);
-
-    p_conf->ping_counter = 1;       //send soon
-    p_conf->funding_waiting = false;
-    p_conf->funding_confirm = 0;
-    p_conf->flag_recv = 0;
-    p_conf->last_anno_cnl = 0;
-    p_conf->annodb_updated = false;
-    p_conf->annodb_cont = false;
-    p_conf->annodb_stamp = 0;
-    p_conf->err = 0;
-    p_conf->p_errstr = NULL;
-    LIST_INIT(&p_conf->payroute_head);
-    LIST_INIT(&p_conf->pong_head);
-
-    pthread_cond_init(&p_conf->cond, NULL);
-    pthread_mutex_init(&p_conf->mux, NULL);
-    pthread_mutex_init(&p_conf->mux_send, NULL);
-    {
-        pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-        memcpy(&p_conf->mux_channel, &mux_channel, sizeof(mux_channel));
-    }
-
-    p_conf->active = true;
-
-    //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
-    ln_peer_set_node_id(p_channel, p_conf->node_id);
-    load_channel_settings(p_conf);
-
     //p_conf->node_idがchannel情報を持っているかどうか。
     //持っている場合、p_channelにDBから読み込みまで行われている。
     detect = ln_node_search_channel(p_channel, p_conf->node_id);
@@ -951,25 +1009,12 @@ LABEL_SHUTDOWN:
     }
 
     //クリア
-    UTL_DBG_FREE(p_conf->p_errstr);
-    ln_term(p_channel);
-    payroute_clear(p_conf);
-    p_conf->sock = -1;
+    lnapp_conf_stop(p_conf);
+    lnapp_conf_term(p_conf); //XXX:
+
+    //XXX:
     p_conf->active = false;
-
-    pthread_mutex_destroy(&p_conf->mux_send);
-    pthread_mutex_destroy(&p_conf->mux_channel);
-    pthread_mutex_destroy(&p_conf->mux);
-    pthread_cond_destroy(&p_conf->cond);
-
-    while (p_conf->pong_head.lh_first != NULL) {
-        LIST_REMOVE(p_conf->pong_head.lh_first, list);
-        UTL_DBG_FREE(p_conf->pong_head.lh_first);
-    }
-    while (p_conf->payroute_head.lh_first != NULL) {
-        LIST_REMOVE(p_conf->payroute_head.lh_first, list);
-        UTL_DBG_FREE(p_conf->payroute_head.lh_first);
-    }
+    p_conf->sock = -1;
 
     LOGD("[exit]lnapp thread\n");
 
