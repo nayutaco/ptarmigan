@@ -141,12 +141,6 @@ void lnapp_global_init(void);
 bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake);
 
 
-void lnapp_init(lnapp_conf_t *pAppConf);
-
-
-void lnapp_term(lnapp_conf_t *pAppConf);
-
-
 void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId);
 void lnapp_conf_term(lnapp_conf_t *pAppConf);
 void lnapp_conf_start(

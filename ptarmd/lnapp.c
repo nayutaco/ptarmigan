@@ -247,49 +247,6 @@ void lnapp_global_init(void)
 }
 
 
-#if 1   //deprecated
-void lnapp_init(lnapp_conf_t *pAppConf)
-{
-    memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
-    pAppConf->sock = -1;
-    pthread_cond_init(&pAppConf->cond, NULL);
-    pthread_mutex_init(&pAppConf->mux, NULL);
-    pthread_mutex_init(&pAppConf->mux_channel, NULL);
-    pthread_mutex_init(&pAppConf->mux_send, NULL);
-    pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-    memcpy(&pAppConf->mux_channel, &mux_channel, sizeof(mux_channel));
-    pAppConf->channel.p_param = pAppConf;
-    pAppConf->ping_counter = 1;
-    LIST_INIT(&pAppConf->payroute_head);
-    LIST_INIT(&pAppConf->pong_head);
-}
-
-
-void lnapp_term(lnapp_conf_t *pAppConf)
-{
-    pthread_cond_destroy(&pAppConf->cond);
-    pthread_mutex_destroy(&pAppConf->mux);
-    pthread_mutex_destroy(&pAppConf->mux_channel);
-    pthread_mutex_destroy(&pAppConf->mux_send);
-
-    UTL_DBG_FREE(pAppConf->p_errstr);
-    payroute_clear(pAppConf);
-
-    while (pAppConf->pong_head.lh_first != NULL) {
-        LIST_REMOVE(pAppConf->pong_head.lh_first, list);
-        UTL_DBG_FREE(pAppConf->pong_head.lh_first);
-    }
-    while (pAppConf->payroute_head.lh_first != NULL) {
-        LIST_REMOVE(pAppConf->payroute_head.lh_first, list);
-        UTL_DBG_FREE(pAppConf->payroute_head.lh_first);
-    }
-
-    memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
-    pAppConf->sock = -1;
-}
-#endif
-
-
 void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId)
 {
     memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
@@ -379,16 +336,13 @@ bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
 {
     bool ret = false;
 
-    lnapp_conf_t conf;
-    lnapp_init(&conf);
+    lnapp_conf_t conf; //dummy
+    lnapp_conf_init(&conf, pConnHandshake->conn.node_id);
     ln_init(&conf.channel, NULL, NULL, NULL, NULL);
 
     conf.active = true;
     conf.sock = pConnHandshake->sock;
     conf.initiator = pConnHandshake->initiator;
-    if (pConnHandshake->initiator) {
-        memcpy(conf.node_id, pConnHandshake->conn.node_id, BTC_SZ_PUBKEY);
-    }
 
     LOGD("wait peer connected...\n");
     if (!wait_peer_connected(&conf)) {
@@ -420,7 +374,7 @@ bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
 
 LABEL_EXIT:
     ln_term(&conf.channel);
-    lnapp_term(&conf);
+    lnapp_conf_term(&conf);
     return ret;
 }
 
