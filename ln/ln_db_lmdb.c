@@ -568,7 +568,7 @@ static int channel_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_htlc_db_name(char *pDbName, int num);
 static bool channel_cmp_func_channel_del(ln_channel_t *pChannel, void *pDbParam, void *pParam);
-static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore);
+static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore, bool bCont);
 static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr);
 
 static int node_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
@@ -1182,21 +1182,27 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
 
 bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-    return channel_search(pFunc, pFuncParam, true, true);
+    return channel_search(pFunc, pFuncParam, true, true, false);
+}
+
+
+bool ln_db_channel_search_cont(ln_db_func_cmp_t pFunc, void *pFuncParam)
+{
+    return channel_search(pFunc, pFuncParam, true, true, true);
 }
 
 
 bool ln_db_channel_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
 //ToDo: NOT READONLY
-    return channel_search(pFunc, pFuncParam, true, true);
+    return channel_search(pFunc, pFuncParam, true, true, false);
 }
 
 
 bool ln_db_channel_search_readonly_nokey(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
 //ToDo: NOT READONLY
-    return channel_search(pFunc, pFuncParam, true, false);
+    return channel_search(pFunc, pFuncParam, true, false, false);
 }
 
 
@@ -4426,7 +4432,7 @@ static bool channel_cmp_func_channel_del(ln_channel_t *pChannel, void *pDbParam,
 }
 
 
-static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore)
+static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore, bool bCont)
 {
     bool            found = false;
     int             retval;
@@ -4475,7 +4481,9 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
 
         found = true;
         LOGD("match !\n");
-        break;
+        if (!bCont) {
+            break;
+        }
     }
     channel_cursor_close(&cur, bWritable);
     UTL_DBG_FREE(p_channel);
