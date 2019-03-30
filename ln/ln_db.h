@@ -247,6 +247,9 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam);
 bool ln_db_channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
+bool ln_db_channel_search_cont(ln_db_func_cmp_t pFunc, void *pFuncParam);
+
+
 /** channel情報検索(read only)
  *      比較関数を使用してchannel情報を検索する。
  *      最後はcommitされない。
