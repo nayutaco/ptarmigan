@@ -20,6 +20,7 @@
  *  under the License.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -34,6 +35,9 @@ bool utl_addr_ipv4_str2bin(uint8_t b[4], const char *s)
 {
     int bi = 0;
     int decc = 0;
+
+    assert(s != NULL);
+
     for (int si = 0; si < (int)strlen(s) + 1; si++) {
         if (s[si] >= '0' && s[si] <= '9') { //decimal
             //over

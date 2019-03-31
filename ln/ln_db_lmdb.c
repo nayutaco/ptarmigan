@@ -22,6 +22,7 @@
 /** @file   ln_db_lmdb.c
  *  @brief  DB access(LMDB)
  */
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -837,6 +838,8 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     int             retval;
     ln_lmdb_db_t    db;
 
+    assert(pWif != NULL && pNodeName != NULL && pPort != NULL);
+
     LOGD("node: %s\n", pNodeName);
 
     if (mPath[0] == '\0') {
@@ -991,6 +994,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, boo
     //index++;
 
     for (size_t lp = 0; lp < M_NUM_CHANNEL_BUFS; lp++) {
+        assert(p_variable_items[lp].p_name != NULL);
         key.mv_size = strlen(p_variable_items[lp].p_name);
         key.mv_data = (CONST_CAST char*)p_variable_items[lp].p_name;
         retval = mdb_get(pTxn, Dbi, &key, &data);
@@ -2675,6 +2679,7 @@ bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint
 
     key.mv_size = BTC_SZ_HASH256;
     key.mv_data = (CONST_CAST uint8_t *)pPaymentHash;
+    assert(pInvoice != NULL);
     size_t len = strlen(pInvoice);
     data.mv_size = len + 1 + sizeof(AddAmountMsat);    //invoice(\0含む) + uint64_t
     uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(data.mv_size);
@@ -3988,6 +3993,8 @@ LABEL_EXIT:
 
 static bool set_path(char *pPath, size_t Size, const char *pDir, const char *pName)
 {
+    assert(pDir != NULL);
+    assert(pName != NULL);
     if (strlen(pDir) + 1 + strlen(pName) > M_DB_PATH_STR_MAX) return false;
     snprintf(pPath, Size, "%s/%s", pDir, pName);
     return true;
@@ -4032,6 +4039,7 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
 
         //fixed
         for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_VALUES); lp2++) {
+            assert(DBHTLC_VALUES[lp2].p_name != NULL);
             key.mv_size = strlen(DBHTLC_VALUES[lp2].p_name);
             key.mv_data = (CONST_CAST char*)DBHTLC_VALUES[lp2].p_name;
             retval = mdb_get(pDb->p_txn, dbi, &key, &data);
@@ -4212,6 +4220,7 @@ static int channel_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
     //index++;
 
     for (size_t lp = 0; lp < M_NUM_CHANNEL_BUFS; lp++) {
+        assert(p_variable_items[lp].p_name != NULL);
         key.mv_size = strlen(p_variable_items[lp].p_name);
         key.mv_data = (CONST_CAST char*)p_variable_items[lp].p_name;
         data.mv_size = p_variable_items[lp].p_buf->len;
@@ -4235,6 +4244,7 @@ static int channel_item_load(ln_channel_t *pChannel, const fixed_item_t *pItems,
     int     retval;
     MDB_val key, data;
 
+    assert(pItems->p_name != NULL);
     key.mv_size = strlen(pItems->p_name);
     key.mv_data = (CONST_CAST char*)pItems->p_name;
     retval = mdb_get(pDb->p_txn, pDb->dbi, &key, &data);
@@ -4275,6 +4285,7 @@ static int channel_item_save(const ln_channel_t *pChannel, const fixed_item_t *p
         pDb = &db;
     }
 
+    assert(pItems->p_name != NULL);
     key.mv_size = strlen(pItems->p_name);
     key.mv_data = (CONST_CAST char*)pItems->p_name;
     data.mv_size = pItems->data_len;
@@ -5796,6 +5807,7 @@ static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *
     MDB_val key, data;
 
     for (size_t lp = 0; lp < Num; lp++) {
+        assert(pItems[lp].p_name != NULL);
         key.mv_size = strlen(pItems[lp].p_name);
         key.mv_data = (CONST_CAST char *)pItems[lp].p_name;
         retval = mdb_get(pDb->p_txn, pDb->dbi, &key, &data);
@@ -5827,6 +5839,7 @@ static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_it
     MDB_val key, data;
 
     for (size_t lp = 0; lp < Num; lp++) {
+        assert(pItems[lp].p_name != NULL);
         key.mv_size = strlen(pItems[lp].p_name);
         key.mv_data = (CONST_CAST char *)pItems[lp].p_name;
         data.mv_size = pItems[lp].data_len;

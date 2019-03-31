@@ -41,6 +41,7 @@
  *                             +---------------+
  * </pre>
  */
+#include <assert.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -440,6 +441,8 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
     struct stat buf;
     char script[PATH_MAX];
     char path[PATH_MAX];
+
+    assert(param != NULL);
 
     errno = 0;
     getcwd(path, sizeof(path));

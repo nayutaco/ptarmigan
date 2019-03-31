@@ -20,6 +20,7 @@
  *  under the License.
  */
 
+#include <assert.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -36,6 +37,8 @@
 bool utl_str_scan_u16(uint16_t *n, const char* s)
 {
     const char* UINT16_MAX_STR = "65535";
+
+    assert(s != NULL && n != NULL);
 
     if (!s[0]) return false;
     if (s[0] == '0' && s[1] != '\0') return false; //leading zeros are not allowed
@@ -63,6 +66,8 @@ bool utl_str_scan_u16(uint16_t *n, const char* s)
 bool utl_str_scan_u32(uint32_t *n, const char* s)
 {
     const char* UINT32_MAX_STR = "4294967295";
+
+    assert(s != NULL && n != NULL);
 
     if (!s[0]) return false;
     if (s[0] == '0' && s[1] != '\0') return false; //leading zeros are not allowed
@@ -169,6 +174,8 @@ bool utl_str_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 
 void utl_str_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
+    assert(pStr != NULL && pBin != NULL);
+
     *pStr = '\0';
     for (uint32_t lp = 0; lp < BinLen; lp++) {
         char str[3];
@@ -180,6 +187,8 @@ void utl_str_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 
 void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
+    assert(pStr != NULL && pBin != NULL);
+
     *pStr = '\0';
     for (uint32_t lp = 0; lp < BinLen; lp++) {
         char str[3];
@@ -192,6 +201,8 @@ void utl_str_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value)
 {
     uint8_t digit = (Value) ? utl_int_digit(Value, 10) : 1;
+
+    assert(pStr != NULL);
 
     if (Size <= digit) return false;
     pStr[digit] = '\0';
@@ -206,6 +217,8 @@ bool utl_str_itoa(char *pStr, uint32_t Size, uint64_t Value)
 
 bool utl_str_copy_and_fill_zeros(char *pDst, const char *pSrc, uint32_t Size)
 {
+    assert(pDst != NULL && pSrc != NULL);
+
     if (Size < strlen(pSrc)) return false;
     strncpy(pDst, pSrc, Size); //`strncpy` fills zeros
     return true;
@@ -214,6 +227,8 @@ bool utl_str_copy_and_fill_zeros(char *pDst, const char *pSrc, uint32_t Size)
 
 bool utl_str_copy_and_append_zero(char *pBuf, uint32_t BufSize, const uint8_t *pData, uint32_t DataSize)
 {
+    assert(pBuf != NULL && pData != NULL);
+
     if (BufSize <= DataSize) return false;
     strncpy(pBuf, (const char *)pData, DataSize); //`strncpy` fills zeros
     pBuf[DataSize] = 0;

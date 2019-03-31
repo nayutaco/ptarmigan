@@ -22,6 +22,7 @@
 /** @file   btc_keys.c
  *  @brief  bitcoin処理: 鍵関連
  */
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +64,8 @@ bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifP
     size_t sz_priv = sizeof(b58dec);
     int idx;
     int tail;
+
+    assert(pWifPriv != NULL);
 
     //b58tobin packs the data behind the buffer
     //if the data is larger than the buffer, skip leading zeros
@@ -312,6 +315,8 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
 {
     bool ret;
 
+    assert(pAddr != NULL);
+
     if (addr_is_p2pkh(pAddr) || addr_is_p2sh(pAddr)) {
         uint8_t bin[1 + BTC_SZ_HASH160 + 4];
         size_t sz = sizeof(bin);
@@ -460,6 +465,8 @@ static bool addr_is_p2sh(const char *pAddr)
 
 static bool addr_is_segwit(const char *pAddr)
 {
+    assert(pAddr != NULL);
+
     if (strlen(pAddr) < 3) return false;
 
     if (pAddr[0] == 'b' && pAddr[1] == 'c' && pAddr[2] == '1') return true; //mainnet

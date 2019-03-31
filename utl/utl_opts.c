@@ -20,6 +20,7 @@
  *  under the License.
  */
 
+#include <assert.h>
 #include <string.h>
 
 #include "utl_dbg.h"
@@ -210,6 +211,7 @@ static utl_opt_t *findn_opts(utl_opt_t *opts, const char *name, int len)
 
 static utl_opt_t *find_opts(utl_opt_t *opts, const char *name)
 {
+    assert(name != NULL);
     return findn_opts(opts, name, strlen(name));
 }
 

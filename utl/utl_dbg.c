@@ -22,6 +22,7 @@
 /** @file   utl_dbg.c
  *  @brief  utl処理: 汎用処理
  */
+#include <assert.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -207,6 +208,8 @@ void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size, const char* pFname, int L
 
 char HIDDEN *utl_dbg_strdup(const char *pStr, const char* pFname, int Line, const char *pFunc)
 {
+    assert(pStr != NULL);
+
     char *p = strdup(pStr);
     if (p) {
         for (int lp = 0; lp < 100; lp++) {

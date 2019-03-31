@@ -1,4 +1,5 @@
 #define LOG_TAG "ex"
+#include <assert.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -10,6 +11,8 @@
 
 static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
+    assert(pStr != NULL);
+
     if (strlen(pStr) != BinLen * 2) {
         fprintf(stderr, "fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
         return false;

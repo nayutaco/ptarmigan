@@ -454,9 +454,10 @@ LABEL_EXIT:
     return ret;
 }
 
-static bool read_prefix(uint8_t *type, size_t *len, char *hrp)
+static bool read_prefix(uint8_t *type, size_t *len, const char *hrp)
 {
     const char *s;
+    assert(hrp != NULL);
 
     //note: check from the longer one for the longest match
     s  = ln_prefix_str[LN_INVOICE_REGTEST];

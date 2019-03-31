@@ -118,6 +118,8 @@ bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t da
  *  Returns true if succesful.
  */
 bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input, bool ln) {
+    assert(input != NULL);
+
     uint32_t chk = 1;
     size_t i;
     size_t input_len = strlen(input);

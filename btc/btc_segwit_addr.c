@@ -37,6 +37,8 @@ size_t btc_bech32_encode_buf_len(const char *hrp, size_t data_len)
 
 bool btc_bech32_encode(char *output, size_t output_len, const char *hrp, const uint8_t *data, size_t data_len, bool ln)
 {
+    assert(hrp != NULL);
+
     if (hrp[0] == '\0') return false;
     if (output_len < strlen(hrp) + data_len + 8) return false;
     return bech32_encode(output, hrp, data, data_len, ln);
@@ -49,6 +51,8 @@ bool btc_bech32_decode(char* hrp, size_t hrp_len, uint8_t *data, size_t *data_le
     // if (hrp_len < strlen(input) - 6) return false;
     // if (strlen(input) < 8) return false;
     // if (*data_len < strlen(input) - 8) return false;
+
+    assert(input != NULL);
 
     //more rigorous test
     size_t data_len_tmp = 0;
