@@ -127,14 +127,16 @@ bool btcj_init(btc_block_chain_t Gen)
                 ptarmd_execpath_get());
     LOGD("optjar=%s\n", optjar);
 
-    JavaVMOption opt[1];
+    JavaVMOption opt[2];
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
+    // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug";
     //
     JavaVMInitArgs vm_args = {
         .version = JNI_VERSION_1_8,
         .options = opt,
-        .nOptions = 1
+        .nOptions = ARRAY_SIZE(opt)
     };
     // JVM初期化
     LOGD("JNI_CreateJavaVM\n");
@@ -734,7 +736,7 @@ static inline void _check_exception(JNIEnv *env, const char *pFuncName, int Line
 {
     if ((*env)->ExceptionCheck(env)) {
         LOGE("fail: exception(%s(): %d)!!\n", pFuncName, Line);
-        //abort();
+        abort();
         (*env)->ExceptionClear(env);
     }
 }

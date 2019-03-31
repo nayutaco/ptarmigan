@@ -1,5 +1,71 @@
 #!/bin/bash -ue
 
+msat3=0
+msat4=0
+msat5=0
+msat6=0
+
+amount() {
+    echo `./ptarmcli -l $1 | jq -e '.result.total_local_msat'`
+}
+
+get_amount() {
+    msat3=`amount 3334`
+    msat4=`amount 4445`
+    msat5=`amount 5556`
+    msat6=`amount 6667`
+    echo msat3=${msat3} msat4=${msat4} msat5=${msat5} msat6=${msat6}
+}
+
+check_amount() {
+    echo check amount start
+    msat3_after=`amount 3334`
+    msat4_after=`amount 4445`
+    msat5_after=`amount 5556`
+    msat6_after=`amount 6667`
+    echo msat3=${msat3_after} msat4=${msat4_after} msat5=${msat5_after} msat6=${msat6_after}
+    if [ $# -eq 1 ] && [ "$1" == "same" ]; then
+        if [ ${msat3} -ne ${msat3_after} ]; then
+            echo invalid amount3: != ${msat3}
+            exit 1
+        fi
+        if [ ${msat4} -ne ${msat4_after} ]; then
+            echo invalid amount4: != ${msat4}
+            exit 1
+        fi
+        if [ ${msat5} -ne ${msat5_after} ]; then
+            echo invalid amount5: != ${msat5}
+            exit 1
+        fi
+        if [ ${msat6} -ne ${msat6_after} ]; then
+            echo invalid amount6: != ${msat6}
+            exit 1
+        fi
+    else
+        if [ ${msat3} -eq ${msat3_after} ]; then
+            echo invalid amount3: == ${msat3}
+            exit 1
+        fi
+        if [ ${msat4} -eq ${msat4_after} ]; then
+            echo invalid amount4: == ${msat4}
+            exit 1
+        fi
+        if [ ${msat5} -eq ${msat5_after} ]; then
+            echo invalid amount5: == ${msat5}
+            exit 1
+        fi
+        if [ ${msat6} -eq ${msat6_after} ]; then
+            echo invalid amount6: == ${msat6}
+            exit 1
+        fi
+    fi
+    msat3=${msat3_after}
+    msat4=${msat4_after}
+    msat5=${msat5_after}
+    msat6=${msat6_after}
+    echo check amount end
+}
+
 function check_live() {
 	echo check proc count start
 	PROC_COUNT=`ps -C ptarmd | grep ptarmd | wc -l`
@@ -40,6 +106,7 @@ echo st3 end
 
 check_live
 check_log
+get_amount
 
 echo st4c start
 ./example_st4c.sh
@@ -48,6 +115,7 @@ echo st4c end
 
 check_live
 check_log
+check_amount
 
 FEERATE_PER_KW=600
 echo update_fee $FEERATE_PER_KW start
@@ -57,6 +125,7 @@ echo update_fee $FEERATE_PER_KW end
 
 check_live
 check_log
+check_amount same
 
 echo st4d start
 ./example_st4d.sh
@@ -65,6 +134,7 @@ echo st4d end
 
 check_live
 check_log
+check_amount
 
 echo st4e start
 ./example_st4e.sh
@@ -73,6 +143,7 @@ echo st4e end
 
 check_live
 check_log
+check_amount
 
 echo st4f start
 ./example_st4f.sh
@@ -81,6 +152,7 @@ echo st4f end
 
 check_live
 check_log
+check_amount
 
 echo disconnect start
 ./example_st_quit.sh
@@ -100,6 +172,7 @@ echo reconnect end
 
 check_live
 check_log
+check_amount same
 
 echo st4c start
 ./example_st4c.sh
@@ -108,6 +181,7 @@ echo st4c end
 
 check_live
 check_log
+check_amount
 
 echo st4d start
 ./example_st4d.sh
@@ -116,6 +190,7 @@ echo st4d end
 
 check_live
 check_log
+check_amount
 
 FEERATE_PER_KW=700
 echo update_fee $FEERATE_PER_KW start
@@ -125,6 +200,7 @@ echo update_fee $FEERATE_PER_KW end
 
 check_live
 check_log
+check_amount same
 
 echo st4e start
 ./example_st4e.sh
@@ -133,6 +209,7 @@ echo st4e end
 
 check_live
 check_log
+check_amount
 
 echo st4f start
 ./example_st4f.sh
@@ -141,6 +218,7 @@ echo st4f end
 
 check_live
 check_log
+check_amount
 
 echo st5 start
 ./example_st5.sh
@@ -149,6 +227,10 @@ echo st5 end
 
 check_live
 check_log
+
+if [ $# -eq 1 ] && [ $1 == "stop" ]; then
+    exit 0
+fi
 
 echo clean start
 ./clean.sh
