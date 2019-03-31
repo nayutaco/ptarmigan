@@ -172,7 +172,7 @@ static char *create_bolt11(
                 uint8_t RFieldNum,
                 uint32_t MinFinalCltvExpiry);
 static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, uint64_t AmountMsat);
-static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static void create_bolt11_r_field_2(lnapp_conf_t *pConf, void *pParam);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static void getcommittx(lnapp_conf_t *pConf, void *pParam);
 static bool get_committx(ln_channel_t *pChannel, cJSON *pResult, bool bLocal);
@@ -2118,7 +2118,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
     param.pp_field = ppRField;
     param.amount_msat = AmountMsat;
     param.p_fieldnum = pRFieldNum;
-    ln_db_channel_search_readonly_nokey(comp_func_cnl, &param);
+    lnapp_manager_each_node(create_bolt11_r_field_2, &param);
 
     if (*pRFieldNum != 0) {
         LOGD("add r_field: %d\n", *pRFieldNum);
@@ -2131,32 +2131,30 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
 /** #ln_node_search_channel()処理関数
  *
  * @param[in,out]   pChannel        channel from DB
- * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         r_field_param_t構造体
+ * @param[in,out]   pParam          r_field_param_t構造体
  */
-static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
+static void create_bolt11_r_field_2(lnapp_conf_t *pConf, void *pParam)
 {
-    (void)p_db_param;
-
     bool ret;
-    r_field_param_t *param = (r_field_param_t *)p_param;
+    r_field_param_t *param = (r_field_param_t *)pParam;
+    ln_channel_t *p_channel = &pConf->channel;
 
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_channel_update_t msg;
-    ret = ln_channel_update_get_peer(pChannel, &buf, &msg);
+    ret = ln_channel_update_get_peer(p_channel, &buf, &msg);
 #ifdef M_RFIELD_AMOUNT
-    LOGD("remote amount: %" PRIu64 "\n", ln_remote_msat(pChannel));
-    if (ret && (ln_remote_payable_msat(pChannel) >= param->amount_msat)) {
-        LOGD("invoice: add r-field(%" PRIx64 ")\n", ln_short_channel_id(pChannel));
+    LOGD("remote amount: %" PRIu64 "\n", ln_remote_msat(p_channel));
+    if (ret && (ln_remote_payable_msat(p_channel) >= param->amount_msat)) {
+        LOGD("invoice: add r-field(%" PRIx64 ")\n", ln_short_channel_id(p_channel));
 #else
-    if (ret && !ln_is_announced(pChannel)) {
+    if (ret && !ln_is_announced(p_channel)) {
 #endif
         size_t sz = (1 + *param->p_fieldnum) * sizeof(ln_r_field_t);
         *param->pp_field = (ln_r_field_t *)UTL_DBG_REALLOC(*param->pp_field, sz);
 
         ln_r_field_t *pfield = *param->pp_field + *param->p_fieldnum;
-        memcpy(pfield->node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY);
-        pfield->short_channel_id = ln_short_channel_id(pChannel);
+        memcpy(pfield->node_id, ln_remote_node_id(p_channel), BTC_SZ_PUBKEY);
+        pfield->short_channel_id = ln_short_channel_id(p_channel);
         pfield->fee_base_msat = msg.fee_base_msat;
         pfield->fee_prop_millionths = msg.fee_proportional_millionths;
         pfield->cltv_expiry_delta = msg.cltv_expiry_delta;
@@ -2165,8 +2163,6 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
         LOGD("r_field num=%d\n", *param->p_fieldnum);
     }
     utl_buf_free(&buf);
-
-    return false;
 }
 
 
