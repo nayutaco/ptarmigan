@@ -32,6 +32,9 @@ do
 
 echo st3 start
 ./example_st3j.sh
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 sleep 5 # XXX: TODO
 echo st3 end
 

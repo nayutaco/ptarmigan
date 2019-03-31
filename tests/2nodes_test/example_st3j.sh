@@ -18,7 +18,13 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 1
 sleep 3
 
 # node_4444からnode_3333へチャネルを開く。
-./ptarmcli -c conf/peer3333.conf -f 600000,300000 4445
+FUND=`./ptarmcli -c conf/peer3333.conf -f 600000,300000,1000 4445`
+echo FUNDING: ${FUND}
+FUND=`echo ${FUND} | jq -e '.result' | grep -c 'Progressing'`
+if [ ${FUND} -eq 0 ]; then
+    echo fail funding
+    exit 1
+fi
 sleep 2
 
 # mining

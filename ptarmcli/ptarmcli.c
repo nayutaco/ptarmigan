@@ -473,7 +473,15 @@ static void optfunc_funding(int *pOption, bool *pConn)
             fundconf.push_sat = (uint64_t)strtoul(param, &endp, 10);
             if ((endp != NULL) && (*endp != 0x00)) {
                 //変換失敗(push_msatはエラーになっても気にしない)
-                LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
+                //LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
+            }
+        }
+        param = strtok(NULL, ",");
+        if ((param != NULL) && (*param != '\0')) {
+            fundconf.feerate_per_kw = (uint64_t)strtoul(param, &endp, 10);
+            if ((endp != NULL) && (*endp != 0x00)) {
+                //変換失敗(feerate_per_kwはエラーになっても気にしない)
+                //LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
             }
         }
     }

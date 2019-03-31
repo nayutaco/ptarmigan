@@ -1688,6 +1688,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         feerate_per_kw = monitor_btc_feerate_per_kw();
     }
     if (feerate_per_kw == 0) {
+        LOGE("fail: feerate_per_kw==0\n");
         return RPCERR_BLOCKCHAIN;
     }
     uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
