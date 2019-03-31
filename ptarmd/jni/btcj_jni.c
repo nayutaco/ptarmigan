@@ -123,15 +123,22 @@ bool btcj_init(btc_block_chain_t Gen)
     jclass cls;
     char optjar[PATH_MAX];
     snprintf(optjar, sizeof(optjar),
-        "-Djava.class.path=%s/jar/bitcoinj-ptarmigan-dev.jar",
+        "-Djava.class.path=%s/jar/bitcoinj-ptarmigan.jar",
                 ptarmd_execpath_get());
     LOGD("optjar=%s\n", optjar);
 
-    JavaVMOption opt[2];
+    JavaVMOption opt[9];
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
     // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
-    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug";
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=warn";
+    opt[2].optionString = "-Dorg.slf4j.simpleLogger.log.co.nayuta.lightning=debug";
+    opt[3].optionString = "-Dorg.slf4j.simpleLogger.showDateTime=true";
+    opt[4].optionString = "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ssZ";
+    opt[5].optionString = "-DsimpleLogger.showThreadName=false";
+    opt[6].optionString = "-DsimpleLogger.showLogName=false";
+    opt[7].optionString = "-Dorg.slf4j.simpleLogger.showShortLogName=true";
+    opt[8].optionString = "-Dorg.slf4j.simpleLogger.logFile=./logs/bitcoinj-ptarmigan.log";
     //
     JavaVMInitArgs vm_args = {
         .version = JNI_VERSION_1_8,
