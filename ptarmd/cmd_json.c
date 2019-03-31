@@ -45,6 +45,7 @@
 #include "btcrpc.h"
 #include "p2p.h"
 #include "lnapp.h"
+#include "lnapp_manager.h"
 #include "monitoring.h"
 #include "wallet.h"
 #include "cmd_json.h"
@@ -173,7 +174,7 @@ static char *create_bolt11(
 static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, uint64_t AmountMsat);
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
-static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static void getcommittx(lnapp_conf_t *pConf, void *pParam);
 static bool get_committx(ln_channel_t *pChannel, cJSON *pResult, bool bLocal);
 static char *strdup_cjson(const char *pStr);
 static char *error_str_cjson(int errCode);
@@ -1243,7 +1244,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     param.b_local = true;
     param.p_node_id = conn.node_id;
     param.result = result;
-    ln_db_channel_search_readonly(comp_func_getcommittx, &param);
+    lnapp_manager_each_node(getcommittx, &param);
 
 LABEL_EXIT:
     if (err) {
@@ -2239,19 +2240,13 @@ static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
 /** getcommittx処理
  *
  */
-static bool comp_func_getcommittx(ln_channel_t *pChannel, void *p_db_param, void *p_param)
+static void getcommittx(lnapp_conf_t *pConf, void *pParam)
 {
-    (void)p_db_param;
-
-    getcommittx_t *param = (getcommittx_t *)p_param;
-
-    if (memcmp(param->p_node_id, ln_remote_node_id(pChannel), BTC_SZ_PUBKEY) == 0) {
-        get_committx(pChannel, param->result, param->b_local);
+    getcommittx_t *param = (getcommittx_t *)pParam;
+    if (memcmp(param->p_node_id, ln_remote_node_id(&pConf->channel), BTC_SZ_PUBKEY) == 0) {
+        get_committx(&pConf->channel, param->result, param->b_local);
     }
-
-    return false;
 }
-
 
 static bool get_committx(ln_channel_t *pChannel, cJSON *pResult, bool bLocal)
 {

@@ -80,19 +80,16 @@ lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId)
 }
 
 
-void lnapp_manager_each_node(bool (*pCallback)(lnapp_conf_t *pConf, void *pParam), void *pParam)
+void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam), void *pParam)
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         if (!mAppConf[lp].enabled) continue;
         mAppConf[lp].ref_counter++;
         pthread_mutex_unlock(&mMuxAppconf);
-        bool ret = pCallback(&mAppConf[lp], pParam);
+        pCallback(&mAppConf[lp], pParam);
         pthread_mutex_lock(&mMuxAppconf);
         mAppConf[lp].ref_counter--;
-        if (!ret) {
-            break;
-        }
     }
     pthread_mutex_unlock(&mMuxAppconf);
 }

@@ -40,7 +40,7 @@ extern "C" {
 void lnapp_manager_init(void);
 void lnapp_manager_term(void);
 lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId);
-void lnapp_manager_each_node(bool (*pCallback)(lnapp_conf_t *pConf, void *pParam), void *pParam);
+void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam), void *pParam);
 lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId);
 void lnapp_manager_free_node_ref(lnapp_conf_t *pConf);
 void lnapp_manager_prune_node();

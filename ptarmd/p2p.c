@@ -82,8 +82,8 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
-static bool search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam);
-static bool show_channel(lnapp_conf_t *pConf, void *pParam);
+static void search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam);
+static void show_channel(lnapp_conf_t *pConf, void *pParam);
 
 
 /********************************************************************
@@ -443,31 +443,28 @@ void p2p_show_channel(cJSON *pResult)
  * private functions
  ********************************************************************/
 
-static bool search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam)
+static void search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam)
 {
-    bool ret;
     param_search_node_t *p_param = (param_search_node_t *)pParam;
-    p_param->found = false;
+    if (p_param->found) return;
+
     pthread_mutex_lock(&pConf->mux_conf);
     pthread_mutex_lock(&pConf->mux_channel);
-    ret = lnapp_match_short_channel_id(pConf, p_param->short_channel_id);
+    bool ret = lnapp_match_short_channel_id(pConf, p_param->short_channel_id);
     pthread_mutex_unlock(&pConf->mux_channel);
     pthread_mutex_unlock(&pConf->mux_conf);
     if (ret) {
         p_param->found = true;
         memcpy(p_param->node_id, pConf->node_id, BTC_SZ_PUBKEY);
-        return false; //XXX: stop
     }
-    return true;
 }
 
 
-static bool show_channel(lnapp_conf_t *pConf, void *pParam)
+static void show_channel(lnapp_conf_t *pConf, void *pParam)
 {
     cJSON *pResult = (cJSON *)pParam;
     pthread_mutex_lock(&pConf->mux_conf);
     lnapp_show_channel(pConf, pResult);
     pthread_mutex_unlock(&pConf->mux_conf);
-    return true;
 }
 
