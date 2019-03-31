@@ -95,11 +95,11 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
     if (pRpcConf->rpcport == 0) {
         pRpcConf->rpcport = 8332;
     }
-    if (strlen(pRpcConf->rpcurl) == 0) {
+    if (pRpcConf->rpcurl[0] == '\0') {
         strcpy(pRpcConf->rpcurl, "127.0.0.1");
     }
 
-    if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
+    if (pRpcConf->rpcuser[0] == '\0' || pRpcConf->rpcpasswd[0] == '\0') {
         LOGE("fail: no rpcuser or rpcpassword[%s]", pConfFile);
         return false;
     }

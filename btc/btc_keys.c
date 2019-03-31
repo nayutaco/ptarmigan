@@ -433,10 +433,15 @@ bool btc_keys_create(btc_keys_t *pKeys)
 /********************************************************************
  * private functions
  ********************************************************************/
+static bool zerolen(const char *pStr)
+{
+    assert(pStr != NULL);
+    return (pStr[0] == '\0');
+}
 
 static bool addr_is_p2pkh(const char *pAddr)
 {
-    if (strlen(pAddr) < 1) return false;
+    if (zerolen(pAddr)) return false;
 
     if (pAddr[0] == '1') return true; //mainnet
     if (pAddr[0] == 'm') return true; //testnet
@@ -446,7 +451,7 @@ static bool addr_is_p2pkh(const char *pAddr)
 
 static bool addr_is_p2sh(const char *pAddr)
 {
-    if (strlen(pAddr) < 1) return false;
+    if (zerolen(pAddr)) return false;
 
     if (pAddr[0] == '3') return true; //mainnet
     if (pAddr[0] == '2') return true; //testnet

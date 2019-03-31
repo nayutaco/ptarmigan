@@ -330,7 +330,7 @@ bool btc_rng_init(void)
 
     //XXX: TODO: we not set the device-specific identifier yet
     if (mbedtls_ctr_drbg_seed(&mRng, mbedtls_entropy_func, &mEntropy,
-        (const unsigned char *)M_RNG_APP_SPECIFIC_DATA_STR, strlen(M_RNG_APP_SPECIFIC_DATA_STR))) return false;
+        (const unsigned char *)M_RNG_APP_SPECIFIC_DATA_STR, sizeof(M_RNG_APP_SPECIFIC_DATA_STR) - 1)) return false;
 
     mbedtls_ctr_drbg_set_prediction_resistance(&mRng, MBEDTLS_CTR_DRBG_PR_ON);
 #endif

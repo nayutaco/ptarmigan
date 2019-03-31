@@ -242,6 +242,6 @@ bool segwit_addr_decode(int* witver, uint8_t* witdata, size_t* witdata_len, uint
 }
 
 size_t hrp_len(uint8_t hrp_type) {
-    return strlen(hrp_str[hrp_type]);
+    return sizeof(hrp_str[hrp_type]) - 1;
 }
 

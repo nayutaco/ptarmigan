@@ -38,11 +38,11 @@ bool utl_str_scan_u16(uint16_t *n, const char* s)
     const char* UINT16_MAX_STR = "65535";
 
     if (!s[0]) return false;
-    if (s[0] == '0' && strlen(s) > 1) return false; //leading zeros are not allowed
+    if (s[0] == '0' && s[1] != '\0') return false; //leading zeros are not allowed
 
     //check overflow
-    if (strlen(s) > strlen(UINT16_MAX_STR)) return false;
-    if (strlen(s) == strlen(UINT16_MAX_STR)) {
+    if (strlen(s) > sizeof(UINT16_MAX_STR) - 1) return false;
+    if (strlen(s) == sizeof(UINT16_MAX_STR) - 1) {
         for (int i = 0; i < (int)strlen(s); i++) {
             if (s[i] > UINT16_MAX_STR[i]) return false;
             if (s[i] == UINT16_MAX_STR[i]) continue;
@@ -65,7 +65,7 @@ bool utl_str_scan_u32(uint32_t *n, const char* s)
     const char* UINT32_MAX_STR = "4294967295";
 
     if (!s[0]) return false;
-    if (s[0] == '0' && strlen(s) > 1) return false; //leading zeros are not allowed
+    if (s[0] == '0' && s[1] != '\0') return false; //leading zeros are not allowed
 
     //check overflow
     if (strlen(s) > strlen(UINT32_MAX_STR)) return false;

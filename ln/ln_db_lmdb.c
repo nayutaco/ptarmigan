@@ -3826,11 +3826,11 @@ bool ln_db_reset(void)
     channel_cursor_close(&cur, true);
 
     //rm node and anno directories
-    const char *p_cmd = "rm -rf ";
-    char cmdline[strlen(p_cmd) + M_DB_PATH_STR_MAX + 1];
-    snprintf(cmdline, sizeof(cmdline), "%s%s", p_cmd, ln_lmdb_get_node_db_path());
+    const char cmd[] = "rm -rf ";
+    char cmdline[sizeof(cmd) + M_DB_PATH_STR_MAX];
+    snprintf(cmdline, sizeof(cmdline), "%s%s", &cmd[0], ln_lmdb_get_node_db_path());
     system(cmdline);
-    snprintf(cmdline, sizeof(cmdline), "%s%s", p_cmd, ln_lmdb_get_anno_db_path());
+    snprintf(cmdline, sizeof(cmdline), "%s%s", &cmd[0], ln_lmdb_get_anno_db_path());
     system(cmdline);
     return true;
 }

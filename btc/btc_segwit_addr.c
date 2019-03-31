@@ -30,12 +30,14 @@
 
 size_t btc_bech32_encode_buf_len(const char *hrp, size_t data_len)
 {
+    assert(hrp != NULL);
+
     return strlen(hrp) + data_len + 8;
 }
 
 bool btc_bech32_encode(char *output, size_t output_len, const char *hrp, const uint8_t *data, size_t data_len, bool ln)
 {
-    if (!strlen(hrp)) return false;
+    if (hrp[0] == '\0') return false;
     if (output_len < strlen(hrp) + data_len + 8) return false;
     return bech32_encode(output, hrp, data, data_len, ln);
 }

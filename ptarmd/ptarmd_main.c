@@ -198,10 +198,10 @@ int main(int argc, char *argv[])
     }
 
 #if defined(USE_BITCOIND)
-    if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
+    if (rpc_conf.rpcuser[0] == '\0' || rpc_conf.rpcpasswd[0] == '\0') {
         //bitcoin.confから読込む
         bret = conf_btcrpc_load_default(&rpc_conf);
-        if (!bret || (strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
+        if (!bret || rpc_conf.rpcuser[0] == '\0' || rpc_conf.rpcpasswd[0] == '\0') {
             goto LABEL_EXIT;
         }
     }
