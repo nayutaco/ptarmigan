@@ -2242,6 +2242,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         p->ret = btcrpc_send_rawtx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (p->ret) {
             LOGD("$$$ broadcast funding_tx\n");
+        } else {
+            LOGE("fail: broadcast funding_tx, but should ignore it\n");
+            p->ret = true;
         }
         utl_buf_free(&buf_tx);
     } else {

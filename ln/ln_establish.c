@@ -936,21 +936,19 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
     ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
     ln_update_script_pubkeys(pChannel);
 
+    //save the channel
+    //  we should save the channel before broadcasting the funding tx
+    //  don't forget it even if the process aborts
+    pChannel->status = LN_STATUS_ESTABLISH;
+    M_DB_SECRET_SAVE(pChannel);
+    M_DB_CHANNEL_SAVE(pChannel);
+
     funding.b_send = bSendTx;
     if (bSendTx) {
         funding.p_tx_funding = &pChannel->funding_info.tx_data;
     }
     funding.ret = false;
     ln_callback(pChannel, LN_CB_TYPE_WAIT_FUNDING_TX, &funding);
-
-    if (funding.ret) {
-        pChannel->status = LN_STATUS_ESTABLISH;
-
-        M_DB_SECRET_SAVE(pChannel);
-        M_DB_CHANNEL_SAVE(pChannel);
-    } else {
-        //上位で停止される
-    }
 
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
 }
