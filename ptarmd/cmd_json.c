@@ -694,7 +694,7 @@ LABEL_EXIT:
 }
 
 
-/** invice削除 : ptarmcli -e
+/** invoice削除 : ptarmcli -e
  *
  */
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
