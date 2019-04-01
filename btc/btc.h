@@ -49,10 +49,10 @@ extern "C" {
 #define BTC_PREF_P2SH           (3)             ///< Prefix: P2SH
 #define BTC_PREF_ADDRVER        (4)             ///< Prefix: Address Version
 #define BTC_PREF_ADDRVER_SH     (5)             ///< Prefix: Address Version(Script)
-#define BTC_PREF_MAX            (6)             ///< 内部管理用
-#define BTC_PREF_P2WPKH         (7)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
-#define BTC_PREF_P2WSH          (8)             ///< Prefix: Native Pay-to-Witness-Script-Hash
-#define BTC_PREF_CHAINDETAIL    (9)             ///< mainnet/testnet/regtest
+#define BTC_PREF_P2WPKH         (6)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
+#define BTC_PREF_P2WSH          (7)             ///< Prefix: Native Pay-to-Witness-Script-Hash
+#define BTC_PREF_CHAINDETAIL    (8)             ///< mainnet/testnet/regtest
+#define BTC_PREF_MAX            (9)             ///< mPref size
 
 #define BTC_DUST_LIMIT          ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
                                                 // 2018/02/11 17:54(JST)
