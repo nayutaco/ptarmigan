@@ -100,6 +100,7 @@ static struct monchanlisthead_t mMonChanListHead;
 
 static void connect_nodelist(void);
 static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam);
+static void monfunc_2(lnapp_conf_t *pConf, void *pParam);
 
 static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param);
 static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param);
@@ -155,7 +156,7 @@ void *monitor_start(void *pArg)
         lnapp_manager_prune_node();
         bool ret = update_btc_values();
         if (ret) {
-            ln_db_channel_search(monfunc, &mMonParam);
+            lnapp_manager_each_node(monfunc_2, &mMonParam);
         }
         LOGD("$$$----end\n");
 
@@ -416,6 +417,12 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
 }
 
 
+static void monfunc_2(lnapp_conf_t *pConf, void *pParam)
+{
+    monfunc(&pConf->channel, NULL, pParam);
+}
+
+
 static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param)
 {
     bool del = false;
@@ -508,7 +515,9 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_d
         }
     }
 
-    ln_db_revoked_tx_load(pChannel, p_db_param);
+    if (p_db_param) {
+        ln_db_revoked_tx_load(pChannel, p_db_param);
+    }
     const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
     if (p_vout == NULL) {
         switch (stat) {
