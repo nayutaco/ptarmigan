@@ -92,6 +92,7 @@ bool utl_log_init_stdout(void)
 void utl_log_term(void)
 {
     if (mFp != NULL) {
+        LOGD("stop: logging\n");
         fclose(mFp);
         mFp = NULL;
     }

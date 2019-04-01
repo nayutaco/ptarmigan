@@ -230,15 +230,14 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     //待ち合わせ
     pthread_join(th_svr, NULL);
     pthread_join(th_mon, NULL);
+    LOGD("join: svr, mon\n");
 
-    LOGD("end\n");
     total_amount = ln_node_total_msat();
     ptarmd_eventlog(NULL,
             "ptarmd end: total_msat=%" PRIu64 "\n", total_amount);
 
     btcrpc_term();
     ln_db_term();
-    utl_log_term();
 
     return 0;
 }

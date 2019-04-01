@@ -440,8 +440,8 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 
         stop_threads(pAppConf);
         pthread_join(pAppConf->th, NULL);
+        LOGD("join: lnapp\n");
         pAppConf->th = 0;
-        fprintf(stderr, "joined\n");
     }
 }
 
@@ -979,6 +979,7 @@ LABEL_JOIN:
     pthread_join(th_recv, NULL);
     pthread_join(th_poll, NULL);
     pthread_join(th_anno, NULL);
+    LOGD("join: recv, poll, anno\n");
 
 LABEL_SHUTDOWN:
     LOGD("close sock=%d...\n", p_conf->sock);

@@ -131,7 +131,7 @@ bool btcj_init(btc_block_chain_t Gen)
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
     // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
-    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=warn";
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug";
     opt[2].optionString = "-Dorg.slf4j.simpleLogger.log.co.nayuta.lightning=debug";
     opt[3].optionString = "-Dorg.slf4j.simpleLogger.showDateTime=true";
     opt[4].optionString = "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ssZ";
@@ -194,12 +194,14 @@ bool btcj_init(btc_block_chain_t Gen)
         p_chain = "regtest";
         break;
     default:
+        LOGE("fail: unknown genesis block hash\n");
         assert(0);
-        break;
+        return false;
     }
     jstring param = (*env)->NewStringUTF(env, p_chain);
     jobject obj = (*env)->NewObject(env, cls, method, param);
     if(obj == NULL) {
+        LOGE("fail: NewObject\n");
         return false;
     }
     //
@@ -306,7 +308,6 @@ bool btcj_init(btc_block_chain_t Gen)
 bool btcj_release(void)
 {
     if (env != NULL) {
-        btcj_exit();
         (*env)->DeleteGlobalRef(env, ptarm_obj);
         (*env)->DeleteGlobalRef(env, arraylist_cls);
         (*env)->DeleteGlobalRef(env, hash_cls);
