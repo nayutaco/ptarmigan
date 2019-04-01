@@ -322,9 +322,11 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
             } else if (bin[0] == mPref[BTC_PREF_P2SH]) {
                 *pPrefix = BTC_PREF_P2SH;
             } else {
+                LOGE("unknown prefix(%02x)\n", bin[0]);
                 ret = false;
             }
         } else {
+            LOGE("fail b58tobin()\n");
             ret = false;
         }
         if (ret) {
@@ -352,6 +354,7 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
             hrp_type = BTC_SEGWIT_ADDR_REGTEST;
             break;
         default:
+            LOGE("unknown prefix(%02x)\n", mPref[BTC_PREF_CHAINDETAIL]);
             return false;
         }
         ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, pAddr);
@@ -362,6 +365,7 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
             } else if (witprog_len == BTC_SZ_HASH256) {
                 *pPrefix = BTC_PREF_P2WSH;
             } else {
+                LOGE("unknown witprogram len(%d)\n", witprog_len);
                 ret = false;
             }
             if (ret) {
@@ -369,9 +373,11 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
             }
         } else {
             //witver!=0 is not supported
+            LOGE("witver != 0\n");
             ret = false;
         }
     } else {
+        LOGE("unknonw address\n");
         ret = false;
     }
 
