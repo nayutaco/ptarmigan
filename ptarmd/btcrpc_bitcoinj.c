@@ -226,6 +226,7 @@ static void jni_exit(void *pArg);
  * static variables
  **************************************************************************/
 
+static pthread_t            mTh;
 static pthread_mutex_t      mMuxCall;
 static pthread_mutex_t      mMuxApi;
 static pthread_cond_t       mCondApi;        ///< APIの待ち合わせ
@@ -308,8 +309,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
 
     mLoopJni = JNILOOP_INI;
 
-    pthread_t th;
-    pthread_create(&th, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
+    pthread_create(&mTh, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
 
     //wait jni start...
     int count = 60 * 1;       //1s * count
@@ -366,6 +366,9 @@ void btcrpc_term(void)
     pthread_cond_destroy(&mCondApi);
     pthread_mutex_destroy(&mMuxApi);
     pthread_mutex_destroy(&mMuxCall);
+
+    pthread_join(mTh, NULL);
+    LOGD("join: btcrpcj\n");
 }
 
 

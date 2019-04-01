@@ -256,6 +256,12 @@ int main(int argc, char *argv[])
 
     ptarmd_start(my_rpcport, &node);
 
+    //detached
+    //pthread_join(th_sig, NULL);
+
+    LOGD("$$$ ptarmd: exit\n");
+    utl_log_term(); //stop logging
+
     return 0;
 
 LABEL_EXIT:

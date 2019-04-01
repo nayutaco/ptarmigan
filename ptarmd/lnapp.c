@@ -419,8 +419,8 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
     pthread_mutex_lock(&pAppConf->mux_th);
     if (pAppConf->th) {
         pthread_join(pAppConf->th, NULL);
+        LOGD("join: lnapp\n");
         pAppConf->th = 0;
-        fprintf(stderr, "joined\n");
     }
     pthread_mutex_unlock(&pAppConf->mux_th);
 }
@@ -941,6 +941,7 @@ LABEL_JOIN:
     pthread_join(th_recv, NULL);
     pthread_join(th_poll, NULL);
     pthread_join(th_anno, NULL);
+    LOGD("join: recv, poll, anno\n");
 
     LOGD("close sock=%d...\n", p_conf->sock);
     retval = close(p_conf->sock);
