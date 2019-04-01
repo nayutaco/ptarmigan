@@ -36,12 +36,21 @@
 #include "conf.h"
 #include "btcrpc.h"
 
+//version
+#include "boost/version.hpp"
+#include "curl/curlver.h"
+#include "mbedtls/version.h"
+#include "event.h"
+#include "jansson.h"
+#include "lmdb.h"
+#include "zlib.h"
+
 
 /**************************************************************************
  * macros
  **************************************************************************/
 
-#define M_OPTSTRING     "p:n:a:c:d:xNh"
+#define M_OPTSTRING     "p:n:a:c:d:xNhv"
 
 
 /********************************************************************
@@ -51,6 +60,7 @@
 static void reset_getopt(void);
 static void sig_set_catch_sigs(sigset_t *pSigSet);
 static void *sig_handler_start(void *pArg);
+static void show_libs_version(void);
 
 
 /********************************************************************
@@ -189,6 +199,9 @@ int main(int argc, char *argv[])
                 return -1;
             }
             break;
+        case 'v':
+            show_libs_version();
+            exit(0);
         case 'h':
             //help
             goto LABEL_EXIT;
@@ -310,4 +323,20 @@ static void *sig_handler_start(void *pArg)
         }
     }
     return NULL;
+}
+
+
+static void show_libs_version(void)
+{
+    fprintf(stderr, "library version:\n");
+    fprintf(stderr, "\tMbedTLS: %s\n", MBEDTLS_VERSION_STRING_FULL);
+    fprintf(stderr, "\tlmdb: %s\n", mdb_version(NULL, NULL, NULL));
+    fprintf(stderr, "\tjansson: %s\n", JANSSON_VERSION);
+    fprintf(stderr, "\tinih\n");
+    fprintf(stderr, "\tcurl: %s\n", LIBCURL_VERSION);
+    fprintf(stderr, "\tlibev: %s\n", event_get_version());
+    fprintf(stderr, "\tlibbase58\n");
+    fprintf(stderr, "\tzlib: %s\n", ZLIB_VERSION);
+    fprintf(stderr, "\tjsonrpc-c\n");
+    fprintf(stderr, "\tboost: %s\n", BOOST_LIB_VERSION);
 }
