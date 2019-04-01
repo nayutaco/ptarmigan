@@ -329,13 +329,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
             ln_db_copy_channel(p->p_channel, pChannel);
 
             if (p->p_channel->short_channel_id != 0) {
-                utl_buf_t buf = UTL_BUF_INIT;
-
-                bool bret2 = ln_db_cnlanno_load(&p->p_channel->cnl_anno, p->p_channel->short_channel_id);
-                if (bret2) {
-                    utl_buf_alloccopy(&p->p_channel->cnl_anno, buf.buf, buf.len);
-                }
-                utl_buf_free(&buf);
+                /*ignore*/ln_db_cnlanno_load(&p->p_channel->cnl_anno, p->p_channel->short_channel_id);
             }
             ln_print_keys(p->p_channel);
         } else {
