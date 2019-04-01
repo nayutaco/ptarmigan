@@ -1285,6 +1285,7 @@ void ln_db_channel_close(const uint8_t *pChannelId)
         MDB_DBI_CLOSE(mpEnvChannel, db.dbi);
     } else {
         LOGE("ERR: %s\n", mdb_strerror(retval));
+        return;
     }
 
     memcpy(db_name, M_PREF_SECRET, M_SZ_PREF_STR);
