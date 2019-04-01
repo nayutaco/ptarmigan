@@ -37,7 +37,7 @@
 #include "btcrpc.h"
 
 //version
-#include "boost/version.hpp"
+#include "../boost/boost/version.hpp"
 #include "curl/curlver.h"
 #include "mbedtls/version.h"
 #include "event.h"
