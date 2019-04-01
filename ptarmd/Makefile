@@ -35,8 +35,8 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 #sources project
 ifeq ("$(BUILD_PTARMD)","LIB")
 	OUTPUT_FILENAME := libptarm.so
-	C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_lib.c
-	C_SOURCE_FILES += $(PRJ_PATH)/co_nayuta_lightning_PtarmiganNative.c
+	C_SOURCE_FILES += $(PRJ_PATH)/jar/ptarmd_lib.c
+	C_SOURCE_FILES += $(PRJ_PATH)/jar/co_nayuta_lightning_PtarmiganNative.c
 	INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
 else
 	OUTPUT_FILENAME := ptarmd

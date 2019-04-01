@@ -23,7 +23,8 @@ endif
 	-cp showdb/showdb $(INSTALL_DIR)/
 	-cp routing/routing $(INSTALL_DIR)/
 ifeq ("$(BUILD_PTARMD)","LIB")
-	cp ptarmd/libptarm.so ./jni/
+	-@mkdir -p $(INSTALL_DIR)/jar/
+	cp ptarmd/libptarm.so $(INSTALL_DIR)/jar/
 else
 	cp ptarmd/ptarmd $(INSTALL_DIR)/
 endif
