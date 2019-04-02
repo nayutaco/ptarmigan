@@ -117,6 +117,7 @@ typedef struct lnapp_conf_t {
 
     //XXX: create and join
     pthread_t           th;                     ///< pthread id
+    void *              (*p_thread_channel_start)(void *pArg);
 } lnapp_conf_t;
 
 
@@ -130,7 +131,8 @@ void lnapp_global_init(void);
 bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake);
 
 
-void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId);
+void lnapp_conf_init(
+    lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId, void *(*pThreadChannelStart)(void *pArg));
 void lnapp_conf_term(lnapp_conf_t *pAppConf);
 void lnapp_conf_start(
     lnapp_conf_t *pAppConf, bool Initiator, int Sock, const char *pConnStr, uint16_t ConnPort,
@@ -243,6 +245,13 @@ bool lnapp_is_connected(const lnapp_conf_t *pAppConf);
  * @retval  true        init/channel_reestablish/funding_locked message exchanged
  */
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
+
+
+/** channel thread entry point
+ *
+ * @param[in,out]   pArg    lnapp_conf_t*
+ */
+void *lnapp_thread_channel_start(void *pArg);
 
 
 #ifdef __cplusplus

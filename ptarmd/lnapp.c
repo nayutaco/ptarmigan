@@ -143,7 +143,6 @@ static ln_anno_param_t        mAnnoParam;       ///< announcementパラメータ
  * prototypes
  ********************************************************************/
 
-static void *thread_channel_start(void *pArg);
 static bool wait_peer_connected(lnapp_conf_t *p_conf);
 static bool noise_handshake(lnapp_conf_t *p_conf);
 static bool set_short_channel_id(lnapp_conf_t *p_conf);
@@ -248,7 +247,8 @@ void lnapp_global_init(void)
 }
 
 
-void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId)
+void lnapp_conf_init(
+    lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId, void *(*pThreadChannelStart)(void *pArg))
 {
     memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
 
@@ -266,6 +266,8 @@ void lnapp_conf_init(lnapp_conf_t *pAppConf, const uint8_t *pPeerNodeId)
     pthread_mutex_init(&pAppConf->mux_send, NULL);
 
     load_channel_settings(pAppConf);
+
+    pAppConf->p_thread_channel_start = pThreadChannelStart;
 }
 
 
@@ -342,7 +344,7 @@ bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
     bool ret = false;
 
     lnapp_conf_t conf; //dummy
-    lnapp_conf_init(&conf, pConnHandshake->conn.node_id);
+    lnapp_conf_init(&conf, pConnHandshake->conn.node_id, NULL);
     ln_init(&conf.channel, NULL, NULL, NULL, NULL);
 
     conf.active = true;
@@ -391,7 +393,7 @@ void lnapp_start(lnapp_conf_t *pAppConf)
         LOGE("fail: ???\n");
     } else {
         pAppConf->active = true;
-        pthread_create(&pAppConf->th, NULL, &thread_channel_start, pAppConf);
+        pthread_create(&pAppConf->th, NULL, pAppConf->p_thread_channel_start, pAppConf);
     }
     pthread_mutex_unlock(&pAppConf->mux_th);
 }
@@ -749,10 +751,6 @@ bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
 
 
 /********************************************************************
- * private functions
- ********************************************************************/
-
-/********************************************************************
  * [THREAD]channel
  ********************************************************************/
 
@@ -760,7 +758,7 @@ bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
-static void *thread_channel_start(void *pArg)
+void *lnapp_thread_channel_start(void *pArg)
 {
     bool    ret;
     int     retval;
@@ -993,6 +991,10 @@ LABEL_JOIN:
     return NULL;
 }
 
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
 
 //peer(server)への接続確立を待つ
 static bool wait_peer_connected(lnapp_conf_t *p_conf)
