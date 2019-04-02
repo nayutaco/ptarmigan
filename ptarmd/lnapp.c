@@ -992,6 +992,29 @@ LABEL_JOIN:
 }
 
 
+/** channel thread entry point
+ *
+ * @param[in,out]   pArg    lnapp_conf_t*
+ */
+void *lnapp_thread_channel_origin_start(void *pArg)
+{
+    lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
+
+    LOGD("\n");
+
+    //pthread_mutex_lock(&p_conf->mux_conf);
+    while (p_conf->active) {
+        utl_thread_msleep(M_WAIT_RECV_TO_MSEC); //XXX: we should use `pthread_cond_wait`
+    }
+    //pthread_mutex_unlock(&p_conf->mux_conf);
+
+    lnapp_conf_stop(p_conf);
+    lnapp_manager_free_node_ref(p_conf);
+    LOGD("[exit]lnapp origin thread\n");
+    return NULL;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
@@ -2569,7 +2592,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
 
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fulfill->prev_short_channel_id);
-    if (p_prevconf != NULL) {
+    if (p_prevconf) {
         pthread_mutex_lock(&p_prevconf->mux_channel);
         ret = ln_fulfill_htlc_set(&p_prevconf->channel, p_fulfill->prev_htlc_id, p_fulfill->p_preimage);
         pthread_mutex_unlock(&p_prevconf->mux_channel);
@@ -2610,7 +2633,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
                     p_fulfill->prev_htlc_id);
 
         p_fulfill->ret = true;
-    } else {
+    } else if (p_prevconf) {
         //fail channel if fail backwind channel
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_prevconf->channel));

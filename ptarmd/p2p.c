@@ -218,7 +218,7 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     } else {
         LOGD("new node: ");
         DUMPD(conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
-        p_conf = lnapp_manager_get_new_node(conn_handshake.conn.node_id);
+        p_conf = lnapp_manager_get_new_node(conn_handshake.conn.node_id, lnapp_thread_channel_start);
         if (!p_conf) {
             LOGE("fail: ???\n");
             *pErrCode = RPCERR_FULLCLI;
@@ -375,7 +375,7 @@ void *p2p_listener_start(void *pArg)
         } else {
             LOGD("new node: ");
             DUMPD(conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
-            p_conf = lnapp_manager_get_new_node(conn_handshake.conn.node_id);
+            p_conf = lnapp_manager_get_new_node(conn_handshake.conn.node_id, lnapp_thread_channel_start);
             if (!p_conf) {
                 LOGE("fail: ???\n");
                 close(sock_2);

@@ -39,9 +39,11 @@ extern "C" {
 
 void lnapp_manager_init(void);
 void lnapp_manager_term(void);
+void lnapp_manager_start_origin_node(void *(*pThreadChannelStart)(void *pArg));
 lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId);
 void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam), void *pParam);
-lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId);
+lnapp_conf_t *lnapp_manager_get_new_node(
+    const uint8_t *pNodeId, void *(*pThreadChannelStart)(void *pArg));
 void lnapp_manager_free_node_ref(lnapp_conf_t *pConf);
 void lnapp_manager_prune_node();
 

@@ -25,14 +25,18 @@
 #include "ln_db.h"
 
 #include "lnapp.h"
+#include "lnapp_manager.h"
 
 
 /********************************************************************
  * static variables
  ********************************************************************/
 
-static lnapp_conf_t     mAppConf[MAX_CHANNELS];
+static lnapp_conf_t     mAppConf[MAX_CHANNELS + 1];
+    //the additional one is for handling origin/final node itself.
+    //  treat as a dummy channel as node_id=0 and short_channel_id=0.
 pthread_mutex_t         mMuxAppconf = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+const uint8_t           mNodeIdOrigin[BTC_SZ_PUBKEY] = {0};
 
 
 /********************************************************************
@@ -64,6 +68,16 @@ void lnapp_manager_term(void)
 }
 
 
+void lnapp_manager_start_origin_node(void *(*pThreadChannelStart)(void *pArg))
+{
+    LOGD("\n");
+    lnapp_conf_t *p_conf = lnapp_manager_get_new_node(mNodeIdOrigin, pThreadChannelStart);
+    assert(p_conf);
+    lnapp_start(p_conf);
+    LOGD("\n");
+}
+
+
 lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId)
 {
     pthread_mutex_lock(&mMuxAppconf);
@@ -84,6 +98,7 @@ void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
+        if (!memcmp(mAppConf[lp].node_id, mNodeIdOrigin, BTC_SZ_PUBKEY)) continue; //skip origin node
         if (!mAppConf[lp].enabled) continue;
         mAppConf[lp].ref_counter++;
         pthread_mutex_unlock(&mMuxAppconf);
@@ -95,7 +110,8 @@ void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam
 }
 
 
-lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId)
+lnapp_conf_t *lnapp_manager_get_new_node(
+    const uint8_t *pNodeId, void *(*pThreadChannelStart)(void *pArg))
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
@@ -109,7 +125,7 @@ lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId)
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         if (mAppConf[lp].enabled) continue;
         p_conf = &mAppConf[lp];
-        lnapp_conf_init(p_conf, pNodeId, lnapp_thread_channel_start);
+        lnapp_conf_init(p_conf, pNodeId, pThreadChannelStart);
         p_conf->ref_counter++;
         break;
     }
@@ -140,6 +156,7 @@ void lnapp_manager_prune_node()
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
+        if (!memcmp(mAppConf[lp].node_id, mNodeIdOrigin, BTC_SZ_PUBKEY)) continue; //skip origin node
         if (!mAppConf[lp].enabled) continue;
         if (mAppConf[lp].ref_counter) continue;
         //no lock required
