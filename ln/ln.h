@@ -198,7 +198,8 @@ typedef enum {
     LN_STATUS_CLOSE_MUTUAL = 4,     ///< mutual close
     LN_STATUS_CLOSE_UNI_LOCAL = 5,  ///< unilateral close(from local)
     LN_STATUS_CLOSE_UNI_REMOTE = 6, ///< unilateral close(from remote)
-    LN_STATUS_CLOSE_REVOKED = 7     ///< revoked transaction close(from remote)
+    LN_STATUS_CLOSE_REVOKED = 7,    ///< revoked transaction close(from remote)
+    LN_STATUS_CLOSED = 8            ///< closed
 } ln_status_t;
 
 

@@ -143,7 +143,8 @@ void lnapp_manager_prune_node()
         if (!mAppConf[lp].enabled) continue;
         if (mAppConf[lp].ref_counter) continue;
         //no lock required
-        if (ln_status_get(&mAppConf[lp].channel) >= LN_STATUS_ESTABLISH) continue;
+        if (ln_status_get(&mAppConf[lp].channel) >= LN_STATUS_ESTABLISH &&
+            ln_status_get(&mAppConf[lp].channel) != LN_STATUS_CLOSED) continue;
         LOGD("prune node: ");
         DUMPD(mAppConf[lp].node_id, BTC_SZ_PUBKEY);
         lnapp_stop(&mAppConf[lp]);
