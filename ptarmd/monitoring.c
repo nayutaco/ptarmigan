@@ -397,6 +397,7 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
         del = funding_unspent(pChannel, p_param, p_db_param);
     }
     if (del) {
+        pChannel->status = LN_STATUS_CLOSED; //XXX:
         LOGD("delete from DB\n");
         ln_db_channel_owned_del(ln_short_channel_id(pChannel));
         if (p_db_param) {
