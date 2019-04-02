@@ -254,6 +254,13 @@ bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
 void *lnapp_thread_channel_start(void *pArg);
 
 
+/** channel thread entry point
+ *
+ * @param[in,out]   pArg    lnapp_conf_t*
+ */
+void *lnapp_thread_channel_origin_start(void *pArg);
+
+
 #ifdef __cplusplus
 }
 #endif

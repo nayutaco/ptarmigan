@@ -194,6 +194,9 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     set_channels();
     lnapp_global_init();
     lnapp_manager_init();
+    lnapp_manager_start_origin_node(lnapp_thread_channel_origin_start);
+
+    LOGD("\n");
 
     //接続待ち受け用
     pthread_t th_svr;
