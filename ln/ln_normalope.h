@@ -72,7 +72,7 @@ bool ln_set_add_htlc_send_fwd(
     uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
     uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
 
-void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevHtlcIdx);
+void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcIdx);
 
 
 /** update_fulfill_htlc設定

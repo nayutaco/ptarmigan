@@ -136,8 +136,10 @@
 #define M_SZ_ONION_ROUTE        (sizeof(M_KEY_ONION_ROUTE) - 1)
 #define M_KEY_SHARED_SECRET     "shared_secret"
 #define M_SZ_SHARED_SECRET      (sizeof(M_KEY_SHARED_SECRET) - 1)
+#define M_KEY_FORWARD_MSG       "forward_msg"
+#define M_SZ_FORWARD_MSG        (sizeof(M_KEY_FORWARD_MSG) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-61))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-62))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -237,9 +239,10 @@
     -59: updated a lot!
          change db paths and db names and so on
     -60: increase the num of htlcs (6 -> 12)
-    -61: rm `ln_htlc_id::neighbor_idx`
-         add `ln_htlc_id::neighbor_id`
+    -61: rm `ln_htlc_t::neighbor_idx`
+         add `ln_htlc_t::neighbor_id`
          add closed channel environment and move backup db to the environment
+    -62: add `ln_htlc_t::forward_msg`
  */
 
 
@@ -535,6 +538,7 @@ static const fixed_item_t DBHTLC_VALUES[] = {
     //buf_onion_reason --> HTLC buf
     M_ITEM(ln_htlc_t, remote_sig),
     //buf_shared_secret --> HTLC buf
+    //buf_forward_msg --> HTLC buf
 };
 
 
@@ -976,6 +980,7 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, boo
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_shared_secret);
+        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_forward_msg);
     }
 
     //variable size data
@@ -4108,6 +4113,23 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
             //LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
             retval = 0;     //FALLTHROUGH
         }
+
+        key.mv_size = M_SZ_FORWARD_MSG;
+        key.mv_data = M_KEY_FORWARD_MSG;
+        retval = mdb_get(pDb->p_txn, dbi, &key, &data);
+        if (retval == 0) {
+            if (!utl_buf_alloccopy(
+                &pChannel->update_info.htlcs[lp].buf_forward_msg, data.mv_data, data.mv_size)) {
+                LOGE("fail: ???\n");
+                retval = -1;
+                MDB_DBI_CLOSE(mpEnvChannel, dbi);
+                break;
+            }
+        } else {
+            //LOGE("ERR: %s(forward_msg)\n", mdb_strerror(retval));
+            retval = 0;     //FALLTHROUGH
+        }
+
         MDB_DBI_CLOSE(mpEnvChannel, dbi);
     }
 
@@ -4184,6 +4206,16 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         retval = mdb_put(pDb->p_txn, dbi, &key, &data, 0);
         if (retval) {
             LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+
+        key.mv_size = M_SZ_FORWARD_MSG;
+        key.mv_data = M_KEY_FORWARD_MSG;
+        data.mv_size = pChannel->update_info.htlcs[lp].buf_forward_msg.len;
+        data.mv_data = pChannel->update_info.htlcs[lp].buf_forward_msg.buf;
+        retval = mdb_put(pDb->p_txn, dbi, &key, &data, 0);
+        if (retval) {
+            LOGE("ERR: %s(forward_msg)\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
     }

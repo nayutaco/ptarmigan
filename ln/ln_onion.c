@@ -244,11 +244,9 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 }
 
 
-bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
-            utl_buf_t *pSharedSecret,
-            utl_push_t *pPushReason,
-            const uint8_t *pPacket,
-            const uint8_t *pAssocData, int AssocLen)
+bool HIDDEN ln_onion_read_packet(
+    uint8_t *pNextPacket, ln_hop_dataout_t *pNextData, utl_buf_t *pSharedSecret, utl_push_t *pPushReason,
+    const uint8_t *pPacket, const uint8_t *pAssocData, int AssocLen)
 {
     bool ret;
 

@@ -1242,19 +1242,6 @@ const uint8_t *ln_remote_node_id(const ln_channel_t *pChannel)
 }
 
 
-uint32_t ln_cltv_expily_delta(const ln_channel_t *pChannel)
-{
-    return pChannel->anno_param.cltv_expiry_delta;
-}
-
-
-uint64_t ln_forward_fee(const ln_channel_t *pChannel, uint64_t AmountMsat)
-{
-    return (uint64_t)pChannel->anno_param.fee_base_msat +
-            (AmountMsat * (uint64_t)pChannel->anno_param.fee_prop_millionths / (uint64_t)1000000);
-}
-
-
 const ln_node_addr_t *ln_last_connected_addr(const ln_channel_t *pChannel)
 {
     return &pChannel->last_connected_addr;
@@ -1436,6 +1423,7 @@ static void channel_clear(ln_channel_t *pChannel)
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
+        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_forward_msg);
     }
 
     memset(pChannel->peer_node_id, 0, BTC_SZ_PUBKEY);

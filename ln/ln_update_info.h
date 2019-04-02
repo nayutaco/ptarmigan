@@ -89,11 +89,16 @@ bool ln_update_info_fee_update_needs(ln_update_info_t *pInfo, uint32_t FeeratePe
 
 bool ln_update_info_get_update(
     const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx);
-bool ln_update_info_get_update_add_htlc_send(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId);
-bool ln_update_info_get_update_add_htlc_forward(
-    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevHtlcId);
-bool ln_update_info_get_update_add_htlc_recv(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId);
-bool ln_update_info_get_corresponding_update(const ln_update_info_t *pInfo, uint16_t *pCorrespondingUpdateIdx, uint16_t UpdateIdx);
+bool ln_update_info_get_update_add_htlc_send_enabled(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId);
+bool ln_update_info_get_update_add_htlc_forwarded_send_enabled(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
+bool ln_update_info_get_update_add_htlc_recv_enabled(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId);
+bool ln_update_info_get_update_add_htlc_forwarded_send(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
+bool ln_update_info_get_corresponding_update(
+    const ln_update_info_t *pInfo, uint16_t *pCorrespondingUpdateIdx, uint16_t UpdateIdx);
 
 bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo);
 

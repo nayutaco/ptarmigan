@@ -28,6 +28,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "ln_msg_normalope.h"
+
 
 /********************************************************************
  * typedefs
@@ -114,9 +116,10 @@ typedef struct {
  */
 typedef struct {
     bool                    ret;                    ///< callback処理結果
+    uint64_t                next_short_channel_id;
     uint64_t                prev_htlc_id;           ///< HTLC id
-    const uint8_t           *p_payment;             ///< payment_hash
-    const ln_hop_dataout_t  *p_hop;                 ///< onion解析結果
+    const uint8_t           *p_payment_hash;        ///< payment_hash
+    const ln_msg_update_add_htlc_t  *p_forward_param;
     uint64_t                amount_msat;            ///<
     uint32_t                cltv_expiry;            ///<
     utl_buf_t               *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
@@ -126,6 +129,7 @@ typedef struct {
 
 typedef struct {
     uint64_t                next_short_channel_id;
+    uint64_t                prev_short_channel_id;
     uint64_t                prev_htlc_id;
 } ln_cb_param_start_fwd_add_htlc_t;
 
