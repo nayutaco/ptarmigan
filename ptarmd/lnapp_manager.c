@@ -109,7 +109,7 @@ lnapp_conf_t *lnapp_manager_get_new_node(const uint8_t *pNodeId)
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         if (mAppConf[lp].enabled) continue;
         p_conf = &mAppConf[lp];
-        lnapp_conf_init(p_conf, pNodeId);
+        lnapp_conf_init(p_conf, pNodeId, lnapp_thread_channel_start);
         p_conf->ref_counter++;
         break;
     }
@@ -170,7 +170,7 @@ static bool load_channel(ln_channel_t *pChannel, void *pDbParam, void *pParam)
     }
 
     ln_channel_t *p_channel = &mAppConf[*p_idx].channel;
-    lnapp_conf_init(&mAppConf[*p_idx], pChannel->peer_node_id);
+    lnapp_conf_init(&mAppConf[*p_idx], pChannel->peer_node_id, lnapp_thread_channel_start);
     ln_db_copy_channel(p_channel, pChannel);
     if (p_channel->short_channel_id) {
         ln_db_cnlanno_load(&p_channel->cnl_anno, p_channel->short_channel_id);
