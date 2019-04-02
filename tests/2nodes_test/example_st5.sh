@@ -30,3 +30,20 @@ do
         fi
     done
 done
+
+loop=1
+while [ $loop -eq 1 ];
+do
+    loop=0
+    for i in 3334 4445
+    do
+        cnt=`./ptarmcli -l $i | jq -e '.result.peers | length'`
+        if [ $cnt -eq 0 ]; then
+            echo node_$i closed
+        else
+            echo node_$i not closed
+            sleep 5
+            loop=1
+        fi
+    done
+done

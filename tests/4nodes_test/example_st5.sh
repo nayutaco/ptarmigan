@@ -24,6 +24,23 @@ do
         ./showdb -d node_$i -s >$TMPFILE || (ERR=$?; echo showdb failed=$ERR; exit $ERR)
         cnt=`cat $TMPFILE | jq -e 'length'`
         if [ $cnt -eq 0 ]; then
+            echo node_$i DB closed
+        else
+            echo node_$i not DB closed
+            sleep 5
+            loop=1
+        fi
+    done
+done
+
+loop=1
+while [ $loop -eq 1 ];
+do
+    loop=0
+    for i in 3334 4445 5556 6667
+    do
+        cnt=`./ptarmcli -l $i | jq -e '.result.peers | length'`
+        if [ $cnt -eq 0 ]; then
             echo node_$i closed
         else
             echo node_$i not closed
