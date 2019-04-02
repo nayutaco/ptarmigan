@@ -46,6 +46,7 @@ void ln_update_info_init(ln_update_info_t *pInfo) {
         utl_buf_init(&pInfo->htlcs[idx].buf_preimage);
         utl_buf_init(&pInfo->htlcs[idx].buf_onion_reason);
         utl_buf_init(&pInfo->htlcs[idx].buf_shared_secret);
+        utl_buf_init(&pInfo->htlcs[idx].buf_forward_msg);
     }
 }
 
@@ -55,6 +56,7 @@ void ln_update_info_free(ln_update_info_t *pInfo) {
         utl_buf_free(&pInfo->htlcs[idx].buf_preimage);
         utl_buf_free(&pInfo->htlcs[idx].buf_onion_reason);
         utl_buf_free(&pInfo->htlcs[idx].buf_shared_secret);
+        utl_buf_free(&pInfo->htlcs[idx].buf_forward_msg);
     }
     memset(pInfo, 0x00, sizeof(ln_update_info_t));
 }
@@ -126,6 +128,7 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
     utl_buf_free(&p_htlc->buf_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_free(&p_htlc->buf_shared_secret);
+    utl_buf_free(&p_htlc->buf_forward_msg);
     memset(p_htlc, 0x00, sizeof(ln_htlc_t));
 
     //clear corresponding update (add -> del, del -> add)
@@ -166,7 +169,7 @@ bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
     assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
     uint16_t update_idx_add_htlc;
-    if (!ln_update_info_get_update_add_htlc_recv(pInfo, &update_idx_add_htlc, HtlcId)) {
+    if (!ln_update_info_get_update_add_htlc_recv_enabled(pInfo, &update_idx_add_htlc, HtlcId)) {
         //we don't have the corresponding update_add_htlc
         LOGE("fail: ???\n");
         return false;
@@ -205,7 +208,7 @@ bool ln_update_info_set_del_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdate
     assert(Type & LN_UPDATE_TYPE_MASK_DEL_HTLC);
 
     uint16_t update_idx_add_htlc;
-    if (!ln_update_info_get_update_add_htlc_send(pInfo, &update_idx_add_htlc, HtlcId)) {
+    if (!ln_update_info_get_update_add_htlc_send_enabled(pInfo, &update_idx_add_htlc, HtlcId)) {
         //we don't have the corresponding update_add_htlc
         LOGE("fail: ???\n");
         return false;
@@ -441,7 +444,8 @@ bool ln_update_info_fee_update_needs(ln_update_info_t *pInfo, uint32_t FeeratePe
 }
 
 
-bool ln_update_info_get_update(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx)
+bool ln_update_info_get_update(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint8_t Type, uint16_t TypeSpecificIdx)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
@@ -459,7 +463,8 @@ bool ln_update_info_get_update(const ln_update_info_t *pInfo, uint16_t *pUpdateI
 }
 
 
-bool ln_update_info_get_update_add_htlc_send(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId)
+bool ln_update_info_get_update_add_htlc_send_enabled(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
@@ -473,15 +478,14 @@ bool ln_update_info_get_update_add_htlc_send(const ln_update_info_t *pInfo, uint
 }
 
 
-bool ln_update_info_get_update_add_htlc_forward(
-    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevHtlcId)
+bool ln_update_info_get_update_add_htlc_recv_enabled(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
-        if (!LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true) &&
-            p_update->type != LN_UPDATE_TYPE_NONE) continue;
-        if (pInfo->htlcs[p_update->type_specific_idx].neighbor_id != PrevHtlcId) continue;
+        if (!LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
+        if (pInfo->htlcs[p_update->type_specific_idx].id != HtlcId) continue;
         *pUpdateIdx = idx;
         return true;
     }
@@ -489,13 +493,17 @@ bool ln_update_info_get_update_add_htlc_forward(
 }
 
 
-bool ln_update_info_get_update_add_htlc_recv(const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t HtlcId)
+bool ln_update_info_get_update_add_htlc_forwarded_send(
+    const ln_update_info_t *pInfo, uint16_t *pUpdateIdx, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
 {
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
-        if (!LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true)) continue;
-        if (pInfo->htlcs[p_update->type_specific_idx].id != HtlcId) continue;
+        if (p_update->type != LN_UPDATE_TYPE_NONE && //XXX: deprecated condition
+            p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
+        if (!LN_UPDATE_OFFERED(p_update)) continue;
+        if (pInfo->htlcs[p_update->type_specific_idx].neighbor_short_channel_id != PrevShortChannelId) continue;
+        if (pInfo->htlcs[p_update->type_specific_idx].neighbor_id != PrevHtlcId) continue;
         *pUpdateIdx = idx;
         return true;
     }

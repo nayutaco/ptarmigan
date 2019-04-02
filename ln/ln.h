@@ -1116,25 +1116,6 @@ bool ln_open_channel_announce(const ln_channel_t *pChannel);
 const uint8_t *ln_remote_node_id(const ln_channel_t *pChannel);
 
 
-/** cltv_expiry_delta取得
- *
- * @param[in]           pChannel        channel info
- * @return      cltv_expiry_delta
- */
-uint32_t ln_cltv_expily_delta(const ln_channel_t *pChannel);
-
-
-/** 転送FEE計算
- *
- * @param[in]           pChannel        channel info
- * @param[in]           AmountMsat      転送amount_msat
- * @return      転送FEE(msat)
- * @note
- *      - fee_prop_millionths is a proportion (ppm)
- */
-uint64_t ln_forward_fee(const ln_channel_t *pChannel, uint64_t AmountMsat);
-
-
 /** 最後に接続したIPアドレス
  *
  * @param[in]           pChannel        channel info

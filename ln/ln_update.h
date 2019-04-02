@@ -125,7 +125,7 @@ typedef struct {
     uint64_t            amount_msat;                    ///< 8:  amount_msat
     uint32_t            cltv_expiry;                    ///< 4:  cltv_expirty
     uint8_t             payment_hash[BTC_SZ_HASH256];   ///< 32: payment_hash
-    utl_buf_t           buf_preimage;           ///< 32: payment_preimage
+    utl_buf_t           buf_preimage;                   ///< 32: payment_preimage
     utl_buf_t           buf_onion_reason;               ///<
                                                         //  update_add_htlc
                                                         //      1366: onion_routing_packet
@@ -135,6 +135,7 @@ typedef struct {
     uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< 受信した最新のHTLC署名
                                                         //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     utl_buf_t           buf_shared_secret;              ///< failuremsg暗号化用
+    utl_buf_t           buf_forward_msg;                ///<
 
     uint64_t            neighbor_short_channel_id;      ///<
     uint64_t            neighbor_id;                    ///<

@@ -2424,7 +2424,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     char str_stat[256];
 
     ptarmd_preimage_lock();
-    if (p_addhtlc->p_hop->b_exit) {
+    if (!p_addhtlc->next_short_channel_id) {
         //final node
         p_info = "final node";
         LOGD("final node\n");
@@ -2432,8 +2432,8 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     } else {
         //別channelにupdate_add_htlcを転送する(メッセージ送信は受信アイドル処理で行う)
         snprintf(str_stat, sizeof(str_stat), "-->[fwd]0x%016" PRIx64 ", cltv=%d",
-                p_addhtlc->p_hop->short_channel_id,
-                p_addhtlc->p_hop->outgoing_cltv_value);
+                p_addhtlc->next_short_channel_id,
+                p_addhtlc->p_forward_param->cltv_expiry);
         p_info = str_stat;
         LOGD("forward\n");
         cbsub_add_htlc_forward(p_conf, p_addhtlc);
@@ -2457,7 +2457,7 @@ static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_param_nofity_ad
     p_addhtlc->ret = true;
 
     char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
-    utl_str_bin2str(str_payment_hash, p_addhtlc->p_payment, BTC_SZ_HASH256);
+    utl_str_bin2str(str_payment_hash, p_addhtlc->p_payment_hash, BTC_SZ_HASH256);
     char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_conf->channel));
 
@@ -2472,12 +2472,12 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
 {
     bool ret = false;
     utl_buf_t reason = UTL_BUF_INIT;
-    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_addhtlc->p_hop->short_channel_id);
+    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_addhtlc->next_short_channel_id);
     if (p_nextconf != NULL) {
         pthread_mutex_lock(&p_nextconf->mux_channel);
         ret = ln_set_add_htlc_send_fwd(
             &p_nextconf->channel, &reason, p_addhtlc->p_onion_reason->buf,
-            p_addhtlc->p_hop->amt_to_forward, p_addhtlc->p_hop->outgoing_cltv_value, p_addhtlc->p_payment,
+            p_addhtlc->p_forward_param->amount_msat, p_addhtlc->p_forward_param->cltv_expiry, p_addhtlc->p_payment_hash,
             ln_short_channel_id(&p_conf->channel), p_addhtlc->prev_htlc_id, p_addhtlc->p_shared_secret);
         //utl_buf_free(&pFwdAdd->shared_secret);  //ln.cで管理するため、freeさせない
         if (!ret) {
@@ -2496,7 +2496,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_conf->channel));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
-        utl_str_bin2str(hashstr, p_addhtlc->p_payment, BTC_SZ_HASH256);
+        utl_str_bin2str(hashstr, p_addhtlc->p_payment_hash, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         char param[M_SZ_SCRIPT_PARAM];
@@ -2505,15 +2505,15 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
                     "%" PRIu32 " "
                     "%s",
                     str_sci, node_id,
-                    p_addhtlc->p_hop->amt_to_forward,
-                    p_addhtlc->p_hop->outgoing_cltv_value,
+                    p_addhtlc->p_forward_param->amount_msat,
+                    p_addhtlc->p_forward_param->cltv_expiry,
                     hashstr);
         ptarmd_call_script(PTARMD_EVT_FORWARD, param);
 
         ptarmd_eventlog(ln_channel_id(&p_nextconf->channel),
             "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",
-                    p_addhtlc->p_hop->amt_to_forward,
-                    p_addhtlc->p_hop->outgoing_cltv_value);
+                    p_addhtlc->p_forward_param->amount_msat,
+                    p_addhtlc->p_forward_param->cltv_expiry);
     } else {
         if (reason.len) {
             LOGE("fail\n");
@@ -2544,7 +2544,7 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
     lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_fwd->next_short_channel_id);
     if (p_nextconf != NULL) {
         pthread_mutex_lock(&p_nextconf->mux_channel);
-        ln_add_htlc_start_fwd(&p_nextconf->channel, p_fwd->prev_htlc_id);
+        ln_add_htlc_start_fwd(&p_nextconf->channel, p_fwd->prev_short_channel_id, p_fwd->prev_htlc_id);
         pthread_mutex_unlock(&p_nextconf->mux_channel);
     } else {
         LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_fwd->next_short_channel_id);
