@@ -256,7 +256,9 @@ int main(int argc, char *argv[])
 
     ptarmd_start(my_rpcport, &node);
 
-    //detached
+    btcrpc_term();
+
+    //already detached
     //pthread_join(th_sig, NULL);
 
     LOGD("$$$ ptarmd: exit\n");

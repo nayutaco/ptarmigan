@@ -61,6 +61,8 @@ const struct {
     const char *name;
     const char *sig;
 } kMethod[METHOD_PTARM_MAX] = {
+    // METHOD_PTARM_SPV_START,
+    { "spv_start", "()I" },
     // METHOD_PTARM_SETCREATIONHASH,
     { "setCreationHash", "([B)V" },
     // METHOD_PTARM_GETBLOCKCOUNT,
@@ -131,7 +133,7 @@ bool btcj_init(btc_block_chain_t Gen)
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
     // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
-    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug";
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=info";
     opt[2].optionString = "-Dorg.slf4j.simpleLogger.log.co.nayuta.lightning=debug";
     opt[3].optionString = "-Dorg.slf4j.simpleLogger.showDateTime=true";
     opt[4].optionString = "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ssZ";
@@ -204,7 +206,6 @@ bool btcj_init(btc_block_chain_t Gen)
         LOGE("fail: NewObject\n");
         return false;
     }
-    //
     ptarm_obj = (jobject)(*env)->NewGlobalRef(env, obj);
     (*env)->DeleteLocalRef(env, param);
     (*env)->DeleteLocalRef(env, obj);
@@ -301,8 +302,32 @@ bool btcj_init(btc_block_chain_t Gen)
     //
     (*env)->DeleteLocalRef(env, cls);
 
-    LOGD("END\n");
-    return true;
+    LOGD("SPV start\n");
+    ret = btcj_spv_start();
+    switch (ret) {
+    case BTCJ_INI_SPV_START_OK:
+        LOGD("OK!\n");
+        break;
+    case BTCJ_INI_SPV_START_FILE:
+        fprintf(stderr, "SPV file already locked.\n");
+        fprintf(stderr, "Maybe, another ptarmd is started or file unlock processing.\n");
+        fprintf(stderr, "If no other ptarmd, please wait a while and start.\n");
+        LOGE("fail: wallet file already locked\n");
+        break;
+    case BTCJ_INI_SPV_START_BJ:
+        fprintf(stderr, "Failed to start SPV.\n");
+        fprintf(stderr, "Please wait a while and start.\n");
+        LOGE("fail: bitcoinj cannot start\n");
+        break;
+    case BTCJ_INI_SPV_START_ERR:
+    default:
+        fprintf(stderr, "Sorry, failed to start SPV.\n");
+        LOGE("fail: SPV\n");
+        btcj_release();
+    }
+
+    LOGD("END: %d\n", ret);
+    return (ret == BTCJ_INI_SPV_START_OK);
 }
 //-----------------------------------------------------------------------------
 bool btcj_release(void)
@@ -311,15 +336,26 @@ bool btcj_release(void)
         (*env)->DeleteGlobalRef(env, ptarm_obj);
         (*env)->DeleteGlobalRef(env, arraylist_cls);
         (*env)->DeleteGlobalRef(env, hash_cls);
-        //
-        if(jvm != NULL) {
-            (*jvm)->DestroyJavaVM(jvm);
-            jvm = NULL;
-        }
+
+        //待ち状態になるためコメントアウト
+        // if(jvm != NULL) {
+        //     (*jvm)->DestroyJavaVM(jvm);
+        //     jvm = NULL;
+        // }
         env = NULL;
     }
     //
     return true;
+}
+//-----------------------------------------------------------------------------
+int btcj_spv_start(void)
+{
+    LOGD("\n");
+    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SPV_START]);
+    check_exception(env);
+    LOGD("ret=%d\n", ret);
+    //
+    return ret;
 }
 //-----------------------------------------------------------------------------
 void btcj_setcreationhash(const uint8_t *pHash)
@@ -744,7 +780,7 @@ static inline void _check_exception(JNIEnv *env, const char *pFuncName, int Line
 {
     if ((*env)->ExceptionCheck(env)) {
         LOGE("fail: exception(%s(): %d)!!\n", pFuncName, Line);
-        abort();
+        //abort();
         (*env)->ExceptionClear(env);
     }
 }

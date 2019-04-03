@@ -237,7 +237,6 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
             "ptarmd end: total_msat=%" PRIu64 "\n", total_amount);
 
     lnapp_manager_term();
-    btcrpc_term();
     ln_db_term();
 
     return 0;

@@ -124,6 +124,8 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
 
     ptarmd_start(0);
 
+    btcrpc_term();
+
     return 0;
 }
 
