@@ -849,6 +849,7 @@ bool ln_db_forward_add_htlc_cur_open(void **ppCur, uint64_t NextShortChannelId);
 void ln_db_forward_add_htlc_cur_close(void *pCur, bool bCommit);
 bool ln_db_forward_add_htlc_cur_get(
     void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg);
+bool ln_db_forward_add_htlc_cur_del(void *pCur);
 
 
 //XXX: comment
