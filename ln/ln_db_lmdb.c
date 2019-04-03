@@ -623,6 +623,7 @@ static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, i
 static bool forward_cur_get(void *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg);
 static int forward_cur_load(
     MDB_cursor *pCur, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId, utl_buf_t *pMsg, MDB_cursor_op Op);
+static bool forward_cur_del(void *pCur);
 static void forward_set_db_name(char *pDbName, uint64_t NextShortChannelId, const char *pDbNamePrefix);
 static void forward_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId);
@@ -3945,6 +3946,12 @@ bool ln_db_forward_add_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, u
 }
 
 
+bool ln_db_forward_add_htlc_cur_del(void *pCur)
+{
+    return forward_cur_del(pCur);
+}
+
+
 bool ln_db_forward_del_htlc_cur_open(void **ppCur, uint64_t NextShortChannelId)
 {
     return forward_cur_open(ppCur, NextShortChannelId, M_PREF_FORWARD_DEL_HTLC);
@@ -5756,6 +5763,20 @@ static int forward_cur_load(
         return -1;
     }
     return 0;
+}
+
+
+static bool forward_cur_del(void *pCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    int retval = mdb_cursor_del(p_cur->p_cursor, 0);
+    if (retval) {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("fail: mdb_cursor_del(): %s\n", mdb_strerror(retval));
+        }
+        return false;
+    }
+    return true;
 }
 
 
