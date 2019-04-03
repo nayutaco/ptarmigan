@@ -8,6 +8,12 @@
 #include "btc_block.h"
 
 
+#define BTCJ_INI_SPV_START_OK           (0)     ///< OK
+#define BTCJ_INI_SPV_START_FILE         (1)     ///< ERR: file locked
+#define BTCJ_INI_SPV_START_BJ           (2)     ///< ERR: bitcoinj not start
+#define BTCJ_INI_SPV_START_ERR          (3)     ///< ERR: other
+
+
 typedef struct {
     uint8_t		*buf;
     uint32_t	len;
@@ -17,6 +23,7 @@ typedef struct {
 //  btcrpc_bitcoinj.c : kJniFuncs[]
 //  btcj_jni.c        : kMethod[]
 typedef enum {
+    METHOD_PTARM_SPV_START,
     METHOD_PTARM_SETCREATIONHASH,
     METHOD_PTARM_GETBLOCKCOUNT,
     METHOD_PTARM_GETGENESISBLOCKHASH,
@@ -44,6 +51,7 @@ typedef enum {
 
 bool btcj_init(btc_block_chain_t Gen);
 bool btcj_release(void);
+int btcj_spv_start(void);
 void btcj_setcreationhash(const uint8_t *pHash);
 int32_t btcj_getblockcount(uint8_t *pHash);
 bool btcj_getgenesisblockhash(uint8_t *pHash);

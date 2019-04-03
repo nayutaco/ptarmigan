@@ -42,6 +42,8 @@
  * macros
  **************************************************************************/
 
+#define M_JVM_START_COUNT       (60 * 5)
+
 #if 0
 #define LOGD_BTCTRACE(...)
 #define LOGD_BTCRESULT(...)
@@ -197,6 +199,7 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
+static void stop(void);
 static void call_jni(btcj_method_t Method, void *pParam);
 
 static void *thread_jni_start(void *pArg);
@@ -252,6 +255,8 @@ static struct {
 static const struct {
     void (*p_func)(void *pArg);
 } kJniFuncs[METHOD_PTARM_MAX] = {
+    //METHOD_PTARM_START
+    { NULL },
     //METHOD_PTARM_SETCREATIONHASH
     { jni_set_creationhash },
     // METHOD_PTARM_GETBLOCKCOUNT,
@@ -312,7 +317,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     pthread_create(&mTh, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
 
     //wait jni start...
-    int count = 60 * 1;       //1s * count
+    int count = M_JVM_START_COUNT;
     LOGD("$$$ SYNC start\n");
     fprintf(stderr, "Java initialize...");
 
@@ -358,8 +363,12 @@ void btcrpc_term(void)
     LOGD("\n");
 
     mLoopJni = JNILOOP_STOP;
-    pthread_cond_signal(&mCondJni);
-    pthread_cond_signal(&mCondApi);
+    stop();
+    //pthread_cond_signal(&mCondJni);
+    //pthread_cond_signal(&mCondApi);
+
+    pthread_join(mTh, NULL);
+    LOGD("join: btcrpcj\n");
 
     pthread_cond_destroy(&mCondJni);
     pthread_mutex_destroy(&mMuxJni);
@@ -367,8 +376,7 @@ void btcrpc_term(void)
     pthread_mutex_destroy(&mMuxApi);
     pthread_mutex_destroy(&mMuxCall);
 
-    pthread_join(mTh, NULL);
-    LOGD("join: btcrpcj\n");
+    LOGD("exit\n");
 }
 
 
@@ -726,6 +734,12 @@ bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
  * private functions
  **************************************************************************/
 
+static void stop(void)
+{
+    call_jni((btcj_method_t)ARRAY_SIZE(kJniFuncs), NULL);
+}
+
+
 static void call_jni(btcj_method_t Method, void *pParam)
 {
     pthread_mutex_lock(&mMuxCall);
@@ -734,8 +748,12 @@ static void call_jni(btcj_method_t Method, void *pParam)
     mMethodParam.p_arg = pParam;
     LOGD_PTHREAD("BTC: send signal: %d\n", (int)mMethodParam.method);
     pthread_mutex_lock(&mMuxApi);
-    pthread_cond_signal(&mCondJni);
+    pthread_cond_signal(&mCondJni);     //JNI: wake up
     pthread_mutex_unlock(&mMuxJni);
+    if (mMethodParam.method == ARRAY_SIZE(kJniFuncs)) {
+        LOGD("stop JNI\n");
+        return;
+    }
 
     LOGD_PTHREAD("BTC: wait...: %d\n", (int)mMethodParam.method);
     pthread_cond_wait(&mCondApi, &mMuxApi);
@@ -779,6 +797,7 @@ static void *thread_jni_start(void *pArg)
             (*kJniFuncs[mMethodParam.method].p_func)(mMethodParam.p_arg);
         } else {
             LOGE("fail: invalid method(%d)\n", mMethodParam.method);
+            break;
         }
         pthread_mutex_lock(&mMuxApi);
         LOGD_PTHREAD("JNI: send signal\n");
