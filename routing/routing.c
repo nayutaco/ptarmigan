@@ -51,10 +51,6 @@
 
 #define M_SPOIL_STDERR                      // stderrへの出力を破棄する
 
-#define M_SHADOW_ROUTE                      (0)     // shadow route extension
-                                                    //  攪乱するためにオフセットとして加算するCLTV
-                                                    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendations-for-routing
-
 #define OPT_SENDER                          (0x01)  // -s指定あり
 #define OPT_RECVER                          (0x02)  // -r指定あり
 #define OPT_CLEARSDB                        (0x40)  // clear skip db
@@ -179,8 +175,6 @@ int main(int argc, char* argv[])
             return -4;
         }
     }
-
-    cltv_expiry += M_SHADOW_ROUTE;
 
 #ifdef M_SPOIL_STDERR
     //stderrを捨てる
