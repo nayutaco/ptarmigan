@@ -2151,24 +2151,6 @@ static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param)
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     const ln_msg_error_t *p_msg = (const ln_msg_error_t *)p_param;
-
-    bool b_dumped = false;
-    char *p_data = NULL;
-    for (uint16_t lp = 0; lp < p_msg->len; lp++) {
-        if (!isprint(p_msg->p_data[lp])) {
-            //表示できない文字が入っている場合はダンプ出力
-            b_dumped = true;
-            p_data = (char *)UTL_DBG_MALLOC(p_msg->len * 2 + 1);
-            utl_str_bin2str(p_data, (const uint8_t *)p_msg->p_data, p_msg->len);
-            break;
-        }
-    }
-    if (!b_dumped) {
-        p_data = (char *)UTL_DBG_MALLOC(p_msg->len + 1);
-        memcpy(p_data, p_msg->p_data, p_msg->len);
-        p_data[p_msg->len] = '\0';
-    }
-    set_lasterror(p_conf, RPCERR_PEER_ERROR, p_data);
     const uint8_t *p_channel_id;
     if ( (ln_short_channel_id(&p_conf->channel) == 0) ||
           utl_mem_is_all_zero(p_msg->p_channel_id, LN_SZ_CHANNEL_ID) ) {
@@ -2176,8 +2158,29 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
     } else {
         p_channel_id = p_msg->p_channel_id;
     }
-    ptarmd_eventlog(p_channel_id, "error message: %s", p_data);
-    UTL_DBG_FREE(p_data);
+
+
+    bool b_printable = true;
+    for (uint16_t lp = 0; lp < p_msg->len; lp++) {
+        if (!isprint(p_msg->p_data[lp])) {
+            b_printable = false;
+            break;
+        }
+    }
+    if (b_printable) {
+        char *p_data = (char *)UTL_DBG_MALLOC(p_msg->len + 1);
+        memcpy(p_data, p_msg->p_data, p_msg->len);
+        p_data[p_msg->len] = '\0';
+        set_lasterror(p_conf, RPCERR_PEER_ERROR, p_data);
+        ptarmd_eventlog(p_channel_id, "error message(ascii): %s", p_data);
+        UTL_DBG_FREE(p_data);
+    } else {
+        char *p_data = (char *)UTL_DBG_MALLOC(p_msg->len * 2 + 1);
+        utl_str_bin2str(p_data, (const uint8_t *)p_msg->p_data, p_msg->len);
+        set_lasterror(p_conf, RPCERR_PEER_ERROR, p_data);
+        ptarmd_eventlog(p_channel_id, "error message(dump): %s", p_data);
+        UTL_DBG_FREE(p_data);
+    }
 
     if (p_conf->funding_waiting) {
         LOGD("stop funding by error\n");

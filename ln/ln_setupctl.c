@@ -183,7 +183,7 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
+bool /*HIDDEN*/ ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
 {
     ln_error_set(pChannel, Err, pFormat);
     ln_msg_error_t msg;
