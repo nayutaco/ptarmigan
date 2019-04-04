@@ -75,7 +75,7 @@ void HIDDEN ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, .
 
 bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool bHaveCnl);
 bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
+bool /*HIDDEN*/ ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
 bool HIDDEN ln_error_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 bool /*HIDDEN*/ ln_ping_send(ln_channel_t *pChannel, uint16_t PingLen, uint16_t PongLen);
 bool HIDDEN ln_ping_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);

@@ -50,6 +50,10 @@
 #include "wallet.h"
 #include "cmd_json.h"
 
+#ifdef DEVELOPER_MODE
+#include "ln_setupctl.h"
+#endif
+
 
 /********************************************************************
  * macros
@@ -132,6 +136,9 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id);
+#endif
+#ifdef DEVELOPER_MODE
+static cJSON *cmd_dev_send_error(jrpc_context *ctx, cJSON *params, cJSON *id);
 #endif
 
 static int cmd_connect_proc(const peer_conn_t *pConn);
@@ -221,6 +228,9 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_getnewaddress,  "getnewaddress", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
     jrpc_register_procedure(&mJrpc, cmd_emptywallet, "emptywallet", NULL);
+#endif
+#ifdef DEVELOPER_MODE
+    jrpc_register_procedure(&mJrpc, cmd_dev_send_error, "DEVsend_error", NULL);
 #endif
     LOGD("[start]jrpc_server\n");
     jrpc_server_run(&mJrpc);
@@ -506,7 +516,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     monitor_disable_autoconn(true);
     int err = cmd_stop_proc();
     if (err == 0) {
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString(kOK);
     } else {
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
@@ -1558,6 +1568,28 @@ LABEL_EXIT:
         ctx->error_message = error_str_cjson(err);
     }
     return result;
+}
+#endif
+
+
+#ifdef DEVELOPER_MODE
+static void cmd_dev_send_error_cb(lnapp_conf_t *pConf, void *pParam)
+{
+    (void)pParam;
+
+    ln_error_send(&pConf->channel, 0, "DEBUG: error send");
+}
+
+
+static cJSON *cmd_dev_send_error(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)ctx; (void)params; (void)id;
+
+    LOGD("$$$ [JSONRPC]dev_send_error\n");
+
+    lnapp_manager_each_node(cmd_dev_send_error_cb, NULL);
+
+    return cJSON_CreateString(kOK);
 }
 #endif
 
