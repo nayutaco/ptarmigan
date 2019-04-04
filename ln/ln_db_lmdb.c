@@ -3986,7 +3986,9 @@ static int db_open(ln_lmdb_db_t *pDb, MDB_env *env, const char *pDbName, int Opt
     }
     retval = MDB_DBI_OPEN(pDb->p_txn, pDbName, OptDb, &pDb->dbi);
     if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
         MDB_TXN_ABORT(pDb->p_txn);
         pDb->p_txn = NULL;
         goto LABEL_EXIT;
@@ -5678,7 +5680,6 @@ static bool forward_cur_open(void **ppCur, uint64_t NextShortChannelId, const ch
 {
     int             retval;
     lmdb_cursor_t   *p_cur;
-    ln_lmdb_db_t    db;
     char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
 
     *ppCur = NULL;
@@ -5690,9 +5691,11 @@ static bool forward_cur_open(void **ppCur, uint64_t NextShortChannelId, const ch
     }
 
     forward_set_db_name(db_name, NextShortChannelId, pDbNamePrefix);
-    retval = forward_db_open(&db, db_name, 0, 0);
+    retval = forward_db_open((ln_lmdb_db_t *)p_cur, db_name, 0, 0);
     if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
         UTL_DBG_FREE(p_cur);
         return false;
     }
