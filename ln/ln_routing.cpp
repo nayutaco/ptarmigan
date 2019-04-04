@@ -61,6 +61,10 @@ using namespace boost;
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
 
+#define M_SHADOW_ROUTE                      (10)    // shadow route extension
+                                                    //  攪乱するためにオフセットとして加算するCLTV
+                                                    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendations-for-routing
+
 #if 1
 #define M_DBGLOG(...)
 #define M_DBGDUMP(...)
@@ -559,6 +563,8 @@ lnerr_route_t ln_routing_calculate(
     std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
     std::deque<uint64_t> msat;
     std::deque<uint32_t> cltv;
+
+    CltvExpiry += M_SHADOW_ROUTE;
 
     route.push_front(pnt_goal);
     msat.push_front(AmountMsat);

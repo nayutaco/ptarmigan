@@ -2771,11 +2771,11 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_de
         } else {
             strcpy(suggest, "?");
         }
-        LOGD("suggest: %s\n", suggest);
 
         char errstr[512];
         char *reasonstr = ln_onion_get_errstr(&onionerr);
         snprintf(errstr, sizeof(errstr), M_ERRSTR_REASON, reasonstr, hop, suggest);
+        LOGE("fail: %s\n", errstr);
         cmd_json_pay_result(p_bwd->p_payment_hash, NULL, errstr);
         UTL_DBG_FREE(reasonstr);
         UTL_DBG_FREE(onionerr.p_data);
