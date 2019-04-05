@@ -766,6 +766,8 @@ static void *thread_channel_start(void *pArg)
 
     p_conf->feerate_per_kw = ln_feerate_per_kw(p_channel);
 
+    ln_status_t stat = ln_status_get(p_channel);
+
     //peer受信スレッド
     pthread_create(&th_recv, NULL, &thread_recv_start, p_conf);
 
@@ -807,13 +809,13 @@ static void *thread_channel_start(void *pArg)
     }
 
     // Establishチェック
-    if (ln_status_get(p_channel) >= LN_STATUS_ESTABLISH) {
+    if (stat >= LN_STATUS_ESTABLISH) {
         // DBにchannel_id登録済み
         // →funding_txは展開されている
         LOGD("have channel\n");
 
         if (!ln_status_is_closing(p_channel)) {
-            if (ln_status_get(p_channel) == LN_STATUS_NORMAL) {
+            if (stat == LN_STATUS_NORMAL) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
                 LOGD("$$$ Established\n");
                 ln_establish_free(p_channel);
