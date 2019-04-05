@@ -7,32 +7,33 @@
 ## SYNOPSIS
 
 ```bash
-ptarmd [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCOIN.CONF] [-i]
+ptarmd [--network=NETWORK] [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCOIN.CONF]
 ```
 
 ### options
 
-* -p PORT
+* --network=NETWORK
+  * blockchain name(mainnet, testnet, regtest)
+    * default: mainnet
+
+* -p PORT, --port=PORT
   * port number
     * default: 9735(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
 
-* -n ALIAS_NAME
+* -n ALIAS_NAME, --alias=ALIAS_NAME
   * node alias name
     * default: `node_` + node_id first 6byte(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
 
-* -a IPv4_ADDRESS
+* -a IPv4_ADDRESS, --addr=IPv4_ADDRESS
   * node announcement ip address
     * default: no ip address(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
 
-* -c BITCOIN.CONF
+* -c BITCOIN.CONF, --conf=BITCOIN.CONF
   * current bitcoin.conf
     * default: ~/.bitcoin/bitcoin.conf
-
-* -N
-  * erase node_announcement DB(TEST)
 
 ## DESCRIPTION
 
