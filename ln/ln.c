@@ -281,6 +281,9 @@ const char *ln_status_string(const ln_channel_t *pChannel)
     case LN_STATUS_CLOSE_REVOKED:
         p_str_stat = "revoked transaction close";
         break;
+    case LN_STATUS_CLOSED:
+        p_str_stat = "closed";
+        break;
     default:
         p_str_stat = "???";
     }
