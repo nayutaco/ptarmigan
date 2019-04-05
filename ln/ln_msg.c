@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "utl_common.h"
+#include "utl_int.h"
 
 #include "ln_msg.h"
 
@@ -80,3 +81,8 @@ const char *ln_msg_name(uint16_t Type)
 }
 
 
+uint16_t ln_msg_type(const uint8_t *pData, uint16_t Len)
+{
+    if (Len < 2) return 0x0000;
+    return utl_int_pack_u16be(pData);
+}

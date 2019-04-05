@@ -67,6 +67,12 @@
 #define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 20))
 
+/**************************************************************************
+ * static variables
+ **************************************************************************/
+
+static const uint8_t mDummyChannelId[LN_SZ_CHANNEL_ID];
+
 
 /**************************************************************************
  * prototypes
@@ -98,6 +104,8 @@ static bool set_add_htlc(
     uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
     uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx);
+static bool poll_update_add_htlc_forward(ln_channel_t *pChannel);
+static bool poll_update_del_htlc_forward(ln_channel_t *pChannel);
 
 
 /**************************************************************************
@@ -212,10 +220,38 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     cb_param.amount_msat = p_htlc->amount_msat;
     //XXX: In the current implementation it will be called more than once in a retry at reconnection
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV, &cb_param);
+
     if (!cb_param.ret) {
         LOGE("fail: backwind\n");
         /*ignore*/
     }
+
+    if (!LN_DBG_FULFILL_BWD()) {
+        LOGD("no fulfill backwind\n");
+        return true;
+    }
+
+    ln_msg_update_fulfill_htlc_t forward_msg;
+    forward_msg.p_channel_id = mDummyChannelId; //dummy
+    forward_msg.id = 0; //dummy
+    forward_msg.p_payment_preimage = msg.p_payment_preimage;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_update_fulfill_htlc_write(&buf, &forward_msg)) {
+        M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
+        return false;
+    }
+
+    ln_db_forward_t param;
+    param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
+    param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
+    param.prev_htlc_id = p_htlc->neighbor_id;
+    param.p_msg = &buf;
+    if (!ln_db_forward_del_htlc_save(&param)) {
+        M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
+        utl_buf_free(&buf);
+        return false;
+    }
+    utl_buf_free(&buf);
 
     LOGD("END\n");
     return true;
@@ -728,12 +764,12 @@ void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevShortChannelId, 
 
 bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t *pPreimage)
 {
-    LOGD("BEGIN\n");
+    //LOGD("BEGIN\n");
 
     uint16_t update_idx;
     if (!ln_update_info_set_del_htlc_pre_send(
         &pChannel->update_info, &update_idx, HtlcId, LN_UPDATE_TYPE_FULFILL_HTLC)) {
-        assert(0);
+        //assert(0);
         return false;
     }
 
@@ -783,75 +819,129 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateTyp
 }
 
 
+static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
+{
+    void* p_cur = NULL;
+    if (!ln_db_forward_add_htlc_cur_open(&p_cur, pChannel->short_channel_id)) {
+        return true;
+    }
+
+    uint64_t    prev_short_channel_id;
+    uint64_t    prev_htlc_id;
+    bool        b_commit = false;
+    utl_buf_t   buf = UTL_BUF_INIT;
+    while (ln_db_forward_add_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
+        utl_buf_t reason = UTL_BUF_INIT;
+
+        uint16_t update_idx;
+        if (ln_update_info_get_update_add_htlc_forwarded_send(
+            &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
+            //XXX: registerd
+            utl_buf_free(&reason);
+            utl_buf_free(&buf);
+            continue;
+        }
+
+        ln_msg_update_add_htlc_t msg;
+        if (!ln_msg_update_add_htlc_read(&msg, buf.buf, buf.len)) {
+            LOGE("fail: ???\n");
+            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                LOGE("fail: ???\n");
+                b_commit = true;
+            }
+            //XXX: backward `del htlc` if `add hltc` is failed
+            utl_buf_free(&reason);
+            utl_buf_free(&buf);
+            continue;
+        }
+
+        if (!check_recv_add_htlc_bolt4_after_forward(pChannel, &reason, &msg)) {
+            LOGE("fail: ???\n");
+            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                LOGE("fail: ???\n");
+                b_commit = true;
+            }
+            //XXX: backward `del htlc` if `add hltc` is failed
+            utl_buf_free(&reason);
+            utl_buf_free(&buf);
+            continue;
+        }
+
+        if (!ln_set_add_htlc_send(
+            pChannel, &reason, msg.p_onion_routing_packet, msg.amount_msat, msg.cltv_expiry, msg.p_payment_hash,
+            prev_short_channel_id, prev_htlc_id, NULL)) {
+            LOGE("fail: ???\n");
+            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                LOGE("fail: ???\n");
+                b_commit = true;
+            }
+            //XXX: backward `del htlc` if `add hltc` is failed
+            utl_buf_free(&reason);
+            utl_buf_free(&buf);
+            continue;
+        }
+        utl_buf_free(&reason);
+        utl_buf_free(&buf);
+    }
+
+    ln_db_forward_add_htlc_cur_close(p_cur, b_commit);
+    return true;
+}
+
+
+static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
+{
+    void* p_cur = NULL;
+    if (!ln_db_forward_del_htlc_cur_open(&p_cur, pChannel->short_channel_id)) {
+        return true;
+    }
+
+    uint64_t    prev_short_channel_id;
+    uint64_t    prev_htlc_id;
+    bool        b_commit = false;
+    utl_buf_t   buf = UTL_BUF_INIT;
+    while (ln_db_forward_del_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
+        uint32_t type = ln_msg_type(buf.buf, buf.len);
+        if (type == MSGTYPE_UPDATE_FULFILL_HTLC) {
+            ln_msg_update_fulfill_htlc_t msg;
+            if (!ln_msg_update_fulfill_htlc_read(&msg, buf.buf, buf.len)) {
+                LOGE("fail: ???\n");
+                if (!ln_db_forward_del_htlc_cur_del(p_cur)) {
+                    LOGE("fail: ???\n");
+                    b_commit = true;
+                }
+                utl_buf_free(&buf);
+                continue;
+            }
+            if (!ln_fulfill_htlc_set(pChannel, prev_htlc_id, msg.p_payment_preimage)) {
+                //XXX: TODO update DB if once the forward is completed?
+                utl_buf_free(&buf);
+                continue;
+            }
+            utl_buf_free(&buf);
+        } else if (type == MSGTYPE_UPDATE_FAIL_HTLC) {
+            LOGE("fail: ???\n");
+            //XXX: TODO
+            utl_buf_free(&buf);
+        } else {
+            LOGE("fail: ???\n");
+            utl_buf_free(&buf);
+        }
+    }
+
+    ln_db_forward_del_htlc_cur_close(p_cur, b_commit);
+    return true;
+}
+
+
 void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     //XXX: should return the return code or SET_ERR
 
     if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) return;
 
-    void* p_cur = NULL;
-    if (ln_db_forward_add_htlc_cur_open(&p_cur, pChannel->short_channel_id)) {
-        uint64_t    prev_short_channel_id;
-        uint64_t    prev_htlc_id;
-        bool        b_commit = false;
-        utl_buf_t   buf = UTL_BUF_INIT;
-        while (ln_db_forward_add_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
-            //LOGD("\n");
-            utl_buf_t reason = UTL_BUF_INIT;
-
-            uint16_t update_idx;
-            if (ln_update_info_get_update_add_htlc_forwarded_send(
-                &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
-                //XXX: registerd
-                utl_buf_free(&reason);
-                utl_buf_free(&buf);
-                continue;
-            }
-
-            //LOGD("\n");
-            ln_msg_update_add_htlc_t msg;
-            if (!ln_msg_update_add_htlc_read(&msg, buf.buf, buf.len)) {
-                LOGE("fail: ???\n");
-                if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
-                    LOGE("fail: ???\n");
-                    b_commit = true;
-                }
-                //XXX: backward `del htlc` if `add hltc` is failed
-                utl_buf_free(&reason);
-                utl_buf_free(&buf);
-                continue;
-            }
-
-            if (!check_recv_add_htlc_bolt4_after_forward(pChannel, &reason, &msg)) {
-                LOGE("fail: ???\n");
-                if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
-                    LOGE("fail: ???\n");
-                    b_commit = true;
-                }
-                //XXX: backward `del htlc` if `add hltc` is failed
-                utl_buf_free(&reason);
-                utl_buf_free(&buf);
-                continue;
-            }
-
-            if (!ln_set_add_htlc_send(
-                pChannel, &reason, msg.p_onion_routing_packet, msg.amount_msat, msg.cltv_expiry, msg.p_payment_hash,
-                prev_short_channel_id, prev_htlc_id, NULL)) {
-                LOGE("fail: ???\n");
-                if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
-                    LOGE("fail: ???\n");
-                    b_commit = true;
-                }
-                //XXX: backward `del htlc` if `add hltc` is failed
-                utl_buf_free(&reason);
-                utl_buf_free(&buf);
-                continue;
-            }
-            utl_buf_free(&reason);
-            utl_buf_free(&buf);
-        }
-        ln_db_forward_add_htlc_cur_close(p_cur, b_commit);
-    }
+    /*ignore*/poll_update_add_htlc_forward(pChannel);
+    /*ignore*/poll_update_del_htlc_forward(pChannel);
 
     if (FeeratePerKw &&
         ln_funding_info_is_funder(&pChannel->funding_info, true) &&
@@ -1088,8 +1178,8 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
     p_htlc->neighbor_short_channel_id = hop_dataout.short_channel_id;
     p_htlc->neighbor_id = 0; //dummy
     ln_msg_update_add_htlc_t msg;
-    msg.p_channel_id = pChannel->channel_id;
-    msg.id = p_htlc->id;
+    msg.p_channel_id = mDummyChannelId; //dummy
+    msg.id = 0; //dummy
     msg.amount_msat = hop_dataout.amt_to_forward;
     msg.p_payment_hash = p_htlc->payment_hash;
     msg.cltv_expiry = hop_dataout.outgoing_cltv_value;
@@ -1647,6 +1737,30 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
 
     if (ln_update_info_irrevocably_committed_htlcs_exists(&pChannel->update_info)) {
         ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL);
+    }
+
+    for (uint32_t idx = 0; idx < ARRAY_SIZE(pChannel->update_info.updates); idx++) {
+        ln_update_t *p_update = &pChannel->update_info.updates[idx];
+        if (!p_update->new_update) continue;
+        if (LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_FAIL_HTLC, true)) {
+            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
+
+            if (ln_db_forward_del_htlc_del(
+                pChannel->short_channel_id, pChannel->short_channel_id, p_htlc->id)) {
+                LOGD("\n");
+            } else {
+                LOGE("fail: ???\n");
+            }
+        } else if (LN_UPDATE_SEND_ENABLED(p_update, LN_UPDATE_TYPE_FULFILL_HTLC, true)) {
+            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
+
+            if (ln_db_forward_del_htlc_del(
+                pChannel->short_channel_id, pChannel->short_channel_id, p_htlc->id)) {
+                LOGD("\n");
+            } else {
+                LOGE("fail: ???\n");
+            }
+        }
     }
 
     ln_update_info_clear_irrevocably_committed_htlcs(&pChannel->update_info);
