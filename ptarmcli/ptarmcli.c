@@ -497,6 +497,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
                     //txid, txindex, funding_sat, push_sat, feerate_per_kw
                     M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
+                    //is_private
                     ",%d"
                 " ]"
             "}",
