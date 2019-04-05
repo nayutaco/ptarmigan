@@ -2722,13 +2722,14 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_del_
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_bwd->prev_short_channel_id);
     if (p_prevconf != NULL) {
-        pthread_mutex_lock(&p_prevconf->mux_channel);
-        ret = ln_fail_htlc_set(&p_prevconf->channel, p_bwd->prev_htlc_id, LN_UPDATE_TYPE_FAIL_HTLC, p_bwd->p_reason);
-        if (!ret) {
-            //TODO:戻す先がない場合の処理(#366)
-            LOGE("fail backward\n");
-        }
-        pthread_mutex_unlock(&p_prevconf->mux_channel);
+        //XXX: pthread_mutex_lock(&p_prevconf->mux_channel);
+        //XXX: = ln_fail_htlc_set(&p_prevconf->channel, p_bwd->prev_htlc_id, LN_UPDATE_TYPE_FAIL_HTLC, p_bwd->p_reason);
+        //XXX: if (!ret) {
+        //XXX:     //TODO:戻す先がない場合の処理(#366)
+        //XXX:     LOGE("fail backward\n");
+        //XXX: }
+        //XXX: pthread_mutex_unlock(&p_prevconf->mux_channel);
+        ret = true; //XXX: use DB to forward
 
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_conf->channel));

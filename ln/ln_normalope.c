@@ -573,6 +573,26 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 LOGE("fail: ???\n");
             }
 
+            ln_msg_update_fail_htlc_t msg;
+            msg.p_channel_id = mDummyChannelId; //dummy
+            msg.id = 0; //dummy
+            msg.len = p_htlc->buf_onion_reason.len;
+            msg.p_reason = p_htlc->buf_onion_reason.buf;
+            utl_buf_t buf = UTL_BUF_INIT;
+            /*ignore(XXX: need to check)*/ln_msg_update_fail_htlc_write(&buf, &msg);
+
+            ln_db_forward_t param;
+            param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
+            param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
+            param.prev_htlc_id = p_htlc->neighbor_id;
+            param.p_msg = &buf;
+            if (ln_db_forward_del_htlc_save(&param)) {
+                LOGD("\n");
+            } else {
+                LOGE("fail: ???\n");
+            }
+            utl_buf_free(&buf);
+
             ln_cb_param_start_bwd_del_htlc_t cb_param;
             cb_param.ret = false;
             cb_param.update_type = p_update->type;
@@ -769,7 +789,6 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
     uint16_t update_idx;
     if (!ln_update_info_set_del_htlc_pre_send(
         &pChannel->update_info, &update_idx, HtlcId, LN_UPDATE_TYPE_FULFILL_HTLC)) {
-        //assert(0);
         return false;
     }
 
@@ -777,7 +796,6 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
     if (pPreimage) {
         ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
         if (!utl_buf_alloccopy(&p_htlc->buf_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
-        //M_DB_CHANNEL_SAVE(pChannel); //XXX: Since the forwarding data of update is stored separately, this is not necessary
     }
 
     LN_DBG_UPDATE_PRINT(p_update);
@@ -787,7 +805,7 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
 
 bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateType, const utl_buf_t *pReason)
 {
-    LOGD("BEGIN\n");
+    //LOGD("BEGIN\n");
 
     uint16_t update_idx_add_htlc;
     bool ret;
@@ -802,7 +820,6 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateTyp
         uint16_t update_idx_del_htlc;
         if (!ln_update_info_set_del_htlc_pre_send(
             &pChannel->update_info, &update_idx_del_htlc, HtlcId, UpdateType)) {
-            assert(0);
             return false;
         }
         LN_DBG_UPDATE_PRINT(&pChannel->update_info.updates[update_idx_del_htlc]);
@@ -920,8 +937,22 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
             }
             utl_buf_free(&buf);
         } else if (type == MSGTYPE_UPDATE_FAIL_HTLC) {
-            LOGE("fail: ???\n");
-            //XXX: TODO
+            ln_msg_update_fail_htlc_t msg;
+            if (!ln_msg_update_fail_htlc_read(&msg, buf.buf, buf.len)) {
+                LOGE("fail: ???\n");
+                if (!ln_db_forward_del_htlc_cur_del(p_cur)) {
+                    LOGE("fail: ???\n");
+                    b_commit = true;
+                }
+                utl_buf_free(&buf);
+                continue;
+            }
+            const utl_buf_t reason = {(CONST_CAST uint8_t *)msg.p_reason, msg.len};
+            if (!ln_fail_htlc_set(pChannel, prev_htlc_id, LN_UPDATE_TYPE_FAIL_HTLC, reason.len ? &reason : NULL)) {
+                //XXX: TODO update DB if once the forward is completed?
+                utl_buf_free(&buf);
+                continue;
+            }
             utl_buf_free(&buf);
         } else {
             LOGE("fail: ???\n");
