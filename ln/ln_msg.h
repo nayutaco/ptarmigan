@@ -81,7 +81,7 @@
 const char *ln_msg_name(uint16_t Type);
 
 
-
+uint16_t ln_msg_type(const uint8_t *pData, uint16_t Len);
 
 
 #endif /* LN_MSG_H__ */

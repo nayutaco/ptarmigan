@@ -2593,9 +2593,10 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulf
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fulfill->prev_short_channel_id);
     if (p_prevconf) {
-        pthread_mutex_lock(&p_prevconf->mux_channel);
-        ret = ln_fulfill_htlc_set(&p_prevconf->channel, p_fulfill->prev_htlc_id, p_fulfill->p_preimage);
-        pthread_mutex_unlock(&p_prevconf->mux_channel);
+        //XXX: pthread_mutex_lock(&p_prevconf->mux_channel);
+        //XXX: ret = ln_fulfill_htlc_set(&p_prevconf->channel, p_fulfill->prev_htlc_id, p_fulfill->p_preimage);
+        //XXX: pthread_mutex_unlock(&p_prevconf->mux_channel);
+        ret = true; //XXX: use DB to forward
     }
     if (!LN_DBG_FULFILL_BWD()) {
         LOGD("no fulfill backwind\n");

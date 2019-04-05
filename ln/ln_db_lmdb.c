@@ -3975,6 +3975,12 @@ bool ln_db_forward_del_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, u
 }
 
 
+bool ln_db_forward_del_htlc_cur_del(void *pCur)
+{
+    return forward_cur_del(pCur);
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/

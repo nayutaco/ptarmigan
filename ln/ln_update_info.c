@@ -184,7 +184,7 @@ bool ln_update_info_set_del_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
     if (ln_update_info_get_update(
         pInfo, &update_idx_del_htlc, LN_UPDATE_TYPE_MASK_DEL_HTLC, pInfo->updates[update_idx_add_htlc].type_specific_idx)) {
         //I have already received it
-        LOGE("fail: ???\n");
+        //XXX: LOGE("fail: ???\n");
         return false;
     }
 
