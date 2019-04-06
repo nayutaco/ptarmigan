@@ -598,7 +598,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             cb_param.update_type = p_update->type;
             cb_param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
             cb_param.p_reason = &p_htlc->buf_onion_reason;
-            cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
+            //cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
             cb_param.prev_htlc_id = p_htlc->neighbor_id;
             cb_param.p_payment_hash = p_htlc->payment_hash;
             if (p_update->type == LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) {
