@@ -139,7 +139,7 @@ typedef struct {
     uint8_t                 update_type;
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
-    const utl_buf_t         *p_shared_secret;       ///< shared secret
+    //const utl_buf_t         *p_shared_secret;       ///< shared secret
     uint64_t                prev_htlc_id;           ///<
     const uint8_t           *p_payment_hash;        ///< payment_hash
     uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code

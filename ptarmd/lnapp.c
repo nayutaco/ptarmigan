@@ -530,11 +530,15 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
     }
     LOGD("payment_id: %" PRIu64 "\n", payment_id);
 
+    if (!ln_db_payment_shared_secrets_save(payment_id, secrets.buf, secrets.len)) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+
     ret = ln_set_add_htlc_send(
         p_channel, NULL, onion, pPay->hop_datain[0].amt_to_forward,
         pPay->hop_datain[0].outgoing_cltv_value, pPay->payment_hash,
-        0, payment_id, //origin node
-        &secrets);
+        0, payment_id, NULL);
     utl_buf_free(&secrets);
     if (ret) {
         //再routing用に送金経路を保存
@@ -2753,10 +2757,18 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, ln_cb_param_start_bwd_de
 {
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;
-    bool ret;
+    bool ret = false;
     if (p_bwd->fail_malformed_failure_code == 0) {
         // update_fail_htlc
-        ret = ln_onion_failure_read(&reason, &hop, p_bwd->p_shared_secret, p_bwd->p_reason);
+        utl_buf_t shared_secrets = UTL_BUF_INIT;
+        if (ln_db_payment_shared_secrets_load(&shared_secrets, p_bwd->prev_htlc_id)) {
+            if (!ln_db_payment_shared_secrets_del(p_bwd->prev_htlc_id)) {
+                LOGE("fail: ???\n");
+            }
+            ret = ln_onion_failure_read(&reason, &hop, &shared_secrets, p_bwd->p_reason);
+        } else {
+            LOGE("fail: ???\n");
+        }
     } else {
         // update_fail_malformed_htlc
         uint16_t failure_code = utl_int_pack_u16be(p_bwd->p_reason->buf);
