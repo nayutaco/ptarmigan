@@ -49,6 +49,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_establish.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_close.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_normalope.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_anno.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_x_normalope.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_setupctl.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_establish.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_close.c
