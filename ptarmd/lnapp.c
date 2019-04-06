@@ -309,7 +309,6 @@ void lnapp_conf_start(
     pAppConf->annodb_cont = false;
     pAppConf->annodb_stamp = 0;
 
-    pAppConf->dummy_htlc_id = 0;
     pAppConf->feerate_per_kw = 0;
 
     LIST_INIT(&pAppConf->payroute_head);
@@ -523,17 +522,24 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         goto LABEL_EXIT;
     }
 
+    //XXX: use the same value when retrying?
+    uint64_t payment_id;
+    if (!ln_db_payment_get_new_payment_id(&payment_id)) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+    LOGD("payment_id: %" PRIu64 "\n", payment_id);
+
     ret = ln_set_add_htlc_send(
         p_channel, NULL, onion, pPay->hop_datain[0].amt_to_forward,
         pPay->hop_datain[0].outgoing_cltv_value, pPay->payment_hash,
-        0, pAppConf->dummy_htlc_id++, //origin node
+        0, payment_id, //origin node
         &secrets);
     utl_buf_free(&secrets);
     if (ret) {
         //再routing用に送金経路を保存
-        payroute_push(pAppConf, pPay, pAppConf->dummy_htlc_id);
+        payroute_push(pAppConf, pPay, payment_id);
     } else {
-        pAppConf->dummy_htlc_id--;
         //local_msatが足りない場合もこのルート
         goto LABEL_EXIT;
     }
@@ -568,7 +574,7 @@ LABEL_EXIT:
 
         ptarmd_eventlog(ln_channel_id(&pAppConf->channel),
             "[SEND]add_htlc: HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d",
-                    pAppConf->dummy_htlc_id,
+                    payment_id,
                     pPay->hop_datain[0].amt_to_forward,
                     pPay->hop_datain[0].outgoing_cltv_value);
     } else {

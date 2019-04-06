@@ -32,3 +32,4 @@ dbptarm
 logs
 ptarm_node_*.conf
 *.swp
+.exrc
