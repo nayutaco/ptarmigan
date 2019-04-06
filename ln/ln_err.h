@@ -223,17 +223,17 @@ typedef enum {
      */
     LNONION_EXPIRY_TOO_SOON         = ((uint16_t)(LNERR_ONION_UPDATE | 14)),
 
-    /** unknown_payment_hash
+    /** incorrect_or_unknown_payment_details
      *
-     * The payment_hash is unknown to the final node.
+     * The payment_hash is unknown to the final node or the amount for that payment_hash is incorrect.
      */
-    LNONION_UNKNOWN_PAY_HASH        = ((uint16_t)(LNERR_ONION_PERM | 15)),
+    LNONION_INCRR_OR_UNKNOWN_PAY    = ((uint16_t)(LNERR_ONION_PERM | 15)),
 
-    /** incorrect_payment_amount
+    /** (Obsoleted) incorrect_payment_amount
      *
      * The amount for that payment_hash is incorrect.
      */
-    LNONION_INCORR_PAY_AMT          = ((uint16_t)(LNERR_ONION_PERM | 16)),
+    LNONION_OBSOLETED_INCORR_PAY_AMT    = ((uint16_t)(LNERR_ONION_PERM | 16)),
 
     /** final_expiry_too_soon
      *

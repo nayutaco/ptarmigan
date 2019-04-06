@@ -2416,7 +2416,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //別channelにupdate_add_htlcを転送する(メッセージ送信は受信アイドル処理で行う)
         snprintf(str_stat, sizeof(str_stat), "-->[fwd]0x%016" PRIx64 ", cltv=%d",
                 p_addhtlc->next_short_channel_id,
-                p_addhtlc->p_forward_param->cltv_expiry);
+                p_addhtlc->p_forward_param->outgoing_cltv_value);
         p_info = str_stat;
         LOGD("forward\n");
         cbsub_add_htlc_forward(p_conf, p_addhtlc);
@@ -2489,15 +2489,15 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
                     "%" PRIu32 " "
                     "%s",
                     str_sci, node_id,
-                    p_addhtlc->p_forward_param->amount_msat,
-                    p_addhtlc->p_forward_param->cltv_expiry,
+                    p_addhtlc->p_forward_param->amt_to_forward,
+                    p_addhtlc->p_forward_param->outgoing_cltv_value,
                     hashstr);
         ptarmd_call_script(PTARMD_EVT_FORWARD, param);
 
         ptarmd_eventlog(ln_channel_id(&p_nextconf->channel),
             "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",
-                    p_addhtlc->p_forward_param->amount_msat,
-                    p_addhtlc->p_forward_param->cltv_expiry);
+                    p_addhtlc->p_forward_param->amt_to_forward,
+                    p_addhtlc->p_forward_param->outgoing_cltv_value);
     } else {
         if (reason.len) {
             LOGE("fail\n");

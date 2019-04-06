@@ -128,9 +128,9 @@ static void update_add_htlc_print(const ln_msg_update_add_htlc_t *pMsg)
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
-    LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
     LOGD("payment_hash: ");
     DUMPD(pMsg->p_payment_hash, BTC_SZ_HASH256);
+    LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
     LOGD("onion_routing_packet(top 34bytes only): ");
     DUMPD(pMsg->p_onion_routing_packet, 34);
     LOGD("--------------------------------\n");
