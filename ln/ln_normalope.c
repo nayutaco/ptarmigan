@@ -525,12 +525,6 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             }
 
             if (p_htlc->neighbor_short_channel_id && p_update->fin_type == LN_UPDATE_TYPE_NONE) {
-                //ln_cb_param_start_fwd_add_htlc_t cb_param;
-                //LOGD("forward: %" PRIu64 "\n", p_htlc->neighbor_id);
-                //cb_param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
-                //cb_param.prev_short_channel_id = pChannel->short_channel_id;
-                //cb_param.prev_htlc_id = p_htlc->id;
-                //ln_callback(pChannel, LN_CB_TYPE_START_FWD_ADD_HTLC, &cb_param);
                 LOGD("\n");
                 ln_db_forward_t param;
                 param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
@@ -731,36 +725,6 @@ bool ln_set_add_htlc_send(
     (void)ret;
     ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
-    LN_DBG_UPDATE_PRINT(p_update);
-    return true;
-}
-
-
-bool ln_set_add_htlc_send_fwd(
-    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket, uint64_t AmountMsat,
-    uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
-    uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets)
-{
-    LOGD("BEGIN\n");
-
-    //BOLT2
-    //  MUST NOT send an update_add_htlc after a shutdown.
-    if (pChannel->shutdown_flag) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "shutdown: not allow add_htlc");
-        return false;
-    }
-
-    uint16_t htlc_idx;
-    if (!set_add_htlc(
-        pChannel, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
-        pPaymentHash, PrevShortChannelId, PrevHtlcId, pSharedSecrets)) return false;
-
-    uint16_t update_idx;
-    bool ret;
-    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, htlc_idx);
-    assert(ret);
-    (void)ret;
-    ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     LN_DBG_UPDATE_PRINT(p_update);
     return true;
 }

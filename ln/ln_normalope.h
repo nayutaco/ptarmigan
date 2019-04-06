@@ -67,11 +67,6 @@ bool ln_set_add_htlc_send(
     uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
     uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
 
-bool ln_set_add_htlc_send_fwd(
-    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket, uint64_t AmountMsat,
-    uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
-    uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
-
 void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcIdx);
 
 
