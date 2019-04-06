@@ -184,11 +184,9 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param);
 static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param);
-static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_htlc_recv_t *p_addhtlc);
 static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_htlc_recv_t *p_addhtlc);
-static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param);
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, ln_cb_param_notify_fulfill_htlc_recv_t *p_fulfill);
 static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, ln_cb_param_notify_fulfill_htlc_recv_t *p_fulfill);
@@ -2155,9 +2153,7 @@ static void notify_cb(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecific
         { "  LN_CB_TYPE_WAIT_FUNDING_TX: funding_tx confirmation wait request", cb_funding_tx_wait },
         { "  LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV: funding_locked receive", cb_funding_locked },
         { NULL/*"  LN_CB_TYPE_NOTIFY_ANNODB_UPDATE: announcement DB update"*/, cb_update_anno_db },
-        { "  LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV: update_add_htlc pre-process", cb_add_htlc_recv_prev },
         { "  LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
-        { "  LN_CB_TYPE_START_FWD_ADD_HTLC: update_add_htlc forward", cb_fwd_addhtlc_start },
         { "  LN_CB_TYPE_START_BWD_DEL_HTLC: delete htlc", cb_bwd_delhtlc_start },
         { "  LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
         //{ "  LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV: update_fail_htlc receive", cb_fail_htlc_recv },
@@ -2392,30 +2388,6 @@ static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
-//  BOLT4チェックをするために転送先チャネルを取得する
-static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
-{
-    (void)p_conf;
-
-    DBGTRACE_BEGIN
-
-    ln_cb_param_notify_add_htlc_recv_prev_t *p_prev = (ln_cb_param_notify_add_htlc_recv_prev_t *)p_param;
-
-    //転送先取得
-    lnapp_conf_t *p_appconf = ptarmd_search_transferable_cnl(p_prev->next_short_channel_id);
-    if (p_appconf != NULL) {
-        LOGD("get forwarding lnapp\n");
-        p_prev->p_next_channel = &p_appconf->channel;
-    } else {
-        LOGE("fail: no forwarding\n");
-        p_prev->p_next_channel = NULL;
-    }
-
-    DBGTRACE_END
-}
-
-
 /** LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: update_add_htlc受信(後処理)
  *
  * add_htlc受信後は、以下のどれかになる。
@@ -2484,16 +2456,17 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
     utl_buf_t reason = UTL_BUF_INIT;
     lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_addhtlc->next_short_channel_id);
     if (p_nextconf != NULL) {
-        pthread_mutex_lock(&p_nextconf->mux_channel);
-        ret = ln_set_add_htlc_send_fwd(
-            &p_nextconf->channel, &reason, p_addhtlc->p_onion_reason->buf,
-            p_addhtlc->p_forward_param->amount_msat, p_addhtlc->p_forward_param->cltv_expiry, p_addhtlc->p_payment_hash,
-            ln_short_channel_id(&p_conf->channel), p_addhtlc->prev_htlc_id, p_addhtlc->p_shared_secret);
+        //XXX: pthread_mutex_lock(&p_nextconf->mux_channel);
+        //XXX: ret = ln_set_add_htlc_send_fwd(
+        //XXX:     &p_nextconf->channel, &reason, p_addhtlc->p_onion_reason->buf,
+        //XXX:     p_addhtlc->p_forward_param->amount_msat, p_addhtlc->p_forward_param->cltv_expiry, p_addhtlc->p_payment_hash,
+        //XXX:     ln_short_channel_id(&p_conf->channel), p_addhtlc->prev_htlc_id, p_addhtlc->p_shared_secret);
         //utl_buf_free(&pFwdAdd->shared_secret);  //ln.cで管理するため、freeさせない
-        if (!ret) {
-            LOGE("fail forward\n");
-        }
-        pthread_mutex_unlock(&p_nextconf->mux_channel);
+        //XXX: if (!ret) {
+        //XXX:     LOGE("fail forward\n");
+        //XXX: }
+        //XXX: pthread_mutex_unlock(&p_nextconf->mux_channel);
+        ret = true;
     }
 
     if (ret) {
@@ -2537,30 +2510,6 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_param_nofity_add_
     utl_buf_free(&reason);
 
     p_addhtlc->ret = ret;
-}
-
-
-/** LN_CB_TYPE_START_FWD_ADD_HTLC: update_add_htlc転送指示
- *
- */
-static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
-{
-    (void)p_conf;
-
-    DBGTRACE_BEGIN
-
-    ln_cb_param_start_fwd_add_htlc_t *p_fwd = (ln_cb_param_start_fwd_add_htlc_t *)p_param;
-
-    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_fwd->next_short_channel_id);
-    if (p_nextconf != NULL) {
-        pthread_mutex_lock(&p_nextconf->mux_channel);
-        ln_add_htlc_start_fwd(&p_nextconf->channel, p_fwd->prev_short_channel_id, p_fwd->prev_htlc_id);
-        pthread_mutex_unlock(&p_nextconf->mux_channel);
-    } else {
-        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", p_fwd->next_short_channel_id);
-    }
-
-    DBGTRACE_END
 }
 
 

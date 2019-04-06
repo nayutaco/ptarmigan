@@ -52,9 +52,7 @@ typedef enum {
     LN_CB_TYPE_WAIT_FUNDING_TX,             ///< funding_tx安定待ち要求
     LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV,  ///< funding_locked受信通知
     LN_CB_TYPE_NOTIFY_ANNODB_UPDATE,        ///< announcement DB更新通知
-    LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
-    LN_CB_TYPE_START_FWD_ADD_HTLC,          ///< update_add_htlc転送開始
     LN_CB_TYPE_START_BWD_DEL_HTLC,          ///< HTLC削除処理開始
     LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, ///< revoke_and_ack交換通知
@@ -102,15 +100,6 @@ typedef struct {
 } ln_cb_param_wait_funding_tx_t;
 
 
-/** @struct ln_cb_param_notify_add_htlc_recv_prev_t
- *  @brief  update_add_htlc受信 前処理(#LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV)
- */
-typedef struct {
-    uint64_t                next_short_channel_id;
-    const ln_channel_t      *p_next_channel;
-} ln_cb_param_notify_add_htlc_recv_prev_t;
-
-
 /** @struct ln_cb_param_nofity_add_htlc_recv_t
  *  @brief  update_add_htlc受信通知(#LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV)
  */
@@ -125,13 +114,6 @@ typedef struct {
     utl_buf_t               *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
     const utl_buf_t         *p_shared_secret;       ///< onion shared secret
 } ln_cb_param_nofity_add_htlc_recv_t;
-
-
-typedef struct {
-    uint64_t                next_short_channel_id;
-    uint64_t                prev_short_channel_id;
-    uint64_t                prev_htlc_id;
-} ln_cb_param_start_fwd_add_htlc_t;
 
 
 typedef struct {
