@@ -95,6 +95,13 @@
  *              -# "DL" + next_short_channel_id
  *                  - key: prev_short_channel_id[8] + prev_htlc_id[8]
  *                  - data: msg of update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc
+ *          -# payment
+ *              -# "payment"
+ *                  - key: "payment_id"
+ *                  - data: next_payment_id
+ *              -# "shared_secrets"
+ *                  - key: payment_id
+ *                  - data: shared_secrets
  */
 #ifndef LN_DB_LMDB_H__
 #define LN_DB_LMDB_H__
@@ -158,6 +165,8 @@ typedef enum {
     LN_LMDB_DB_TYPE_CLOSED_SECRET,
     LN_LMDB_DB_TYPE_CLOSED_HTLC,
     LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX,
+    LN_LMDB_DB_TYPE_PAYMENT,
+    LN_LMDB_DB_TYPE_SHARED_SECRETS,
 } ln_lmdb_db_type_t;
 
 
@@ -229,6 +238,13 @@ const char *ln_lmdb_get_wallet_db_path(void);
  * @return  forwardパス
  */
 const char *ln_lmdb_get_forward_db_path(void);
+
+
+/** LMDB paymentパス取得
+ *
+ * @return  paymentパス
+ */
+const char *ln_lmdb_get_payment_db_path(void);
 
 
 /** LMDB closedパス取得

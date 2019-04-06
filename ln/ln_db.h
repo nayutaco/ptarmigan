@@ -861,6 +861,19 @@ bool ln_db_forward_del_htlc_cur_del(void *pCur);
 
 
 /********************************************************************
+ * payment
+ ********************************************************************/
+
+//XXX: comment
+bool ln_db_payment_get_new_payment_id(uint64_t *pPaymentId);
+
+//XXX: comment
+bool ln_db_payment_shared_secrets_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
+bool ln_db_payment_shared_secrets_load(utl_buf_t *pBuf, uint64_t PaymentId);
+bool ln_db_payment_shared_secrets_del(uint64_t PaymentId);
+
+
+/********************************************************************
  * others
  ********************************************************************/
 

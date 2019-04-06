@@ -84,6 +84,9 @@
 #define M_FORWARD_MAXDBS        (MAX_CHANNELS)              ///< 同時オープンできるDB数
 #define M_FORWARD_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
+#define M_PAYMENT_MAXDBS        (10)                        ///< 同時オープンできるDB数
+#define M_PAYMENT_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
+
 #define M_CLOSED_MAXDBS         (10)                        ///< 同時オープンできるDB数
 #define M_CLOSED_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
@@ -94,6 +97,7 @@
 #define M_ANNO_ENV_DIR          "anno"                      ///< announcement
 #define M_WALLET_ENV_DIR        "wallet"                    ///< 1st layer wallet
 #define M_FORWARD_ENV_DIR       "forward"                   ///< forward
+#define M_PAYMENT_ENV_DIR       "payment"                   ///< payment
 #define M_CLOSED_ENV_DIR        "closed"                    ///< closed
 
 
@@ -122,6 +126,8 @@
 #define M_DBI_PAYMENT_HASH      "payment_hash"              ///< revoked transaction close用
 #define M_DBI_WALLET            "wallet"                    ///< wallet
 #define M_DBI_VERSION           "version"                   ///< verion
+#define M_DBI_PAYMENT           "payment"                   ///< payment
+#define M_DBI_SHARED_SECRETS    "shared_secrets"            ///< shared secrets
 
 #define M_SZ_CHANNEL_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_FORWARD_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_SHORT_CHANNEL_ID * 2)
@@ -129,6 +135,7 @@
 #define M_SZ_CNLANNO_INFO_KEY       (LN_SZ_SHORT_CHANNEL_ID + sizeof(char))
 #define M_SZ_NODEANNO_INFO_KEY      (BTC_SZ_PUBKEY)
 #define M_SZ_FORWARD_KEY            (LN_SZ_SHORT_CHANNEL_ID + sizeof(uint64_t))
+#define M_SZ_PAYMENT_ID_KEY         (sizeof(uint64_t))
 
 #define M_KEY_PREIMAGE          "preimage"
 #define M_SZ_PREIMAGE           (sizeof(M_KEY_PREIMAGE) - 1)
@@ -138,8 +145,10 @@
 #define M_SZ_SHARED_SECRET      (sizeof(M_KEY_SHARED_SECRET) - 1)
 #define M_KEY_FORWARD_MSG       "forward_msg"
 #define M_SZ_FORWARD_MSG        (sizeof(M_KEY_FORWARD_MSG) - 1)
+#define M_KEY_PAYMENT_ID        "payment_id"
+#define M_SZ_PAYMENT_ID         (sizeof(M_KEY_PAYMENT_ID) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-62))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-63))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -243,6 +252,7 @@
          add `ln_htlc_t::neighbor_id`
          add closed channel environment and move backup db to the environment
     -62: add `ln_htlc_t::forward_msg`
+    -63: add `payment` env
  */
 
 
@@ -274,6 +284,7 @@
 #define MDB_TXN_CHECK_ANNO(a)       //none
 #define MDB_TXN_CHECK_WALLET(a)     //none
 #define MDB_TXN_CHECK_FORWARD(a)    //none
+#define MDB_TXN_CHECK_PAYMENT(a)    //none
 #else
 static volatile int g_cnt[6];
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
@@ -288,6 +299,7 @@ static volatile int g_cnt[6];
 #define MDB_TXN_CHECK_ANNO(a)       if (mdb_txn_env(a) != mpEnvAnno) { LOGE("ERR: txn not ANNO\n"); abort(); }
 #define MDB_TXN_CHECK_WALLET(a)     if (mdb_txn_env(a) != mpEnvWallet) { LOGE("ERR: txn not WALLET\n"); abort(); }
 #define MDB_TXN_CHECK_FORWARD(a)    if (mdb_txn_env(a) != mpEnvForward) { LOGE("ERR: txn not FORWARD\n"); abort(); }
+#define MDB_TXN_CHECK_PAYMENT(a)    if (mdb_txn_env(a) != mpEnvPayment) { LOGE("ERR: txn not PAYMENT\n"); abort(); }
 #endif
 
 
@@ -371,6 +383,7 @@ static MDB_env      *mpEnvNode = NULL;          //node
 static MDB_env      *mpEnvAnno = NULL;          //announcement
 static MDB_env      *mpEnvWallet = NULL;        //wallet
 static MDB_env      *mpEnvForward = NULL;       //forward
+static MDB_env      *mpEnvPayment = NULL;       //payment
 
 static char         mPath[M_DB_PATH_STR_MAX + 1];
 
@@ -379,6 +392,7 @@ static char         mPathNode[M_DB_PATH_STR_MAX + 1];
 static char         mPathAnno[M_DB_PATH_STR_MAX + 1];
 static char         mPathWallet[M_DB_PATH_STR_MAX + 1];
 static char         mPathForward[M_DB_PATH_STR_MAX + 1];
+static char         mPathPayment[M_DB_PATH_STR_MAX + 1];
 
 static pthread_mutex_t  mMuxAnno;
 static MDB_txn          *mpTxnAnno;
@@ -549,6 +563,7 @@ static const init_param_t INIT_PARAM[] = {
     { &mpEnvAnno, mPathAnno, M_ANNO_MAXDBS, M_ANNO_MAPSIZE, MDB_NOSYNC },
     { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 0 },
     { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 0 },
+    { &mpEnvPayment, mPathPayment, M_PAYMENT_MAXDBS, M_PAYMENT_MAPSIZE, 0 },
 };
 
 
@@ -631,6 +646,9 @@ static bool forward_cur_del(void *pCur);
 static void forward_set_db_name(char *pDbName, uint64_t NextShortChannelId, const char *pDbNamePrefix);
 static void forward_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId);
+
+static int payment_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
+static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PaymentId);
 
 static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
 static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
@@ -782,6 +800,7 @@ bool ln_lmdb_set_home_dir(const char *pPath)
     if (!set_path(mPathAnno, sizeof(mPathAnno), mPath, M_ANNO_ENV_DIR)) return false;
     if (!set_path(mPathWallet, sizeof(mPathWallet), mPath, M_WALLET_ENV_DIR)) return false;
     if (!set_path(mPathForward, sizeof(mPathForward), mPath, M_FORWARD_ENV_DIR)) return false;
+    if (!set_path(mPathPayment, sizeof(mPathPayment), mPath, M_PAYMENT_ENV_DIR)) return false;
 
     LOGD("db dir: %s\n", mPath);
     LOGD("  channel: %s\n", mPathChannel);
@@ -828,6 +847,12 @@ const char *ln_lmdb_get_wallet_db_path(void)
 const char *ln_lmdb_get_forward_db_path(void)
 {
     return mPathForward;
+}
+
+
+const char *ln_lmdb_get_payment_db_path(void)
+{
+    return mPathPayment;
 }
 
 
@@ -945,6 +970,8 @@ void ln_db_term(void)
 
     pthread_mutex_destroy(&mMuxAnno);
 
+    mdb_env_close(mpEnvPayment);
+    mpEnvPayment = NULL;
     mdb_env_close(mpEnvForward);
     mpEnvForward = NULL;
     mdb_env_close(mpEnvWallet);
@@ -2742,7 +2769,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
 
     *ppInvoice = UTL_DBG_STRDUP(data.mv_data);
     if (!*ppInvoice) {
-        LOGE("???\n");
+        LOGE("fail: ???\n");
         MDB_TXN_ABORT(db.p_txn);
         return false;
     }
@@ -3059,7 +3086,7 @@ bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry)
     LOGD("time: %lu\n", p_info->creation);
 
     if (!my_mdb_val_alloccopy(&key, &key)) {
-        LOGE("???\n");
+        LOGE("fail: ???\n");
         return false;
     }
 
@@ -3765,6 +3792,9 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
     if (strncmp(pDbName, M_PREF_FORWARD_ADD_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_ADD;
     if (strncmp(pDbName, M_PREF_FORWARD_DEL_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_DEL;
 
+    if (strcmp(pDbName, M_DBI_PAYMENT) == 0) return LN_LMDB_DB_TYPE_PAYMENT;
+    if (strcmp(pDbName, M_DBI_SHARED_SECRETS) == 0) return LN_LMDB_DB_TYPE_SHARED_SECRETS;
+
     return LN_LMDB_DB_TYPE_UNKNOWN;
 }
 
@@ -3978,6 +4008,146 @@ bool ln_db_forward_del_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, u
 bool ln_db_forward_del_htlc_cur_del(void *pCur)
 {
     return forward_cur_del(pCur);
+}
+
+
+/********************************************************************
+ * payment
+ ********************************************************************/
+
+bool ln_db_payment_get_new_payment_id(uint64_t *pPaymentId)
+{
+    int             retval;
+    MDB_val         key, data;
+    ln_lmdb_db_t    db;
+
+    retval = payment_db_open(&db, M_DBI_PAYMENT, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    key.mv_size = M_SZ_PAYMENT_ID;
+    key.mv_data = M_KEY_PAYMENT_ID;
+    retval = mdb_get(db.p_txn, db.dbi, &key, &data);
+    if (retval == 0) {
+        if (data.mv_size != sizeof(uint64_t)) {
+            LOGE("fail: ???\n");
+            MDB_TXN_ABORT(db.p_txn);
+            return false;
+        }
+        *pPaymentId = *((uint64_t *)data.mv_data);
+    } else {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            MDB_TXN_ABORT(db.p_txn);
+            return false;
+        }
+        *pPaymentId = 0;
+    }
+
+    uint64_t next_payment_id = *pPaymentId;
+    next_payment_id++;
+
+    key.mv_size = M_SZ_PAYMENT_ID;
+    key.mv_data = M_KEY_PAYMENT_ID;
+    data.mv_size = sizeof(uint64_t);
+    data.mv_data = &next_payment_id;
+    retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
+}
+
+
+bool ln_db_payment_shared_secrets_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
+{
+    int             retval;
+    MDB_val         key, data;
+    ln_lmdb_db_t    db;
+    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+
+    retval = payment_db_open(&db, M_DBI_SHARED_SECRETS, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    data.mv_size = Len;
+    data.mv_data = (CONST_CAST char*)pData;
+    retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
+}
+
+
+bool ln_db_payment_shared_secrets_load(utl_buf_t *pBuf, uint64_t PaymentId)
+{
+    int             retval;
+    MDB_val         key, data;
+    ln_lmdb_db_t    db;
+    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+
+    retval = payment_db_open(&db, M_DBI_SHARED_SECRETS, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    retval = mdb_get(db.p_txn, db.dbi, &key, &data);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    if (!utl_buf_alloccopy(pBuf, data.mv_data, data.mv_size)) {
+        LOGE("fail: ???\n");
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_ABORT(db.p_txn);
+    return true;
+}
+
+
+bool ln_db_payment_shared_secrets_del(uint64_t PaymentId)
+{
+    int             retval;
+    MDB_val         key;
+    ln_lmdb_db_t    db;
+    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+
+    retval = payment_db_open(&db, M_DBI_SHARED_SECRETS, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    retval = mdb_del(db.p_txn, db.dbi, &key, NULL);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
 }
 
 
@@ -5847,6 +6017,24 @@ static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint
     *pPrevShortChannelId = utl_int_pack_u64be(pKey->mv_data);
     *pPrevHtlcId = utl_int_pack_u64be(pKey->mv_data + sizeof(uint64_t));
     return true;
+}
+
+
+/********************************************************************
+ * private functions: payment
+ ********************************************************************/
+
+static int payment_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb)
+{
+    return db_open(pDb, mpEnvPayment, pDbName, OptTxn, OptDb);
+}
+
+
+static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PaymentId)
+{
+    pKey->mv_size = M_SZ_PAYMENT_ID_KEY;
+    pKey->mv_data = pKeyData;
+    utl_int_unpack_u64be(pKeyData, PaymentId);
 }
 
 
