@@ -62,7 +62,7 @@ void ln_update_info_free(ln_update_info_t *pInfo) {
 }
 
 
-bool ln_update_info_set_add_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx)
+bool ln_update_info_set_add_htlc_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx)
 {
     uint16_t htlc_idx;
     ln_htlc_t *p_htlc = ln_htlc_get_empty(pInfo->htlcs, &htlc_idx);
@@ -73,12 +73,7 @@ bool ln_update_info_set_add_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUp
     p_update->type_specific_idx = htlc_idx;
     p_update->enabled = true;
     p_htlc->enabled = true;
-    //p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
-        //XXX: Do not set the `type` as it is not currently in a state that can be sent.
-        //  (Because the forwarding of `update_add_htlc` requires multiple callbacks)
-        //  Eventually, the forwarding is completed immediately and the `type` is set here
-        //  so that the sending `update_add_htlc` becomes possible.
-    //p_update->flags.up_send = 1; //NOT set the flag, pre send
+    p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
     *pUpdateIdx = update_idx;
     return true;
 }
@@ -450,11 +445,7 @@ bool ln_update_info_get_update(
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
         if (!p_update->enabled) continue;
-        if (Type == LN_UPDATE_TYPE_NONE) {
-            if (p_update->type != LN_UPDATE_TYPE_NONE) continue;
-        } else {
-            if (!(p_update->type & Type)) continue;
-        }
+        if (!(p_update->type & Type)) continue;
         if (p_update->type_specific_idx != TypeSpecificIdx) continue;
         *pUpdateIdx = idx;
         return true;
@@ -499,8 +490,7 @@ bool ln_update_info_get_update_add_htlc_forwarded_send(
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         const ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
-        if (p_update->type != LN_UPDATE_TYPE_NONE && //XXX: deprecated condition
-            p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
+        if (p_update->type != LN_UPDATE_TYPE_ADD_HTLC) continue;
         if (!LN_UPDATE_OFFERED(p_update)) continue;
         if (pInfo->htlcs[p_update->type_specific_idx].neighbor_short_channel_id != PrevShortChannelId) continue;
         if (pInfo->htlcs[p_update->type_specific_idx].neighbor_id != PrevHtlcId) continue;

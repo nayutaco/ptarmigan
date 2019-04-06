@@ -175,7 +175,6 @@ typedef struct {
     
 #define LN_UPDATE_EMPTY(pUpdate) \
     ( \
-        ((pUpdate)->type == LN_UPDATE_TYPE_NONE) && \
         (!(pUpdate)->enabled) \
     )
 #define LN_UPDATE_USED(pUpdate) (!LN_UPDATE_EMPTY(pUpdate))
@@ -244,7 +243,6 @@ typedef struct {
 
 #define LN_UPDATE_WAIT_SEND(pUpdate) \
     ( \
-        ((pUpdate)->type != LN_UPDATE_TYPE_NONE) && \
         ((pUpdate)->state == LN_UPDATE_STATE_OFFERED_WAIT_SEND) \
     )
 

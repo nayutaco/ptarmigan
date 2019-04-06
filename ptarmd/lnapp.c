@@ -533,11 +533,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         goto LABEL_EXIT;
     }
 
-    ret = ln_set_add_htlc_send(
-        p_channel, NULL, onion, pPay->hop_datain[0].amt_to_forward,
-        pPay->hop_datain[0].outgoing_cltv_value, pPay->payment_hash,
-        0, payment_id, NULL);
-    utl_buf_free(&secrets);
+    ret = ln_set_add_htlc_send_origin(
+        p_channel->short_channel_id, 0, payment_id,
+        pPay->hop_datain[0].amt_to_forward, pPay->payment_hash,
+        pPay->hop_datain[0].outgoing_cltv_value, onion);
     if (ret) {
         //再routing用に送金経路を保存
         payroute_push(pAppConf, pPay, payment_id);
@@ -593,6 +592,8 @@ LABEL_EXIT:
         // ret = true;         //再送はtrue
     }
     pthread_mutex_unlock(&pAppConf->mux_channel);
+
+    utl_buf_free(&secrets);
 
     DBGTRACE_END
 
