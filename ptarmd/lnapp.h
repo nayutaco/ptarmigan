@@ -106,7 +106,6 @@ typedef struct lnapp_conf_t {
     bool                annodb_cont;            ///< true: announcement連続送信中
     time_t              annodb_stamp;           ///< last annodb_updated change time
 
-    uint64_t            dummy_htlc_id;          //XXX: save db
     uint32_t            feerate_per_kw;
 
     struct routelisthead_t  payroute_head;      //payment
