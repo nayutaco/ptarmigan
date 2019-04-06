@@ -68,7 +68,7 @@ typedef struct {
 void ln_update_info_init(ln_update_info_t *pInfo);
 void ln_update_info_free(ln_update_info_t *pInfo);
 
-bool ln_update_info_set_add_htlc_pre_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx);
+bool ln_update_info_set_add_htlc_send(ln_update_info_t *pInfo, uint16_t *pUpdateIdx);
 bool ln_update_info_set_add_htlc_recv(ln_update_info_t *pInfo, uint16_t *pUpdateIdx);
 bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx);
 

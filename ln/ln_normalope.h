@@ -47,28 +47,9 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
 bool HIDDEN ln_update_fail_malformed_htlc_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 
-/** update_add_htlc設定
- *
- * @param[in,out]       pChannel        channel info
- * @param[out]          pReason         (非NULLかつ戻り値がfalse)onion reason
- * @param[in]           pPacket         onion packet
- * @param[in]           AmountMsat      送金額[msat]
- * @param[in]           CltvValue       CLTV値(絶対値)
- * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
- * @param[in]           PrevShortChannelId      転送元short_channel_id(ない場合は0)
- * @param[in]           PrevHtlcId           転送元HTLC id
- * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
- * @retval      true    成功
- * @note
- *      - prev_short_channel_id はfullfillの通知先として使用する
- */
-bool ln_set_add_htlc_send(
-    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket,
-    uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
-
-void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcIdx);
-
+bool ln_set_add_htlc_send_origin(
+    uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
+    uint64_t AmountMsat, const uint8_t *pPaymentHash, uint32_t CltvExpiry, const uint8_t *pOnionRoutingPacket);
 
 /** update_fulfill_htlc設定
  *

@@ -99,10 +99,10 @@ static bool update_fee_send(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool commitment_signed_send(ln_channel_t *pChannel);
 static bool revoke_and_ack_send(ln_channel_t *pChannel);
 static bool check_create_add_htlc(ln_channel_t *pChannel, utl_buf_t *pReason, uint64_t amount_msat, uint32_t cltv_value);
-static bool set_add_htlc(
-    ln_channel_t *pChannel, utl_buf_t *pReason, uint16_t *pHtlcIdx, const uint8_t *pPacket,
+static bool set_add_htlc_send(
+    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket,
     uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets);
+    uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool poll_update_add_htlc_forward(ln_channel_t *pChannel);
 static bool poll_update_del_htlc_forward(ln_channel_t *pChannel);
@@ -699,50 +699,32 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
 }
 
 
-bool ln_set_add_htlc_send(
-    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket,
-    uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash, uint64_t PrevShortChannelId,
-    uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets)
+bool ln_set_add_htlc_send_origin(
+    uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
+    uint64_t AmountMsat, const uint8_t *pPaymentHash, uint32_t CltvExpiry, const uint8_t *pOnionRoutingPacket)
 {
-    LOGD("BEGIN\n");
+    ln_msg_update_add_htlc_t msg;
+    msg.p_channel_id = mDummyChannelId; //dummy
+    msg.id = 0; //dummy
+    msg.amount_msat = AmountMsat,
+    msg.p_payment_hash = pPaymentHash;
+    msg.cltv_expiry = CltvExpiry;
+    msg.p_onion_routing_packet = pOnionRoutingPacket;
+    utl_buf_t buf = UTL_BUF_INIT;
+    /*ignore(XXX: need to check)*/ln_msg_update_add_htlc_write(&buf, &msg);
 
-    //BOLT2
-    //  MUST NOT send an update_add_htlc after a shutdown.
-    if (pChannel->shutdown_flag) {
-        M_SET_ERR(pChannel, LNERR_INV_STATE, "shutdown: not allow add_htlc");
+    ln_db_forward_t param;
+    param.next_short_channel_id = NextShortChannelId;
+    param.prev_short_channel_id = PrevShortChannelId;
+    param.prev_htlc_id = PrevHtlcId;
+    param.p_msg = &buf;
+    if (!ln_db_forward_add_htlc_save(&param)) {
+        LOGE("fail: ???\n");
+        utl_buf_free(&buf);
         return false;
     }
-
-    uint16_t htlc_idx;
-    if (!set_add_htlc(
-        pChannel, pReason, &htlc_idx, pPacket, AmountMsat, CltvValue,
-        pPaymentHash, PrevShortChannelId, PrevHtlcId, pSharedSecrets)) return false;
-
-    uint16_t update_idx;
-    bool ret;
-    ret = ln_update_info_get_update(&pChannel->update_info, &update_idx, LN_UPDATE_TYPE_NONE, htlc_idx);
-    assert(ret);
-    (void)ret;
-    ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
-    p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
-    LN_DBG_UPDATE_PRINT(p_update);
+    utl_buf_free(&buf);
     return true;
-}
-
-
-void ln_add_htlc_start_fwd(ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcIdx)
-{
-    LOGD("BEGIN\n");
-
-    uint16_t update_idx;
-    bool ret;
-    ret = ln_update_info_get_update_add_htlc_forwarded_send(
-        &pChannel->update_info, &update_idx, PrevShortChannelId, PrevHtlcIdx);
-    assert(ret);
-    (void)ret;
-    ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
-    p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
-    LN_DBG_UPDATE_PRINT(p_update);
 }
 
 
@@ -848,9 +830,9 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
             continue;
         }
 
-        if (!ln_set_add_htlc_send(
+        if (!set_add_htlc_send(
             pChannel, &reason, msg.p_onion_routing_packet, msg.amount_msat, msg.cltv_expiry, msg.p_payment_hash,
-            prev_short_channel_id, prev_htlc_id, NULL)) {
+            prev_short_channel_id, prev_htlc_id)) {
             LOGE("fail: ???\n");
             if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
                 LOGE("fail: ???\n");
@@ -1865,12 +1847,19 @@ LABEL_ERROR:
 }
 
 
-static bool set_add_htlc(
-    ln_channel_t *pChannel, utl_buf_t *pReason, uint16_t *pHtlcIdx, const uint8_t *pPacket,
+static bool set_add_htlc_send(
+    ln_channel_t *pChannel, utl_buf_t *pReason, const uint8_t *pPacket,
     uint64_t AmountMsat, uint32_t CltvValue, const uint8_t *pPaymentHash,
-    uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const utl_buf_t *pSharedSecrets)
+    uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
 {
     LOGD("BEGIN\n");
+
+    if (pChannel->shutdown_flag) {
+        M_SET_ERR(pChannel, LNERR_INV_STATE, "shutdown: not allow add_htlc");
+        //XXX: reason
+        return false;
+    }
+
     LOGD("  AmountMsat=%" PRIu64 "\n", AmountMsat);
     LOGD("  CltvValue=%d\n", CltvValue);
     LOGD("  paymentHash=");
@@ -1882,7 +1871,7 @@ static bool set_add_htlc(
         return false;
     }
     uint16_t update_idx;
-    if (!ln_update_info_set_add_htlc_pre_send(&pChannel->update_info, &update_idx)) {
+    if (!ln_update_info_set_add_htlc_send(&pChannel->update_info, &update_idx)) {
         M_SET_ERR(pChannel, LNERR_HTLC_FULL, "no free htlcs");
         return false;
     }
@@ -1897,15 +1886,6 @@ static bool set_add_htlc(
     p_htlc->neighbor_short_channel_id = PrevShortChannelId;
     p_htlc->neighbor_id = PrevHtlcId;
     utl_buf_free(&p_htlc->buf_shared_secret);
-    if (pSharedSecrets) {
-        if (!utl_buf_alloccopy(
-            &p_htlc->buf_shared_secret, pSharedSecrets->buf, pSharedSecrets->len)) {
-            LOGD("ln_update_info_clear_htlc: %016" PRIx64 " UPDATE[%u], HTLC[%u]\n",
-                pChannel->short_channel_id, update_idx, p_update->type_specific_idx);
-            ln_update_info_clear_htlc(&pChannel->update_info, update_idx);
-            return false;
-        }
-    }
 
     if (!check_create_remote_commit_tx(pChannel, update_idx)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
@@ -1915,9 +1895,9 @@ static bool set_add_htlc(
         return false;
     }
 
-    *pHtlcIdx = p_update->type_specific_idx;
     LOGD("HTLC add : neighbor_short_channel_id=%" PRIu64 "\n", p_htlc->neighbor_short_channel_id);
     LOGD("           pChannel->update_info.updates[%u].state = 0x%04x\n", update_idx, p_update->state);
+    LN_DBG_UPDATE_PRINT(p_update);
     return true;
 }
 
