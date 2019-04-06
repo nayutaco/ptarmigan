@@ -1341,17 +1341,10 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t Upd
     ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
     ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
-    typedef enum {
-        RESULT_OK,
-        RESULT_FAIL,
-        RESULT_FAIL_MALFORMED,
-    } result_t;
-
     uint8_t preimage[LN_SZ_PREIMAGE];
     utl_push_t push_reason;
     utl_buf_t buf_reason = UTL_BUF_INIT;
     int32_t height = 0;
-    result_t result = RESULT_OK;
     ln_cb_param_nofity_add_htlc_recv_t cb_param;
     ln_msg_x_update_add_htlc_t msg;
 
@@ -1360,22 +1353,19 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t Upd
     if (!ln_msg_x_update_add_htlc_read(&msg, p_htlc->buf_forward_msg.buf, p_htlc->buf_forward_msg.len)) {
         M_SET_ERR(pChannel, LNERR_BITCOIND, "internal error");
         LOGE("fail\n");
-        result = RESULT_FAIL;
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     ln_callback(pChannel, LN_CB_TYPE_GET_BLOCK_COUNT, &height);
     if (height <= 0) {
         M_SET_ERR(pChannel, LNERR_BITCOIND, "getblockcount");
         LOGE("fail\n");
-        result = RESULT_FAIL;
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     if (!check_recv_add_htlc_bolt4_final___xxx(pChannel, &push_reason, &msg, preimage, height)) {
         LOGE("fail\n");
-        result = RESULT_FAIL;
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
     utl_buf_alloccopy(&p_htlc->buf_preimage, preimage, LN_SZ_PREIMAGE);
     utl_buf_free(&p_htlc->buf_onion_reason);
@@ -1403,8 +1393,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t Upd
             LOGE("fail: --> unknown next peer\n");
             utl_push_u16be(&push_reason, LNONION_UNKNOWN_NEXT_PEER);
         }
-        result = RESULT_FAIL;
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     LOGD("final node: will backwind fulfill_htlc\n");
@@ -1412,30 +1401,19 @@ static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t Upd
         pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FULFILL_HTLC);
     p_update->fin_type = LN_UPDATE_TYPE_FULFILL_HTLC;
 
-LABEL_EXIT:
-    switch (result) {
-    case RESULT_FAIL:
-        LOGE("fail: will backwind fail_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
-            pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FAIL_HTLC);
-        p_update->fin_type = LN_UPDATE_TYPE_FAIL_HTLC;
-        utl_buf_free(&p_htlc->buf_onion_reason);
-        ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
-            //折り返しだけAPIが異なる
-        break;
-    case RESULT_FAIL_MALFORMED:
-        LOGE("fail: will backwind fail_malformed_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
-            pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC);
-        p_update->fin_type = LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC;
-        utl_buf_free(&p_htlc->buf_onion_reason);
-        utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
-        break;
-    default:
-        ;
-    }
     utl_buf_free(&buf_reason);
     return true;
+
+LABEL_ERROR:
+    LOGE("fail: will backwind fail_htlc\n");
+    LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
+        pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FAIL_HTLC);
+    p_update->fin_type = LN_UPDATE_TYPE_FAIL_HTLC;
+    utl_buf_free(&p_htlc->buf_onion_reason);
+    ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
+
+    utl_buf_free(&buf_reason);
+    return false;
 }
 
 
