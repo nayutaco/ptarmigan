@@ -574,6 +574,7 @@ static const init_param_t INIT_PARAM[] = {
 static bool set_path(char *pPath, size_t Size, const char *pDir, const char *pName);
 
 static int db_open(ln_lmdb_db_t *pDb, MDB_env *env, const char *pDbName, int OptTxn, int OptDb);
+static int db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb);
 
 static int channel_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb);
@@ -631,8 +632,10 @@ static int version_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeN
 static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
 static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
+static int forward_db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb);
 static int forward_save(ln_lmdb_db_t *pDb, const ln_db_forward_t *pForward);
 static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNamePrefix);
+static bool forward_save_3(const ln_db_forward_t* pForward, const char *pDbNamePrefix, MDB_txn *pTxn);
 static int forward_del(ln_lmdb_db_t *pDb, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 static bool forward_del_2(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const char *pDbNamePrefix);
 static bool forward_drop(uint64_t NextShortChannelId, const char *pDbNamePrefix);
@@ -3947,6 +3950,16 @@ bool ln_db_forward_del_htlc_save(const ln_db_forward_t* pForward)
 }
 
 
+bool ln_db_forward_del_htlc_save_2(const ln_db_forward_t* pForward, void *pDbParam)
+{
+    ln_lmdb_db_t    *p_db = (ln_lmdb_db_t *)pDbParam;
+    assert(p_db);
+    MDB_txn         *p_txn = p_db->p_txn;
+    assert(p_txn);
+    return forward_save_3(pForward, M_PREF_FORWARD_DEL_HTLC, p_txn);
+}
+
+
 bool ln_db_forward_del_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
 {
     return forward_del_2(NextShortChannelId, PrevShortChannelId, PrevHtlcId, M_PREF_FORWARD_DEL_HTLC);
@@ -4178,6 +4191,25 @@ static int db_open(ln_lmdb_db_t *pDb, MDB_env *env, const char *pDbName, int Opt
 LABEL_EXIT:
     return retval;
 }
+
+
+static int db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb)
+{
+    int retval;
+
+    retval = MDB_DBI_OPEN(pTxn, pDbName, OptDb, &pDb->dbi);
+    if (retval) {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
+        pDb->p_txn = NULL;
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return retval;
+}
+
 
 /********************************************************************
  * private functions: channel
@@ -5767,6 +5799,12 @@ static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, i
 }
 
 
+static int forward_db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb)
+{
+    return db_open_2(pDb, pTxn, pDbName, OptDb);
+}
+
+
 static int forward_save(ln_lmdb_db_t *pDb, const ln_db_forward_t *pForward)
 {
     MDB_val key, data;
@@ -5814,6 +5852,35 @@ LABEL_EXIT:
     }
     if (db.p_txn) {
         MDB_TXN_ABORT(db.p_txn);
+    }
+    return retval == 0;
+}
+
+
+static bool forward_save_3(const ln_db_forward_t* pForward, const char *pDbNamePrefix, MDB_txn *pTxn)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
+
+    db.p_txn = NULL;
+
+    forward_set_db_name(db_name, pForward->next_short_channel_id, pDbNamePrefix);
+    retval = forward_db_open_2(&db, pTxn, db_name, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    retval = forward_save(&db, pForward);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    if (retval) {
+        LOGE("fail: save\n");
     }
     return retval == 0;
 }
