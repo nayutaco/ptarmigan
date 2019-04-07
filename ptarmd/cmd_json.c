@@ -1753,12 +1753,10 @@ static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat)
 
     btc_rng_rand(preimage.preimage, LN_SZ_PREIMAGE);
 
-    ptarmd_preimage_lock();
     preimage.amount_msat = AmountMsat;
     preimage.expiry = LN_INVOICE_EXPIRY;
     preimage.creation_time = 0;
     ln_db_preimage_save(&preimage, NULL);
-    ptarmd_preimage_unlock();
 
     ln_payment_hash_calc(pPaymentHash, preimage.preimage);
     return 0;

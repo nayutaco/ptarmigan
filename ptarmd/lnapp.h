@@ -218,6 +218,12 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 void lnapp_show_channel(const lnapp_conf_t *pAppConf, cJSON *pResult);
 
 
+/** ln_channel_t内容表示(デバッグ用)
+ *
+ */
+void lnapp_show_channel_param(const ln_channel_t *pChannel, FILE *fp, const char *msg, int line);
+
+
 /** [lnapp]現在のcommit_tx出力
  *
  * @param[in]   bLocal      true:local unilateral close

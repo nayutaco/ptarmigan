@@ -103,7 +103,6 @@ LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
  * static variables
  ********************************************************************/
 
-static pthread_mutex_t              mMuxPreimage;
 static struct nodefaillisthead_t    mNodeFailListHead;
 static bool                         mRunning;
 static ln_establish_param_t         mEstablishParam;
@@ -186,8 +185,6 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
         utl_dbg_dump(fp, ln_node_get_id(), BTC_SZ_PUBKEY, true);
         fclose(fp);
     }
-
-    pthread_mutex_init(&mMuxPreimage, NULL);
 
     load_channel_settings();
     btcrpc_set_creationhash(ln_creationhash_get());
@@ -300,18 +297,6 @@ const char *ptarmd_execpath_get(void)
 
 //     return p_appconf != NULL;
 // }
-
-
-void ptarmd_preimage_lock(void)
-{
-    pthread_mutex_lock(&mMuxPreimage);
-}
-
-
-void ptarmd_preimage_unlock(void)
-{
-    pthread_mutex_unlock(&mMuxPreimage);
-}
 
 
 lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
