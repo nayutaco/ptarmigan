@@ -524,10 +524,12 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
         //XXX: pthread_mutex_unlock(&p_prevconf->mux_channel);
         ret = true; //XXX: use DB to forward
     }
+#if 0
     if (!LN_DBG_FULFILL_BWD()) {
         LOGD("no fulfill backwind\n");
         ret = false;
     }
+#endif
     if (ret) {
         lnapp_show_channel_param(&pConf->channel, stderr, "fulfill_htlc send", __LINE__);
 
@@ -559,6 +561,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
 
         pCbParam->ret = true;
     } else if (p_prevconf) {
+#if 0
         //fail channel if fail backwind channel
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_prevconf->channel));
@@ -566,6 +569,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
         LOGD("close: bad way(local): fail backward(%s)\n", str_sci);
         ptarmd_eventlog(ln_channel_id(&p_prevconf->channel), "close: bad way(local)");
         (void)monitor_close_unilateral_local(&p_prevconf->channel, NULL);
+#endif
     }
 }
 
@@ -573,7 +577,11 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
 //cb_fulfill_htlc_recv(): origin node
 static void cbsub_fulfill_originnode(lnapp_conf_t *pConf, ln_cb_param_notify_fulfill_htlc_recv_t *pCbParam)
 {
-    lnapp_payroute_del(pConf, pCbParam->prev_htlc_id);
+    (void)pConf;
+
+    if (!lnapp_payment_route_del(pCbParam->prev_htlc_id)) {
+        LOGE("fail: ???\n");
+    }
 
     uint8_t hash[BTC_SZ_HASH256];
     ln_payment_hash_calc(hash, pCbParam->p_preimage);
@@ -697,8 +705,6 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
         LOGD("  failure reason= ");
         DUMPD(reason.buf, reason.len);
 
-        lnapp_payroute_print(pConf);
-
         ln_onion_err_t onionerr;
         ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_data = UTL_DBG_MALLOC()
         bool btemp = true;
@@ -723,21 +729,21 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
         //      [hop_num - 2]payeeへの最終OINONデータ
         //      [hop_num - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
         char suggest[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        const payment_conf_t *p_payconf = lnapp_payroute_get(pConf, pCbParam->prev_htlc_id);
-        if (p_payconf != NULL) {
+        payment_conf_t payconf;
+        if (lnapp_payment_route_load(&payconf, pCbParam->prev_htlc_id)) {
             // for (int lp = 0; lp < p_payconf->hop_num; lp++) {
             //     LOGD("@@@[%d]%016" PRIx64 ", %" PRIu64 ", %" PRIu32 "\n",
             //             lp,
-            //             p_payconf->hop_datain[lp].short_channel_id,
-            //             p_payconf->hop_datain[lp].amt_to_forward,
-            //             p_payconf->hop_datain[lp].outgoing_cltv_value);
+            //             payconf.hop_datain[lp].short_channel_id,
+            //             payconf.hop_datain[lp].amt_to_forward,
+            //             payconf.hop_datain[lp].outgoing_cltv_value);
             // }
             uint64_t short_channel_id = 0;
-            if (hop == p_payconf->hop_num - 2) {
+            if (hop == payconf.hop_num - 2) {
                 //payeeは自分がINとなるchannelを失敗したとみなす
-                short_channel_id = p_payconf->hop_datain[p_payconf->hop_num - 2].short_channel_id;
-            } else if (hop < p_payconf->hop_num - 2) {
-                short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
+                short_channel_id = payconf.hop_datain[payconf.hop_num - 2].short_channel_id;
+            } else if (hop < payconf.hop_num - 2) {
+                short_channel_id = payconf.hop_datain[hop + 1].short_channel_id;
             } else {
                 LOGE("fail: invalid result\n");
                 strcpy(suggest, "invalid");
@@ -748,6 +754,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
                 pCbParam->ret = true;
             }
         } else {
+            LOGE("fail: ???\n");
             strcpy(suggest, "?");
         }
 
@@ -762,7 +769,9 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
         //デコード失敗
         lnapp_set_last_error(pConf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE);
     }
-    lnapp_payroute_del(pConf, pCbParam->prev_htlc_id);
+    if (!lnapp_payment_route_del(pCbParam->prev_htlc_id)) {
+        LOGE("fail: ???\n");
+    }
 }
 
 
