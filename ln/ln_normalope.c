@@ -953,6 +953,12 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 }
 
 
+void ln_idle_proc_origin(ln_channel_t *pChannel)
+{
+    (void)pChannel;
+}
+
+
 void ln_channel_reestablish_after(ln_channel_t *pChannel)
 {
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
