@@ -45,17 +45,19 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_WRITE
-#define DBG_PRINT_READ
+//#define DBG_PRINT_WRITE
+//#define DBG_PRINT_READ
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
+#if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
 static void update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg);
 static void update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg);
 static void update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg);
+#endif  //DBG_PRINT_READ || DBG_PRINT_WRITE
 
 
 /********************************************************************
@@ -116,6 +118,7 @@ LABEL_ERROR_SYNTAX:
 }
 
 
+#if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
 static void update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
@@ -131,6 +134,7 @@ static void update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg)
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
+#endif  //DBG_PRINT_READ || DBG_PRINT_WRITE
 
 
 /********************************************************************
@@ -181,6 +185,7 @@ LABEL_ERROR_SYNTAX:
 }
 
 
+#if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
 static void update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
@@ -190,6 +195,7 @@ static void update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
+#endif  //DBG_PRINT_READ || DBG_PRINT_WRITE
 
 
 /********************************************************************
@@ -242,6 +248,7 @@ LABEL_ERROR_SYNTAX:
 }
 
 
+#if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
 static void update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
@@ -251,5 +258,6 @@ static void update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg)
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
+#endif  //DBG_PRINT_READ || DBG_PRINT_WRITE
 
 
