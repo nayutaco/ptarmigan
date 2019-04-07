@@ -76,7 +76,6 @@
 
 static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *pHtlc);
 static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t update_idx);
-static bool check_recv_add_htlc_bolt4_before_forward(ln_channel_t *pChannel, uint16_t update_idx);
 static bool check_recv_add_htlc_bolt4_after_forward(
     ln_channel_t *pChannel, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam);
 static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t update_idx);
@@ -511,9 +510,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
             if (check_recv_add_htlc_bolt4(pChannel, idx)) {
-                if (p_htlc->neighbor_short_channel_id) {
-                    /*ignore*/check_recv_add_htlc_bolt4_before_forward(pChannel, idx);
-                } else {
+                if (!p_htlc->neighbor_short_channel_id) {
                     /*ignore*/check_recv_add_htlc_bolt4_final(pChannel, idx);
                 }
             }
@@ -791,7 +788,7 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
         uint16_t update_idx;
         if (ln_update_info_get_update_add_htlc_forwarded_send(
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
-            //XXX: registerd
+            //XXX: has registerd
             utl_buf_free(&reason);
             utl_buf_free(&buf);
             continue;
@@ -802,24 +799,26 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
             LOGE("fail: ???\n");
             if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
                 LOGE("fail: ???\n");
-                b_commit = true;
             }
             //XXX: backward `del htlc` if `add hltc` is failed
             utl_buf_free(&reason);
             utl_buf_free(&buf);
+            b_commit = true;
             continue;
         }
 
-        if (!check_recv_add_htlc_bolt4_after_forward(pChannel, &reason, &msg)) {
-            LOGE("fail: ???\n");
-            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+        if (prev_short_channel_id) {
+            if (!check_recv_add_htlc_bolt4_after_forward(pChannel, &reason, &msg)) {
                 LOGE("fail: ???\n");
+                if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                    LOGE("fail: ???\n");
+                }
+                //XXX: backward `del htlc` if `add hltc` is failed
+                utl_buf_free(&reason);
+                utl_buf_free(&buf);
                 b_commit = true;
+                continue;
             }
-            //XXX: backward `del htlc` if `add hltc` is failed
-            utl_buf_free(&reason);
-            utl_buf_free(&buf);
-            continue;
         }
 
         if (!set_add_htlc_send(
@@ -828,11 +827,11 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
             LOGE("fail: ???\n");
             if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
                 LOGE("fail: ???\n");
-                b_commit = true;
             }
             //XXX: backward `del htlc` if `add hltc` is failed
             utl_buf_free(&reason);
             utl_buf_free(&buf);
+            b_commit = true;
             continue;
         }
         utl_buf_free(&reason);
@@ -863,9 +862,9 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
                 LOGE("fail: ???\n");
                 if (!ln_db_forward_del_htlc_cur_del(p_cur)) {
                     LOGE("fail: ???\n");
-                    b_commit = true;
                 }
                 utl_buf_free(&buf);
+                b_commit = true;
                 continue;
             }
             if (!ln_fulfill_htlc_set(pChannel, prev_htlc_id, msg.p_payment_preimage)) {
@@ -880,9 +879,9 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
                 LOGE("fail: ???\n");
                 if (!ln_db_forward_del_htlc_cur_del(p_cur)) {
                     LOGE("fail: ???\n");
-                    b_commit = true;
                 }
                 utl_buf_free(&buf);
+                b_commit = true;
                 continue;
             }
             const utl_buf_t reason = {(CONST_CAST uint8_t *)msg.p_reason, msg.len};
@@ -1185,31 +1184,59 @@ LABEL_ERROR:
 }
 
 
-static bool check_recv_add_htlc_bolt4_before_forward(ln_channel_t *pChannel, uint16_t UpdateIdx)
+static bool check_recv_add_htlc_bolt4_after_forward(
+    ln_channel_t *pChannel, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam)
 {
-    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
-
     utl_push_t push_reason;
-    utl_buf_t buf_reason = UTL_BUF_INIT;
     int32_t height = 0;
-    ln_msg_x_update_add_htlc_t msg;
     ln_msg_channel_update_t msg_cnlupd;
     utl_buf_t buf_cnlupd = UTL_BUF_INIT;
 
-    utl_push_init(&push_reason, &buf_reason, 0);
+    utl_push_init(&push_reason, pReason, 0);
 
-    if (!load_channel_update_local(pChannel, &buf_cnlupd, &msg_cnlupd, p_htlc->neighbor_short_channel_id)) {
-        LOGE("fail: ???\n");
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
-        utl_push_u16be(&push_reason, LNONION_UNKNOWN_NEXT_PEER);
+    if (ln_status_get(pChannel) != LN_STATUS_NORMAL) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "not status normal");
+        //utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
+        utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL); //XXX: ???
         goto LABEL_ERROR;
     }
 
-    if (!ln_msg_x_update_add_htlc_read(&msg, p_htlc->buf_forward_msg.buf, p_htlc->buf_forward_msg.len)) {
+    if (!load_channel_update_local(pChannel, &buf_cnlupd, &msg_cnlupd, pChannel->short_channel_id)) {
         LOGE("fail: ???\n");
-        M_SET_ERR(pChannel, LNERR_BITCOIND, "internal error");
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
         utl_push_u16be(&push_reason, LNONION_UNKNOWN_NEXT_PEER); //XXX: ???
+        goto LABEL_ERROR;
+    }
+
+    if (pForwardParam->amt_to_forward < pChannel->commit_info_remote.htlc_minimum_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64,
+            pForwardParam->amt_to_forward, pChannel->commit_info_remote.htlc_minimum_msat);
+        utl_push_u16be(&push_reason, LNONION_AMT_BELOW_MIN);
+        utl_push_u64be(&push_reason, pForwardParam->amt_to_forward); //[8:htlc_msat]
+        utl_push_u16be(&push_reason, buf_cnlupd.len); //[2:len]
+        utl_push_data(&push_reason, buf_cnlupd.buf, buf_cnlupd.len); //[len:channel_update]
+        goto LABEL_ERROR;
+    }
+
+    uint64_t fwd_fee;
+    fwd_fee = forward_fee(pForwardParam->amt_to_forward, &msg_cnlupd);
+    if (pForwardParam->amount_msat < pForwardParam->amt_to_forward + fwd_fee) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32,
+            fwd_fee, pForwardParam->amount_msat - pForwardParam->amt_to_forward);
+        utl_push_u16be(&push_reason, LNONION_FEE_INSUFFICIENT);
+        utl_push_u64be(&push_reason, pForwardParam->amt_to_forward); //[8:htlc_msat]
+        utl_push_u16be(&push_reason, buf_cnlupd.len); //[2:len]
+        utl_push_data(&push_reason, buf_cnlupd.buf, buf_cnlupd.len); //[len:channel_update]
+        goto LABEL_ERROR;
+    }
+
+    if ( (pForwardParam->cltv_expiry <= pForwardParam->outgoing_cltv_value) ||
+        (pForwardParam->cltv_expiry + msg_cnlupd.cltv_expiry_delta < pForwardParam->outgoing_cltv_value) ) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, msg_cnlupd.cltv_expiry_delta);
+        utl_push_u16be(&push_reason, LNONION_INCORR_CLTV_EXPIRY);
+        utl_push_u32be(&push_reason, pForwardParam->cltv_expiry);
+        utl_push_u16be(&push_reason, buf_cnlupd.len); //[2:len]
+        utl_push_data(&push_reason, buf_cnlupd.buf, buf_cnlupd.len); //[len:channel_update]
         goto LABEL_ERROR;
     }
 
@@ -1223,33 +1250,12 @@ static bool check_recv_add_htlc_bolt4_before_forward(ln_channel_t *pChannel, uin
         goto LABEL_ERROR;
     }
 
-    uint64_t fwd_fee = forward_fee(msg.amt_to_forward, &msg_cnlupd);
-    if (msg.amount_msat < msg.amt_to_forward + fwd_fee) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32,
-            fwd_fee, msg.amount_msat - msg.amt_to_forward);
-        utl_push_u16be(&push_reason, LNONION_FEE_INSUFFICIENT);
-        utl_push_u64be(&push_reason, msg.amt_to_forward); //[8:htlc_msat]
-        utl_push_u16be(&push_reason, buf_cnlupd.len); //[2:len]
-        utl_push_data(&push_reason, buf_cnlupd.buf, buf_cnlupd.len); //[len:channel_update]
-        goto LABEL_ERROR;
-    }
-
-    if ( (msg.cltv_expiry <= msg.outgoing_cltv_value) ||
-        (msg.cltv_expiry + msg_cnlupd.cltv_expiry_delta < msg.outgoing_cltv_value) ) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, msg_cnlupd.cltv_expiry_delta);
-        utl_push_u16be(&push_reason, LNONION_INCORR_CLTV_EXPIRY);
-        utl_push_u32be(&push_reason, msg.cltv_expiry);
-        utl_push_u16be(&push_reason, buf_cnlupd.len); //[2:len]
-        utl_push_data(&push_reason, buf_cnlupd.buf, buf_cnlupd.len); //[len:channel_update]
-        goto LABEL_ERROR;
-    }
-
     LOGD("cltv_value=%" PRIu32 ", expiry_delta=%" PRIu16 ", height=%" PRId32 "\n",
-        msg.cltv_expiry, msg_cnlupd.cltv_expiry_delta, height);
-    if ( (msg.cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)height + msg_cnlupd.cltv_expiry_delta) ||
-        (msg.cltv_expiry < (uint32_t)height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
+        pForwardParam->cltv_expiry, msg_cnlupd.cltv_expiry_delta, height);
+    if ( (pForwardParam->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)height + msg_cnlupd.cltv_expiry_delta) ||
+        (pForwardParam->cltv_expiry < (uint32_t)height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
         LOGD("%" PRIu32 " < %" PRId32 "\n",
-            msg.cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, height + msg_cnlupd.cltv_expiry_delta);
+            pForwardParam->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, height + msg_cnlupd.cltv_expiry_delta);
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "expiry too far : %" PRIu32, msg_cnlupd.cltv_expiry_delta);
         utl_push_u16be(&push_reason, LNONION_EXPIRY_TOO_SOON);
         utl_push_u16be(&push_reason, buf_cnlupd.len); //[2:len]
@@ -1257,81 +1263,19 @@ static bool check_recv_add_htlc_bolt4_before_forward(ln_channel_t *pChannel, uin
         goto LABEL_ERROR;
     }
 
-    if (msg.cltv_expiry > (uint32_t)height + msg_cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR) {
+    if (pForwardParam->cltv_expiry > (uint32_t)height + msg_cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR) {
         LOGD("%" PRIu32 " > %" PRId32 "\n",
-            msg.cltv_expiry, height + msg_cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR);
+            pForwardParam->cltv_expiry, height + msg_cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR);
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "expiry too far : %" PRIu32, msg_cnlupd.cltv_expiry_delta);
         utl_push_u16be(&push_reason, LNONION_EXPIRY_TOO_FAR);
         goto LABEL_ERROR;
     }
 
     utl_buf_free(&buf_cnlupd);
-    utl_buf_free(&buf_reason);
     return true;
 
 LABEL_ERROR:
-    LOGE("fail: will backwind fail_htlc\n");
-    p_update->fin_type = LN_UPDATE_TYPE_FAIL_HTLC;
-    utl_buf_free(&p_htlc->buf_onion_reason);
-    ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
-
     utl_buf_free(&buf_cnlupd);
-    utl_buf_free(&buf_reason);
-    return false;
-}
-
-
-static bool check_recv_add_htlc_bolt4_after_forward(
-    ln_channel_t *pChannel, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam)
-{
-    utl_push_t push_reason;
-    //int32_t height = 0;
-    ln_msg_channel_update_t msg;
-    utl_buf_t buf = UTL_BUF_INIT;
-
-    utl_push_init(&push_reason, pReason, 0);
-
-    if (ln_status_get(pChannel) != LN_STATUS_NORMAL) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "not status normal");
-        //utl_push_u16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
-        utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL); //XXX: ???
-        goto LABEL_ERROR;
-    }
-
-    if (!load_channel_update_local(pChannel, &buf, &msg, pChannel->short_channel_id)) {
-        LOGE("fail: ???\n");
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "no channel_update");
-        utl_push_u16be(&push_reason, LNONION_UNKNOWN_NEXT_PEER); //XXX: ???
-        goto LABEL_ERROR;
-    }
-
-#if 0
-    ln_callback(pChannel, LN_CB_TYPE_GET_BLOCK_COUNT, &height);
-    if (height <= 0) {
-        LOGE("fail: ???\n");
-        M_SET_ERR(pChannel, LNERR_BITCOIND, "getblockcount");
-        utl_push_u16be(&push_reason, LNONION_TMP_CHAN_FAIL);
-        utl_push_u16be(&push_reason, (uint16_t)buf.len);
-        utl_push_data(&push_reason, buf.buf, buf.len);
-        goto LABEL_EXIT;
-    }
-#endif
-
-    if (pForwardParam->amt_to_forward < pChannel->commit_info_remote.htlc_minimum_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64,
-            pForwardParam->amt_to_forward, pChannel->commit_info_remote.htlc_minimum_msat);
-        utl_push_u16be(&push_reason, LNONION_AMT_BELOW_MIN);
-        utl_push_u64be(&push_reason, pForwardParam->amt_to_forward); //[8:htlc_msat]
-        utl_push_u16be(&push_reason, buf.len); //[2:len]
-        utl_push_data(&push_reason, buf.buf, buf.len); //[len:channel_update]
-        goto LABEL_ERROR;
-    }
-
-    utl_buf_free(&buf);
-    return true;
-
-LABEL_ERROR:
-    utl_buf_free(&buf);
     return false;
 }
 
