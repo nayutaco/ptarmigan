@@ -3168,7 +3168,7 @@ static void recv_idle_proc(lnapp_conf_t *p_conf)
     pthread_mutex_lock(&p_conf->mux_channel);
 
     if ((p_conf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END) {
-        ln_recv_idle_proc(&p_conf->channel, p_conf->feerate_per_kw);
+        ln_idle_proc(&p_conf->channel, p_conf->feerate_per_kw);
     }
 
     pthread_mutex_unlock(&p_conf->mux_channel);

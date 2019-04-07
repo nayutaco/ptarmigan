@@ -902,7 +902,7 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
 }
 
 
-void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
+void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     //XXX: should return the return code or SET_ERR
 
