@@ -588,6 +588,14 @@ bool ln_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 
 
+/** origin/final nodeアイドル処理
+ * Normal Operationの処理を進める
+ *
+ * @param[in,out]       pChannel        channel info
+ */
+void ln_idle_proc_origin(ln_channel_t *pChannel);
+
+
 /** 接続直後のfunding_locked必要性チェック
  *
  * @param[in]           pChannel        channel info

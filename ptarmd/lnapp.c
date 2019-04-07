@@ -1013,6 +1013,7 @@ void *lnapp_thread_channel_origin_start(void *pArg)
 
     //pthread_mutex_lock(&p_conf->mux_conf);
     while (p_conf->active) {
+        ln_idle_proc_origin(&p_conf->channel);
         utl_thread_msleep(M_WAIT_RECV_TO_MSEC); //XXX: we should use `pthread_cond_wait`
     }
     //pthread_mutex_unlock(&p_conf->mux_conf);
