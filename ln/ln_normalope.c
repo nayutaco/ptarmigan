@@ -291,24 +291,6 @@ bool HIDDEN ln_update_fail_htlc_recv(ln_channel_t *pChannel, const uint8_t *pDat
 
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_alloccopy(&p_htlc->buf_onion_reason, msg.p_reason, msg.len);
-#if 0
-    ln_cb_param_notify_fail_htlc_recv_t cb_param;
-    cb_param.ret = false;
-    cb_param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
-    utl_buf_t reason;
-    utl_buf_init_2(&reason, (CONST_CAST uint8_t *)msg.p_reason, msg.len);
-    cb_param.p_reason = &reason;
-    cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    cb_param.prev_htlc_idx = p_htlc->neighbor_idx;
-    cb_param.next_id = p_htlc->id;
-    cb_param.p_payment_hash = p_htlc->payment_hash;
-    cb_param.fail_malformed_failure_code = 0;
-    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FAIL_HTLC_RECV, &cb_param);
-    if (!cb_param.ret) {
-        LOGE("fail: backwind\n");
-        /*ignore*/
-    }
-#endif
     return true;
 }
 
