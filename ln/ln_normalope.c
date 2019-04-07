@@ -78,10 +78,8 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
 static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t update_idx);
 static bool check_recv_add_htlc_bolt4_after_forward(
     ln_channel_t *pChannel, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam);
-static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t update_idx);
-static bool check_recv_add_htlc_bolt4_final___xxx(
-    ln_channel_t *pChannel, utl_push_t *pPushReason, ln_msg_x_update_add_htlc_t *pForwardParam,
-    uint8_t *pPreimage, int32_t Height);
+static bool check_recv_add_htlc_bolt4_final(
+    ln_channel_t *pChannel, uint8_t *pPreimage, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam);
 static uint64_t forward_fee(uint64_t AmountMsat, ln_msg_channel_update_t* pMsg);
 static bool load_channel_update_local(
     ln_channel_t *pChannel, utl_buf_t *pBuf, ln_msg_channel_update_t* pMsg, uint64_t ShortChannelId);
@@ -101,6 +99,7 @@ static bool set_add_htlc_send(
 static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t UpdateIdx);
 static bool poll_update_add_htlc_forward(ln_channel_t *pChannel);
 static bool poll_update_del_htlc_forward(ln_channel_t *pChannel);
+static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel);
 
 
 /**************************************************************************
@@ -510,12 +509,6 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
             if (check_recv_add_htlc_bolt4(pChannel, idx)) {
-                if (!p_htlc->neighbor_short_channel_id) {
-                    /*ignore*/check_recv_add_htlc_bolt4_final(pChannel, idx);
-                }
-            }
-
-            if (p_htlc->neighbor_short_channel_id && p_update->fin_type == LN_UPDATE_TYPE_NONE) {
                 LOGD("\n");
                 ln_db_forward_t param;
                 param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
@@ -789,8 +782,8 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
         if (ln_update_info_get_update_add_htlc_forwarded_send(
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
             //XXX: has registerd
-            utl_buf_free(&reason);
             utl_buf_free(&buf);
+            utl_buf_free(&reason);
             continue;
         }
 
@@ -801,8 +794,8 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
                 LOGE("fail: ???\n");
             }
             //XXX: backward `del htlc` if `add hltc` is failed
-            utl_buf_free(&reason);
             utl_buf_free(&buf);
+            utl_buf_free(&reason);
             b_commit = true;
             continue;
         }
@@ -814,8 +807,8 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
                     LOGE("fail: ???\n");
                 }
                 //XXX: backward `del htlc` if `add hltc` is failed
-                utl_buf_free(&reason);
                 utl_buf_free(&buf);
+                utl_buf_free(&reason);
                 b_commit = true;
                 continue;
             }
@@ -829,13 +822,13 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
                 LOGE("fail: ???\n");
             }
             //XXX: backward `del htlc` if `add hltc` is failed
-            utl_buf_free(&reason);
             utl_buf_free(&buf);
+            utl_buf_free(&reason);
             b_commit = true;
             continue;
         }
-        utl_buf_free(&reason);
         utl_buf_free(&buf);
+        utl_buf_free(&reason);
     }
 
     ln_db_forward_add_htlc_cur_close(p_cur, b_commit);
@@ -902,6 +895,84 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
 }
 
 
+static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
+{
+    void* p_cur = NULL;
+    if (!ln_db_forward_add_htlc_cur_open(&p_cur, 0)) {
+        return true;
+    }
+
+    uint64_t    prev_short_channel_id;
+    uint64_t    prev_htlc_id;
+    bool        b_commit = false;
+    utl_buf_t   buf = UTL_BUF_INIT;
+    while (ln_db_forward_add_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
+        utl_buf_t reason = UTL_BUF_INIT;
+
+        ln_msg_x_update_add_htlc_t msg;
+        if (!ln_msg_x_update_add_htlc_read(&msg, buf.buf, buf.len)) {
+            LOGE("fail: ???\n");
+            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                LOGE("fail: ???\n");
+            }
+            //XXX: backward `del htlc` if `add hltc` is failed
+            utl_buf_free(&buf);
+            utl_buf_free(&reason);
+            b_commit = true;
+            continue;
+        }
+
+        uint8_t preimage[LN_SZ_PREIMAGE];
+        if (!check_recv_add_htlc_bolt4_final(pChannel, preimage, &reason, &msg)) {
+            LOGE("fail: ???\n");
+            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                LOGE("fail: ???\n");
+            }
+            //XXX: backward `del htlc` if `add hltc` is failed
+            utl_buf_free(&buf);
+            utl_buf_free(&reason);
+            b_commit = true;
+            continue;
+        }
+
+        if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+            LOGE("fail: ???\n");
+        }
+        b_commit = true;
+
+        ln_msg_x_update_fulfill_htlc_t forward_msg;
+        forward_msg.p_payment_preimage = preimage;
+        utl_buf_free(&buf);
+        if (!ln_msg_x_update_fulfill_htlc_write(&buf, &forward_msg)) {
+            LOGE("fail: ???\n");
+            //M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
+            utl_buf_free(&buf);
+            utl_buf_free(&reason);
+            continue;
+        }
+
+        ln_db_forward_t param;
+        param.next_short_channel_id = prev_short_channel_id;
+        param.prev_short_channel_id = prev_short_channel_id;
+        param.prev_htlc_id = prev_htlc_id;
+        param.p_msg = &buf;
+        if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
+            LOGE("fail: ???\n");
+            //M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
+            utl_buf_free(&buf);
+            utl_buf_free(&reason);
+            continue;
+        }
+
+        utl_buf_free(&buf);
+        utl_buf_free(&reason);
+    }
+
+    ln_db_forward_add_htlc_cur_close(p_cur, b_commit);
+    return true;
+}
+
+
 void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     //XXX: should return the return code or SET_ERR
@@ -955,7 +1026,7 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 
 void ln_idle_proc_origin(ln_channel_t *pChannel)
 {
-    (void)pChannel;
+    /*ignore*/poll_update_add_htlc_forward_origin(pChannel);
 }
 
 
@@ -1286,40 +1357,116 @@ LABEL_ERROR:
 }
 
 
-static bool check_recv_add_htlc_bolt4_final(ln_channel_t *pChannel, uint16_t UpdateIdx)
+static bool check_recv_add_htlc_bolt4_final(
+    ln_channel_t *pChannel, uint8_t *pPreimage, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam)
 {
-    ln_update_t *p_update = &pChannel->update_info.updates[UpdateIdx];
-    ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
-
-    uint8_t preimage[LN_SZ_PREIMAGE];
     utl_push_t push_reason;
-    utl_buf_t buf_reason = UTL_BUF_INIT;
     int32_t height = 0;
-    ln_cb_param_nofity_add_htlc_recv_t cb_param;
-    ln_msg_x_update_add_htlc_t msg;
 
-    utl_push_init(&push_reason, &buf_reason, 0);
+    ln_db_preimage_t preimage;
+    uint8_t preimage_hash[BTC_SZ_HASH256];
 
-    if (!ln_msg_x_update_add_htlc_read(&msg, p_htlc->buf_forward_msg.buf, p_htlc->buf_forward_msg.len)) {
-        M_SET_ERR(pChannel, LNERR_BITCOIND, "internal error");
-        LOGE("fail\n");
-        goto LABEL_ERROR;
-    }
+    utl_push_init(&push_reason, pReason, 0);
 
     ln_callback(pChannel, LN_CB_TYPE_GET_BLOCK_COUNT, &height);
     if (height <= 0) {
+        LOGE("fail\n");
         M_SET_ERR(pChannel, LNERR_BITCOIND, "getblockcount");
-        LOGE("fail\n");
-        goto LABEL_ERROR;
+        utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
+        return false;
     }
 
-    if (!check_recv_add_htlc_bolt4_final___xxx(pChannel, &push_reason, &msg, preimage, height)) {
-        LOGE("fail\n");
-        goto LABEL_ERROR;
+    preimage.amount_msat = (uint64_t)-1;
+    preimage.expiry = 0;
+    void *p_cur;
+    if (!ln_db_preimage_cur_open(&p_cur)) { //XXX: internal error?
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
+        utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
+        utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
+        return false;
     }
-    utl_buf_alloccopy(&p_htlc->buf_preimage, preimage, LN_SZ_PREIMAGE);
-    utl_buf_free(&p_htlc->buf_onion_reason);
+    bool detect = false;
+    for (;;) {
+        detect = false;
+        if (!ln_db_preimage_cur_get(p_cur, &detect, &preimage)) break;     //from invoice
+        if (!detect) continue;
+        memcpy(pPreimage, preimage.preimage, LN_SZ_PREIMAGE);
+        ln_payment_hash_calc(preimage_hash, pPreimage);
+        if (memcmp(preimage_hash, pForwardParam->p_payment_hash, BTC_SZ_HASH256)) continue;
+        break;
+    }
+    ln_db_preimage_cur_close(p_cur, false);
+    if (!detect) {
+        //C1. if the payment hash has already been paid:
+        //      ★(採用)MAY treat the payment hash as unknown.★
+        //      MAY succeed in accepting the HTLC.
+        //C3. if the payment hash is unknown:
+        //      unknown_payment_hash
+        //M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
+        utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
+        utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
+        return false;
+    }
+    LOGD("match preimage: ");
+    DUMPD(pPreimage, LN_SZ_PREIMAGE);
 
+    //C2. if the amount paid is less than the amount expected:
+    //      incorrect_payment_amount
+    if (pForwardParam->amount_msat < preimage.amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64,
+            pForwardParam->amount_msat, preimage.amount_msat);
+        utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
+        utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
+        return false;
+    }
+
+    //C4. if the amount paid is more than twice the amount expected:
+    //      incorrect_payment_amount
+    if (preimage.amount_msat * 2 < pForwardParam->amount_msat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64,
+            preimage.amount_msat * 2, pForwardParam->amount_msat);
+        utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
+        utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
+        return false;
+    }
+
+    //C5. if the cltv_expiry value is unreasonably near the present:
+    //      final_expiry_too_soon
+    //          今のところ、min_final_cltv_expiryは固定値(#LN_MIN_FINAL_CLTV_EXPIRY)しかない。
+    LOGD("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n",
+        pForwardParam->cltv_expiry, LN_MIN_FINAL_CLTV_EXPIRY, height);
+    if ( (pForwardParam->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)height + LN_MIN_FINAL_CLTV_EXPIRY) ||
+         (pForwardParam->cltv_expiry < (uint32_t)height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
+        LOGD("%" PRIu32 " < %" PRId32 "\n",
+            pForwardParam->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, height + M_HYSTE_CLTV_EXPIRY_MIN);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv_expiry too soon(final)");
+        utl_push_u16be(&push_reason, LNONION_FINAL_EXPIRY_TOO_SOON);
+        return false;
+    }
+
+    //C6. if the outgoing_cltv_value does NOT correspond with the cltv_expiry from the final node's HTLC:
+    //      final_incorrect_cltv_expiry
+    if (pForwardParam->outgoing_cltv_value != pForwardParam->cltv_expiry) {
+        LOGD("%" PRIu32 " --- %" PRIu32 "\n", pForwardParam->outgoing_cltv_value, pForwardParam->cltv_expiry);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect cltv expiry(final)");
+        utl_push_u16be(&push_reason, LNONION_FINAL_INCORR_CLTV_EXP);
+        utl_push_u32be(&push_reason, pForwardParam->cltv_expiry); //[4:cltv_expiry]
+        return false;
+    }
+
+    //C7. if the amt_to_forward is greater than the incoming_htlc_amt from the final node's HTLC:
+    //      final_incorrect_htlc_amount
+    if (pForwardParam->amt_to_forward > pForwardParam->amount_msat) {
+        LOGD("%" PRIu64 " --- %" PRIu64 "\n", pForwardParam->amt_to_forward, pForwardParam->amount_msat);
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final)");
+        utl_push_u16be(&push_reason, LNONION_FINAL_INCORR_HTLC_AMT);
+        utl_push_u32be(&push_reason, pForwardParam->amount_msat); //[4:incoming_htlc_amt]
+        return false;
+    }
+    return true;
+
+#if 0
+    ln_cb_param_nofity_add_htlc_recv_t cb_param;
     cb_param.ret = true;
     cb_param.prev_htlc_id = p_htlc->id;
     cb_param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
@@ -1363,117 +1510,8 @@ LABEL_ERROR:
     ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
 
     utl_buf_free(&buf_reason);
+#endif
     return false;
-}
-
-
-/** [BOLT#4]ln_update_add_htlc_recv()のチェック(final node)
- *
- *      pDataOut                 : onionパラメータ
- *
- * +------+                          +------+                          +------+
- * |node_A|------------------------->|node_B|------------------------->|node_C|
- * +------+  update_add_htlc         +------+  update_add_htlc         +------+
- *             amount_msat_AB                    amount_msat_BC
- *             onion_routing_packet_AB           onion_routing_packet_BC
- *               amt_to_forward_BC
- */
-static bool check_recv_add_htlc_bolt4_final___xxx(
-    ln_channel_t *pChannel, utl_push_t *pPushReason, ln_msg_x_update_add_htlc_t *pForwardParam,
-    uint8_t *pPreimage, int32_t Height)
-{
-    //search preimage
-    ln_db_preimage_t preimage;
-    uint8_t preimage_hash[BTC_SZ_HASH256];
-
-    preimage.amount_msat = (uint64_t)-1;
-    preimage.expiry = 0;
-    void *p_cur;
-    if (!ln_db_preimage_cur_open(&p_cur)) { //XXX: internal error?
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
-        utl_push_u16be(pPushReason, LNONION_INCRR_OR_UNKNOWN_PAY);
-        utl_push_u64be(pPushReason, pForwardParam->amount_msat); //[8:htlc_msat]
-        return false;
-    }
-    bool detect = false;
-    for (;;) {
-        detect = false;
-        if (!ln_db_preimage_cur_get(p_cur, &detect, &preimage)) break;     //from invoice
-        if (!detect) continue;
-        memcpy(pPreimage, preimage.preimage, LN_SZ_PREIMAGE);
-        ln_payment_hash_calc(preimage_hash, pPreimage);
-        if (memcmp(preimage_hash, pForwardParam->p_payment_hash, BTC_SZ_HASH256)) continue;
-        break;
-    }
-    ln_db_preimage_cur_close(p_cur, false);
-    if (!detect) {
-        //C1. if the payment hash has already been paid:
-        //      ★(採用)MAY treat the payment hash as unknown.★
-        //      MAY succeed in accepting the HTLC.
-        //C3. if the payment hash is unknown:
-        //      unknown_payment_hash
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
-        utl_push_u16be(pPushReason, LNONION_INCRR_OR_UNKNOWN_PAY);
-        utl_push_u64be(pPushReason, pForwardParam->amount_msat); //[8:htlc_msat]
-        return false;
-    }
-    LOGD("match preimage: ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
-
-    //C2. if the amount paid is less than the amount expected:
-    //      incorrect_payment_amount
-    if (pForwardParam->amount_msat < preimage.amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64,
-            pForwardParam->amount_msat, preimage.amount_msat);
-        utl_push_u16be(pPushReason, LNONION_INCRR_OR_UNKNOWN_PAY);
-        utl_push_u64be(pPushReason, pForwardParam->amount_msat); //[8:htlc_msat]
-        return false;
-    }
-
-    //C4. if the amount paid is more than twice the amount expected:
-    //      incorrect_payment_amount
-    if (preimage.amount_msat * 2 < pForwardParam->amount_msat) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64,
-            preimage.amount_msat * 2, pForwardParam->amount_msat);
-        utl_push_u16be(pPushReason, LNONION_INCRR_OR_UNKNOWN_PAY);
-        utl_push_u64be(pPushReason, pForwardParam->amount_msat); //[8:htlc_msat]
-        return false;
-    }
-
-    //C5. if the cltv_expiry value is unreasonably near the present:
-    //      final_expiry_too_soon
-    //          今のところ、min_final_cltv_expiryは固定値(#LN_MIN_FINAL_CLTV_EXPIRY)しかない。
-    LOGD("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n",
-        pForwardParam->cltv_expiry, LN_MIN_FINAL_CLTV_EXPIRY, Height);
-    if ( (pForwardParam->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)Height + LN_MIN_FINAL_CLTV_EXPIRY) ||
-         (pForwardParam->cltv_expiry < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
-        LOGD("%" PRIu32 " < %" PRId32 "\n",
-            pForwardParam->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, Height + M_HYSTE_CLTV_EXPIRY_MIN);
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "cltv_expiry too soon(final)");
-        utl_push_u16be(pPushReason, LNONION_FINAL_EXPIRY_TOO_SOON);
-        return false;
-    }
-
-    //C6. if the outgoing_cltv_value does NOT correspond with the cltv_expiry from the final node's HTLC:
-    //      final_incorrect_cltv_expiry
-    if (pForwardParam->outgoing_cltv_value != pForwardParam->cltv_expiry) {
-        LOGD("%" PRIu32 " --- %" PRIu32 "\n", pForwardParam->outgoing_cltv_value, pForwardParam->cltv_expiry);
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect cltv expiry(final)");
-        utl_push_u16be(pPushReason, LNONION_FINAL_INCORR_CLTV_EXP);
-        utl_push_u32be(pPushReason, pForwardParam->cltv_expiry); //[4:cltv_expiry]
-        return false;
-    }
-
-    //C7. if the amt_to_forward is greater than the incoming_htlc_amt from the final node's HTLC:
-    //      final_incorrect_htlc_amount
-    if (pForwardParam->amt_to_forward > pForwardParam->amount_msat) {
-        LOGD("%" PRIu64 " --- %" PRIu64 "\n", pForwardParam->amt_to_forward, pForwardParam->amount_msat);
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "incorrect_payment_amount(final)");
-        utl_push_u16be(pPushReason, LNONION_FINAL_INCORR_HTLC_AMT);
-        utl_push_u32be(pPushReason, pForwardParam->amount_msat); //[4:incoming_htlc_amt]
-        return false;
-    }
-    return true;
 }
 
 
