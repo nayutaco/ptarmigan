@@ -444,9 +444,20 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFundingConf)
  * 送金
  *******************************************/
 
+//pingを送信した直後で呼ばれることもあるため、1回分まではtrueとみなす。
 bool lnapp_check_ponglist(const lnapp_conf_t *pAppConf)
 {
-    return LIST_EMPTY(&pAppConf->pong_head);
+    int pongcnt = 0;
+
+    ponglist_t *p = LIST_FIRST(&pAppConf->pong_head);
+    while (p != NULL) {
+        pongcnt++;
+        if (pongcnt > 1) {
+            return false;
+        }
+        p = LIST_NEXT(p, list);
+    }
+    return true;
 }
 
 
