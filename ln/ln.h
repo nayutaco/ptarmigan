@@ -585,7 +585,7 @@ bool ln_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
  * @param[in,out]       pChannel        channel info
  * @param[in]           FeeratePerKw    latest feerate_per_kw
  */
-void ln_recv_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw);
+void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 
 
 /** 接続直後のfunding_locked必要性チェック
