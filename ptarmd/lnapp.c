@@ -274,7 +274,6 @@ void lnapp_conf_stop(lnapp_conf_t *pAppConf)
 {
     pAppConf->active = false;
 
-    lnapp_payroute_clear(pAppConf);
     while (pAppConf->pong_head.lh_first) {
         LIST_REMOVE(pAppConf->pong_head.lh_first, list);
         UTL_DBG_FREE(pAppConf->pong_head.lh_first);
@@ -489,10 +488,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         pPay->hop_datain[0].amt_to_forward, pPay->payment_hash,
         pPay->hop_datain[0].outgoing_cltv_value, onion);
     if (ret) {
-        //再routing用に送金経路を保存
-        lnapp_payroute_push(pAppConf, pPay, payment_id);
+        if (!lnapp_payment_route_save(payment_id, pPay)) {
+            LOGE("fail: ???\n");
+        }
     } else {
-        //local_msatが足りない場合もこのルート
         goto LABEL_EXIT;
     }
 
