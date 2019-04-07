@@ -4205,6 +4205,7 @@ static int db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int 
         pDb->p_txn = NULL;
         goto LABEL_EXIT;
     }
+    pDb->p_txn = pTxn;
 
 LABEL_EXIT:
     return retval;
