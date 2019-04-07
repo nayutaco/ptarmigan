@@ -102,6 +102,9 @@
  *              -# "shared_secrets"
  *                  - key: payment_id
  *                  - data: shared_secrets
+ *              -# "route"
+ *                  - key: payment_id
+ *                  - data: route
  */
 #ifndef LN_DB_LMDB_H__
 #define LN_DB_LMDB_H__
@@ -167,6 +170,7 @@ typedef enum {
     LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX,
     LN_LMDB_DB_TYPE_PAYMENT,
     LN_LMDB_DB_TYPE_SHARED_SECRETS,
+    LN_LMDB_DB_TYPE_ROUTE,
 } ln_lmdb_db_type_t;
 
 
