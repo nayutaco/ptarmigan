@@ -128,6 +128,7 @@
 #define M_DBI_VERSION           "version"                   ///< verion
 #define M_DBI_PAYMENT           "payment"                   ///< payment
 #define M_DBI_SHARED_SECRETS    "shared_secrets"            ///< shared secrets
+#define M_DBI_ROUTE             "route"                     ///< route
 
 #define M_SZ_CHANNEL_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_FORWARD_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_SHORT_CHANNEL_ID * 2)
@@ -652,6 +653,9 @@ static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint
 
 static int payment_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PaymentId);
+static bool db_payment_save(const char *pDbName, uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
+static bool db_payment_load(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId);
+static bool db_payment_del(const char *pDbName, uint64_t PaymentId);
 
 static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
 static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
@@ -3797,6 +3801,7 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
 
     if (strcmp(pDbName, M_DBI_PAYMENT) == 0) return LN_LMDB_DB_TYPE_PAYMENT;
     if (strcmp(pDbName, M_DBI_SHARED_SECRETS) == 0) return LN_LMDB_DB_TYPE_SHARED_SECRETS;
+    if (strcmp(pDbName, M_DBI_ROUTE) == 0) return LN_LMDB_DB_TYPE_ROUTE;
 
     return LN_LMDB_DB_TYPE_UNKNOWN;
 }
@@ -4080,87 +4085,37 @@ bool ln_db_payment_get_new_payment_id(uint64_t *pPaymentId)
 
 bool ln_db_payment_shared_secrets_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
 {
-    int             retval;
-    MDB_val         key, data;
-    ln_lmdb_db_t    db;
-    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
-
-    retval = payment_db_open(&db, M_DBI_SHARED_SECRETS, 0, MDB_CREATE);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
-    }
-
-    payment_id_set_key(key_data, &key, PaymentId);
-    data.mv_size = Len;
-    data.mv_data = (CONST_CAST char*)pData;
-    retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
-    }
-
-    MDB_TXN_COMMIT(db.p_txn);
-    return true;
+    return db_payment_save(M_DBI_SHARED_SECRETS, PaymentId, pData, Len);
 }
 
 
 bool ln_db_payment_shared_secrets_load(utl_buf_t *pBuf, uint64_t PaymentId)
 {
-    int             retval;
-    MDB_val         key, data;
-    ln_lmdb_db_t    db;
-    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
-
-    retval = payment_db_open(&db, M_DBI_SHARED_SECRETS, 0, MDB_CREATE);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
-    }
-
-    payment_id_set_key(key_data, &key, PaymentId);
-    retval = mdb_get(db.p_txn, db.dbi, &key, &data);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
-    }
-
-    if (!utl_buf_alloccopy(pBuf, data.mv_data, data.mv_size)) {
-        LOGE("fail: ???\n");
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
-    }
-
-    MDB_TXN_ABORT(db.p_txn);
-    return true;
+    return db_payment_load(M_DBI_SHARED_SECRETS, pBuf, PaymentId);
 }
 
 
 bool ln_db_payment_shared_secrets_del(uint64_t PaymentId)
 {
-    int             retval;
-    MDB_val         key;
-    ln_lmdb_db_t    db;
-    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+    return db_payment_del(M_DBI_SHARED_SECRETS, PaymentId);
+}
 
-    retval = payment_db_open(&db, M_DBI_SHARED_SECRETS, 0, MDB_CREATE);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
-    }
 
-    payment_id_set_key(key_data, &key, PaymentId);
-    retval = mdb_del(db.p_txn, db.dbi, &key, NULL);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
-    }
+bool ln_db_payment_route_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
+{
+    return db_payment_save(M_DBI_ROUTE, PaymentId, pData, Len);
+}
 
-    MDB_TXN_COMMIT(db.p_txn);
-    return true;
+
+bool ln_db_payment_route_load(utl_buf_t *pBuf, uint64_t PaymentId)
+{
+    return db_payment_load(M_DBI_ROUTE, pBuf, PaymentId);
+}
+
+
+bool ln_db_payment_route_del(uint64_t PaymentId)
+{
+    return db_payment_del(M_DBI_ROUTE, PaymentId);
 }
 
 
@@ -6103,6 +6058,92 @@ static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t Paymen
     pKey->mv_size = M_SZ_PAYMENT_ID_KEY;
     pKey->mv_data = pKeyData;
     utl_int_unpack_u64be(pKeyData, PaymentId);
+}
+
+
+static bool db_payment_save(const char *pDbName, uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
+{
+    int             retval;
+    MDB_val         key, data;
+    ln_lmdb_db_t    db;
+    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+
+    retval = payment_db_open(&db, pDbName, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    data.mv_size = Len;
+    data.mv_data = (CONST_CAST char*)pData;
+    retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
+}
+
+
+static bool db_payment_load(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId)
+{
+    int             retval;
+    MDB_val         key, data;
+    ln_lmdb_db_t    db;
+    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+
+    retval = payment_db_open(&db, pDbName, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    retval = mdb_get(db.p_txn, db.dbi, &key, &data);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    if (!utl_buf_alloccopy(pBuf, data.mv_data, data.mv_size)) {
+        LOGE("fail: ???\n");
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_ABORT(db.p_txn);
+    return true;
+}
+
+
+static bool db_payment_del(const char *pDbName, uint64_t PaymentId)
+{
+    int             retval;
+    MDB_val         key;
+    ln_lmdb_db_t    db;
+    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
+
+    retval = payment_db_open(&db, pDbName, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    retval = mdb_del(db.p_txn, db.dbi, &key, NULL);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.p_txn);
+        return false;
+    }
+
+    MDB_TXN_COMMIT(db.p_txn);
+    return true;
 }
 
 

@@ -873,6 +873,11 @@ bool ln_db_payment_shared_secrets_save(uint64_t PaymentId, const uint8_t *pData,
 bool ln_db_payment_shared_secrets_load(utl_buf_t *pBuf, uint64_t PaymentId);
 bool ln_db_payment_shared_secrets_del(uint64_t PaymentId);
 
+//XXX: comment
+bool ln_db_payment_route_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
+bool ln_db_payment_route_load(utl_buf_t *pBuf, uint64_t PaymentId);
+bool ln_db_payment_route_del(uint64_t PaymentId);
+
 
 /********************************************************************
  * others
