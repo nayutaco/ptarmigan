@@ -94,7 +94,7 @@
  *                  - data: msg of update_add_htlc
  *              -# "DL" + next_short_channel_id
  *                  - key: prev_short_channel_id[8] + prev_htlc_id[8]
- *                  - data: msg of update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc
+ *                  - data: msg of update_fulfill_htlc/update_fail_htlc
  *          -# payment
  *              -# "payment"
  *                  - key: "payment_id"
