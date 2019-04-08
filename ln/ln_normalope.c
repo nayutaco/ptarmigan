@@ -899,6 +899,65 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
 }
 
 
+static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel)
+{
+    void* p_cur = NULL;
+    if (!ln_db_forward_add_htlc_cur_open(&p_cur, pChannel->short_channel_id)) {
+        return true;
+    }
+
+    uint64_t    prev_short_channel_id;
+    uint64_t    prev_htlc_id;
+    bool        b_commit = false;
+    utl_buf_t   buf = UTL_BUF_INIT;
+    while (ln_db_forward_add_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
+        utl_buf_t   reason = UTL_BUF_INIT;
+        utl_push_t  push_reason;
+        utl_buf_t   buf_cnlupd = UTL_BUF_INIT;
+
+        utl_push_init(&push_reason, &reason, 0);
+
+        if (load_channel_update_local(pChannel, &buf_cnlupd, NULL, pChannel->short_channel_id)) {
+            utl_push_u16be(&push_reason, LNONION_TMP_CHAN_FAIL);
+            utl_push_u16be(&push_reason, (uint16_t)buf_cnlupd.len);
+            utl_push_data(&push_reason, buf_cnlupd.buf, buf_cnlupd.len);
+        } else {
+            LOGE("fail: ???\n");
+            utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
+        }
+
+        if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+            LOGE("fail: ???\n");
+        }
+
+        ln_msg_x_update_fail_htlc_t forward_msg;
+        forward_msg.len = reason.len;
+        forward_msg.p_reason = reason.buf;
+        utl_buf_free(&buf);
+        if (ln_msg_x_update_fail_htlc_write(&buf, &forward_msg)) {
+            ln_db_forward_t param;
+            param.next_short_channel_id = prev_short_channel_id;
+            param.prev_short_channel_id = prev_short_channel_id;
+            param.prev_htlc_id = prev_htlc_id;
+            param.p_msg = &buf;
+            if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
+                LOGE("fail: ???\n");
+            }
+        } else {
+            LOGE("fail: ???\n");
+        }
+        b_commit = true;
+
+        utl_buf_free(&buf);
+        utl_buf_free(&reason);
+        utl_buf_free(&buf_cnlupd);
+    }
+
+    ln_db_forward_add_htlc_cur_close(p_cur, b_commit);
+    return true;
+}
+
+
 static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
 {
     void* p_cur = NULL;
@@ -1026,6 +1085,13 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     if (ln_update_info_commitment_signed_send_needs(&pChannel->update_info)) {
         if (!commitment_signed_send(pChannel)) return;
     }
+}
+
+
+void ln_idle_proc_inactive(ln_channel_t *pChannel)
+{
+    if (!pChannel->short_channel_id) return;
+    /*ignore*/poll_update_add_htlc_forward_inactive(pChannel);
 }
 
 

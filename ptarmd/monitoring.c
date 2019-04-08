@@ -99,6 +99,7 @@ static struct monchanlisthead_t mMonChanListHead;
  ********************************************************************/
 
 static void connect_nodelist(void);
+static void proc_inactive_channel(lnapp_conf_t *pConf, void *pParam);
 static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam);
 static void monfunc_2(lnapp_conf_t *pConf, void *pParam);
 
@@ -156,6 +157,7 @@ void *monitor_start(void *pArg)
         lnapp_manager_prune_node();
         bool ret = update_btc_values();
         if (ret) {
+            lnapp_manager_each_node(proc_inactive_channel, NULL);
             lnapp_manager_each_node(monfunc_2, &mMonParam);
         }
         LOGD("$$$----end\n");
@@ -364,6 +366,20 @@ static void connect_nodelist(void)
         }
     }
     UTL_DBG_FREE(p_conf);
+}
+
+
+static void proc_inactive_channel(lnapp_conf_t *pConf, void *pParam)
+{
+    (void)pParam;
+
+    pthread_mutex_lock(&pConf->mux_conf);
+    pthread_mutex_lock(&pConf->mux_channel);
+    if (!pConf->active) {
+        ln_idle_proc_inactive(&pConf->channel);
+    }
+    pthread_mutex_unlock(&pConf->mux_conf);
+    pthread_mutex_unlock(&pConf->mux_channel);
 }
 
 
