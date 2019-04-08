@@ -79,7 +79,7 @@ lnapp_conf_t *p2p_search_active_node(const uint8_t *pNodeId);
 /** [p2p]short_channel_idによる検索
  *
  */
-lnapp_conf_t *p2p_search_active_node_short_channel_id(uint64_t short_channel_id);
+lnapp_conf_t *p2p_search_active_channel(uint64_t short_channel_id);
 
 
 /** [p2p]動作中lnapp全出力

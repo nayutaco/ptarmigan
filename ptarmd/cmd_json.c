@@ -911,15 +911,11 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("payment\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_transferable_node_id(payconf.hop_datain[1].pubkey);
-    if (p_appconf != NULL) {
-
-        bool inited = lnapp_is_inited(p_appconf);
-        if (inited) {
-            bool ret;
+    lnapp_conf_t *p_conf = ptarmd_search_transferable_node_id(payconf.hop_datain[1].pubkey);
+    if (p_conf) {
+        if (lnapp_is_inited(p_conf)) {
             const char *p_result = NULL;
-            ret = lnapp_payment(p_appconf, &payconf, &p_result);
-            if (ret) {
+            if (lnapp_payment(p_conf, &payconf, &p_result)) {
                 LOGD("payment start\n");
                 result = cJSON_CreateString("Progressing");
             } else {
@@ -929,6 +925,8 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
             //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
             err = RPCERR_NOINIT;
         }
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
     } else {
         err = RPCERR_NOCONN;
     }
@@ -1019,10 +1017,9 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    lnapp_conf_t *p_appconf = ptarmd_search_transferable_node_id(rt_ret.hop_datain[1].pubkey);
-    if (p_appconf != NULL) {
-        bool ret = lnapp_check_ponglist(p_appconf);
-        if (!ret) {
+    lnapp_conf_t *p_conf = ptarmd_search_transferable_node_id(rt_ret.hop_datain[1].pubkey);
+    if (p_conf) {
+        if (!lnapp_check_ponglist(p_conf)) {
             LOGE("fail: node busy\n");
             err = RPCERR_BUSY;
             goto LABEL_EXIT;
@@ -1034,7 +1031,7 @@ static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
     //      これ以降は失敗してもリトライする
     LOGD("routepay: pay1\n");
     err = cmd_routepay_proc2(
-                    p_appconf,
+                    p_conf,
                     p_invoice_data, &rt_ret,
                     p_invoice, add_amount_msat);
     retry = (err == RPCERR_PAY_RETRY);
@@ -1070,6 +1067,7 @@ LABEL_EXIT:
     }
     UTL_DBG_FREE(p_invoice_data);
     UTL_DBG_FREE(p_invoice);
+    lnapp_manager_free_node_ref(p_conf);
 
     return result;
 }
@@ -1140,15 +1138,16 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("$$$ [JSONRPC]getlasterror\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(conn.node_id);
-    if (p_appconf != NULL) {
-        //接続中
-        LOGD("error code: %d\n", p_appconf->err);
-        ctx->error_code = p_appconf->err;
-        if (p_appconf->p_errstr != NULL) {
-            LOGD("error msg: %s\n", p_appconf->p_errstr);
-            ctx->error_message = strdup_cjson(p_appconf->p_errstr);
+    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(conn.node_id);
+    if (p_conf) {
+        LOGD("error code: %d\n", p_conf->err);
+        ctx->error_code = p_conf->err;
+        if (p_conf->p_errstr != NULL) {
+            LOGD("error msg: %s\n", p_conf->p_errstr);
+            ctx->error_message = strdup_cjson(p_conf->p_errstr);
         }
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
     } else {
         err = RPCERR_NOCONN;
     }
@@ -1621,9 +1620,15 @@ static int cmd_connect_proc(const peer_conn_t *pConn)
 
     int retry = M_RETRY_CONN_CHK;
     while (retry--) {
-        lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pConn->node_id);
-        if ((p_appconf != NULL) && lnapp_is_active(p_appconf) && lnapp_is_connected(p_appconf)) {
-            break;
+        lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pConn->node_id);
+        if (p_conf) {
+            if (lnapp_is_connected(p_conf)) {
+                lnapp_manager_free_node_ref(p_conf);
+                p_conf = NULL;
+                break;
+            }
+            lnapp_manager_free_node_ref(p_conf);
+            p_conf = NULL;
         }
         sleep(1);
     }
@@ -1645,10 +1650,12 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
     LOGD("disconnect\n");
 
     int err;
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
-    if (p_appconf != NULL) {
-        lnapp_stop(p_appconf);
+    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+    if (p_conf) {
+        lnapp_stop(p_conf);
         err = 0;
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
     } else {
         err = RPCERR_NOCONN;
     }
@@ -1681,33 +1688,37 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 {
     LOGD("fund\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
-    if (p_appconf == NULL) {
+    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+    if (!p_conf) {
         //未接続
         return RPCERR_NOCONN;
     }
 
-    bool haveCnl = ln_node_search_channel(NULL, pNodeId);
-    if (haveCnl) {
+    if (ln_node_search_channel(NULL, pNodeId)) {
         //開設しようとしてチャネルが開いている
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return RPCERR_ALOPEN;
     }
 
-    bool is_funding = ln_funding_info_funding_now(&p_appconf->channel.funding_info);
-    if (is_funding) {
+    if (ln_funding_info_funding_now(&p_conf->channel.funding_info)) {
         //開設しようとしてチャネルが開設中
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return RPCERR_OPENING;
     }
 
-    bool inited = lnapp_is_inited(p_appconf);
-    if (!inited) {
+    if (!lnapp_is_inited(p_conf)) {
         //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return RPCERR_NOINIT;
     }
 
-    bool nopong = lnapp_check_ponglist(p_appconf);
-    if (!nopong) {
+    if (!lnapp_check_ponglist(p_conf)) {
         LOGE("fail: node busy\n");
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return RPCERR_BUSY;
     }
 
@@ -1717,6 +1728,8 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
     }
     if (feerate_per_kw == 0) {
         LOGE("fail: feerate_per_kw==0\n");
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return RPCERR_BLOCKCHAIN;
     }
     uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
@@ -1727,14 +1740,18 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         LOGD(str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return M_RPCERR_FREESTRING;
     }
 
-    bool ret = lnapp_funding(p_appconf, pFund);
-    if (!ret) {
+    if (!lnapp_funding(p_conf, pFund)) {
+        lnapp_manager_free_node_ref(p_conf);
+        p_conf = NULL;
         return RPCERR_FUNDING;
     }
 
+    lnapp_manager_free_node_ref(p_conf);
     return 0;
 }
 
@@ -2006,39 +2023,33 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
 {
     LOGD("mutual close\n");
 
-    int err;
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
-    if (p_appconf != NULL) {
-        //接続中
-        bool nopong = lnapp_check_ponglist(p_appconf);
-        if (!nopong) {
-            LOGE("fail: node busy\n");
-            err = RPCERR_BUSY;
-            goto LABEL_EXIT;
-        }
-
-        ln_status_t stat = ln_status_get(&p_appconf->channel);
-        if ((stat < LN_STATUS_ESTABLISH) || (LN_STATUS_NORMAL < stat)) {
-            err = RPCERR_NOCHANNEL;
-            goto LABEL_EXIT;
-        }
-
-        bool ret = lnapp_close_channel(p_appconf);
-        if (ret) {
-            err = 0;
-        } else {
-            LOGE("fail: mutual  close\n");
-            err = RPCERR_CLOSE_START;
-        }
-    } else {
-        if (p_appconf == NULL) {
-            err = RPCERR_NOCONN;
-        } else {
-            err = RPCERR_CLOSE_CLEAN;
-        }
+    int err = 0;
+    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+    if (!p_conf) {
+        return RPCERR_NOCONN;
     }
 
+    if (!lnapp_check_ponglist(p_conf)) {
+        LOGE("fail: node busy\n");
+        err = RPCERR_BUSY;
+        goto LABEL_EXIT;
+    }
+
+    ln_status_t stat = ln_status_get(&p_conf->channel);
+    if ((stat < LN_STATUS_ESTABLISH) || (LN_STATUS_NORMAL < stat)) {
+        err = RPCERR_NOCHANNEL;
+        goto LABEL_EXIT;
+    }
+
+    if (!lnapp_close_channel(p_conf)) {
+        LOGE("fail: mutual  close\n");
+        err = RPCERR_CLOSE_START;
+    }
+
+    err = 0;
+
 LABEL_EXIT:
+    lnapp_manager_free_node_ref(p_conf);
     return err;
 }
 
@@ -2057,9 +2068,10 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
     if (haveCnl) {
         bool ret = lnapp_close_channel_force(pNodeId);
         if (ret) {
-            lnapp_conf_t *p_appconf = ptarmd_search_connected_node_id(pNodeId);
-            if (p_appconf != NULL) {
-                lnapp_stop(p_appconf);
+            lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+            if (p_conf) {
+                lnapp_stop(p_conf);
+                lnapp_manager_free_node_ref(p_conf);
             }
             err = 0;
         } else {

@@ -129,9 +129,10 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         goto LABEL_EXIT;
     }
     lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pConn->node_id);
-    if (p_conf != NULL) {
+    if (p_conf) {
         LOGE("fail: already connected.\n");
         *pErrCode = RPCERR_ALCONN;
+        lnapp_manager_free_node_ref(p_conf);
         goto LABEL_EXIT;
     }
 
@@ -377,10 +378,10 @@ lnapp_conf_t *p2p_search_active_node(const uint8_t *pNodeId)
 {
     lnapp_conf_t *p_conf = lnapp_manager_get_node(pNodeId);
     if (!p_conf) return NULL;
-    lnapp_manager_free_node_ref(p_conf); //XXX: the caller needs to be free
     pthread_mutex_lock(&p_conf->mux_conf);
     if (!p_conf->active) {
         pthread_mutex_unlock(&p_conf->mux_conf);
+        lnapp_manager_free_node_ref(p_conf);
         return NULL;
     }
     pthread_mutex_unlock(&p_conf->mux_conf);
@@ -388,7 +389,7 @@ lnapp_conf_t *p2p_search_active_node(const uint8_t *pNodeId)
 }
 
 
-lnapp_conf_t *p2p_search_active_node_short_channel_id(uint64_t short_channel_id)
+lnapp_conf_t *p2p_search_active_channel(uint64_t short_channel_id)
 {
     param_search_node_t param;
     param.short_channel_id = short_channel_id;
