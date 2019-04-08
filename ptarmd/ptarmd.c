@@ -301,7 +301,7 @@ const char *ptarmd_execpath_get(void)
 
 lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 {
-    return p2p_search_short_channel_id(short_channel_id);
+    return p2p_search_active_node_short_channel_id(short_channel_id);
 }
 
 
@@ -338,7 +338,7 @@ LABEL_EXIT:
 
 lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id)
 {
-    return p2p_search_node(p_node_id);
+    return p2p_search_active_node(p_node_id);
 }
 
 

@@ -373,7 +373,7 @@ void p2p_stop(void)
 }
 
 
-lnapp_conf_t *p2p_search_node(const uint8_t *pNodeId)
+lnapp_conf_t *p2p_search_active_node(const uint8_t *pNodeId)
 {
     lnapp_conf_t *p_conf = lnapp_manager_get_node(pNodeId);
     if (!p_conf) return NULL;
@@ -388,7 +388,7 @@ lnapp_conf_t *p2p_search_node(const uint8_t *pNodeId)
 }
 
 
-lnapp_conf_t *p2p_search_short_channel_id(uint64_t short_channel_id)
+lnapp_conf_t *p2p_search_active_node_short_channel_id(uint64_t short_channel_id)
 {
     param_search_node_t param;
     param.short_channel_id = short_channel_id;
@@ -397,7 +397,7 @@ lnapp_conf_t *p2p_search_short_channel_id(uint64_t short_channel_id)
     lnapp_manager_each_node(search_node_by_short_channel_id, &param);
     if (!param.found) return NULL;
 
-    return p2p_search_node(param.node_id);
+    return p2p_search_active_node(param.node_id);
 }
 
 void p2p_show_channel(cJSON *pResult)
