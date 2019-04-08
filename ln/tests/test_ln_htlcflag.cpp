@@ -1325,7 +1325,6 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     p_htlc->cltv_expiry = 100;
     p_update->type = LN_UPDATE_TYPE_ADD_HTLC;
     p_update->state = 0;
-    p_update->fin_type = LN_UPDATE_TYPE_NONE;
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
     LN_UPDATE_FLAG_UNSET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_CS_SEND);
@@ -1361,10 +1360,6 @@ TEST_F(ln_htlc_flag, htlc_flag_offer_timeout)
     LN_UPDATE_FLAG_UNSET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_RECV);
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&channel, 0, 100));
-    *p_update = bak;
-
-    p_update->fin_type = LN_UPDATE_TYPE_FULFILL_HTLC;
-    ASSERT_TRUE(ln_is_offered_htlc_timeout(&channel, 0, 100));
     *p_update = bak;
 }
 

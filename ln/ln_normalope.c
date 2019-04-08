@@ -500,7 +500,6 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 if (ln_db_forward_add_htlc_save(&param)) {
                     LOGD("\n");
                 } else {
-                    //XXX: set fin_type
                     LOGE("fail: ???\n");
                 }
             }

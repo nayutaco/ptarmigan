@@ -38,6 +38,7 @@ extern "C" {
 #include "ln_msg.c"
 //#include "ln_msg_establish.c"
 #include "ln_msg_normalope.c"
+#include "ln_msg_x_normalope.c"
 #include "ln_msg_setupctl.c"
 #include "ln_setupctl.c"
 #include "ln_node.c"
@@ -149,9 +150,7 @@ public:
         case LN_CB_TYPE_WAIT_FUNDING_TX: p_str = "LN_CB_TYPE_WAIT_FUNDING_TX"; break;
         case LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV: p_str = "LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV"; break;
         case LN_CB_TYPE_NOTIFY_ANNODB_UPDATE: p_str = "LN_CB_TYPE_NOTIFY_ANNODB_UPDATE"; break;
-        case LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV: p_str = "LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV_PREV"; break;
         case LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV"; break;
-        case LN_CB_TYPE_START_FWD_ADD_HTLC: p_str = "LN_CB_TYPE_START_FWD_ADD_HTLC"; break;
         case LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV: p_str = "LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV"; break;
         case LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE: p_str = "LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE"; break;
         case LN_CB_TYPE_RETRY_PAYMENT: p_str = "LN_CB_TYPE_RETRY_PAYMENT"; break;
@@ -329,15 +328,14 @@ TEST_F(ln, set_add_htlc1)
     uint8_t payment_hash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
     uint64_t prev_htlc_id = 3;
-    utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
     /*** TEST ***/
-    ret = ln_set_add_htlc_send(&channel, &buf_reason, onion,
-                amount_msat, cltv_expiry, payment_hash,
-                prev_schid, prev_htlc_id, &shared_secret);
+    ret = set_add_htlc_send(
+        &channel, &buf_reason, onion, amount_msat, cltv_expiry,
+        payment_hash, prev_schid, prev_htlc_id);
 
     /*** CHECK ***/
     ASSERT_TRUE(ret);
@@ -383,14 +381,13 @@ TEST_F(ln, create_add_htlc1)
     uint8_t payment_hash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
     uint64_t prev_htlc_id = 3;
-    utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payment_hash, 0xdd, BTC_SZ_HASH256);
 
-    ret = ln_set_add_htlc_send(&channel, &buf_reason, onion,
-                amount_msat, cltv_expiry, payment_hash,
-                prev_schid, prev_htlc_id, &shared_secret);
+    ret = set_add_htlc_send(
+        &channel, &buf_reason, onion, amount_msat, cltv_expiry,
+        payment_hash, prev_schid, prev_htlc_id);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, buf_reason.len);
 
@@ -466,6 +463,7 @@ TEST_F(ln, update_add_htlc_recv1)
 
     /*** TEST ***/
     ASSERT_TRUE(ln_update_add_htlc_recv(&channel, LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC, sizeof(LN_UPDATE_ADD_HTLC_A::UPDATE_ADD_HTLC)));
+    ASSERT_TRUE(check_recv_add_htlc_bolt4(&channel, 0));
 
     /*** CHECK ***/
     // ASSERT_EQ(0, channel.update_info.htlcs[0].neighbor_short_channel_id);
@@ -477,7 +475,6 @@ TEST_F(ln, update_add_htlc_recv1)
     //
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
     ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
-    ASSERT_EQ(LN_UPDATE_TYPE_FULFILL_HTLC, channel.update_info.updates[0].fin_type);
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_CS_RECV));
@@ -548,7 +545,6 @@ TEST_F(ln, update_add_htlc_recv2)
     //
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
     ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
-    ASSERT_EQ(LN_UPDATE_TYPE_FAIL_HTLC, channel.update_info.updates[0].fin_type);
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_SEND));
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
@@ -598,7 +594,6 @@ TEST_F(ln, update_add_htlc_recv3)
     //
     ASSERT_EQ(LN_UPDATE_TYPE_ADD_HTLC, channel.update_info.updates[0].type);
     ASSERT_TRUE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_RECV));
-    ASSERT_EQ(LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC, channel.update_info.updates[0].fin_type);
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_UP_SEND));
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_SEND));
     ASSERT_FALSE(LN_UPDATE_FLAG_IS_SET(&channel.update_info.updates[0], LN_UPDATE_STATE_FLAG_RA_RECV));
