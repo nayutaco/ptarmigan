@@ -504,25 +504,6 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                     LOGE("fail: ???\n");
                 }
             }
-
-            if (LN_DBG_FULFILL()) {
-                //XXX: Send immediately?
-                switch (p_update->fin_type) {
-                case LN_UPDATE_TYPE_FULFILL_HTLC:
-                    LOGD("fin update type: %d\n", p_update->fin_type);
-                    /*ignore*/ ln_fulfill_htlc_set(
-                        pChannel, p_htlc->id, NULL); //XXX:
-                        //XXX: Should callback to the final node and register the preimage
-                    break;
-                case LN_UPDATE_TYPE_FAIL_HTLC:
-                case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
-                    /*ignore*/ ln_fail_htlc_set(
-                        pChannel, p_htlc->id, p_update->fin_type, NULL);
-                        //XXX: Should callback to the (final) node
-                default:
-                    ;
-                }
-            }
         } else if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_MASK_FAIL_HTLC, true)) {
             ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
@@ -726,32 +707,34 @@ bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateTyp
     ln_update_t *p_update_add_htlc = &pChannel->update_info.updates[update_idx_add_htlc];
     if (!LN_UPDATE_RECV_ENABLED(p_update_add_htlc, LN_UPDATE_TYPE_ADD_HTLC, true)) return false;
 
-    if (LN_UPDATE_IRREVOCABLY_COMMITTED(p_update_add_htlc)) {
-        uint16_t update_idx_del_htlc;
-        if (!ln_update_info_set_del_htlc_pre_send(
-            &pChannel->update_info, &update_idx_del_htlc, HtlcId, UpdateType)) {
-            return false;
-        }
-        LN_DBG_UPDATE_PRINT(&pChannel->update_info.updates[update_idx_del_htlc]);
-    } else {
-        p_update_add_htlc->fin_type = UpdateType;
+    uint16_t update_idx_del_htlc;
+    if (!ln_update_info_set_del_htlc_pre_send(
+        &pChannel->update_info, &update_idx_del_htlc, HtlcId, UpdateType)) {
+        return false;
     }
+    LN_DBG_UPDATE_PRINT(&pChannel->update_info.updates[update_idx_del_htlc]);
 
     ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update_add_htlc->type_specific_idx];
     utl_buf_free(&p_htlc->buf_onion_reason);
-    if (pReason->len < 256) { //XXX: ???
-        if (pReason->len) {
-            ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
+    if (UpdateType == LN_UPDATE_TYPE_FAIL_HTLC) {
+        if (pReason->len < 256) { //XXX: ???
+            if (pReason->len) {
+                ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
+            } else {
+                utl_buf_t reason = UTL_BUF_INIT;
+                utl_push_t push_reason;
+                utl_push_init(&push_reason, &reason, 0);
+                utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
+                ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &reason);
+                utl_buf_free(&reason);
+            }
         } else {
-            utl_buf_t reason = UTL_BUF_INIT;
-            utl_push_t push_reason;
-            utl_push_init(&push_reason, &reason, 0);
-            utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
-            ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &reason);
-            utl_buf_free(&reason);
+            ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
         }
+    } else if (UpdateType == LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) {
+        utl_buf_alloccopy(&p_htlc->buf_onion_reason, pReason->buf, pReason->len);
     } else {
-        ln_onion_failure_forward(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
+        assert(0);
     }
     return true;
 }
@@ -1309,22 +1292,14 @@ LABEL_ERROR:
     switch (result) {
     case RESULT_FAIL:
         LOGE("fail: will backwind fail_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
-            pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FAIL_HTLC);
-        p_update->fin_type = LN_UPDATE_TYPE_FAIL_HTLC;
-        utl_buf_free(&p_htlc->buf_onion_reason);
-        ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
+        /*ignore*/ln_fail_htlc_set(pChannel, p_htlc->id, LN_UPDATE_TYPE_FAIL_HTLC, &buf_reason);
         break;
     case RESULT_FAIL_MALFORMED:
         LOGE("fail: will backwind fail_malformed_htlc\n");
-        LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
-            pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC);
-        p_update->fin_type = LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC;
-        utl_buf_free(&p_htlc->buf_onion_reason);
-        utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
+        /*ignore*/ln_fail_htlc_set(pChannel, p_htlc->id, LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC, &buf_reason);
         break;
     default:
-        ;
+        assert(0);
     }
 
     utl_buf_free(&buf_reason);
@@ -1534,54 +1509,6 @@ static bool check_recv_add_htlc_bolt4_final(
         return false;
     }
     return true;
-
-#if 0
-    ln_cb_param_nofity_add_htlc_recv_t cb_param;
-    cb_param.ret = true;
-    cb_param.prev_htlc_id = p_htlc->id;
-    cb_param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
-    cb_param.p_payment_hash = p_htlc->payment_hash;
-    cb_param.p_forward_param = &msg;
-    cb_param.amount_msat = p_htlc->amount_msat;
-    cb_param.cltv_expiry = p_htlc->cltv_expiry;
-    cb_param.p_onion_reason = &p_htlc->buf_onion_reason;
-    cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
-    ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV, &cb_param);
-
-    if (!cb_param.ret) {
-        utl_buf_t buf = UTL_BUF_INIT;
-        if (ln_channel_update_get_peer(pChannel, &buf, NULL)) {
-            LOGE("fail: --> temporary channel failure\n");
-            utl_push_u16be(&push_reason, LNONION_TMP_CHAN_FAIL);
-            utl_push_u16be(&push_reason, (uint16_t)buf.len);
-            utl_push_data(&push_reason, buf.buf, buf.len);
-            utl_buf_free(&buf);
-        } else {
-            LOGE("fail: --> unknown next peer\n");
-            utl_push_u16be(&push_reason, LNONION_UNKNOWN_NEXT_PEER);
-        }
-        goto LABEL_ERROR;
-    }
-
-    LOGD("final node: will backwind fulfill_htlc\n");
-    LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
-        pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FULFILL_HTLC);
-    p_update->fin_type = LN_UPDATE_TYPE_FULFILL_HTLC;
-
-    utl_buf_free(&buf_reason);
-    return true;
-
-LABEL_ERROR:
-    LOGE("fail: will backwind fail_htlc\n");
-    LOGD("[FIN_DELHTLC](%016" PRIx64 ")%d --> %d\n",
-        pChannel->short_channel_id, p_update->fin_type, LN_UPDATE_TYPE_FAIL_HTLC);
-    p_update->fin_type = LN_UPDATE_TYPE_FAIL_HTLC;
-    utl_buf_free(&p_htlc->buf_onion_reason);
-    ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
-
-    utl_buf_free(&buf_reason);
-#endif
-    return false;
 }
 
 

@@ -149,7 +149,7 @@
 #define M_KEY_PAYMENT_ID        "payment_id"
 #define M_SZ_PAYMENT_ID         (sizeof(M_KEY_PAYMENT_ID) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-63))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-64))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -254,6 +254,7 @@
          add closed channel environment and move backup db to the environment
     -62: add `ln_htlc_t::forward_msg`
     -63: add `payment` env
+    -64: rm `ln_update_t::fin_type`
  */
 
 

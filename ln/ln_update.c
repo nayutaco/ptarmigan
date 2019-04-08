@@ -79,7 +79,6 @@ void ln_update_print(const ln_update_t *pUpdate)
 {
     LOGD("    type=%s\n", ln_update_type_str(pUpdate->type));
     LOGD("    state=%s\n", ln_update_state_str(pUpdate->state));
-    LOGD("    fin_type=%s\n", ln_update_type_str(pUpdate->fin_type));
 }
 
 void ln_update_updates_print(const ln_update_t *pUpdates)

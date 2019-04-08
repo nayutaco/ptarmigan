@@ -111,7 +111,6 @@ typedef struct {
     uint8_t             type;                           ///<
     uint8_t             state;                          ///<
     uint16_t            type_specific_idx;              ///<
-    uint8_t             fin_type;                       ///<
     bool                new_update;                     ///<
 } ln_update_t;
 
