@@ -5801,6 +5801,7 @@ static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNameP
     }
 
     MDB_TXN_COMMIT(db.p_txn);
+    MDB_DBI_CLOSE(mpEnvForward, db.dbi);
     db.p_txn = NULL;
 
 LABEL_EXIT:
@@ -5879,6 +5880,7 @@ static bool forward_del_2(uint64_t NextShortChannelId, uint64_t PrevShortChannel
     }
 
     MDB_TXN_COMMIT(db.p_txn);
+    MDB_DBI_CLOSE(mpEnvForward, db.dbi);
     return true;
 }
 
@@ -5955,6 +5957,7 @@ static void forward_cur_close(void *pCur, bool bCommit)
     MDB_TXN_CHECK_FORWARD(p_cur->p_txn);
     if (bCommit) {
         MDB_TXN_COMMIT(p_cur->p_txn);
+        MDB_DBI_CLOSE(mpEnvForward, p_cur->dbi);
     } else {
         MDB_TXN_ABORT(p_cur->p_txn);
     }
