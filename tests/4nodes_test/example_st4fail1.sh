@@ -35,7 +35,7 @@ echo `./ptarmcli -i $AMOUNT $PAYEE_PORT` | jq -r '.result.hash' >> $ROUTECONF
 
 # 強制的に中間のノードを終了させる
 ./ptarmcli -q 5556
-sleep 3
+sleep 10
 
 # 送金実施
 ./ptarmcli -p $ROUTECONF $PAYER_PORT
