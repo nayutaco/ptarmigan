@@ -67,4 +67,8 @@ bool lnapp_payment_route_del(uint64_t PaymentId);
 void lnapp_set_last_error(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* LNAPP_UTIL_H__ */

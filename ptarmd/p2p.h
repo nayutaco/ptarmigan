@@ -100,4 +100,8 @@ lnapp_conf_t *p2p_search_short_channel_id(uint64_t short_channel_id);
 void p2p_show_channel(cJSON *pResult);
 
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* P2P_H__ */
