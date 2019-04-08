@@ -19,6 +19,8 @@ extern "C" {
 //評価対象本体
 #undef LOG_TAG
 #include "lnapp.c"
+#include "lnapp_cb.c"
+#include "lnapp_util.c"
 }
 
 
