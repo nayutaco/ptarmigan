@@ -58,18 +58,6 @@ bool p2p_connect_test(const char *pIpAddr, uint16_t Port);
 bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode);
 
 
-/** [p2p] 接続情報を保存
- *
- */
-bool p2p_store_peer_conn(const peer_conn_t* pPeerConn);
-
-
-/** [p2p] 接続情報を復元
- *
- */
-bool p2p_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId);
-
-
 /** [p2p]開始
  *
  */

@@ -61,9 +61,6 @@
  * static variables
  ********************************************************************/
 
-static peer_conn_t mLastPeerConn;
-pthread_mutex_t mMuxLastPeerConn = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-
 volatile bool           mActive = true;
 
 
@@ -191,11 +188,6 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     fprintf(stderr, "[client]node_id=");
     utl_dbg_dump(stderr, pConn->node_id, BTC_SZ_PUBKEY, true);
 
-    //store for reconnection
-    if (!p2p_store_peer_conn(pConn)) {
-        LOGE("fail: store peer conn");
-    }
-
     peer_conn_handshake_t conn_handshake;
     conn_handshake.initiator = true;
     conn_handshake.sock = sock;
@@ -239,31 +231,6 @@ LABEL_EXIT:
         close(sock);
     }
     return bret;
-}
-
-
-bool p2p_store_peer_conn(const peer_conn_t* pPeerConn)
-{
-    pthread_mutex_lock(&mMuxLastPeerConn);
-    mLastPeerConn = *pPeerConn;
-    pthread_mutex_unlock(&mMuxLastPeerConn);
-
-    return true;
-}
-
-
-bool p2p_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId)
-{
-    bool ret = false;
-
-    pthread_mutex_lock(&mMuxLastPeerConn);
-    if (memcmp(mLastPeerConn.node_id, pNodeId, BTC_SZ_PUBKEY) == 0) {
-        *pPeerConn = mLastPeerConn;
-        ret = true;
-    }
-    pthread_mutex_unlock(&mMuxLastPeerConn);
-
-    return ret;
 }
 
 
