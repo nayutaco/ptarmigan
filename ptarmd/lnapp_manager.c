@@ -87,6 +87,7 @@ lnapp_conf_t *lnapp_manager_get_node(const uint8_t *pNodeId)
         if (memcmp(mAppConf[lp].node_id, pNodeId, BTC_SZ_PUBKEY)) continue;
         p_conf = &mAppConf[lp];
         p_conf->ref_counter++;
+        LOGD("ref_counter++: [%p] %u -> %u\n", p_conf, p_conf->ref_counter - 1, p_conf->ref_counter);
         break;
     }
     pthread_mutex_unlock(&mMuxAppconf);
@@ -98,13 +99,16 @@ void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
-        if (!memcmp(mAppConf[lp].node_id, mNodeIdOrigin, BTC_SZ_PUBKEY)) continue; //skip origin node
-        if (!mAppConf[lp].enabled) continue;
-        mAppConf[lp].ref_counter++;
+        lnapp_conf_t *p_conf = &mAppConf[lp];
+        if (!memcmp(p_conf->node_id, mNodeIdOrigin, BTC_SZ_PUBKEY)) continue; //skip origin node
+        if (!p_conf->enabled) continue;
+        p_conf->ref_counter++;
+        LOGD("ref_counter++: [%p] %u -> %u\n", p_conf, p_conf->ref_counter - 1, p_conf->ref_counter);
         pthread_mutex_unlock(&mMuxAppconf);
-        pCallback(&mAppConf[lp], pParam);
+        pCallback(p_conf, pParam);
         pthread_mutex_lock(&mMuxAppconf);
-        mAppConf[lp].ref_counter--;
+        p_conf->ref_counter--;
+        LOGD("ref_counter--: [%p] %u -> %u\n", p_conf, p_conf->ref_counter + 1, p_conf->ref_counter);
     }
     pthread_mutex_unlock(&mMuxAppconf);
 }
@@ -127,6 +131,7 @@ lnapp_conf_t *lnapp_manager_get_new_node(
         p_conf = &mAppConf[lp];
         lnapp_conf_init(p_conf, pNodeId, pThreadChannelStart);
         p_conf->ref_counter++;
+        LOGD("ref_counter++: [%p] %u -> %u\n", p_conf, p_conf->ref_counter - 1, p_conf->ref_counter);
         break;
     }
     pthread_mutex_unlock(&mMuxAppconf);
@@ -136,9 +141,11 @@ lnapp_conf_t *lnapp_manager_get_new_node(
 
 void lnapp_manager_free_node_ref(lnapp_conf_t *pConf)
 {
+    if (!pConf) return;
     pthread_mutex_lock(&mMuxAppconf);
     assert(pConf->ref_counter);
     pConf->ref_counter--;
+    LOGD("ref_counter--: [%p] %u -> %u\n", pConf, pConf->ref_counter + 1, pConf->ref_counter);
     pthread_mutex_unlock(&mMuxAppconf);
 }
 

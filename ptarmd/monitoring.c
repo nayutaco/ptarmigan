@@ -444,20 +444,22 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p
 {
     bool del = false;
 
-    lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(pChannel));
-    if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
-            !mDisableAutoConn && !ln_status_is_closing(pChannel) ) {
-        //socket未接続であれば、再接続を試行
-        del = channel_reconnect(pChannel);
-    } else if (p_app_conf != NULL) {
+    lnapp_conf_t *p_conf = p2p_search_active_channel(ln_short_channel_id(pChannel));
+    if (p_conf) {
         //socket接続済みであれば、feerate_per_kwチェック
         //  当面、feerate_per_kwを手動で変更した場合のみとする
         if ((ln_status_get(pChannel) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
-            lnapp_set_feerate(p_app_conf, p_param->feerate_per_kw);
+            lnapp_set_feerate(p_conf, p_param->feerate_per_kw);
         }
+    } else if (LN_DBG_NODE_AUTO_CONNECT() &&
+        !mDisableAutoConn && !ln_status_is_closing(pChannel) ) {
+        //socket未接続であれば、再接続を試行
+        del = channel_reconnect(pChannel);
     } else {
         //LOGD("No Auto connect mode\n");
     }
+    lnapp_manager_free_node_ref(p_conf);
+    p_conf = NULL;
 
     //Offered HTLCのtimeoutチェック
     for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
@@ -475,13 +477,14 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p
         ln_funding_last_confirm_set(pChannel, p_param->confm);
         ln_db_channel_save_last_confirm(pChannel, p_db_param);
 
-        btcrpc_set_channel(ln_remote_node_id(pChannel),
-                ln_short_channel_id(pChannel),
-                ln_funding_info_txid(&pChannel->funding_info),
-                ln_funding_info_txindex(&pChannel->funding_info),
-                ln_funding_info_wit_script(&pChannel->funding_info),
-                ln_funding_blockhash(pChannel),
-                ln_funding_last_confirm_get(pChannel));
+        btcrpc_set_channel(
+            ln_remote_node_id(pChannel),
+            ln_short_channel_id(pChannel),
+            ln_funding_info_txid(&pChannel->funding_info),
+            ln_funding_info_txindex(&pChannel->funding_info),
+            ln_funding_info_wit_script(&pChannel->funding_info),
+            ln_funding_blockhash(pChannel),
+            ln_funding_last_confirm_get(pChannel));
     }
 
     return del;

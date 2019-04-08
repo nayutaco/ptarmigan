@@ -516,21 +516,8 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
 {
     (void)pConf;
 
-    bool ret = false;
-    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(pCbParam->prev_short_channel_id);
-    if (p_prevconf) {
-        //XXX: pthread_mutex_lock(&p_prevconf->mux_channel);
-        //XXX: ret = ln_fulfill_htlc_set(&p_prevconf->channel, pCbParam->prev_htlc_id, pCbParam->p_preimage);
-        //XXX: pthread_mutex_unlock(&p_prevconf->mux_channel);
-        ret = true; //XXX: use DB to forward
-    }
-#if 0
-    if (!LN_DBG_FULFILL_BWD()) {
-        LOGD("no fulfill backwind\n");
-        ret = false;
-    }
-#endif
-    if (ret) {
+    lnapp_conf_t *p_prev_conf = ptarmd_search_transferable_channel(pCbParam->prev_short_channel_id);
+    if (p_prev_conf) {
         lnapp_show_channel_param(&pConf->channel, stderr, "fulfill_htlc send", __LINE__);
 
         // method: fulfill
@@ -555,21 +542,13 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
         ptarmd_call_script(PTARMD_EVT_FULFILL, param);
 
         ptarmd_eventlog(
-            ln_channel_id(&p_prevconf->channel),
+            ln_channel_id(&p_prev_conf->channel),
             "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
             pCbParam->prev_htlc_id);
 
         pCbParam->ret = true;
-    } else if (p_prevconf) {
-#if 0
-        //fail channel if fail backwind channel
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_prevconf->channel));
 
-        LOGD("close: bad way(local): fail backward(%s)\n", str_sci);
-        ptarmd_eventlog(ln_channel_id(&p_prevconf->channel), "close: bad way(local)");
-        (void)monitor_close_unilateral_local(&p_prevconf->channel, NULL);
-#endif
+        lnapp_manager_free_node_ref(p_prev_conf);
     }
 }
 
@@ -653,22 +632,17 @@ static void cbsub_fail_backwind(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_h
     (void)pConf;
 
     bool ret = false;
-    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(pCbParam->prev_short_channel_id);
-    if (p_prevconf != NULL) {
-        //XXX: pthread_mutex_lock(&p_prevconf->mux_channel);
-        //XXX: = ln_fail_htlc_set(&p_prevconf->channel, pCbParam->prev_htlc_id, LN_UPDATE_TYPE_FAIL_HTLC, pCbParam->p_reason);
-        //XXX: if (!ret) {
-        //XXX:     //TODO:戻す先がない場合の処理(#366)
-        //XXX:     LOGE("fail backward\n");
-        //XXX: }
-        //XXX: pthread_mutex_unlock(&p_prevconf->mux_channel);
-        ret = true; //XXX: use DB to forward
-
+    lnapp_conf_t *p_prev_conf = ptarmd_search_transferable_channel(pCbParam->prev_short_channel_id);
+    if (p_prev_conf) {
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
         ptarmd_eventlog(
             NULL, "delete HTLC: short_channel_id=%s, fin_type=%d",
             str_sci, pCbParam->update_type);
+
+        ret = true;
+
+        lnapp_manager_free_node_ref(p_prev_conf);
     } else {
         LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", pCbParam->prev_short_channel_id);
     }
