@@ -54,9 +54,9 @@
  **************************************************************************/
 
 #if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
-static void update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg);
-static void update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg);
-static void update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg);
+static void x_update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg);
+static void x_update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg);
+static void x_update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg);
 #endif  //DBG_PRINT_READ || DBG_PRINT_WRITE
 
 
@@ -68,7 +68,7 @@ bool HIDDEN ln_msg_x_update_add_htlc_write(utl_buf_t *pBuf, const ln_msg_x_updat
 {
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    update_add_htlc_print(pMsg);
+    x_update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
     btc_buf_w_t buf_w;
@@ -108,7 +108,7 @@ bool HIDDEN ln_msg_x_update_add_htlc_read(ln_msg_x_update_add_htlc_t *pMsg, cons
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    update_add_htlc_print(pMsg);
+    x_update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
     return true;
 
@@ -119,7 +119,7 @@ LABEL_ERROR_SYNTAX:
 
 
 #if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
-static void update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg)
+static void x_update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[update_add_htlc]-------------------------------\n");
@@ -145,7 +145,7 @@ bool HIDDEN ln_msg_x_update_fulfill_htlc_write(utl_buf_t *pBuf, const ln_msg_x_u
 {
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    update_fulfill_htlc_print(pMsg);
+    x_update_fulfill_htlc_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
     btc_buf_w_t buf_w;
@@ -175,7 +175,7 @@ bool HIDDEN ln_msg_x_update_fulfill_htlc_read(ln_msg_x_update_fulfill_htlc_t *pM
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    update_fulfill_htlc_print(pMsg);
+    x_update_fulfill_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
     return true;
 
@@ -186,7 +186,7 @@ LABEL_ERROR_SYNTAX:
 
 
 #if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
-static void update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg)
+static void x_update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[update_fulfill_htlc]-------------------------------\n");
@@ -206,7 +206,7 @@ bool HIDDEN ln_msg_x_update_fail_htlc_write(utl_buf_t *pBuf, const ln_msg_x_upda
 {
 #ifdef DBG_PRINT_WRITE
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    update_fail_htlc_print(pMsg);
+    x_update_fail_htlc_print(pMsg);
 #endif  //DBG_PRINT_WRITE
 
     btc_buf_w_t buf_w;
@@ -238,7 +238,7 @@ bool HIDDEN ln_msg_x_update_fail_htlc_read(ln_msg_x_update_fail_htlc_t *pMsg, co
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
-    update_fail_htlc_print(pMsg);
+    x_update_fail_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
     return true;
 
@@ -249,7 +249,7 @@ LABEL_ERROR_SYNTAX:
 
 
 #if defined(DBG_PRINT_READ) || defined(DBG_PRINT_WRITE)
-static void update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg)
+static void x_update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[update_fail_htlc]-------------------------------\n");
