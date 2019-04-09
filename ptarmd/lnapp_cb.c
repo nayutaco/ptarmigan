@@ -501,11 +501,12 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *pConf, void *pParam)
         cbsub_fulfill_originnode(pConf, p_cb_param);
     }
 
-    ptarmd_eventlog(ln_channel_id(&pConf->channel),
+    bool ret = true; //dummy
+    ptarmd_eventlog(
+        ln_channel_id(&pConf->channel),
         "[RECV]fulfill_htlc: %s(HTLC id=%" PRIu64 "): %s",
-            p_info,
-            p_cb_param->prev_htlc_id,
-            ((p_cb_param->ret) ? "success" : "fail"));
+        p_info, p_cb_param->prev_htlc_id,
+        ret ? "success" : "fail");
 
     DBGTRACE_END
 }
@@ -516,40 +517,35 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfi
 {
     (void)pConf;
 
-    lnapp_conf_t *p_prev_conf = ptarmd_search_transferable_channel(pCbParam->prev_short_channel_id);
-    if (p_prev_conf) {
-        lnapp_show_channel_param(&pConf->channel, stderr, "fulfill_htlc send", __LINE__);
+    lnapp_show_channel_param(&pConf->channel, stderr, "fulfill_htlc send", __LINE__);
 
-        // method: fulfill
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: payment_hash
-        // $4: payment_preimage
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
-        char str_hash[BTC_SZ_HASH256 * 2 + 1];
-        uint8_t payment_hash[BTC_SZ_HASH256];
-        ln_payment_hash_calc(payment_hash, pCbParam->p_preimage);
-        utl_str_bin2str(str_hash, payment_hash, BTC_SZ_HASH256);
-        char str_preimage[LN_SZ_PREIMAGE * 2 + 1];
-        utl_str_bin2str(str_preimage, pCbParam->p_preimage, LN_SZ_PREIMAGE);
-        char str_node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(str_node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
-        char param[M_SZ_SCRIPT_PARAM];
-        snprintf(
-            param, sizeof(param), "%s %s %s %s",
-            str_sci, str_node_id, str_hash, str_preimage);
-        ptarmd_call_script(PTARMD_EVT_FULFILL, param);
+    // method: fulfill
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: payment_hash
+    // $4: payment_preimage
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
+    char str_hash[BTC_SZ_HASH256 * 2 + 1];
+    uint8_t payment_hash[BTC_SZ_HASH256];
+    ln_payment_hash_calc(payment_hash, pCbParam->p_preimage);
+    utl_str_bin2str(str_hash, payment_hash, BTC_SZ_HASH256);
+    char str_preimage[LN_SZ_PREIMAGE * 2 + 1];
+    utl_str_bin2str(str_preimage, pCbParam->p_preimage, LN_SZ_PREIMAGE);
+    char str_node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(str_node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
+    char param[M_SZ_SCRIPT_PARAM];
+    snprintf(
+        param, sizeof(param), "%s %s %s %s",
+        str_sci, str_node_id, str_hash, str_preimage);
+    ptarmd_call_script(PTARMD_EVT_FULFILL, param);
 
-        ptarmd_eventlog(
-            ln_channel_id(&p_prev_conf->channel),
-            "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
-            pCbParam->prev_htlc_id);
-
-        pCbParam->ret = true;
-
-        lnapp_manager_free_node_ref(p_prev_conf);
-    }
+#if 0
+    ptarmd_eventlog(
+        ln_channel_id(&p_prev_conf->channel),
+        "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
+        pCbParam->prev_htlc_id);
+#endif
 }
 
 
@@ -567,7 +563,6 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *pConf, ln_cb_param_notify_ful
     cmd_json_pay_result(hash, pCbParam->p_preimage, "success");
     //ln_db_invoice_del(hash);
     //ln_db_route_skip_work(false);
-    pCbParam->ret = true;
 
     //log
     char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
@@ -600,23 +595,21 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *pConf, void *pParam)
         cbsub_fail_originnode(pConf, p_cb_param);
     }
 
-    if (p_cb_param->ret) {
-        lnapp_show_channel_param(&pConf->channel, stderr, "fail_htlc send", __LINE__);
+    lnapp_show_channel_param(&pConf->channel, stderr, "fail_htlc send", __LINE__);
 
-        // method: fail
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: info
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
-        char str_node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(str_node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
-        char param[M_SZ_SCRIPT_PARAM];
-        snprintf(
-            param, sizeof(param), "%s %s \"%s\"",
-            str_sci, str_node_id, p_info);
-        ptarmd_call_script(PTARMD_EVT_FAIL, param);
-    }
+    // method: fail
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: info
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
+    char str_node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(str_node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
+    char param[M_SZ_SCRIPT_PARAM];
+    snprintf(
+        param, sizeof(param), "%s %s \"%s\"",
+        str_sci, str_node_id, p_info);
+    ptarmd_call_script(PTARMD_EVT_FAIL, param);
 
     ptarmd_eventlog(
         ln_channel_id(&pConf->channel),
@@ -631,29 +624,17 @@ static void cbsub_fail_backwind(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_h
 {
     (void)pConf;
 
-    bool ret = false;
-    lnapp_conf_t *p_prev_conf = ptarmd_search_transferable_channel(pCbParam->prev_short_channel_id);
-    if (p_prev_conf) {
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
-        ptarmd_eventlog(
-            NULL, "delete HTLC: short_channel_id=%s, fin_type=%d",
-            str_sci, pCbParam->update_type);
-
-        ret = true;
-
-        lnapp_manager_free_node_ref(p_prev_conf);
-    } else {
-        LOGE("fail: short_channel_id not found(%016" PRIx64 ")\n", pCbParam->prev_short_channel_id);
-    }
-    pCbParam->ret = ret;
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
+    ptarmd_eventlog(
+        NULL, "delete HTLC: short_channel_id=%s, fin_type=%d",
+        str_sci, pCbParam->update_type);
 }
 
 
 static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_htlc_t *pCbParam)
 {
-    (void)pConf;
-    pCbParam->ret = true;
+    (void)pConf; (void)pCbParam;
 #if 0
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;

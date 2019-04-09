@@ -213,18 +213,12 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
     }
 
     ln_cb_param_notify_fulfill_htlc_recv_t cb_param;
-    cb_param.ret = false;
     cb_param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
     cb_param.prev_htlc_id = p_htlc->neighbor_id;
     cb_param.p_preimage = msg.p_payment_preimage;
     cb_param.amount_msat = p_htlc->amount_msat;
     //XXX: In the current implementation it will be called more than once in a retry at reconnection
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV, &cb_param);
-
-    if (!cb_param.ret) {
-        LOGE("fail: backwind\n");
-        /*ignore*/
-    }
 
     if (!LN_DBG_FULFILL_BWD()) {
         LOGD("no fulfill backwind\n");
@@ -538,11 +532,9 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             utl_buf_free(&buf);
 
             ln_cb_param_start_bwd_del_htlc_t cb_param;
-            cb_param.ret = false;
             cb_param.update_type = p_update->type;
             cb_param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
             cb_param.p_reason = &p_htlc->buf_onion_reason;
-            //cb_param.p_shared_secret = &p_htlc->buf_shared_secret;
             cb_param.prev_htlc_id = p_htlc->neighbor_id;
             cb_param.p_payment_hash = p_htlc->payment_hash;
             if (p_update->type == LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC) {
@@ -554,13 +546,11 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
             } else {
                 cb_param.fail_malformed_failure_code = 0;
             }
+            ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &cb_param);
             if (cb_param.prev_short_channel_id) {
                 LOGD("backward fail_htlc!\n");
-                ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &cb_param);
             } else {
-                //XXX: one callback
                 LOGD("fail_htlc!\n");
-                ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &cb_param);
                 LOGD("retry the payment! in the origin node\n");
                 ln_callback(pChannel, LN_CB_TYPE_RETRY_PAYMENT, p_htlc->payment_hash);
             }
