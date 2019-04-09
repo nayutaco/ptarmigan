@@ -69,6 +69,8 @@
 #define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
 #define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 20))
 
+#define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
+
 
 /**************************************************************************
  * prototypes
@@ -1040,6 +1042,110 @@ static bool update_fulfill_htlc_forward_origin(
 }
 
 
+static bool update_fail_htlc_forward_origin(
+    ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
+    const ln_msg_x_update_fail_htlc_t* pForwardMsg)
+{
+    (void)pChannel; (void)PrevShortChannelId;
+
+    int             hop = -1; //first channel
+    ln_onion_err_t  onion_err = {0, NULL};
+    utl_buf_t       shared_secrets = UTL_BUF_INIT;
+    utl_buf_t       reason = UTL_BUF_INIT;
+    utl_buf_t       route = UTL_BUF_INIT;
+    char            *reason_str = NULL;
+
+    if (pForwardMsg->len < 256) { //XXX: ???
+        utl_buf_alloccopy(&reason, pForwardMsg->p_reason, pForwardMsg->len);
+    } else {
+        if (!ln_db_payment_shared_secrets_load(&shared_secrets, PrevHtlcId)) {
+            LOGE("fail: ???\n");
+            goto LABEL_EXIT;
+        }
+        if (!ln_db_payment_shared_secrets_del(PrevHtlcId)) {
+            LOGE("fail: ???\n");
+            goto LABEL_EXIT;
+        }
+        const utl_buf_t packet = {(CONST_CAST uint8_t *)pForwardMsg->p_reason, pForwardMsg->len};
+        if (!ln_onion_failure_read(&reason, &hop, &shared_secrets, &packet)) {
+            LOGE("fail: ???\n");
+            goto LABEL_EXIT;
+        }
+    }
+
+    LOGD("  failure reason= ");
+    DUMPD(reason.buf, reason.len);
+
+    int num_hops;
+    ln_hop_datain_t hop_datain[1 + LN_HOP_MAX];
+    if (!ln_db_payment_route_load(&route, PrevHtlcId)) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+    if (route.len > sizeof(hop_datain) ||
+        route.len % sizeof(ln_hop_datain_t)) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+    num_hops = route.len / sizeof(ln_hop_datain_t);
+    memcpy(&hop_datain, route.buf, route.len);
+
+    //失敗したと思われるshort_channel_idをrouting除外登録
+    //  hop_datain
+    //    [0]自分(update_add_htlcのパラメータ)
+    //    [1]最初のONIONデータ
+    //    ...
+    //    [hop_num - 2]payeeへの最終OINONデータ
+    //    [hop_num - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
+    uint64_t    short_channel_id;
+    char        suggest[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    if (hop == num_hops - 2) {
+        //payeeは自分がINとなるchannelを失敗したとみなす ??? payeeは悪くない
+        short_channel_id = hop_datain[num_hops - 2].short_channel_id;
+    } else if (hop < num_hops - 2) {
+        short_channel_id = hop_datain[hop + 1].short_channel_id;
+    } else {
+        short_channel_id = 0;
+        LOGE("fail: invalid result\n");
+        strcpy(suggest, "invalid");
+    }
+
+    if (short_channel_id) {
+        bool b_temp = true;
+        if (ln_onion_read_err(&onion_err, &reason)) {
+            switch (onion_err.reason) {
+            case LNONION_PERM_NODE_FAIL:
+            case LNONION_PERM_CHAN_FAIL:
+            case LNONION_CHAN_DISABLE:
+                LOGD("add skip route: permanently\n");
+                b_temp = false;
+                break;
+            default:
+                break;
+            }
+        }
+        ln_db_route_skip_save(short_channel_id, b_temp);
+        ln_short_channel_id_string(suggest, short_channel_id);
+    }
+
+    char err_str[512];
+    reason_str = ln_onion_get_errstr(&onion_err);
+    snprintf(err_str, sizeof(err_str), M_ERRSTR_REASON, reason_str, hop, suggest);
+    LOGE("fail: %s\n", err_str);
+
+LABEL_EXIT:
+    if (!ln_db_payment_route_del(PrevHtlcId)) {
+        LOGE("fail: ???\n");
+    }
+    UTL_DBG_FREE(reason_str);
+    UTL_DBG_FREE(onion_err.p_data);
+    utl_buf_free(&shared_secrets);
+    utl_buf_free(&route);
+    utl_buf_free(&reason);
+    return true;
+}
+
+
 static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
 {
     (void)pChannel;
@@ -1066,11 +1172,13 @@ static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
             }
         } else if (type == MSGTYPE_X_UPDATE_FAIL_HTLC) {
             ln_msg_x_update_fail_htlc_t msg;
-            if (!ln_msg_x_update_fail_htlc_read(&msg, buf.buf, buf.len)) {
+            if (ln_msg_x_update_fail_htlc_read(&msg, buf.buf, buf.len)) {
+                if (!update_fail_htlc_forward_origin(pChannel, prev_short_channel_id, prev_htlc_id, &msg)) {
+                    LOGE("fail: ???\n");
+                }
+            } else {
                 LOGE("fail: ???\n");
             }
-            //XXX: const utl_buf_t reason = {(CONST_CAST uint8_t *)msg.p_reason, msg.len};
-            //XXX:
         } else {
             LOGE("fail: ???\n");
         }
