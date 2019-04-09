@@ -558,15 +558,15 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *pConf, ln_cb_param_notify_ful
 {
     (void)pConf;
 
-    if (!lnapp_payment_route_del(pCbParam->prev_htlc_id)) {
-        LOGE("fail: ???\n");
-    }
+    //if (!lnapp_payment_route_del(pCbParam->prev_htlc_id)) {
+    //    LOGE("fail: ???\n");
+    //}
 
     uint8_t hash[BTC_SZ_HASH256];
     ln_payment_hash_calc(hash, pCbParam->p_preimage);
     cmd_json_pay_result(hash, pCbParam->p_preimage, "success");
-    ln_db_invoice_del(hash);
-    ln_db_route_skip_work(false);
+    //ln_db_invoice_del(hash);
+    //ln_db_route_skip_work(false);
     pCbParam->ret = true;
 
     //log
