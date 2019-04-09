@@ -122,7 +122,7 @@ LABEL_ERROR_SYNTAX:
 static void x_update_add_htlc_print(const ln_msg_x_update_add_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
-    LOGD("-[update_add_htlc]-------------------------------\n");
+    LOGD("-[x_update_add_htlc]-------------------------------\n");
     LOGD("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
     LOGD("payment_hash: ");
     DUMPD(pMsg->p_payment_hash, BTC_SZ_HASH256);
@@ -189,7 +189,7 @@ LABEL_ERROR_SYNTAX:
 static void x_update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
-    LOGD("-[update_fulfill_htlc]-------------------------------\n");
+    LOGD("-[x_update_fulfill_htlc]-------------------------------\n");
     LOGD("p_payment_preimage: ");
     DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     LOGD("--------------------------------\n");
@@ -252,7 +252,7 @@ LABEL_ERROR_SYNTAX:
 static void x_update_fail_htlc_print(const ln_msg_x_update_fail_htlc_t *pMsg)
 {
 #ifdef PTARM_DEBUG
-    LOGD("-[update_fail_htlc]-------------------------------\n");
+    LOGD("-[x_update_fail_htlc]-------------------------------\n");
     LOGD("reason: ");
     DUMPD(pMsg->p_reason, pMsg->len);
     LOGD("--------------------------------\n");

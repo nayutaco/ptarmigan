@@ -40,6 +40,8 @@
 #define MSGTYPE_X_UPDATE_FULFILL_HTLC       ((uint16_t)0x0011)
 #define MSGTYPE_X_UPDATE_FAIL_HTLC          ((uint16_t)0x0012)
 
+#define MSGTYPE_X_PAYMENT_INVOICE           ((uint16_t)0x0020)
+
 
 /**************************************************************************
  * prototypes
