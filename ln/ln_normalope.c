@@ -100,6 +100,10 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Updat
 static bool poll_update_add_htlc_forward(ln_channel_t *pChannel);
 static bool poll_update_del_htlc_forward(ln_channel_t *pChannel);
 static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel);
+static bool update_fulfill_htlc_forward_origin(
+    ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
+    const ln_msg_x_update_fulfill_htlc_t* pForwardMsg);
+static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel);
 
 
 /**************************************************************************
@@ -1019,6 +1023,70 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
 }
 
 
+static bool update_fulfill_htlc_forward_origin(
+    ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
+    const ln_msg_x_update_fulfill_htlc_t* pForwardMsg)
+{
+    (void)pChannel; (void)PrevShortChannelId;
+
+    if (!ln_db_payment_route_del(PrevHtlcId)) {
+        LOGE("fail: ???\n");
+    }
+    uint8_t hash[BTC_SZ_HASH256];
+    ln_payment_hash_calc(hash, pForwardMsg->p_payment_preimage);
+    ln_db_invoice_del(hash);
+    ln_db_route_skip_work(false);
+    return true;
+}
+
+
+static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
+{
+    (void)pChannel;
+
+    void* p_cur = NULL;
+    if (!ln_db_forward_del_htlc_cur_open(&p_cur, 0)) {
+        return true;
+    }
+
+    uint64_t    prev_short_channel_id;
+    uint64_t    prev_htlc_id;
+    bool        b_commit = false;
+    utl_buf_t   buf = UTL_BUF_INIT;
+    while (ln_db_forward_del_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
+        uint32_t type = ln_msg_type(buf.buf, buf.len);
+        if (type == MSGTYPE_X_UPDATE_FULFILL_HTLC) {
+            ln_msg_x_update_fulfill_htlc_t msg;
+            if (ln_msg_x_update_fulfill_htlc_read(&msg, buf.buf, buf.len)) {
+                if (!update_fulfill_htlc_forward_origin(pChannel, prev_short_channel_id, prev_htlc_id, &msg)) {
+                    LOGE("fail: ???\n");
+                }
+            } else {
+                LOGE("fail: ???\n");
+            }
+        } else if (type == MSGTYPE_X_UPDATE_FAIL_HTLC) {
+            ln_msg_x_update_fail_htlc_t msg;
+            if (!ln_msg_x_update_fail_htlc_read(&msg, buf.buf, buf.len)) {
+                LOGE("fail: ???\n");
+            }
+            //XXX: const utl_buf_t reason = {(CONST_CAST uint8_t *)msg.p_reason, msg.len};
+            //XXX:
+        } else {
+            LOGE("fail: ???\n");
+        }
+
+        if (!ln_db_forward_del_htlc_cur_del(p_cur)) {
+            LOGE("fail: ???\n");
+        }
+        b_commit = true;
+        utl_buf_free(&buf);
+    }
+
+    ln_db_forward_del_htlc_cur_close(p_cur, b_commit);
+    return true;
+}
+
+
 void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     //XXX: should return the return code or SET_ERR
@@ -1080,6 +1148,7 @@ void ln_idle_proc_inactive(ln_channel_t *pChannel)
 void ln_idle_proc_origin(ln_channel_t *pChannel)
 {
     /*ignore*/poll_update_add_htlc_forward_origin(pChannel);
+    /*ignore*/poll_update_del_htlc_forward_origin(pChannel);
 }
 
 
