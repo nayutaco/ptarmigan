@@ -100,11 +100,11 @@ static struct monchanlisthead_t mMonChanListHead;
 
 static void connect_nodelist(void);
 static void proc_inactive_channel(lnapp_conf_t *pConf, void *pParam);
-static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam);
+static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam);
 static void monfunc_2(lnapp_conf_t *pConf, void *pParam);
 
-static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param);
-static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param);
+static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbParam);
+static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbParam);
 static bool channel_reconnect(ln_channel_t *pChannel);
 static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
@@ -385,49 +385,50 @@ static void proc_inactive_channel(lnapp_conf_t *pConf, void *pParam)
 
 /** 監視処理(#ln_db_channel_search()のコールバック)
  *
- * @param[in,out]   pChannel    チャネル情報
+ * @param[in,out]   pConf       conf
  * @param[in,out]   p_db_param  DB情報
  * @param[in,out]   p_param     パラメータ(未使用)
  * @return  false(always)
  */
-static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
+static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
 {
     monparam_t *p_param = (monparam_t *)pParam;
+    ln_channel_t *p_channel = &pConf->channel;
 
     p_param->confm = 0;
-    (void)btcrpc_get_confirm(&p_param->confm, ln_funding_info_txid(&pChannel->funding_info));
+    (void)btcrpc_get_confirm(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
     bool ret;
     bool del = false;
     bool unspent;
-    if (ln_status_is_closing(pChannel)) {
+    if (ln_status_is_closing(p_channel)) {
         ret = true;
         unspent = false;
     } else {
-        ret = btcrpc_check_unspent(ln_remote_node_id(pChannel), &unspent, NULL, ln_funding_info_txid(&pChannel->funding_info), ln_funding_info_txindex(&pChannel->funding_info));
+        ret = btcrpc_check_unspent(ln_remote_node_id(p_channel), &unspent, NULL, ln_funding_info_txid(&p_channel->funding_info), ln_funding_info_txindex(&p_channel->funding_info));
     }
     if (ret && !unspent) {
         //funding_tx SPENT
-        del = funding_spent(pChannel, p_param, p_db_param);
+        del = funding_spent(pConf, p_param, pDbParam);
     } else {
         //funding_tx UNSPENT
-        del = funding_unspent(pChannel, p_param, p_db_param);
+        del = funding_unspent(pConf, p_param, pDbParam);
     }
     if (del) {
-        pChannel->status = LN_STATUS_CLOSED; //XXX:
+        p_channel->status = LN_STATUS_CLOSED; //XXX:
         LOGD("delete from DB\n");
-        ln_db_channel_owned_del(ln_short_channel_id(pChannel));
-        if (p_db_param) {
-            ret = ln_db_channel_del_param(pChannel, p_db_param);
+        ln_db_channel_owned_del(ln_short_channel_id(p_channel));
+        if (pDbParam) {
+            ret = ln_db_channel_del_param(p_channel, pDbParam);
         } else {
-            ret = ln_db_channel_del(pChannel->channel_id);
+            ret = ln_db_channel_del(p_channel->channel_id);
         }
         if (ret) {
-            ptarmd_eventlog(ln_channel_id(pChannel), "close: finish");
+            ptarmd_eventlog(ln_channel_id(p_channel), "close: finish");
         } else {
             LOGE("fail: del channel: ");
-            DUMPD(ln_channel_id(pChannel), LN_SZ_CHANNEL_ID);
+            DUMPD(ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
         }
-        btcrpc_del_channel(ln_remote_node_id(pChannel));
+        btcrpc_del_channel(ln_remote_node_id(p_channel));
     }
 
     return false;
@@ -436,36 +437,38 @@ static bool monfunc(ln_channel_t *pChannel, void *p_db_param, void *pParam)
 
 static void monfunc_2(lnapp_conf_t *pConf, void *pParam)
 {
-    monfunc(&pConf->channel, NULL, pParam);
+    pthread_mutex_lock(&pConf->mux_conf);
+    pthread_mutex_lock(&pConf->mux_channel);
+    monfunc(pConf, NULL, pParam);
+    pthread_mutex_unlock(&pConf->mux_channel);
+    pthread_mutex_unlock(&pConf->mux_conf);
 }
 
 
-static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param)
+static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbParam)
 {
     bool del = false;
+    ln_channel_t *p_channel = &pConf->channel;
 
-    lnapp_conf_t *p_conf = p2p_search_active_channel(ln_short_channel_id(pChannel));
-    if (p_conf) {
+    if (pConf->active) {
         //socket接続済みであれば、feerate_per_kwチェック
         //  当面、feerate_per_kwを手動で変更した場合のみとする
-        if ((ln_status_get(pChannel) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
-            lnapp_set_feerate(p_conf, p_param->feerate_per_kw);
+        if ((ln_status_get(p_channel) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
+            lnapp_set_feerate(pConf, pParam->feerate_per_kw);
         }
     } else if (LN_DBG_NODE_AUTO_CONNECT() &&
-        !mDisableAutoConn && !ln_status_is_closing(pChannel) ) {
+        !mDisableAutoConn && !ln_status_is_closing(p_channel) ) {
         //socket未接続であれば、再接続を試行
-        del = channel_reconnect(pChannel);
+        del = channel_reconnect(p_channel);
     } else {
         //LOGD("No Auto connect mode\n");
     }
-    lnapp_manager_free_node_ref(p_conf);
-    p_conf = NULL;
 
     //Offered HTLCのtimeoutチェック
     for (int lp = 0; lp < LN_UPDATE_MAX; lp++) {
-        if (ln_is_offered_htlc_timeout(pChannel, lp, p_param->height)) {
-            LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(pChannel));
-            bool ret = monitor_close_unilateral_local(pChannel, p_db_param);
+        if (ln_is_offered_htlc_timeout(p_channel, lp, pParam->height)) {
+            LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(p_channel));
+            bool ret = monitor_close_unilateral_local(p_channel, pDbParam);
             if (!ret) {
                 LOGE("fail: unilateral close\n");
             }
@@ -473,18 +476,18 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p
         }
     }
 
-    if (p_param->confm > ln_funding_last_confirm_get(pChannel)) {
-        ln_funding_last_confirm_set(pChannel, p_param->confm);
-        ln_db_channel_save_last_confirm(pChannel, p_db_param);
+    if (pParam->confm > ln_funding_last_confirm_get(p_channel)) {
+        ln_funding_last_confirm_set(p_channel, pParam->confm);
+        ln_db_channel_save_last_confirm(p_channel, pDbParam);
 
         btcrpc_set_channel(
-            ln_remote_node_id(pChannel),
-            ln_short_channel_id(pChannel),
-            ln_funding_info_txid(&pChannel->funding_info),
-            ln_funding_info_txindex(&pChannel->funding_info),
-            ln_funding_info_wit_script(&pChannel->funding_info),
-            ln_funding_blockhash(pChannel),
-            ln_funding_last_confirm_get(pChannel));
+            ln_remote_node_id(p_channel),
+            ln_short_channel_id(p_channel),
+            ln_funding_info_txid(&p_channel->funding_info),
+            ln_funding_info_txindex(&p_channel->funding_info),
+            ln_funding_info_wit_script(&p_channel->funding_info),
+            ln_funding_blockhash(p_channel),
+            ln_funding_last_confirm_get(p_channel));
     }
 
     return del;
@@ -493,52 +496,53 @@ static bool funding_unspent(ln_channel_t *pChannel, monparam_t *p_param, void *p
 
 /**
  *
- * @param[in,out]   pChannel    チャネル情報
- * @param[in]       confm       confirmation数
- * @param[in,out]   p_db_param  DB情報
+ * @param[in,out]   pConf       conf
+ * @param[in]       pParam      param
+ * @param[in,out]   pDbParam    DB情報
  * @retval      true    pChannelをDB削除可能
  */
-static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_db_param)
+static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbParam)
 {
     bool del = false;
     bool ret;
     char txid_str[BTC_SZ_TXID * 2 + 1];
+    ln_channel_t *p_channel = &pConf->channel;
 
     btc_tx_t close_tx = BTC_TX_INIT;
-    ln_status_t stat = ln_status_get(pChannel);
-    utl_str_bin2str_rev(txid_str, ln_funding_info_txid(&pChannel->funding_info), BTC_SZ_TXID);
+    ln_status_t stat = ln_status_get(p_channel);
+    utl_str_bin2str_rev(txid_str, ln_funding_info_txid(&p_channel->funding_info), BTC_SZ_TXID);
 
-    LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_param->confm, ln_status_string(pChannel));
+    LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, pParam->confm, ln_status_string(p_channel));
     if (stat <= LN_STATUS_CLOSE_WAIT) {
         //update status
         monchanlist_t *p_list = NULL;
-        ret = monchanlist_search(&p_list, ln_channel_id(pChannel), false);
+        ret = monchanlist_search(&p_list, ln_channel_id(p_channel), false);
         if (!ret) {
             p_list = (monchanlist_t *)UTL_DBG_MALLOC(sizeof(monchanlist_t));
-            memcpy(p_list->channel_id, ln_channel_id(pChannel), LN_SZ_CHANNEL_ID);
+            memcpy(p_list->channel_id, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
             p_list->last_check_confm = 0;
             monchanlist_add(p_list);
         }
         btc_tx_t *p_tx = NULL;
         ret = btcrpc_search_outpoint(
-            &close_tx, p_param->confm - p_list->last_check_confm, ln_funding_info_txid(&pChannel->funding_info), ln_funding_info_txindex(&pChannel->funding_info));
+            &close_tx, pParam->confm - p_list->last_check_confm, ln_funding_info_txid(&p_channel->funding_info), ln_funding_info_txindex(&p_channel->funding_info));
         if (ret) {
             p_tx = &close_tx;
         }
-        p_list->last_check_confm = p_param->confm;
+        p_list->last_check_confm = pParam->confm;
         if (ret || (stat == LN_STATUS_NORMAL)) {
             //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
-            ln_close_change_stat(pChannel, p_tx, p_db_param);
-            stat = ln_status_get(pChannel);
-            const char *p_str = ln_status_string(pChannel);
-            ptarmd_eventlog(ln_channel_id(pChannel), "close: %s(%s)", p_str, txid_str);
+            ln_close_change_stat(p_channel, p_tx, pDbParam);
+            stat = ln_status_get(p_channel);
+            const char *p_str = ln_status_string(p_channel);
+            ptarmd_eventlog(ln_channel_id(p_channel), "close: %s(%s)", p_str, txid_str);
         }
     }
 
-    if (p_db_param) {
-        ln_db_revoked_tx_load(pChannel, p_db_param);
+    if (pDbParam) {
+        ln_db_revoked_tx_load(p_channel, pDbParam);
     }
-    const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
+    const utl_buf_t *p_vout = ln_revoked_vout(p_channel);
     if (p_vout == NULL) {
         switch (stat) {
         case LN_STATUS_CLOSE_MUTUAL:
@@ -547,21 +551,21 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_d
             break;
         case LN_STATUS_CLOSE_UNI_LOCAL:
             //最新のlocal commit_tx --> unilateral close(local)
-            del = monitor_close_unilateral_local(pChannel, p_db_param);
+            del = monitor_close_unilateral_local(p_channel, pDbParam);
             break;
         case LN_STATUS_CLOSE_UNI_REMOTE:
             //最新のremote commit_tx --> unilateral close(remote)
-            del = close_unilateral_remote(pChannel, p_db_param);
+            del = close_unilateral_remote(p_channel, pDbParam);
             break;
         case LN_STATUS_CLOSE_REVOKED:
             //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
-            ret = ln_close_remote_revoked(pChannel, &close_tx, p_db_param);
+            ret = ln_close_remote_revoked(p_channel, &close_tx, pDbParam);
             if (ret) {
-                if (ln_revoked_cnt(pChannel) > 0) {
+                if (ln_revoked_cnt(p_channel) > 0) {
                     //revoked transactionのvoutに未解決あり
                     //  2回目以降はclose_revoked_after()が呼び出される
-                    del = close_revoked_first(pChannel, &close_tx, p_param->confm, p_db_param);
+                    del = close_revoked_first(p_channel, &close_tx, pParam->confm, pDbParam);
                 } else {
                     LOGD("all revoked transaction vout is already solved.\n");
                     del = true;
@@ -575,12 +579,12 @@ static bool funding_spent(ln_channel_t *pChannel, monparam_t *p_param, void *p_d
         }
     } else {
         // revoked transaction close
-        del = close_revoked_after(pChannel, p_param->confm, p_db_param);
+        del = close_revoked_after(p_channel, pParam->confm, pDbParam);
     }
     btc_tx_free(&close_tx);
 
     if (del) {
-        (void)monchanlist_search(NULL, ln_channel_id(pChannel), true);
+        (void)monchanlist_search(NULL, ln_channel_id(p_channel), true);
     }
 
     return del;
