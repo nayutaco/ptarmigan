@@ -1366,12 +1366,14 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         memset(&fundin, 0, sizeof(fundin));
 #endif
 
+        pthread_mutex_lock(&p_conf->mux_channel);
         ret = ln_open_channel_send(&p_conf->channel,
                         &fundin,
                         pFundingConf->funding_sat,
                         pFundingConf->push_sat,
                         feerate_kw,
                         pFundingConf->priv_channel);
+        pthread_mutex_unlock(&p_conf->mux_channel);
         if (ret) {
             LOGD("SEND: open_channel\n");
         } else {
