@@ -629,12 +629,10 @@ void lnapp_set_feerate(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         return;
     }
 
-    //XXX: pthread_mutex_lock(&pAppConf->mux_channel);
     if ((FeeratePerKw >= LN_FEERATE_PER_KW_MIN) && (pAppConf->feerate_per_kw != FeeratePerKw)) {
         pAppConf->feerate_per_kw = FeeratePerKw;    //use #recv_idle_proc()
         LOGD("feerate_per_kw=%" PRIu32 "\n", pAppConf->feerate_per_kw);
     }
-    //XXX: pthread_mutex_unlock(&pAppConf->mux_channel);
 }
 
 
