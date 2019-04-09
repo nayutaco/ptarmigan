@@ -36,9 +36,9 @@
 /*
  * message type
  */
-#define MSGTYPE_X_UPDATE_ADD_HTLC           ((uint16_t)0x0080)
-#define MSGTYPE_X_UPDATE_FULFILL_HTLC       ((uint16_t)0x0082)
-#define MSGTYPE_X_UPDATE_FAIL_HTLC          ((uint16_t)0x0083)
+#define MSGTYPE_X_UPDATE_ADD_HTLC           ((uint16_t)0x0010)
+#define MSGTYPE_X_UPDATE_FULFILL_HTLC       ((uint16_t)0x0011)
+#define MSGTYPE_X_UPDATE_FAIL_HTLC          ((uint16_t)0x0012)
 
 
 /**************************************************************************
