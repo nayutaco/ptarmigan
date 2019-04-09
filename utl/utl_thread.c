@@ -40,7 +40,7 @@
 
 void utl_thread_msleep(unsigned long slp)
 {
-    struct timespec req = { 0, (long)(slp * 1000000UL) };
+    struct timespec req = { (time_t)(slp / 1000), (long)(slp % 1000 * 1000000UL) };
     nanosleep(&req, NULL);
 }
 
