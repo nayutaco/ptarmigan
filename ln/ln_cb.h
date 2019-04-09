@@ -118,11 +118,9 @@ typedef struct {
 
 
 typedef struct {
-    bool                    ret;
     uint8_t                 update_type;
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
-    //const utl_buf_t         *p_shared_secret;       ///< shared secret
     uint64_t                prev_htlc_id;           ///<
     const uint8_t           *p_payment_hash;        ///< payment_hash
     uint16_t                fail_malformed_failure_code;    ///< !0: malformed_htlcのfailure_code
@@ -133,7 +131,6 @@ typedef struct {
  *  @brief  update_fulfill_htlc受信通知(#LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV)
  */
 typedef struct {
-    bool                    ret;                    ///< callback処理結果
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     uint64_t                prev_htlc_id;           ///<
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
