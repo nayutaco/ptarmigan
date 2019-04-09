@@ -652,6 +652,9 @@ static void cbsub_fail_backwind(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_h
 
 static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_htlc_t *pCbParam)
 {
+    (void)pConf;
+    pCbParam->ret = true;
+#if 0
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;
     bool ret = false;
@@ -746,6 +749,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
     if (!lnapp_payment_route_del(pCbParam->prev_htlc_id)) {
         LOGE("fail: ???\n");
     }
+#endif
 }
 
 
