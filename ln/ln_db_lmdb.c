@@ -129,6 +129,7 @@
 #define M_DBI_PAYMENT           "payment"                   ///< payment
 #define M_DBI_SHARED_SECRETS    "shared_secrets"            ///< shared secrets
 #define M_DBI_ROUTE             "route"                     ///< route
+#define M_DBI_PAYMENT_INVOICE   "invoice"                   ///< payment invoice
 
 #define M_SZ_CHANNEL_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_FORWARD_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_SHORT_CHANNEL_ID * 2)
@@ -3791,18 +3792,25 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
     if (strcmp(pDbName, M_DBI_NODEANNO) == 0) return LN_LMDB_DB_TYPE_NODEANNO;
     if (strcmp(pDbName, M_DBI_CNLANNO_INFO) == 0) return LN_LMDB_DB_TYPE_CNLANNO_INFO;
     if (strcmp(pDbName, M_DBI_NODEANNO_INFO) == 0) return LN_LMDB_DB_TYPE_NODEANNO_INFO;
-    if (strcmp(pDbName, M_DBI_ROUTE_SKIP) == 0) return LN_LMDB_DB_TYPE_ROUTE_SKIP;
-    if (strcmp(pDbName, M_DBI_INVOICE) == 0) return LN_LMDB_DB_TYPE_INVOICE;
-    if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) return LN_LMDB_DB_TYPE_PREIMAGE;
-    if (strcmp(pDbName, M_DBI_PAYMENT_HASH) == 0) return LN_LMDB_DB_TYPE_PAYMENT_HASH;
+
+    if (pEnv == mpEnvNode) {
+        if (strcmp(pDbName, M_DBI_ROUTE_SKIP) == 0) return LN_LMDB_DB_TYPE_ROUTE_SKIP;
+        if (strcmp(pDbName, M_DBI_INVOICE) == 0) return LN_LMDB_DB_TYPE_INVOICE;
+        if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) return LN_LMDB_DB_TYPE_PREIMAGE;
+        if (strcmp(pDbName, M_DBI_PAYMENT_HASH) == 0) return LN_LMDB_DB_TYPE_PAYMENT_HASH;
+    }
+
     if (strcmp(pDbName, M_DBI_VERSION) == 0) return LN_LMDB_DB_TYPE_VERSION;
 
     if (strncmp(pDbName, M_PREF_FORWARD_ADD_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_ADD;
     if (strncmp(pDbName, M_PREF_FORWARD_DEL_HTLC, M_SZ_PREF_STR) == 0) return LN_LMDB_DB_TYPE_FORWARD_DEL;
 
-    if (strcmp(pDbName, M_DBI_PAYMENT) == 0) return LN_LMDB_DB_TYPE_PAYMENT;
-    if (strcmp(pDbName, M_DBI_SHARED_SECRETS) == 0) return LN_LMDB_DB_TYPE_SHARED_SECRETS;
-    if (strcmp(pDbName, M_DBI_ROUTE) == 0) return LN_LMDB_DB_TYPE_ROUTE;
+    if (pEnv == mpEnvPayment) {
+        if (strcmp(pDbName, M_DBI_PAYMENT) == 0) return LN_LMDB_DB_TYPE_PAYMENT;
+        if (strcmp(pDbName, M_DBI_SHARED_SECRETS) == 0) return LN_LMDB_DB_TYPE_SHARED_SECRETS;
+        if (strcmp(pDbName, M_DBI_ROUTE) == 0) return LN_LMDB_DB_TYPE_ROUTE;
+        if (strcmp(pDbName, M_DBI_PAYMENT_INVOICE) == 0) return LN_LMDB_DB_TYPE_PAYMENT_INVOICE;
+    }
 
     return LN_LMDB_DB_TYPE_UNKNOWN;
 }
@@ -4117,6 +4125,24 @@ bool ln_db_payment_route_load(utl_buf_t *pBuf, uint64_t PaymentId)
 bool ln_db_payment_route_del(uint64_t PaymentId)
 {
     return db_payment_del(M_DBI_ROUTE, PaymentId);
+}
+
+
+bool ln_db_payment_invoice_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
+{
+    return db_payment_save(M_DBI_PAYMENT_INVOICE, PaymentId, pData, Len);
+}
+
+
+bool ln_db_payment_invoice_load(utl_buf_t *pBuf, uint64_t PaymentId)
+{
+    return db_payment_load(M_DBI_PAYMENT_INVOICE, pBuf, PaymentId);
+}
+
+
+bool ln_db_payment_invoice_del(uint64_t PaymentId)
+{
+    return db_payment_del(M_DBI_PAYMENT_INVOICE, PaymentId);
 }
 
 

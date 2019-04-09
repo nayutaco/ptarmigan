@@ -171,6 +171,7 @@ typedef enum {
     LN_LMDB_DB_TYPE_PAYMENT,
     LN_LMDB_DB_TYPE_SHARED_SECRETS,
     LN_LMDB_DB_TYPE_ROUTE,
+    LN_LMDB_DB_TYPE_PAYMENT_INVOICE,
 } ln_lmdb_db_type_t;
 
 
