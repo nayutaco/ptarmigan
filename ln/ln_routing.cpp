@@ -352,7 +352,7 @@ static void add_r_field(
 /**
  * @param[in]       pPayerId            送金元node_id
  */
-static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
+static bool load_db(nodes_result_t *p_result, const uint8_t *pPayerId)
 {
     int ret;
 
@@ -423,13 +423,8 @@ static graph_t::vertex_descriptor ver_add(graph_t& GRoute, const uint8_t *pNodeI
 
 
 lnerr_route_t ln_routing_calculate(
-        ln_routing_result_t *pResult,
-        const uint8_t *pPayerId,
-        const uint8_t *pPayeeId,
-        uint32_t CltvExpiry,
-        uint64_t AmountMsat,
-        uint8_t AddNum,
-        const ln_r_field_t *pAddRoute)
+    ln_routing_result_t *pResult, const uint8_t *pPayerId, const uint8_t *pPayeeId,
+    uint32_t CltvExpiry, uint64_t AmountMsat, uint8_t AddNum, const ln_r_field_t *pAddRoute)
 {
     pResult->hop_num = 0;
 
@@ -442,9 +437,9 @@ lnerr_route_t ln_routing_calculate(
         return LNROUTE_PARAM;
     }
 
-    bool ret = loaddb(&rt_res, pPayerId);
+    bool ret = load_db(&rt_res, pPayerId);
     if (!ret) {
-        LOGE("fail: loaddb\n");
+        LOGE("fail: load_db\n");
         return LNROUTE_LOADDB;
     }
 

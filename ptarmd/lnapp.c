@@ -425,18 +425,18 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
 
     pthread_mutex_lock(&pAppConf->mux_conf);
 
-    bool ret = false;
-    uint8_t session_key[BTC_SZ_PRIVKEY];
-    ln_channel_t *p_channel = &pAppConf->channel;
-    uint8_t onion[LN_SZ_ONION_ROUTE];
-    utl_buf_t secrets = UTL_BUF_INIT;
+    bool            ret = false;
+    uint8_t         session_key[BTC_SZ_PRIVKEY];
+    ln_channel_t    *p_channel = &pAppConf->channel;
+    uint8_t         onion[LN_SZ_ONION_ROUTE];
+    utl_buf_t       secrets = UTL_BUF_INIT;
 
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_channel)) {
         LOGE("short_channel_id mismatch\n");
         LOGE("fail: short_channel_id mismatch\n");
         LOGE("    hop  : %016" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         LOGE("    mine : %016" PRIx64 "\n", ln_short_channel_id(p_channel));
-        ln_db_route_skip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的 //XXX: ???
+        ln_db_route_skip_save(pPay->hop_datain[0].short_channel_id, false);
         goto LABEL_EXIT;
     }
 
@@ -444,16 +444,12 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
         if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
             LOGE("[%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")\n",
-                    lp,
-                    pPay->hop_datain[lp - 1].amt_to_forward,
-                    pPay->hop_datain[lp].amt_to_forward);
+                lp, pPay->hop_datain[lp - 1].amt_to_forward, pPay->hop_datain[lp].amt_to_forward);
             goto LABEL_EXIT;
         }
         if (pPay->hop_datain[lp - 1].outgoing_cltv_value <= pPay->hop_datain[lp].outgoing_cltv_value) {
             LOGE("[%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 ")\n",
-                    lp,
-                    pPay->hop_datain[lp - 1].outgoing_cltv_value,
-                    pPay->hop_datain[lp].outgoing_cltv_value);
+                lp, pPay->hop_datain[lp - 1].outgoing_cltv_value, pPay->hop_datain[lp].outgoing_cltv_value);
             goto LABEL_EXIT;
         }
     }
@@ -461,9 +457,9 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
     btc_rng_rand(session_key, sizeof(session_key));
         //XXX: should save session_key or shared_secret in the origin node?
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
-    ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
-                        session_key, pPay->payment_hash, BTC_SZ_HASH256);
-    if (!ret) {
+    if (!ln_onion_create_packet(
+        onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
+        session_key, pPay->payment_hash, BTC_SZ_HASH256)) {
         goto LABEL_EXIT;
     }
 
@@ -480,52 +476,50 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         goto LABEL_EXIT;
     }
 
-    ret = ln_set_add_htlc_send_origin(
+    if (!ln_set_add_htlc_send_origin(
         p_channel->short_channel_id, 0, payment_id,
         pPay->hop_datain[0].amt_to_forward, pPay->payment_hash,
-        pPay->hop_datain[0].outgoing_cltv_value, onion);
-    if (ret) {
-        if (!lnapp_payment_route_save(payment_id, pPay)) {
-            LOGE("fail: ???\n");
-        }
-    } else {
+        pPay->hop_datain[0].outgoing_cltv_value, onion)) {
+        ln_db_route_skip_save(p_channel->short_channel_id, false);
         goto LABEL_EXIT;
     }
 
+    if (!lnapp_payment_route_save(payment_id, pPay)) {
+        LOGE("fail: ???\n");
+    }
+
+    LOGD("payment start\n");
+    lnapp_show_channel_param(p_channel, stderr, "payment start", __LINE__);
+
+    // method: payment
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: amt_to_forward
+    // $4: outgoing_cltv_value
+    // $5: payment_hash
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(&pAppConf->channel));
+    char str_hash[BTC_SZ_HASH256 * 2 + 1];
+    utl_str_bin2str(str_hash, pPay->payment_hash, BTC_SZ_HASH256);
+    char node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
+    char param[M_SZ_SCRIPT_PARAM];
+    snprintf(
+        param, sizeof(param), "%s %s %" PRIu64 " %" PRIu32 " %s",
+        str_sci, node_id, pPay->hop_datain[0].amt_to_forward,
+        pPay->hop_datain[0].outgoing_cltv_value, str_hash);
+    ptarmd_call_script(PTARMD_EVT_PAYMENT, param);
+
+    ptarmd_eventlog(
+        ln_channel_id(&pAppConf->channel),
+        "[SEND]add_htlc: HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d",
+        payment_id, pPay->hop_datain[0].amt_to_forward,
+        pPay->hop_datain[0].outgoing_cltv_value);
+
+    ret = true;
+
 LABEL_EXIT:
-    if (ret) {
-        LOGD("payment start\n");
-        lnapp_show_channel_param(p_channel, stderr, "payment start", __LINE__);
-
-        // method: payment
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: amt_to_forward
-        // $4: outgoing_cltv_value
-        // $5: payment_hash
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pAppConf->channel));
-        char str_hash[BTC_SZ_HASH256 * 2 + 1];
-        utl_str_bin2str(str_hash, pPay->payment_hash, BTC_SZ_HASH256);
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
-        char param[M_SZ_SCRIPT_PARAM];
-        snprintf(param, sizeof(param), "%s %s "
-                    "%" PRIu64 " "
-                    "%" PRIu32 " "
-                    "%s",
-                    str_sci, node_id,
-                    pPay->hop_datain[0].amt_to_forward,
-                    pPay->hop_datain[0].outgoing_cltv_value,
-                    str_hash);
-        ptarmd_call_script(PTARMD_EVT_PAYMENT, param);
-
-        ptarmd_eventlog(ln_channel_id(&pAppConf->channel),
-            "[SEND]add_htlc: HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d",
-                    payment_id,
-                    pPay->hop_datain[0].amt_to_forward,
-                    pPay->hop_datain[0].outgoing_cltv_value);
-    } else {
+    if (!ret) {
         LOGE("fail\n");
         // char errstr[512];
         // snprintf(errstr, sizeof(errstr), M_ERRSTR_CANNOTSTART,
