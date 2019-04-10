@@ -126,7 +126,19 @@ def aggregate_inputs(fundamount, feerate):
             cmd_sum += "]\'"
 
             #TX AMOUNT
-            estimate_vsize = 76 + (p2wpkh * 68 + p2sh * 90 + p2pkh * 148)
+            #   version(4)
+            #   mark,flags(2)
+            #   vin_cnt(1)
+            #   vin(signature length=73)
+            #       native P2WPKH = outpoint(36) + scriptSig(1) + sequence(4) + witness(1 + 1+73 + 1+33)/4
+            #       nested P2WPKH = outpoint(36) + scriptSig(23) + sequence(4) + witness(1 + 1+73 + 1+33)/4
+            #       P2PKH         = outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4)
+            #   vout_cnt(1)
+            #   vout
+            #       mainout = P2WPKH(32)
+            #       change  = P2WPKH(32)
+            #   locktime(4)
+            estimate_vsize = 76 + (p2wpkh * 69 + p2sh * 91 + p2pkh * 149)
             txfee, fundsum, _ = calc_txfee(sum, estimate_vsize, feerate, fundamount)
             if fundsum <= sum :
                 #print('  p2wpkh=' + str(p2wpkh) + ', p2sh=' + str(p2sh) + ', p2pkh=' + str(p2wpkh))
