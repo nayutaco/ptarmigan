@@ -47,7 +47,7 @@
 #define M_QQ(str)           "\"" str "\""
 #define M_1(item,value)     M_QQ(item) ":" M_QQ(value)
 
-#define M_MIN_BITCOIND_VERSION  (150000)        //必要とするバージョン
+#define M_MIN_BITCOIND_VERSION  (170000)        //必要とするバージョン
 
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答

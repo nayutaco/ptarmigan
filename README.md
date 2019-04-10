@@ -28,10 +28,10 @@
 ### installation
 
 * use `bitcoind`
-  * show [SPV mode](docs/build_for_spv.md)(now testing)
+  * above v0.17(`getnetworkinfo` version > 170000)
 
 ```bash
-sudo apt install -y git autoconf pkg-config build-essential libtool wget jq bc
+sudo apt install -y git autoconf pkg-config build-essential libtool python3 wget jq bc
 
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
