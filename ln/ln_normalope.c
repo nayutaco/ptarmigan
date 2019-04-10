@@ -882,6 +882,15 @@ static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel)
         utl_push_t  push_reason;
         utl_buf_t   buf_cnlupd = UTL_BUF_INIT;
 
+        uint16_t update_idx;
+        if (ln_update_info_get_update_add_htlc_forwarded_send(
+            &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
+            //XXX: has registerd
+            utl_buf_free(&buf);
+            utl_buf_free(&reason);
+            continue;
+        }
+
         utl_push_init(&push_reason, &reason, 0);
 
         if (load_channel_update_local(pChannel, &buf_cnlupd, NULL, pChannel->short_channel_id)) {
@@ -940,6 +949,15 @@ static bool poll_update_add_htlc_forward_closing(ln_channel_t *pChannel)
         utl_buf_t   reason = UTL_BUF_INIT;
         utl_push_t  push_reason;
         utl_buf_t   buf_cnlupd = UTL_BUF_INIT;
+
+        uint16_t update_idx;
+        if (ln_update_info_get_update_add_htlc_forwarded_send(
+            &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
+            //XXX: has registerd
+            utl_buf_free(&buf);
+            utl_buf_free(&reason);
+            continue;
+        }
 
         utl_push_init(&push_reason, &reason, 0);
         utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
