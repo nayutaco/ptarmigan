@@ -191,7 +191,9 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     set_channels();
     lnapp_global_init();
     lnapp_manager_init();
-    lnapp_manager_start_origin_node(lnapp_thread_channel_origin_start);
+    if (!lnapp_manager_start_origin_node(lnapp_thread_channel_origin_start)) {
+        return -3;
+    }
 
     LOGD("\n");
 

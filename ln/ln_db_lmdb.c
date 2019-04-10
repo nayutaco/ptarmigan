@@ -145,8 +145,6 @@
 #define M_SZ_ONION_ROUTE        (sizeof(M_KEY_ONION_ROUTE) - 1)
 #define M_KEY_SHARED_SECRET     "shared_secret"
 #define M_SZ_SHARED_SECRET      (sizeof(M_KEY_SHARED_SECRET) - 1)
-#define M_KEY_FORWARD_MSG       "forward_msg"
-#define M_SZ_FORWARD_MSG        (sizeof(M_KEY_FORWARD_MSG) - 1)
 #define M_KEY_PAYMENT_ID        "payment_id"
 #define M_SZ_PAYMENT_ID         (sizeof(M_KEY_PAYMENT_ID) - 1)
 
@@ -634,11 +632,12 @@ static int wallet_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, in
 static int version_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
 static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
+static bool forward_create(uint64_t NextShortChannelId, const char *pDbNamePrefix);
 static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 static int forward_db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb);
 static int forward_save(ln_lmdb_db_t *pDb, const ln_db_forward_t *pForward);
-static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNamePrefix);
-static bool forward_save_3(const ln_db_forward_t* pForward, const char *pDbNamePrefix, MDB_txn *pTxn);
+static bool forward_save_2(const ln_db_forward_t *pForward, const char *pDbNamePrefix);
+static bool forward_save_3(const ln_db_forward_t *pForward, const char *pDbNamePrefix, MDB_txn *pTxn);
 static int forward_del(ln_lmdb_db_t *pDb, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 static bool forward_del_2(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId, const char *pDbNamePrefix);
 static bool forward_drop(uint64_t NextShortChannelId, const char *pDbNamePrefix);
@@ -1016,7 +1015,6 @@ int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, boo
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_init(&pChannel->update_info.htlcs[idx].buf_shared_secret);
-        utl_buf_init(&pChannel->update_info.htlcs[idx].buf_forward_msg);
     }
 
     //variable size data
@@ -3940,7 +3938,14 @@ void ln_db_copy_channel(ln_channel_t *pOutChannel, const ln_channel_t *pInChanne
  * forward
  ********************************************************************/
 
-bool ln_db_forward_add_htlc_save(const ln_db_forward_t* pForward)
+bool ln_db_forward_add_htlc_create(uint64_t NextShortChannelId)
+{
+    LOGD("NextShortChannelId: %016" PRIx64 "\n", NextShortChannelId);
+    return forward_create(NextShortChannelId, M_PREF_FORWARD_ADD_HTLC);
+}
+
+
+bool ln_db_forward_add_htlc_save(const ln_db_forward_t *pForward)
 {
     return forward_save_2(pForward, M_PREF_FORWARD_ADD_HTLC);
 }
@@ -3954,7 +3959,15 @@ bool ln_db_forward_add_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortC
 
 bool ln_db_forward_add_htlc_drop(uint64_t NextShortChannelId)
 {
+    LOGD("NextShortChannelId: %016" PRIx64 "\n", NextShortChannelId);
     return forward_drop(NextShortChannelId, M_PREF_FORWARD_ADD_HTLC);
+}
+
+
+bool ln_db_forward_del_htlc_create(uint64_t NextShortChannelId)
+{
+    LOGD("NextShortChannelId: %016" PRIx64 "\n", NextShortChannelId);
+    return forward_create(NextShortChannelId, M_PREF_FORWARD_DEL_HTLC);
 }
 
 
@@ -3982,6 +3995,7 @@ bool ln_db_forward_del_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortC
 
 bool ln_db_forward_del_htlc_drop(uint64_t NextShortChannelId)
 {
+    LOGD("NextShortChannelId: %016" PRIx64 "\n", NextShortChannelId);
     return forward_drop(NextShortChannelId, M_PREF_FORWARD_DEL_HTLC);
 }
 
@@ -4305,22 +4319,6 @@ static int channel_htlc_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
             retval = 0;     //FALLTHROUGH
         }
 
-        key.mv_size = M_SZ_FORWARD_MSG;
-        key.mv_data = M_KEY_FORWARD_MSG;
-        retval = mdb_get(pDb->p_txn, dbi, &key, &data);
-        if (retval == 0) {
-            if (!utl_buf_alloccopy(
-                &pChannel->update_info.htlcs[lp].buf_forward_msg, data.mv_data, data.mv_size)) {
-                LOGE("fail: ???\n");
-                retval = -1;
-                MDB_DBI_CLOSE(mpEnvChannel, dbi);
-                break;
-            }
-        } else {
-            //LOGE("ERR: %s(forward_msg)\n", mdb_strerror(retval));
-            retval = 0;     //FALLTHROUGH
-        }
-
         MDB_DBI_CLOSE(mpEnvChannel, dbi);
     }
 
@@ -4397,16 +4395,6 @@ static int channel_htlc_save(const ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
         retval = mdb_put(pDb->p_txn, dbi, &key, &data, 0);
         if (retval) {
             LOGE("ERR: %s(shared_secret)\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-
-        key.mv_size = M_SZ_FORWARD_MSG;
-        key.mv_data = M_KEY_FORWARD_MSG;
-        data.mv_size = pChannel->update_info.htlcs[lp].buf_forward_msg.len;
-        data.mv_data = pChannel->update_info.htlcs[lp].buf_forward_msg.buf;
-        retval = mdb_put(pDb->p_txn, dbi, &key, &data, 0);
-        if (retval) {
-            LOGE("ERR: %s(forward_msg)\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
     }
@@ -5776,6 +5764,26 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
  * private functions: forward
  ********************************************************************/
 
+static bool forward_create(uint64_t NextShortChannelId, const char *pDbNamePrefix)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            db_name[M_SZ_FORWARD_DB_NAME_STR + 1];
+
+    db.p_txn = NULL;
+
+    forward_set_db_name(db_name, NextShortChannelId, pDbNamePrefix);
+    retval = forward_db_open(&db, db_name, 0, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    MDB_TXN_COMMIT(db.p_txn);
+    MDB_DBI_CLOSE(mpEnvForward, db.dbi);
+    return true;
+}
+
+
 static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb)
 {
     return db_open(pDb, mpEnvForward, pDbName, OptTxn, OptDb);
@@ -5814,7 +5822,9 @@ static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNameP
     db.p_txn = NULL;
 
     forward_set_db_name(db_name, pForward->next_short_channel_id, pDbNamePrefix);
-    retval = forward_db_open(&db, db_name, 0, MDB_CREATE);
+    //forward dbs is created explicitly for each channel and removed when closed.
+    //When DB does not exist, writing from other channels must fail. Do not specify MDB_CREATE.
+    retval = forward_db_open(&db, db_name, 0, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
         return false;
@@ -5850,7 +5860,9 @@ static bool forward_save_3(const ln_db_forward_t* pForward, const char *pDbNameP
     db.p_txn = NULL;
 
     forward_set_db_name(db_name, pForward->next_short_channel_id, pDbNamePrefix);
-    retval = forward_db_open_2(&db, pTxn, db_name, MDB_CREATE);
+    //forward dbs is created explicitly for each channel and removed when closed.
+    //When DB does not exist, writing from other channels must fail. Do not specify MDB_CREATE.
+    retval = forward_db_open_2(&db, pTxn, db_name, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
         return false;

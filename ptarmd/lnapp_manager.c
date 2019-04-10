@@ -68,13 +68,22 @@ void lnapp_manager_term(void)
 }
 
 
-void lnapp_manager_start_origin_node(void *(*pThreadChannelStart)(void *pArg))
+bool lnapp_manager_start_origin_node(void *(*pThreadChannelStart)(void *pArg))
 {
     LOGD("\n");
+    if (!ln_db_forward_add_htlc_create(0)) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+    if (!ln_db_forward_del_htlc_create(0)) {
+        LOGE("fail: ???\n");
+        return false;
+    }
     lnapp_conf_t *p_conf = lnapp_manager_get_new_node(mNodeIdOrigin, pThreadChannelStart);
     assert(p_conf);
     lnapp_start(p_conf);
     LOGD("\n");
+    return true;
 }
 
 

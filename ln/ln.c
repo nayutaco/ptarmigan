@@ -1423,7 +1423,6 @@ static void channel_clear(ln_channel_t *pChannel)
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_preimage);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_onion_reason);
         utl_buf_free(&pChannel->update_info.htlcs[idx].buf_shared_secret);
-        utl_buf_free(&pChannel->update_info.htlcs[idx].buf_forward_msg);
     }
 
     memset(pChannel->peer_node_id, 0, BTC_SZ_PUBKEY);
