@@ -887,12 +887,14 @@ static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel)
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
             //XXX: has registerd
             utl_buf_free(&buf);
-            utl_buf_free(&reason);
             continue;
         }
 
-        utl_push_init(&push_reason, &reason, 0);
+        if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+            LOGE("fail: ???\n");
+        }
 
+        utl_push_init(&push_reason, &reason, 0);
         if (load_channel_update_local(pChannel, &buf_cnlupd, NULL, pChannel->short_channel_id)) {
             utl_push_u16be(&push_reason, LNONION_TMP_CHAN_FAIL);
             utl_push_u16be(&push_reason, (uint16_t)buf_cnlupd.len);
@@ -900,10 +902,6 @@ static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel)
         } else {
             LOGE("fail: ???\n");
             utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
-        }
-
-        if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
-            LOGE("fail: ???\n");
         }
 
         ln_msg_x_update_fail_htlc_t forward_msg;
@@ -955,16 +953,15 @@ static bool poll_update_add_htlc_forward_closing(ln_channel_t *pChannel)
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
             //XXX: has registerd
             utl_buf_free(&buf);
-            utl_buf_free(&reason);
             continue;
         }
-
-        utl_push_init(&push_reason, &reason, 0);
-        utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
 
         if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
             LOGE("fail: ???\n");
         }
+
+        utl_push_init(&push_reason, &reason, 0);
+        utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
 
         ln_msg_x_update_fail_htlc_t forward_msg;
         forward_msg.len = reason.len;
@@ -1301,7 +1298,11 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 void ln_idle_proc_inactive(ln_channel_t *pChannel)
 {
     if (!pChannel->short_channel_id) return;
-    /*ignore*/poll_update_add_htlc_forward_inactive(pChannel);
+    if (ln_is_shutdown_sent(pChannel)) {
+        /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
+    } else {
+        /*ignore*/poll_update_add_htlc_forward_inactive(pChannel);
+    }
 }
 
 
