@@ -27,6 +27,7 @@
 #include <getopt.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <libgen.h>
 
 #include <jansson.h>
 
@@ -35,6 +36,7 @@
 #include "utl_dbg.h"
 #include "utl_str.h"
 #include "utl_time.h"
+#include "utl_mem.h"
 
 #include "ln_invoice.h"
 
@@ -73,6 +75,9 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
+#ifdef USE_BITCOIND
+#define M_TMPFUNDCONF       "fundtmp.conf"
+#endif
 
 #define M_CHK_INIT      {\
     if (*pOption != M_OPTIONS_INIT) {           	\
@@ -456,6 +461,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
     conf_funding_init(&fundconf);
 #ifdef USE_BITCOIND
     bret = conf_funding_load(optarg, &fundconf);
+    bool bitcoindconf_fail = bret;
 #endif
     if (!bret) {
         //SPVの場合、funding_satoshisだけの指定でも受け付けられる
@@ -485,6 +491,30 @@ static void optfunc_funding(int *pOption, bool *pConn)
             }
         }
     }
+#ifdef USE_BITCOIND
+    if (!bitcoindconf_fail) {
+        LOGD("execute script\n");
+
+        ssize_t buff_len;
+        char exec_path[PATH_MAX];
+        if((buff_len = readlink("/proc/self/exe", exec_path, sizeof(exec_path) - 1)) != -1) {
+            exec_path[buff_len] = '\0';
+            dirname(exec_path);
+        }
+
+        size_t sclen = strlen(exec_path) + 128;
+        char *cmdline = (char *)UTL_DBG_MALLOC(sclen);  //UTL_DBG_FREE: この中
+        snprintf(cmdline, sclen, "python3 %s/pay_fundin.py %" PRIu64 " %" PRIu64 " " M_TMPFUNDCONF,
+                    exec_path,
+                    fundconf.funding_sat,
+                    fundconf.push_sat);
+        fprintf(stderr, "cmdline: %s\n", cmdline);
+        system(cmdline);
+        UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
+        bret = conf_funding_load(M_TMPFUNDCONF, &fundconf);
+        unlink(M_TMPFUNDCONF);
+    }
+#endif
     if (bret) {
         char txid[BTC_SZ_TXID * 2 + 1];
 

@@ -22,7 +22,7 @@ import datetime
 '''
 
 
-def fund_in(funding_sat, push_msat):
+def fund_in(name, funding_sat, push_msat):
     fundamount = float(funding_sat) / 100000000
     fundamount = round(fundamount, 8)
 
@@ -80,7 +80,6 @@ def fund_in(funding_sat, push_msat):
     print('[LOCK]', lockvout)
 
     #CREATE CONF
-    name = str("fund_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".conf")
     create_conf(name, sendtx, newaddr, funding_sat, push_msat)
     print('[CREATE] ' + name)
 
@@ -232,10 +231,17 @@ def create_conf(name, sendtx, newaddr, funding_sat, push_msat):
 if __name__ == '__main__':
     args = sys.argv
 
-    if len(args) != 3 or not args[1].isdecimal() or not args[2].isdecimal():
+    if len(args) != 3 and len(args) != 4:
         print('usage:\n\t' + args[0] + ' [funding_satoshis] [push_msat m-satoshis]')
         sys.exit()
+    if len(args) == 4:
+        name = args[3]
+    else:
+        name = str("fund_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".conf")
 
+    if not args[1].isdecimal() or not args[2].isdecimal():
+        print('ERROR: invalid arguments')
+        sys.exit()
     if int(args[1]) < 100000:
         print('ERROR: funding_satoshis < 100,000 sat')
         sys.exit()
@@ -246,4 +252,4 @@ if __name__ == '__main__':
         print('ERROR: funding_satoshis * 1,000 < push_msat')
         sys.exit()
 
-    fund_in(args[1], args[2])
+    fund_in(name, args[1], args[2])
