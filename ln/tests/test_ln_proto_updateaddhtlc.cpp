@@ -69,6 +69,7 @@ FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly_nokey, ln_db_func_cmp_t, voi
 FAKE_VALUE_FUNC(bool, ln_db_payment_hash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
+FAKE_VALUE_FUNC(bool, ln_db_forward_add_htlc_save, const ln_db_forward_t *);
 
 FAKE_VALUE_FUNC(bool, ln_msg_open_channel_write, utl_buf_t *, const ln_msg_open_channel_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_open_channel_read, ln_msg_open_channel_t*, const uint8_t*, uint16_t);
@@ -99,6 +100,7 @@ protected:
         RESET_FAKE(ln_db_payment_hash_save)
         RESET_FAKE(ln_db_preimage_search)
         RESET_FAKE(ln_db_preimage_set_expiry)
+        RESET_FAKE(ln_db_forward_add_htlc_save)
         RESET_FAKE(ln_msg_open_channel_read)
         RESET_FAKE(ln_msg_accept_channel_write)
         RESET_FAKE(ln_msg_accept_channel_read)
@@ -108,6 +110,7 @@ protected:
         RESET_FAKE(ln_msg_funding_signed_read)
         RESET_FAKE(ln_commit_tx_create_remote)
 
+        ln_db_forward_add_htlc_save_fake.return_val = true;
         ln_commit_tx_create_remote_fake.return_val = true;
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);

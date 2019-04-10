@@ -46,7 +46,6 @@ void ln_update_info_init(ln_update_info_t *pInfo) {
         utl_buf_init(&pInfo->htlcs[idx].buf_preimage);
         utl_buf_init(&pInfo->htlcs[idx].buf_onion_reason);
         utl_buf_init(&pInfo->htlcs[idx].buf_shared_secret);
-        utl_buf_init(&pInfo->htlcs[idx].buf_forward_msg);
     }
 }
 
@@ -56,7 +55,6 @@ void ln_update_info_free(ln_update_info_t *pInfo) {
         utl_buf_free(&pInfo->htlcs[idx].buf_preimage);
         utl_buf_free(&pInfo->htlcs[idx].buf_onion_reason);
         utl_buf_free(&pInfo->htlcs[idx].buf_shared_secret);
-        utl_buf_free(&pInfo->htlcs[idx].buf_forward_msg);
     }
     memset(pInfo, 0x00, sizeof(ln_update_info_t));
 }
@@ -123,7 +121,6 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
     utl_buf_free(&p_htlc->buf_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_free(&p_htlc->buf_shared_secret);
-    utl_buf_free(&p_htlc->buf_forward_msg);
     memset(p_htlc, 0x00, sizeof(ln_htlc_t));
 
     //clear corresponding update (add -> del, del -> add)

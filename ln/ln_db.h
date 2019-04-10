@@ -829,14 +829,16 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain);
  ********************************************************************/
 
 //XXX: comment
-bool ln_db_forward_add_htlc_save(const ln_db_forward_t* pForward);
+bool ln_db_forward_add_htlc_create(uint64_t NextShortChannelId);
+bool ln_db_forward_add_htlc_save(const ln_db_forward_t *pForward);
 bool ln_db_forward_add_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 bool ln_db_forward_add_htlc_drop(uint64_t NextShortChannelId);
 
 
 //XXX: comment
-bool ln_db_forward_del_htlc_save(const ln_db_forward_t* pForward);
-bool ln_db_forward_del_htlc_save_2(const ln_db_forward_t* pForward, void *pDbParam);
+bool ln_db_forward_del_htlc_create(uint64_t NextShortChannelId);
+bool ln_db_forward_del_htlc_save(const ln_db_forward_t *pForward);
+bool ln_db_forward_del_htlc_save_2(const ln_db_forward_t *pForward, void *pDbParam);
 bool ln_db_forward_del_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId);
 bool ln_db_forward_del_htlc_drop(uint64_t NextShortChannelId);
 

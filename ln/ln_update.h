@@ -134,7 +134,6 @@ typedef struct {
     uint8_t             remote_sig[LN_SZ_SIGNATURE];    ///< 受信した最新のHTLC署名
                                                         //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     utl_buf_t           buf_shared_secret;              ///< failuremsg暗号化用
-    utl_buf_t           buf_forward_msg;                ///<
 
     uint64_t            neighbor_short_channel_id;      ///<
     uint64_t            neighbor_id;                    ///<

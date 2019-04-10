@@ -1185,6 +1185,8 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
         LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_short_channel_id_set_param(&p_conf->channel, bheight, bindex);
         ln_funding_blockhash_set(&p_conf->channel, mined_hash);
+        ln_db_forward_add_htlc_create(ln_short_channel_id(&p_conf->channel));
+        ln_db_forward_del_htlc_create(ln_short_channel_id(&p_conf->channel));
         ln_db_channel_owned_save(ln_short_channel_id(&p_conf->channel));
         LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(&p_conf->channel), ret);
     }

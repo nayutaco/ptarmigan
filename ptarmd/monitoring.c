@@ -416,6 +416,8 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
     if (del) {
         p_channel->status = LN_STATUS_CLOSED; //XXX:
         LOGD("delete from DB\n");
+        ln_db_forward_add_htlc_drop(ln_short_channel_id(p_channel));
+        ln_db_forward_del_htlc_drop(ln_short_channel_id(p_channel));
         ln_db_channel_owned_del(ln_short_channel_id(p_channel));
         if (pDbParam) {
             ret = ln_db_channel_del_param(p_channel, pDbParam);

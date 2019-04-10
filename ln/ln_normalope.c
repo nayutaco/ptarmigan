@@ -487,21 +487,8 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!p_update->new_update) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, true)) {
-            //XXX: Make sure to call back once...
-            ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
-
-            if (check_recv_add_htlc_bolt4(pChannel, idx)) {
-                LOGD("\n");
-                ln_db_forward_t param;
-                param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
-                param.prev_short_channel_id = pChannel->short_channel_id;
-                param.prev_htlc_id = p_htlc->id;
-                param.p_msg = &p_htlc->buf_forward_msg;
-                if (ln_db_forward_add_htlc_save(&param)) {
-                    LOGD("\n");
-                } else {
-                    LOGE("fail: ???\n");
-                }
+            if (!check_recv_add_htlc_bolt4(pChannel, idx)) {
+                LOGE("fail: ???\n");
             }
         } else if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_MASK_FAIL_HTLC, true)) {
             ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
@@ -1408,6 +1395,7 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
     utl_push_t push_reason;
     utl_buf_t buf_reason = UTL_BUF_INIT;
     result_t result = RESULT_OK;
+    utl_buf_t buf_forward_msg = UTL_BUF_INIT;
 
     utl_push_init(&push_reason, &buf_reason, 0);
 
@@ -1434,12 +1422,6 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
         goto LABEL_ERROR;
     }
 
-    if (hop_dataout.b_exit) {
-        LOGD("final\n");
-    } else {
-        LOGD("foward: short_channel_id: %016" PRIx64 "\n", hop_dataout.short_channel_id);
-    }
-
     p_htlc->neighbor_short_channel_id = hop_dataout.short_channel_id;
     p_htlc->neighbor_id = 0; //dummy
     ln_msg_x_update_add_htlc_t msg;
@@ -1449,9 +1431,28 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t UpdateIdx
     msg.amt_to_forward = hop_dataout.amt_to_forward;
     msg.outgoing_cltv_value = hop_dataout.outgoing_cltv_value;
     msg.p_onion_routing_packet = p_htlc->buf_onion_reason.buf;
-    /*ignore(XXX: need to check)*/ln_msg_x_update_add_htlc_write(&p_htlc->buf_forward_msg, &msg);
+    /*ignore(XXX: need to check)*/ln_msg_x_update_add_htlc_write(&buf_forward_msg, &msg);
+
+    ln_db_forward_t param;
+    param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
+    param.prev_short_channel_id = pChannel->short_channel_id;
+    param.prev_htlc_id = p_htlc->id;
+    param.p_msg = &buf_forward_msg;
+    if (ln_db_forward_add_htlc_save(&param)) {
+        LOGD("\n");
+    } else {
+        LOGE("fail: ???\n");
+        if (p_htlc->neighbor_short_channel_id) {
+            utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
+        } else {
+            utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
+        }
+        result = RESULT_FAIL;
+        goto LABEL_ERROR;
+    }
 
     utl_buf_free(&buf_reason);
+    utl_buf_free(&buf_forward_msg);
     return true;
 
 LABEL_ERROR:
@@ -1469,6 +1470,7 @@ LABEL_ERROR:
     }
 
     utl_buf_free(&buf_reason);
+    utl_buf_free(&buf_forward_msg);
     return false;
 }
 
