@@ -374,12 +374,10 @@ static void proc_inactive_channel(lnapp_conf_t *pConf, void *pParam)
     (void)pParam;
 
     pthread_mutex_lock(&pConf->mux_conf);
-    pthread_mutex_lock(&pConf->mux_channel);
     if (!pConf->active) {
         ln_idle_proc_inactive(&pConf->channel);
     }
     pthread_mutex_unlock(&pConf->mux_conf);
-    pthread_mutex_unlock(&pConf->mux_channel);
 }
 
 
@@ -440,9 +438,7 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
 static void monfunc_2(lnapp_conf_t *pConf, void *pParam)
 {
     pthread_mutex_lock(&pConf->mux_conf);
-    pthread_mutex_lock(&pConf->mux_channel);
     monfunc(pConf, NULL, pParam);
-    pthread_mutex_unlock(&pConf->mux_channel);
     pthread_mutex_unlock(&pConf->mux_conf);
 }
 

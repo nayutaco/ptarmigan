@@ -417,9 +417,7 @@ static void search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam)
     if (p_param->found) return;
 
     pthread_mutex_lock(&pConf->mux_conf);
-    pthread_mutex_lock(&pConf->mux_channel);
     bool ret = lnapp_match_short_channel_id(pConf, p_param->short_channel_id);
-    pthread_mutex_unlock(&pConf->mux_channel);
     pthread_mutex_unlock(&pConf->mux_conf);
     if (ret) {
         p_param->found = true;
