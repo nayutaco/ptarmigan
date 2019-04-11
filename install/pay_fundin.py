@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import sys
 import json
@@ -31,6 +34,7 @@ def fund_in(funding_sat, push_msat):
     fundsum = 0     # output amount + txfee
 
     feerate = estimatefeerate()
+    print('[FeeRate] {0:.8f}'.format(feerate))
 
     #New UTXO has 'fundamount' plus 'fundfee'.
     fundfee = round(227 * feerate / 1000, 8)
@@ -38,7 +42,7 @@ def fund_in(funding_sat, push_msat):
 
     sum, cmd_sum, fundsum, txfee, estimate_vsize = aggregate_inputs(fundamount, feerate)
     if sum < fundamount:
-        print("ERROR: You don't have enough amount.")
+        print("ERROR: You don't have enough amount(P2PKH, P2WPKH).")
         return
 
     dispfundamount = "{0:.8f}".format(round(fundamount, 8))
@@ -59,7 +63,7 @@ def fund_in(funding_sat, push_msat):
     #fee calclate 2
     vsize = get_vsize(signhex)
     if vsize != estimate_vsize:
-        print('vsize not same(' + str(vsize) + ') --> recalc')
+        #print('[ReCalc]vsize not same(' + str(estimate_vsize) + ' --> ' + str(vsize) + ')')
         txfee, fundsum, change = calc_txfee(sum, vsize, feerate, fundamount)
         ret, signhex = create_tx(cmd_sum, sum, fundsum, change)
         if not ret:
@@ -89,10 +93,13 @@ def aggregate_inputs(fundamount, feerate):
     sum = 0
     txlist = []
     cmd_sum = ''
+    fundsum = 0
     txfee = 0
     p2wpkh = 0
     p2sh = 0
     p2pkh = 0
+    inputs = 0
+    estimate_vsize = 0
 
     subprocess.run("bitcoin-cli listunspent 0 > list.json", shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     a = open("list.json", 'r')
@@ -103,17 +110,22 @@ def aggregate_inputs(fundamount, feerate):
     for i in range(len(lu)):
         addrmk = lu[i]['scriptPubKey']
         if addrmk[:2] == "00" :
+            #print('native P2WPKH')
             p2wpkh += 1
         elif addrmk[:2] == "a9" :
+            #print('nested P2WPKH')
             p2sh += 1
         elif addrmk[:2] == "76" :
+            #print('P2PKH')
             p2pkh += 1
         else:
             #maybe P2PK
+            #print('skip')
             continue
 
         sum += lu[i]['amount']
         txlist.append("{\"txid\":\"" + str(lu[i]['txid']) + "\",\"vout\":" + str(lu[i]['vout']) + "}")
+        inputs += 1
 
         if sum >= fundamount:
             #TX INPUT
@@ -130,20 +142,30 @@ def aggregate_inputs(fundamount, feerate):
             #   mark,flags(2)
             #   vin_cnt(1)
             #   vin(signature length=73)
-            #       native P2WPKH = outpoint(36) + scriptSig(1) + sequence(4) + witness(1 + 1+73 + 1+33)/4
-            #       nested P2WPKH = outpoint(36) + scriptSig(23) + sequence(4) + witness(1 + 1+73 + 1+33)/4
-            #       P2PKH         = outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4)
+            #       native P2WPKH(68.25) = outpoint(36) + scriptSig(1) + sequence(4) + witness(1 + 1+73 + 1+33)/4
+            #       nested P2WPKH(90.25) = outpoint(36) + scriptSig(23) + sequence(4) + witness(1 + 1+73 + 1+33)/4
+            #       P2PKH(149)           = outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4)
             #   vout_cnt(1)
             #   vout
-            #       mainout = P2WPKH(32)
-            #       change  = P2WPKH(32)
+            #       mainoutput = nested P2WPKH(32)
+            #       change     = nested P2WPKH(32)
             #   locktime(4)
-            estimate_vsize = 76 + (p2wpkh * 69 + p2sh * 91 + p2pkh * 149)
+            #      (version + mark,flags + vout_cnt + vout + 4) = 75
+            estimate_vsize = 75 + (p2wpkh * 69 + p2sh * 91 + p2pkh * 149)
             txfee, fundsum, _ = calc_txfee(sum, estimate_vsize, feerate, fundamount)
             if fundsum <= sum :
                 #print('  p2wpkh=' + str(p2wpkh) + ', p2sh=' + str(p2sh) + ', p2pkh=' + str(p2wpkh))
                 break
 
+    # https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+    if inputs == 0:
+        print('no input')
+    elif inputs < 0xfd:
+        estimate_vsize += 1
+    elif inputs <= 0xffff:
+        estimate_vsize += 3
+    else:
+        estimate_vsize += 5
     return sum, cmd_sum, fundsum, txfee, estimate_vsize
 
 
@@ -164,10 +186,26 @@ def create_tx(cmd_sum, sum, fundsum, change):
     return create_sign_tx(cmd)
 
 
+def get_chain():
+    info = subprocess.run("bitcoin-cli getblockchaininfo", shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    info = json.loads(info.stdout.decode("utf8").strip())
+    return info['chain']
+
+
 def estimatefeerate():
     feesatpkb = subprocess.run("bitcoin-cli estimatesmartfee 6", shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     feesatpkb = feesatpkb.stdout.decode("utf8").strip()
-    feerate = json.loads(feesatpkb)['feerate']
+    json_dic = json.loads(feesatpkb)
+    if 'errors' not in json_dic:
+        feerate = json_dic['feerate']
+    else:
+        chain = get_chain()
+        if chain == 'regtest':
+            print('WARNING: estimatesmartfee was failed ==> minimum feerate')
+            feerate = 0.00001000
+        else:
+            print('ERROR: estimatesmartfee was failed.')
+            sys.exit()
     return feerate
 
 
