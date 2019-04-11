@@ -655,10 +655,21 @@ static void forward_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PrevShort
 static bool forward_parse_key(MDB_val *pKey, uint64_t *pPrevShortChannelId, uint64_t *pPrevHtlcId);
 
 static int payment_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
+static int payment_db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb);
 static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PaymentId);
-static bool db_payment_save(const char *pDbName, uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
-static bool db_payment_load(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId);
-static bool db_payment_del(const char *pDbName, uint64_t PaymentId);
+static bool payment_id_parse_key(MDB_val *pKey, uint64_t *pPaymentId);
+static bool payment_save(const char *pDbName, uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
+static int payment_load(ln_lmdb_db_t *pDb, utl_buf_t *pBuf, uint64_t PaymentId);
+static bool payment_load_2(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId);
+static bool payment_load_3(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId, MDB_txn *pTxn);
+static bool payment_del(const char *pDbName, uint64_t PaymentId);
+
+static bool payment_cur_open(void **ppCur, const char *pDbName);
+static void payment_cur_close(void *pCur, bool bCommit);
+static bool payment_cur_get(void *pCur, uint64_t *pPaymentId, utl_buf_t *pBuf);
+static int payment_cur_load(
+    MDB_cursor *pCur, uint64_t *pPaymentId, utl_buf_t *pBuf, MDB_cursor_op Op);
+static bool payment_cur_del(void *pCur);
 
 static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
 static int fixed_items_save(const void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *pItems, size_t Num);
@@ -2742,6 +2753,7 @@ LABEL_ERROR:
  * [node]invoice
  ********************************************************************/
 
+#if 0 //XXX: deprecated
 bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint8_t *pPaymentHash)
 {
     LOGD("\n");
@@ -2919,6 +2931,7 @@ bool ln_db_invoice_drop(void)
     MDB_TXN_COMMIT(db.p_txn);
     return true;
 }
+#endif
 
 
 /********************************************************************
@@ -3984,12 +3997,18 @@ bool ln_db_forward_add_htlc_create(uint64_t NextShortChannelId)
 
 bool ln_db_forward_add_htlc_save(const ln_db_forward_t *pForward)
 {
+    //LOGD("NextShortChannelId: %016" PRIx64 "\n", pForward->next_short_channel_id);
+    //LOGD("PrevShortChannelId: %016" PRIx64 "\n", pForward->prev_short_channel_id);
+    //LOGD("PrevHtlcId: %016" PRIx64 "\n", pForward->prev_htlc_id);
     return forward_save_2(pForward, M_PREF_FORWARD_ADD_HTLC);
 }
 
 
 bool ln_db_forward_add_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
 {
+    //LOGD("NextShortChannelId: %016" PRIx64 "\n", NextShortChannelId);
+    //LOGD("PrevShortChannelId: %016" PRIx64 "\n", PrevShortChannelId);
+    //LOGD("PrevHtlcId: %016" PRIx64 "\n", PrevHtlcId);
     return forward_del_2(NextShortChannelId, PrevShortChannelId, PrevHtlcId, M_PREF_FORWARD_ADD_HTLC);
 }
 
@@ -4010,12 +4029,19 @@ bool ln_db_forward_del_htlc_create(uint64_t NextShortChannelId)
 
 bool ln_db_forward_del_htlc_save(const ln_db_forward_t* pForward)
 {
+    //LOGD("NextShortChannelId: %016" PRIx64 "\n", pForward->next_short_channel_id);
+    //LOGD("PrevShortChannelId: %016" PRIx64 "\n", pForward->prev_short_channel_id);
+    //LOGD("PrevHtlcId: %016" PRIx64 "\n", pForward->prev_htlc_id);
     return forward_save_2(pForward, M_PREF_FORWARD_DEL_HTLC);
 }
 
 
 bool ln_db_forward_del_htlc_save_2(const ln_db_forward_t* pForward, void *pDbParam)
 {
+    //LOGD("NextShortChannelId: %016" PRIx64 "\n", pForward->next_short_channel_id);
+    //LOGD("PrevShortChannelId: %016" PRIx64 "\n", pForward->prev_short_channel_id);
+    //LOGD("PrevHtlcId: %016" PRIx64 "\n", pForward->prev_htlc_id);
+
     ln_lmdb_db_t    *p_db = (ln_lmdb_db_t *)pDbParam;
     assert(p_db);
     MDB_txn         *p_txn = p_db->p_txn;
@@ -4026,6 +4052,9 @@ bool ln_db_forward_del_htlc_save_2(const ln_db_forward_t* pForward, void *pDbPar
 
 bool ln_db_forward_del_htlc_del(uint64_t NextShortChannelId, uint64_t PrevShortChannelId, uint64_t PrevHtlcId)
 {
+    //LOGD("NextShortChannelId: %016" PRIx64 "\n", NextShortChannelId);
+    //LOGD("PrevShortChannelId: %016" PRIx64 "\n", PrevShortChannelId);
+    //LOGD("PrevHtlcId: %016" PRIx64 "\n", PrevHtlcId);
     return forward_del_2(NextShortChannelId, PrevShortChannelId, PrevHtlcId, M_PREF_FORWARD_DEL_HTLC);
 }
 
@@ -4061,6 +4090,7 @@ bool ln_db_forward_add_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, u
 
 bool ln_db_forward_add_htlc_cur_del(void *pCur)
 {
+    //LOGD("\n");
     return forward_cur_del(pCur);
 }
 
@@ -4085,6 +4115,7 @@ bool ln_db_forward_del_htlc_cur_get(void *pCur, uint64_t *pPrevShortChannelId, u
 
 bool ln_db_forward_del_htlc_cur_del(void *pCur)
 {
+    //LOGD("\n");
     return forward_cur_del(pCur);
 }
 
@@ -4145,61 +4176,71 @@ bool ln_db_payment_get_new_payment_id(uint64_t *pPaymentId)
 
 bool ln_db_payment_shared_secrets_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
 {
-    return db_payment_save(M_DBI_SHARED_SECRETS, PaymentId, pData, Len);
+    return payment_save(M_DBI_SHARED_SECRETS, PaymentId, pData, Len);
 }
 
 
 bool ln_db_payment_shared_secrets_load(utl_buf_t *pBuf, uint64_t PaymentId)
 {
-    return db_payment_load(M_DBI_SHARED_SECRETS, pBuf, PaymentId);
+    return payment_load_2(M_DBI_SHARED_SECRETS, pBuf, PaymentId);
 }
 
 
 bool ln_db_payment_shared_secrets_del(uint64_t PaymentId)
 {
-    return db_payment_del(M_DBI_SHARED_SECRETS, PaymentId);
+    return payment_del(M_DBI_SHARED_SECRETS, PaymentId);
 }
 
 
 bool ln_db_payment_route_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
 {
-    return db_payment_save(M_DBI_ROUTE, PaymentId, pData, Len);
+    return payment_save(M_DBI_ROUTE, PaymentId, pData, Len);
 }
 
 
 bool ln_db_payment_route_load(utl_buf_t *pBuf, uint64_t PaymentId)
 {
-    return db_payment_load(M_DBI_ROUTE, pBuf, PaymentId);
+    return payment_load_2(M_DBI_ROUTE, pBuf, PaymentId);
 }
 
 
 bool ln_db_payment_route_del(uint64_t PaymentId)
 {
-    return db_payment_del(M_DBI_ROUTE, PaymentId);
+    return payment_del(M_DBI_ROUTE, PaymentId);
 }
 
 
 bool ln_db_payment_invoice_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
 {
-    return db_payment_save(M_DBI_PAYMENT_INVOICE, PaymentId, pData, Len);
+    return payment_save(M_DBI_PAYMENT_INVOICE, PaymentId, pData, Len);
 }
 
 
 bool ln_db_payment_invoice_load(utl_buf_t *pBuf, uint64_t PaymentId)
 {
-    return db_payment_load(M_DBI_PAYMENT_INVOICE, pBuf, PaymentId);
+    return payment_load_2(M_DBI_PAYMENT_INVOICE, pBuf, PaymentId);
+}
+
+
+bool ln_db_payment_invoice_load_2(utl_buf_t *pBuf, uint64_t PaymentId, void *pDbParam)
+{
+    ln_lmdb_db_t    *p_db = (ln_lmdb_db_t *)pDbParam;
+    assert(p_db);
+    MDB_txn         *p_txn = p_db->p_txn;
+    assert(p_txn);
+    return payment_load_3(M_DBI_PAYMENT_INVOICE, pBuf, PaymentId, p_txn);
 }
 
 
 bool ln_db_payment_invoice_del(uint64_t PaymentId)
 {
-    return db_payment_del(M_DBI_PAYMENT_INVOICE, PaymentId);
+    return payment_del(M_DBI_PAYMENT_INVOICE, PaymentId);
 }
 
 
 bool ln_db_payment_info_save(uint64_t PaymentId, const ln_payment_info_t *pInfo)
 {
-    return db_payment_save(
+    return payment_save(
         M_DBI_PAYMENT_INFO, PaymentId, (const uint8_t *)pInfo, sizeof(ln_payment_info_t));
 }
 
@@ -4207,7 +4248,7 @@ bool ln_db_payment_info_save(uint64_t PaymentId, const ln_payment_info_t *pInfo)
 bool ln_db_payment_info_load(ln_payment_info_t *pInfo, uint64_t PaymentId)
 {
     utl_buf_t buf = UTL_BUF_INIT;
-    if (!db_payment_load(M_DBI_PAYMENT_INFO, &buf, PaymentId)) {
+    if (!payment_load_2(M_DBI_PAYMENT_INFO, &buf, PaymentId)) {
         LOGE("fail: ???\n");
         return false;
     }
@@ -4223,7 +4264,7 @@ bool ln_db_payment_info_load(ln_payment_info_t *pInfo, uint64_t PaymentId)
 
 bool ln_db_payment_info_del(uint64_t PaymentId)
 {
-    return db_payment_del(M_DBI_PAYMENT_INFO, PaymentId);
+    return payment_del(M_DBI_PAYMENT_INFO, PaymentId);
 }
 
 
@@ -4232,8 +4273,46 @@ bool ln_db_payment_del_all(uint64_t PaymentId)
     /*ignore*/ln_db_payment_shared_secrets_del(PaymentId);
     /*ignore*/ln_db_payment_route_del(PaymentId);
     /*ignore*/ln_db_payment_invoice_del(PaymentId);
-    /*ignore*/ln_db_payment_info_del(PaymentId);
+    return ln_db_payment_info_del(PaymentId);
+}
+
+
+/********************************************************************
+ * forward cursor
+ ********************************************************************/
+
+bool ln_db_payment_info_cur_open(void **ppCur)
+{
+    return payment_cur_open(ppCur, M_DBI_PAYMENT_INFO);
+}
+
+
+void ln_db_payment_info_cur_close(void *pCur, bool bCommit)
+{
+    payment_cur_close(pCur, bCommit);
+}
+
+
+bool ln_db_payment_info_cur_get(void *pCur, uint64_t *pPaymentId, ln_payment_info_t *pInfo)
+{
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!payment_cur_get(pCur, pPaymentId, &buf)) {
+        utl_buf_free(&buf);
+        return false;
+    }
+    if (buf.len != sizeof(ln_payment_info_t)) {
+        LOGE("fail: ???\n");
+        utl_buf_free(&buf);
+        return false;
+    }
+    memcpy(pInfo, buf.buf, buf.len);
     return true;
+}
+
+
+bool ln_db_payment_info_cur_del(void *pCur)
+{
+    return payment_cur_del(pCur);
 }
 
 
@@ -6186,6 +6265,12 @@ static int payment_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, i
 }
 
 
+static int payment_db_open_2(ln_lmdb_db_t *pDb, MDB_txn *pTxn, const char *pDbName, int OptDb)
+{
+    return db_open_2(pDb, pTxn, pDbName, OptDb);
+}
+
+
 static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t PaymentId)
 {
     pKey->mv_size = M_SZ_PAYMENT_ID_KEY;
@@ -6194,7 +6279,17 @@ static void payment_id_set_key(uint8_t *pKeyData, MDB_val *pKey, uint64_t Paymen
 }
 
 
-static bool db_payment_save(const char *pDbName, uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
+static bool payment_id_parse_key(MDB_val *pKey, uint64_t *pPaymentId)
+{
+    if (pKey->mv_size != M_SZ_PAYMENT_ID_KEY) {
+        return false;
+    }
+    *pPaymentId = utl_int_pack_u64be(pKey->mv_data);
+    return true;
+}
+
+
+static bool payment_save(const char *pDbName, uint64_t PaymentId, const uint8_t *pData, uint32_t Len)
 {
     int             retval;
     MDB_val         key, data;
@@ -6222,12 +6317,30 @@ static bool db_payment_save(const char *pDbName, uint64_t PaymentId, const uint8
 }
 
 
-static bool db_payment_load(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId)
+static int payment_load(ln_lmdb_db_t *pDb, utl_buf_t *pBuf, uint64_t PaymentId)
+{
+    MDB_val key, data;
+    uint8_t key_data[M_SZ_PAYMENT_ID_KEY];
+
+    payment_id_set_key(key_data, &key, PaymentId);
+    int retval = mdb_get(pDb->p_txn, pDb->dbi, &key, &data);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+
+    if (!utl_buf_alloccopy(pBuf, data.mv_data, data.mv_size)) {
+        LOGE("fail: ???\n");
+        return -1;
+    }
+    return 0;
+}
+
+
+static bool payment_load_2(const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId)
 {
     int             retval;
-    MDB_val         key, data;
     ln_lmdb_db_t    db;
-    uint8_t         key_data[M_SZ_PAYMENT_ID_KEY];
 
     retval = payment_db_open(&db, pDbName, 0, MDB_CREATE);
     if (retval) {
@@ -6235,16 +6348,9 @@ static bool db_payment_load(const char *pDbName, utl_buf_t *pBuf, uint64_t Payme
         return false;
     }
 
-    payment_id_set_key(key_data, &key, PaymentId);
-    retval = mdb_get(db.p_txn, db.dbi, &key, &data);
+    retval = payment_load(&db, pBuf, PaymentId);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(db.p_txn);
-        return false;
-    }
-
-    if (!utl_buf_alloccopy(pBuf, data.mv_data, data.mv_size)) {
-        LOGE("fail: ???\n");
         MDB_TXN_ABORT(db.p_txn);
         return false;
     }
@@ -6254,7 +6360,29 @@ static bool db_payment_load(const char *pDbName, utl_buf_t *pBuf, uint64_t Payme
 }
 
 
-static bool db_payment_del(const char *pDbName, uint64_t PaymentId)
+static bool payment_load_3(
+    const char *pDbName, utl_buf_t *pBuf, uint64_t PaymentId, MDB_txn *pTxn)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+
+    retval = payment_db_open_2(&db, pTxn, pDbName, MDB_CREATE);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    retval = payment_load(&db, pBuf, PaymentId);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return false;
+    }
+
+    return true;
+}
+
+
+static bool payment_del(const char *pDbName, uint64_t PaymentId)
 {
     int             retval;
     MDB_val         key;
@@ -6276,6 +6404,112 @@ static bool db_payment_del(const char *pDbName, uint64_t PaymentId)
     }
 
     MDB_TXN_COMMIT(db.p_txn);
+    return true;
+}
+
+
+static bool payment_cur_open(void **ppCur, const char *pDbName)
+{
+    int             retval;
+    lmdb_cursor_t   *p_cur;
+
+    *ppCur = NULL;
+
+    p_cur  = (lmdb_cursor_t *)UTL_DBG_MALLOC(sizeof(lmdb_cursor_t));
+    if (!p_cur) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+
+    retval = payment_db_open((ln_lmdb_db_t *)p_cur, pDbName, 0, 0);
+    if (retval) {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
+        UTL_DBG_FREE(p_cur);
+        return false;
+    }
+
+    retval = mdb_cursor_open(p_cur->p_txn, p_cur->dbi, &p_cur->p_cursor);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        UTL_DBG_FREE(p_cur);
+        return false;
+    }
+
+    *ppCur = p_cur;
+    return true;
+}
+
+
+static void payment_cur_close(void *pCur, bool bCommit)
+{
+    if (!pCur) return;
+
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    MDB_CURSOR_CLOSE(p_cur->p_cursor);
+
+    if (!p_cur->p_txn) return;
+    MDB_TXN_CHECK_PAYMENT(p_cur->p_txn);
+    if (bCommit) {
+        MDB_TXN_COMMIT(p_cur->p_txn);
+        MDB_DBI_CLOSE(mpEnvPayment, p_cur->dbi);
+    } else {
+        MDB_TXN_ABORT(p_cur->p_txn);
+    }
+}
+
+
+static bool payment_cur_get(void *pCur, uint64_t *pPaymentId, utl_buf_t *pBuf)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    int retval = payment_cur_load(p_cur->p_cursor, pPaymentId, pBuf, MDB_NEXT_NODUP);
+    if (retval) {
+        return false;
+    }
+    return true;
+}
+
+
+static int payment_cur_load(
+    MDB_cursor *pCur, uint64_t *pPaymentId, utl_buf_t *pBuf, MDB_cursor_op Op)
+{
+    MDB_val key, data;
+
+    int retval = mdb_cursor_get(pCur, &key, &data, Op);
+    if (retval) {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
+        }
+        return retval;
+    }
+
+    //key
+    if (!payment_id_parse_key(&key, pPaymentId)) {
+        LOGE("fail: invalid key length: %d\n", (int)key.mv_size);
+        DUMPD(key.mv_data, key.mv_size);
+        return -1;
+    }
+
+    //data
+    if (!utl_buf_alloccopy(pBuf, (uint8_t *)data.mv_data, data.mv_size)) {
+        LOGE("fail: ???\n");
+        return -1;
+    }
+    return 0;
+}
+
+
+static bool payment_cur_del(void *pCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    int retval = mdb_cursor_del(p_cur->p_cursor, 0);
+    if (retval) {
+        if (retval != MDB_NOTFOUND) {
+            LOGE("fail: mdb_cursor_del(): %s\n", mdb_strerror(retval));
+        }
+        return false;
+    }
     return true;
 }
 

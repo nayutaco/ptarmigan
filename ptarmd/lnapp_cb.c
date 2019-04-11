@@ -136,7 +136,6 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *pConf, void *pParam);
 static void cbsub_fail_backwind(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_htlc_t *pCbParam);
 static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del_htlc_t *pCbParam);
 static void cb_rev_and_ack_excg(lnapp_conf_t *pConf, void *pParam);
-static void cb_payment_retry(lnapp_conf_t *pConf, void *pParam);
 static void cb_update_fee_recv(lnapp_conf_t *pConf, void *pParam);
 static void cb_shutdown_recv(lnapp_conf_t *pConf, void *pParam);
 static void cb_closed_fee(lnapp_conf_t *pConf, void *pParam);
@@ -176,7 +175,6 @@ void lnapp_notify_cb(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificP
         { "  LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
 
         { "  LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE: revoke_and_ack exchange", cb_rev_and_ack_excg },
-        { "  LN_CB_TYPE_RETRY_PAYMENT: payment retry", cb_payment_retry},
         { "  LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV: update_fee receive", cb_update_fee_recv },
         { "  LN_CB_TYPE_NOTIFY_SHUTDOWN_RECV: shutdown receive", cb_shutdown_recv },
         { "  LN_CB_TYPE_UPDATE_CLOSING_FEE: closing_signed receive(not same fee)", cb_closed_fee },
@@ -684,12 +682,12 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
         //      [0]自分(update_add_htlcのパラメータ)
         //      [1]最初のONIONデータ
         //      ...
-        //      [hop_num - 2]payeeへの最終OINONデータ
-        //      [hop_num - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
+        //      [num_hops - 2]payeeへの最終OINONデータ
+        //      [num_hops - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
         char suggest[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         payment_conf_t payconf;
         if (lnapp_payment_route_load(&payconf, pCbParam->prev_htlc_id)) {
-            // for (int lp = 0; lp < p_payconf->hop_num; lp++) {
+            // for (int lp = 0; lp < p_payconf->num_hops; lp++) {
             //     LOGD("@@@[%d]%016" PRIx64 ", %" PRIu64 ", %" PRIu32 "\n",
             //             lp,
             //             payconf.hop_datain[lp].short_channel_id,
@@ -697,10 +695,10 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
             //             payconf.hop_datain[lp].outgoing_cltv_value);
             // }
             uint64_t short_channel_id = 0;
-            if (hop == payconf.hop_num - 2) {
+            if (hop == payconf.num_hops - 2) {
                 //payeeは自分がINとなるchannelを失敗したとみなす
-                short_channel_id = payconf.hop_datain[payconf.hop_num - 2].short_channel_id;
-            } else if (hop < payconf.hop_num - 2) {
+                short_channel_id = payconf.hop_datain[payconf.num_hops - 2].short_channel_id;
+            } else if (hop < payconf.num_hops - 2) {
                 short_channel_id = payconf.hop_datain[hop + 1].short_channel_id;
             } else {
                 LOGE("fail: invalid result\n");
@@ -762,18 +760,6 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *pConf, void *pParam)
     ptarmd_eventlog(NULL, "exchanged revoke_and_ack: total_msat=%" PRIu64, total_amount);
 
     DBGTRACE_END
-}
-
-
-//LN_CB_TYPE_RETRY_PAYMENT: 送金リトライ
-static void cb_payment_retry(lnapp_conf_t *pConf, void *pParam)
-{
-    (void)pConf;
-
-    DBGTRACE_BEGIN
-
-    const uint8_t *p_hash = (const uint8_t *)pParam;
-    cmd_json_pay_retry(p_hash);
 }
 
 

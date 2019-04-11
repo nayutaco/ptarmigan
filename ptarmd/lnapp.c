@@ -441,7 +441,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
     }
 
     //amount, CLTVチェック(最後の値はチェックしない) //XXX: ???
-    for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
+    for (int lp = 1; lp < pPay->num_hops - 1; lp++) {
         if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
             LOGE("[%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")\n",
                 lp, pPay->hop_datain[lp - 1].amt_to_forward, pPay->hop_datain[lp].amt_to_forward);
@@ -458,7 +458,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
         //XXX: should save session_key or shared_secret in the origin node?
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     if (!ln_onion_create_packet(
-        onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
+        onion, &secrets, &pPay->hop_datain[1], pPay->num_hops - 1,
         session_key, pPay->payment_hash, BTC_SZ_HASH256)) {
         goto LABEL_EXIT;
     }

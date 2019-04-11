@@ -238,8 +238,8 @@ int main(int argc, char* argv[])
             //pay.conf形式の出力
             if (payment_hash == NULL) {
                 //CSV形式
-                printf("hop_num=%d\n", result.hop_num);
-                for (int lp = 0; lp < result.hop_num; lp++) {
+                printf("num_hops=%d\n", result.num_hops);
+                for (int lp = 0; lp < result.num_hops; lp++) {
                     printf("route%d=", lp);
                     utl_dbg_dump(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
                     printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
@@ -250,8 +250,8 @@ int main(int argc, char* argv[])
             } else {
                 //JSON形式
                 //  JSON-RPCの "PAY" コマンドも付加している
-                printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, result.hop_num);
-                for (int lp = 0; lp < result.hop_num; lp++) {
+                printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, result.num_hops);
+                for (int lp = 0; lp < result.num_hops; lp++) {
                     if (lp != 0) {
                         printf(",\n");
                     }

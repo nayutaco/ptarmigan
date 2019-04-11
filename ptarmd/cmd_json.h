@@ -50,23 +50,6 @@ void cmd_json_stop(void);
 int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 
-/** 送金依頼
- *
- * @param[in]       pInvoice        (NULL時はDBから取得)
- * @param[in]       AddAmountMsat   (pInvoiceがNULL時はDBから取得)
- * @return  Linuxエラーコード
- */
-int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat);
-
-
-/** 再送
- *
- * @param[in]       pPaymentHash
- * @return  Linuxエラーコード
- */
-int cmd_json_pay_retry(const uint8_t *pPaymentHash);
-
-
 /** add invoice log: result
  * 
  * @param[in]       pPaymentHash        payment_hash
@@ -74,5 +57,6 @@ int cmd_json_pay_retry(const uint8_t *pPaymentHash);
  * @param[in]       pResultStr          result
  */
 void cmd_json_pay_result(const uint8_t *pPaymentHash, const uint8_t *pPaymentPreimage, const char *pResultStr);
+
 
 #endif  //CMD_JSON_H__

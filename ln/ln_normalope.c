@@ -29,6 +29,7 @@
 #include <time.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <sys/queue.h>
 
 #include "utl_str.h"
 #include "utl_buf.h"
@@ -56,6 +57,7 @@
 #include "ln_local.h"
 #include "ln_normalope.h"
 #include "ln_funding_info.h"
+#include "ln_payment.h"
 
 
 /**************************************************************************
@@ -104,9 +106,9 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel);
 static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel);
 static bool poll_update_add_htlc_forward_closing(ln_channel_t *pChannel);
 static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel);
-static bool update_fulfill_htlc_forward_origin(
+static bool update_fail_htlc_forward_origin(
     ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
-    const ln_msg_x_update_fulfill_htlc_t* pForwardMsg);
+    const ln_msg_x_update_fail_htlc_t* pForwardMsg);
 static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel);
 
 
@@ -484,7 +486,6 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
-    //callbacks
     for (uint32_t idx = 0; idx < ARRAY_SIZE(pChannel->update_info.updates); idx++) {
         ln_update_t *p_update = &pChannel->update_info.updates[idx];
         if (!p_update->new_update) continue;
@@ -536,13 +537,6 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 cb_param.fail_malformed_failure_code = 0;
             }
             ln_callback(pChannel, LN_CB_TYPE_START_BWD_DEL_HTLC, &cb_param);
-            if (cb_param.prev_short_channel_id) {
-                LOGD("backward fail_htlc!\n");
-            } else {
-                LOGD("fail_htlc!\n");
-                LOGD("retry the payment! in the origin node\n");
-                ln_callback(pChannel, LN_CB_TYPE_RETRY_PAYMENT, p_htlc->payment_hash);
-            }
         } else if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_FULFILL_HTLC, true)) {
             ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
 
@@ -1011,8 +1005,6 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
         if (ln_msg_x_update_add_htlc_read(&msg, buf.buf, buf.len)) {
             if (check_recv_add_htlc_bolt4_final(pChannel, preimage, &reason, &msg)) {
                 succeeded = true;
-            } else {
-                LOGE("fail: ???\n");
             }
         } else {
             LOGE("fail: ???\n");
@@ -1070,23 +1062,6 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
 }
 
 
-static bool update_fulfill_htlc_forward_origin(
-    ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
-    const ln_msg_x_update_fulfill_htlc_t* pForwardMsg)
-{
-    (void)pChannel; (void)PrevShortChannelId;
-
-    if (!ln_db_payment_route_del(PrevHtlcId)) {
-        LOGE("fail: ???\n");
-    }
-    uint8_t hash[BTC_SZ_HASH256];
-    ln_payment_hash_calc(hash, pForwardMsg->p_payment_preimage);
-    ln_db_invoice_del(hash);
-    ln_db_route_skip_work(false);
-    return true;
-}
-
-
 static bool update_fail_htlc_forward_origin(
     ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
     const ln_msg_x_update_fail_htlc_t* pForwardMsg)
@@ -1097,17 +1072,12 @@ static bool update_fail_htlc_forward_origin(
     ln_onion_err_t  onion_err = {0, NULL};
     utl_buf_t       shared_secrets = UTL_BUF_INIT;
     utl_buf_t       reason = UTL_BUF_INIT;
-    utl_buf_t       route = UTL_BUF_INIT;
     char            *reason_str = NULL;
 
     if (pForwardMsg->len < 256) { //XXX: ???
         utl_buf_alloccopy(&reason, pForwardMsg->p_reason, pForwardMsg->len);
     } else {
         if (!ln_db_payment_shared_secrets_load(&shared_secrets, PrevHtlcId)) {
-            LOGE("fail: ???\n");
-            goto LABEL_EXIT;
-        }
-        if (!ln_db_payment_shared_secrets_del(PrevHtlcId)) {
             LOGE("fail: ???\n");
             goto LABEL_EXIT;
         }
@@ -1121,19 +1091,11 @@ static bool update_fail_htlc_forward_origin(
     LOGD("  failure reason= ");
     DUMPD(reason.buf, reason.len);
 
-    int num_hops;
-    ln_hop_datain_t hop_datain[1 + LN_HOP_MAX];
-    if (!ln_db_payment_route_load(&route, PrevHtlcId)) {
+    ln_payment_route_t  route;
+    if (!ln_payment_route_load(&route, PrevHtlcId)) {
         LOGE("fail: ???\n");
         goto LABEL_EXIT;
     }
-    if (route.len > sizeof(hop_datain) ||
-        route.len % sizeof(ln_hop_datain_t)) {
-        LOGE("fail: ???\n");
-        goto LABEL_EXIT;
-    }
-    num_hops = route.len / sizeof(ln_hop_datain_t);
-    memcpy(&hop_datain, route.buf, route.len);
 
     //失敗したと思われるshort_channel_idをrouting除外登録
     //  hop_datain
@@ -1144,11 +1106,11 @@ static bool update_fail_htlc_forward_origin(
     //    [hop_num - 1]ONIONの終端データ(short_channel_id=0, cltv_expiryとamount_msatはupdate_add_htlcと同じ)
     uint64_t    short_channel_id;
     char        suggest[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-    if (hop == num_hops - 2) {
+    if (hop == route.num_hops - 2) {
         //payeeは自分がINとなるchannelを失敗したとみなす ??? payeeは悪くない
-        short_channel_id = hop_datain[num_hops - 2].short_channel_id;
-    } else if (hop < num_hops - 2) {
-        short_channel_id = hop_datain[hop + 1].short_channel_id;
+        short_channel_id = route.hop_datain[route.num_hops - 2].short_channel_id;
+    } else if (hop < route.num_hops - 2) {
+        short_channel_id = route.hop_datain[hop + 1].short_channel_id;
     } else {
         short_channel_id = 0;
         LOGE("fail: invalid result\n");
@@ -1162,10 +1124,11 @@ static bool update_fail_htlc_forward_origin(
             case LNONION_PERM_NODE_FAIL:
             case LNONION_PERM_CHAN_FAIL:
             case LNONION_CHAN_DISABLE:
-                LOGD("add skip route: permanently\n");
+                //LOGD("add skip route: permanently: short_chanel_id=%" PRIu64 "\n", short_channel_id);
                 b_temp = false;
                 break;
             default:
+                //LOGD("add skip route: temporary: short_chanel_id=%" PRIu64 "\n", short_channel_id);
                 break;
             }
         }
@@ -1176,16 +1139,12 @@ static bool update_fail_htlc_forward_origin(
     char err_str[512];
     reason_str = ln_onion_get_errstr(&onion_err);
     snprintf(err_str, sizeof(err_str), M_ERRSTR_REASON, reason_str, hop, suggest);
-    LOGE("fail: %s\n", err_str);
+    LOGE("%s\n", err_str);
 
 LABEL_EXIT:
-    if (!ln_db_payment_route_del(PrevHtlcId)) {
-        LOGE("fail: ???\n");
-    }
     UTL_DBG_FREE(reason_str);
     UTL_DBG_FREE(onion_err.p_data);
     utl_buf_free(&shared_secrets);
-    utl_buf_free(&route);
     utl_buf_free(&reason);
     return true;
 }
@@ -1200,6 +1159,14 @@ static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
         return true;
     }
 
+    struct retry_list_t {
+        LIST_ENTRY(retry_list_t) list;
+        uint64_t                payment_id;
+    };
+    LIST_HEAD(retry_list_head_t, retry_list_t)  retry_list_head;
+    struct retry_list_t                         *p_retry_list_pos = NULL;
+    LIST_INIT(&retry_list_head);
+
     uint64_t    prev_short_channel_id;
     uint64_t    prev_htlc_id;
     bool        b_commit = false;
@@ -1208,26 +1175,40 @@ static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
         uint32_t type = ln_msg_type(buf.buf, buf.len);
         if (type == MSGTYPE_X_UPDATE_FULFILL_HTLC) {
             ln_msg_x_update_fulfill_htlc_t msg;
-            if (ln_msg_x_update_fulfill_htlc_read(&msg, buf.buf, buf.len)) {
-                if (!update_fulfill_htlc_forward_origin(pChannel, prev_short_channel_id, prev_htlc_id, &msg)) {
-                    LOGE("fail: ???\n");
-                }
-            } else {
+            if (!ln_msg_x_update_fulfill_htlc_read(&msg, buf.buf, buf.len)) {
                 LOGE("fail: ???\n");
+                goto LABEL_SKIP;
             }
+            /*ignore*/ln_payment_end(prev_htlc_id, LN_PAYMENT_STATE_SUCCEEDED, msg.p_payment_preimage);
+            /*ignore*/ln_db_route_skip_work(false);
         } else if (type == MSGTYPE_X_UPDATE_FAIL_HTLC) {
             ln_msg_x_update_fail_htlc_t msg;
-            if (ln_msg_x_update_fail_htlc_read(&msg, buf.buf, buf.len)) {
-                if (!update_fail_htlc_forward_origin(pChannel, prev_short_channel_id, prev_htlc_id, &msg)) {
-                    LOGE("fail: ???\n");
-                }
-            } else {
+            struct retry_list_t         *p_element;
+            if (!ln_msg_x_update_fail_htlc_read(&msg, buf.buf, buf.len)) {
                 LOGE("fail: ???\n");
+                goto LABEL_SKIP;
             }
+            if (!update_fail_htlc_forward_origin(pChannel, prev_short_channel_id, prev_htlc_id, &msg)) {
+                LOGE("fail: ???\n");
+                /*ignore*/
+            }
+            p_element = (struct retry_list_t *)UTL_DBG_MALLOC(sizeof(struct retry_list_t));
+            if (!p_element) {
+                LOGE("fail: ???\n");
+                goto LABEL_SKIP;
+            }
+            p_element->payment_id = prev_htlc_id;
+            if (p_retry_list_pos) {
+                LIST_INSERT_AFTER(p_retry_list_pos, p_element, list);
+            } else {
+                LIST_INSERT_HEAD(&retry_list_head, p_element, list);
+            }
+            p_retry_list_pos = p_element;
         } else {
             LOGE("fail: ???\n");
         }
 
+LABEL_SKIP:
         if (!ln_db_forward_del_htlc_cur_del(p_cur)) {
             LOGE("fail: ???\n");
         }
@@ -1236,6 +1217,39 @@ static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
     }
 
     ln_db_forward_del_htlc_cur_close(p_cur, b_commit);
+
+    //retry
+    //  `ln_payment_retry` uses `forward_db` env
+    //  therefore it can't be called in the `ln_db_forward_del_htlc_cur` loop
+    p_retry_list_pos = LIST_FIRST(&retry_list_head);
+    while (p_retry_list_pos) {
+        uint64_t    payment_id = p_retry_list_pos->payment_id;
+        int32_t     height = 0;
+        p_retry_list_pos = LIST_NEXT(p_retry_list_pos, list);
+
+        ln_callback(pChannel, LN_CB_TYPE_GET_BLOCK_COUNT, &height);
+        if (!height) {
+            LOGE("fail: payment(can't get block count)\n");
+            /*ignore*/ln_payment_end(payment_id, LN_PAYMENT_STATE_FAILED, NULL);
+            /*ignore*/ln_db_route_skip_work(false);
+            continue;
+        }
+
+        if (ln_payment_retry(payment_id, height) == LN_PAYMENT_OK) {
+            LOGD("retry payment\n");
+        } else {
+            LOGE("fail: payment\n");
+            /*ignore*/ln_payment_end(payment_id, LN_PAYMENT_STATE_FAILED, NULL);
+            /*ignore*/ln_db_route_skip_work(false);
+        }
+    }
+    p_retry_list_pos = LIST_FIRST(&retry_list_head);
+    while (p_retry_list_pos) {
+        struct retry_list_t *p_bak = p_retry_list_pos;
+        p_retry_list_pos = LIST_NEXT(p_retry_list_pos, list);
+        UTL_DBG_FREE(p_bak);
+    }
+
     return true;
 }
 
@@ -1659,7 +1673,6 @@ static bool check_recv_add_htlc_bolt4_final(
 
     ln_callback(pChannel, LN_CB_TYPE_GET_BLOCK_COUNT, &height);
     if (height <= 0) {
-        LOGE("fail\n");
         M_SET_ERR(pChannel, LNERR_BITCOIND, "getblockcount");
         utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
         return false;
@@ -1691,7 +1704,7 @@ static bool check_recv_add_htlc_bolt4_final(
         //      MAY succeed in accepting the HTLC.
         //C3. if the payment hash is unknown:
         //      unknown_payment_hash
-        //M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
         utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
         utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
         return false;
