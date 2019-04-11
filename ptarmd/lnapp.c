@@ -210,8 +210,6 @@ void lnapp_conf_init(
     pthread_mutex_init(&pAppConf->mux_th, NULL);
     pthread_mutex_t mux_conf = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
     memcpy(&pAppConf->mux_conf, &mux_conf, sizeof(mux_conf));
-    pthread_mutex_t mux_channel = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-    memcpy(&pAppConf->mux_channel, &mux_channel, sizeof(mux_channel));
     pthread_mutex_init(&pAppConf->mux_send, NULL);
 
     load_channel_settings(pAppConf);
@@ -227,7 +225,6 @@ void lnapp_conf_term(lnapp_conf_t *pAppConf)
     pthread_cond_destroy(&pAppConf->cond);
     pthread_mutex_destroy(&pAppConf->mux_th);
     pthread_mutex_destroy(&pAppConf->mux_conf);
-    pthread_mutex_destroy(&pAppConf->mux_channel);
     pthread_mutex_destroy(&pAppConf->mux_send);
 
     memset(pAppConf, 0x00, sizeof(lnapp_conf_t));
@@ -426,7 +423,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const cha
 
     DBGTRACE_BEGIN
 
-    pthread_mutex_lock(&pAppConf->mux_channel);
+    pthread_mutex_lock(&pAppConf->mux_conf);
 
     bool ret = false;
     uint8_t session_key[BTC_SZ_PRIVKEY];
@@ -541,7 +538,7 @@ LABEL_EXIT:
         // cmd_json_pay_retry(pPay->payment_hash);
         // ret = true;         //再送はtrue
     }
-    pthread_mutex_unlock(&pAppConf->mux_channel);
+    pthread_mutex_unlock(&pAppConf->mux_conf);
 
     utl_buf_free(&secrets);
 
@@ -566,7 +563,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     DBGTRACE_BEGIN
 
-    pthread_mutex_lock(&pAppConf->mux_channel);
+    pthread_mutex_lock(&pAppConf->mux_conf);
 
     ln_channel_t *p_channel = &pAppConf->channel;
 
@@ -588,7 +585,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     ret = true;
 
 LABEL_EXIT:
-    pthread_mutex_unlock(&pAppConf->mux_channel);
+    pthread_mutex_unlock(&pAppConf->mux_conf);
     DBGTRACE_END
 
     return ret;
@@ -1366,14 +1363,14 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         memset(&fundin, 0, sizeof(fundin));
 #endif
 
-        pthread_mutex_lock(&p_conf->mux_channel);
+        pthread_mutex_lock(&p_conf->mux_conf);
         ret = ln_open_channel_send(&p_conf->channel,
                         &fundin,
                         pFundingConf->funding_sat,
                         pFundingConf->push_sat,
                         feerate_kw,
                         pFundingConf->priv_channel);
-        pthread_mutex_unlock(&p_conf->mux_channel);
+        pthread_mutex_unlock(&p_conf->mux_conf);
         if (ret) {
             LOGD("SEND: open_channel\n");
         } else {
@@ -1446,7 +1443,7 @@ static void *thread_recv_start(void *pArg)
 
         if (ret) {
             //LOGD("type=%02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
-            pthread_mutex_lock(&p_conf->mux_channel);
+            pthread_mutex_lock(&p_conf->mux_conf);
             uint16_t type = utl_int_pack_u16be(buf_recv.buf);
             LOGD("[RECV]type=%04x(%s): sock=%d, Len=%d\n", type, ln_msg_name(type), p_conf->sock, buf_recv.len);
             ret = ln_recv(&p_conf->channel, buf_recv.buf, buf_recv.len);
@@ -1470,8 +1467,8 @@ static void *thread_recv_start(void *pArg)
                     lnapp_stop_threads(p_conf);
                 }
             }
-            //LOGD("mux_channel: end\n");
-            pthread_mutex_unlock(&p_conf->mux_channel);
+            //LOGD("mux_conf: end\n");
+            pthread_mutex_unlock(&p_conf->mux_conf);
         }
         utl_buf_free(&buf_recv);
     }
@@ -1728,13 +1725,13 @@ static bool send_announcement_signatures(lnapp_conf_t *p_conf)
     if (p_conf->funding_confirm <
         ln_funding_info_minimum_depth(&p_conf->channel.funding_info)) return true;
 
-    pthread_mutex_lock(&p_conf->mux_channel);
+    pthread_mutex_lock(&p_conf->mux_conf);
     bool ret = ln_announcement_signatures_send(&p_conf->channel);
     if (!ret) {
         LOGE("fail: create announcement_signatures\n");
         lnapp_stop_threads(p_conf);
     }
-    pthread_mutex_unlock(&p_conf->mux_channel);
+    pthread_mutex_unlock(&p_conf->mux_conf);
     p_conf->annosig_send_req = false;
     return ret;
 }
@@ -1764,12 +1761,12 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
 {
     ln_channel_t *p_channel = &p_conf->channel;
 
-    pthread_mutex_lock(&p_conf->mux_channel);
+    pthread_mutex_lock(&p_conf->mux_conf);
     if ((ln_short_channel_id(p_channel) != 0) && !ln_is_announced(p_channel)) {
         //チャネル作成済み && announcement未交換
         /*ignore*/ ln_channel_update_send(p_channel);
     }
-    pthread_mutex_unlock(&p_conf->mux_channel);
+    pthread_mutex_unlock(&p_conf->mux_conf);
 }
 
 
@@ -2168,13 +2165,13 @@ static void load_announce_settings(void)
  */
 static void recv_idle_proc(lnapp_conf_t *p_conf)
 {
-    pthread_mutex_lock(&p_conf->mux_channel);
+    pthread_mutex_lock(&p_conf->mux_conf);
 
     if ((p_conf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END) {
         ln_idle_proc(&p_conf->channel, p_conf->feerate_per_kw);
     }
 
-    pthread_mutex_unlock(&p_conf->mux_channel);
+    pthread_mutex_unlock(&p_conf->mux_conf);
 }
 
 

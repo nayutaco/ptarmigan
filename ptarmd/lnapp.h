@@ -81,7 +81,6 @@ typedef struct lnapp_conf_t {
     pthread_cond_t      cond;                   ///< threadの待ち合わせ
     pthread_mutex_t     mux_th;                 ///< thread
     pthread_mutex_t     mux_conf;               ///< conf
-    pthread_mutex_t     mux_channel;            ///< ln_channel_t処理中のmutex
     pthread_mutex_t     mux_send;               ///< socket送信中のmutex
 
     //XXX: start param
