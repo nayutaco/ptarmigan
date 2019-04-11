@@ -130,6 +130,7 @@
 #define M_DBI_SHARED_SECRETS    "shared_secrets"            ///< shared secrets
 #define M_DBI_ROUTE             "route"                     ///< route
 #define M_DBI_PAYMENT_INVOICE   "invoice"                   ///< payment invoice
+#define M_DBI_PAYMENT_INFO      "payment_info"              ///< payment info
 
 #define M_SZ_CHANNEL_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_FORWARD_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_SHORT_CHANNEL_ID * 2)
@@ -3808,6 +3809,7 @@ ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName)
         if (strcmp(pDbName, M_DBI_SHARED_SECRETS) == 0) return LN_LMDB_DB_TYPE_SHARED_SECRETS;
         if (strcmp(pDbName, M_DBI_ROUTE) == 0) return LN_LMDB_DB_TYPE_ROUTE;
         if (strcmp(pDbName, M_DBI_PAYMENT_INVOICE) == 0) return LN_LMDB_DB_TYPE_PAYMENT_INVOICE;
+        if (strcmp(pDbName, M_DBI_PAYMENT_INFO) == 0) return LN_LMDB_DB_TYPE_PAYMENT_INFO;
     }
 
     return LN_LMDB_DB_TYPE_UNKNOWN;
@@ -4157,6 +4159,46 @@ bool ln_db_payment_invoice_load(utl_buf_t *pBuf, uint64_t PaymentId)
 bool ln_db_payment_invoice_del(uint64_t PaymentId)
 {
     return db_payment_del(M_DBI_PAYMENT_INVOICE, PaymentId);
+}
+
+
+bool ln_db_payment_info_save(uint64_t PaymentId, const ln_payment_info_t *pInfo)
+{
+    return db_payment_save(
+        M_DBI_PAYMENT_INFO, PaymentId, (const uint8_t *)pInfo, sizeof(ln_payment_info_t));
+}
+
+
+bool ln_db_payment_info_load(ln_payment_info_t *pInfo, uint64_t PaymentId)
+{
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!db_payment_load(M_DBI_PAYMENT_INFO, &buf, PaymentId)) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+    if (buf.len != sizeof(ln_payment_info_t)) {
+        LOGE("fail: ???\n");
+        return false;
+    }
+    memcpy(pInfo, buf.buf, buf.len);
+    utl_buf_free(&buf);
+    return true;
+}
+
+
+bool ln_db_payment_info_del(uint64_t PaymentId)
+{
+    return db_payment_del(M_DBI_PAYMENT_INFO, PaymentId);
+}
+
+
+bool ln_db_payment_del_all(uint64_t PaymentId)
+{
+    /*ignore*/ln_db_payment_shared_secrets_del(PaymentId);
+    /*ignore*/ln_db_payment_route_del(PaymentId);
+    /*ignore*/ln_db_payment_invoice_del(PaymentId);
+    /*ignore*/ln_db_payment_info_del(PaymentId);
+    return true;
 }
 
 

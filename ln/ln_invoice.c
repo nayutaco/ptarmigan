@@ -547,6 +547,7 @@ static bool read_amount(uint64_t *amount_msat, size_t *len, char *hrp)
     return true;
 }
 
+
 bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     bool ret = false;
     size_t tmp_len;
@@ -653,6 +654,17 @@ LABEL_EXIT:
     return ret;
 }
 
+bool ln_invoice_decode_2(ln_invoice_t **pp_invoice_data, const char* invoice, uint32_t len) {
+    char *p_invoice = (char *)UTL_DBG_MALLOC(len + 1);
+    if (!p_invoice) return false;
+
+    strncpy(p_invoice, invoice, len + 1);
+
+    bool ret = ln_invoice_decode(pp_invoice_data, p_invoice);
+
+    UTL_DBG_FREE(p_invoice);
+    return ret;
+}
 
 bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPaymentHash, uint64_t Amount, uint32_t Expiry,
                         const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry)

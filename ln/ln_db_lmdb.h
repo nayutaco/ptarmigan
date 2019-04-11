@@ -105,6 +105,12 @@
  *              -# "route"
  *                  - key: payment_id
  *                  - data: route
+ *              -# "invoice"
+ *                  - key: payment_id
+ *                  - data: invoice
+ *              -# "payment_info"
+ *                  - key: payment_id
+ *                  - data: ln_payment_info_t data
  */
 #ifndef LN_DB_LMDB_H__
 #define LN_DB_LMDB_H__
@@ -172,6 +178,7 @@ typedef enum {
     LN_LMDB_DB_TYPE_SHARED_SECRETS,
     LN_LMDB_DB_TYPE_ROUTE,
     LN_LMDB_DB_TYPE_PAYMENT_INVOICE,
+    LN_LMDB_DB_TYPE_PAYMENT_INFO,
 } ln_lmdb_db_type_t;
 
 
