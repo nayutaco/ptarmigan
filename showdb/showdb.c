@@ -112,12 +112,12 @@ void ln_lmdb_set_env(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *
  ********************************************************************/
 
 static uint16_t     showflag;
-static int          cnt0;
-static int          cnt1;
-static int          cnt2;
-static int          cnt4;
-static int          cnt5;
-static int          cnt6;
+static int          cnt_channel;
+static int          cnt_channel_anno;
+static int          cnt_node;
+static int          cnt_preimage;
+static int          cnt_wallet;
+static int          cnt_annoinfo;
 static MDB_env      *mpDbChannel = NULL;
 static MDB_env      *mpDbNode = NULL;
 static MDB_env      *mpDbAnno = NULL;
@@ -638,7 +638,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             p_title = "peer_node_id";
         }
 
-        if (cnt0) {
+        if (cnt_channel) {
             printf(",\n");
         } else {
             printf(INDENT1 M_QQ("%s") ": [\n", p_title);
@@ -657,7 +657,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
         }
         ln_term(p_channel);
         UTL_DBG_FREE(p_channel);
-        cnt0++;
+        cnt_channel++;
     }
 }
 
@@ -665,7 +665,7 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
 {
     (void)p_param;
 
-    if (cnt6 > 0) {
+    if (cnt_wallet > 0) {
         printf(",\n");
     }
     printf(INDENT1 "\"");
@@ -713,7 +713,7 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     //     printf("[%d][%d]", lp, pWallet->p_wit_items[lp].len);
     //     utl_dbg_dump(stdout, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len, true);
     // }
-    cnt6++;
+    cnt_wallet++;
 
     return false;
 }
@@ -730,7 +730,7 @@ static void dumpit_wallet(MDB_txn *txn, MDB_dbi dbi)
 static void dumpit_channel_anno(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag & SHOW_ANNOCNL) {
-        if (cnt1) {
+        if (cnt_channel_anno) {
             printf(",");
         }
 
@@ -750,7 +750,7 @@ static void dumpit_channel_anno(MDB_txn *txn, MDB_dbi dbi)
 
             ret = ln_lmdb_cnlanno_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if ((ret == 0) && (short_channel_id != 0)) {
-                if (cnt1) {
+                if (cnt_channel_anno) {
                     printf(",\n");
                 }
                 if (!(showflag & SHOW_DEBUG)) {
@@ -758,7 +758,7 @@ static void dumpit_channel_anno(MDB_txn *txn, MDB_dbi dbi)
                 } else {
                     ln_print_announce(buf.buf, buf.len);
                 }
-                cnt1++;
+                cnt_channel_anno++;
                 utl_buf_free(&buf);
             } else {
                 //printf("end of announce\n");
@@ -772,7 +772,7 @@ static void dumpit_channel_anno(MDB_txn *txn, MDB_dbi dbi)
 static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag & SHOW_ANNONODE) {
-        if (cnt2) {
+        if (cnt_node) {
             printf(",");
         } else {
             printf(INDENT1 M_QQ("node_announcement_list") ": [\n");
@@ -792,7 +792,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
 
             ret = ln_lmdb_nodeanno_cur_load(cursor, &buf, &timestamp, node_id);
             if (ret == 0) {
-                if (cnt2) {
+                if (cnt_node) {
                     printf(",\n");
                 }
                 if (!(showflag & SHOW_DEBUG)) {
@@ -801,7 +801,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
                     ln_print_announce(buf.buf, buf.len);
                 }
                 utl_buf_free(&buf);
-                cnt2++;
+                cnt_node++;
             } else {
                 //printf("end of announce\n");
             }
@@ -827,31 +827,38 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_type_t db_type
 
     MDB_val key, data;
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+        if (cnt_annoinfo > 0) {
+            printf(",\n");
+        }
+        printf(INDENT1 "{\n");
         if ((db_type == LN_LMDB_DB_TYPE_CNLANNO_INFO) && (key.mv_size == M_SZ_CNLANNO_INFO)) {
             const uint8_t *keyname = (const uint8_t *)key.mv_data;
             switch (keyname[M_SZ_CNLANNO_INFO - 1]) {
             case LN_DB_CNLANNO_ANNO:
-                printf("channel_announcement: ");
+                printf(INDENT2 M_QQ("type") ": " M_QQ("channel_announcement"));
                 break;
             case LN_DB_CNLANNO_UPD0:
-                printf("channel_update 0: ");
+                printf(INDENT2 M_QQ("type") ": " M_QQ("channel_update 0"));
                 break;
             case LN_DB_CNLANNO_UPD1:
-                printf("channel_update 1: ");
+                printf(INDENT2 M_QQ("type") ": " M_QQ("channel_update 1"));
                 break;
             default:
                 fprintf(stderr, "keyname=%02x: %d\n", keyname[M_SZ_CNLANNO_INFO - 1], __LINE__);
                 exit(-1);
             }
+            printf(",\n");
 
             uint64_t short_channel_id;
             char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
             short_channel_id = utl_int_pack_u64be(key.mv_data);
             ln_short_channel_id_string(str_sci, short_channel_id);
-            printf("%s\n", str_sci);
+            printf(INDENT2 M_QQ("info") ": " M_QQ("%s") ",\n", str_sci);
         } else if ((db_type == LN_LMDB_DB_TYPE_NODEANNO_INFO) && (key.mv_size == M_SZ_NODEANNO_INFO)) {
-            printf("node_announcement: ");
-            utl_dbg_dump(stdout, key.mv_data, M_SZ_NODEANNO_INFO, true);
+            printf(INDENT2 M_QQ("type") ": " M_QQ("node_announcement") ",\n");
+            printf(INDENT2 M_QQ("info") ": \"");
+            utl_dbg_dump(stdout, key.mv_data, M_SZ_NODEANNO_INFO, false);
+            printf("\",\n");
         } else {
             //skip
             continue;
@@ -859,13 +866,20 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_type_t db_type
 
         int nums = data.mv_size / BTC_SZ_PUBKEY;
         const uint8_t *p_data = (const uint8_t *)data.mv_data;
+        printf(INDENT2 M_QQ("sent") ": [\n");
         for (int lp = 0; lp < nums; lp++) {
-            printf("  [%2d]", lp);
-            utl_dbg_dump(stdout, p_data, BTC_SZ_PUBKEY, true);
+            if (lp > 0) {
+                printf(",\n");
+            }
+            printf(INDENT3 "\"");
+            utl_dbg_dump(stdout, p_data, BTC_SZ_PUBKEY, false);
+            printf("\"");
             p_data += BTC_SZ_PUBKEY;
         }
-        printf("\n");
+        printf("\n" INDENT2 "]\n" INDENT1 "}");
+        cnt_annoinfo++;
     }
+    printf("\n");
     mdb_cursor_close(cursor);
 }
 
@@ -970,7 +984,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
             bool detect;
             ret = ln_db_preimage_cur_get(&cur, &detect, &preimage);
             if (detect) {
-                if (cnt4) {
+                if (cnt_preimage) {
                     printf(",");
                 }
                 printf("{\n");
@@ -982,7 +996,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                 char time[UTL_SZ_TIME_FMT_STR + 1];
                 printf(INDENT1 M_QQ("creation") ": %s\n", utl_time_fmt(time, preimage.creation_time));
                 printf("}");
-                cnt4++;
+                cnt_preimage++;
             }
         }
         mdb_cursor_close(cur.p_cursor);
@@ -1072,6 +1086,8 @@ int main(int argc, char *argv[])
     MDB_cursor  *cursor;
     bool loop = true;
     int opt;
+    char json_start = '{';
+    char json_end = '}';
 #ifdef M_SPOIL_STDERR
     bool        spoil_stderr = true;
 #else
@@ -1192,6 +1208,8 @@ int main(int argc, char *argv[])
         case 'a':
             showflag = SHOW_ANNOINFO;
             p_env = mpDbAnno;
+            json_start = '[';
+            json_end = ']';
             break;
         case 'k':
             showflag = SHOW_ROUTE_SKIP;
@@ -1281,7 +1299,7 @@ int main(int argc, char *argv[])
         close(2);
     }
 
-    printf("{\n");
+    printf("%c\n", json_start);
     int list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
         MDB_dbi dbi2;
@@ -1346,13 +1364,13 @@ int main(int argc, char *argv[])
         }
         UTL_DBG_FREE(name);
     }
-    if (cnt0 || cnt2 || cnt4 || cnt5) {
+    if (cnt_channel || cnt_node || cnt_preimage) {
         printf("\n" INDENT1 "]\n");
     }
-    if (cnt6) {
+    if (cnt_wallet) {
         printf("\n");
     }
-    printf("}\n");
+    printf("%c\n", json_end);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
 
