@@ -508,6 +508,8 @@ const char *ptarmd_error_cstr(int ErrCode)
         { RPCERR_TOOMANYHOP,                "too many hop nodes" },
         { RPCERR_NOSTART,                   "payer not found" },
         { RPCERR_NOGOAL,                    "payee not found" },
+        { RPCERR_PAY_LIST,                  "cannot list payments" },
+        { RPCERR_PAY_REMOVE,                "cannot remove payment" },
 
         { RPCERR_WALLET_ERR,                "wallet error" },
     };

@@ -62,24 +62,26 @@ typedef enum {
 
 
 typedef enum {
-    LN_PAYMENT_NONE = 0,
-    LN_PAYMENT_PROCESSING = 1,
-    LN_PAYMENT_SUCCEEDED = 2,
-    LN_PAYMENT_FAILED = 3,
+    LN_PAYMENT_STATE_NONE = 0,
+    LN_PAYMENT_STATE_PROCESSING = 1,
+    LN_PAYMENT_STATE_SUCCEEDED = 2,
+    LN_PAYMENT_STATE_FAILED = 3,
 } ln_payment_state_t;
 
 typedef struct {
     uint8_t             payment_hash[BTC_SZ_HASH256];
+    uint8_t             preimage[LN_SZ_PREIMAGE];
     uint64_t            additional_amount_msat;
+    uint32_t            block_count;
     uint8_t             retry_count;
-    uint8_t             retry_count_max;
+    uint8_t             max_retry_count;
     bool                auto_remove;
     ln_payment_state_t  state;
 } ln_payment_info_t;
 
 
 typedef struct {
-    uint8_t             hop_num;
+    uint8_t             num_hops;
     ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //[0] is a payer's data
 } ln_payment_route_t;
 
@@ -89,14 +91,13 @@ typedef struct {
  ********************************************************************/
 
 ln_payment_error_t ln_payment_start_invoice(
-    uint64_t *pPaymentId, ln_payment_route_t *pRoute,
-    const char *pInvoice, uint64_t AdditionalAmountMsat,
-    uint8_t RetryCount, bool AutoRemove,
+    uint64_t *pPaymentId, ln_payment_route_t *pRoute, const char *pInvoice,
+    uint64_t AdditionalAmountMsat, uint8_t RetryCount, bool AutoRemove, uint32_t BlockCount);
+ln_payment_error_t ln_payment_start_test(
+    uint64_t *pPaymentId, const uint8_t *pPaymentHash, const ln_payment_route_t *pRoute,
     uint32_t BlockCount);
-ln_payment_error_t ln_payment_start_debug(
-    uint64_t *pPaymentId, const uint8_t *pPaymentHash, const ln_payment_route_t *pRoute);
 ln_payment_error_t ln_payment_retry(uint64_t PaymentId, uint32_t BlockCount);
-bool ln_payment_end(uint64_t PaymentId, ln_payment_state_t state);
+bool ln_payment_end(uint64_t PaymentId, ln_payment_state_t State, const uint8_t *pPreimage);
 
 bool ln_payment_route_save(uint64_t PaymentId, const ln_payment_route_t *pRoute);
 bool ln_payment_route_load(ln_payment_route_t *pRoute, uint64_t PaymentId);

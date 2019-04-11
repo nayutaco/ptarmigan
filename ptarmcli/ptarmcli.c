@@ -66,6 +66,8 @@
 #define M_OPT_PAYTOWALLET           '\x07'
 #define M_OPT_NOINITROUTESYNC       '\x08'
 #define M_OPT_PRIVCHANNEL           '\x09'
+#define M_OPT_LISTPAYMENT           '\x0a'
+#define M_OPT_REMOVEPAYMENT         '\x0b'
 #define M_OPT_DECODEINVOICE         '\x0c'
 #define M_OPT_DEBUG                 '\x1f'
 
@@ -143,6 +145,8 @@ static void optfunc_emptywallet(int *pOption, bool *pConn);
 static void optfunc_initroutesync(int *pOption, bool *pConn);
 static void optfunc_noinitroutesync(int *pOption, bool *pConn);
 static void optfunc_privchannel(int *pOption, bool *pConn);
+static void optfunc_listpayment(int *pOption, bool *pConn);
+static void optfunc_removepayment(int *pOption, bool *pConn);
 static void optfunc_decodeinvoice(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
@@ -185,6 +189,8 @@ static const struct {
     { M_OPT_PAYTOWALLET,        optfunc_walletback },
     { M_OPT_NOINITROUTESYNC,    optfunc_noinitroutesync },
     { M_OPT_PRIVCHANNEL,        optfunc_privchannel },
+    { M_OPT_LISTPAYMENT,        optfunc_listpayment },
+    { M_OPT_REMOVEPAYMENT,      optfunc_removepayment },
     { M_OPT_DECODEINVOICE,      optfunc_decodeinvoice },
     //
     { M_OPT_DEBUG,              optfunc_debug },
@@ -206,6 +212,8 @@ int main(int argc, char *argv[])
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
+        { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
+        { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
         { "addinvoice", required_argument, NULL, 'i' },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
@@ -272,6 +280,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
         fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
+        fprintf(stderr, "\t\t--listpayment : list payments\n");
+        fprintf(stderr, "\t\t--removepayment PAYMENT_ID : remove a payment from the payment list\n");
         fprintf(stderr, "\n");
 
         fprintf(stderr, "\tWALLET:\n");
@@ -678,11 +688,11 @@ static void optfunc_payment(int *pOption, bool *pConn)
         "{"
             M_STR("method", "PAY") M_NEXT
             M_QQ("params") ":[ "
-                //payment_hash, hop_num
+                //payment_hash, num_hops
                 M_QQ("%s") ",%d, [\n",
-            payment_hash, payconf.hop_num);
+            payment_hash, payconf.num_hops);
 
-    for (int lp = 0; lp < payconf.hop_num; lp++) {
+    for (int lp = 0; lp < payconf.num_hops; lp++) {
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
 
         utl_str_bin2str(node_id, payconf.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
@@ -693,7 +703,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
                 payconf.hop_datain[lp].outgoing_cltv_value
         );
         strcat(mBuf, forward);
-        if (lp != payconf.hop_num - 1) {
+        if (lp != payconf.num_hops - 1) {
             strcat(mBuf, ",");
         }
     }
@@ -1005,6 +1015,54 @@ static void optfunc_privchannel(int *pOption, bool *pConn)
 {
     (void)pOption; (void)pConn;
     mPrivChannel = 1;
+}
+
+
+static void optfunc_listpayment(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "listpayment") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_removepayment(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    if (!optarg) {
+        strcpy(mErrStr, "invalid option");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+
+    errno = 0;
+    const char *param = strtok(optarg, ",");
+    uint64_t payment_id = (uint64_t)strtoull(param, NULL, 10);
+    if (errno == 0) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "removepayment") M_NEXT
+                M_QQ("params") ":[ "
+                    "%" PRIu64
+                " ]"
+            "}",
+                payment_id);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        sprintf(mErrStr, "%s", strerror(errno));
+        *pOption = M_OPTIONS_ERR;
+    }
 }
 
 

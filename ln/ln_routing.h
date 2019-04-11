@@ -45,7 +45,7 @@ extern "C" {
  *  @brief      #ln_routing_calculate()戻り値
  */
 typedef struct {
-    uint8_t             hop_num;
+    uint8_t             num_hops;
     ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
 } ln_routing_result_t;
 

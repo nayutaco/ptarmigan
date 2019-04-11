@@ -159,131 +159,9 @@ LABEL_EXIT:
 }
 
 
-#if 0
-/** 送金情報リストに追加
- *
- * 送金エラーが発生した場合、reasonからどのnodeがエラーを返したか分かる。
- * forward nodeがエラーを返した場合には、そのchannelを除外して再routingさせたい。
- * (final nodeがエラーを返した場合には再送しても仕方が無い)。
- *
- * リストにしたのは、複数の送金が行われることを考慮したため。
- *
- * @param[in,out]       p_conf
- * @param[in]           pPayConf        送金情報(内部でコピー)
- * @param[in]           HtlcId          HTLC id
- */
-void lnapp_payroute_push(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
-{
-    routelist_t *rt = (routelist_t *)UTL_DBG_MALLOC(sizeof(routelist_t));       //UTL_DBG_FREE: lnapp_payroute_del()
-
-    memcpy(&rt->route, pPayConf, sizeof(payment_conf_t));
-    rt->htlc_id = HtlcId;
-    LIST_INSERT_HEAD(&p_conf->payroute_head, rt, list);
-    LOGD("htlc_id: %" PRIu64 "\n", HtlcId);
-
-    lnapp_payroute_print(p_conf);
-}
-
-
-/** 送金情報リスト取得
- *
- * update_add_htlcの送信元がupdate_fail_htlcを受信した際、
- * #lnapp_payroute_push() で保持していたルート情報とreasonから、どのchannelで失敗したかを判断するために使用する。
- * 自分がupdate_add_htlcの送信元の場合だけリストに保持している。
- *
- * @param[in]       p_conf
- * @param[in]       HtlcId
- */
-const payment_conf_t* lnapp_payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
-{
-    LOGD("START:htlc_id: %" PRIu64 "\n", HtlcId);
-
-    routelist_t *p = LIST_FIRST(&p_conf->payroute_head);
-    while (p != NULL) {
-        LOGD("htlc_id: %" PRIu64 "\n", p->htlc_id);
-        if (p->htlc_id == HtlcId) {
-            LOGD("HIT:htlc_id: %" PRIu64 "\n", HtlcId);
-            break;
-        }
-        p = LIST_NEXT(p, list);
-    }
-    if (p != NULL) {
-        return &p->route;
-    } else {
-        return NULL;
-    }
-}
-
-
-/** 送金情報リスト削除
- *
- * update_add_htlc送信元が追加するリストから、指定したHTLC idの情報を削除する。
- *      - update_fulfill_htlc受信
- *      - update_fail_htlc受信
- *
- * @param[in,out]   p_conf
- * @param[in]       HtlcId
- */
-void lnapp_payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId)
-{
-    struct routelist_t *p;
-
-    p = LIST_FIRST(&p_conf->payroute_head);
-    while (p != NULL) {
-        if (p->htlc_id == HtlcId) {
-            LOGD("htlc_id: %" PRIu64 "\n", HtlcId);
-            break;
-        }
-        p = LIST_NEXT(p, list);
-    }
-    if (p != NULL) {
-        LIST_REMOVE(p, list);
-        UTL_DBG_FREE(p);
-    }
-
-    lnapp_payroute_print(p_conf);
-}
-
-
-/** 送金情報リストの全削除
- *
- */
-void lnapp_payroute_clear(lnapp_conf_t *p_conf)
-{
-    routelist_t *p;
-
-    p = LIST_FIRST(&p_conf->payroute_head);
-    while (p != NULL) {
-        LOGD("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
-        routelist_t *tmp = LIST_NEXT(p, list);
-        LIST_REMOVE(p, list);
-        UTL_DBG_FREE(p);
-        p = tmp;
-    }
-}
-
-
-/** 送金情報リスト表示
- *
- */
-void lnapp_payroute_print(lnapp_conf_t *p_conf)
-{
-    routelist_t *p;
-
-    LOGD("------------------------------------\n");
-    p = LIST_FIRST(&p_conf->payroute_head);
-    while (p != NULL) {
-        LOGD("htlc_id: %" PRIu64 "\n", p->htlc_id);
-        p = LIST_NEXT(p, list);
-    }
-    LOGD("------------------------------------\n");
-}
-#endif
-
-
 bool lnapp_payment_route_save(uint64_t PaymentId, const payment_conf_t *pConf)
 {
-    return ln_db_payment_route_save(PaymentId, (const uint8_t *)pConf->hop_datain, pConf->hop_num * sizeof(ln_hop_datain_t));
+    return ln_db_payment_route_save(PaymentId, (const uint8_t *)pConf->hop_datain, pConf->num_hops * sizeof(ln_hop_datain_t));
 }
 
 
@@ -299,7 +177,7 @@ bool lnapp_payment_route_load(payment_conf_t *pConf, uint64_t PaymentId)
         utl_buf_free(&buf);
         return false;
     }
-    pConf->hop_num = buf.len / sizeof(ln_hop_datain_t);
+    pConf->num_hops = buf.len / sizeof(ln_hop_datain_t);
     memcpy(pConf->hop_datain, buf.buf, buf.len);
     utl_buf_free(&buf);
     return true;

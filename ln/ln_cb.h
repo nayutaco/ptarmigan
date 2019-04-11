@@ -57,7 +57,6 @@ typedef enum {
     LN_CB_TYPE_START_BWD_DEL_HTLC,          ///< HTLC削除処理開始
     LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, ///< revoke_and_ack交換通知
-    LN_CB_TYPE_RETRY_PAYMENT,               ///< 送金リトライ
     LN_CB_TYPE_NOTIFY_UPDATE_FEE_RECV,      ///< update_fee受信通知
     LN_CB_TYPE_NOTIFY_SHUTDOWN_RECV,        ///< shutdown受信通知
     LN_CB_TYPE_UPDATE_CLOSING_FEE,          ///< closing_signed受信通知(FEE不一致)

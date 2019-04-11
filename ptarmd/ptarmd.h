@@ -116,6 +116,8 @@ extern "C" {
 #define RPCERR_TOOMANYHOP           (-26004)
 #define RPCERR_NOSTART              (-26005)
 #define RPCERR_NOGOAL               (-26006)
+#define RPCERR_PAY_LIST             (-26007)
+#define RPCERR_PAY_REMOVE           (-26008)
 
 #define RPCERR_WALLET_ERR           (-27000)
 
@@ -207,7 +209,7 @@ typedef struct funding_conf_t {
  */
 typedef struct payment_conf_t {
     uint8_t             payment_hash[BTC_SZ_HASH256];
-    uint8_t             hop_num;
+    uint8_t             num_hops;
     ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
 } payment_conf_t;
 
