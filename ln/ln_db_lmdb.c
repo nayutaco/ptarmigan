@@ -865,10 +865,14 @@ const char *ln_lmdb_get_payment_db_path(void)
 }
 
 
-// const char *ln_lmdb_get_closed_db_path(void)
-// {
-//     return mPathClosed;
-// }
+void ln_lmdb_get_closed_db_path(char *pPath, const char *pChannelStr)
+{
+    if (pChannelStr == NULL) {
+        snprintf(pPath, PATH_MAX, "%s/" M_CLOSED_ENV_DIR, mPath);
+    } else {
+        snprintf(pPath, PATH_MAX, "%s/" M_CLOSED_ENV_DIR "/%s", mPath, pChannelStr);
+    }
+}
 
 
 bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
