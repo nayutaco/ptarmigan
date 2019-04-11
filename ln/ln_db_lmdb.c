@@ -591,7 +591,7 @@ static void channel_cursor_close(lmdb_cursor_t *pCur, bool bWritable);
 static void channel_htlc_db_name(char *pDbName, int num);
 static bool channel_cmp_func_channel_del(ln_channel_t *pChannel, void *pDbParam, void *pParam);
 static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore, bool bCont);
-static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr);
+static void channel_copy_closed(MDB_txn *pTxn, const char *pChannelStr);
 
 static int node_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
@@ -1149,7 +1149,7 @@ bool ln_db_channel_del_param(const ln_channel_t *pChannel, void *pDbParam)
     MDB_TXN_CHECK_CHANNEL(p_cur->p_txn);
 
     //copy to closed env
-    channel_move_closed(p_cur->p_txn, chanid_str);
+    channel_copy_closed(p_cur->p_txn, chanid_str);
 
     //remove preimages
     preimage_close_t param;
@@ -4762,7 +4762,7 @@ LABEL_EXIT:
 
 
 //copy channel DBs to closed env
-static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr)
+static void channel_copy_closed(MDB_txn *pTxn, const char *pChannelStr)
 {
     int             retval;
     MDB_dbi         dbi;
@@ -4771,6 +4771,7 @@ static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr)
     MDB_dbi         dbi_closed;
     MDB_val         key, data;
     MDB_env         *p_env_closed = NULL;
+    ln_lmdb_db_t    db_ver;
     char            path_env[M_DB_PATH_STR_MAX + 1];
 
     snprintf(path_env, sizeof(path_env), "%s/" M_CLOSED_ENV_DIR, mPath);
@@ -4831,9 +4832,22 @@ static void channel_move_closed(MDB_txn *pTxn, const char *pChannelStr)
                 if (p_cursor2 != NULL) {
                     MDB_CURSOR_CLOSE(p_cursor2);
                 }
+                {
+                    //save DB version()
+                    db_ver.p_txn = txn_closed;
+                    retval = MDB_DBI_OPEN(db_ver.p_txn, M_DBI_VERSION, 0, &db_ver.dbi);
+                    if (retval) {
+                        //dummy
+                        retval = version_write(&db_ver, "", "", 0);
+                        if (retval) {
+                            LOGE("create version db\n");
+                        }
+                    }
+                }
                 if (retval == 0) {
                     MDB_TXN_COMMIT(txn_closed);
                     MDB_DBI_CLOSE(p_env_closed, dbi_closed);
+                    MDB_DBI_CLOSE(p_env_closed, db_ver.dbi);
                 } else {
                     MDB_TXN_ABORT(txn_closed);
                 }
