@@ -61,6 +61,8 @@ bool ln_invoice_encode(char **pp_invoice, const ln_invoice_t *p_invoice_data);
  */
 bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
 
+bool ln_invoice_decode_2(ln_invoice_t **pp_invoice_data, const char* invoice, uint32_t len);
+
 /** BOLT11 形式invoice作成
  *
  * @param[out]      ppInvoice

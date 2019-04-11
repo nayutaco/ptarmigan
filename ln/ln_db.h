@@ -29,6 +29,7 @@
 
 #include "ln.h"
 #include "ln_msg_anno.h"
+#include "ln_payment.h"
 
 
 #ifdef __cplusplus
@@ -884,6 +885,13 @@ bool ln_db_payment_route_del(uint64_t PaymentId);
 bool ln_db_payment_invoice_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
 bool ln_db_payment_invoice_load(utl_buf_t *pBuf, uint64_t PaymentId);
 bool ln_db_payment_invoice_del(uint64_t PaymentId);
+
+//XXX: comment
+bool ln_db_payment_info_save(uint64_t PaymentId, const ln_payment_info_t *pInfo);
+bool ln_db_payment_info_load(ln_payment_info_t *pInfo, uint64_t PaymentId);
+bool ln_db_payment_info_del(uint64_t PaymentId);
+
+bool ln_db_payment_del_all(uint64_t PaymentId);
 
 
 /********************************************************************
