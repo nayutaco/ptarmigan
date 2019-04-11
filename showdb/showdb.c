@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <getopt.h>
 #include <assert.h>
+#include <dirent.h>
+#include <errno.h>
 
 #define LOG_TAG     "showdb"
 #include "utl_log.h"
@@ -56,6 +58,8 @@
 /********************************************************************
  * macros
  ********************************************************************/
+
+#define M_GETOPT            "hd:swlqQ:cnakiWv9:"
 
 #define M_SPOIL_STDERR
 
@@ -883,6 +887,16 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_type_t db_type
     mdb_cursor_close(cursor);
 }
 
+static void dumpit_annoinfo_channel(MDB_txn *txn, MDB_dbi dbi)
+{
+    dumpit_annoinfo(txn, dbi, LN_LMDB_DB_TYPE_CNLANNO_INFO);
+}
+
+static void dumpit_annoinfo_node(MDB_txn *txn, MDB_dbi dbi)
+{
+    dumpit_annoinfo(txn, dbi, LN_LMDB_DB_TYPE_NODEANNO_INFO);
+}
+
 static void dumpit_route_skip(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_ROUTE_SKIP) {
@@ -1056,22 +1070,137 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
+static void dbs_cursor_channel(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi2)
+{
+    switch (db_type) {
+    case LN_LMDB_DB_TYPE_CHANNEL:
+        dumpit_channel(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_SECRET:
+    case LN_LMDB_DB_TYPE_HTLC:
+    case LN_LMDB_DB_TYPE_REVOKED_TX:
+        break;
+    case LN_LMDB_DB_TYPE_VERSION:
+        dumpit_version(txn, dbi2);
+        break;
+    default:
+        break;
+    }
+}
+
+static void dbs_cursor_anno(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi2)
+{
+    switch (db_type) {
+    case LN_LMDB_DB_TYPE_CNLANNO:
+        dumpit_channel_anno(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_NODEANNO:
+        dumpit_node(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_CNLANNO_INFO:
+        dumpit_annoinfo_channel(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_NODEANNO_INFO:
+        dumpit_annoinfo_node(txn, dbi2);
+        break;
+    default:
+        break;
+    }
+}
+
+static void dbs_cursor_node(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi2)
+{
+    switch (db_type) {
+    case LN_LMDB_DB_TYPE_ROUTE_SKIP:
+        dumpit_route_skip(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_INVOICE:
+        dumpit_invoice(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_PREIMAGE:
+        dumpit_preimage(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_PAYMENT_HASH:
+        break;
+    default:
+        break;
+    }
+}
+
+static void dbs_cursor_wallet(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi2)
+{
+    switch (db_type) {
+    case LN_LMDB_DB_TYPE_WALLET:
+        dumpit_wallet(txn, dbi2);
+        break;
+    default:
+        break;
+    }
+}
+
+static void dbs_cursor_closed(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi2)
+{
+    switch (db_type) {
+    case LN_LMDB_DB_TYPE_CLOSED_CHANNEL:
+        dumpit_channel(txn, dbi2);
+        break;
+    case LN_LMDB_DB_TYPE_CLOSED_SECRET:
+    case LN_LMDB_DB_TYPE_CLOSED_HTLC:
+    case LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX:
+        break;
+    default:
+        break;
+    }
+}
+
+static void show_closed_channels(void)
+{
+    char path[PATH_MAX];
+    DIR *dir;
+
+    ln_lmdb_get_closed_db_path(path, NULL);
+    dir = opendir(path);
+    if (dir == NULL) {
+        fprintf(stderr, "fail: closed db(%s)\n", strerror(errno));
+        return;
+    }
+    int count = 0;
+    printf("[\n");
+    while (true) {
+        struct dirent *dp = readdir(dir);
+        if (dp != NULL) {
+            if (strlen(dp->d_name) == LN_SZ_CHANNEL_ID_STR) {
+                if (count > 0) {
+                    printf(",\n");
+                }
+                printf(INDENT1 M_QQ("%s"), dp->d_name);
+                count++;
+            }
+        } else {
+            break;
+        }
+    }
+    printf("\n]\n");
+    closedir(dir);
+}
+
 static void print_usage(const char *p_procname)
 {
     fprintf(stderr, "usage:\n");
     fprintf(stderr, "\t%s <option>\n", p_procname);
-    fprintf(stderr, "\t\t-v,-version : node information\n");
-    fprintf(stderr, "\t\t-d,--datadir : db directory(use current directory's db if not set)\n");
+    fprintf(stderr, "\t\t--version,-v : node information\n");
+    fprintf(stderr, "\t\t--datadir,-d [NODEDIR] : db directory(use current directory's db if not set)\n");
     fprintf(stderr, "\t\t--listchannelwallet : 2nd layer wallet info\n");
     fprintf(stderr, "\t\t--listwallet : 1st layer wallet info\n");
-    fprintf(stderr, "\t\t-s,--listchannel : detail channel info\n");
-    fprintf(stderr, "\t\t-l,--showchannel : active channel list\n");
-    //fprintf(stderr, "\t\t-q : closed channel info\n");
-    fprintf(stderr, "\t\t-c,--listgossipchannel : channel_announcement/channel_update\n");
-    fprintf(stderr, "\t\t-n,--listgossipnode : node_announcement\n");
-    fprintf(stderr, "\t\t-a,--listannounced : (internal)announcement received/sent node_id list\n");
-    fprintf(stderr, "\t\t-k,--listskip : (internal)skip routing channel list\n");
-    fprintf(stderr, "\t\t-i,--listinvoice : (internal)paying invoice\n");
+    fprintf(stderr, "\t\t--showchannel,-s : show active channel detail\n");
+    fprintf(stderr, "\t\t--listchannel,-l : active channel peer node_id list\n");
+    fprintf(stderr, "\t\t--listclosed : closed channels list\n");
+    fprintf(stderr, "\t\t--showclosed [CHANNEL_ID] : closed channels list\n");
+    fprintf(stderr, "\t\t--listgossipchannel,-c : channel_announcement/channel_update\n");
+    fprintf(stderr, "\t\t--listgossipnode,-n : node_announcement\n");
+    fprintf(stderr, "\t\t--listannounced : (internal)announcement received/sent node_id list\n");
+    fprintf(stderr, "\t\t--listskip : (internal)skip routing channel list\n");
+    fprintf(stderr, "\t\t--listinvoice : (internal)paying invoice\n");
 }
 
 int main(int argc, char *argv[])
@@ -1079,12 +1208,12 @@ int main(int argc, char *argv[])
     fp_err = stderr;
 
     int ret;
-    MDB_env     *p_env;
+    MDB_env     *p_env = NULL;
+    MDB_env     *p_env_closed = NULL;
     MDB_txn     *txn;
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-    bool loop = true;
     int opt;
     char json_start = '{';
     char json_end = '}';
@@ -1097,10 +1226,11 @@ int main(int argc, char *argv[])
     const struct option OPTIONS[] = {
         { "debug", no_argument, NULL, 'D' },
         { "datadir", required_argument, NULL, 'd'},
-        { "listchannel", no_argument, NULL, 's'},
+        { "showchannel", no_argument, NULL, 's'},
         { "listchannelwallet", no_argument, NULL, 'w'},
-        { "showchannel", no_argument, NULL, 'l'},
+        { "listchannel", no_argument, NULL, 'l'},
         { "listclosed", no_argument, NULL, 'q'},
+        { "showclosed", required_argument, NULL, 'Q'},
         { "listgossipchannel", no_argument, NULL, 'c'},
         { "listgossipnode", no_argument, NULL, 'n'},
         { "listannounced", no_argument, NULL, 'a'},
@@ -1114,7 +1244,7 @@ int main(int argc, char *argv[])
 
     ln_lmdb_set_home_dir(".");
 
-    while ((opt = getopt_long(argc, argv, "hd:swlqcnakiWvD9:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, M_GETOPT, OPTIONS, NULL)) != -1) {
         switch (opt) {
         case 'd':
             if (optarg[strlen(optarg) - 1] == '/') {
@@ -1122,8 +1252,14 @@ int main(int argc, char *argv[])
             }
             ln_lmdb_set_home_dir(optarg);
             break;
+        case '?':
+            print_usage(argv[0]);
+            return -1;
+        default:
+            break;
         }
     }
+    //ref. http://man7.org/linux/man-pages/man3/getopt.3.html#NOTES
     optind = 0;
 
     ret = mdb_env_create(&mpDbChannel);
@@ -1173,13 +1309,9 @@ int main(int argc, char *argv[])
     //     //return -1;
     // }
 
-    while (loop && ((opt = getopt_long(argc, argv, "hd:swlqcnakiWvD9:", OPTIONS, NULL)) != -1)) {
+    while ((opt = getopt_long(argc, argv, M_GETOPT, OPTIONS, NULL)) != -1) {
         switch (opt) {
         case 'd':
-            if (optarg[strlen(optarg) - 1] == '/') {
-                optarg[strlen(optarg) - 1] = '\0';
-            }
-            ln_lmdb_set_home_dir(optarg);
             break;
         case 's':
             showflag = SHOW_CHANNEL;
@@ -1193,10 +1325,26 @@ int main(int argc, char *argv[])
             showflag = SHOW_CHANNEL_LISTCH;
             p_env = mpDbChannel;
             break;
-        // case 'q':
-        //     showflag = SHOW_CHANNEL;
-        //     p_env = mpDbClosed;
-        //     break;
+        case 'q':
+            show_closed_channels();
+            return 0;
+        case 'Q':
+            {
+                char path[PATH_MAX];
+                ln_lmdb_get_closed_db_path(path, optarg);
+
+                mdb_env_create(&p_env_closed);
+                mdb_env_set_maxdbs(p_env_closed, 50);
+                ret = mdb_env_open(p_env_closed, path, MDB_RDONLY, 0664);
+                if (ret) {
+                    fprintf(stderr, "fail: cannot open[%s](%s)\n", path, mdb_strerror(ret));
+                    print_usage(argv[0]);
+                    return -1;
+                }
+                p_env = p_env_closed;
+            }
+            showflag = SHOW_CHANNEL;
+            break;
         case 'c':
             showflag = SHOW_ANNOCNL;
             p_env = mpDbAnno;
@@ -1248,12 +1396,8 @@ int main(int argc, char *argv[])
 
         case 'h':
         default:
-            loop = false;
             showflag = 0;
-            break;
-        case 'D':
-            //デバッグでstderrを出力させたい場合
-            spoil_stderr = false;
+            optind = argc;
             break;
         }
     }
@@ -1315,49 +1459,18 @@ int main(int argc, char *argv[])
                 list++;
             } else {
                 ln_lmdb_db_type_t db_type = ln_lmdb_get_db_type(p_env, name);
-                switch (db_type) {
-                case LN_LMDB_DB_TYPE_CHANNEL:
-                    dumpit_channel(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_SECRET:
-                case LN_LMDB_DB_TYPE_HTLC:
-                case LN_LMDB_DB_TYPE_REVOKED_TX:
-                    break;
-                case LN_LMDB_DB_TYPE_WALLET:
-                    dumpit_wallet(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_CNLANNO:
-                    dumpit_channel_anno(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_NODEANNO:
-                    dumpit_node(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_CNLANNO_INFO:
-                case LN_LMDB_DB_TYPE_NODEANNO_INFO:
-                    dumpit_annoinfo(txn, dbi2, db_type);
-                    break;
-                case LN_LMDB_DB_TYPE_ROUTE_SKIP:
-                    dumpit_route_skip(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_INVOICE:
-                    dumpit_invoice(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_PREIMAGE:
-                    dumpit_preimage(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_VERSION:
-                    dumpit_version(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_CLOSED_CHANNEL:
-                    dumpit_channel(txn, dbi2);
-                    break;
-                case LN_LMDB_DB_TYPE_CLOSED_SECRET:
-                case LN_LMDB_DB_TYPE_CLOSED_HTLC:
-                case LN_LMDB_DB_TYPE_CLOSED_REVOKED_TX:
-                    break;
-                default:
+                if (p_env == mpDbChannel) {
+                    dbs_cursor_channel(db_type, txn, dbi2);
+                } else if (p_env == mpDbAnno) {
+                    dbs_cursor_anno(db_type, txn, dbi2);
+                } else if (p_env == mpDbNode) {
+                    dbs_cursor_node(db_type, txn, dbi2);
+                } else if (p_env == mpDbWalt) {
+                    dbs_cursor_wallet(db_type, txn, dbi2);
+                } else if (p_env == p_env_closed) {
+                    dbs_cursor_closed(db_type, txn, dbi2);
+                } else {
                     fprintf(stderr, "unknown name[%s]\n", name);
-                    break;
                 }
             }
             mdb_close(mdb_txn_env(txn), dbi2);
@@ -1374,6 +1487,9 @@ int main(int argc, char *argv[])
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
 
+    if (p_env_closed != NULL) {
+        mdb_env_close(p_env_closed);
+    }
     mdb_env_close(mpDbWalt);
     mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbNode);

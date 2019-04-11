@@ -41,9 +41,9 @@ do
     do
         cnt=`./ptarmcli -l $i | jq -e '.result.peers | length'`
         if [ $cnt -eq 0 ]; then
-            echo node_$i closed
+            echo node_$((i-1)) closed
         else
-            echo node_$i not closed
+            echo node_$((i-1)) not closed
             sleep 5
             loop=1
         fi
