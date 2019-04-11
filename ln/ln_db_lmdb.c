@@ -918,7 +918,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
         abort();
     }
 
-#ifndef M_DB_DEBUG
+#ifdef M_DB_DEBUG
     pthread_mutex_init(&g_cnt_mux);
 #endif
 
