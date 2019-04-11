@@ -289,6 +289,7 @@
 #define MDB_TXN_CHECK_PAYMENT(a)    //none
 #else
 static volatile int g_cnt[6];
+static pthread_mutex_t  g_cnt_mux;
 #define MDB_TXN_BEGIN(a, b, c, d)   my_mdb_txn_begin(a, b, c, d, __LINE__);
 #define MDB_TXN_ABORT(a)            { my_mdb_txn_abort(a, __LINE__); (a) = NULL; }
 #define MDB_TXN_COMMIT(a)           { my_mdb_txn_commit(a, __LINE__); (a) = NULL; }
@@ -710,11 +711,27 @@ static inline int env_number(const MDB_env *env) {
     }
     return env_num;
 }
+static inline int env_inc(const MDB_env *env, int *pCnt) {
+    pthread_mutex_lock(&g_cnt_mux);
+    int idx = env_number(env);
+    g_cnt[idx]++;
+    *pCnt = g_cnt[idx];
+    pthread_mutex_unlock(&g_cnt_mux);
+    return idx;
+}
+static inline int env_dec(const MDB_env *env, int *pCnt) {
+    pthread_mutex_lock(&g_cnt_mux);
+    int idx = env_number(env);
+    g_cnt[idx]--;
+    *pCnt = g_cnt[idx];
+    pthread_mutex_unlock(&g_cnt_mux);
+    return idx;
+}
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *pParent, unsigned int Flags, MDB_txn **ppTxn, int Line) {
     assert(sizeof(g_cnt) <= sizeof(INIT_PARAM));
-    int ggg = env_number(env);
-    g_cnt[ggg]++;
-    LOGD("mdb_txn_begin:%d:[%d]opens=%d(%d)\n", Line, ggg, g_cnt[ggg], (int)Flags);
+    int cnt;
+    int idx = env_inc(env, &cnt);
+    LOGD("mdb_txn_begin:%d:[%d]open=%d(%d)\n", Line, idx, cnt, (int)Flags);
     MDB_envinfo stat;
     if (mdb_env_info(env, &stat) == 0) {
         LOGD("  last txnid=%lu\n", stat.me_last_txnid);
@@ -725,14 +742,20 @@ static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *pParent, unsigned int 
     } else {
         LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
         if (retval != MDB_NOTFOUND) abort();
+        idx = env_dec(env, &cnt);
+        LOGD("  fail :%d:[%d]open=%d\n", Line, idx, cnt);
     }
     return retval;
 }
 
 static inline int my_mdb_txn_commit(MDB_txn *pTxn, int Line) {
-    int ggg = env_number(mdb_txn_env(pTxn));
-    g_cnt[ggg]--;
-    LOGD("mdb_txn_commit:%d:[%d]opend=%d\n", Line, ggg, g_cnt[ggg]);
+    int cnt;
+    int idx = env_dec(mdb_txn_env(pTxn), &cnt);
+    LOGD("mdb_txn_commit:%d:[%d]open=%d\n", Line, idx, cnt);
+    if (cnt < 0) {
+        LOGE("too many txn_commit[%d]\n", idx);
+        abort();
+    }
     int retval = mdb_txn_commit(pTxn);
     if (retval) {
         LOGE("ERR(%d): %s\n", Line, mdb_strerror(retval));
@@ -742,9 +765,13 @@ static inline int my_mdb_txn_commit(MDB_txn *pTxn, int Line) {
 }
 
 static inline void my_mdb_txn_abort(MDB_txn *pTxn, int Line) {
-    int ggg = env_number(mdb_txn_env(pTxn));
-    g_cnt[ggg]--;
-    LOGD("mdb_txn_abort:%d:[%d]opend=%d\n", Line, ggg, g_cnt[ggg]);
+    int cnt;
+    int idx = env_dec(mdb_txn_env(pTxn), &cnt);
+    LOGD("mdb_txn_abort:%d:[%d]open=%d\n", Line, idx, cnt);
+    if (cnt < 0) {
+        LOGE("too many txn_abort[%d]\n", idx);
+        abort();
+    }
     mdb_txn_abort(pTxn);
 }
 
@@ -895,6 +922,10 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
         LOGE("fail: already initialized\n");
         abort();
     }
+
+#ifdef M_DB_DEBUG
+    pthread_mutex_init(&g_cnt_mux, NULL);
+#endif
 
     for (size_t lp = 0; lp < ARRAY_SIZE(INIT_PARAM); lp++) {
         retval = init_db_env(&INIT_PARAM[lp]);
