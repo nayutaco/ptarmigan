@@ -1042,6 +1042,24 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
+static void print_usage(const char *p_procname)
+{
+    fprintf(stderr, "usage:\n");
+    fprintf(stderr, "\t%s <option>\n", p_procname);
+    fprintf(stderr, "\t\t-v,-version : node information\n");
+    fprintf(stderr, "\t\t-d,--datadir : db directory(use current directory's db if not set)\n");
+    fprintf(stderr, "\t\t--listchannelwallet : 2nd layer wallet info\n");
+    fprintf(stderr, "\t\t--listwallet : 1st layer wallet info\n");
+    fprintf(stderr, "\t\t-s,--listchannel : detail channel info\n");
+    fprintf(stderr, "\t\t-l,--showchannel : active channel list\n");
+    //fprintf(stderr, "\t\t-q : closed channel info\n");
+    fprintf(stderr, "\t\t-c,--listgossipchannel : channel_announcement/channel_update\n");
+    fprintf(stderr, "\t\t-n,--listgossipnode : node_announcement\n");
+    fprintf(stderr, "\t\t-a,--listannounced : (internal)announcement received/sent node_id list\n");
+    fprintf(stderr, "\t\t-k,--listskip : (internal)skip routing channel list\n");
+    fprintf(stderr, "\t\t-i,--listinvoice : (internal)paying invoice\n");
+}
+
 int main(int argc, char *argv[])
 {
     fp_err = stderr;
@@ -1099,6 +1117,7 @@ int main(int argc, char *argv[])
     ret = mdb_env_open(mpDbChannel, ln_lmdb_get_channel_db_path(), MDB_RDONLY, 0664);
     if (ret) {
         fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_channel_db_path());
+        print_usage(argv[0]);
         return -1;
     }
     ret = mdb_env_create(&mpDbNode);
@@ -1222,20 +1241,7 @@ int main(int argc, char *argv[])
     }
 
     if (showflag == 0) {
-        fprintf(stderr, "usage:\n");
-        fprintf(stderr, "\t%s <option>\n", argv[0]);
-        fprintf(stderr, "\t\t-v : node information\n");
-        fprintf(stderr, "\t\t-d : db directory(use current directory's db if not set)\n");
-        fprintf(stderr, "\t\t-w : 2nd layer wallet info\n");
-        fprintf(stderr, "\t\t-W : 1st layer wallet info\n");
-        fprintf(stderr, "\t\t-s : channel info\n");
-        fprintf(stderr, "\t\t-l : channel list\n");
-        //fprintf(stderr, "\t\t-q : closed channel info\n");
-        fprintf(stderr, "\t\t-c : channel_announcement/channel_update\n");
-        fprintf(stderr, "\t\t-n : node_announcement\n");
-        fprintf(stderr, "\t\t-a : (internal)announcement received/sent node_id list\n");
-        fprintf(stderr, "\t\t-k : (internal)skip routing channel list\n");
-        fprintf(stderr, "\t\t-i : (internal)paying invoice\n");
+        print_usage(argv[0]);
         return -1;
     }
 
