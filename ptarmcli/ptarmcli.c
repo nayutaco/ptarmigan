@@ -206,7 +206,7 @@ int main(int argc, char *argv[])
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
-        { "createinvoice", required_argument, NULL, 'i' },
+        { "addinvoice", required_argument, NULL, 'i' },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\n");
 
         fprintf(stderr, "\tPAYMENT:\n");
-        fprintf(stderr, "\t\t--createinvoice,-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
+        fprintf(stderr, "\t\t--addinvoice,-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
         fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
         fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
         fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
