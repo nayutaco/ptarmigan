@@ -429,11 +429,11 @@ static ln_payment_error_t route_invoice(
     pRoute->hop_num = route_result.hop_num;
     memcpy(pRoute->hop_datain, route_result.hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
 
-    UTL_DBG_FREE(p_invoice_data);
+    ln_invoice_decode_free(p_invoice_data);
     return LN_PAYMENT_OK;
 
 LABEL_ERROR:
-    UTL_DBG_FREE(p_invoice_data);
+    ln_invoice_decode_free(p_invoice_data);
     return retval;
 }
 

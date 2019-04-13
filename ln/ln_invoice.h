@@ -27,6 +27,22 @@ typedef struct {
 } ln_r_field_t;
 
 
+/** @enum   ln_invoice_desc_type_t
+ *  @brief  description
+ */
+typedef enum {
+    LN_INVOICE_DESC_NONE,
+    LN_INVOICE_DESC_TYPE_STRING,
+    LN_INVOICE_DESC_TYPE_HASH256,
+} ln_invoice_desc_type_t;
+
+
+typedef struct {
+    ln_invoice_desc_type_t  type;
+    utl_buf_t               data;
+} ln_invoice_desc_t;
+
+
 /** @struct ln_invoice_t;
  *  @brief  BOLT#11 invoice
  */
@@ -38,6 +54,7 @@ typedef struct {
     uint32_t    min_final_cltv_expiry;
     uint8_t     pubkey[BTC_SZ_PUBKEY];
     uint8_t     payment_hash[BTC_SZ_HASH256];
+    ln_invoice_desc_t   description;
     uint8_t     r_field_num;
     ln_r_field_t r_field[];
 } ln_invoice_t;
@@ -63,6 +80,9 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
 
 bool ln_invoice_decode_2(ln_invoice_t **pp_invoice_data, const char* invoice, uint32_t len);
 
+void ln_invoice_decode_free(ln_invoice_t *p_invoice_data);
+
+
 /** BOLT11 形式invoice作成
  *
  * @param[out]      ppInvoice
@@ -70,6 +90,7 @@ bool ln_invoice_decode_2(ln_invoice_t **pp_invoice_data, const char* invoice, ui
  * @param[in]       pPaymentHash
  * @param[in]       Amount
  * @param[in]       Expiry          invoice expiry
+ * @param[in]       pDesc           description
  * @param[in]       pRField
  * @param[in]       RFieldNum       pRField数
  * @param[in]       MinFinalCltvExpiry  min_final_cltv_expiry
@@ -77,8 +98,16 @@ bool ln_invoice_decode_2(ln_invoice_t **pp_invoice_data, const char* invoice, ui
  * @attention
  *      - ppInoviceはUTL_DBG_MALLOC()で確保するため、、使用後にUTL_DBG_FREE()すること
  */
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPaymentHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry);
+bool ln_invoice_create(
+            char **ppInvoice,
+            uint8_t Type,
+            const uint8_t *pPaymentHash,
+            uint64_t Amount,
+            uint32_t Expiry,
+            const ln_invoice_desc_t *pDesc,
+            const ln_r_field_t *pRField,
+            uint8_t RFieldNum,
+            uint32_t MinFinalCltvExpiry);
 
 #ifdef __cplusplus
 }

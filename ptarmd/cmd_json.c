@@ -119,6 +119,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_decodeinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -145,7 +146,7 @@ static int cmd_connect_proc(const peer_conn_t *pConn);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
 static int cmd_stop_proc(void);
 static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jrpc_context *ctx);
-static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat);
+static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat, const ln_invoice_desc_t *pDesc);
 static int cmd_eraseinvoice_proc(const uint8_t *pPaymentHash);
 static int cmd_routepay_proc1(
                 ln_invoice_t **ppInvoiceData,
@@ -174,6 +175,7 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn);
 static char *create_bolt11(
                 const uint8_t *pPaymentHash,
                 uint64_t Amount,
+                ln_invoice_desc_t *pDesc,
                 uint32_t Expiry,
                 const ln_r_field_t *pRField,
                 uint8_t RFieldNum,
@@ -211,6 +213,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_fund,        "fund", NULL);
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_decodeinvoice,  "decodeinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_paytest,     "PAY", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay", NULL);
@@ -659,8 +662,20 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("$$$: [JSONRPC]invoice\n");
 
+    ln_invoice_desc_t desc;
+    desc.type = LN_INVOICE_DESC_TYPE_STRING;
+    const char *DESC = "ptarmigan";
+    size_t desc_len = strlen(DESC);
+    if (desc_len > 20) {
+        err = 0;
+        ctx->error_code = RPCERR_INVOICE_FAIL;
+        ctx->error_message = strdup_cjson("too long description");
+        goto LABEL_EXIT;
+    }
+    utl_buf_alloccopy(&desc.data, (const uint8_t *)DESC, desc_len);
+
     uint8_t preimage_hash[BTC_SZ_HASH256];
-    err = cmd_invoice_proc(preimage_hash, amount_msat);
+    err = cmd_invoice_proc(preimage_hash, amount_msat, &desc);
 
 LABEL_EXIT:
     if (err == 0) {
@@ -668,6 +683,7 @@ LABEL_EXIT:
         uint8_t r_fieldnum = 0;
         create_bolt11_r_field(&p_r_field, &r_fieldnum, amount_msat);
         char *p_invoice = create_bolt11(preimage_hash, amount_msat,
+                            &desc,
                             LN_INVOICE_EXPIRY, p_r_field, r_fieldnum,
                             min_final_cltv_expiry);
 
@@ -742,6 +758,120 @@ LABEL_EXIT:
     return result;
 }
 
+
+/** 送金・再送金
+ *
+ */
+static cJSON *cmd_decodeinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    LOGD("$$$ [JSONRPC]decodeinvoice\n");
+
+    int err = 0;
+    cJSON *result = NULL;
+    cJSON *json;
+    int index = 0;
+    ln_invoice_t *p_invoice_data = NULL;
+
+    if (params == NULL) {
+        err = RPCERR_PARSE;
+        goto LABEL_EXIT;
+    }
+
+    json = cJSON_GetArrayItem(params, index++);
+    if (!json || (json->type != cJSON_String)) {
+        LOGE("fail: invalid invoice string\n");
+        err = RPCERR_PARSE;
+        goto LABEL_EXIT;
+    }
+
+    if (!ln_invoice_decode(&p_invoice_data, json->valuestring)) {
+        err = RPCERR_PARSE;
+        goto LABEL_EXIT;
+    }
+
+    result = cJSON_CreateObject();
+
+    const char *chain;
+    switch (p_invoice_data->hrp_type) {
+    case LN_INVOICE_MAINNET:
+        chain = "bitcoin mainnet";
+        break;
+    case LN_INVOICE_TESTNET:
+        chain = "bitcoin testnet";
+        break;
+    case LN_INVOICE_REGTEST:
+        chain = "bitcoin regtest";
+        break;
+    default:
+        chain = "unknown";
+    }
+    cJSON_AddItemToObject(result, "chain", cJSON_CreateString(chain));
+    
+    //amount_msat
+    cJSON_AddItemToObject(result, "amount_msat", cJSON_CreateNumber64(p_invoice_data->amount_msat));
+    //timestamp
+    char tm_str[UTL_SZ_TIME_FMT_STR + 1];
+    time_t tm = (time_t)p_invoice_data->timestamp;
+    cJSON_AddItemToObject(result, "timestamp", cJSON_CreateString(utl_time_fmt(tm_str, tm)));
+    //expiry
+    cJSON_AddItemToObject(result, "expiry", cJSON_CreateNumber(p_invoice_data->expiry));
+    //min_final_cltv_expiry
+    cJSON_AddItemToObject(result, "min_final_cltv_expiry", cJSON_CreateNumber(p_invoice_data->min_final_cltv_expiry));
+    //pubkey
+    char pubkey_str[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(pubkey_str, p_invoice_data->pubkey, BTC_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "pubkey", cJSON_CreateString(pubkey_str));
+    //payment_hash
+    char paymenthash_str[BTC_SZ_HASH256 * 2 + 1];
+    utl_str_bin2str(paymenthash_str, p_invoice_data->payment_hash, BTC_SZ_HASH256);
+    cJSON_AddItemToObject(result, "payment_hash", cJSON_CreateString(paymenthash_str));
+    //description
+    switch (p_invoice_data->description.type) {
+    case LN_INVOICE_DESC_TYPE_STRING:
+        cJSON_AddItemToObject(result, "description_string", cJSON_CreateString((const char *)p_invoice_data->description.data.buf));
+        break;
+    case LN_INVOICE_DESC_TYPE_HASH256:
+        {
+            char hash_str[BTC_SZ_HASH256 * 2 + 1];
+            utl_str_bin2str(hash_str, p_invoice_data->description.data.buf, p_invoice_data->description.data.len);
+            cJSON_AddItemToObject(result, "description_hash", cJSON_CreateString(hash_str));
+        }
+        break;
+    default:
+        break;
+    }
+    //r_field
+    if (p_invoice_data->r_field_num > 0) {
+        cJSON *rfield = cJSON_CreateArray();
+
+        for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
+            cJSON *field = cJSON_CreateObject();
+
+            utl_str_bin2str(pubkey_str, p_invoice_data->r_field[lp].node_id, BTC_SZ_PUBKEY);
+            cJSON_AddItemToObject(field, "node_id", cJSON_CreateString(pubkey_str));
+
+            char sci_str[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+            ln_short_channel_id_string(sci_str, p_invoice_data->r_field[lp].short_channel_id);
+            cJSON_AddItemToObject(field, "short_channel_id", cJSON_CreateString(sci_str));
+
+            cJSON_AddItemToObject(field, "fee_base_msat", cJSON_CreateNumber(p_invoice_data->r_field[lp].fee_base_msat));
+            cJSON_AddItemToObject(field, "fee_proportional_millionths", cJSON_CreateNumber(p_invoice_data->r_field[lp].fee_base_msat));
+            cJSON_AddItemToObject(field, "cltv_expiry_delta", cJSON_CreateNumber(p_invoice_data->r_field[lp].cltv_expiry_delta));
+            cJSON_AddItemToArray(rfield, field);
+        }
+        cJSON_AddItemToObject(result, "r_field", rfield);
+    }
+
+LABEL_EXIT:
+    if (err) {
+        ctx->error_code = err;
+        ctx->error_message = error_str_cjson(err);
+    }
+    ln_invoice_decode_free(p_invoice_data);
+    return result;
+}
 
 /** invoice一覧出力 : ptarmcli -m
  *
@@ -1060,7 +1190,7 @@ LABEL_EXIT:
         LOGD("%s\n", mLastPayErr);
         ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payment_hash, ctx->error_message);
     }
-    UTL_DBG_FREE(p_invoice_data);
+    ln_invoice_decode_free(p_invoice_data);
     UTL_DBG_FREE(p_invoice);
     lnapp_manager_free_node_ref(p_conf);
 
@@ -1757,8 +1887,10 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
  * @param[in]   AmountMsat
  * @retval  エラーコード
  */
-static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat)
+static int cmd_invoice_proc(uint8_t *pPaymentHash, uint64_t AmountMsat, const ln_invoice_desc_t *pDesc)
 {
+    (void)pDesc;
+
     LOGD("invoice\n");
 
     ln_db_preimage_t preimage;
@@ -2200,6 +2332,7 @@ static void create_bolt11_r_field_2(lnapp_conf_t *pConf, void *pParam)
 static char *create_bolt11(
                 const uint8_t *pPaymentHash,
                 uint64_t Amount,
+                ln_invoice_desc_t *pDesc,
                 uint32_t Expiry,
                 const ln_r_field_t *pRField,
                 uint8_t RFieldNum,
@@ -2224,7 +2357,8 @@ static char *create_bolt11(
     char *p_invoice = NULL;
     if (type != BTC_BLOCK_CHAIN_UNKNOWN) {
         ln_invoice_create(&p_invoice, type,
-                pPaymentHash, Amount, Expiry, pRField, RFieldNum, MinFinalCltvExpiry);
+                pPaymentHash, Amount, Expiry, pDesc,
+                pRField, RFieldNum, MinFinalCltvExpiry);
     }
     return p_invoice;
 }
