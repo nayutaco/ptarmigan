@@ -1355,14 +1355,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
         //XXX: If the corresponding `revoke_andk_ack` is received, channel should be failed
         LOGD("$$$ resend: previous update message\n");
-        for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-            ln_update_t *p_update = &pChannel->update_info.updates[idx];
-            if (!LN_UPDATE_USED(p_update)) continue;
-            if (!LN_UPDATE_REMOTE_COMSIGING(p_update)) continue;
-            LN_UPDATE_ENABLE_RESEND_UPDATE(p_update);
-            //The update message will be sent in the idle proc.
-        }
-        pChannel->commit_info_remote.commit_num--;
+        ln_commit_tx_rewind_one_commit_remote(&pChannel->commit_info_remote, &pChannel->update_info);
     }
 
     //BOLT#02

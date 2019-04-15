@@ -144,4 +144,8 @@ bool ln_commit_tx_set_vin_p2wsh_2of2_rs(
     const utl_buf_t *pWitScript);
 
 
+void HIDDEN ln_commit_tx_rewind_one_commit_remote(
+    ln_commit_info_t *pCommitInfo, ln_update_info_t *pUpdateInfo);
+
+
 #endif /* LN_COMMIT_TX_H__ */
