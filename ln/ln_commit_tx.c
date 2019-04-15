@@ -558,7 +558,8 @@ void HIDDEN ln_commit_tx_rewind_one_commit_remote(
 
     //we can clear `LN_UPDATE_STATE_OFFERED_WAIT_SEND` updates
     //  and reload and check them from forward db once again
-    ln_update_info_clear_pending_updates(pUpdateInfo);
+    bool updated = false;
+    ln_update_info_clear_pending_updates(pUpdateInfo, &updated);
 
     return;
 }
