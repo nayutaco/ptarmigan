@@ -81,7 +81,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign);
  **************************************************************************/
 
 bool /*HIDDEN*/ ln_open_channel_send(
-    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate,
+    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushMSat, uint32_t FeeRate,
     uint8_t PrivChannel)
 {
     if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
@@ -117,7 +117,7 @@ bool /*HIDDEN*/ ln_open_channel_send(
     msg.p_chain_hash = ln_genesishash_get();
     msg.p_temporary_channel_id = pChannel->channel_id;
     msg.funding_satoshis = FundingSat;
-    msg.push_msat = LN_SATOSHI2MSAT(PushSat);
+    msg.push_msat = PushMSat;
     msg.dust_limit_satoshis = pChannel->establish.param.dust_limit_sat;
     if (pChannel->establish.param.max_htlc_value_in_flight_msat > LN_SATOSHI2MSAT(msg.funding_satoshis)) {
         msg.max_htlc_value_in_flight_msat = LN_SATOSHI2MSAT(msg.funding_satoshis);

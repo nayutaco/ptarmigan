@@ -198,7 +198,7 @@ typedef struct funding_conf_t {
     uint8_t         txid[BTC_SZ_TXID];
     int             txindex;
     uint64_t        funding_sat;
-    uint64_t        push_sat;
+    uint64_t        push_msat;
     uint32_t        feerate_per_kw;
     uint8_t         priv_channel;           //not 0: private channel
 } funding_conf_t;

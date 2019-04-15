@@ -492,7 +492,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
         }
         param = strtok(NULL, ",");
         if ((param != NULL) && (*param != '\0')) {
-            fundconf.push_sat = (uint64_t)strtoul(param, &endp, 10);
+            fundconf.push_msat = (uint64_t)strtoul(param, &endp, 10);
             if ((endp != NULL) && (*endp != 0x00)) {
                 //変換失敗(push_msatはエラーになっても気にしない)
                 //LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
@@ -523,7 +523,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
         snprintf(cmdline, sclen, "python3 %s/pay_fundin.py %" PRIu64 " %" PRIu64 " " M_TMPFUNDCONF,
                     exec_path,
                     fundconf.funding_sat,
-                    fundconf.push_sat);
+                    fundconf.push_msat);
         fprintf(stderr, "cmdline: %s\n", cmdline);
         system(cmdline);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
@@ -541,14 +541,14 @@ static void optfunc_funding(int *pOption, bool *pConn)
                 M_QQ("params") ":[ "
                     //peer_node_id, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
-                    //txid, txindex, funding_sat, push_sat, feerate_per_kw
+                    //txid, txindex, funding_sat, push_msat, feerate_per_kw
                     M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
                     //is_private
                     ",%d"
                 " ]"
             "}",
                 mPeerNodeId, mPeerAddr, mPeerPort,
-                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw,
+                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_msat, fundconf.feerate_per_kw,
                 mPrivChannel);
 
         *pConn = false;

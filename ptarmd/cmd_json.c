@@ -535,11 +535,11 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     } else {
         goto LABEL_EXIT;
     }
-    //push_sat
+    //push_msat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        fundconf.push_sat = json->valueu64;
-        LOGD("push_sat=%" PRIu64 "\n", fundconf.push_sat);
+        fundconf.push_msat = json->valueu64;
+        LOGD("push_msat=%" PRIu64 "\n", fundconf.push_msat);
     } else {
         goto LABEL_EXIT;
     }

@@ -138,7 +138,7 @@ static void print_funding_conf(const funding_conf_t *pFundConf)
     fprintf(stderr, "\n");
     fprintf(stderr, "txindex=%d\n", pFundConf->txindex);
     fprintf(stderr, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
-    fprintf(stderr, "push_sat=%" PRIu64 "\n\n", pFundConf->push_sat);
+    fprintf(stderr, "push_msat=%" PRIu64 "\n\n", pFundConf->push_msat);
 }
 #endif
 
@@ -227,8 +227,8 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
         pconfig->txindex = atoi(value);
     } else if (strcmp(name, "funding_sat") == 0) {
         pconfig->funding_sat = strtoull(value, NULL, 10);
-    } else if (strcmp(name, "push_sat") == 0) {
-        pconfig->push_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "push_msat") == 0) {
+        pconfig->push_msat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "feerate_per_kw") == 0) {
         pconfig->feerate_per_kw = strtoull(value, NULL, 10);
     } else {
