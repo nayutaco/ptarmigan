@@ -46,6 +46,12 @@ ln_update_t *ln_update_get_empty(ln_update_t *pUpdates, uint16_t *pUpdateIdx)
 }
 
 
+void ln_update_clear(ln_update_t *pUpdate)
+{
+    memset(pUpdate, 0x00, sizeof(ln_update_t));
+}
+
+
 ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx)
 {
     for (uint16_t idx = 0; idx < LN_HTLC_MAX; idx++) {

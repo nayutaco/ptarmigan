@@ -1259,6 +1259,7 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     //XXX: should return the return code or SET_ERR
 
     if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) return;
+    if (!M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag)) return;
 
     if (ln_is_shutdown_sent(pChannel)) {
         /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
@@ -1312,6 +1313,7 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 void ln_idle_proc_inactive(ln_channel_t *pChannel)
 {
     if (!pChannel->short_channel_id) return;
+    ln_update_info_clear_pending_updates(&pChannel->update_info);
     if (ln_is_shutdown_sent(pChannel)) {
         /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
     } else {
@@ -1324,6 +1326,12 @@ void ln_idle_proc_origin(ln_channel_t *pChannel)
 {
     /*ignore*/poll_update_add_htlc_forward_origin(pChannel);
     /*ignore*/poll_update_del_htlc_forward_origin(pChannel);
+}
+
+
+void ln_channel_reestablish_before(ln_channel_t *pChannel)
+{
+    ln_update_info_clear_pending_updates(&pChannel->update_info);
 }
 
 

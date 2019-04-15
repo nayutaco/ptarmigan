@@ -115,5 +115,8 @@ uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, b
 
 uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLocal);
 
+//for reconnecting
+void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo);
+
 
 #endif /* LN_UPDATE_INFO_H__ */

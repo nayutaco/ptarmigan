@@ -833,6 +833,7 @@ void *lnapp_thread_channel_start(void *pArg)
                 ln_last_connected_addr_set(p_channel, &conn_addr);
             }
 
+            ln_channel_reestablish_before(p_channel);
             b_channelreestablished = exchange_reestablish(p_conf);
             if (b_channelreestablished) {
                 LOGD("exchange: channel_reestablish\n");
