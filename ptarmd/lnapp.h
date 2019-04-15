@@ -43,17 +43,6 @@ extern "C" {
 
 typedef struct cJSON cJSON;
 
-/** @struct     routelist_t
- *  @brief      送金情報リスト
- */
-typedef struct routelist_t {
-    LIST_ENTRY(routelist_t) list;
-    payment_conf_t          route;
-    uint64_t                htlc_id;    ///< 該当するhtlc id
-} routelist_t;
-
-LIST_HEAD(routelisthead_t, routelist_t);
-
 
 /** @struct     pinglist_t
  *  @brief      ping.num_pong_bytes list
@@ -107,7 +96,6 @@ typedef struct lnapp_conf_t {
 
     uint32_t            feerate_per_kw;
 
-    struct routelisthead_t  payroute_head;      //payment
     struct ponglisthead_t   pong_head;          //pong.num_pong_bytes
 
     int                 err;                    ///< last error
@@ -165,12 +153,6 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFundingConf);
  *  @retval     true    not receive pong against previous ping sending.
  */
 bool lnapp_check_ponglist(const lnapp_conf_t *pAppConf);
-
-
-/** [lnapp]送金開始
- *
- */
-bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay, const char **ppResult);
 
 
 /*******************************************

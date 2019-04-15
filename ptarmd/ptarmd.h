@@ -204,16 +204,6 @@ typedef struct funding_conf_t {
 } funding_conf_t;
 
 
-/** @struct     payment_conf_t
- *  @brief      送金情報(test用)
- */
-typedef struct payment_conf_t {
-    uint8_t             payment_hash[BTC_SZ_HASH256];
-    uint8_t             num_hops;
-    ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
-} payment_conf_t;
-
-
 /** @struct     rpc_conf_t
  *  @brief      bitcoind情報
  */
