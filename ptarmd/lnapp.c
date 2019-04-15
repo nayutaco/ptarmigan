@@ -1312,7 +1312,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
     //Establish開始
     LOGD("  funding_sat: %" PRIu64 "\n", pFundingConf->funding_sat);
-    LOGD("  push_sat: %" PRIu64 "\n", pFundingConf->push_sat);
+    LOGD("  push_msat: %" PRIu64 "\n", pFundingConf->push_msat);
 
     bool ret = getnewaddress(&fundin.change_spk);
     if (!ret) {
@@ -1362,7 +1362,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         ret = ln_open_channel_send(&p_conf->channel,
                         &fundin,
                         pFundingConf->funding_sat,
-                        pFundingConf->push_sat,
+                        pFundingConf->push_msat,
                         feerate_kw,
                         pFundingConf->priv_channel);
         pthread_mutex_unlock(&p_conf->mux_conf);

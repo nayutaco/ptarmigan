@@ -15,14 +15,14 @@ FUNDIN_CONF=fund_`date -u +%Y%m%d%H%M%S`.conf
 FUNDIN_BTC=`echo "scale=10; $1/100000000" | bc`
 FUNDIN_BTC=`printf "%.8f" $FUNDIN_BTC`
 FUND_SAT=$2
-PUSH_SAT=$3
+PUSH_MSAT=$3
 
 if [ $1 -le $FUND_SAT ]; then
 	echo "ERROR: arg1(funding satoshis) <= arg2(channel satoshis)"
 	echo "  note: [funding satoshis] >= [channel satoshis] + [funding_tx fee]"
 	return 2
 fi
-if [ $FUND_SAT -le $PUSH_SAT ]; then
+if [ $FUND_SAT -le $PUSH_MSAT ]; then
 	echo "ERROR: arg2(channel satoshis) <= arg3(push satoshis)"
 	return 3
 fi
@@ -59,7 +59,7 @@ else
 fi
 echo signaddr=$ADDR >> $FUNDIN_CONF
 echo funding_sat=$FUND_SAT >> $FUNDIN_CONF
-echo push_sat=$PUSH_SAT >> $FUNDIN_CONF
+echo push_msat=$PUSH_MSAT >> $FUNDIN_CONF
 echo feerate_per_kw=0 >> $FUNDIN_CONF
 
 echo "create: $FUNDIN_CONF"

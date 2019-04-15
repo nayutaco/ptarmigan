@@ -45,13 +45,13 @@
  * @param[in,out]       pChannel        channel info
  * @param[in]           pFundin         fund-in情報
  * @param[in]           FundingSat      fundingするamount[satoshi]
- * @param[in]           PushSat         push_msatするamount[satoshi]
+ * @param[in]           PushMSat        push_msatするamount[msat]
  * @param[in]           FeeRate         feerate_per_kw
  * @param[in]           PrivChannel     !=0: private channel
  * retval       true    成功
  */
 bool /*HIDDEN*/ ln_open_channel_send(
-    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate,
+    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushMSat, uint32_t FeeRate,
     uint8_t PrivChannel);
 bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_accept_channel_send(ln_channel_t *pChannel);
