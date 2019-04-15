@@ -53,7 +53,7 @@ static bool load_channel(ln_channel_t *pChannel, void *pDbParam, void *pParam);
 void lnapp_manager_init(void)
 {
     memset(&mAppConf, 0x00, sizeof(mAppConf));
-    int idx = 0;
+    int idx = 1; //skip origin node
     ln_db_channel_search_cont(load_channel, &idx); //XXX: error check
 }
 
@@ -197,7 +197,7 @@ static bool load_channel(ln_channel_t *pChannel, void *pDbParam, void *pParam)
 
     int *p_idx = (int *)pParam;
 
-    if (*p_idx >= MAX_CHANNELS) {
+    if (*p_idx >= (int)ARRAY_SIZE(mAppConf)) {
         assert(0);
         return false;
     }

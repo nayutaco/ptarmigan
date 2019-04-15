@@ -344,10 +344,15 @@ static inline const char *ln_update_state_str(uint8_t state)
 ln_update_t *ln_update_get_empty(ln_update_t *pUpdates, uint16_t *pUpdateIdx);
 
 
+void ln_update_clear(ln_update_t *pUpdate);
+
+
 ln_htlc_t *ln_htlc_get_empty(ln_htlc_t *pHtlcs, uint16_t *pHtlcIdx);
 
 
 ln_fee_update_t *ln_fee_update_get_empty(ln_fee_update_t *pFeeUpdates, uint16_t *pFeeUpdateIdx);
+
+
 
 
 #ifdef LN_DBG_PRINT
