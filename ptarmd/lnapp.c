@@ -449,27 +449,25 @@ LABEL_EXIT:
 }
 
 
-bool lnapp_close_channel_force(const uint8_t *pNodeId)
+bool lnapp_close_channel_force(lnapp_conf_t *pConf)
 {
-    bool ret;
-    ln_channel_t channel;
+    pthread_mutex_lock(&pConf->mux_conf);
+    bool ret = false;
 
-    ln_init(&channel, &mAnnoParam, NULL, NULL, NULL);
-
-    ret = ln_node_search_channel(&channel, pNodeId);
-    if (!ret) {
-        return false;
-    }
-    if (ln_status_is_closing(&channel)) {
+    if (ln_status_is_closing(&pConf->channel)) {
         LOGE("fail: already closing\n");
-        return false;
+        goto LABEL_EXIT;
     }
 
-    LOGD("close: bad way(local): htlc=%d\n", ln_commit_info_local(&channel)->num_htlc_outputs);
-    ptarmd_eventlog(ln_channel_id(&channel), "close: bad way(local)");
-    (void)monitor_close_unilateral_local(&channel, NULL);
+    LOGD("close: bad way(local): htlc=%d\n", ln_commit_info_local(&pConf->channel)->num_htlc_outputs);
+    ptarmd_eventlog(ln_channel_id(&pConf->channel), "close: bad way(local)");
+    (void)monitor_close_unilateral_local(&pConf->channel, NULL);
 
-    return true;
+    ret = true;
+
+LABEL_EXIT:
+    pthread_mutex_unlock(&pConf->mux_conf);
+    return ret;
 }
 
 
@@ -1308,8 +1306,9 @@ static void *thread_recv_start(void *pArg)
             //LOGD("ln_recv() result=%d\n", ret);
             if (!ret) {
                 LOGD("DISC: fail recv message\n");
-                lnapp_close_channel_force(ln_remote_node_id(&p_conf->channel));
                 lnapp_stop_threads(p_conf);
+                //XXX: block reconnection
+                lnapp_close_channel_force(p_conf);
             }
             if ((p_conf->active) && (type == MSGTYPE_INIT)) {
                 LOGD("$$$ init exchange...\n");

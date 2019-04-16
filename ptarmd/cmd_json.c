@@ -1848,38 +1848,36 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 {
     LOGD("fund\n");
 
+    int ret = 0;
+
     lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
     if (!p_conf) {
         //未接続
         return RPCERR_NOCONN;
     }
 
-    if (ln_node_search_channel(NULL, pNodeId)) {
+    if (p_conf->channel.status >= LN_STATUS_ESTABLISH) {
         //開設しようとしてチャネルが開いている
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return RPCERR_ALOPEN;
+        ret = RPCERR_ALOPEN;
+        goto LABEL_EXIT;
     }
 
     if (ln_funding_info_funding_now(&p_conf->channel.funding_info)) {
         //開設しようとしてチャネルが開設中
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return RPCERR_OPENING;
+        ret = RPCERR_OPENING;
+        goto LABEL_EXIT;
     }
 
     if (!lnapp_is_inited(p_conf)) {
         //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return RPCERR_NOINIT;
+        ret = RPCERR_NOINIT;
+        goto LABEL_EXIT;
     }
 
     if (!lnapp_check_ponglist(p_conf)) {
         LOGE("fail: node busy\n");
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return RPCERR_BUSY;
+        ret = RPCERR_BUSY;
+        goto LABEL_EXIT;
     }
 
     uint32_t feerate_per_kw = pFund->feerate_per_kw;
@@ -1888,9 +1886,8 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
     }
     if (feerate_per_kw == 0) {
         LOGE("fail: feerate_per_kw==0\n");
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return RPCERR_BLOCKCHAIN;
+        ret = RPCERR_BLOCKCHAIN;
+        goto LABEL_EXIT;
     }
     uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
     if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN) {
@@ -1900,19 +1897,18 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         LOGD(str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return M_RPCERR_FREESTRING;
+        ret = M_RPCERR_FREESTRING;
+        goto LABEL_EXIT;
     }
 
     if (!lnapp_funding(p_conf, pFund)) {
-        lnapp_manager_free_node_ref(p_conf);
-        p_conf = NULL;
-        return RPCERR_FUNDING;
+        ret = RPCERR_FUNDING;
+        goto LABEL_EXIT;
     }
 
+LABEL_EXIT:
     lnapp_manager_free_node_ref(p_conf);
-    return 0;
+    return ret;
 }
 
 
@@ -2094,27 +2090,26 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
 {
     LOGD("unilateral close\n");
 
-    int err;
-    bool haveCnl = ln_node_search_channel(NULL, pNodeId);
-    if (haveCnl) {
-        bool ret = lnapp_close_channel_force(pNodeId);
-        if (ret) {
-            lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
-            if (p_conf) {
-                lnapp_stop(p_conf);
-                lnapp_manager_free_node_ref(p_conf);
-            }
-            err = 0;
-        } else {
-            LOGE("fail: unilateral close\n");
-            err = RPCERR_CLOSE_FAIL;
-        }
-    } else {
-        //チャネルなし
-        err = RPCERR_NOCHANNEL;
+    int ret = 0;
+
+    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+    if (!p_conf) {
+        LOGE("fail: unilateral close\n");
+        return RPCERR_NOCHANNEL;
     }
 
-    return err;
+    lnapp_stop(p_conf);
+
+    //XXX: block reconnection
+    
+    if (!lnapp_close_channel_force(p_conf)) {
+        ret = RPCERR_CLOSE_FAIL;
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    lnapp_manager_free_node_ref(p_conf);
+    return ret;
 }
 
 
@@ -2201,7 +2196,7 @@ static void create_bolt11_r_field(ln_r_field_t **ppRField, uint8_t *pRFieldNum, 
 }
 
 
-/** #ln_node_search_channel()処理関数
+/** #lnapp_manager_each_node()処理関数
  *
  * @param[in,out]   pChannel        channel from DB
  * @param[in,out]   pParam          r_field_param_t構造体
