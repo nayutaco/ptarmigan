@@ -1104,10 +1104,13 @@ static bool exchange_init(lnapp_conf_t *p_conf)
  */
 static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
+    pthread_mutex_lock(&p_conf->mux_conf);
     if (!ln_channel_reestablish_send(&p_conf->channel)) {
         LOGE("fail: create\n");
+        pthread_mutex_unlock(&p_conf->mux_conf);
         return false;
     }
+    pthread_mutex_unlock(&p_conf->mux_conf);
 
     //コールバックでのchannel_reestablish受信通知待ち
     LOGD("wait: channel_reestablish\n");
