@@ -649,13 +649,16 @@ uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLo
 }
 
 
-void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo)
+void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdated)
 {
+    *pUpdated = false;
     for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
-        if (p_update->state != LN_UPDATE_STATE_FLAG_UP_SEND &&
-            p_update->state != LN_UPDATE_STATE_FLAG_UP_RECV) continue; //check not commited
+        if (p_update->state != LN_UPDATE_STATE_OFFERED_WAIT_SEND &&
+            p_update->state != LN_UPDATE_STATE_OFFERED_UP_SEND &&
+            p_update->state != LN_UPDATE_STATE_RECEIVED_UP_RECV) continue; //check not commited
+        *pUpdated = true;
         switch (p_update->type) {
         case LN_UPDATE_TYPE_ADD_HTLC:
             LOGD("clear update add htlc update_idx=%u\n", idx);

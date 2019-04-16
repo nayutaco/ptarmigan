@@ -390,28 +390,34 @@ static void proc_inactive_channel(lnapp_conf_t *pConf, void *pParam)
  */
 static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
 {
-    monparam_t *p_param = (monparam_t *)pParam;
-    ln_channel_t *p_channel = &pConf->channel;
+    monparam_t      *p_param = (monparam_t *)pParam;
+    ln_channel_t    *p_channel = &pConf->channel;
 
     p_param->confm = 0;
-    (void)btcrpc_get_confirm(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
-    bool ret;
+    (void)btcrpc_get_confirmations(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
+
     bool del = false;
-    bool unspent;
+
+    bool unspent = true;
     if (ln_status_is_closing(p_channel)) {
-        ret = true;
         unspent = false;
     } else {
-        ret = btcrpc_check_unspent(ln_remote_node_id(p_channel), &unspent, NULL, ln_funding_info_txid(&p_channel->funding_info), ln_funding_info_txindex(&p_channel->funding_info));
+        if (!btcrpc_check_unspent(
+            ln_remote_node_id(p_channel), &unspent, NULL,
+            ln_funding_info_txid(&p_channel->funding_info),
+            ln_funding_info_txindex(&p_channel->funding_info))) {
+            unspent = true;
+        }
     }
-    if (ret && !unspent) {
-        //funding_tx SPENT
-        del = funding_spent(pConf, p_param, pDbParam);
-    } else {
-        //funding_tx UNSPENT
+
+    if (unspent) {
         del = funding_unspent(pConf, p_param, pDbParam);
+    } else {
+        del = funding_spent(pConf, p_param, pDbParam);
     }
+
     if (del) {
+        bool ret;
         p_channel->status = LN_STATUS_CLOSED; //XXX:
         LOGD("delete from DB\n");
         ln_db_forward_add_htlc_drop(ln_short_channel_id(p_channel));
@@ -431,14 +437,14 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
         btcrpc_del_channel(ln_remote_node_id(p_channel));
     }
 
-    return false;
+    return false; //always
 }
 
 
 static void monfunc_2(lnapp_conf_t *pConf, void *pParam)
 {
     pthread_mutex_lock(&pConf->mux_conf);
-    monfunc(pConf, NULL, pParam);
+    /*ignore*/monfunc(pConf, NULL, pParam);
     pthread_mutex_unlock(&pConf->mux_conf);
 }
 
@@ -704,7 +710,7 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
         p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
 
     uint32_t confirm;
-    if (!btcrpc_get_confirm(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
+    if (!btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
         LOGE("fail: get confirmation\n");
         return false;
     }
@@ -892,7 +898,7 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
     LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
         p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
     uint32_t confirm;
-    if (!btcrpc_get_confirm(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
+    if (!btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
         LOGE("fail: get confirmation\n");
         return;
     }

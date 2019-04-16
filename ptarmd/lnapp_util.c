@@ -159,39 +159,6 @@ LABEL_EXIT:
 }
 
 
-bool lnapp_payment_route_save(uint64_t PaymentId, const payment_conf_t *pConf)
-{
-    return ln_db_payment_route_save(PaymentId, (const uint8_t *)pConf->hop_datain, pConf->num_hops * sizeof(ln_hop_datain_t));
-}
-
-
-bool lnapp_payment_route_load(payment_conf_t *pConf, uint64_t PaymentId)
-{
-    utl_buf_t buf = UTL_BUF_INIT;
-    if (!ln_db_payment_route_load(&buf, PaymentId)) {
-        LOGE("fail: ???\n");
-        return false;
-    }
-    if (buf.len % sizeof(ln_hop_datain_t)) {
-        LOGE("fail: ???\n");
-        utl_buf_free(&buf);
-        return false;
-    }
-    pConf->num_hops = buf.len / sizeof(ln_hop_datain_t);
-    memcpy(pConf->hop_datain, buf.buf, buf.len);
-    utl_buf_free(&buf);
-    return true;
-}
-
-
-bool lnapp_payment_route_del(uint64_t PaymentId)
-{
-    return ln_db_payment_route_del(PaymentId);
-}
-
-
-
-
 /** エラー文字列設定
  *
  */

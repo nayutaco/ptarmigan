@@ -115,7 +115,7 @@ Connected node `status` is `"connected"` in the log.
 First, send testnet bitcoin to segwit address, then send testnet bitcoinn payment channnel.
 
 ```bash
-../pay_fundin.sh 1000000 800000 400000
+../pay_fundin.py 1000000 500000
 ```
 
 These command generate a file `fund_yyyymmddhhmmss.conf`.  
@@ -123,7 +123,7 @@ File contents means the following:
 
   1. create 10mBTC segwit transaction
   2. send the transaction
-  3. fund channel 8mBTC (give 4mBTC for peer node)
+  3. fund channel 10mBTC (give 500000msat for peer node)
 
 Note that unit is satoshi.
 

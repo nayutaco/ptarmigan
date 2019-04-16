@@ -65,12 +65,12 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
 
 /** [bitcoin IF]transaction confirmation
  *
- * @param[out]  pConfirm    confirmation(on success)
+ * @param[out]  pConfm      confirmations(on success)
  * @param[in]   pTxid       target TXID
  * @retval  true        success
  * @retval  false       fail
  */
-bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid);
+bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid);
 
 
 /** [bitcoin IF]get short_channel_id calculation parameter

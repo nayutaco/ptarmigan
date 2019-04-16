@@ -1313,7 +1313,14 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 void ln_idle_proc_inactive(ln_channel_t *pChannel)
 {
     if (!pChannel->short_channel_id) return;
-    ln_update_info_clear_pending_updates(&pChannel->update_info);
+
+    bool updated = false;
+    ln_update_info_clear_pending_updates(&pChannel->update_info, &updated);
+    if (updated) {
+        LOGD("updated\n");
+        M_DB_CHANNEL_SAVE(pChannel);
+    }
+
     if (ln_is_shutdown_sent(pChannel)) {
         /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
     } else {
@@ -1331,7 +1338,8 @@ void ln_idle_proc_origin(ln_channel_t *pChannel)
 
 void ln_channel_reestablish_before(ln_channel_t *pChannel)
 {
-    ln_update_info_clear_pending_updates(&pChannel->update_info);
+    bool updated = false;
+    ln_update_info_clear_pending_updates(&pChannel->update_info, &updated);
 }
 
 
@@ -1355,14 +1363,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
         //XXX: If the corresponding `revoke_andk_ack` is received, channel should be failed
         LOGD("$$$ resend: previous update message\n");
-        for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
-            ln_update_t *p_update = &pChannel->update_info.updates[idx];
-            if (!LN_UPDATE_USED(p_update)) continue;
-            if (!LN_UPDATE_REMOTE_COMSIGING(p_update)) continue;
-            LN_UPDATE_ENABLE_RESEND_UPDATE(p_update);
-            //The update message will be sent in the idle proc.
-        }
-        pChannel->commit_info_remote.commit_num--;
+        ln_commit_tx_rewind_one_commit_remote(&pChannel->commit_info_remote, &pChannel->update_info);
     }
 
     //BOLT#02

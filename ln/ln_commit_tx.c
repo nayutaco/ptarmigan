@@ -485,6 +485,86 @@ LABEL_EXIT:
 }
 
 
+void HIDDEN ln_commit_tx_rewind_one_commit_remote(
+    ln_commit_info_t *pCommitInfo, ln_update_info_t *pUpdateInfo)
+{
+    for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
+        ln_update_t *p_update = &pUpdateInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (p_update->state == LN_UPDATE_STATE_OFFERED_CS_SEND) {
+            p_update->state = LN_UPDATE_STATE_OFFERED_WAIT_SEND;
+            uint64_t amount_msat = 0;
+            if (p_update->type & LN_UPDATE_TYPE_MASK_HTLC) {
+                amount_msat = pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
+            }
+            switch (p_update->type) {
+            case LN_UPDATE_TYPE_ADD_HTLC:
+                LOGD("CANCEL ADD HTLC OFFERED UPDATE[%u] HTLC[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                pCommitInfo->remote_msat += amount_msat;
+                break;
+            case LN_UPDATE_TYPE_FULFILL_HTLC:
+                LOGD("CANCEL FULFILL HTLC OFFERED UPDATE[%u] HTLC[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                pCommitInfo->remote_msat -= amount_msat;
+                break;
+            case LN_UPDATE_TYPE_FAIL_HTLC:
+            case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
+                LOGD("CANCEL FAIL HTLC OFFERED UPDATE[%u] HTLC[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                pCommitInfo->local_msat -= amount_msat;
+                break;
+            case LN_UPDATE_TYPE_FEE:
+                LOGD("CANCEL FEE OFFERED UPDATE[%u] FEE_UPDATE[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                break;
+            default:
+                LOGE("fail: ???\n");
+            }
+            //The update message will be sent in the idle proc.
+        } else if (p_update->state == LN_UPDATE_STATE_RECEIVED_CS_SEND) {
+            p_update->state = LN_UPDATE_STATE_RECEIVED_RA_SEND;
+            uint64_t amount_msat = 0;
+            if (p_update->type & LN_UPDATE_TYPE_MASK_HTLC) {
+                amount_msat = pUpdateInfo->htlcs[p_update->type_specific_idx].amount_msat;
+            }
+            switch (p_update->type) {
+            case LN_UPDATE_TYPE_ADD_HTLC:
+                LOGD("CANCEL ADD HTLC RECEIVED UPDATE[%u] HTLC[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                pCommitInfo->local_msat += amount_msat;
+                break;
+            case LN_UPDATE_TYPE_FULFILL_HTLC:
+                LOGD("CANCEL FULFILL HTLC RECEIVED UPDATE[%u] HTLC[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                pCommitInfo->local_msat -= amount_msat;
+                break;
+            case LN_UPDATE_TYPE_FAIL_HTLC:
+            case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
+                LOGD("CANCEL FAIL HTLC RECEIVED UPDATE[%u] HTLC[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                pCommitInfo->remote_msat -= amount_msat;
+                break;
+            case LN_UPDATE_TYPE_FEE:
+                LOGD("CANCEL FEE RECEIVED UPDATE[%u] FEE_UPDATE[%u](%" PRIu64 ")\n",
+                    idx, p_update->type_specific_idx, amount_msat);
+                break;
+            default:
+                LOGE("fail: ???\n");
+            }
+        }
+    }
+    pCommitInfo->commit_num--;
+
+    //we can clear `LN_UPDATE_STATE_OFFERED_WAIT_SEND` updates
+    //  and reload and check them from forward db once again
+    bool updated = false;
+    ln_update_info_clear_pending_updates(pUpdateInfo, &updated);
+
+    return;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
