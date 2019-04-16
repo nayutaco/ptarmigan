@@ -1336,64 +1336,6 @@ void ln_idle_proc_origin(ln_channel_t *pChannel)
 }
 
 
-void ln_channel_reestablish_before(ln_channel_t *pChannel)
-{
-    bool updated = false;
-    ln_update_info_clear_pending_updates(&pChannel->update_info, &updated);
-}
-
-
-void ln_channel_reestablish_after(ln_channel_t *pChannel)
-{
-    LN_DBG_COMMIT_NUM_PRINT(pChannel);
-    LN_DBG_UPDATES_PRINT(pChannel->update_info.updates);
-
-    LOGD("pChannel->reest_revoke_num=%" PRIu64 "\n", pChannel->reest_revoke_num);
-    LOGD("pChannel->reest_commit_num=%" PRIu64 "\n", pChannel->reest_commit_num);
-
-    //
-    //BOLT#02
-    //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
-    //  そのため、(commit_num+1)がcommit_tx作成時のcommitment numberである。
-
-    //  next_local_commitment_number
-    if (pChannel->commit_info_remote.commit_num == pChannel->reest_commit_num) {
-        //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
-        //      * MUST reuse the same commitment number for its next commitment_signed.
-        //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
-        //XXX: If the corresponding `revoke_andk_ack` is received, channel should be failed
-        LOGD("$$$ resend: previous update message\n");
-        ln_commit_tx_rewind_one_commit_remote(&pChannel->commit_info_remote, &pChannel->update_info);
-    }
-
-    //BOLT#02
-    //  next_remote_revocation_number
-    if (pChannel->commit_info_local.revoke_num == pChannel->reest_revoke_num) {
-        // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
-        //      * MUST re-send the revoke_and_ack.
-        LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");
-
-        uint8_t prev_secret[BTC_SZ_PRIVKEY];
-        ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
-
-        utl_buf_t buf = UTL_BUF_INIT;
-        ln_msg_revoke_and_ack_t revack;
-        revack.p_channel_id = pChannel->channel_id;
-        revack.p_per_commitment_secret = prev_secret;
-        revack.p_next_per_commitment_point = pChannel->keys_local.per_commitment_point;
-        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", pChannel->keys_local.per_commitment_point);
-        bool ret = ln_msg_revoke_and_ack_write(&buf, &revack);
-        if (ret) {
-            ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
-            LOGD("OK: re-send revoke_and_ack\n");
-        } else {
-            LOGE("fail: re-send revoke_and_ack\n");
-        }
-        utl_buf_free(&buf);
-    }
-}
-
-
 /********************************************************************
  * private functions
  ********************************************************************/
