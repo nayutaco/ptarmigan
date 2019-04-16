@@ -76,9 +76,14 @@ void lnapp_stop_threads(lnapp_conf_t *p_conf)
         p_conf->active = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_conf->channel));
         LOGD("=========================================\n");
-        LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(&p_conf->channel));
+        LOGD("=  CHANNEL THREAD END: %016" PRIx64 "(%s)\n", ln_short_channel_id(&p_conf->channel), str_sci);
         LOGD("=========================================\n");
+        LOGD("    sock=%d\n", p_conf->sock);
+        LOGD("    node_id=");
+        DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
     }
     pthread_mutex_unlock(&p_conf->mux_conf);
     LOGD("$$$ stopped\n");

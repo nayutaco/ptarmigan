@@ -76,8 +76,6 @@ extern "C" {
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
-#define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
-#define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_FEERATE_PER_KW               (500)       ///< estimate feeできなかった場合のfeerate_per_kw
 #define LN_FEERATE_PER_KW_MIN           (253)       ///< feerate_per_kwの下限
                                                     // https://github.com/ElementsProject/lightning/blob/86290b54d49d183e49f905be6a18bfc65612580e/lightningd/chaintopology.c#L298
