@@ -11,7 +11,7 @@ extern "C" {
 #undef LOG_TAG
 #include "../../utl/utl_log.c"
 #include "../../utl/utl_dbg.c"
-// #include "../../utl/utl_buf.c"
+#include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
 #include "../../utl/utl_time.c"
 #include "../../utl/utl_int.c"
@@ -202,8 +202,8 @@ TEST_F(bech32, invoice_valid)
         ASSERT_EQ(0, memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, BTC_SZ_HASH256));
         ASSERT_EQ(p_invoice_data->expiry, p_invoice_data2->expiry);
 
-        UTL_DBG_FREE(p_invoice_data2);
-        UTL_DBG_FREE(p_invoice_data);
+        ln_invoice_decode_free(p_invoice_data2);
+        ln_invoice_decode_free(p_invoice_data);
         UTL_DBG_FREE(p_invoice);
     }
 }

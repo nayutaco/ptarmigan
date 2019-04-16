@@ -626,6 +626,7 @@ bool ln_db_route_skip_drop(bool bTemp);
  * invoice
  ********************************************************************/
 
+#if 0 //XXX: deprecated
 /** "routepay" invoice保存
  *
  */
@@ -656,6 +657,7 @@ bool ln_db_invoice_del(const uint8_t *pPaymentHash);
  *
  */
 bool ln_db_invoice_drop(void);
+#endif
 
 
 /********************************************************************
@@ -884,6 +886,7 @@ bool ln_db_payment_route_del(uint64_t PaymentId);
 //XXX: comment
 bool ln_db_payment_invoice_save(uint64_t PaymentId, const uint8_t *pData, uint32_t Len);
 bool ln_db_payment_invoice_load(utl_buf_t *pBuf, uint64_t PaymentId);
+bool ln_db_payment_invoice_load_2(utl_buf_t *pBuf, uint64_t PaymentId, void *pDbParam);
 bool ln_db_payment_invoice_del(uint64_t PaymentId);
 
 //XXX: comment
@@ -892,6 +895,17 @@ bool ln_db_payment_info_load(ln_payment_info_t *pInfo, uint64_t PaymentId);
 bool ln_db_payment_info_del(uint64_t PaymentId);
 
 bool ln_db_payment_del_all(uint64_t PaymentId);
+
+
+/********************************************************************
+ * payment cursor
+ ********************************************************************/
+
+//XXX: comment
+bool ln_db_payment_info_cur_open(void **ppCur);
+void ln_db_payment_info_cur_close(void *pCur, bool bCommit);
+bool ln_db_payment_info_cur_get(void *pCur, uint64_t *pPaymentId, ln_payment_info_t *pInfo);
+bool ln_db_payment_info_cur_del(void *pCur);
 
 
 /********************************************************************

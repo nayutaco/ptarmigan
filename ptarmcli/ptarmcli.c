@@ -66,6 +66,9 @@
 #define M_OPT_PAYTOWALLET           '\x07'
 #define M_OPT_NOINITROUTESYNC       '\x08'
 #define M_OPT_PRIVCHANNEL           '\x09'
+#define M_OPT_LISTPAYMENT           '\x0a'
+#define M_OPT_REMOVEPAYMENT         '\x0b'
+#define M_OPT_DECODEINVOICE         '\x0c'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -142,6 +145,9 @@ static void optfunc_emptywallet(int *pOption, bool *pConn);
 static void optfunc_initroutesync(int *pOption, bool *pConn);
 static void optfunc_noinitroutesync(int *pOption, bool *pConn);
 static void optfunc_privchannel(int *pOption, bool *pConn);
+static void optfunc_listpayment(int *pOption, bool *pConn);
+static void optfunc_removepayment(int *pOption, bool *pConn);
+static void optfunc_decodeinvoice(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -183,6 +189,9 @@ static const struct {
     { M_OPT_PAYTOWALLET,        optfunc_walletback },
     { M_OPT_NOINITROUTESYNC,    optfunc_noinitroutesync },
     { M_OPT_PRIVCHANNEL,        optfunc_privchannel },
+    { M_OPT_LISTPAYMENT,        optfunc_listpayment },
+    { M_OPT_REMOVEPAYMENT,      optfunc_removepayment },
+    { M_OPT_DECODEINVOICE,      optfunc_decodeinvoice },
     //
     { M_OPT_DEBUG,              optfunc_debug },
 };
@@ -203,6 +212,10 @@ int main(int argc, char *argv[])
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
+        { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
+        { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
+        { "addinvoice", required_argument, NULL, 'i' },
+        { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
@@ -261,11 +274,14 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\n");
 
         fprintf(stderr, "\tPAYMENT:\n");
-        fprintf(stderr, "\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
+        fprintf(stderr, "\t\t--addinvoice,-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
+        fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
         fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
         fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
         fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
+        fprintf(stderr, "\t\t--listpayment : list payments\n");
+        fprintf(stderr, "\t\t--removepayment PAYMENT_ID : remove a payment from the payment list\n");
         fprintf(stderr, "\n");
 
         fprintf(stderr, "\tWALLET:\n");
@@ -476,7 +492,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
         }
         param = strtok(NULL, ",");
         if ((param != NULL) && (*param != '\0')) {
-            fundconf.push_sat = (uint64_t)strtoul(param, &endp, 10);
+            fundconf.push_msat = (uint64_t)strtoul(param, &endp, 10);
             if ((endp != NULL) && (*endp != 0x00)) {
                 //変換失敗(push_msatはエラーになっても気にしない)
                 //LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
@@ -507,7 +523,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
         snprintf(cmdline, sclen, "python3 %s/pay_fundin.py %" PRIu64 " %" PRIu64 " " M_TMPFUNDCONF,
                     exec_path,
                     fundconf.funding_sat,
-                    fundconf.push_sat);
+                    fundconf.push_msat);
         fprintf(stderr, "cmdline: %s\n", cmdline);
         system(cmdline);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
@@ -525,14 +541,14 @@ static void optfunc_funding(int *pOption, bool *pConn)
                 M_QQ("params") ":[ "
                     //peer_node_id, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
-                    //txid, txindex, funding_sat, push_sat, feerate_per_kw
+                    //txid, txindex, funding_sat, push_msat, feerate_per_kw
                     M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
                     //is_private
                     ",%d"
                 " ]"
             "}",
                 mPeerNodeId, mPeerAddr, mPeerPort,
-                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw,
+                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_msat, fundconf.feerate_per_kw,
                 mPrivChannel);
 
         *pConn = false;
@@ -624,6 +640,25 @@ static void optfunc_listinvoice(int *pOption, bool *pConn)
 }
 
 
+static void optfunc_decodeinvoice(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "decodeinvoice") M_NEXT
+            M_QQ("params") ":[ "
+                M_QQ("%s")
+            " ]"
+        "}",
+            optarg);
+
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
 static void optfunc_payment(int *pOption, bool *pConn)
 {
     (void)pConn;
@@ -653,11 +688,11 @@ static void optfunc_payment(int *pOption, bool *pConn)
         "{"
             M_STR("method", "PAY") M_NEXT
             M_QQ("params") ":[ "
-                //payment_hash, hop_num
+                //payment_hash, num_hops
                 M_QQ("%s") ",%d, [\n",
-            payment_hash, payconf.hop_num);
+            payment_hash, payconf.num_hops);
 
-    for (int lp = 0; lp < payconf.hop_num; lp++) {
+    for (int lp = 0; lp < payconf.num_hops; lp++) {
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
 
         utl_str_bin2str(node_id, payconf.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
@@ -668,7 +703,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
                 payconf.hop_datain[lp].outgoing_cltv_value
         );
         strcat(mBuf, forward);
-        if (lp != payconf.hop_num - 1) {
+        if (lp != payconf.num_hops - 1) {
             strcat(mBuf, ",");
         }
     }
@@ -983,6 +1018,54 @@ static void optfunc_privchannel(int *pOption, bool *pConn)
 }
 
 
+static void optfunc_listpayment(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "listpayment") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_removepayment(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    if (!optarg) {
+        strcpy(mErrStr, "invalid option");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+
+    errno = 0;
+    const char *param = strtok(optarg, ",");
+    uint64_t payment_id = (uint64_t)strtoull(param, NULL, 10);
+    if (errno == 0) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "removepayment") M_NEXT
+                M_QQ("params") ":[ "
+                    "%" PRIu64
+                " ]"
+            "}",
+                payment_id);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        sprintf(mErrStr, "%s", strerror(errno));
+        *pOption = M_OPTIONS_ERR;
+    }
+}
+
+
 /********************************************************************
  * others
  ********************************************************************/
@@ -1018,66 +1101,6 @@ static void routepay(int *pOption)
 {
     const char *invoice = strtok(optarg, ",");
     const char *add_amount_str = strtok(NULL, ",");
-
-
-/////////////////////
-
-    //確認用のログ出力
-    ln_invoice_t *p_invoice_data = NULL;
-    bool bret = ln_invoice_decode(&p_invoice_data, invoice);
-    if (!bret) {
-        sprintf(mErrStr, "fail decode invoice");
-        *pOption = M_OPTIONS_ERR;
-        return;
-    }
-
-    printf("---------------------------------\n");
-    switch (p_invoice_data->hrp_type) {
-    case LN_INVOICE_MAINNET:
-        printf("blockchain: bitcoin mainnet\n");
-        break;
-    case LN_INVOICE_TESTNET:
-        printf("blockchain: bitcoin testnet\n");
-        break;
-    case LN_INVOICE_REGTEST:
-        printf("blockchain: bitcoin regtest\n");
-        break;
-    default:
-        printf("unknown hrp_type\n");
-    }
-    printf("amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
-    time_t tm = (time_t)p_invoice_data->timestamp;
-    char time[UTL_SZ_TIME_FMT_STR + 1];
-    printf("timestamp= %" PRIu64 " : %s\n", (uint64_t)p_invoice_data->timestamp, utl_time_fmt(time, tm));
-    printf("min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
-    printf("payee=");
-    for (int lp = 0; lp < BTC_SZ_PUBKEY; lp++) {
-        printf("%02x", p_invoice_data->pubkey[lp]);
-    }
-    printf("\n");
-    printf("payment_hash=");
-    for (int lp = 0; lp < BTC_SZ_HASH256; lp++) {
-        printf("%02x", p_invoice_data->payment_hash[lp]);
-    }
-    printf("\n");
-    if (p_invoice_data->r_field_num > 0) {
-        for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
-            printf("    ------------------------\n");
-            printf("    ");
-            for (int lp2 = 0; lp2 < BTC_SZ_PUBKEY; lp2++) {
-                printf("%02x", p_invoice_data->r_field[lp].node_id[lp2]);
-            }
-            printf("\n");
-            printf("    short_channel_id=%016" PRIx64 "\n", p_invoice_data->r_field[lp].short_channel_id);
-            printf("    fee_base_msat=%" PRIu32 "\n", p_invoice_data->r_field[lp].fee_base_msat);
-            printf("    fee_proportional_millionths=%" PRIu32 "\n", p_invoice_data->r_field[lp].fee_prop_millionths);
-            printf("    cltv_expiry_delta=%" PRIu16 "\n", p_invoice_data->r_field[lp].cltv_expiry_delta);
-        }
-        printf("    ------------------------\n");
-    }
-    printf("---------------------------------\n");
-
-////////////////////
 
     uint64_t add_amount_msat = 0;
     if (add_amount_str != NULL) {

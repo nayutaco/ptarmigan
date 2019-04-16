@@ -104,7 +104,7 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
 
     ln_update_t *p_update = &pInfo->updates[UpdateIdx];
     if (!(p_update->type & LN_UPDATE_TYPE_MASK_HTLC)) {
-        memset(p_update, 0x00, sizeof(ln_update_t));
+        ln_update_clear(p_update);
         return true;
     }
 
@@ -126,11 +126,11 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
     //clear corresponding update (add -> del, del -> add)
     uint16_t corresponding_update_idx;
     if (ln_update_info_get_corresponding_update(pInfo, &corresponding_update_idx, UpdateIdx)) {
-        memset(&pInfo->updates[corresponding_update_idx], 0x00, sizeof(ln_update_t));
+        ln_update_clear(&pInfo->updates[corresponding_update_idx]);
     }
 
     //clear update
-    memset(p_update, 0x00, sizeof(ln_update_t));
+    ln_update_clear(p_update);
     return true;
 }
 
@@ -304,7 +304,7 @@ bool ln_update_info_clear_fee(ln_update_info_t *pInfo, uint16_t UpdateIdx)
 
     ln_update_t *p_update = &pInfo->updates[UpdateIdx];
     if (!(p_update->type & LN_UPDATE_TYPE_FEE)) {
-        memset(p_update, 0x00, sizeof(ln_update_t));
+        ln_update_clear(p_update);
         return true;
     }
 
@@ -318,7 +318,7 @@ bool ln_update_info_clear_fee(ln_update_info_t *pInfo, uint16_t UpdateIdx)
     memset(p_fee_update, 0x00, sizeof(ln_fee_update_t));
 
     //clear update
-    memset(p_update, 0x00, sizeof(ln_update_t));
+    ln_update_clear(p_update);
     return true;
 }
 
@@ -646,6 +646,42 @@ uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLo
         }
     }
     return num;
+}
+
+
+void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdated)
+{
+    *pUpdated = false;
+    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        ln_update_t *p_update = &pInfo->updates[idx];
+        if (!LN_UPDATE_USED(p_update)) continue;
+        if (p_update->state != LN_UPDATE_STATE_OFFERED_WAIT_SEND &&
+            p_update->state != LN_UPDATE_STATE_OFFERED_UP_SEND &&
+            p_update->state != LN_UPDATE_STATE_RECEIVED_UP_RECV) continue; //check not commited
+        *pUpdated = true;
+        switch (p_update->type) {
+        case LN_UPDATE_TYPE_ADD_HTLC:
+            LOGD("clear update add htlc update_idx=%u\n", idx);
+            if (!ln_update_info_clear_htlc(pInfo, idx)) {
+                LOGE("fail: ???\n");
+            }
+            break;
+        case LN_UPDATE_TYPE_FULFILL_HTLC:
+        case LN_UPDATE_TYPE_FAIL_HTLC:
+        case LN_UPDATE_TYPE_FAIL_MALFORMED_HTLC:
+            LOGD("clear update del htlc update_idx=%u\n", idx);
+            ln_update_clear(p_update);
+            break;
+        case LN_UPDATE_TYPE_FEE:
+            LOGD("clear update fee update_idx=%u\n", idx);
+            if (!ln_update_info_clear_fee(pInfo, idx)) {
+                LOGE("fail: ???\n");
+            }
+            break;
+        default:
+            LOGE("fail: ???\n");
+        }
+    }
 }
 
 

@@ -36,6 +36,7 @@ FAKE_VALUE_FUNC(const char *, ln_msg_name, uint16_t );
 FAKE_VALUE_FUNC(bool, ln_noise_enc, ln_noise_t *, utl_buf_t *, const utl_buf_t *);
 FAKE_VALUE_FUNC(bool, ln_get_ids_cnl_anno, uint64_t *, uint8_t *, uint8_t *, const uint8_t *, uint16_t );
 FAKE_VOID_FUNC(ln_short_channel_id_get_param, uint32_t *, uint32_t *, uint32_t *, uint64_t );
+FAKE_VOID_FUNC(ln_short_channel_id_string, char *, uint64_t );
 
 FAKE_VALUE_FUNC(bool, ln_db_channel_owned_check, uint64_t);
 FAKE_VALUE_FUNC(bool, ln_db_cnlupd_need_to_prune, uint64_t , uint32_t );

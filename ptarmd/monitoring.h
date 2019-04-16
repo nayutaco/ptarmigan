@@ -25,10 +25,6 @@
 #ifndef MONITORING_H__
 #define MONITORING_H__
 
-//forward definition
-struct ln_channel_t;
-typedef struct ln_channel_t ln_channel_t;
-
 
 #ifdef __cplusplus
 extern "C" {

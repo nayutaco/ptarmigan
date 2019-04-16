@@ -138,7 +138,7 @@ static void print_funding_conf(const funding_conf_t *pFundConf)
     fprintf(stderr, "\n");
     fprintf(stderr, "txindex=%d\n", pFundConf->txindex);
     fprintf(stderr, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
-    fprintf(stderr, "push_sat=%" PRIu64 "\n\n", pFundConf->push_sat);
+    fprintf(stderr, "push_msat=%" PRIu64 "\n\n", pFundConf->push_msat);
 }
 #endif
 
@@ -166,7 +166,7 @@ bool conf_payment_load(const char *pConfFile, payment_conf_t *pPayConf)
 #endif
 
     //payment_hashはconfファイルになくても許可する
-    bool ret = (pPayConf->hop_num >= 2);
+    bool ret = (pPayConf->num_hops >= 2);
 
     return ret;
 }
@@ -178,8 +178,8 @@ static void print_payment_conf(const payment_conf_t *pPayConf)
     fprintf(stderr, "\n--- payment ---\n");
     fprintf(stderr, "payment_hash=");
     utl_dbg_dump(stderr, pPayConf->payment_hash, BTC_SZ_HASH256, true);
-    fprintf(stderr, "hop_num=%d\n", pPayConf->hop_num);
-    for (int lp = 0; lp < pPayConf->hop_num; lp++) {
+    fprintf(stderr, "num_hops=%d\n", pPayConf->num_hops);
+    for (int lp = 0; lp < pPayConf->num_hops; lp++) {
         fprintf(stderr, " [%d]:\n", lp);
         fprintf(stderr, "  node_id= ");
         utl_dbg_dump(stderr, pPayConf->hop_datain[lp].pubkey, BTC_SZ_PUBKEY, true);
@@ -227,8 +227,8 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
         pconfig->txindex = atoi(value);
     } else if (strcmp(name, "funding_sat") == 0) {
         pconfig->funding_sat = strtoull(value, NULL, 10);
-    } else if (strcmp(name, "push_sat") == 0) {
-        pconfig->push_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "push_msat") == 0) {
+        pconfig->push_msat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "feerate_per_kw") == 0) {
         pconfig->feerate_per_kw = strtoull(value, NULL, 10);
     } else {
@@ -272,9 +272,9 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
 
     if (strcmp(name, "hash") == 0) {
         ret = utl_str_str2bin(pconfig->payment_hash, BTC_SZ_HASH256, value);
-    } else if (strcmp(name, "hop_num") == 0) {
-        pconfig->hop_num = atoi(value);
-        ret = (2 <= pconfig->hop_num) && (pconfig->hop_num <= LN_HOP_MAX + 1);
+    } else if (strcmp(name, "num_hops") == 0) {
+        pconfig->num_hops = atoi(value);
+        ret = (2 <= pconfig->num_hops) && (pconfig->num_hops <= LN_HOP_MAX + 1);
     } else if (strncmp(name, "route", 5) == 0) {
         int num = atoi(&name[5]);
         ret = (0 <= num) && (num <= LN_HOP_MAX);

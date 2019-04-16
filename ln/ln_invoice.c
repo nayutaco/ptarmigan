@@ -22,7 +22,7 @@
 #include "ln_invoice.h"
 #include "ln_local.h"
 
-#define M_INVOICE_DESCRIPTION       "ptarmigan"
+#define M_DESC_STRING_MAX           (639)
 #define M_SZ_SIG                    (BTC_SZ_SIGN_RS + 1) //with the recovery id
 #define M_SZ_TIMESTAMP_5BIT_BYTE    (7)
 #define M_SZ_SIG_5BIT_BYTE          (104)
@@ -224,13 +224,36 @@ static bool analyze_tagged_field(btc_buf_r_t *p_parts, ln_invoice_t **pp_invoice
         break;
 
     //d (13): data_length variable. Short description of purpose of payment (UTF-8)
-    //case 13: break; //XXX: check description existence
+    case 13:
+        if (p_invoice_data->description.data.len == 0) {
+            tmp_len = 0;
+            if (!convert_bits_5to8(p_data, &tmp_len, btc_buf_r_get_pos(p_parts), data_length, false)) goto LABEL_EXIT;
+            if (tmp_len >= M_DESC_STRING_MAX) goto LABEL_EXIT;
+            utl_buf_alloc(&p_invoice_data->description.data, tmp_len + 1);
+            memcpy(p_invoice_data->description.data.buf, p_data, tmp_len);
+            p_invoice_data->description.data.buf[tmp_len] = '\0';
+            p_invoice_data->description.data.len = tmp_len + 1;
+            p_invoice_data->description.type = LN_INVOICE_DESC_TYPE_STRING;
+        } else {
+            LOGD("already description set\n");
+        }
+        break;
+
+    //h (23): data_length 52. 256-bit description of purpose of payment (SHA256)
+    case 23:
+        if (data_length != 52) break;
+        if (p_invoice_data->description.data.len == 0) {
+            tmp_len = 0;
+            if (!convert_bits_5to8(p_data, &tmp_len, btc_buf_r_get_pos(p_parts), data_length, false)) goto LABEL_EXIT;
+            utl_buf_alloccopy(&p_invoice_data->description.data, p_data, BTC_SZ_HASH256);
+            p_invoice_data->description.type = LN_INVOICE_DESC_TYPE_HASH256;
+        } else {
+            LOGD("already description set\n");
+        }
+        break;
 
     //n (19): data_length 53. 33-byte public key of the payee node
     //case 19: break; //XXX: use the public key
-
-    //h (23): data_length 52. 256-bit description of purpose of payment (SHA256)
-    //case 23: break;
 
     //x (6): data_length variable. expiry time in seconds (big-endian)
     case 6:
@@ -385,9 +408,29 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     if (!write_convert_bits_8to5(&buf_w, p_invoice_data->payment_hash, BTC_SZ_HASH256, true)) goto LABEL_EXIT;
 
     //short description
-    if (!btc_buf_w_write_byte(&buf_w, 13)) goto LABEL_EXIT; //type
-    if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(strlen(M_INVOICE_DESCRIPTION) * 8))) goto LABEL_EXIT;
-    if (!write_convert_bits_8to5(&buf_w, (const uint8_t *)M_INVOICE_DESCRIPTION, strlen(M_INVOICE_DESCRIPTION), true)) goto LABEL_EXIT;
+    uint8_t type;
+    switch (p_invoice_data->description.type) {
+    case LN_INVOICE_DESC_TYPE_STRING:
+        if (p_invoice_data->description.data.len >= M_DESC_STRING_MAX) {
+            LOGE("too long\n");
+            goto LABEL_EXIT;
+        }
+        type = 13;
+        break;
+    case LN_INVOICE_DESC_TYPE_HASH256:
+        if (p_invoice_data->description.data.len != BTC_SZ_HASH256) {
+            LOGE("not hash length\n");
+            goto LABEL_EXIT;
+        }
+        type = 23;
+        break;
+    default:
+        LOGE("unknown description\n");
+        goto LABEL_EXIT;
+    }
+    if (!btc_buf_w_write_byte(&buf_w, type)) goto LABEL_EXIT; //type
+    if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(p_invoice_data->description.data.len * 8))) goto LABEL_EXIT;
+    if (!write_convert_bits_8to5(&buf_w, p_invoice_data->description.data.buf, p_invoice_data->description.data.len, true)) goto LABEL_EXIT;
 
     //expiry
     if (p_invoice_data->expiry != LN_INVOICE_EXPIRY) {
@@ -572,6 +615,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     ln_invoice_t *p_invoice_data = (ln_invoice_t *)UTL_DBG_MALLOC(sizeof(ln_invoice_t));
     if (!p_invoice_data) goto LABEL_EXIT;
 
+    utl_buf_init(&p_invoice_data->description.data);
     tmp_len = strlen(invoice);
 
     p_data = (uint8_t *)UTL_DBG_MALLOC(tmp_len);
@@ -648,7 +692,7 @@ LABEL_EXIT:
     if (ret) {
         *pp_invoice_data = p_invoice_data;
     } else {
-        UTL_DBG_FREE(p_invoice_data);
+        ln_invoice_decode_free(p_invoice_data);
         *pp_invoice_data = NULL;
     }
     return ret;
@@ -666,9 +710,24 @@ bool ln_invoice_decode_2(ln_invoice_t **pp_invoice_data, const char* invoice, ui
     return ret;
 }
 
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPaymentHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_r_field_t *pRField, uint8_t RFieldNum, uint32_t MinFinalCltvExpiry)
-{
+void ln_invoice_decode_free(ln_invoice_t *p_invoice_data) {
+    if (p_invoice_data) {
+        utl_buf_free(&p_invoice_data->description.data);
+        UTL_DBG_FREE(p_invoice_data);
+    }
+}
+
+bool ln_invoice_create(
+            char **ppInvoice,
+            uint8_t Type,
+            const uint8_t *pPaymentHash,
+            uint64_t Amount,
+            uint32_t Expiry,
+            const ln_invoice_desc_t *pDesc,
+            const ln_r_field_t *pRField,
+            uint8_t RFieldNum,
+            uint32_t MinFinalCltvExpiry) {
+
     ln_invoice_t *p_invoice_data;
 
     size_t sz = sizeof(ln_invoice_t);
@@ -683,13 +742,15 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPaymentHa
     p_invoice_data->amount_msat = Amount;
     p_invoice_data->expiry = Expiry;
     p_invoice_data->min_final_cltv_expiry = MinFinalCltvExpiry;
+    p_invoice_data->description.type = pDesc->type;
+    utl_buf_alloccopy(&p_invoice_data->description.data, pDesc->data.buf, pDesc->data.len);
     memcpy(p_invoice_data->pubkey, ln_node_get_id(), BTC_SZ_PUBKEY);
     memcpy(p_invoice_data->payment_hash, pPaymentHash, BTC_SZ_HASH256);
     p_invoice_data->r_field_num = RFieldNum;
     memcpy(p_invoice_data->r_field, pRField, sizeof(ln_r_field_t) * RFieldNum);
 
     bool ret = ln_invoice_encode(ppInvoice, p_invoice_data);
-    UTL_DBG_FREE(p_invoice_data);
+    ln_invoice_decode_free(p_invoice_data);
 
     return ret;
 }

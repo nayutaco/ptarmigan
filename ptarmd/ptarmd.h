@@ -116,6 +116,8 @@ extern "C" {
 #define RPCERR_TOOMANYHOP           (-26004)
 #define RPCERR_NOSTART              (-26005)
 #define RPCERR_NOGOAL               (-26006)
+#define RPCERR_PAY_LIST             (-26007)
+#define RPCERR_PAY_REMOVE           (-26008)
 
 #define RPCERR_WALLET_ERR           (-27000)
 
@@ -196,20 +198,10 @@ typedef struct funding_conf_t {
     uint8_t         txid[BTC_SZ_TXID];
     int             txindex;
     uint64_t        funding_sat;
-    uint64_t        push_sat;
+    uint64_t        push_msat;
     uint32_t        feerate_per_kw;
     uint8_t         priv_channel;           //not 0: private channel
 } funding_conf_t;
-
-
-/** @struct     payment_conf_t
- *  @brief      送金情報(test用)
- */
-typedef struct payment_conf_t {
-    uint8_t             payment_hash[BTC_SZ_HASH256];
-    uint8_t             hop_num;
-    ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
-} payment_conf_t;
 
 
 /** @struct     rpc_conf_t

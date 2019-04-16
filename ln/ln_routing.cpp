@@ -426,7 +426,7 @@ lnerr_route_t ln_routing_calculate(
     ln_routing_result_t *pResult, const uint8_t *pPayerId, const uint8_t *pPayeeId,
     uint32_t CltvExpiry, uint64_t AmountMsat, uint8_t AddNum, const ln_r_field_t *pAddRoute)
 {
-    pResult->hop_num = 0;
+    pResult->num_hops = 0;
 
     nodes_result_t rt_res;
     rt_res.node_num = 0;
@@ -590,10 +590,10 @@ lnerr_route_t ln_routing_calculate(
     }
 
     //戻り値の作成
-    pResult->hop_num = (uint8_t)route.size();
+    pResult->num_hops = (uint8_t)route.size();
     const uint8_t *p_next;
 
-    for (int lp = 0; lp < pResult->hop_num - 1; lp++) {
+    for (int lp = 0; lp < pResult->num_hops - 1; lp++) {
         const uint8_t *p_now  = groute[route[lp]].p_node;
         p_next = groute[route[lp + 1]].p_node;
 
@@ -620,10 +620,10 @@ lnerr_route_t ln_routing_calculate(
     }
 
     //最後
-    pResult->hop_datain[pResult->hop_num - 1].short_channel_id = 0;
-    pResult->hop_datain[pResult->hop_num - 1].amt_to_forward = msat[pResult->hop_num - 1];
-    pResult->hop_datain[pResult->hop_num - 1].outgoing_cltv_value = cltv[pResult->hop_num - 1];
-    memcpy(pResult->hop_datain[pResult->hop_num - 1].pubkey, p_next, BTC_SZ_PUBKEY);
+    pResult->hop_datain[pResult->num_hops - 1].short_channel_id = 0;
+    pResult->hop_datain[pResult->num_hops - 1].amt_to_forward = msat[pResult->num_hops - 1];
+    pResult->hop_datain[pResult->num_hops - 1].outgoing_cltv_value = cltv[pResult->num_hops - 1];
+    memcpy(pResult->hop_datain[pResult->num_hops - 1].pubkey, p_next, BTC_SZ_PUBKEY);
 
 #ifdef M_GRAPHVIZ
     // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
@@ -691,7 +691,4 @@ void ln_routing_clear_skipdb(void)
 
     bret = ln_db_route_skip_drop(false);
     LOGD("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
-
-    bret = ln_db_invoice_drop();
-    LOGD("%s: clear invoice DB\n", (bret) ? "OK" : "fail");
 }
