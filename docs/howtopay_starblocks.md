@@ -115,7 +115,7 @@ Connected node `status` is `"connected"` in the log.
 First, send testnet bitcoin to segwit address, then send testnet bitcoinn payment channnel.
 
 ```bash
-../install/pay_fundin.py 1000000 500000
+../pay_fundin.py 1000000 500000
 ```
 
 These command generate a file `fund_yyyymmddhhmmss.conf`.  

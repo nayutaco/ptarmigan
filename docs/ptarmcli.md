@@ -88,7 +88,7 @@ ptarmcli -c 02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882@1
 For funding, it needs a config file.
 
 ```bash
-../install/pay_fundin.py 1000000 50000 
+../pay_fundin.py 1000000 50000 
 
 [FeeRate] 0.00001000
 [Size] 167 bytes
@@ -105,7 +105,7 @@ txid=04c7fe01a3721ebb0ab417dad804b22ad7aebd812bd81c5141ede9ff8645cd17
 txindex=0
 signaddr=2NCvy3cefpVHBGrjC6RgAJPCZZEeLpvvYcE
 funding_sat=1000000
-push_sat=50000
+push_msat=50000
 feerate_per_kw=0
 ----
 
