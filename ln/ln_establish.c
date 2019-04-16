@@ -699,8 +699,8 @@ bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *p
     }
 
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
-    pChannel->reest_commit_num = msg.next_local_commitment_number;
-    pChannel->reest_revoke_num = msg.next_remote_revocation_number;
+    pChannel->reest_next_local_commit_num = msg.next_local_commitment_number;
+    pChannel->reest_next_remote_revoke_num = msg.next_remote_revocation_number;
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -788,16 +788,14 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
     LN_DBG_UPDATES_PRINT(pChannel->update_info.updates);
 
-    LOGD("pChannel->reest_revoke_num=%" PRIu64 "\n", pChannel->reest_revoke_num);
-    LOGD("pChannel->reest_commit_num=%" PRIu64 "\n", pChannel->reest_commit_num);
+    LOGD("pChannel->reest_next_remote_revoke_num=%" PRIu64 "\n", pChannel->reest_next_remote_revoke_num);
+    LOGD("pChannel->reest_next_local_commit_num=%" PRIu64 "\n", pChannel->reest_next_local_commit_num);
 
     //
     //BOLT#02
-    //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
-    //  そのため、(commit_num+1)がcommit_tx作成時のcommitment numberである。
 
     //  next_local_commitment_number
-    if (pChannel->commit_info_remote.commit_num == pChannel->reest_commit_num) {
+    if (pChannel->commit_info_remote.commit_num == pChannel->reest_next_local_commit_num) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
@@ -806,9 +804,8 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         ln_commit_tx_rewind_one_commit_remote(&pChannel->commit_info_remote, &pChannel->update_info);
     }
 
-    //BOLT#02
     //  next_remote_revocation_number
-    if (pChannel->commit_info_local.revoke_num == pChannel->reest_revoke_num) {
+    if (pChannel->commit_info_local.revoke_num == pChannel->reest_next_remote_revoke_num) {
         // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
         //      * MUST re-send the revoke_and_ack.
         LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");

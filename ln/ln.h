@@ -378,8 +378,8 @@ struct ln_channel_t {
     uint8_t                     init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
     uint8_t                     lfeature_local;                 ///< [INIT_02]initで送信したlocalfeature
     uint8_t                     lfeature_remote;                ///< [INIT_03]initで取得したlocalfeature
-    uint64_t                    reest_commit_num;               ///< [INIT_04]channel_reestablish.next_local_commitment_number
-    uint64_t                    reest_revoke_num;               ///< [INIT_05]channel_reestablish.next_remote_revocation_number
+    uint64_t                    reest_next_local_commit_num;    ///< [INIT_04]channel_reestablish.next_local_commitment_number
+    uint64_t                    reest_next_remote_revoke_num;   ///< [INIT_05]channel_reestablish.next_remote_revocation_number
 
     //msg:close
     btc_tx_t                    tx_closing;                     ///< [CLSE_02]closing_tx
@@ -602,7 +602,7 @@ void ln_idle_proc_origin(ln_channel_t *pChannel);
  * @param[in]           pChannel        channel info
  * @retval  true    funding_lockedの送信必要あり
  */
-bool ln_funding_locked_check_need(const ln_channel_t *pChannel);
+bool ln_funding_locked_needs(const ln_channel_t *pChannel);
 
 
 //XXX:

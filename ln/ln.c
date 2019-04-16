@@ -491,13 +491,18 @@ bool ln_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 }
 
 
-bool ln_funding_locked_check_need(const ln_channel_t *pChannel)
+bool ln_funding_locked_needs(const ln_channel_t *pChannel)
 {
-    return (pChannel->short_channel_id != 0) &&
-        (
-            ((pChannel->commit_info_local.commit_num == 0) && (pChannel->commit_info_remote.commit_num == 0)) ||
-            ((pChannel->reest_commit_num == 1) && (pChannel->reest_revoke_num == 0))
-        );
+    if (!pChannel->short_channel_id) return false;
+
+    //initial
+    if ((pChannel->commit_info_local.commit_num == 0) && (pChannel->commit_info_remote.commit_num == 0)) return true;
+
+    //if next_local_commitment_number is 1 in both the channel_reestablish it sent and received:
+    //  `next_local_commitment_number` is local_commitment_number + 1*/
+    if ((pChannel->commit_info_local.commit_num == 0) && (pChannel->reest_next_local_commit_num == 1)) return true;
+
+    return false;
 }
 
 
