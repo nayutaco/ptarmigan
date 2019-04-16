@@ -655,7 +655,7 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel)
         if (pChannel->commit_info_remote.commit_num) {
             if (!ln_derkey_remote_storage_get_secret(
                 &pChannel->keys_remote, your_last_per_commitment_secret,
-                (uint64_t)(LN_SECRET_INDEX_INIT - (pChannel->commit_info_remote.commit_num - 1)))) {
+                (uint64_t)(LN_SECRET_INDEX_INIT - pChannel->commit_info_remote.revoke_num))) {
                 LOGD("no last secret\n");
                 memset(your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
             }
