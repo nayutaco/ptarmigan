@@ -168,7 +168,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf);
 /** [lnapp]チャネル閉鎖(強制)
  *
  */
-bool lnapp_close_channel_force(const uint8_t *pNodeId);
+bool lnapp_close_channel_force(lnapp_conf_t *pConf);
 
 
 /*******************************************
