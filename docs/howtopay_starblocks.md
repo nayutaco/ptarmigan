@@ -123,7 +123,7 @@ File contents means the following:
 
   1. create 10mBTC segwit transaction
   2. send the transaction
-  3. fund channel 10mBTC (give 5mBTC for peer node)
+  3. fund channel 10mBTC (give 500000mBTC for peer node)
 
 Note that unit is satoshi.
 
