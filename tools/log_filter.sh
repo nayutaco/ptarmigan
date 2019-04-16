@@ -1,12 +1,8 @@
 #!/bin/bash -ue
 
-SCRIPT_NAME=$(basename $0)
-SCRIPT_DIR=$(cd $(dirname $0); pwd)
-PRJ_HOME=$SCRIPT_DIR/../
+LOG_FILE=$1
 
-(
-cd $PRJ_HOME
-grep -n -e "\/E" -e "fail\:"  tests/4nodes_test/node_*/logs/log | \
+grep -n -e "\/E" -e "fail\:" $LOG_FILE | \
     grep -v \
         -e "not real value" \
         -e "channel_id is 0" \
@@ -14,6 +10,4 @@ grep -n -e "\/E" -e "fail\:"  tests/4nodes_test/node_*/logs/log | \
         -e "already connected" \
         -e "cmd_json_connect]fail: connect test" \
         -e "Connection reset by peer" \
-        -e "handshake"
-cd -
-)
+        -e "handshake" || :
