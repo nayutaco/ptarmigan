@@ -459,8 +459,8 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
     //[INIT_01]init_flag
     //[INIT_02]lfeature_local
     //[INIT_03]lfeature_remote
-    //[INIT_04]reest_commit_num
-    //[INIT_05]reest_revoke_num
+    //[INIT_04]reest_next_local_commit_num
+    //[INIT_05]reest_next_remote_revoke_num
 
     //
     //clse

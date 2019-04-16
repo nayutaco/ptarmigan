@@ -725,7 +725,7 @@ void *lnapp_thread_channel_start(void *pArg)
     //force send ping
     poll_ping(p_conf);
 
-    if (ln_funding_locked_check_need(p_channel)) {
+    if (ln_funding_locked_needs(p_channel)) {
         //funding_locked交換
         ret = exchange_funding_locked(p_conf);
         if (!ret) {
