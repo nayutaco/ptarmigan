@@ -73,18 +73,4 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
 bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateType, const utl_buf_t *pReason);
 
 
-/** before channel_reestablish
- *
- * @param[in,out]       pChannel        channel info
- */
-void ln_channel_reestablish_before(ln_channel_t *pChannel);
-
-
-/** after channel_reestablish
- *
- * @param[in,out]       pChannel        channel info
- */
-void ln_channel_reestablish_after(ln_channel_t *pChannel);
-
-
 #endif /* LN_NORMALOPE_H__ */
