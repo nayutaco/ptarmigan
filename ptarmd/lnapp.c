@@ -351,9 +351,14 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
         utl_dbg_dump(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
         pAppConf->active = false;
         pthread_cond_signal(&pAppConf->cond);
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pAppConf->channel));
         LOGD("=========================================\n");
-        LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(&pAppConf->channel));
+        LOGD("=  CHANNEL THREAD END: %016" PRIx64 "(%s)\n", ln_short_channel_id(&pAppConf->channel), str_sci);
         LOGD("=========================================\n");
+        LOGD("    sock=%d\n", pAppConf->sock);
+        LOGD("    node_id=");
+        DUMPD(pAppConf->node_id, BTC_SZ_PUBKEY);
         LOGD("$$$ stopped\n");
     }
     pthread_mutex_unlock(&pAppConf->mux_conf);
