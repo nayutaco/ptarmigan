@@ -102,14 +102,14 @@ chmod u+x eclair-cli
 8. [ptarmigan] Creating fund-in transaction
 
 ```bash
-../pay_fundin.py 1000000 0
+../pay_fundin.sh 1000000 800000 0
 ```
 
-* Create a channel that sends you 10mBTC and the other person 0.
+* Create a channel that sends you 8mBTC and the other person 0.
   * 1000000 (fund-in satoshi) is the amount of money that is sent to an adress before sending payment to the channel.
-  * 1000000 (channel satoshi) is the amount of sending payment to the channel.
+  * 800000 (channel satoshi) is the amount of sending payment to the channel.
   * 0 (push satoshi) is the amount out of channel satoshi to be sent to the other person.
-* `pay_fundin.py` will create a file in `fund_yyyymmddhhmmss.conf` format.
+* `pay_fundin.sh` will create a file in `fund_yyyymmddhhmmss.conf` format.
 
 9. [ptarmigan] Starting Channel Establishment
 
