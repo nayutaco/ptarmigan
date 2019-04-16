@@ -1430,7 +1430,7 @@ static void *thread_poll_start(void *pArg)
         }
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        bool b_get = btcrpc_get_confirm(&p_conf->funding_confirm, ln_funding_info_txid(&p_conf->channel.funding_info));
+        bool b_get = btcrpc_get_confirmations(&p_conf->funding_confirm, ln_funding_info_txid(&p_conf->channel.funding_info));
         if (b_get) {
             if (bak_conf != p_conf->funding_confirm) {
                 const uint8_t *oldhash = ln_funding_blockhash(&p_conf->channel);
@@ -2097,7 +2097,7 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_info_txindex(&p_channel->funding_info)));
     //confirmation
     uint32_t confirm;
-    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_info_txid(&p_channel->funding_info));
+    bool b_get = btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&p_channel->funding_info));
     if (b_get) {
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
     }
@@ -2189,7 +2189,7 @@ static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result)
     cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_info_txindex(&p_channel->funding_info)));
     //confirmation
     uint32_t confirm;
-    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_info_txid(&p_channel->funding_info));
+    bool b_get = btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&p_channel->funding_info));
     if (b_get) {
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
     }

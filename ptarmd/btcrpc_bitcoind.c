@@ -71,10 +71,10 @@ typedef struct {
  **************************************************************************/
 
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight);
-static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
-static bool getraw_txstr(btc_tx_t *pTx, const char *txid);
-static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode);
-static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
+static bool getrawtx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
+static bool getrawtxstr(btc_tx_t *pTx, const char *txid);
+static bool signrawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode);
+static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *pVout);
@@ -101,22 +101,22 @@ static int error_result(json_t *p_root);
  * static variables
  **************************************************************************/
 
-static char     mRpcUrl[SZ_RPC_URL + 1 + 5 + 2];
-static char     mRpcUserPwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
-static pthread_mutex_t      mMux;
-static CURL     *mCurl;
+static char             mRpcUrl[SZ_RPC_URL + 1 + 5 + 2];
+static char             mRpcUserPwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
+static pthread_mutex_t  mMux;
+static CURL             *mCurl;
 
-static const char *M_RESULT       =    "result";
-static const char *M_CONFIRMATION =    "confirmations";
-static const char *M_HEX          =    "hex";
-static const char *M_BLOCKHASH    =    "blockhash";
-static const char *M_HEIGHT       =    "height";
-static const char *M_VALUE        =    "value";
-static const char *M_TX           =    "tx";
-static const char *M_ERROR        =    "error";
-static const char *M_MESSAGE      =    "message";
-static const char *M_CODE         =    "code";
-static const char *M_FEERATE      =    "feerate";
+static const char *M_RESULT         =   "result";
+static const char *M_CONFIRMATIONS  =   "confirmations";
+static const char *M_HEX            =   "hex";
+static const char *M_BLOCKHASH      =   "blockhash";
+static const char *M_HEIGHT         =   "height";
+static const char *M_VALUE          =   "value";
+static const char *M_TX             =   "tx";
+static const char *M_ERROR          =   "error";
+static const char *M_MESSAGE        =   "message";
+static const char *M_CODE           =   "code";
+static const char *M_FEERATE        =   "feerate";
 
 
 /**************************************************************************
@@ -244,35 +244,40 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
+bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid)
 {
-    bool ret;
-    bool retval = false;
-    char *p_json = NULL;
-    json_t *p_root = NULL;
-    json_t *p_result;
+    bool    ret = false;
+    char    *p_json = NULL;
+    json_t  *p_root = NULL;
+    json_t  *p_result;
+    json_t  *p_confm;
 
-    ret = getraw_tx(&p_root, &p_result, &p_json, pTxid);
-    if (ret) {
-        json_t *p_confirm;
+    *pConfm = 0;
 
-        p_confirm = json_object_get(p_result, M_CONFIRMATION);
-        if (json_is_integer(p_confirm)) {
-            uint32_t conf = (uint32_t)json_integer_value(p_confirm);
-            if (conf > 0) {
-                *pConfirm = conf;
-                retval = true;
-            }
-        }
-    } else {
+    if (!getrawtx(&p_root, &p_result, &p_json, pTxid)) {
         LOGE("fail: getrawtransaction_rpc\n");
+        goto LABEL_EXIT;
     }
-    if (p_root != NULL) {
+
+    p_confm = json_object_get(p_result, M_CONFIRMATIONS);
+    if (!json_is_integer(p_confm)) {
+        goto LABEL_EXIT;
+    }
+
+    if (json_integer_value(p_confm) <= 0) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+    *pConfm = (uint32_t)json_integer_value(p_confm);
+
+    ret = true;
+
+LABEL_EXIT:
+    if (p_root) {
         json_decref(p_root);
     }
     UTL_DBG_FREE(p_json);
-
-    return retval;
+    return ret;
 }
 
 
@@ -289,7 +294,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
     *pBHeight = -1;
     *pBIndex = -1;
 
-    ret = getraw_tx(&p_root, &p_result, &p_json, pTxid);
+    ret = getrawtx(&p_root, &p_result, &p_json, pTxid);
     if (ret) {
         json_t *p_bhash;
 
@@ -439,9 +444,9 @@ bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, ui
 {
     int code = 0;
 
-    if (signraw_tx(pTx, pData, Len, Amount, &code)) return true;
+    if (signrawtx(pTx, pData, Len, Amount, &code)) return true;
     if (code != M_BITCOIND_RPC_METHOD_DEPRECATED) return false;
-    return signraw_tx_with_wallet(pTx, pData, Len, Amount);
+    return signrawtx_with_wallet(pTx, pData, Len, Amount);
 }
 
 
@@ -489,21 +494,24 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
     //TXIDはBE/LE変換
     utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
-    return getraw_txstr(NULL, txid);
+    return getrawtxstr(NULL, txid);
 }
 
 
-bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_check_unspent(
+    const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
 {
     (void)pPeerId;
 
-    bool unspent = true;
-    uint64_t sat = 0;
-    bool ret = gettxout(&unspent, &sat, pTxid, VIndex);
-    if (pUnspent != NULL) {
+    bool        unspent = true;
+    uint64_t    sat = 0;
+    bool        ret = gettxout(&unspent, &sat, pTxid, VIndex);
+
+    if (pUnspent) {
         *pUnspent = unspent;
     }
-    if (pSat != NULL) {
+
+    if (pSat) {
         *pSat = sat;
     }
 
@@ -684,15 +692,14 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
 }
 
 
-static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid)
+static bool getrawtx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid)
 {
     char txid[BTC_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
     utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
-    bool ret = getrawtransaction_rpc(ppRoot, ppResult, ppJson, txid, true);
-    return ret;
+    return getrawtransaction_rpc(ppRoot, ppResult, ppJson, txid, true);
 }
 
 
@@ -701,7 +708,7 @@ static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const u
  * @retval  true    取得成功
  * @retval  false   取得失敗 or bitcoindエラー
  */
-static bool getraw_txstr(btc_tx_t *pTx, const char *txid)
+static bool getrawtxstr(btc_tx_t *pTx, const char *txid)
 {
     bool result = false;
     bool ret;
@@ -744,7 +751,7 @@ LABEL_EXIT:
 }
 
 
-static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode)
+static bool signrawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode)
 {
     (void)Amount;
 
@@ -790,7 +797,7 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
 }
 
 
-static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount)
+static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount)
 {
     (void)Amount;
 
@@ -848,7 +855,7 @@ static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint3
     utl_str_bin2str_rev(txid, pTxid, BTC_SZ_TXID);
 
     //まずtxの存在確認を行う
-    ret = getraw_txstr(NULL, txid);
+    ret = getrawtxstr(NULL, txid);
     if (!ret) {
         //LOGE("fail: maybe not broadcasted\n");
         goto LABEL_EXIT;
@@ -909,7 +916,7 @@ static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, ui
             strcpy(txid, (const char *)json_string_value(p_value));
             btc_tx_t tx = BTC_TX_INIT;
 
-            ret = getraw_txstr(&tx, txid);
+            ret = getrawtxstr(&tx, txid);
             //LOGD("txid=%s\n", txid);
             if ( ret &&
                  (tx.vin_cnt == 1) &&
@@ -969,7 +976,7 @@ static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *p
             strcpy(txid, (const char *)json_string_value(p_value));
             btc_tx_t tx = BTC_TX_INIT;
 
-            ret = getraw_txstr(&tx, txid);
+            ret = getrawtxstr(&tx, txid);
             if (ret) {
                 for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
                     for (int lp2 = 0; lp2 < vout_num; lp2++) {
@@ -1508,7 +1515,7 @@ int main(int argc, char *argv[])
 
 //    int32_t conf;
 //    fprintf(stderr, "-conf-------------------------\n");
-//    bool b = btcrpc_get_confirm(&conf, TXID);
+//    bool b = btcrpc_get_confirmations(&conf, TXID);
 //    fprintf(stderr, "confirmations = %d(%d)\n", (int)conf, b);
 
 //    fprintf(stderr, "-getnewaddress-------------------------\n");

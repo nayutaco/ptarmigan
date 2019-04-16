@@ -238,25 +238,25 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
 
     if ( (pWallet->sequence != BTC_TX_SEQUENCE) ||
          ((p_wlt->tx.locktime != 0) && (p_wlt->tx.locktime < BTC_TX_LOCKTIME_LIMIT)) ) {
-        uint32_t conf;
-        bool ret = btcrpc_get_confirm(&conf, pWallet->p_txid);
+        uint32_t confm;
+        bool ret = btcrpc_get_confirmations(&confm, pWallet->p_txid);
         if (ret) {
             if (pWallet->sequence != BTC_TX_SEQUENCE) {
-                if (conf < pWallet->sequence) {
+                if (confm < pWallet->sequence) {
                     char str[512];
                     snprintf(str, sizeof(str),
-                        "fail: less sequence(conf=%" PRIu32 ", sequence=%" PRIu32 ")",
-                            conf, pWallet->sequence);
+                        "fail: less sequence(confm=%" PRIu32 ", sequence=%" PRIu32 ")",
+                            confm, pWallet->sequence);
                     *p_wlt->pp_result = UTL_DBG_STRDUP(str);
                     LOGE("%s\n", *p_wlt->pp_result);
                     ret = false;
                 }
             } else {
-                if (conf < p_wlt->tx.locktime) {
+                if (confm < p_wlt->tx.locktime) {
                     char str[512];
                     snprintf(str, sizeof(str),
-                        "fail: less locktime(conf=%" PRIu32 ", locktime=%" PRIu32 ")",
-                            conf, p_wlt->tx.locktime);
+                        "fail: less locktime(confm=%" PRIu32 ", locktime=%" PRIu32 ")",
+                            confm, p_wlt->tx.locktime);
                     *p_wlt->pp_result = UTL_DBG_STRDUP(str);
                     LOGE("%s\n", *p_wlt->pp_result);
                     ret = false;
