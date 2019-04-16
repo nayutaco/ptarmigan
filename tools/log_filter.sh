@@ -1,8 +1,8 @@
 #!/bin/bash -ue
 
-LOG_FILE=$1
+LOG_FILES=$@
 
-grep -n -e "\/E" -e "fail\:" $LOG_FILE | \
+grep -n -e "\/E" -e "fail\:" $LOG_FILES | \
     grep -v \
         -e "not real value" \
         -e "channel_id is 0" \
