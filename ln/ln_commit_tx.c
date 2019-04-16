@@ -213,7 +213,7 @@ bool HIDDEN ln_commit_tx_create_local(
         goto LABEL_EXIT;
     }
     //XXX: separate
-    if (!create_local_set_vin0_and_verify(&tx_commit, &pChannel->funding_info, local_sig, pCommitInfo->remote_sig)) {
+    if (!create_local_set_vin0_and_verify(&tx_commit, pCommitInfo->p_funding_info, local_sig, pCommitInfo->remote_sig)) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
