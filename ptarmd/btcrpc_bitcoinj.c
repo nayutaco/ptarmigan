@@ -425,7 +425,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
+bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid)
 {
     if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
@@ -434,11 +434,11 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
     LOGD_BTCTRACE("\n");
 
     getconfirmation_t param;
-    param.p_confirm = pConfirm;
+    param.p_confirm = pConfm;
     param.p_txid = pTxid;
     call_jni(METHOD_PTARM_GETCONFIRMATION, &param);
     if (param.ret) {
-        LOGD_BTCRESULT("confirm=%" PRId32 "\n", *pConfirm);
+        LOGD_BTCRESULT("confirm=%" PRId32 "\n", *pConfm);
     } else {
         LOGD_BTCFAIL("confirm=fail\n");
     }
