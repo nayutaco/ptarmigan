@@ -138,6 +138,11 @@ void HIDDEN ln_derkey_local_storage_create_per_commitment_secret(const ln_derkey
 bool HIDDEN ln_derkey_local_storage_create_prev_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint8_t *pPerCommitPt);
 
 
+//for resending `revoke_and_ack`
+//  as we updated index at the first `revoke_and_ack`
+bool HIDDEN ln_derkey_local_storage_create_second_prev_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint8_t *pPerCommitPt);
+
+
 uint64_t ln_derkey_local_storage_get_prev_index(const ln_derkey_local_keys_t *pKeys);
 
 

@@ -810,8 +810,10 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         //      * MUST re-send the revoke_and_ack.
         LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");
 
+        //  for resending `revoke_and_ack`
+        //    as we updated index at the first `revoke_and_ack`
         uint8_t prev_secret[BTC_SZ_PRIVKEY];
-        ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
+        ln_derkey_local_storage_create_second_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
 
         utl_buf_t buf = UTL_BUF_INIT;
         ln_msg_revoke_and_ack_t revack;
