@@ -20,7 +20,6 @@ ptarmcli [options] [JSON-RPC port number]
 
 * connect peer
   * `-c NODE_ID@IPADDR:PORT` : new connection or already connected node
-  * `-c NODE_ID` : already connected node
 
 * information
   * `-l` : get information
@@ -139,7 +138,10 @@ ptarmcli -i 123000
 ```json
 {
     "method":"invoice",
-    "params":[ 123000 ]
+    "params":[ 
+                123000,
+                0
+             ]
 }
 ```
 
