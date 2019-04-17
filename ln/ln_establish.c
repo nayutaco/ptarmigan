@@ -669,21 +669,22 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel)
     if (!ln_msg_channel_reestablish_write(&buf, &msg, option_data_loss_protect)) return false;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
+
     pChannel->init_flag |= M_INIT_FLAG_REEST_SEND;
+    if (M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag)) {
+        ln_channel_reestablish_after(pChannel);
+    }
     return true;
 }
 
 
 bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    bool ret = false;
-
     LOGD("BEGIN\n");
 
     ln_msg_channel_reestablish_t msg;
     bool option_data_loss_protect = (pChannel->lfeature_local & LN_INIT_LF_OPT_DATALOSS);
-    ret = ln_msg_channel_reestablish_read(&msg, pData, Len, option_data_loss_protect);
-    if (!ret) {
+    if (!ln_msg_channel_reestablish_read(&msg, pData, Len, option_data_loss_protect)) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
@@ -753,26 +754,25 @@ bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *p
             } else {
                 //SHOULD fail the channel.
                 LOGE("SHOULD fail the channel\n");
-                ret = false;
-                goto LABEL_EXIT;
+                goto LABEL_ERROR;
             }
         } else {
             //SHOULD fail the channel.
             LOGE("SHOULD fail the channel\n");
-            ret = false;
-            goto LABEL_EXIT;
+            goto LABEL_ERROR;
         }
     }
 
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REESTABLISH_RECV, NULL);
 
-    ret = true;
-
-LABEL_EXIT:
-    if (ret) {
-        pChannel->init_flag |= M_INIT_FLAG_REEST_RECV;
+    pChannel->init_flag |= M_INIT_FLAG_REEST_RECV;
+    if (M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag)) {
+        ln_channel_reestablish_after(pChannel);
     }
-    return ret;
+    return true;
+
+LABEL_ERROR:
+    return false;
 }
 
 
