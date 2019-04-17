@@ -65,7 +65,7 @@ bool HIDDEN ln_commit_tx_create_local(
 
 bool HIDDEN ln_commit_tx_create_local_close(
     const ln_channel_t *pChannel,
-    ln_commit_info_t *pCommitInfo,
+    const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
     ln_close_force_t *pClose);
 
@@ -78,7 +78,14 @@ bool HIDDEN ln_commit_tx_create_local_close(
  * @param[in]           bLocal
  * @retval              true        success
  */
-bool HIDDEN ln_commit_tx_info_create(
+bool HIDDEN ln_commit_tx_info_create_pre_committed(
+    ln_commit_tx_info_t *pCommitTxInfo,
+    const ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
+    bool bLocal);
+
+
+bool HIDDEN ln_commit_tx_info_create_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
