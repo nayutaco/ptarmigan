@@ -736,10 +736,6 @@ void *lnapp_thread_channel_start(void *pArg)
 
     p_conf->annosig_send_req = ln_open_channel_announce(p_channel);
 
-    if (b_channelreestablished) {
-        ln_channel_reestablish_after(p_channel);
-    }
-
     if (ln_is_shutdown_sent(p_channel)) {
         //BOLT02
         //  upon reconnection:
