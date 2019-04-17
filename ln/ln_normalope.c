@@ -415,53 +415,16 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
         goto LABEL_ERROR;
     }
 
-    //prev_secretチェック
-    //  受信したper_commitment_secretが、前回受信したper_commitment_pointと等しいこと
-    //XXX: not check?
+    //check prev_secret
     uint8_t prev_commitpt[BTC_SZ_PUBKEY];
     if (!btc_keys_priv2pub(prev_commitpt, msg.p_per_commitment_secret)) {
         LOGE("fail: prev_secret convert\n");
         goto LABEL_ERROR;
     }
-
-    LOGD("$$$ revoke_num: %" PRIu64 "\n", pChannel->commit_info_remote.revoke_num);
-    LOGD("$$$ prev per_commit_pt: ");
-    DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
-
-    // uint8_t old_secret[BTC_SZ_PRIVKEY];
-    // for (uint64_t index = 0; index <= pChannel->commit_info_local.revoke_num + 1; index++) {
-    //     ret = ln_derkey_remote_storage_get_secret(&pChannel->privkeys_remote, old_secret, LN_SECRET_INDEX_INIT - index);
-    //     if (ret) {
-    //         uint8_t pubkey[BTC_SZ_PUBKEY];
-    //         btc_keys_priv2pub(pubkey, old_secret);
-    //         //M_DB_CHANNEL_SAVE(pChannel);
-    //         LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECRET_INDEX_INIT - index);
-    //         DUMPD(old_secret, sizeof(old_secret));
-    //         LOGD("$$$ pubkey: ");
-    //         DUMPD(pubkey, sizeof(pubkey));
-    //     } else {
-    //         LOGD("$$$ fail: get last secret\n");
-    //         //goto LABEL_ERROR;
-    //     }
-    // }
-
-    // if (memcmp(prev_commitpt, pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY) != 0) {
-    //     LOGE("fail: prev_secret mismatch\n");
-
-    //     //check re-send
-    //     if (memcmp(new_commitpt, pChannel->pubkeys_remote.per_commitment_point, BTC_SZ_PUBKEY) == 0) {
-    //         //current per_commitment_point
-    //         LOGD("skip: same as previous next_per_commitment_point\n");
-    //         ret = true;
-    //     } else {
-    //         LOGD("recv secret: ");
-    //         DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
-    //         LOGD("my secret: ");
-    //         DUMPD(pChannel->pubkeys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
-    //         ret = false;
-    //     }
-    //     goto LABEL_ERROR;
-    // }
+    if (memcmp(prev_commitpt, pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY)) {
+        LOGE("fail: prev_secret mismatch\n");
+        goto LABEL_ERROR;
+    }
 
     //save prev_secret
     if (!store_peer_percommit_secret(pChannel, msg.p_per_commitment_secret)) {
