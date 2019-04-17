@@ -108,6 +108,10 @@ static bool                         mRunning;
 static ln_establish_param_t         mEstablishParam;
 
 
+/** @var    kSCRIPT
+ *  @brief  call script filename
+ *  @note   update with ptarmd_event_t
+ */
 static const char *kSCRIPT[] = {
     //PTARMD_EVT_STARTED
     "started.sh",
@@ -130,7 +134,9 @@ static const char *kSCRIPT[] = {
     //PTARMD_EVT_HTLCCHANGED,
     "htlcchanged.sh",
     //PTARMD_EVT_CLOSED
-    "closed.sh"
+    "closed.sh",
+    //ptarmd_event_t
+    "dbclosed.sh"
 };
 
 
