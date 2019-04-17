@@ -135,6 +135,7 @@ extern "C" {
 
 /** @enum   ptarmd_event_t
  *  @brief  call script event
+ *  @note   update with kSCRIPT[]
  */
 typedef enum {
     PTARMD_EVT_STARTED,
@@ -147,7 +148,8 @@ typedef enum {
     PTARMD_EVT_FULFILL,
     PTARMD_EVT_FAIL,
     PTARMD_EVT_HTLCCHANGED,
-    PTARMD_EVT_CLOSED
+    PTARMD_EVT_CLOSED,
+    PTARMD_EVT_DBCLOSED
 } ptarmd_event_t;
 
 
