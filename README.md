@@ -67,7 +67,7 @@ make full
 make distclean
 ```
 
-### starting `ptarmd`
+## Starting `ptarmd`
 For starting `ptarmd`, you should make new node as follows.
 
 ```bash
