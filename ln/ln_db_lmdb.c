@@ -149,7 +149,7 @@
 #define M_KEY_PAYMENT_ID        "payment_id"
 #define M_SZ_PAYMENT_ID         (sizeof(M_KEY_PAYMENT_ID) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-65))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-66))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -256,6 +256,7 @@
     -63: add `payment` env
     -64: rm `ln_update_t::fin_type`
     -65: add `ln_channel_t::update_info::feerate_per_kw_irrevocably_committed`
+    -66: update `ln_channel_t::shutdown_flag`
  */
 
 

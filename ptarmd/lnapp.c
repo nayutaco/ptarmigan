@@ -437,7 +437,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     lnapp_show_channel_param(p_channel, stderr, "close channel", __LINE__);
 
     const char *p_str;
-    if (ln_shutdown_send(p_channel)) {
+    if (ln_shutdown_set_send(p_channel)) {
         p_str = "close: good way(local) start";
     } else {
         p_str = "fail close: good way(local) start";
@@ -735,16 +735,6 @@ void *lnapp_thread_channel_start(void *pArg)
     }
 
     p_conf->annosig_send_req = ln_open_channel_announce(p_channel);
-
-    if (ln_is_shutdown_sent(p_channel)) {
-        //BOLT02
-        //  upon reconnection:
-        //    if it has sent a previous shutdown:
-        //      MUST retransmit shutdown.
-        if (!ln_shutdown_send(p_channel)) {
-            LOGE("fail: shutdown\n");
-        }
-    }
 
     //初期化完了
     LOGD("*** message inited ***\n");

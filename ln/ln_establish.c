@@ -50,6 +50,7 @@
 #include "ln_msg_establish.h"
 #include "ln_local.h"
 #include "ln_setupctl.h"
+#include "ln_close.h"
 #include "ln_establish.h"
 
 
@@ -776,6 +777,7 @@ void ln_channel_reestablish_before(ln_channel_t *pChannel)
 {
     bool updated = false;
     ln_update_info_clear_pending_updates(&pChannel->update_info, &updated);
+    ln_shutdown_reset(pChannel);
 }
 
 

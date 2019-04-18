@@ -90,8 +90,11 @@ extern "C" {
 #define LN_CNLUPD_CHFLAGS_DISABLE       (0x02)      ///< b1: disable
 
 // ln_channel_t.shutdown_flag
-#define LN_SHDN_FLAG_SEND               (0x01)      ///< shutdown送信済み
-#define LN_SHDN_FLAG_RECV               (0x02)      ///< shutdown受信済み
+#define LN_SHDN_FLAG_WAIT_SEND_SHDN     (0x01)      ///< waiting to send shutdown
+#define LN_SHDN_FLAG_SEND_SHDN          (0x02)      ///< shutdown sent
+#define LN_SHDN_FLAG_RECV_SHDN          (0x04)      ///< shutdown received
+#define LN_SHDN_FLAG_WAIT_SEND_CLSN     (0x08)      ///< waiting to closing_signed
+#define LN_SHDN_FLAG_SEND_CLSN          (0x10)      ///< closing_signed sent
 
 // ln_close_force_t.p_tx, p_htlc_idxsのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
