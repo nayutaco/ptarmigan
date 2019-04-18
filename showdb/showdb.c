@@ -692,25 +692,25 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     printf(INDENT2 M_QQ("type") ": " M_QQ("%s") ",\n", p_type_str);
     printf(INDENT2 M_QQ("amount") ": %" PRIu64 ",\n", pWallet->amount);
     printf(INDENT2 M_QQ("sequence") ": %" PRIu32 ",\n", pWallet->sequence);
-    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 ",\n", pWallet->locktime);
-    if (pWallet->wit_item_cnt > 0) {
-        printf(INDENT2 M_QQ("privkey") ": \"");
-        utl_dbg_dump(stdout, pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len, false);
-        printf("\",\n");
-    }
-    if (pWallet->wit_item_cnt > 1) {
-        printf(INDENT2 M_QQ("witness") ": [\n");
-        for (uint32_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
-            if (lp > 1) {
-                printf(",\n");
-            }
-            printf(INDENT3 "\"");
-            utl_dbg_dump(stdout, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len, false);
-            printf("\"");
-        }
-        printf("\n");
-        printf(INDENT2 "]\n");
-    }
+    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 "\n", pWallet->locktime);
+    // if (pWallet->wit_item_cnt > 0) {
+    //     printf(INDENT2 M_QQ("privkey") ": \"");
+    //     utl_dbg_dump(stdout, pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len, false);
+    //     printf("\",\n");
+    // }
+    // if (pWallet->wit_item_cnt > 1) {
+    //     printf(INDENT2 M_QQ("witness") ": [\n");
+    //     for (uint32_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
+    //         if (lp > 1) {
+    //             printf(",\n");
+    //         }
+    //         printf(INDENT3 "\"");
+    //         utl_dbg_dump(stdout, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len, false);
+    //         printf("\"");
+    //     }
+    //     printf("\n");
+    //     printf(INDENT2 "]\n");
+    // }
     printf(INDENT1 "}\n");
     // printf("cnt=%d\n", pWallet->wit_item_cnt);
     // for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
@@ -1191,16 +1191,18 @@ static void print_usage(const char *p_procname)
     fprintf(stderr, "\t\t--version,-v : node information\n");
     fprintf(stderr, "\t\t--datadir,-d [NODEDIR] : db directory(use current directory's db if not set)\n");
     fprintf(stderr, "\t\t--listchannelwallet : 2nd layer wallet info\n");
-    fprintf(stderr, "\t\t--listwallet : 1st layer wallet info\n");
     fprintf(stderr, "\t\t--showchannel,-s : show active channel detail\n");
     fprintf(stderr, "\t\t--listchannel,-l : active channel peer node_id list\n");
     fprintf(stderr, "\t\t--listclosed : closed channels list\n");
     fprintf(stderr, "\t\t--showclosed [CHANNEL_ID] : closed channels list\n");
     fprintf(stderr, "\t\t--listgossipchannel,-c : channel_announcement/channel_update\n");
     fprintf(stderr, "\t\t--listgossipnode,-n : node_announcement\n");
-    fprintf(stderr, "\t\t--listannounced : (internal)announcement received/sent node_id list\n");
-    fprintf(stderr, "\t\t--listskip : (internal)skip routing channel list\n");
-    fprintf(stderr, "\t\t--listinvoice : (internal)paying invoice\n");
+    fprintf(stderr, "\t\t--paytowalletvin : `ptarmcli --paytowallet` input info\n");
+#ifdef DEVELOPER_MODE
+    fprintf(stderr, "\t\t--listannounced : announcement received/sent node_id list\n");
+    fprintf(stderr, "\t\t--listskip : skip routing channel list\n");
+    fprintf(stderr, "\t\t--listinvoice : paying invoice\n");
+#endif
 }
 
 int main(int argc, char *argv[])
@@ -1236,7 +1238,7 @@ int main(int argc, char *argv[])
         { "listannounced", no_argument, NULL, 'a'},
         { "listskip", no_argument, NULL, 'k'},
         { "listinvoice", no_argument, NULL, 'i'},
-        { "listwallet", no_argument, NULL, 'W'},
+        { "paytowalletvin", no_argument, NULL, 'W'},
         { "version", no_argument, NULL, 'v'},
         { "help", no_argument, NULL, 'h'},
         { 0, 0, 0, 0 }
