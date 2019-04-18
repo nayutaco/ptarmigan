@@ -16,6 +16,7 @@
 * `--listclosed` : closed self info
 * `--listgossipchannel` : channel_announcement/channel_update
 * `--listgossipnode` : node_announcement
+* `--paytowalletvin` : show `ptarmcli --paytowallet` input information
 * `--version` : DB version
 * `--listannounced` : (internal)announcement received/sent node_id list
 * `--listskip` : (internal)routing skip channel list
