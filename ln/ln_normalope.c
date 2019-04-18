@@ -517,7 +517,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     }
 
     //Since htlcs are accessed until callback is done, we clear them after callback
-    /*ignore*/ ln_update_info_clear_irrevocably_committed_htlcs(&pChannel->update_info);
+    /*ignore*/ ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
 
     LOGD("END\n");
     return true;
@@ -1867,7 +1867,7 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
         }
     }
 
-    ln_update_info_clear_irrevocably_committed_htlcs(&pChannel->update_info);
+    ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
 
     LOGD("END\n");
     return true;

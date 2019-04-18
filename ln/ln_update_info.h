@@ -57,6 +57,7 @@ typedef struct {
     ln_htlc_t                   htlcs[LN_HTLC_MAX];             ///< htlcs
     uint64_t                    next_htlc_id;                   ///< update_add_htlcで使うidの管理 //XXX: Append immediately before sending
     ln_fee_update_t             fee_updates[LN_FEE_UPDATE_MAX]; ///< fee update
+    uint32_t                    feerate_per_kw_irrevocably_committed;   ///< feerate_per_kw
     uint64_t                    next_fee_update_id;             ///< fee update id
 } ln_update_info_t;
 
@@ -104,7 +105,7 @@ bool ln_update_info_irrevocably_committed_htlcs_exists(ln_update_info_t *pInfo);
 
 bool ln_update_info_commitment_signed_send_needs(ln_update_info_t *pInfo);
 
-void ln_update_info_clear_irrevocably_committed_htlcs(ln_update_info_t *pInfo);
+void ln_update_info_clear_irrevocably_committed_updates(ln_update_info_t *pInfo);
 
 void ln_update_info_reset_new_update(ln_update_info_t *pInfo);
 

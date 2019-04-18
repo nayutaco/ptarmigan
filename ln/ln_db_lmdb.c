@@ -149,7 +149,7 @@
 #define M_KEY_PAYMENT_ID        "payment_id"
 #define M_SZ_PAYMENT_ID         (sizeof(M_KEY_PAYMENT_ID) - 1)
 
-#define M_DB_VERSION_VAL        ((int32_t)(-64))            ///< DB version
+#define M_DB_VERSION_VAL        ((int32_t)(-65))            ///< DB version
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -255,6 +255,7 @@
     -62: add `ln_htlc_t::forward_msg`
     -63: add `payment` env
     -64: rm `ln_update_t::fin_type`
+    -65: add `ln_channel_t::update_info::feerate_per_kw_irrevocably_committed`
  */
 
 
@@ -489,11 +490,12 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
     //
     M_ITEM(ln_channel_t, channel_id),           //[NORM_01]
     M_ITEM(ln_channel_t, short_channel_id),     //[NORM_02]
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, updates),              //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, updates),                              //[NORM_03]
     //[NORM_03]htlcs --> HTLC
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id),         //[NORM_03]
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, fee_updates),          //[NORM_03]
-    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_fee_update_id),   //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_htlc_id),                         //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, fee_updates),                          //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, feerate_per_kw_irrevocably_committed), //[NORM_03]
+    MM_ITEM(ln_channel_t, update_info, ln_update_info_t, next_fee_update_id),                   //[NORM_03]
 
     //
     //comm
