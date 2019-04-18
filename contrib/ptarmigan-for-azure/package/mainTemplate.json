@@ -1,0 +1,338 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        },
+        "virtualMachineSize": {
+            "type": "string",
+            "defaultValue": "Standard_D2_v3"
+        },
+        "virtualMachineName": {
+            "type": "string",
+            "defaultValue": "ptarmigan-node"
+        },
+        "bitcoinEnvironment": {
+            "type": "string",
+            "defaultValue": "testnet"
+        },
+        "bitcoinProtocolPort": {
+            "type": "string",
+            "defaultValue": "18333"
+        },
+        "bitcoinRPCPort": {
+            "type": "string",
+            "defaultValue": "18332"
+        },
+        "ptarmiganPort": {
+            "type": "string",
+            "defaultValue": "9735"
+        },
+        "ptarmiganNodeAnnouncement": {
+            "type": "string",
+            "defaultValue": "false"
+        },
+        "ptarmiganNodeAliasName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "adminUserName": {
+            "type": "string",
+            "defaultValue": "azureuser"
+        },
+        "adminPublicKey": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "_artifactsLocation": {
+            "type": "string",
+            "defaultValue": "[deployment().properties.templateLink.uri]",  //use this for the Azure marketplace
+            "defaultValue": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/[name of sample folder]" // use this for a Quickstart in this repo (we're working on fixing this to match the marketplace...)
+        },
+        "_artifactsLocationSasToken": {
+            "type": "securestring",
+            "defaultValue": ""
+        }
+    },
+    "variables": {
+        "subnetName": "subnet",
+        "networkInterfaceName": "network-interface",
+        "networkSecurityGroupName": "network-security-group",
+        "virtualNetworkName": "virtual-network",
+        "publicIpAddressName": "public-ip-address",
+        "ipconfigName": "ipconfig",
+        "addressPrefixes": [
+            "10.1.1.0/24"
+        ],
+        "publicIpAddressType": "Dynamic",
+        "publicIpAddressSku": "Basic",
+        "osDiskType": "StandardSSD_LRS",
+        "storageSKU": "Standard_LRS",
+        "networkSecurityGroupRules": [
+            {
+                "name": "SSH",
+                "properties": {
+                    "priority": 300,
+                    "protocol": "TCP",
+                    "access": "Allow",
+                    "direction": "Inbound",
+                    "sourceAddressPrefix": "*",
+                    "sourcePortRange": "*",
+                    "destinationAddressPrefix": "*",
+                    "destinationPortRange": "22"
+                }
+            }
+        ],
+        "applicationResourceName": "ptarmigan-for-azure-deployments",
+        "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]",
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
+        "storageAccountsName": "[concat('storage', uniqueString(resourceGroup().id))]",
+        "scriptFileUri": "[uri(parameters('_artifactsLocation'), concat('scripts/configuration.sh', parameters('_artifactsLocationSasToken')))]",
+        "nestedtemplateUri": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/jumpbox.json', parameters('_artifactsLocationSasToken')))]"        
+    },
+    "resources": [
+        {
+            "apiVersion": "2018-05-01",
+            "name": "pid-dd63c0fa-4f25-5f79-8cd0-2b4a567574c2",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": []
+                }
+            }
+        },
+        {
+            "name": "[variables('publicIpAddressName')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publicIpAllocationMethod": "[variables('publicIpAddressType')]"
+            },
+            "sku": {
+                "name": "[variables('publicIpAddressSku')]"
+            }
+        },
+        {
+            "name": "[variables('virtualNetworkName')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": "[variables('addressPrefixes')]"
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "10.1.1.0/24"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": "[variables('networkSecurityGroupRules')]"
+            }
+        },
+        {
+            "name": "[concat(variables('networkSecurityGroupName'), '/bitcoinSecurityRules')]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2018-08-01",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', variables('publicIpAddressName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]"
+            ],
+            "properties": {
+                "description": "",
+                "protocol": "Tcp",
+                "sourcePortRange": "*",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "[int(parameters('bitcoinProtocolPort'))]",
+                "access": "Allow",
+                "direction": "Inbound",
+                "priority": "1100"
+            }
+        },
+        {
+            "name": "[concat(variables('networkSecurityGroupName'), '/ptarmiganSecurityRules')]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "apiVersion": "2018-08-01",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', variables('publicIpAddressName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]"
+            ],
+            "properties": {
+                "description": "",
+                "protocol": "Tcp",
+                "sourcePortRange": "*",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "[int(parameters('ptarmiganPort'))]",
+                "access": "Allow",
+                "direction": "Inbound",
+                "priority": "1200"
+            }
+        },
+        {
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2018-06-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountsName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "osDisk": {
+                        "createOption": "FromImage",
+                        "diskSizeGB": 2048,
+                        "managedDisk": {
+                            "storageAccountType": "[variables('osDiskType')]"
+                        }
+                    },
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "18.04-LTS",
+                        "version": "latest"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+                        }
+                    ]
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                                    "keyData": "[parameters('adminPublicKey')]"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "[variables('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', variables('publicIpAddressName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', variables('publicIpAddressName'))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[variables('nsgId')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storageAccountsName')]",
+            "apiVersion": "2018-07-01",
+            "location": "[parameters('location')]",
+            "kind": "Storage",
+            "sku": {
+                "name": "[variables('storageSKU')]"
+            }
+        },
+        {
+            "name": "[concat(parameters('virtualMachineName'), '/ptarmigan-config')]",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "location": "[parameters('location')]",
+            "apiVersion": "2018-10-01",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "https://gist.githubusercontent.com/NayutaNakashima/cc0f855e500a7ba269c9f2efc262e728/raw/a7511757af6611b7f05f9e2127049fe5201bce40/ptarmiganForAzureCommandToExecute.sh"
+                    ],
+                    "commandToExecute": "[concat ('sh ptarmiganForAzureCommandToExecute.sh ', parameters('adminUsername'), ' ', parameters('bitcoinEnvironment'), ' ', parameters('bitcoinProtocolPort'), ' ', parameters('bitcoinRPCPort'), ' ', parameters('ptarmiganPort'), ' ', parameters('ptarmiganNodeAnnouncement'), ' ', parameters('ptarmiganNodeAliasName'))]"
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        },
+        "bitcoinEnvironment": {
+            "type": "string",
+            "value": "[parameters('bitcoinEnvironment')]"
+        },
+        "bitcoinProtocolPort": {
+            "type": "string",
+            "value": "[parameters('bitcoinProtocolPort')]"
+        },
+        "bitcoinRPCPort": {
+            "type": "string",
+            "value": "[parameters('bitcoinRPCPort')]"
+        },
+        "ptarmiganPort": {
+            "type": "string",
+            "value": "[parameters('ptarmiganPort')]"
+        },
+        "ptarmiganNodeAnnouncement": {
+            "type": "string",
+            "value": "[parameters('ptarmiganNodeAnnouncement')]"
+        },
+        "ptarmiganNodeAliasName": {
+            "type": "string",
+            "value": "[parameters('ptarmiganNodeAliasName')]"
+        }
+    }
+}
