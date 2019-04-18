@@ -67,6 +67,17 @@ make full
 make distclean
 ```
 
+### starting `ptarmd`
+For starting `ptarmd`, you should make new node as follows.
+
+```bash
+cd install
+./new_nodedir.sh [NODENAME]
+
+cd [NODENAME]
+../ptarmd --network=testnet
+```
+
 ## Dependency
 
 ### libraries
