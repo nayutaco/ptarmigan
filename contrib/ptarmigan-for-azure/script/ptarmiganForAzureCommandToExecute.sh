@@ -18,6 +18,7 @@ BITCOIN_CONF_PATH=${HOME_PATH}/.bitcoin
 BITCOIND_PATH=/usr/local/bin
 BDB_PREFIX=${WORK_PATH}/bitcoin/db4
 
+
 echo "step01 package install"
 
 sudo apt -y update
@@ -157,11 +158,17 @@ if [ ${BITCOIN_ENVIRONMENT} = "mainnet" ]; then
 elif [ ${BITCOIN_ENVIRONMENT} = "testnet" ]; then
   # testnet
   ../ptarmd --network testnet
-  BITCOIN_ENVIRONMENT_SETTING="testnet=3 # testnet"
 elif [ ${BITCOIN_ENVIRONMENT} = "regtest" ]; then
   # regtest
   ../ptarmd --network regtest
+fi
 
 echo "step07 install ptarmigan rest-api"
+cd ${WORK_PATH}
+git clone -b feature/rest-api https://github.com/nayutaco/ptarmigan.git ptarmigan-rest-api
+cd ${WORK_PATH}/ptarmigan-rest-api/ptarmapi
+sudo apt install -y npm
+npm install
+npm run start
 
 echo "step08 setup complete"

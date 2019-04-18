@@ -48,8 +48,7 @@
         },
         "_artifactsLocation": {
             "type": "string",
-            "defaultValue": "[deployment().properties.templateLink.uri]",  //use this for the Azure marketplace
-            "defaultValue": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/[name of sample folder]" // use this for a Quickstart in this repo (we're working on fixing this to match the marketplace...)
+            "defaultValue": "https://raw.githubusercontent.com/nayutaco/ptarmigan/feature/rest-api/contrib/ptarmigan-for-azure/"
         },
         "_artifactsLocationSasToken": {
             "type": "securestring",
@@ -90,8 +89,8 @@
         "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
         "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
         "storageAccountsName": "[concat('storage', uniqueString(resourceGroup().id))]",
-        "scriptFileUri": "[uri(parameters('_artifactsLocation'), concat('scripts/configuration.sh', parameters('_artifactsLocationSasToken')))]",
-        "nestedtemplateUri": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/jumpbox.json', parameters('_artifactsLocationSasToken')))]"        
+        "scriptFileUri": "[uri(parameters('_artifactsLocation'), concat('script/ptarmiganForAzureCommandToExecute.sh', parameters('_artifactsLocationSasToken')))]",
+        "scriptFileName": "ptarmiganForAzureCommandToExecute.sh"
     },
     "resources": [
         {
@@ -298,9 +297,11 @@
                 "autoUpgradeMinorVersion": true,
                 "settings": {
                     "fileUris": [
-                        "https://gist.githubusercontent.com/NayutaNakashima/cc0f855e500a7ba269c9f2efc262e728/raw/a7511757af6611b7f05f9e2127049fe5201bce40/ptarmiganForAzureCommandToExecute.sh"
-                    ],
-                    "commandToExecute": "[concat ('sh ptarmiganForAzureCommandToExecute.sh ', parameters('adminUsername'), ' ', parameters('bitcoinEnvironment'), ' ', parameters('bitcoinProtocolPort'), ' ', parameters('bitcoinRPCPort'), ' ', parameters('ptarmiganPort'), ' ', parameters('ptarmiganNodeAnnouncement'), ' ', parameters('ptarmiganNodeAliasName'))]"
+                        "[variables('scriptFileUri')]"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat ('bash', ' ', variables('scriptFileName'), ' ', parameters('adminUsername'), ' ', parameters('bitcoinEnvironment'), ' ', parameters('bitcoinProtocolPort'), ' ', parameters('bitcoinRPCPort'), ' ', parameters('ptarmiganPort'), ' ', parameters('ptarmiganNodeAnnouncement'), ' ', parameters('ptarmiganNodeAliasName'))]"
                 }
             }
         }
