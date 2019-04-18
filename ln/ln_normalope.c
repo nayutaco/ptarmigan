@@ -55,6 +55,7 @@
 #include "ln_msg_x.h"
 #include "ln_msg_x_normalope.h"
 #include "ln_local.h"
+#include "ln_close.h"
 #include "ln_normalope.h"
 #include "ln_funding_info.h"
 #include "ln_payment.h"
@@ -1224,13 +1225,25 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) return;
     if (!M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag)) return;
 
-    if (ln_is_shutdown_sent(pChannel)) {
+    if (ln_is_shutdowning(pChannel)) {
         /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
     } else {
         /*ignore*/poll_update_add_htlc_forward(pChannel);
     }
     /*ignore*/poll_update_del_htlc_forward(pChannel);
 
+    if (ln_shutdown_send_needs(pChannel)) {
+        if (!ln_shutdown_send(pChannel)) {
+            LOGE("fail: ???\n");
+        }
+    }
+    if (ln_closing_signed_send_needs(pChannel)) {
+        if (!ln_closing_signed_send(pChannel, NULL)) {
+            LOGE("fail: ???\n");
+        }
+    }
+
+    //XXX: if shutdowning & no HTLC, do not send update_fee
     if (FeeratePerKw &&
         ln_funding_info_is_funder(&pChannel->funding_info, true) &&
         ln_update_info_fee_update_needs(&pChannel->update_info, FeeratePerKw)) {
@@ -1284,7 +1297,7 @@ void ln_idle_proc_inactive(ln_channel_t *pChannel)
         M_DB_CHANNEL_SAVE(pChannel);
     }
 
-    if (ln_is_shutdown_sent(pChannel)) {
+    if (ln_is_shutdowning(pChannel)) {
         /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
     } else {
         /*ignore*/poll_update_add_htlc_forward_inactive(pChannel);
@@ -1312,7 +1325,7 @@ static bool check_recv_add_htlc_bolt2(ln_channel_t *pChannel, const ln_htlc_t *p
     uint16_t num_received_htlcs;
 
     //shutdown
-    if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV) {
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV_SHDN) {
         M_SET_ERR(pChannel, LNERR_INV_STATE, "already shutdown received");
         return false;
     }

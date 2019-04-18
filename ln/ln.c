@@ -1116,7 +1116,7 @@ uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw)
 
 bool ln_is_shutdown_sent(const ln_channel_t *pChannel)
 {
-    return pChannel->shutdown_flag & LN_SHDN_FLAG_SEND;
+    return pChannel->shutdown_flag & LN_SHDN_FLAG_SEND_SHDN;
 }
 
 

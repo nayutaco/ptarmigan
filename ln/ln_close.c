@@ -57,7 +57,9 @@
  * macros
  **************************************************************************/
 
-#define M_SHDN_FLAG_EXCHANGED(flag)     (((flag) & (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV)) == (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV))
+#define M_SHDN_FLAG_EXCHANGED(flag) \
+    (((flag) & (LN_SHDN_FLAG_SEND_SHDN | LN_SHDN_FLAG_RECV_SHDN)) == \
+    (LN_SHDN_FLAG_SEND_SHDN | LN_SHDN_FLAG_RECV_SHDN))
 
 
 /**************************************************************************
@@ -71,7 +73,55 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
  * public functions
  **************************************************************************/
 
-bool /*HIDDEN*/ ln_shutdown_send(ln_channel_t *pChannel)
+bool /*HIDDEN*/ ln_is_shutdowning(ln_channel_t *pChannel)
+{
+    if (pChannel->shutdown_flag) return true;
+    return false;
+}
+
+
+bool /*HIDDEN*/ ln_shutdown_set_send(ln_channel_t *pChannel)
+{
+    LOGD("shutdown_flag=%02x (before)\n", pChannel->shutdown_flag);
+    pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_SHDN;
+    M_DB_CHANNEL_SAVE(pChannel);
+    LOGD("shutdown_flag=%02x (after)\n", pChannel->shutdown_flag);
+    return true;
+}
+
+
+void /*HIDDEN*/ ln_shutdown_reset(ln_channel_t *pChannel)
+{
+    LOGD("shutdown_flag=%02x (before)\n", pChannel->shutdown_flag);
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_SEND_SHDN) {
+        pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_SHDN;
+    }
+    pChannel->shutdown_flag &= ~LN_SHDN_FLAG_SEND_SHDN;
+    pChannel->shutdown_flag &= ~LN_SHDN_FLAG_RECV_SHDN;
+    pChannel->shutdown_flag &= ~LN_SHDN_FLAG_WAIT_SEND_CLSN;
+    pChannel->shutdown_flag &= ~LN_SHDN_FLAG_SEND_CLSN;
+    LOGD("shutdown_flag=%02x (after)\n", pChannel->shutdown_flag);
+    M_DB_CHANNEL_SAVE(pChannel);
+}
+
+
+bool HIDDEN ln_shutdown_send_needs(ln_channel_t *pChannel)
+{
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_SEND_SHDN) return false;
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_WAIT_SEND_SHDN) return true;
+    return false;
+}
+
+
+bool HIDDEN ln_closing_signed_send_needs(ln_channel_t *pChannel)
+{
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_SEND_CLSN) return false;
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_WAIT_SEND_CLSN) return true;
+    return false;
+}
+
+
+bool HIDDEN ln_shutdown_send(ln_channel_t *pChannel)
 {
     LOGD("BEGIN\n");
 
@@ -88,7 +138,13 @@ bool /*HIDDEN*/ ln_shutdown_send(ln_channel_t *pChannel)
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
-    pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND;
+    pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND_SHDN;
+    if (M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
+        pChannel->status = LN_STATUS_CLOSE_WAIT;
+        if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
+            pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_CLSN;
+        }
+    }
     M_DB_CHANNEL_SAVE(pChannel);
     ln_channel_update_disable(pChannel);
 
@@ -102,9 +158,8 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
     LOGD("BEGIN\n");
 
     pChannel->close_last_fee_sat = 0; //XXX:
-    if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV) {
+    if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV_SHDN) {
         //既にshutdownを受信済みなら、何もしない
-        //XXX: return false;
         return true;
     }
 
@@ -113,6 +168,7 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
+    utl_buf_free(&pChannel->shutdown_scriptpk_remote);
     utl_buf_alloccopy(&pChannel->shutdown_scriptpk_remote, msg.p_scriptpubkey, msg.len);
 
     //channel_id
@@ -127,30 +183,19 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
         return false;
     }
 
-    pChannel->shutdown_flag |= LN_SHDN_FLAG_RECV;
+    pChannel->shutdown_flag |= LN_SHDN_FLAG_RECV_SHDN;
+    if (!(pChannel->shutdown_flag & LN_SHDN_FLAG_SEND_SHDN)) {
+        pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_SHDN;
+    }
+    if (M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
+        pChannel->status = LN_STATUS_CLOSE_WAIT;
+        if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
+            pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_CLSN;
+        }
+    }
     M_DB_CHANNEL_SAVE(pChannel);
 
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_SHUTDOWN_RECV, NULL);
-
-    if (!(pChannel->shutdown_flag & LN_SHDN_FLAG_SEND)) {
-        //shutdown has not been sent
-        if (!ln_shutdown_send(pChannel)) {
-            M_SET_ERR(pChannel, LNERR_CREATE_MSG, "send shutdown");
-            return false;
-        }
-    }
-
-    if (M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
-        pChannel->status = LN_STATUS_CLOSE_WAIT;
-        M_DB_CHANNEL_SAVE(pChannel);
-
-        if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
-            if (!ln_closing_signed_send(pChannel, NULL)) {
-                LOGE("fail\n");
-                return false;
-            }
-        }
-    }
 
     LOGD("END\n");
     return true;
@@ -191,6 +236,7 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
+    pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND_CLSN;
     M_DB_CHANNEL_SAVE(pChannel);
     return true;
 }
