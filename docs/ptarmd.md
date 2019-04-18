@@ -26,7 +26,7 @@ ptarmd [--network=NETWORK] [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCO
     * default: `node_` + node_id first 6byte(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
 
-* -a IPv4_ADDRESS, --addr=IPv4_ADDRESS
+* -a IPv4_ADDRESS, --announceip=IPv4_ADDRESS
   * node announcement ip address
     * default: no ip address(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
@@ -34,6 +34,9 @@ ptarmd [--network=NETWORK] [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCO
 * -c BITCOIN.CONF, --conf=BITCOIN.CONF
   * current bitcoin.conf
     * default: ~/.bitcoin/bitcoin.conf
+
+* -v
+  * show library version
 
 ## DESCRIPTION
 
