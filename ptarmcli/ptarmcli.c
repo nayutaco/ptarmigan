@@ -212,9 +212,12 @@ int main(int argc, char *argv[])
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
+        { "sendpayment", required_argument, NULL, 'r' },
         { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
         { "addinvoice", required_argument, NULL, 'i' },
+        { "listinvoice", no_argument, NULL, 'm' },
+        { "removeinvoice", required_argument, NULL, 'e' },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
@@ -273,13 +276,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
         fprintf(stderr, "\n");
 
-        fprintf(stderr, "\tPAYMENT:\n");
-        fprintf(stderr, "\t\t--addinvoice,-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
+        fprintf(stderr, "\tINVOICE:\n");
+        fprintf(stderr, "\t\t--addinvoice AMOUNT_MSAT : create invoice and add list\n");
         fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
-        fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
-        fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
-        fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
-        fprintf(stderr, "\t\t-m : show payment_hashs\n");
+        fprintf(stderr, "\t\t--listinvoice : list created invoices\n");
+        fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
+        fprintf(stderr, "\tPAYMENT:\n");
+        fprintf(stderr, "\t\t--sendpayment BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t--listpayment : list payments\n");
         fprintf(stderr, "\t\t--removepayment PAYMENT_ID : remove a payment from the payment list\n");
         fprintf(stderr, "\n");
