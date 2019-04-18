@@ -40,20 +40,20 @@ echo "step02 create configfile"
 if [ ${BITCOIN_ENVIRONMENT} = "mainnet" ]; then
   # mainnet
   BITCOIN_ENVIRONMENT_SETTING="# mainnet"
+  BITCOIN_PORT_SETTING=""
 elif [ ${BITCOIN_ENVIRONMENT} = "testnet" ]; then
   # testnet
   BITCOIN_ENVIRONMENT_SETTING="testnet=3 # testnet"
+  BITCOIN_PORT_SETTING="[testnet]\nport=${BITCOIN_PROTOCOL_PORT}"
 elif [ ${BITCOIN_ENVIRONMENT} = "regtest" ]; then
   # regtest
   BITCOIN_ENVIRONMENT_SETTING="regtest=1 # regtest"
-else
-  BITCOIN_ENVIRONMENT_SETTING="testnet=3 # testnet"
+  BITCOIN_PORT_SETTING="[regtest]\nport=${BITCOIN_PROTOCOL_PORT}"
 fi
 
 mkdir -p $BITCOIN_CONF_PATH
 cat << EOF > ${BITCOIN_CONF_PATH}/bitcoin.conf
 ${BITCOIN_ENVIRONMENT_SETTING}
-port=${BITCOIN_PROTOCOL_PORT}
 rpcuser=bitcoinuser
 rpcpassword=bitcoinpassword
 rpcport=${BITCOIN_RPC_PORT}
@@ -62,6 +62,7 @@ listen=1
 server=1
 daemon=1
 txindex=1
+`echo ${BITCOIN_PORT_SETTING}`
 EOF
 
 chown -R ${ADMIN_USER_NAME}:${ADMIN_USER_NAME} $BITCOIN_CONF_PATH
@@ -166,9 +167,10 @@ fi
 echo "step07 install ptarmigan rest-api"
 cd ${WORK_PATH}
 git clone -b feature/rest-api https://github.com/nayutaco/ptarmigan.git ptarmigan-rest-api
+chown -R ${ADMIN_USER_NAME}:${ADMIN_USER_NAME} ${WORK_PATH}/ptarmigan-rest-api
 cd ${WORK_PATH}/ptarmigan-rest-api/ptarmapi
 sudo apt install -y npm
 npm install
-npm run start
+nohup npm run start &
 
 echo "step08 setup complete"
