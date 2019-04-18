@@ -1,0 +1,219 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Compute.MultiVm",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "basics": [],
+    "steps": [
+      {
+        "name": "bitcoinConfig",
+        "label": "bitcoin settings",
+        "subLabel": {
+          "preValidation": "Configure the bitcoin settings",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "bitcoin settings",
+        "elements": [
+          {
+            "name": "environment",
+            "type": "Microsoft.Common.DropDown",
+            "label": "select bitcoin environment",
+            "defaultValue": "testnet",
+            "toolTip": "Choose bitcoin network environment",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "mainnet",
+                  "value": "mainnet"
+                },
+                {
+                  "label": "testnet",
+                  "value": "testnet"
+                },
+                {
+                  "label": "regtest",
+                  "value": "regtest"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "protocolPort",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Bitcoin network protocol listen port",
+            "defaultValue": "18333",
+            "toolTip": "Default Bitcoin listen port is 8333(mainnet) or 18333(testnet)",
+            "constraints": {
+              "required": true,
+              "regex": "^()([1-9]|[1-5]?[0-9]{2,4}|6[1-4][0-9]{3}|65[1-4][0-9]{2}|655[1-2][0-9]|6553[1-5])$",
+              "validationMessage": "Input range of port number(1-65535)"
+            },
+            "visible": true
+          },
+          {
+            "name": "rPCPort",
+            "type": "Microsoft.Common.TextBox",
+            "label": "bitcoin RPC connection port",
+            "defaultValue": "18332",
+            "toolTip": "Default Bitcoin  RPC connection port is 8332(mainnet) or 18332(testnet)",
+            "constraints": {
+              "required": true,
+              "regex": "^()([1-9]|[1-5]?[0-9]{2,4}|6[1-4][0-9]{3}|65[1-4][0-9]{2}|655[1-2][0-9]|6553[1-5])$",
+              "validationMessage": "Input range of port number(1-65535)"
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "ptarmiganConfig",
+        "label": "ptarmigan settings",
+        "subLabel": {
+          "preValidation": "Configure the ptarmigan settings",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "ptarmigan settings",
+        "elements": [
+          {
+            "name": "port",
+            "type": "Microsoft.Common.TextBox",
+            "label": "ptarmigan listen port",
+            "defaultValue": "9735",
+            "toolTip": "Lightning Network default listen port is 9735",
+            "constraints": {
+              "required": true,
+              "regex": "^()([1-9]|[1-5]?[0-9]{2,4}|6[1-4][0-9]{3}|65[1-4][0-9]{2}|655[1-2][0-9]|6553[1-5])$",
+              "validationMessage": "Input range of port number(1-65535)"
+            },
+            "visible": true
+          },
+          {
+            "name": "nodeAnnouncement",
+            "type": "Microsoft.Common.OptionsGroup",
+            "label": "node announcement ip address",
+            "defaultValue": "No",
+            "toolTip": "Announce node IP Address",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "No",
+                  "value": "false"
+                },
+                {
+                  "label": "Yes",
+                  "value": "true"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "nodeAliasName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "node alias name",
+            "defaultValue": "",
+            "toolTip": "Lightning Network node alias name",
+            "constraints": {
+              "required": false,
+              "regex": "^[a-zA-Z0-9_]{0,32}$",
+              "validationMessage": "This should be less than 32 characters in length."
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "vmConfig",
+        "label": "VM settings",
+        "subLabel": {
+          "preValidation": "Configure VM settings",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "VM settings",
+        "elements": [
+          {
+            "name": "virtualMachineSize",
+            "type": "Microsoft.Compute.SizeSelector",
+            "label": "Virtual Machine Size",
+            "toolTip": "Virtual Machine size (https://azureprice.net/)",
+            "recommendedSizes": [
+              "Standard_D2_v3"
+            ],
+            "constraints": {
+              "allowedSizes": [],
+              "numAvailabilityZonesRequired": 1,
+              "zone": "1"
+            },
+            "options": {
+              "hideDiskTypeFilter": false
+            },
+            "osPlatform": "Linux",
+            "imageReference": {
+              "publisher": "Canonical",
+              "offer": "UbuntuServer",
+              "sku": "18.04-LTS",
+              "version": "latest"
+            },
+            "count": 1,
+            "visible": true
+          },
+          {
+            "name": "virtualMachineName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Virtual Machine name",
+            "defaultValue": "ptarmigan-node",
+            "toolTip": "Name of the virtual machine",
+            "constraints": {
+              "required": false,
+              "regex": "^[a-zA-Z0-9_-]{0,32}$",
+              "validationMessage": "This should be less than 32 characters in length."
+            },
+            "visible": true
+          },
+          {
+            "name": "adminUserName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Admin UserName",
+            "defaultValue": "azureuser",
+            "toolTip": "Admin username for all of the deployed virtual machines.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z_][a-z0-9_]{0,30}$",
+              "validationMessage": "This should be less than 30 characters in length."
+            },
+            "visible": true
+          },
+          {
+            "name": "adminPublicKey",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Admin PublicKey",
+            "defaultValue": "",
+            "toolTip": "Virtual machine SSH public key",
+            "constraints": {
+              "required": true,
+              "regex": "ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3}( [^@]+@[^@]+)?",
+              "validationMessage": "Input ssh public key that start with 'ssh-rsa'"
+            },
+            "visible": true
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "bitcoinEnvironment": "[steps('bitcoinConfig').environment]",
+      "bitcoinProtocolPort": "[steps('bitcoinConfig').protocolPort]",
+      "bitcoinRPCPort": "[steps('bitcoinConfig').rPCPort]",
+      "ptarmiganPort": "[steps('ptarmiganConfig').port]",
+      "ptarmiganNodeAnnouncement": "[steps('ptarmiganConfig').nodeAnnouncement]",
+      "ptarmiganNodeAliasName": "[steps('ptarmiganConfig').nodeAliasName]",
+      "virtualMachineSize": "[steps('vmConfig').virtualMachineSize]",
+      "virtualMachineName": "[steps('vmConfig').virtualMachineName]",
+      "adminUserName": "[steps('vmConfig').adminUserName]",
+      "adminPublicKey": "[steps('vmConfig').adminPublicKey]",
+      "location": "[location()]"
+    }
+  }
+}
