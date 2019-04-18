@@ -627,7 +627,7 @@ void ln_update_info_reset_new_update(ln_update_info_t *pInfo) {
 uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal)
 {
     uint64_t value = 0;
-    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
@@ -644,7 +644,7 @@ uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, b
 uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLocal)
 {
     uint16_t num = 0;
-    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
@@ -661,7 +661,7 @@ uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLo
 void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdated)
 {
     *pUpdated = false;
-    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->state != LN_UPDATE_STATE_OFFERED_WAIT_SEND &&
@@ -691,6 +691,21 @@ void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdate
             LOGE("fail: ???\n");
         }
     }
+}
+
+
+bool ln_update_info_is_channel_clean(ln_update_info_t *pInfo)
+{
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        if (pInfo->updates[idx].enabled) return false;
+    }
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->htlcs); idx++) {
+        if (pInfo->htlcs[idx].enabled) return false;
+    }
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->fee_updates); idx++) {
+        if (pInfo->fee_updates[idx].enabled) return false;
+    }
+    return true;
 }
 
 

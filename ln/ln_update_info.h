@@ -119,5 +119,7 @@ uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLo
 //for reconnecting
 void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdated);
 
+bool ln_update_info_is_channel_clean(ln_update_info_t *pInfo);
+
 
 #endif /* LN_UPDATE_INFO_H__ */
