@@ -111,6 +111,7 @@ static bool update_fail_htlc_forward_origin(
     ln_channel_t *pChannel, uint64_t PrevShortChannelId, uint64_t PrevHtlcId,
     const ln_msg_x_update_fail_htlc_t* pForwardMsg);
 static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel);
+static bool update_fee_send_needs(ln_channel_t *pChannel, uint32_t FeeratePerKw);
 
 
 /**************************************************************************
@@ -1232,21 +1233,7 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
     }
     /*ignore*/poll_update_del_htlc_forward(pChannel);
 
-    if (ln_shutdown_send_needs(pChannel)) {
-        if (!ln_shutdown_send(pChannel)) {
-            LOGE("fail: ???\n");
-        }
-    }
-    if (ln_closing_signed_send_needs(pChannel)) {
-        if (!ln_closing_signed_send(pChannel, NULL)) {
-            LOGE("fail: ???\n");
-        }
-    }
-
-    //XXX: if shutdowning & no HTLC, do not send update_fee
-    if (FeeratePerKw &&
-        ln_funding_info_is_funder(&pChannel->funding_info, true) &&
-        ln_update_info_fee_update_needs(&pChannel->update_info, FeeratePerKw)) {
+    if (update_fee_send_needs(pChannel, FeeratePerKw)) {
         uint16_t update_idx;
         /*ignore*/ ln_update_info_set_fee_pre_send(&pChannel->update_info, &update_idx, FeeratePerKw);
     }
@@ -1282,6 +1269,21 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 
     if (ln_update_info_commitment_signed_send_needs(&pChannel->update_info)) {
         if (!commitment_signed_send(pChannel)) return;
+    }
+
+    //must send `shutdown` after `commitment_signed` to remove pending updates
+    if (ln_shutdown_send_needs(pChannel)) {
+        if (!ln_shutdown_send(pChannel)) {
+            LOGE("fail: ???\n");
+        }
+    }
+
+    //must send `shutdown` with no HTLCs and no updates
+    if (ln_closing_signed_send_needs(pChannel) &&
+        ln_update_info_is_channel_clean(&pChannel->update_info)) {
+        if (!ln_closing_signed_send(pChannel, NULL)) {
+            LOGE("fail: ???\n");
+        }
     }
 }
 
@@ -2209,4 +2211,20 @@ LABEL_EXIT:
     *p_update = bak;
     UTL_DBG_FREE(p_htlc_sigs);
     return ret;
+}
+
+
+static bool update_fee_send_needs(ln_channel_t *pChannel, uint32_t FeeratePerKw)
+{
+    if (!ln_funding_info_is_funder(&pChannel->funding_info, true)) return false;
+
+    if (!FeeratePerKw) return false;
+    if (!ln_update_info_fee_update_needs(&pChannel->update_info, FeeratePerKw)) return false;
+
+    //XXX: this condition is not enough
+    //  we can send `update_fee` until HTLCs are gone after sending `shutdown`
+    //  but it is difficult to clarify the condition that there are no HTLCs
+    if (ln_is_shutdowning(pChannel)) return false;
+
+    return true;
 }
