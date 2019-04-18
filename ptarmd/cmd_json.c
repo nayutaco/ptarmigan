@@ -1587,7 +1587,8 @@ static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id)
         if (ln_db_payment_invoice_load_2(&buf_invoice, payment_id, p_cur)) {
             char *p_invoice = (char *)UTL_DBG_MALLOC(buf_invoice.len + 1);
             if (p_invoice) {
-                strncpy(p_invoice, (char *)buf_invoice.buf, buf_invoice.len + 1);
+                memcpy(p_invoice, buf_invoice.buf, buf_invoice.len);
+                p_invoice[buf_invoice.len] = '\0';
                 cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
             } else {
                 LOGE("fail: ???\n");
