@@ -20,7 +20,6 @@ ptarmcli [options] [JSON-RPC port number]
 
 * connect peer
   * `-c NODE_ID@IPADDR:PORT` : new connection or already connected node
-  * `-c NODE_ID` : already connected node
 
 * information
   * `-l` : get information
@@ -40,10 +39,12 @@ ptarmcli [options] [JSON-RPC port number]
   * `--setfeerate FEERATE_PER_KW` : set feerate_per_kw
     * if set not 0 value, send `update_fee`
 
-* `-x` : close channel(need `-c` option)
+* close channel
+  * `-x` : mutual close(need `-c` option)
+  * `-xforce` : unilateral close(need `-c` option)
 
 * debug
-  * `-d DECIMAL_VALUE` : debug option
+  * `--debug DECIMAL_VALUE` : debug option
   * `-c NODE_ID -g` : get commitment transaction and HTLC transaction
 
 * port
@@ -139,7 +140,10 @@ ptarmcli -i 123000
 ```json
 {
     "method":"invoice",
-    "params":[ 123000 ]
+    "params":[ 
+                123000,
+                0
+             ]
 }
 ```
 
