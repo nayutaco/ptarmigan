@@ -725,7 +725,7 @@ void *lnapp_thread_channel_start(void *pArg)
     //force send ping
     poll_ping(p_conf);
 
-    if (ln_funding_locked_check_need(p_channel)) {
+    if (ln_funding_locked_needs(p_channel)) {
         //funding_locked交換
         ret = exchange_funding_locked(p_conf);
         if (!ret) {
@@ -735,10 +735,6 @@ void *lnapp_thread_channel_start(void *pArg)
     }
 
     p_conf->annosig_send_req = ln_open_channel_announce(p_channel);
-
-    if (b_channelreestablished) {
-        ln_channel_reestablish_after(p_channel);
-    }
 
     if (ln_is_shutdown_sent(p_channel)) {
         //BOLT02
@@ -1104,10 +1100,13 @@ static bool exchange_init(lnapp_conf_t *p_conf)
  */
 static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
+    pthread_mutex_lock(&p_conf->mux_conf);
     if (!ln_channel_reestablish_send(&p_conf->channel)) {
         LOGE("fail: create\n");
+        pthread_mutex_unlock(&p_conf->mux_conf);
         return false;
     }
+    pthread_mutex_unlock(&p_conf->mux_conf);
 
     //コールバックでのchannel_reestablish受信通知待ち
     LOGD("wait: channel_reestablish\n");

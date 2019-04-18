@@ -45,8 +45,9 @@
  *   4. commit_txの送金先処理
  *   5. メモリ解放
  *
- * @param[in,out]       pChannel
+ * @param[in]           pChannel
  * @param[in,out]       pCommitInfo
+ * @param[in,out]       pUpdateInfo
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
  * @param[in]           pHtlcSigs           commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           NumHtlcSigs         pHtlcSigsの署名数
@@ -55,11 +56,18 @@
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
 bool HIDDEN ln_commit_tx_create_local(
-    ln_channel_t *pChannel,
+    const ln_channel_t *pChannel,
     ln_commit_info_t *pCommitInfo,
-    ln_close_force_t *pClose,
+    ln_update_info_t *pUpdateInfo,
     const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
     uint16_t NumHtlcSigs);
+
+
+bool HIDDEN ln_commit_tx_create_local_close(
+    const ln_channel_t *pChannel,
+    const ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
+    ln_close_force_t *pClose);
 
 
 /** create commitment transaction info
@@ -70,7 +78,14 @@ bool HIDDEN ln_commit_tx_create_local(
  * @param[in]           bLocal
  * @retval              true        success
  */
-bool HIDDEN ln_commit_tx_info_create(
+bool HIDDEN ln_commit_tx_info_create_pre_committed(
+    ln_commit_tx_info_t *pCommitTxInfo,
+    const ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
+    bool bLocal);
+
+
+bool HIDDEN ln_commit_tx_info_create_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
@@ -99,16 +114,23 @@ void HIDDEN ln_commit_tx_info_free(ln_commit_tx_info_t *pCommitTxInfo);
  *   5. メモリ解放
  *
  * @param[in,out]       pChannel
- * @param[in,out]       pCommitInfoRemote
+ * @param[in,out]       pCommitInfo
  * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
  * @param[out]          ppHtlcSigs          commitment_signed送信用署名(NULLの場合は代入しない)
  * @retval  true    成功
  */
 bool HIDDEN ln_commit_tx_create_remote(
     const ln_channel_t *pChannel,
-    ln_commit_info_t *pCommitInfoRemote,
-    ln_close_force_t *pClose,
+    ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
     uint8_t (**ppHtlcSigs)[LN_SZ_SIGNATURE]);
+
+
+bool HIDDEN ln_commit_tx_create_remote_close(
+    const ln_channel_t *pChannel,
+    ln_commit_info_t *pCommitInfo,
+    const ln_update_info_t *pUpdateInfo,
+    ln_close_force_t *pClose);
 
 
 /** P2WSH署名 - 2-of-2 トランザクション更新

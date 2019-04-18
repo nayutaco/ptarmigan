@@ -657,7 +657,7 @@ void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdate
         if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->state != LN_UPDATE_STATE_OFFERED_WAIT_SEND &&
             p_update->state != LN_UPDATE_STATE_OFFERED_UP_SEND &&
-            p_update->state != LN_UPDATE_STATE_RECEIVED_UP_RECV) continue; //check not commited
+            p_update->state != LN_UPDATE_STATE_RECEIVED_UP_RECV) continue; //check not committed
         *pUpdated = true;
         switch (p_update->type) {
         case LN_UPDATE_TYPE_ADD_HTLC:

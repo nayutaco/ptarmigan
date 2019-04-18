@@ -66,4 +66,18 @@ bool /*HIDDEN*/ ln_channel_reestablish_send(ln_channel_t *pChannel);
 bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 
 
+/** before channel_reestablish
+ *
+ * @param[in,out]       pChannel        channel info
+ */
+void ln_channel_reestablish_before(ln_channel_t *pChannel);
+
+
+/** after channel_reestablish
+ *
+ * @param[in,out]       pChannel        channel info
+ */
+void ln_channel_reestablish_after(ln_channel_t *pChannel);
+
+
 #endif /* LN_ESTABLISH_H__ */

@@ -491,13 +491,18 @@ bool ln_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 }
 
 
-bool ln_funding_locked_check_need(const ln_channel_t *pChannel)
+bool ln_funding_locked_needs(const ln_channel_t *pChannel)
 {
-    return (pChannel->short_channel_id != 0) &&
-        (
-            ((pChannel->commit_info_local.commit_num == 0) && (pChannel->commit_info_remote.commit_num == 0)) ||
-            ((pChannel->reest_commit_num == 1) && (pChannel->reest_revoke_num == 0))
-        );
+    if (!pChannel->short_channel_id) return false;
+
+    //initial
+    if ((pChannel->commit_info_local.commit_num == 0) && (pChannel->commit_info_remote.commit_num == 0)) return true;
+
+    //if next_local_commitment_number is 1 in both the channel_reestablish it sent and received:
+    //  `next_local_commitment_number` is local_commitment_number + 1*/
+    if ((pChannel->commit_info_local.commit_num == 0) && (pChannel->reest_next_local_commit_num == 1)) return true;
+
+    return false;
 }
 
 
@@ -649,8 +654,8 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_local.num_htlc_outputs);
 
     //local commit_tx
-    bool ret = ln_commit_tx_create_local( //closeのみ(HTLC署名無し)
-        pChannel, &pChannel->commit_info_local, pClose, NULL, 0);
+    bool ret = ln_commit_tx_create_local_close(
+        pChannel, &pChannel->commit_info_local, &pChannel->update_info, pClose);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
@@ -704,8 +709,8 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_remote.num_htlc_outputs);
 
     //remote commit_tx
-    bool ret = ln_commit_tx_create_remote(
-        pChannel, &pChannel->commit_info_remote, pClose, NULL);
+    bool ret = ln_commit_tx_create_remote_close(
+        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, pClose);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);

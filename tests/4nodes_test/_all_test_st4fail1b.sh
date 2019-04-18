@@ -36,10 +36,10 @@ echo st4d end
 #echo check proc count end
 
 echo check log
-BAD_LINE_COUNT=`../../tools/log_filter.sh | wc -l`
+BAD_LINE_COUNT=`./log_filter.sh | wc -l`
 if [ $BAD_LINE_COUNT -ne 0 ];
 then
-    ../../tools/log_filter.sh
+    ./log_filter.sh
     exit 1
 fi
 echo check log end

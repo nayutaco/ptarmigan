@@ -134,6 +134,25 @@ bool HIDDEN ln_derkey_local_storage_create_prev_per_commitment_secret(const ln_d
 }
 
 
+bool HIDDEN ln_derkey_local_storage_create_second_prev_per_commitment_secret(const ln_derkey_local_keys_t *pKeys, uint8_t *pSecret, uint8_t *pPerCommitPt)
+{
+    uint64_t storage_index = pKeys->next_storage_index + 3;
+    if (storage_index <= LN_SECRET_INDEX_INIT) {
+        /*void*/ ln_derkey_local_storage_create_per_commitment_secret(
+            pKeys, pSecret, storage_index);
+        if (pPerCommitPt) {
+            if (!btc_keys_priv2pub(pPerCommitPt, pSecret)) return false;
+        }
+    } else {
+        memset(pSecret, 0x00, BTC_SZ_PRIVKEY);
+        if (pPerCommitPt) {
+            memcpy(pPerCommitPt, pKeys->per_commitment_point, BTC_SZ_PUBKEY);
+        }
+    }
+    return true;
+}
+
+
 uint64_t ln_derkey_local_storage_get_prev_index(const ln_derkey_local_keys_t *pKeys)
 {
     if (pKeys->next_storage_index + 2 > LN_SECRET_INDEX_INIT) {

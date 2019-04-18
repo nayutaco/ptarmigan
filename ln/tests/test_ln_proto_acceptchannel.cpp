@@ -78,7 +78,8 @@ FAKE_VALUE_FUNC(bool, ln_msg_funding_created_read, ln_msg_funding_created_t *, c
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_write, utl_buf_t *, const ln_msg_funding_signed_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
-FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, const ln_channel_t *, ln_commit_info_t *, ln_close_force_t *, fake_sig_t **);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, const ln_channel_t *, ln_commit_info_t *, const ln_update_info_t *, fake_sig_t **);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_channel_t *, ln_commit_info_t *, const ln_update_info_t *, ln_close_force_t *);
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -107,6 +108,7 @@ protected:
         RESET_FAKE(ln_commit_tx_create_remote)
 
         ln_commit_tx_create_remote_fake.return_val = true;
+        ln_commit_tx_create_remote_close_fake.return_val = true;
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
     }

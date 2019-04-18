@@ -57,6 +57,9 @@
 #define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
 #endif
 
+#define M_SZ_SCRIPT_PARAM       (512)
+
+
 /**************************************************************************
  * typedefs
  **************************************************************************/
@@ -419,7 +422,10 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
     if (del) {
         bool ret;
         p_channel->status = LN_STATUS_CLOSED; //XXX:
+
         LOGD("delete from DB\n");
+        char str_ci[LN_SZ_CHANNEL_ID_STR * 2 + 1];
+        utl_str_bin2str(str_ci, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
         ln_db_forward_add_htlc_drop(ln_short_channel_id(p_channel));
         ln_db_forward_del_htlc_drop(ln_short_channel_id(p_channel));
         ln_db_channel_owned_del(ln_short_channel_id(p_channel));
@@ -430,11 +436,27 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
         }
         if (ret) {
             ptarmd_eventlog(ln_channel_id(p_channel), "close: finish");
+            ptarmd_eventlog(NULL, "channel DB closed: %s", str_ci);
         } else {
             LOGE("fail: del channel: ");
             DUMPD(ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
         }
         btcrpc_del_channel(ln_remote_node_id(p_channel));
+
+        // method: dbclosed
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: channel_id
+        char param[M_SZ_SCRIPT_PARAM];
+        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
+        char str_nodeid[BTC_SZ_PUBKEY * 2 + 1];
+        utl_str_bin2str(str_nodeid, ln_node_get_id(), BTC_SZ_PUBKEY);
+        snprintf(param, sizeof(param), "%s %s "
+                    "%s",
+                    str_sci, str_nodeid,
+                    str_ci);
+        ptarmd_call_script(PTARMD_EVT_DBCLOSED, param);
     }
 
     return false; //always
