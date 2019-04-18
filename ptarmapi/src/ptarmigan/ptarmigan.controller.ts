@@ -204,9 +204,9 @@ export class PtarmiganController {
     // TODO: add to pay_fundin.py to openchannel 
     @Post('fund') // fund -> openchannel
     async executeFund( @Body() peerDto: PeerDto, fundDto: FundDto) {
-        let fundingSat = 10000
-        let pushMsat   = 10000
-        this.ptarmiganService.commandExecuteSync("pay_fundin.py", [fundingSat, pushMsat]).toString()
+        //let fundingSat: number = 10000
+        //let pushMsat: number   = 10000
+        //this.ptarmiganService.commandExecuteSync("pay_fundin.py", [fundingSat, pushMsat]).toString()
         return await this.ptarmiganService.requestTCP("fund", [peerDto.peerNodeId, peerDto.peerAddr, peerDto.peerPort, fundDto.txId, fundDto.txIndex, fundDto.fundingSat, fundDto.pushSat, fundDto.feeratePerKw])
     }
 
