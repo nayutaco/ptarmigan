@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
         { "sendpayment", required_argument, NULL, 'r' },
         { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
-        { "addinvoice", required_argument, NULL, 'i' },
+        { "createinvoice", required_argument, NULL, 'i' },
         { "listinvoice", no_argument, NULL, 'm' },
         { "removeinvoice", required_argument, NULL, 'e' },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
@@ -316,7 +316,7 @@ static void print_help(void)
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\tINVOICE:\n");
-    fprintf(stderr, "\t\t--addinvoice AMOUNT_MSAT : create invoice and add list\n");
+    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT : create invoice and add list\n");
     fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
     fprintf(stderr, "\t\t--listinvoice : list created invoices\n");
     fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
