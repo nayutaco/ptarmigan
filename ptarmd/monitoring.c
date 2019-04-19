@@ -57,6 +57,9 @@
 #define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
 #endif
 
+//offset for btcrpc_search_outpoint(), btcrpc_search_vout()
+#define M_SEARCH_OUTPOINT(conf)         ((conf) + 3)
+
 #define M_SZ_SCRIPT_PARAM       (512)
 
 
@@ -550,7 +553,9 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
         }
         btc_tx_t *p_tx = NULL;
         ret = btcrpc_search_outpoint(
-            &close_tx, pParam->confm - p_list->last_check_confm, ln_funding_info_txid(&p_channel->funding_info), ln_funding_info_txindex(&p_channel->funding_info));
+            &close_tx, M_SEARCH_OUTPOINT(pParam->confm - p_list->last_check_confm),
+            ln_funding_info_txid(&p_channel->funding_info),
+            ln_funding_info_txindex(&p_channel->funding_info));
         if (ret) {
             p_tx = &close_tx;
         }
@@ -738,7 +743,8 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-    if (!btcrpc_search_outpoint(&tx, confirm, txid, pCloseDat->p_tx[lp].vin[0].index)) {
+    if (!btcrpc_search_outpoint(&tx, M_SEARCH_OUTPOINT(confirm),
+            txid, pCloseDat->p_tx[lp].vin[0].index)) {
         LOGD("not found txid: ");
         TXIDD(txid);
         LOGD("index=%d\n", lp);
@@ -927,7 +933,8 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-    if (!btcrpc_search_outpoint(&tx, confirm, txid, pCloseDat->p_tx[lp].vin[0].index)) {
+    if (!btcrpc_search_outpoint(&tx, M_SEARCH_OUTPOINT(confirm),
+            txid, pCloseDat->p_tx[lp].vin[0].index)) {
         LOGD("not found txid: ");
         TXIDD(txid);
         LOGD("index=%d\n", pCloseDat->p_htlc_idxs[lp]);
@@ -1061,7 +1068,7 @@ static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pD
         //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
         utl_buf_t txbuf = UTL_BUF_INIT;
         const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
-        bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(pChannel), &p_vout[0]);
+        bool ret = btcrpc_search_vout(&txbuf, M_SEARCH_OUTPOINT(confm - ln_revoked_confm(pChannel)), &p_vout[0]);
         if (ret) {
             bool sendret = true;
             int num = txbuf.len / sizeof(btc_tx_t);
