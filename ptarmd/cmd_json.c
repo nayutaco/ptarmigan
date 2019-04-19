@@ -2064,7 +2064,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
     }
 
     ln_status_t stat = ln_status_get(&p_conf->channel);
-    if ((stat < LN_STATUS_ESTABLISH) || (LN_STATUS_NORMAL < stat)) {
+    if ((stat < LN_STATUS_ESTABLISH) || (stat > LN_STATUS_NORMAL_OPE)) {
         err = RPCERR_NOCHANNEL;
         goto LABEL_EXIT;
     }

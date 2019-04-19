@@ -679,7 +679,7 @@ void *lnapp_thread_channel_start(void *pArg)
         LOGD("have channel\n");
 
         if (!ln_status_is_closing(p_channel)) {
-            if (stat == LN_STATUS_NORMAL) {
+            if (stat == LN_STATUS_NORMAL_OPE) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
                 LOGD("$$$ Established\n");
                 ln_establish_free(p_channel);
@@ -1593,8 +1593,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    bool ret = ln_status_load(&p_conf->channel);
-    if (!ret || ln_status_is_closed(&p_conf->channel)) {
+    if (ln_status_is_closed(&p_conf->channel)) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(&p_conf->channel));
         lnapp_stop_threads(p_conf);

@@ -193,14 +193,14 @@ typedef struct ln_channel_t ln_channel_t;
  */
 typedef enum {
     LN_STATUS_NONE = 0,
-    LN_STATUS_ESTABLISH = 1,        ///< establish
-    LN_STATUS_NORMAL = 2,           ///< normal operation
-    LN_STATUS_CLOSE_WAIT = 3,       ///< shutdown received or sent
-    LN_STATUS_CLOSE_MUTUAL = 4,     ///< mutual close
-    LN_STATUS_CLOSE_UNI_LOCAL = 5,  ///< unilateral close(from local)
-    LN_STATUS_CLOSE_UNI_REMOTE = 6, ///< unilateral close(from remote)
-    LN_STATUS_CLOSE_REVOKED = 7,    ///< revoked transaction close(from remote)
-    LN_STATUS_CLOSED = 8            ///< closed
+    LN_STATUS_ESTABLISH,        ///< establish
+    LN_STATUS_NORMAL_OPE,       ///< normal operation
+    LN_STATUS_CLOSE_WAIT,       ///< `closing_signed`s were received and sent with the same fee
+    LN_STATUS_CLOSE_MUTUAL,     ///< mutual close
+    LN_STATUS_CLOSE_UNI_LOCAL,  ///< unilateral close(from local)
+    LN_STATUS_CLOSE_UNI_REMOTE, ///< unilateral close(from remote)
+    LN_STATUS_CLOSE_REVOKED,    ///< revoked transaction close(from remote)
+    LN_STATUS_CLOSED            ///< closed
 } ln_status_t;
 
 

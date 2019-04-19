@@ -1504,7 +1504,7 @@ static bool check_recv_add_htlc_bolt4_after_forward(
 
     utl_push_init(&push_reason, pReason, 0);
 
-    if (ln_status_get(pChannel) != LN_STATUS_NORMAL) {
+    if (ln_status_get(pChannel) != LN_STATUS_NORMAL_OPE) {
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "not status normal");
         utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
         goto LABEL_ERROR;
