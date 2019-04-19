@@ -80,7 +80,7 @@ def fund_in(name, funding_sat, push_msat):
     print("[TXID] " + sendtx, file=sys.stderr)
 
     # lock unspent(NOTE: not auto unlock!!)
-    lockvout = lockunspent(sendtx)
+    lockvout = lockunspent(sendtx, 0)
     print('[LOCK]', lockvout, file=sys.stderr)
 
     #CREATE CONF
@@ -124,6 +124,7 @@ def aggregate_inputs(fundamount, feerate):
 
         sum += lu[i]['amount']
         txlist.append("{\"txid\":\"" + str(lu[i]['txid']) + "\",\"vout\":" + str(lu[i]['vout']) + "}")
+        lockunspent(str(lu[i]['txid']), lu[i]['vout'])
         inputs += 1
 
         if sum >= fundamount:
@@ -236,8 +237,8 @@ def signrawtx(signhex):
     return sendtx
 
 
-def lockunspent(sendtx):
-    outpoint = '{\\"txid\\":\\"' + sendtx + '\\",\\"vout\\":0}'
+def lockunspent(txid, txindex):
+    outpoint = '{\\"txid\\":\\"' + txid + '\\",\\"vout\\":' + str(txindex) + '}'
     lockvout = subprocess.run(('bitcoin-cli lockunspent false "[' + outpoint + ']"'), shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return lockvout.stdout.decode("utf8").strip() == 'true'
 
