@@ -403,6 +403,9 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
 
     //現在からBlksの間に、使用したtransactionがあるかどうか
     if (ret) {
+        if ((uint32_t)height < Blks) {
+            Blks = height;
+        }
         for (uint32_t lp = 0; lp < Blks; lp++) {
             ret = search_outpoint(pTx, height - lp, pTxid, VIndex);
             if (ret) {
@@ -428,6 +431,9 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 
     //現在からBlksの間に使用したtransactionがあるかどうか
     if (ret) {
+        if ((uint32_t)height < Blks) {
+            Blks = height;
+        }
         for (uint32_t lp = 0; lp < Blks; lp++) {
             ret = search_vout_block(pTxBuf, height - lp, pVout);
             if (ret) {
