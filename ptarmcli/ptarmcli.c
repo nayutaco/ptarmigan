@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 static void print_help(void)
 {
     fprintf(stderr, "[usage]\n");
-    fprintf(stderr, "\tptarmcli [-t] [OPTIONS...] [JSON-RPC port(not ptarmd port)]\n");
+    fprintf(stderr, "\tptarmcli [OPTIONS...] [JSON-RPC port(not ptarmd port)]\n");
     fprintf(stderr, "\t\t--help,-h : help\n");
     fprintf(stderr, "\t\t--stop,-q : quit ptarmd\n");
     fprintf(stderr, "\t\t--getinfo,-l : list channels\n");
