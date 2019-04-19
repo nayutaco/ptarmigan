@@ -4,31 +4,22 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)
 ![Issue Welcome](https://img.shields.io/badge/issue-welcome-brightgreen.svg)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan)
+<!-- [![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan) -->
 
 ## About
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
 * In Japanese, `ptarmigan` is called "雷(thunder)鳥(bird)".
-* [CHANGELOG](CHANGELOG.md)
 
 ## Setup
 
-* bitcoind v0.17
+* Ubuntu 18.04
+* bitcoind
+  * above v0.17(`getnetworkinfo` version > 170000)
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
   * nested in BIP16 P2SH
-* Ubuntu 18.04
 
-## Usage
-
-* [docs/README.md](docs/README.md)
-
-## Build
-
-### installation
-
-* use `bitcoind`
-  * above v0.17(`getnetworkinfo` version > 170000)
+## Install
 
 ```bash
 sudo apt install -y git autoconf pkg-config build-essential libtool python3 wget jq bc
@@ -39,44 +30,45 @@ make full
 (takes a lot of time...)
 ```
 
-### update
+[more...](docs/INSTALL.md)
 
-```bash
-cd ptarmigan
-git pull
-(make clean)
-make
+## Starting `bitcoind`
+
+At first, start `bitcoind`.
+`ptarmd` use bitcoind JSON-RPC, so need `rpcuser` and `rpcpassword`.
+
+* bitcoin.conf sample
+
+```text
+rpcuser=bitcoinuser
+rpcpassword=bitcoinpassword
+server=1
+txindex=1
 ```
 
-#### after change DB version
-
-* Updating `ptarmigan` sometimes changes the version of internal DB data.  
-  In that case, delete previous `db` directory(if you need close, execute `ptarmcli -x`).
-
-### update libraries
-
 ```bash
-cd ptarmigan
-git pull
-make full
-```
+bitcoind -daemon
 
-### deep clean
-
-```bash
-make distclean
+# check started chain
+bitcoin-cli getblockchaininfo | jq -e '.chain'
 ```
 
 ## Starting `ptarmd`
+
 For starting `ptarmd`, you should make new node as follows.
 
 ```bash
-cd install
+cd ptarmigan/install
 ./new_nodedir.sh [NODENAME]
-
 cd [NODENAME]
-../ptarmd --network=testnet
+
+# start ptarmigan daemon
+#   CHAIN=mainnet, testnet or regtest
+../ptarmd --network=[CHAIN]
 ```
+
+* [NOTE](docs/INSTALL.md#NOTE)
+* [How to use](docs/howtouse.md)
 
 ## Dependency
 
