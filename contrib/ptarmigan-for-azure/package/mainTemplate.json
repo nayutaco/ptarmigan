@@ -47,8 +47,8 @@
             "defaultValue": ""
         },
         "_artifactsLocation": {
-            "type": "string",
-            "defaultValue": "https://raw.githubusercontent.com/nayutaco/ptarmigan/feature/rest-api/contrib/ptarmigan-for-azure/"
+            "type": "string", 
+            "defaultValue": "[deployment().properties.templateLink.uri]"
         },
         "_artifactsLocationSasToken": {
             "type": "securestring",
@@ -103,6 +103,10 @@
                     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
                     "contentVersion": "1.0.0.0",
                     "resources": []
+                },
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/nayutaco/ptarmigan/feature/rest-api/contrib/ptarmigan-for-azure/",
+                    "contentVersion": "1.0.0"
                 }
             }
         },
