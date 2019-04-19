@@ -172,8 +172,6 @@ static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_i
 static void load_channel_settings(lnapp_conf_t *p_conf);
 static void load_announce_settings(void);
 
-static void recv_idle_proc(lnapp_conf_t *p_conf);
-
 static bool getnewaddress(utl_buf_t *pBuf);
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 
@@ -844,12 +842,12 @@ void *lnapp_thread_channel_origin_start(void *pArg)
 
     LOGD("\n");
 
-    //pthread_mutex_lock(&p_conf->mux_conf);
     while (p_conf->active) {
+        pthread_mutex_lock(&p_conf->mux_conf);
         ln_idle_proc_origin(&p_conf->channel);
+        pthread_mutex_unlock(&p_conf->mux_conf);
         utl_thread_msleep(M_WAIT_RECV_TO_MSEC); //XXX: we should use `pthread_cond_wait`
     }
-    //pthread_mutex_unlock(&p_conf->mux_conf);
 
     lnapp_conf_stop(p_conf);
     lnapp_manager_free_node_ref(p_conf);
@@ -1254,78 +1252,81 @@ static void *thread_recv_start(void *pArg)
     utl_thread_msleep(M_WAIT_RECV_THREAD_MSEC);
 
     while (p_conf->active) {
-        bool ret = true;
-
-        //noise packet データ長
         uint8_t head[LN_SZ_NOISE_HEADER];
         uint16_t len = recv_peer(p_conf, head, LN_SZ_NOISE_HEADER, 0);
         if (len == 0) {
-            //peerから切断された
+            //disconnected
             LOGD("DISC: loop end\n");
-            lnapp_stop_threads(p_conf);
             break;
         }
-        assert(len == LN_SZ_NOISE_HEADER);
-        if (len == LN_SZ_NOISE_HEADER) {
-            len = ln_noise_dec_len(&p_conf->noise, head, len);
-        } else {
+        if (len != LN_SZ_NOISE_HEADER) {
+            LOGE("fail: ???\n");
             break;
         }
 
+        len = ln_noise_dec_len(&p_conf->noise, head, len);
+
+        utl_buf_free(&buf_recv);
         utl_buf_alloc(&buf_recv, len);
         uint16_t len_msg = recv_peer(p_conf, buf_recv.buf, len, M_WAIT_RESPONSE_MSEC);
         if (len_msg == 0) {
-            //peerから切断された
+            //disconnected
             LOGD("DISC: loop end\n");
-            lnapp_stop_threads(p_conf);
             break;
         }
-        if (len_msg == len) {
-            buf_recv.len = len;
-            ret = ln_noise_dec_msg(&p_conf->noise, &buf_recv);
-            if (!ret) {
-                LOGD("DECODE: loop end\n");
-                lnapp_stop_threads(p_conf);
-            }
-        } else {
+        if (len_msg != len) {
+            LOGE("fail: ???\n");
             break;
         }
 
-        if (ret) {
-            //LOGD("type=%02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
-            pthread_mutex_lock(&p_conf->mux_conf);
-            uint16_t type = utl_int_pack_u16be(buf_recv.buf);
-            LOGD("[RECV]type=%04x(%s): sock=%d, Len=%d\n", type, ln_msg_name(type), p_conf->sock, buf_recv.len);
-            ret = ln_recv(&p_conf->channel, buf_recv.buf, buf_recv.len);
-            //LOGD("ln_recv() result=%d\n", ret);
-            if (!ret) {
-                LOGD("DISC: fail recv message\n");
-                lnapp_stop_threads(p_conf);
-                //XXX: block reconnection
-                lnapp_close_channel_force(p_conf);
-            }
-            if ((p_conf->active) && (type == MSGTYPE_INIT)) {
-                LOGD("$$$ init exchange...\n");
-                uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
-                while (p_conf->active && (count > 0) && ((p_conf->flag_recv & M_FLAGRECV_INIT_EXCHANGED) == 0)) {
-                    utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
-                    count--;
-                }
-                if (count > 0) {
-                    LOGD("$$$ init exchanged\n");
-                } else {
-                    LOGE("fail: init exchange timeout\n");
-                    lnapp_stop_threads(p_conf);
-                }
-            }
-            //LOGD("mux_conf: end\n");
-            pthread_mutex_unlock(&p_conf->mux_conf);
+        buf_recv.len = len;
+        if (!ln_noise_dec_msg(&p_conf->noise, &buf_recv)) {
+            LOGD("DECODE: loop end\n");
+            break;
         }
-        utl_buf_free(&buf_recv);
+
+        uint16_t type = utl_int_pack_u16be(buf_recv.buf);
+        LOGD("[RECV]type=%04x(%s): sock=%d, Len=%d\n", type, ln_msg_name(type), p_conf->sock, buf_recv.len);
+
+        pthread_mutex_lock(&p_conf->mux_conf); //lock
+
+        if (ln_status_is_closing(&p_conf->channel)) {
+            LOGD("???\n");
+            pthread_mutex_unlock(&p_conf->mux_conf); //unlock
+            break;
+        }
+        if (!ln_recv(&p_conf->channel, buf_recv.buf, buf_recv.len)) {
+            LOGD("DISC: fail recv message\n");
+            lnapp_close_channel_force(p_conf);
+            pthread_mutex_unlock(&p_conf->mux_conf); //unlock
+            break;
+        }
+
+        if (type == MSGTYPE_INIT) {
+            LOGD("$$$ init exchange...\n");
+            uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+            uint32_t lp;
+            for (lp = 0; lp < count; lp++) {
+                if (!p_conf->active) break;
+                if (p_conf->flag_recv & M_FLAGRECV_INIT_EXCHANGED) {
+                    LOGD("$$$ init exchanged\n");
+                    break;
+                }
+                utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
+            }
+            if (count == lp) {
+                LOGE("fail: init exchange timeout\n");
+                pthread_mutex_unlock(&p_conf->mux_conf); //unlock
+                break;
+            }
+        }
+
+        pthread_mutex_unlock(&p_conf->mux_conf); //unlock
     }
 
+    lnapp_stop_threads(p_conf);
+    utl_buf_free(&buf_recv);
     LOGD("[exit]recv thread\n");
-
     return NULL;
 }
 
@@ -1354,8 +1355,12 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
         } else if (polr == 0) {
             //timeout
 
-            // 受信アイドル処理
-            recv_idle_proc(p_conf);
+            pthread_mutex_lock(&p_conf->mux_conf);
+            if ((p_conf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END &&
+                !ln_status_is_closing(&p_conf->channel)) {
+                ln_idle_proc(&p_conf->channel, p_conf->feerate_per_kw);
+            }
+            pthread_mutex_unlock(&p_conf->mux_conf);
 
             if (ToMsec > 0) {
                 ToMsec--;
@@ -2007,23 +2012,6 @@ static void load_announce_settings(void)
 /**************************************************************************
  * 受信アイドル時処理
  **************************************************************************/
-
-
-/** 処理要求キューの処理実施
- *
- * 受信処理のアイドル時(タイムアウトした場合)に呼び出される。
- */
-static void recv_idle_proc(lnapp_conf_t *p_conf)
-{
-    pthread_mutex_lock(&p_conf->mux_conf);
-
-    if ((p_conf->flag_recv & M_FLAGRECV_END) == M_FLAGRECV_END) {
-        ln_idle_proc(&p_conf->channel, p_conf->feerate_per_kw);
-    }
-
-    pthread_mutex_unlock(&p_conf->mux_conf);
-}
-
 
 static bool getnewaddress(utl_buf_t *pBuf)
 {
