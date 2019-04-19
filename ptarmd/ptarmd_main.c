@@ -215,6 +215,7 @@ int main(int argc, char *argv[])
         //bitcoin.confから読込む
         bret = conf_btcrpc_load_default(&rpc_conf);
         if (!bret || (strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
+            fprintf(stderr, "fail: wrong conf file.\n");
             goto LABEL_EXIT;
         }
     }
