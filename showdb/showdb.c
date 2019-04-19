@@ -144,7 +144,7 @@ static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
 static void ln_print_wallet(const ln_channel_t *pChannel)
 {
     ln_status_t stat = ln_status_get(pChannel);
-    if (stat == LN_STATUS_NORMAL) {
+    if (stat == LN_STATUS_NORMAL_OPE) {
         printf(INDENT2 "{\n");
         printf(INDENT3 M_QQ("node_id") ": \"");
         utl_dbg_dump(stdout, pChannel->peer_node_id, BTC_SZ_PUBKEY, false);

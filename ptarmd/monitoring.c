@@ -478,8 +478,7 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
 
     if (pConf->active) {
         //socket接続済みであれば、feerate_per_kwチェック
-        //  当面、feerate_per_kwを手動で変更した場合のみとする
-        if ((ln_status_get(p_channel) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
+        if (ln_status_get(p_channel) == LN_STATUS_NORMAL_OPE) {
             lnapp_set_feerate(pConf, pParam->feerate_per_kw);
         }
     } else if (LN_DBG_NODE_AUTO_CONNECT() &&
@@ -556,7 +555,7 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
             p_tx = &close_tx;
         }
         p_list->last_check_confm = pParam->confm;
-        if (ret || (stat == LN_STATUS_NORMAL)) {
+        if (ret || (stat == LN_STATUS_NORMAL_OPE)) {
             //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
             ln_close_change_stat(p_channel, p_tx, pDbParam);
             stat = ln_status_get(p_channel);

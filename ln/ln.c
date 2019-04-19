@@ -247,12 +247,6 @@ void ln_term(ln_channel_t *pChannel)
 }
 
 
-bool ln_status_load(ln_channel_t *pChannel)
-{
-    return ln_db_channel_load_status(pChannel);
-}
-
-
 const char *ln_status_string(const ln_channel_t *pChannel)
 {
     const char *p_str_stat;
@@ -263,7 +257,7 @@ const char *ln_status_string(const ln_channel_t *pChannel)
     case LN_STATUS_ESTABLISH:
         p_str_stat = "establishing";
         break;
-    case LN_STATUS_NORMAL:
+    case LN_STATUS_NORMAL_OPE:
         p_str_stat = "normal operation";
         break;
     case LN_STATUS_CLOSE_WAIT:
@@ -379,7 +373,7 @@ uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint3
 void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint32_t Index)
 {
     pChannel->short_channel_id = ln_short_channel_id_calc(Height, Index, ln_funding_info_txindex(&pChannel->funding_info));
-    pChannel->status = LN_STATUS_NORMAL;
+    pChannel->status = LN_STATUS_NORMAL_OPE;
     M_DB_CHANNEL_SAVE(pChannel);
 }
 
@@ -1018,7 +1012,7 @@ ln_status_t ln_status_get(const ln_channel_t *pChannel)
 
 bool ln_status_is_closing(const ln_channel_t *pChannel)
 {
-    return pChannel->status > LN_STATUS_NORMAL;
+    return pChannel->status > LN_STATUS_NORMAL_OPE;
 }
 
 

@@ -140,7 +140,6 @@ bool HIDDEN ln_shutdown_send(ln_channel_t *pChannel)
 
     pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND_SHDN;
     if (M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
-        pChannel->status = LN_STATUS_CLOSE_WAIT;
         if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
             pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_CLSN;
         }
@@ -158,10 +157,6 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
     LOGD("BEGIN\n");
 
     pChannel->close_last_fee_sat = 0; //XXX:
-    if (pChannel->shutdown_flag & LN_SHDN_FLAG_RECV_SHDN) {
-        //既にshutdownを受信済みなら、何もしない
-        return true;
-    }
 
     ln_msg_shutdown_t msg;
     if (!ln_msg_shutdown_read(&msg, pData, Len)) {
@@ -188,7 +183,6 @@ bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint1
         pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_SHDN;
     }
     if (M_SHDN_FLAG_EXCHANGED(pChannel->shutdown_flag)) {
-        pChannel->status = LN_STATUS_CLOSE_WAIT;
         if (ln_funding_info_is_funder(&pChannel->funding_info, true)) {
             pChannel->shutdown_flag |= LN_SHDN_FLAG_WAIT_SEND_CLSN;
         }
@@ -237,6 +231,10 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     utl_buf_free(&buf);
 
     pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND_CLSN;
+    if (pClosingSignedMsg) {
+        //XXX: send the same fee now
+        pChannel->status = LN_STATUS_CLOSE_WAIT;
+    }
     M_DB_CHANNEL_SAVE(pChannel);
     return true;
 }
@@ -314,6 +312,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         //clearはDB削除に任せる
         //channel_clear(pChannel);
 
+        pChannel->status = LN_STATUS_CLOSE_WAIT;
         M_DB_CHANNEL_SAVE(pChannel);
     } else {
         LOGD("different fee!\n");

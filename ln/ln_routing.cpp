@@ -255,7 +255,7 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
 
     M_DBGLOG("channel: short_channel_id=%016" PRIx64 "\n", pChannel->short_channel_id);
     M_DBGLOG("      status=%d\n", ln_status_get(pChannel));
-    if ((pChannel->short_channel_id != 0) && (ln_status_get(pChannel) == LN_STATUS_NORMAL)) {
+    if ((pChannel->short_channel_id != 0) && (ln_status_get(pChannel) == LN_STATUS_NORMAL_OPE)) {
         //チャネルは開設している && normal operation
         ln_db_route_skip_t rskip = ln_db_route_skip_search(pChannel->short_channel_id);
         if ((rskip != LN_DB_ROUTE_SKIP_NONE) && (rskip != LN_DB_ROUTE_SKIP_WORK)) {

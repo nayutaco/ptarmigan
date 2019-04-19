@@ -339,21 +339,6 @@ void ptarmd_preimage_lock(void);
 void ptarmd_preimage_unlock(void);
 
 
-/** 転送可能lnapp_conf_t取得(short_channel_id)
- *
- * @param[in]   short_channel_id    検索するshort_channel_id
- * @retval  非NULL      検索成功
- * @retval  NULL        検索失敗
- * @note
- *  - 以下の条件を満たす
- *      - short_channel_idに対応するlnapp_conf_tが存在する
- *      - 初期メッセージ交換済み(init/channel_reestablish/etc...)
- *      - ping/pongが止まっていない
- *      - channel statusがNormal Operationである
- */
-lnapp_conf_t *ptarmd_search_transferable_channel(uint64_t short_channel_id);
-
-
 /** 接続済みlnapp_conf_t取得(node_id)
  *
  * @param[in]   p_node_id       検索するnode_id
@@ -361,15 +346,6 @@ lnapp_conf_t *ptarmd_search_transferable_channel(uint64_t short_channel_id);
  * @retval  NULL        検索失敗
  */
 lnapp_conf_t *ptarmd_search_connected_node_id(const uint8_t *p_node_id);
-
-
-/** 転送可能lnapp_conf_t取得(node_id)
- *
- * @param[in]   p_node_id       検索するnode_id
- * @retval  非NULL      検索成功
- * @retval  NULL        検索失敗
- */
-lnapp_conf_t *ptarmd_search_transferable_node_id(const uint8_t *p_node_id);
 
 
 /** ノード接続失敗リスト追加
