@@ -385,7 +385,7 @@ bool HIDDEN ln_commitment_signed_recv(ln_channel_t *pChannel, const uint8_t *pDa
     //署名チェック＋保存: To-Local
     pChannel->commit_info_local.commit_num++;
     if (!ln_commit_tx_create_local(
-        pChannel, &pChannel->commit_info_local, &pChannel->update_info,
+        &pChannel->commit_info_local, &pChannel->update_info, &pChannel->keys_local,
         (const uint8_t (*)[LN_SZ_SIGNATURE])msg.p_htlc_signature, msg.num_htlcs)) {
         LOGE("fail: create_to_local\n");
         return false;
@@ -1778,7 +1778,8 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     //create sigs for remote commitment transaction
     pChannel->commit_info_remote.commit_num++;
     if (!ln_commit_tx_create_remote(
-        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, &p_htlc_sigs)) {
+        &pChannel->commit_info_remote, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commitment transaction");
         goto LABEL_EXIT;
     }
@@ -2200,7 +2201,9 @@ static bool check_create_remote_commit_tx(ln_channel_t *pChannel, uint16_t Updat
     ln_update_t bak = *p_update;
     LN_UPDATE_REMOTE_ENABLE_ADD_HTLC_RECV(p_update);
     uint8_t (*p_htlc_sigs)[LN_SZ_SIGNATURE] = NULL;
-    if (!ln_commit_tx_create_remote(pChannel, &new_commit_info, &pChannel->update_info, &p_htlc_sigs)) {
+    if (!ln_commit_tx_create_remote(
+        &new_commit_info, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, &p_htlc_sigs)) {
         M_SET_ERR(pChannel, LNERR_MSG_ERROR, "create remote commit_tx(check)");
         goto LABEL_EXIT;
     }

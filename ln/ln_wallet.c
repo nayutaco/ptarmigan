@@ -43,7 +43,6 @@
 #include "ln_commit_tx.h"
 #include "ln_derkey.h"
 #include "ln_script.h"
-#include "ln.h"
 #include "ln_msg_close.h"
 #include "ln_local.h"
 #include "ln_setupctl.h"
@@ -76,24 +75,29 @@ static bool create_base_tx(
  **************************************************************************/
 
 bool ln_wallet_create_to_local(
-    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
-    const utl_buf_t *pWitScript, const uint8_t *pTxid, int Index, bool bRevoked)
+    btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+    const utl_buf_t *pWitScript, const uint8_t *pTxid, int Index,
+    const ln_derkey_local_keys_t *pKeysLocal, const ln_derkey_remote_keys_t *pKeysRemote,
+    const uint8_t *pRevokedPerCommitSecOrNull)
 {
-    if (!create_base_tx(pTx, Value, NULL, ToSelfDelay, pTxid, Index, bRevoked)) return false;
+    bool b_revoked = pRevokedPerCommitSecOrNull ? true : false;
+    if (!create_base_tx(pTx, Value, NULL, ToSelfDelay, pTxid, Index, b_revoked)) return false;
     btc_keys_t key;
     if (!ln_signer_to_local_key(
-        &key, &pChannel->keys_local, &pChannel->keys_remote, bRevoked ? pChannel->revoked_sec.buf : NULL)) return false;
-    if (!ln_wallet_script_to_local_set_vin0(pTx, &key, pWitScript, bRevoked)) return false;
+        &key, pKeysLocal, pKeysRemote, pRevokedPerCommitSecOrNull)) return false;
+    if (!ln_wallet_script_to_local_set_vin0(pTx, &key, pWitScript, b_revoked)) return false;
     return true;
 }
 
 
 bool ln_wallet_create_to_remote(
-    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index)
+    btc_tx_t *pTx, uint64_t Value,
+    const uint8_t *pTxid, int Index,
+    const ln_derkey_local_keys_t *pKeysLocal, const ln_derkey_remote_keys_t *pKeysRemote)
 {
     if (!create_base_tx(pTx, Value, NULL, 0, pTxid, Index, false)) return false;
     btc_keys_t key;
-    if (!ln_signer_to_remote_key(&key, &pChannel->keys_local, &pChannel->keys_remote)) return false;
+    if (!ln_signer_to_remote_key(&key, pKeysLocal, pKeysRemote)) return false;
     if (!ln_wallet_script_to_remote_set_vin0(pTx, &key)) return false;
     return true;
 }

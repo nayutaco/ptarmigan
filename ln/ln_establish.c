@@ -406,7 +406,8 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     //initial commit tx(Remoteが持つTo-Local)
     if (!ln_commit_tx_create_remote(
-        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, NULL)) {
+        &pChannel->commit_info_remote, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, NULL)) {
         LOGE("fail: ???\n");
         return false;
     }
@@ -475,14 +476,16 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     //verify sign
     //  initial commit tx(自分が持つTo-Local)
     if (!ln_commit_tx_create_local(
-        pChannel, &pChannel->commit_info_local, &pChannel->update_info, NULL, 0)) {
+        &pChannel->commit_info_local, &pChannel->update_info,
+        &pChannel->keys_local, NULL, 0)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
 
     //initial commit tx(Remoteが持つTo-Local)
     if (!ln_commit_tx_create_remote(
-        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, NULL)) {
+        &pChannel->commit_info_remote, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, NULL)) {
         LOGE("fail: ???\n");
         return false;
     }
@@ -543,7 +546,8 @@ bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //initial commit tx(自分が持つTo-Local)
     //  HTLCは存在しない
     if (!ln_commit_tx_create_local(
-        pChannel, &pChannel->commit_info_local, &pChannel->update_info, NULL, 0)) {
+        &pChannel->commit_info_local, &pChannel->update_info,
+        &pChannel->keys_local, NULL, 0)) {
         LOGE("fail: create_to_local\n");
         return false;
     }

@@ -63,6 +63,7 @@
 #include "ln_local.h"
 #include "ln_msg.h"
 #include "ln_htlc_tx.h"
+#include "ln_wallet.h"
 #include "ln.h"
 
 #define M_DBG_VERBOSE
@@ -657,7 +658,8 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
 
     //local commit_tx
     bool ret = ln_commit_tx_create_local_close(
-        pChannel, &pChannel->commit_info_local, &pChannel->update_info, pClose);
+        &pChannel->commit_info_local, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, pClose);
     if (!ret) {
         LOGE("fail: create_to_local\n");
         ln_close_free_forcetx(pClose);
@@ -701,7 +703,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
 
     //remote
     memcpy(pChannel->keys_remote.per_commitment_point,
-            pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+        pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
     ln_update_script_pubkeys(pChannel);
@@ -712,7 +714,8 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
 
     //remote commit_tx
     bool ret = ln_commit_tx_create_remote_close(
-        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, pClose);
+        &pChannel->commit_info_remote, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, pClose);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
@@ -1401,6 +1404,26 @@ bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel)
     if (!ln_derkey_remote_update_script_pubkeys(
         &pChannel->keys_remote, &pChannel->keys_local)) return false;
     return true;
+}
+
+
+bool ln_wallet_create_to_local_2(
+    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+    const utl_buf_t *pWitScript, const uint8_t *pTxid, int Index, bool bRevoked)
+{
+    return ln_wallet_create_to_local(
+        pTx, Value, ToSelfDelay, pWitScript, pTxid, Index,
+        &pChannel->keys_local, &pChannel->keys_remote,
+        bRevoked ? pChannel->revoked_sec.buf : NULL);
+}
+
+
+bool ln_wallet_create_to_remote_2(
+    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index)
+{
+    return ln_wallet_create_to_remote(
+        pTx, Value, pTxid, Index,
+        &pChannel->keys_local, &pChannel->keys_remote);
 }
 
 
