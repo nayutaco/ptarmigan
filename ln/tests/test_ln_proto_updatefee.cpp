@@ -71,7 +71,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
 FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, const ln_channel_t *, ln_commit_info_t *, const ln_update_info_t *, fake_sig_t **);
-FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_channel_t *, ln_commit_info_t *, const ln_update_info_t *, ln_close_force_t *);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_channel_t *, const ln_commit_info_t *, const ln_update_info_t *, ln_close_force_t *);
 
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_msg_update_fee_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_msg_update_fee_t *, const uint8_t *, uint16_t );

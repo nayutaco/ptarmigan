@@ -557,7 +557,7 @@ LABEL_EXIT:
 
 bool ln_commit_tx_create_remote_close(
     const ln_channel_t *pChannel,
-    ln_commit_info_t *pCommitInfo,
+    const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
     ln_close_force_t *pClose)
 {
@@ -569,7 +569,7 @@ bool ln_commit_tx_create_remote_close(
     btc_tx_t tx_commit = BTC_TX_INIT;
 
     ln_commit_tx_info_t commit_tx_info;
-    if (!ln_commit_tx_info_create_pre_committed(
+    if (!ln_commit_tx_info_create_committed(
         &commit_tx_info, pCommitInfo, pUpdateInfo, false)) return false;
 
     if (!save_vouts_remote(&commit_tx_info)) {
@@ -582,16 +582,29 @@ bool ln_commit_tx_create_remote_close(
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
-    pCommitInfo->num_htlc_outputs = commit_tx_info.num_htlc_outputs;
 
-    if (!ln_commit_tx_create_rs(&tx_commit, pCommitInfo->remote_sig, &commit_tx_info, &pChannel->keys_local)) goto LABEL_EXIT;
+    //check pCommitInfo
+    if (pCommitInfo->local_msat != commit_tx_info.local_msat ||
+        pCommitInfo->remote_msat != commit_tx_info.remote_msat ||
+        pCommitInfo->num_htlc_outputs != commit_tx_info.num_htlc_outputs) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
+    uint8_t remote_sig[LN_SZ_SIGNATURE];    //local (remote's remote) signature
+    if (!ln_commit_tx_create_rs(&tx_commit, remote_sig, &commit_tx_info, &pChannel->keys_local)) goto LABEL_EXIT;
+    if (memcmp(remote_sig, pCommitInfo->remote_sig, LN_SZ_SIGNATURE)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
     LOGD("++++++++++++++ remote commit tx: tx_commit[%016" PRIx64 "]\n", pChannel->short_channel_id);
     M_DBG_PRINT_TX(&tx_commit);
 
-    pCommitInfo->local_msat = commit_tx_info.local_msat;
-    pCommitInfo->remote_msat = commit_tx_info.remote_msat;
-
-    if (!btc_tx_txid(&tx_commit, pCommitInfo->txid)) goto LABEL_EXIT;
+    uint8_t txid[BTC_SZ_TXID];
+    if (!btc_tx_txid(&tx_commit, txid)) goto LABEL_EXIT;
+    if (memcmp(txid, pCommitInfo->txid, BTC_SZ_TXID)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
     LOGD("remote commit_txid: ");
     TXIDD(pCommitInfo->txid);
 

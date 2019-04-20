@@ -128,7 +128,7 @@ bool HIDDEN ln_commit_tx_create_remote(
 
 bool HIDDEN ln_commit_tx_create_remote_close(
     const ln_channel_t *pChannel,
-    ln_commit_info_t *pCommitInfo,
+    const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
     ln_close_force_t *pClose);
 
