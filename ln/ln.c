@@ -267,13 +267,19 @@ const char *ln_status_string(const ln_channel_t *pChannel)
         p_str_stat = "mutual close";
         break;
     case LN_STATUS_CLOSE_UNI_LOCAL:
-        p_str_stat = "unilateral close(local)";
+        p_str_stat = "unilateral close (local)";
         break;
-    case LN_STATUS_CLOSE_UNI_REMOTE:
-        p_str_stat = "unilateral close(remote)";
+    case LN_STATUS_CLOSE_UNI_REMOTE_LAST:
+        p_str_stat = "unilateral close (remote last)";
+        break;
+    case LN_STATUS_CLOSE_UNI_REMOTE_SECOND_LAST:
+        p_str_stat = "unilateral close (remote second last)";
         break;
     case LN_STATUS_CLOSE_REVOKED:
         p_str_stat = "revoked transaction close";
+        break;
+    case LN_STATUS_CLOSE_UNKNOWN:
+        p_str_stat = "unknown close";
         break;
     case LN_STATUS_CLOSED:
         p_str_stat = "closed";
@@ -582,24 +588,26 @@ void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void
              (pCloseTx->vout_cnt <= 2) &&
              ( utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(pChannel)) ||
                utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(pChannel)) ) ) {
-            //mutual close
             pChannel->status = LN_STATUS_CLOSE_MUTUAL;
         } else if (memcmp(txid, pChannel->commit_info_local.txid, BTC_SZ_TXID) == 0) {
-            //unilateral close(local)
             pChannel->status = LN_STATUS_CLOSE_UNI_LOCAL;
         } else {
-            //commitment numberの復元
             uint64_t commit_num = calc_commit_num(&pChannel->commit_info_remote, pCloseTx);
 
             utl_buf_alloc(&pChannel->revoked_sec, BTC_SZ_PRIVKEY);
             bool ret = ln_derkey_remote_storage_get_secret(&pChannel->keys_remote, pChannel->revoked_sec.buf, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
             if (ret) {
-                //revoked transaction close(remote)
                 pChannel->status = LN_STATUS_CLOSE_REVOKED;
                 btc_keys_priv2pub(pChannel->keys_remote.per_commitment_point, pChannel->revoked_sec.buf);
+            } else if (commit_num == pChannel->commit_info_remote.commit_num) {
+                pChannel->status = LN_STATUS_CLOSE_UNI_REMOTE_LAST;
+                utl_buf_free(&pChannel->revoked_sec);
+            } else if (commit_num == pChannel->commit_info_remote.commit_num - 1) {
+                pChannel->status = LN_STATUS_CLOSE_UNI_REMOTE_SECOND_LAST;
+                utl_buf_free(&pChannel->revoked_sec);
             } else {
-                //unilateral close(remote)
-                pChannel->status = LN_STATUS_CLOSE_UNI_REMOTE;
+                LOGE("fail: unknown close\n");
+                pChannel->status = LN_STATUS_CLOSE_UNKNOWN;
                 utl_buf_free(&pChannel->revoked_sec);
             }
         }

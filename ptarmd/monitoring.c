@@ -580,15 +580,15 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
             del = true;
             break;
         case LN_STATUS_CLOSE_UNI_LOCAL:
-            //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(p_channel, pDbParam);
             break;
-        case LN_STATUS_CLOSE_UNI_REMOTE:
-            //最新のremote commit_tx --> unilateral close(remote)
+        case LN_STATUS_CLOSE_UNI_REMOTE_LAST:
+            del = close_unilateral_remote(p_channel, pDbParam);
+            break;
+        case LN_STATUS_CLOSE_UNI_REMOTE_SECOND_LAST:
             del = close_unilateral_remote(p_channel, pDbParam);
             break;
         case LN_STATUS_CLOSE_REVOKED:
-            //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
             ret = ln_close_remote_revoked(p_channel, &close_tx, pDbParam);
             if (ret) {
