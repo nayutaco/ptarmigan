@@ -947,42 +947,42 @@ static void dumpit_route_skip(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
-{
-    if (showflag == SHOW_INVOICE) {
-        printf(M_QQ("payinvoice") ": [\n");
+// static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
+// {
+//     if (showflag == SHOW_INVOICE) {
+//         printf(M_QQ("payinvoice") ": [\n");
 
-        MDB_cursor  *cursor;
+//         MDB_cursor  *cursor;
 
-        int retval = mdb_cursor_open(txn, dbi, &cursor);
-        if (retval != 0) {
-            LOGD("err: %s\n", mdb_strerror(retval));
-            mdb_txn_abort(txn);
-        }
+//         int retval = mdb_cursor_open(txn, dbi, &cursor);
+//         if (retval != 0) {
+//             LOGD("err: %s\n", mdb_strerror(retval));
+//             mdb_txn_abort(txn);
+//         }
 
-        int cnt = 0;
-        MDB_val key, data;
-        while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-            if (cnt > 0) {
-                printf(",\n");
-            }
+//         int cnt = 0;
+//         MDB_val key, data;
+//         while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+//             if (cnt > 0) {
+//                 printf(",\n");
+//             }
 
-            printf("[\"");
-            utl_dbg_dump(stdout, key.mv_data, key.mv_size, false);
-            printf("\",");
-            printf(M_QQ("%s") "]", (const char *)data.mv_data);
-            cnt++;
-        }
-        mdb_cursor_close(cursor);
+//             printf("[\"");
+//             utl_dbg_dump(stdout, key.mv_data, key.mv_size, false);
+//             printf("\",");
+//             printf(M_QQ("%s") "]", (const char *)data.mv_data);
+//             cnt++;
+//         }
+//         mdb_cursor_close(cursor);
 
-        printf("\n]");
-    }
-}
+//         printf("\n]");
+//     }
+// }
 
 static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_PREIMAGE) {
-        printf(M_QQ("preimage") ": [");
+        printf(INDENT1 M_QQ("preimage") ": [\n");
 
         lmdb_cursor_t cur;
 
@@ -1001,15 +1001,15 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                 if (cnt_preimage) {
                     printf(",");
                 }
-                printf("{\n");
-                printf(INDENT1 "\"");
+                printf(INDENT2 "{\n");
+                printf(INDENT3 M_QQ("premage") ": \"");
                 utl_dbg_dump(stdout, preimage.preimage, LN_SZ_PREIMAGE, false);
                 printf("\",\n");
-                printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimage.amount_msat);
-                printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimage.expiry);
+                printf(INDENT3 M_QQ("amount") ": %" PRIu64 ",\n", preimage.amount_msat);
+                printf(INDENT3 M_QQ("expiry") ": %" PRIu32 ",\n", preimage.expiry);
                 char time[UTL_SZ_TIME_FMT_STR + 1];
-                printf(INDENT1 M_QQ("creation") ": %s\n", utl_time_fmt(time, preimage.creation_time));
-                printf("}");
+                printf(INDENT3 M_QQ("creation") ": " M_QQ("%s") "\n", utl_time_fmt(time, preimage.creation_time));
+                printf(INDENT2 "}");
                 cnt_preimage++;
             }
         }
@@ -1114,9 +1114,9 @@ static void dbs_cursor_node(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi
     case LN_LMDB_DB_TYPE_ROUTE_SKIP:
         dumpit_route_skip(txn, dbi2);
         break;
-    case LN_LMDB_DB_TYPE_INVOICE:
-        dumpit_invoice(txn, dbi2);
-        break;
+    // case LN_LMDB_DB_TYPE_INVOICE:
+    //     dumpit_invoice(txn, dbi2);
+    //     break;
     case LN_LMDB_DB_TYPE_PREIMAGE:
         dumpit_preimage(txn, dbi2);
         break;
@@ -1366,7 +1366,7 @@ int main(int argc, char *argv[])
             p_env = mpDbNode;
             break;
         case 'i':
-            showflag = SHOW_INVOICE;
+            showflag = SHOW_PREIMAGE;
             p_env = mpDbNode;
             break;
         case 'W':
