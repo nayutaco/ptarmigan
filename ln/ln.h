@@ -1251,6 +1251,21 @@ bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel);
 
 
 /********************************************************************
+ * XXX:
+ ********************************************************************/
+
+//XXX: depends on `ln_channel_t`
+bool ln_wallet_create_to_local_2(
+    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+    const utl_buf_t *pWitScript, const uint8_t *pTxid, int Index, bool bRevoked);
+
+
+//XXX: depends on `ln_channel_t`
+bool ln_wallet_create_to_remote_2(
+    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index);
+
+
+/********************************************************************
  * デバッグ
  ********************************************************************/
 

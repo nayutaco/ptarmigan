@@ -1120,7 +1120,7 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
 
     const utl_buf_t *p_wit_items = ln_revoked_wit(pChannel);
 
-    bool ret = ln_wallet_create_to_local(pChannel, &tx,
+    bool ret = ln_wallet_create_to_local_2(pChannel, &tx,
                 pTx->vout[VIndex].value,
                 ln_commit_info_remote(pChannel)->to_self_delay,
                 &p_wit_items[0], txid, VIndex, true);
@@ -1149,7 +1149,7 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(pTx, txid);
 
-    bool ret = ln_wallet_create_to_remote(
+    bool ret = ln_wallet_create_to_remote_2(
                     pChannel, &tx, pTx->vout[VIndex].value,
                     txid, VIndex);
     if (ret) {
