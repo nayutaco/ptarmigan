@@ -122,9 +122,11 @@ def aggregate_inputs(fundamount, feerate):
             #print('skip')
             continue
 
+        do_lock = lockunspent(str(lu[i]['txid']), lu[i]['vout'])
+        if not do_lock:
+            continue
         sum += lu[i]['amount']
         txlist.append("{\"txid\":\"" + str(lu[i]['txid']) + "\",\"vout\":" + str(lu[i]['vout']) + "}")
-        lockunspent(str(lu[i]['txid']), lu[i]['vout'])
         inputs += 1
 
         if sum >= fundamount:
