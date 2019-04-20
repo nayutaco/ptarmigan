@@ -163,9 +163,9 @@ void *monitor_start(void *pArg)
         lnapp_manager_prune_node();
         bool ret = update_btc_values();
         if (ret) {
-            lnapp_manager_each_node(proc_inactive_channel, NULL);
             lnapp_manager_each_node(monfunc_2, &mMonParam);
         }
+        lnapp_manager_each_node(proc_inactive_channel, NULL);
         LOGD("$$$----end\n");
 
         for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
