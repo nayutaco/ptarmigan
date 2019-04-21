@@ -60,7 +60,6 @@ typedef struct {
 
     uint64_t            obscured_commit_num_mask;       ///< commitment numberをXORするとobscured commitment numberになる値。
     ln_funding_info_t   *p_funding_info;
-    uint8_t             (*p_script_pubkeys)[BTC_SZ_PUBKEY];
 } ln_commit_info_t;
 
 

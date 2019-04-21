@@ -1255,16 +1255,20 @@ unsigned long ln_debug_get(void);
 
 
 #ifdef PTARM_USE_PRINTFUNC
-
 /** [デバッグ用]鍵情報出力
  *
- * @param[in]   pLocal
- * @param[in]   pRemote
  */
-void ln_print_keys(ln_channel_t *pChannel);
+void ln_print_keys(const ln_channel_t *pChannel);
+
+
+void ln_print_keys_2(
+    const ln_funding_info_t *pFundingInfo, const ln_derkey_local_keys_t *pKeysLocal,
+    const ln_derkey_remote_keys_t *pKeysRemote);
 #else
 #define ln_print_keys(...)      //nothing
+#define ln_print_keys_2(...)    //nothing
 #endif
+
 
 #ifdef __cplusplus
 }
