@@ -44,6 +44,7 @@
 #include "jansson.h"
 #include "lmdb.h"
 #include "zlib.h"
+#include "../version.h"
 
 
 /**************************************************************************
@@ -60,7 +61,7 @@
 static void reset_getopt(void);
 static void sig_set_catch_sigs(sigset_t *pSigSet);
 static void *sig_handler_start(void *pArg);
-static void show_libs_version(void);
+static void show_version(void);
 
 
 /********************************************************************
@@ -86,6 +87,7 @@ int main(int argc, char *argv[])
         { "datadir", required_argument, NULL, 'd' },
         { "color", required_argument, NULL, 'C' },
         { "rpcport", required_argument, NULL, 'P' },
+        { "version", no_argument, NULL, 'v' },
         { "help", no_argument, NULL, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -200,7 +202,7 @@ int main(int argc, char *argv[])
             }
             break;
         case 'v':
-            show_libs_version();
+            show_version();
             exit(0);
         case 'h':
             //help
@@ -272,6 +274,7 @@ LABEL_EXIT:
     fprintf(stderr, "\t%s [OPTION]...\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "\t\t--help : help\n");
+    fprintf(stderr, "\t\t--version : version\n");
     fprintf(stderr, "\t\t--network NETWORK : chain(mainnet/testnet/regtest)(default: mainnet)\n");
     fprintf(stderr, "\t\t--port PORT : node port(default: 9735 or previous saved)\n");
     fprintf(stderr, "\t\t--alias NAME : alias name(default: \"node_xxxxxxxxxxxx\" or previous saved)\n");
@@ -335,17 +338,22 @@ static void *sig_handler_start(void *pArg)
 }
 
 
-static void show_libs_version(void)
+static void show_version(void)
 {
+    fprintf(stderr, "ptarmd version: %s\n", PTARMD_VERSION);
+    fprintf(stderr, "ptarmd DB version: %d\n", PTARMD_DB_VERSION);
+
     fprintf(stderr, "library version:\n");
+    // from version API/macro
     fprintf(stderr, "\tMbedTLS: %s\n", MBEDTLS_VERSION_STRING_FULL);
     fprintf(stderr, "\tlmdb: %s\n", mdb_version(NULL, NULL, NULL));
     fprintf(stderr, "\tjansson: %s\n", JANSSON_VERSION);
-    fprintf(stderr, "\tinih\n");
     fprintf(stderr, "\tcurl: %s\n", LIBCURL_VERSION);
     fprintf(stderr, "\tlibev: %s\n", event_get_version());
-    fprintf(stderr, "\tlibbase58\n");
     fprintf(stderr, "\tzlib: %s\n", ZLIB_VERSION);
-    fprintf(stderr, "\tjsonrpc-c\n");
     fprintf(stderr, "\tboost: %s\n", BOOST_LIB_VERSION);
+    // no version API
+    fprintf(stderr, "\tinih: r42\n");
+    fprintf(stderr, "\tlibbase58: commit 1cb26b5bfff6b52995a2d88a4b7e1041df589d35\n");
+    fprintf(stderr, "\tjsonrpc-c(customized): localonly_r1\n");
 }
