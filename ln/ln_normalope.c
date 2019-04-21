@@ -1776,6 +1776,7 @@ static bool commitment_signed_send(ln_channel_t *pChannel)
     utl_buf_t buf = UTL_BUF_INIT;
 
     //create sigs for remote commitment transaction
+    memcpy(pChannel->prev_remote_commit_txid, pChannel->commit_info_remote.txid, BTC_SZ_TXID);
     pChannel->commit_info_remote.commit_num++;
     if (!ln_commit_tx_create_remote(
         &pChannel->commit_info_remote, &pChannel->update_info,

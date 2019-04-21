@@ -410,6 +410,8 @@ struct ln_channel_t {
     //commitment transaction(local/remote)
     ln_commit_info_t            commit_info_local;              ///< [COMM_01]local commit_tx用
     ln_commit_info_t            commit_info_remote;             ///< [COMM_02]remote commit_tx用
+    uint8_t                     prev_remote_commit_txid[BTC_SZ_TXID];
+                                                                ///< [COMM_03]previous remote commit tx's txid (for second last remote unilateral close)
 
     //gossip_queries
     ln_gquery_t                 gquery;                         ///< [GQRY_01]gossip_queries

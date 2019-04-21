@@ -673,6 +673,18 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
 {
     LOGD("BEGIN\n");
 
+    switch (pChannel->status) {
+    case LN_STATUS_CLOSE_UNI_REMOTE_LAST:
+        break;
+    case LN_STATUS_CLOSE_UNI_REMOTE_SECOND_LAST:
+        //XXX: this process is destructive
+        memcpy(pChannel->commit_info_remote.txid, pChannel->prev_remote_commit_txid, BTC_SZ_TXID);
+        ln_commit_tx_rewind_one_commit_remote(&pChannel->commit_info_remote, &pChannel->update_info);
+        break;
+    default:
+        LOGE("fail: invalid status=%s\n", ln_status_string(pChannel));
+    }
+
     ln_derkey_local_keys_t  keys_local_work = pChannel->keys_local;
     ln_derkey_remote_keys_t keys_remote_work = pChannel->keys_remote;
 
