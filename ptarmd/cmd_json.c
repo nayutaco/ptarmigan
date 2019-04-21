@@ -1511,7 +1511,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     ret = wallet_from_ptarm(&p_result, &vout_amount, tosend, addr, feerate_per_kw);
     if (ret) {
         result = cJSON_CreateObject();
-        cJSON_AddItemToObject(result, "txid", cJSON_CreateString(p_result));
+        cJSON_AddItemToObject(result, "message", cJSON_CreateString(p_result));
         cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(vout_amount));
         UTL_DBG_FREE(p_result);
     } else {
