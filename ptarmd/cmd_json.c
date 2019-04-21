@@ -2093,7 +2093,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
 
     int ret = 0;
 
-    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+    lnapp_conf_t *p_conf = lnapp_manager_get_node(pNodeId);
     if (!p_conf) {
         LOGE("fail: unilateral close\n");
         return RPCERR_NOCHANNEL;
