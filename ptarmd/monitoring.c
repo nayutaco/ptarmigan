@@ -49,13 +49,15 @@
  * macro
  **************************************************************************/
 
-#define M_WAIT_START_SEC                (5)         ///< monitoring start[sec]
+#define M_WAIT_START_SEC                    (5)         ///< monitoring start[sec]
 #ifdef DEVELOPER_MODE
 //Workaround for `lightning-integration`'s timeout (outside BOLT specifications)
-#define M_WAIT_MON_SEC                  (20)        ///< monitoring cyclic[sec] for developer mode
+#define M_WAIT_MON_SEC                      (20)        ///< monitoring cyclic[sec] for developer mode
 #else
-#define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
+#define M_WAIT_MON_SEC                      (30)        ///< monitoring cyclic[sec]
 #endif
+#define M_WAIT_MON_PRUNE_NODE_SEC           (5)         ///< monitoring cyclic[sec] (prune node)
+#define M_WAIT_MON_PROC_INACTIVE_NODE_SEC   (1)         ///< monitoring cyclic[sec] (proc inactive node)
 
 //offset for btcrpc_search_outpoint(), btcrpc_search_vout()
 #define M_SEARCH_OUTPOINT(conf)         ((conf) + 3)
@@ -158,23 +160,21 @@ void *monitor_start(void *pArg)
 
     connect_nodelist();
 
-    while (mActive) {
-        LOGD("$$$----begin\n");
-        lnapp_manager_prune_node();
-        bool ret = update_btc_values();
-        if (ret) {
-            lnapp_manager_each_node(monfunc_2, &mMonParam);
-        }
-        lnapp_manager_each_node(proc_inactive_channel, NULL);
-        LOGD("$$$----end\n");
-
-        for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
-            sleep(1);
-            if (!mActive) {
-                LOGD("stop monitoring\n");
-                break;
+    for (uint32_t lp = 0; mActive; lp++) {
+        if (!(lp % M_WAIT_MON_SEC)) {
+            LOGD("$$$----begin\n");
+            if (update_btc_values()) {
+                lnapp_manager_each_node(monfunc_2, &mMonParam);
             }
+            LOGD("$$$----end\n");
         }
+        if (!(lp % M_WAIT_MON_PRUNE_NODE_SEC)) {
+            lnapp_manager_prune_node();
+        }
+        if (!(lp % M_WAIT_MON_PROC_INACTIVE_NODE_SEC)) {
+            lnapp_manager_each_node(proc_inactive_channel, NULL);
+        }
+        sleep(1);
     }
     LOGD("[exit]monitor thread\n");
     ptarmd_stop();
