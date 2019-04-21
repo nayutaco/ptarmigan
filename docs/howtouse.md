@@ -125,6 +125,15 @@ Amount in channel will pay to bitcoind after some blocks.
   * If the amount is too small to pay, `ptarmd` will keep it.
     * `ptarmcli --paytowallet` create and send currently payable transaction.
 
+```bash
+# check payable transaction
+#   if no input found or too less to use input, outputs "no input".
+../ptarmcli --paytowallet
+
+# from internal wallet to bitcoind
+../ptarmcli --paytowallet=1
+```
+
 ## troubleshooting
 
 ### wrong conf file
