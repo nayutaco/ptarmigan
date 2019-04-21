@@ -1235,25 +1235,6 @@ uint64_t ln_node_total_msat(void);
  * XXX:
  ********************************************************************/
 
-/** スクリプト用鍵生成/更新
- *
- * @param[in,out]   pChannel
- * @note
- *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
- */
-bool HIDDEN ln_update_script_pubkeys(ln_channel_t *pChannel);
-
-
-bool HIDDEN ln_update_script_pubkeys_local(ln_channel_t *pChannel);
-
-
-bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel);
-
-
-/********************************************************************
- * XXX:
- ********************************************************************/
-
 //XXX: depends on `ln_channel_t`
 bool ln_wallet_create_to_local_2(
     const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
