@@ -45,6 +45,7 @@
 #include "lmdb.h"
 #include "zlib.h"
 #include "../version.h"
+#include "ln_version.h"
 
 
 /**************************************************************************
@@ -340,8 +341,8 @@ static void *sig_handler_start(void *pArg)
 
 static void show_version(void)
 {
-    fprintf(stderr, "ptarmd version: %s\n", PTARMD_VERSION);
-    fprintf(stderr, "ptarmd DB version: %d\n", PTARMD_DB_VERSION);
+    fprintf(stderr, "ptarmigan version: %s\n", PTARM_VERSION);
+    fprintf(stderr, "DB version: %d\n", LN_DB_VERSION);
 
     fprintf(stderr, "library version:\n");
     // from version API/macro

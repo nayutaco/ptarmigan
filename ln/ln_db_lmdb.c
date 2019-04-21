@@ -53,7 +53,7 @@
 #include "ln_signer.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "../version.h"
+#include "ln_version.h"
 
 
 //#define M_DB_DEBUG
@@ -5694,7 +5694,7 @@ static int version_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeN
 {
     int         retval;
     MDB_val     key, data;
-    int32_t     version = PTARMD_DB_VERSION;
+    int32_t     version = LN_DB_VERSION;
 
     retval = MDB_DBI_OPEN(pDb->p_txn, M_DBI_VERSION, MDB_CREATE, &pDb->dbi);
     if (retval) {
@@ -5769,8 +5769,8 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
         return retval;
     }
     memcpy(pVer, data.mv_data, sizeof(int32_t));
-    if (*pVer != PTARMD_DB_VERSION) {
-        fprintf(stderr, "fail: version mismatch : %d(require %d)\n", *pVer, PTARMD_DB_VERSION);
+    if (*pVer != LN_DB_VERSION) {
+        fprintf(stderr, "fail: version mismatch : %d(require %d)\n", *pVer, LN_DB_VERSION);
         LOGE("fail: version mismatch\n");
         return -1;
     }
