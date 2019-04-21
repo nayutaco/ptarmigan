@@ -162,8 +162,11 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
                 ln_db_wallet_del(wallet.tx.vin[lp].txid, wallet.tx.vin[lp].index);
             }
 
-            *ppResult = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);
-            utl_str_bin2str_rev(*ppResult, txid, BTC_SZ_TXID);
+            char str_txid[BTC_SZ_TXID * 2 + 1];
+            utl_str_bin2str_rev(str_txid, txid, BTC_SZ_TXID);
+            size_t len = 256 + sizeof(str_txid);
+            *ppResult = (char *)UTL_DBG_MALLOC(len);
+            snprintf(*ppResult, len, "pay to '%s', txid=%s", pAddr, str_txid);
         } else {
             LOGE("fail: broadcast\n");
         }
