@@ -74,6 +74,7 @@ bool HIDDEN ln_commit_tx_create_local_close(
  * @param[in,out]       pCommitTxInfo
  * @param[in]           pCommitInfo
  * @param[in]           pUpdateInfo
+ * @param[in]           pScriptPubkeys
  * @param[in]           bLocal
  * @retval              true        success
  */
@@ -81,6 +82,7 @@ bool HIDDEN ln_commit_tx_info_create_pre_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const uint8_t (*pScriptPubkeys)[BTC_SZ_PUBKEY],
     bool bLocal);
 
 
@@ -88,6 +90,7 @@ bool HIDDEN ln_commit_tx_info_create_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const uint8_t (*pScriptPubkeys)[BTC_SZ_PUBKEY],
     bool bLocal);
 
 

@@ -88,44 +88,49 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 }
 
 
-void ln_print_keys(ln_channel_t *pChannel)
+void ln_print_keys(const ln_channel_t *pChannel)
 {
-    ln_derkey_local_keys_t          *p_local_keys = &pChannel->keys_local;
-    ln_derkey_remote_keys_t         *p_remote_keys = &pChannel->keys_remote;
+    ln_print_keys_2(&pChannel->funding_info, &pChannel->keys_local, &pChannel->keys_remote);
+}
 
+
+void ln_print_keys_2(
+    const ln_funding_info_t *pFundingInfo, const ln_derkey_local_keys_t *pKeysLocal,
+    const ln_derkey_remote_keys_t *pKeysRemote)
+{
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
     LOGD("  funding_txid: ");
-    TXIDD(ln_funding_info_txid(&pChannel->funding_info));
-    LOGD("  funding_txindex: %" PRIu16 "\n", ln_funding_info_txindex(&pChannel->funding_info));
+    TXIDD(pFundingInfo->txid);
+    LOGD("  funding_txindex: %" PRIu16 "\n", pFundingInfo->txindex);
 
     int lp;
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(p_local_keys->basepoints[lp], BTC_SZ_PUBKEY);
+        DUMPD(pKeysLocal->basepoints[lp], BTC_SZ_PUBKEY);
     }
     LOGD("    %s: ", KEYS_STR[lp]);
-    DUMPD(p_local_keys->per_commitment_point, BTC_SZ_PUBKEY);
+    DUMPD(pKeysLocal->per_commitment_point, BTC_SZ_PUBKEY);
 
     for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
-        DUMPD(p_local_keys->script_pubkeys[lp], BTC_SZ_PUBKEY);
+        DUMPD(pKeysLocal->script_pubkeys[lp], BTC_SZ_PUBKEY);
     }
 
     for (lp = 0; lp < LN_BASEPOINT_IDX_NUM; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(p_remote_keys->basepoints[lp], BTC_SZ_PUBKEY);
+        DUMPD(pKeysRemote->basepoints[lp], BTC_SZ_PUBKEY);
     }
     LOGD("    %s: ", KEYS_STR[lp]);
-    DUMPD(p_remote_keys->per_commitment_point, BTC_SZ_PUBKEY);
+    DUMPD(pKeysRemote->per_commitment_point, BTC_SZ_PUBKEY);
 
     for (lp = 0; lp < LN_SCRIPT_IDX_NUM; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
-        DUMPD(p_remote_keys->script_pubkeys[lp], BTC_SZ_PUBKEY);
+        DUMPD(pKeysRemote->script_pubkeys[lp], BTC_SZ_PUBKEY);
     }
 
     LOGD("prev_percommit: ");
-    DUMPD(pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
+    DUMPD(pKeysRemote->prev_per_commitment_point, BTC_SZ_PUBKEY);
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;

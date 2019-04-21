@@ -203,7 +203,7 @@ bool HIDDEN ln_commit_tx_create_local(
 
     ln_commit_tx_info_t commit_tx_info;
     if (!ln_commit_tx_info_create_pre_committed(
-        &commit_tx_info, pCommitInfo, pUpdateInfo, true)) return false;
+        &commit_tx_info, pCommitInfo, pUpdateInfo, pKeysLocal->script_pubkeys, true)) return false;
 
     uint8_t local_sig[LN_SZ_SIGNATURE];
     btc_tx_t tx_commit = BTC_TX_INIT;
@@ -261,7 +261,7 @@ bool HIDDEN ln_commit_tx_create_local_close(
 
     ln_commit_tx_info_t commit_tx_info;
     if (!ln_commit_tx_info_create_committed(
-        &commit_tx_info, pCommitInfo, pUpdateInfo, true)) return false;
+        &commit_tx_info, pCommitInfo, pUpdateInfo, pKeysLocal->script_pubkeys, true)) return false;
 
     uint8_t local_sig[LN_SZ_SIGNATURE];
     btc_tx_t tx_commit = BTC_TX_INIT;
@@ -317,6 +317,7 @@ bool HIDDEN ln_commit_tx_info_create_pre_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const uint8_t (*pScriptPubkeys)[BTC_SZ_PUBKEY],
     bool bLocal)
 {
 
@@ -345,9 +346,9 @@ bool HIDDEN ln_commit_tx_info_create_pre_committed(
         if (!ln_script_create_htlc(
             &pCommitTxInfo->pp_htlc_info[lp]->wit_script,
             pCommitTxInfo->pp_htlc_info[lp]->type,
-            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+            pScriptPubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+            pScriptPubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+            pScriptPubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
             pCommitTxInfo->pp_htlc_info[lp]->payment_hash,
             pCommitTxInfo->pp_htlc_info[lp]->cltv_expiry)) goto LABEL_EXIT;
     }
@@ -373,13 +374,13 @@ bool HIDDEN ln_commit_tx_info_create_pre_committed(
     pCommitTxInfo->to_local.satoshi = LN_MSAT2SATOSHI(pCommitTxInfo->local_msat);
     if (!ln_script_create_to_local(
         &pCommitTxInfo->to_local.wit_script,
-        pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-        pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
+        pScriptPubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pScriptPubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
         pCommitInfo->to_self_delay)) return false;
 
     //to_remote
     pCommitTxInfo->to_remote.satoshi = LN_MSAT2SATOSHI(pCommitTxInfo->remote_msat);
-    pCommitTxInfo->to_remote.pubkey = pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
+    pCommitTxInfo->to_remote.pubkey = pScriptPubkeys[LN_SCRIPT_IDX_PUBKEY];
 
     //fee
     pCommitTxInfo->base_fee_info.feerate_per_kw =
@@ -408,6 +409,7 @@ bool HIDDEN ln_commit_tx_info_create_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const uint8_t (*pScriptPubkeys)[BTC_SZ_PUBKEY],
     bool bLocal)
 {
 
@@ -435,9 +437,9 @@ bool HIDDEN ln_commit_tx_info_create_committed(
         if (!ln_script_create_htlc(
             &pCommitTxInfo->pp_htlc_info[lp]->wit_script,
             pCommitTxInfo->pp_htlc_info[lp]->type,
-            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
-            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-            pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
+            pScriptPubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
+            pScriptPubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+            pScriptPubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
             pCommitTxInfo->pp_htlc_info[lp]->payment_hash,
             pCommitTxInfo->pp_htlc_info[lp]->cltv_expiry)) goto LABEL_EXIT;
     }
@@ -463,13 +465,13 @@ bool HIDDEN ln_commit_tx_info_create_committed(
     pCommitTxInfo->to_local.satoshi = LN_MSAT2SATOSHI(pCommitTxInfo->local_msat);
     if (!ln_script_create_to_local(
         &pCommitTxInfo->to_local.wit_script,
-        pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
-        pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
+        pScriptPubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
+        pScriptPubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
         pCommitInfo->to_self_delay)) return false;
 
     //to_remote
     pCommitTxInfo->to_remote.satoshi = LN_MSAT2SATOSHI(pCommitTxInfo->remote_msat);
-    pCommitTxInfo->to_remote.pubkey = pCommitInfo->p_script_pubkeys[LN_SCRIPT_IDX_PUBKEY];
+    pCommitTxInfo->to_remote.pubkey = pScriptPubkeys[LN_SCRIPT_IDX_PUBKEY];
 
     //fee
     pCommitTxInfo->base_fee_info.feerate_per_kw =
@@ -523,7 +525,7 @@ bool ln_commit_tx_create_remote(
 
     ln_commit_tx_info_t commit_tx_info;
     if (!ln_commit_tx_info_create_pre_committed(
-        &commit_tx_info, pCommitInfo, pUpdateInfo, false)) return false;
+        &commit_tx_info, pCommitInfo, pUpdateInfo, pKeysRemote->script_pubkeys, false)) return false;
 
     if (!save_vouts_remote(&commit_tx_info)) {
         LOGE("fail\n");
@@ -583,7 +585,7 @@ bool ln_commit_tx_create_remote_close(
 
     ln_commit_tx_info_t commit_tx_info;
     if (!ln_commit_tx_info_create_committed(
-        &commit_tx_info, pCommitInfo, pUpdateInfo, false)) return false;
+        &commit_tx_info, pCommitInfo, pUpdateInfo, pKeysRemote->script_pubkeys, false)) return false;
 
     if (!save_vouts_remote(&commit_tx_info)) {
         LOGE("fail\n");
