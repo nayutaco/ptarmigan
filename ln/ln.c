@@ -651,7 +651,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
             pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_local.num_htlc_outputs);
@@ -672,7 +672,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
             pChannel->keys_local.per_commitment_secret);
     memcpy(pChannel->keys_remote.per_commitment_point,
             bak_remotecommit, sizeof(bak_remotecommit));
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     LOGD("END: %d\n", ret);
@@ -706,7 +706,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
         pChannel->keys_remote.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
@@ -725,7 +725,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     memcpy(pChannel->keys_local.per_commitment_secret, bak_percommit, sizeof(bak_percommit));
     btc_keys_priv2pub(pChannel->keys_local.per_commitment_point, pChannel->keys_local.per_commitment_secret);
     memcpy(pChannel->keys_remote.per_commitment_point, bak_remotecommit, sizeof(bak_remotecommit));
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
 
     LOGD("END\n");
     return ret;
@@ -800,7 +800,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     ln_derkey_local_storage_update_per_commitment_point_force(&pChannel->keys_local, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
 
     //鍵の復元
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
@@ -1380,30 +1380,6 @@ btc_script_pubkey_order_t ln_node_id_order(const ln_channel_t *pChannel, const u
 uint8_t ln_order_to_dir(btc_script_pubkey_order_t Order)
 {
     return (uint8_t)Order;
-}
-
-
-bool HIDDEN ln_update_script_pubkeys(ln_channel_t *pChannel)
-{
-    if (!ln_update_script_pubkeys_local(pChannel)) return false;
-    if (!ln_update_script_pubkeys_remote(pChannel)) return false;
-    return true;
-}
-
-
-bool HIDDEN ln_update_script_pubkeys_local(ln_channel_t *pChannel)
-{
-    if (!ln_derkey_local_update_script_pubkeys(
-        &pChannel->keys_local, &pChannel->keys_remote)) return false;
-    return true;
-}
-
-
-bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel)
-{
-    if (!ln_derkey_remote_update_script_pubkeys(
-        &pChannel->keys_remote, &pChannel->keys_local)) return false;
-    return true;
 }
 
 

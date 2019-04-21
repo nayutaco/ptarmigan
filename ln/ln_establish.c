@@ -269,7 +269,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
         LN_FUNDING_STATE_STATE_FUNDING);
 
     //generate keys
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     if (!ln_accept_channel_send(pChannel)) {
@@ -388,7 +388,7 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //generate keys
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     //create funding_tx
@@ -614,7 +614,7 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //funding中終了
     ln_establish_free(pChannel);
 
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
@@ -993,7 +993,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
 
     //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
 
     //save the channel
     //  we should save the channel before broadcasting the funding tx
