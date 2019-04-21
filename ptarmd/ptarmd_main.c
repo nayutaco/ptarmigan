@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
         { "color", required_argument, NULL, 'C' },
         { "rpcport", required_argument, NULL, 'P' },
         { "version", no_argument, NULL, 'v' },
+        { "clear_channel_db", no_argument, NULL, '\x10' },
         { "help", no_argument, NULL, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
     conf_btcrpc_init(&rpc_conf);
     btc_block_chain_t chain = BTC_BLOCK_CHAIN_BTCMAIN;
 
+    char prompt[5];
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
         //case 'd':
@@ -208,6 +210,20 @@ int main(int argc, char *argv[])
         case 'h':
             //help
             goto LABEL_EXIT;
+        case '\x10':
+            //clear_channel_db
+            printf("!!!!!!!!!!!!!!\n");
+            printf("!!! DANGER !!!\n");
+            printf("!!!!!!!!!!!!!!\n\n");
+            printf("This command delete all channel data from DB.\n");
+            printf("Do you execute ? : (YES or no)\n");
+            fgets(prompt, sizeof(prompt), stdin);
+            if (memcmp(prompt, "YES\n", 4) == 0) {
+                (void)ln_db_reset();
+            } else {
+                printf("canceled.\n");
+            }
+            return 0;
         default:
             break;
         }
