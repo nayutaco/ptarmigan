@@ -4,6 +4,9 @@
 
 * `ptarmd` can't start if database file version not match.
   * Ptarmigan sometime changes database structure and update file version.
+    * GitHub DB version: [LN_DB_VERSION in ln/ln_version.h](https://github.com/nayutaco/ptarmigan/blob/development/ln/ln_version.h)
+    * `ptarmd` DB version: `ptarmd --version`
+    * current DB file version: `showdb --version`
   * There are two ways:
     * A: pay all BTC to `bitcoind` and create new database file.
       * Close all channels and return BTC using `ptarmcli --paytowallet`.
