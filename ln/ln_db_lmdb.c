@@ -420,7 +420,7 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, local_msat),                      //[COMM_02]
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, remote_msat),                     //[COMM_02]
     MM_ITEM(ln_channel_t, commit_info_remote, ln_commit_info_t, obscured_commit_num_mask),        //[COMM_02]
-
+    M_ITEM(ln_channel_t, prev_remote_commit_txid),                                                //[COMM_03]and more
     //
     //erro
     //
