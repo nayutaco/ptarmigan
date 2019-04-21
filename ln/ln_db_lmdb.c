@@ -3775,7 +3775,7 @@ bool ln_db_reset(void)
     int retval;
 
     if (mpEnvChannel) {
-        LOGE("fail: already started\n");
+        fprintf(stderr, "fail: already started\n");
         return false;
     }
 
@@ -3784,7 +3784,7 @@ bool ln_db_reset(void)
     }
     retval = init_db_env(&INIT_PARAM[M_INIT_PARAM_CHANNEL]);
     if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        fprintf(stderr, "ERR: %s\n", mdb_strerror(retval));
         return false;
     }
 
@@ -3792,11 +3792,32 @@ bool ln_db_reset(void)
     LOGD("channel cursor open\n");
     retval = channel_cursor_open(&cur, true);
     if (retval) {
-        LOGE("fail: open\n");
+        fprintf(stderr, "fail: open\n");
         return false;
     }
 
     //ここまで来たら成功と見なしてよい //XXX: ???
+
+    //tar db directory
+    char bak_tgz[PATH_MAX];
+    char cmdline[512];
+    snprintf(bak_tgz, sizeof(bak_tgz), "bak_db_%" PRIu64 ".tgz", (uint64_t)utl_time_time());
+    snprintf(cmdline, sizeof(cmdline), "tar zcf %s db", bak_tgz);
+    system(cmdline);
+
+    //remove other directories
+    const char *DELPATH[] = {
+        ln_lmdb_get_node_db_path(),
+        ln_lmdb_get_anno_db_path(),
+        ln_lmdb_get_wallet_db_path(),
+        ln_lmdb_get_forward_db_path(),
+        ln_lmdb_get_payment_db_path(),
+    };
+    for (size_t lp = 0; lp < ARRAY_SIZE(DELPATH); lp++) {
+        snprintf(cmdline, sizeof(cmdline), "rm -rf %s", DELPATH[lp]);
+        fprintf(stderr, "  remove %s\n", DELPATH[lp]);
+        system(cmdline);
+    }
 
     MDB_val key;
     while (mdb_cursor_get(cur.p_cursor, &key, NULL, MDB_NEXT_NODUP) == 0) {
@@ -3827,13 +3848,7 @@ bool ln_db_reset(void)
 
     channel_cursor_close(&cur, true);
 
-    //rm node and anno directories
-    const char *p_cmd = "rm -rf ";
-    char cmdline[strlen(p_cmd) + M_DB_PATH_STR_MAX + 1];
-    snprintf(cmdline, sizeof(cmdline), "%s%s", p_cmd, ln_lmdb_get_node_db_path());
-    system(cmdline);
-    snprintf(cmdline, sizeof(cmdline), "%s%s", p_cmd, ln_lmdb_get_anno_db_path());
-    system(cmdline);
+    fprintf(stderr, "removed.\n");
     return true;
 }
 
