@@ -49,13 +49,18 @@
  * macro
  **************************************************************************/
 
-#define M_WAIT_START_SEC                (5)         ///< monitoring start[sec]
+#define M_WAIT_START_SEC                    (5)         ///< monitoring start[sec]
 #ifdef DEVELOPER_MODE
 //Workaround for `lightning-integration`'s timeout (outside BOLT specifications)
-#define M_WAIT_MON_SEC                  (20)        ///< monitoring cyclic[sec] for developer mode
+#define M_WAIT_MON_SEC                      (20)        ///< monitoring cyclic[sec] for developer mode
 #else
-#define M_WAIT_MON_SEC                  (30)        ///< monitoring cyclic[sec]
+#define M_WAIT_MON_SEC                      (30)        ///< monitoring cyclic[sec]
 #endif
+#define M_WAIT_MON_PRUNE_NODE_SEC           (5)         ///< monitoring cyclic[sec] (prune node)
+#define M_WAIT_MON_PROC_INACTIVE_NODE_SEC   (1)         ///< monitoring cyclic[sec] (proc inactive node)
+
+//offset for btcrpc_search_outpoint(), btcrpc_search_vout()
+#define M_SEARCH_OUTPOINT(conf)         ((conf) + 3)
 
 #define M_SZ_SCRIPT_PARAM       (512)
 
@@ -155,23 +160,21 @@ void *monitor_start(void *pArg)
 
     connect_nodelist();
 
-    while (mActive) {
-        LOGD("$$$----begin\n");
-        lnapp_manager_prune_node();
-        bool ret = update_btc_values();
-        if (ret) {
-            lnapp_manager_each_node(proc_inactive_channel, NULL);
-            lnapp_manager_each_node(monfunc_2, &mMonParam);
-        }
-        LOGD("$$$----end\n");
-
-        for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
-            sleep(1);
-            if (!mActive) {
-                LOGD("stop monitoring\n");
-                break;
+    for (uint32_t lp = 0; mActive; lp++) {
+        if (!(lp % M_WAIT_MON_SEC)) {
+            LOGD("$$$----begin\n");
+            if (update_btc_values()) {
+                lnapp_manager_each_node(monfunc_2, &mMonParam);
             }
+            LOGD("$$$----end\n");
         }
+        if (!(lp % M_WAIT_MON_PRUNE_NODE_SEC)) {
+            lnapp_manager_prune_node();
+        }
+        if (!(lp % M_WAIT_MON_PROC_INACTIVE_NODE_SEC)) {
+            lnapp_manager_each_node(proc_inactive_channel, NULL);
+        }
+        sleep(1);
     }
     LOGD("[exit]monitor thread\n");
     ptarmd_stop();
@@ -478,8 +481,7 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
 
     if (pConf->active) {
         //socket接続済みであれば、feerate_per_kwチェック
-        //  当面、feerate_per_kwを手動で変更した場合のみとする
-        if ((ln_status_get(p_channel) == LN_STATUS_NORMAL) && (mFeeratePerKw != 0)) {
+        if (ln_status_get(p_channel) == LN_STATUS_NORMAL_OPE) {
             lnapp_set_feerate(pConf, pParam->feerate_per_kw);
         }
     } else if (LN_DBG_NODE_AUTO_CONNECT() &&
@@ -551,12 +553,14 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
         }
         btc_tx_t *p_tx = NULL;
         ret = btcrpc_search_outpoint(
-            &close_tx, pParam->confm - p_list->last_check_confm, ln_funding_info_txid(&p_channel->funding_info), ln_funding_info_txindex(&p_channel->funding_info));
+            &close_tx, M_SEARCH_OUTPOINT(pParam->confm - p_list->last_check_confm),
+            ln_funding_info_txid(&p_channel->funding_info),
+            ln_funding_info_txindex(&p_channel->funding_info));
         if (ret) {
             p_tx = &close_tx;
         }
         p_list->last_check_confm = pParam->confm;
-        if (ret || (stat == LN_STATUS_NORMAL)) {
+        if (ret || (stat == LN_STATUS_NORMAL_OPE)) {
             //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
             ln_close_change_stat(p_channel, p_tx, pDbParam);
             stat = ln_status_get(p_channel);
@@ -576,15 +580,15 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
             del = true;
             break;
         case LN_STATUS_CLOSE_UNI_LOCAL:
-            //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(p_channel, pDbParam);
             break;
-        case LN_STATUS_CLOSE_UNI_REMOTE:
-            //最新のremote commit_tx --> unilateral close(remote)
+        case LN_STATUS_CLOSE_UNI_REMOTE_LAST:
+            del = close_unilateral_remote(p_channel, pDbParam);
+            break;
+        case LN_STATUS_CLOSE_UNI_REMOTE_SECOND_LAST:
             del = close_unilateral_remote(p_channel, pDbParam);
             break;
         case LN_STATUS_CLOSE_REVOKED:
-            //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
             ret = ln_close_remote_revoked(p_channel, &close_tx, pDbParam);
             if (ret) {
@@ -739,7 +743,8 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-    if (!btcrpc_search_outpoint(&tx, confirm, txid, pCloseDat->p_tx[lp].vin[0].index)) {
+    if (!btcrpc_search_outpoint(&tx, M_SEARCH_OUTPOINT(confirm),
+            txid, pCloseDat->p_tx[lp].vin[0].index)) {
         LOGD("not found txid: ");
         TXIDD(txid);
         LOGD("index=%d\n", lp);
@@ -928,7 +933,8 @@ static void close_unilateral_remote_offered(ln_channel_t *pChannel, bool *pDel, 
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-    if (!btcrpc_search_outpoint(&tx, confirm, txid, pCloseDat->p_tx[lp].vin[0].index)) {
+    if (!btcrpc_search_outpoint(&tx, M_SEARCH_OUTPOINT(confirm),
+            txid, pCloseDat->p_tx[lp].vin[0].index)) {
         LOGD("not found txid: ");
         TXIDD(txid);
         LOGD("index=%d\n", pCloseDat->p_htlc_idxs[lp]);
@@ -1062,7 +1068,7 @@ static bool close_revoked_after(ln_channel_t *pChannel, uint32_t confm, void *pD
         //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
         utl_buf_t txbuf = UTL_BUF_INIT;
         const utl_buf_t *p_vout = ln_revoked_vout(pChannel);
-        bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(pChannel), &p_vout[0]);
+        bool ret = btcrpc_search_vout(&txbuf, M_SEARCH_OUTPOINT(confm - ln_revoked_confm(pChannel)), &p_vout[0]);
         if (ret) {
             bool sendret = true;
             int num = txbuf.len / sizeof(btc_tx_t);
@@ -1114,7 +1120,7 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
 
     const utl_buf_t *p_wit_items = ln_revoked_wit(pChannel);
 
-    bool ret = ln_wallet_create_to_local(pChannel, &tx,
+    bool ret = ln_wallet_create_to_local_2(pChannel, &tx,
                 pTx->vout[VIndex].value,
                 ln_commit_info_remote(pChannel)->to_self_delay,
                 &p_wit_items[0], txid, VIndex, true);
@@ -1143,7 +1149,7 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(pTx, txid);
 
-    bool ret = ln_wallet_create_to_remote(
+    bool ret = ln_wallet_create_to_remote_2(
                     pChannel, &tx, pTx->vout[VIndex].value,
                     txid, VIndex);
     if (ret) {

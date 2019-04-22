@@ -37,7 +37,13 @@
  * prototypes
  ********************************************************************/
 
-bool /*HIDDEN*/ ln_shutdown_send(ln_channel_t *pChannel);
+bool /*HIDDEN*/ ln_is_shutdowning(ln_channel_t *pChannel);
+bool /*HIDDEN*/ ln_shutdown_set_send(ln_channel_t *pChannel);
+void /*HIDDEN*/ ln_shutdown_reset(ln_channel_t *pChannel);
+bool HIDDEN ln_shutdown_send_needs(ln_channel_t *pChannel);
+bool HIDDEN ln_closing_signed_send_needs(ln_channel_t *pChannel);
+
+bool HIDDEN ln_shutdown_send(ln_channel_t *pChannel);
 bool HIDDEN ln_shutdown_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
 bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed_t *pClosingSignedMsg);
 bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);

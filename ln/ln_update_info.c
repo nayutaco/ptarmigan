@@ -325,18 +325,14 @@ bool ln_update_info_clear_fee(ln_update_info_t *pInfo, uint16_t UpdateIdx)
 
 bool ln_update_info_set_initial_fee_send(ln_update_info_t *pInfo, uint32_t FeeratePerKw)
 {
-    uint16_t update_idx;
-    if (!ln_update_info_set_fee_pre_send(pInfo, &update_idx, FeeratePerKw)) return false;
-    pInfo->updates[update_idx].state = LN_UPDATE_STATE_OFFERED_RA_SEND; //force to commit
+    pInfo->feerate_per_kw_irrevocably_committed = FeeratePerKw;
     return true;
 }
 
 
 bool ln_update_info_set_initial_fee_recv(ln_update_info_t *pInfo, uint32_t FeeratePerKw)
 {
-    uint16_t update_idx;
-    if (!ln_update_info_set_fee_recv(pInfo, &update_idx, FeeratePerKw)) return false;
-    pInfo->updates[update_idx].state = LN_UPDATE_STATE_RECEIVED_RA_RECV; //force to commit
+    pInfo->feerate_per_kw_irrevocably_committed = FeeratePerKw;
     return true;
 }
 
@@ -394,6 +390,9 @@ uint32_t ln_update_info_get_feerate_per_kw_pre_committed(const ln_update_info_t 
         id = p_fee_update->id;
         feerate_per_kw = p_fee_update->feerate_per_kw;
     }
+    if (!feerate_per_kw) {
+        feerate_per_kw = pInfo->feerate_per_kw_irrevocably_committed;
+    }
     return feerate_per_kw;
 }
 
@@ -411,6 +410,9 @@ uint32_t ln_update_info_get_feerate_per_kw_committed(const ln_update_info_t *pIn
         if (p_fee_update->id < id) continue;
         id = p_fee_update->id;
         feerate_per_kw = p_fee_update->feerate_per_kw;
+    }
+    if (!feerate_per_kw) {
+        feerate_per_kw = pInfo->feerate_per_kw_irrevocably_committed;
     }
     return feerate_per_kw;
 }
@@ -530,14 +532,21 @@ bool ln_update_info_commitment_signed_send_needs(ln_update_info_t *pInfo)
 }
 
 
-void ln_update_info_clear_irrevocably_committed_htlcs(ln_update_info_t *pInfo)
+void ln_update_info_clear_irrevocably_committed_updates(ln_update_info_t *pInfo)
 {
+    ln_update_info_prune_fee_updates(pInfo);
+
     for (uint16_t idx = 0; idx < LN_UPDATE_MAX; idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (!LN_UPDATE_IRREVOCABLY_COMMITTED(p_update)) continue;
-        if (!(p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC)) continue;
-        /*ignore*/ ln_update_info_clear_htlc(pInfo, idx);
+        if (p_update->type & LN_UPDATE_TYPE_MASK_DEL_HTLC) {
+            /*ignore*/ ln_update_info_clear_htlc(pInfo, idx);
+        } else if (p_update->type == LN_UPDATE_TYPE_FEE) {
+            pInfo->feerate_per_kw_irrevocably_committed =
+                pInfo->fee_updates[p_update->type_specific_idx].feerate_per_kw;
+            /*ignore*/ ln_update_info_clear_fee(pInfo, idx);
+        }
     }
 }
 
@@ -618,7 +627,7 @@ void ln_update_info_reset_new_update(ln_update_info_t *pInfo) {
 uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, bool bLocal)
 {
     uint64_t value = 0;
-    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
@@ -635,7 +644,7 @@ uint64_t ln_update_info_get_htlc_value_in_flight_msat(ln_update_info_t *pInfo, b
 uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLocal)
 {
     uint16_t num = 0;
-    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (LN_UPDATE_RECV_ENABLED(p_update, LN_UPDATE_TYPE_ADD_HTLC, bLocal)) {
@@ -652,7 +661,7 @@ uint16_t ln_update_info_get_num_received_htlcs(ln_update_info_t *pInfo, bool bLo
 void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdated)
 {
     *pUpdated = false;
-    for (uint16_t idx; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
         ln_update_t *p_update = &pInfo->updates[idx];
         if (!LN_UPDATE_USED(p_update)) continue;
         if (p_update->state != LN_UPDATE_STATE_OFFERED_WAIT_SEND &&
@@ -685,6 +694,21 @@ void ln_update_info_clear_pending_updates(ln_update_info_t *pInfo, bool *pUpdate
 }
 
 
+bool ln_update_info_is_channel_clean(ln_update_info_t *pInfo)
+{
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->updates); idx++) {
+        if (pInfo->updates[idx].enabled) return false;
+    }
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->htlcs); idx++) {
+        if (pInfo->htlcs[idx].enabled) return false;
+    }
+    for (uint16_t idx = 0; idx < ARRAY_SIZE(pInfo->fee_updates); idx++) {
+        if (pInfo->fee_updates[idx].enabled) return false;
+    }
+    return true;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
@@ -699,6 +723,9 @@ static uint32_t get_last_feerate_per_kw(ln_update_info_t *pInfo)
         if (p_fee_update->id < id) continue;
         id = p_fee_update->id;
         feerate_per_kw = p_fee_update->feerate_per_kw;
+    }
+    if (!feerate_per_kw) {
+        feerate_per_kw = pInfo->feerate_per_kw_irrevocably_committed;
     }
     return feerate_per_kw;
 }

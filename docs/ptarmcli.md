@@ -15,35 +15,40 @@ ptarmcli [options] [JSON-RPC port number]
 ### options
 
 * single command
-  * `-h` : help
-  * `-q` : quit ptarmd
+  * `--help` : help
+  * `--stop` : quit ptarmd
 
 * connect peer
   * `-c NODE_ID@IPADDR:PORT` : new connection or already connected node
-  * `-c NODE_ID` : already connected node
 
 * information
-  * `-l` : get information
-  * `-m` : list invoices
+  * `--getinfo` : get information
 
 * funding
   * `-f FUND_CONFIG_FILE` : open channel(need `-c` option)
+    * FUND_CONFIG_FILE can create by `pay_fundin.py`
+
+* invoice
+  * `--addinvoice AMOUNT_MSAT` : add invoice
+  * `--listinvoice` : list invoices
+  * `--removeinvoice PAYMENT_HASH` : erase a payment_hash
+  * `--removeinvoice ALL` : erase all payment_hashs
 
 * payment
-  * `-i AMOUNT_MSAT` : add invoice
-  * `-e PAYMENT_HASH` : erase a payment_hash
-  * `-e ALL` : erase all payment_hashs
-  * `-r BOLT11_INVOICE[,ADD_AMOUNT_MSAT]`  : payment with BOLT11 invoice format
-    * `ptarmd` save fail node in DB if payment route return error for route skip.
+  * `--sendpayment BOLT11_INVOICE[,ADD_AMOUNT_MSAT]` : payment with BOLT11 invoice format
+  * `--listpayment` : list payments
+  * `--removepayment PAYMENT_ID` : remove a payment from the payment list
 
 * fee
   * `--setfeerate FEERATE_PER_KW` : set feerate_per_kw
     * if set not 0 value, send `update_fee`
 
-* `-x` : close channel(need `-c` option)
+* close channel
+  * `-x` : mutual close(need `-c` option)
+  * `-xforce` : unilateral close(need `-c` option)
 
 * debug
-  * `-d DECIMAL_VALUE` : debug option
+  * `--debug DECIMAL_VALUE` : debug option
   * `-c NODE_ID -g` : get commitment transaction and HTLC transaction
 
 * port
@@ -139,7 +144,10 @@ ptarmcli -i 123000
 ```json
 {
     "method":"invoice",
-    "params":[ 123000 ]
+    "params":[ 
+                123000,
+                0
+             ]
 }
 ```
 

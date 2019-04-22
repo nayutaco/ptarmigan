@@ -118,6 +118,7 @@ static uint8_t      mPrivChannel;
  * prototypes
  ********************************************************************/
 
+static void print_help(void);
 static void optfunc_help(int *pOption, bool *pConn);
 static void optfunc_test(int *pOption, bool *pConn);
 static void optfunc_addr(int *pOption, bool *pConn);
@@ -204,6 +205,9 @@ static const struct {
 int main(int argc, char *argv[])
 {
     const struct option OPTIONS[] = {
+        { "help", no_argument, NULL, 'h' },
+        { "stop", no_argument, NULL, 'q' },
+        { "getinfo", no_argument, NULL, 'l' },
         { "setfeerate", required_argument, NULL, M_OPT_SETFEERATE },
         { "estimatefundingfee", optional_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
         { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
@@ -212,9 +216,12 @@ int main(int argc, char *argv[])
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
+        { "sendpayment", required_argument, NULL, 'r' },
         { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
-        { "addinvoice", required_argument, NULL, 'i' },
+        { "createinvoice", required_argument, NULL, 'i' },
+        { "listinvoice", no_argument, NULL, 'm' },
+        { "removeinvoice", required_argument, NULL, 'e' },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
@@ -231,6 +238,9 @@ int main(int argc, char *argv[])
         if (opt == M_OPT_PRIVCHANNEL) {
             optfunc_privchannel(&option, &conn);
             break;
+        } else if (opt == '?') {
+            print_help();
+            return -1;
         }
     }
 
@@ -251,59 +261,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     if ((option == M_OPTIONS_INIT) || (option == M_OPTIONS_HELP) || (!conn && (option == M_OPTIONS_CONN))) {
-        fprintf(stderr, "[usage]\n");
-        fprintf(stderr, "\t%s [-t] [OPTIONS...] [JSON-RPC port(not ptarmd port)]\n", argv[0]);
-        fprintf(stderr, "\t\t-h : help\n");
-        fprintf(stderr, "\t\t-t : test(not send command)\n");
-        fprintf(stderr, "\t\t-q : quit ptarmd\n");
-        fprintf(stderr, "\t\t-l : list channels\n");
-        fprintf(stderr, "\t\t--estimatefundingfee[=FEERATE_PER_KW]: estimate fee amount to funding\n");
-        fprintf(stderr, "\n");
-
-        fprintf(stderr, "\tCONNECT:\n");
-        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
-#if defined(USE_BITCOIND)
-        fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF [--private]: funding\n");
-#elif defined(USE_BITCOINJ)
-        fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
-#endif
-        fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
-        fprintf(stderr, "\n");
-
-        fprintf(stderr, "\tPAYMENT:\n");
-        fprintf(stderr, "\t\t--addinvoice,-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
-        fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
-        fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
-        fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
-        fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
-        fprintf(stderr, "\t\t-m : show payment_hashs\n");
-        fprintf(stderr, "\t\t--listpayment : list payments\n");
-        fprintf(stderr, "\t\t--removepayment PAYMENT_ID : remove a payment from the payment list\n");
-        fprintf(stderr, "\n");
-
-        fprintf(stderr, "\tWALLET:\n");
-#ifdef USE_BITCOINJ
-        fprintf(stderr, "\t\t--getnewaddress : get wallet address(for fund-in)\n");
-        fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
-        fprintf(stderr, "\t\t--emptywallet BITCOIN_ADDRESS : send all Bitcoin balance\n");
-#endif
-        fprintf(stderr, "\t\t--paytowallet[=1 or 0] : 1:send from unilateral closed wallet to 1st layer wallet, 0:only show transaction\n");
-        fprintf(stderr, "\n");
-
-        fprintf(stderr, "\tDEBUG:\n");
-        // fprintf(stderr, "\t\t-a <IP address> : JSON-RPC send address\n");
-        fprintf(stderr, "\t\t--debug VALUE : debug option\n");
-        fprintf(stderr, "\t\t\tb0 ... no update_fulfill_htlc\n");
-        fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
-        fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
-        fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -g : get commitment transaction\n");
-        fprintf(stderr, "\t\t-X CHANNEL_ID : delete channel from DB\n");
-        fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
-        fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
+        print_help();
         return -1;
     }
 
@@ -332,6 +290,62 @@ int main(int argc, char *argv[])
     int ret = msg_send(mBuf, mBuf, mAddr, port, mTcpSend);
 
     return ret;
+}
+
+
+static void print_help(void)
+{
+    fprintf(stderr, "[usage]\n");
+    fprintf(stderr, "\tptarmcli [OPTIONS...] [JSON-RPC port(not ptarmd port)]\n");
+    fprintf(stderr, "\t\t--help,-h : help\n");
+    fprintf(stderr, "\t\t--stop,-q : quit ptarmd\n");
+    fprintf(stderr, "\t\t--getinfo,-l : list channels\n");
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "\tCONNECT:\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
+#if defined(USE_BITCOIND)
+    fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF [--private]: funding\n");
+#elif defined(USE_BITCOINJ)
+    fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
+#endif
+    fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
+    fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
+    fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
+    fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "\tINVOICE:\n");
+    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT : create invoice and add list\n");
+    fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
+    fprintf(stderr, "\t\t--listinvoice : list created invoices\n");
+    fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
+    fprintf(stderr, "\tPAYMENT:\n");
+    fprintf(stderr, "\t\t--sendpayment BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
+    fprintf(stderr, "\t\t--listpayment : list payments\n");
+    fprintf(stderr, "\t\t--removepayment PAYMENT_ID : remove a payment from the payment list\n");
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "\tWALLET:\n");
+#ifdef USE_BITCOINJ
+    fprintf(stderr, "\t\t--getnewaddress : get wallet address(for fund-in)\n");
+    fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
+    fprintf(stderr, "\t\t--emptywallet BITCOIN_ADDRESS : send all Bitcoin balance\n");
+#endif
+    fprintf(stderr, "\t\t--paytowallet[=1 or 0] : 1:send from unilateral closed wallet to 1st layer wallet, 0:only show transaction\n");
+    fprintf(stderr, "\n");
+
+    fprintf(stderr, "\tDEBUG:\n");
+    // fprintf(stderr, "\t\t-a <IP address> : JSON-RPC send address\n");
+    fprintf(stderr, "\t\t--debug VALUE : debug option\n");
+    fprintf(stderr, "\t\t\tb0 ... no update_fulfill_htlc\n");
+    fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
+    fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
+    fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
+    fprintf(stderr, "\t\t-c PEER NODE_ID -g : get commitment transaction\n");
+    fprintf(stderr, "\t\t-X CHANNEL_ID : delete channel from DB\n");
+    fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
+    fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
 }
 
 

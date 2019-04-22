@@ -89,6 +89,7 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
     LOGD("load bitcoin.conf: %s\n", pConfFile);
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
         LOGE("fail bitcoin.conf parse[%s]", pConfFile);
+        fprintf(stderr, "fail bitcoin.conf parse[%s]\n", pConfFile);
         return false;
     }
 #if defined(USE_BITCOIND)
@@ -101,6 +102,7 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
 
     if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
         LOGE("fail: no rpcuser or rpcpassword[%s]", pConfFile);
+        fprintf(stderr, "fail: no rpcuser or rpcpassword[%s]\n", pConfFile);
         return false;
     }
 #else

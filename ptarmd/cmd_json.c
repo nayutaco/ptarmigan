@@ -1511,7 +1511,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     ret = wallet_from_ptarm(&p_result, &vout_amount, tosend, addr, feerate_per_kw);
     if (ret) {
         result = cJSON_CreateObject();
-        cJSON_AddItemToObject(result, "txid", cJSON_CreateString(p_result));
+        cJSON_AddItemToObject(result, "message", cJSON_CreateString(p_result));
         cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(vout_amount));
         UTL_DBG_FREE(p_result);
     } else {
@@ -1587,7 +1587,8 @@ static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id)
         if (ln_db_payment_invoice_load_2(&buf_invoice, payment_id, p_cur)) {
             char *p_invoice = (char *)UTL_DBG_MALLOC(buf_invoice.len + 1);
             if (p_invoice) {
-                strncpy(p_invoice, (char *)buf_invoice.buf, buf_invoice.len + 1);
+                memcpy(p_invoice, buf_invoice.buf, buf_invoice.len);
+                p_invoice[buf_invoice.len] = '\0';
                 cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
             } else {
                 LOGE("fail: ???\n");
@@ -2063,7 +2064,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
     }
 
     ln_status_t stat = ln_status_get(&p_conf->channel);
-    if ((stat < LN_STATUS_ESTABLISH) || (LN_STATUS_NORMAL < stat)) {
+    if ((stat < LN_STATUS_ESTABLISH) || (stat > LN_STATUS_NORMAL_OPE)) {
         err = RPCERR_NOCHANNEL;
         goto LABEL_EXIT;
     }
@@ -2092,7 +2093,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
 
     int ret = 0;
 
-    lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
+    lnapp_conf_t *p_conf = lnapp_manager_get_node(pNodeId);
     if (!p_conf) {
         LOGE("fail: unilateral close\n");
         return RPCERR_NOCHANNEL;

@@ -70,8 +70,8 @@ FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
-FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, const ln_channel_t *, ln_commit_info_t *, const ln_update_info_t *, fake_sig_t **);
-FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_channel_t *, ln_commit_info_t *, const ln_update_info_t *, ln_close_force_t *);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, ln_commit_info_t *, const ln_update_info_t *, const ln_derkey_local_keys_t *, const ln_derkey_remote_keys_t *, fake_sig_t **);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_commit_info_t *, const ln_update_info_t *, const ln_derkey_local_keys_t *, const ln_derkey_remote_keys_t *, ln_close_force_t *);
 
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_write, utl_buf_t *, const ln_msg_update_fee_t *);
 FAKE_VALUE_FUNC(bool, ln_msg_update_fee_read, ln_msg_update_fee_t *, const uint8_t *, uint16_t );
@@ -1167,8 +1167,8 @@ TEST_F(ln, pruning)
 
     ASSERT_TRUE(ln_update_info_set_initial_fee_send(&info, 100));
 
-    //100
-    ASSERT_EQ(1, ln_update_info_get_num_fee_updates(&info));
+    //(100)
+    ASSERT_EQ(0, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 100));
@@ -1177,8 +1177,8 @@ TEST_F(ln, pruning)
     p_update = &info.updates[update_idx];
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
 
-    //100, 200
-    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
+    //(100), 200
+    ASSERT_EQ(1, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 200));
@@ -1187,8 +1187,8 @@ TEST_F(ln, pruning)
     p_update = &info.updates[update_idx];
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
 
-    //100, 200, 300
-    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+    //(100), 200, 300
+    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
@@ -1197,9 +1197,9 @@ TEST_F(ln, pruning)
     p_update = &info.updates[update_idx];
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
 
-    //100, 300, 400
+    //(100), 300, 400
     //  200 is pruned
-    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));
@@ -1212,9 +1212,9 @@ TEST_F(ln, pruning)
     p_update = &info.updates[update_idx];
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
 
-    //100, 400, 500
+    //(100), 400, 500
     //  300 is pruned
-    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 500));
@@ -1227,9 +1227,9 @@ TEST_F(ln, pruning)
     p_update = &info.updates[update_idx];
     LN_UPDATE_FLAG_SET(p_update, LN_UPDATE_STATE_FLAG_UP_SEND);
 
-    //100, 500, 300
+    //(100), 500, 300
     //  400 is pruned
-    ASSERT_EQ(3, ln_update_info_get_num_fee_updates(&info));
+    ASSERT_EQ(2, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 300));
@@ -1273,6 +1273,16 @@ TEST_F(ln, pruning)
     //400
     //  500 is pruned
     ASSERT_EQ(1, ln_update_info_get_num_fee_updates(&info));
+
+    //initial value
+    ASSERT_EQ(100, info.feerate_per_kw_irrevocably_committed);
+
+    //overwrite initial value
+    ln_update_info_clear_irrevocably_committed_updates(&info);
+    ASSERT_EQ(400, info.feerate_per_kw_irrevocably_committed);
+
+    //(400)
+    ASSERT_EQ(0, ln_update_info_get_num_fee_updates(&info));
 
     //fail: same value
     ASSERT_FALSE(ln_update_info_set_fee_pre_send(&info, &update_idx, 400));

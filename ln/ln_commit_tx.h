@@ -25,7 +25,6 @@
 #ifndef LN_COMMIT_TX_H__
 #define LN_COMMIT_TX_H__
 
-#include "ln.h"
 #include "ln_commit_tx_util.h"
 
 
@@ -45,7 +44,6 @@
  *   4. commit_txの送金先処理
  *   5. メモリ解放
  *
- * @param[in]           pChannel
  * @param[in,out]       pCommitInfo
  * @param[in,out]       pUpdateInfo
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
@@ -56,17 +54,18 @@
  *      - pubkeys[LN_BASEPOINT_IDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
 bool HIDDEN ln_commit_tx_create_local(
-    const ln_channel_t *pChannel,
     ln_commit_info_t *pCommitInfo,
     ln_update_info_t *pUpdateInfo,
+    const ln_derkey_local_keys_t *pKeysLocal,
     const uint8_t (*pHtlcSigs)[LN_SZ_SIGNATURE],
     uint16_t NumHtlcSigs);
 
 
 bool HIDDEN ln_commit_tx_create_local_close(
-    const ln_channel_t *pChannel,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const ln_derkey_local_keys_t *pKeysLocal,
+    const ln_derkey_remote_keys_t *pKeysRemote,
     ln_close_force_t *pClose);
 
 
@@ -75,6 +74,7 @@ bool HIDDEN ln_commit_tx_create_local_close(
  * @param[in,out]       pCommitTxInfo
  * @param[in]           pCommitInfo
  * @param[in]           pUpdateInfo
+ * @param[in]           pScriptPubkeys
  * @param[in]           bLocal
  * @retval              true        success
  */
@@ -82,6 +82,7 @@ bool HIDDEN ln_commit_tx_info_create_pre_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const uint8_t (*pScriptPubkeys)[BTC_SZ_PUBKEY],
     bool bLocal);
 
 
@@ -89,6 +90,7 @@ bool HIDDEN ln_commit_tx_info_create_committed(
     ln_commit_tx_info_t *pCommitTxInfo,
     const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const uint8_t (*pScriptPubkeys)[BTC_SZ_PUBKEY],
     bool bLocal);
 
 
@@ -120,16 +122,18 @@ void HIDDEN ln_commit_tx_info_free(ln_commit_tx_info_t *pCommitTxInfo);
  * @retval  true    成功
  */
 bool HIDDEN ln_commit_tx_create_remote(
-    const ln_channel_t *pChannel,
     ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const ln_derkey_local_keys_t *pKeysLocal,
+    const ln_derkey_remote_keys_t *pKeysRemote,
     uint8_t (**ppHtlcSigs)[LN_SZ_SIGNATURE]);
 
 
 bool HIDDEN ln_commit_tx_create_remote_close(
-    const ln_channel_t *pChannel,
-    ln_commit_info_t *pCommitInfo,
+    const ln_commit_info_t *pCommitInfo,
     const ln_update_info_t *pUpdateInfo,
+    const ln_derkey_local_keys_t *pKeysLocal,
+    const ln_derkey_remote_keys_t *pKeysRemote,
     ln_close_force_t *pClose);
 
 

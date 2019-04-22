@@ -144,7 +144,7 @@ static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
 static void ln_print_wallet(const ln_channel_t *pChannel)
 {
     ln_status_t stat = ln_status_get(pChannel);
-    if (stat == LN_STATUS_NORMAL) {
+    if (stat == LN_STATUS_NORMAL_OPE) {
         printf(INDENT2 "{\n");
         printf(INDENT3 M_QQ("node_id") ": \"");
         utl_dbg_dump(stdout, pChannel->peer_node_id, BTC_SZ_PUBKEY, false);
@@ -692,25 +692,25 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     printf(INDENT2 M_QQ("type") ": " M_QQ("%s") ",\n", p_type_str);
     printf(INDENT2 M_QQ("amount") ": %" PRIu64 ",\n", pWallet->amount);
     printf(INDENT2 M_QQ("sequence") ": %" PRIu32 ",\n", pWallet->sequence);
-    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 ",\n", pWallet->locktime);
-    if (pWallet->wit_item_cnt > 0) {
-        printf(INDENT2 M_QQ("privkey") ": \"");
-        utl_dbg_dump(stdout, pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len, false);
-        printf("\",\n");
-    }
-    if (pWallet->wit_item_cnt > 1) {
-        printf(INDENT2 M_QQ("witness") ": [\n");
-        for (uint32_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
-            if (lp > 1) {
-                printf(",\n");
-            }
-            printf(INDENT3 "\"");
-            utl_dbg_dump(stdout, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len, false);
-            printf("\"");
-        }
-        printf("\n");
-        printf(INDENT2 "]\n");
-    }
+    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 "\n", pWallet->locktime);
+    // if (pWallet->wit_item_cnt > 0) {
+    //     printf(INDENT2 M_QQ("privkey") ": \"");
+    //     utl_dbg_dump(stdout, pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len, false);
+    //     printf("\",\n");
+    // }
+    // if (pWallet->wit_item_cnt > 1) {
+    //     printf(INDENT2 M_QQ("witness") ": [\n");
+    //     for (uint32_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
+    //         if (lp > 1) {
+    //             printf(",\n");
+    //         }
+    //         printf(INDENT3 "\"");
+    //         utl_dbg_dump(stdout, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len, false);
+    //         printf("\"");
+    //     }
+    //     printf("\n");
+    //     printf(INDENT2 "]\n");
+    // }
     printf(INDENT1 "}\n");
     // printf("cnt=%d\n", pWallet->wit_item_cnt);
     // for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
@@ -947,42 +947,42 @@ static void dumpit_route_skip(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
-{
-    if (showflag == SHOW_INVOICE) {
-        printf(M_QQ("payinvoice") ": [\n");
+// static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
+// {
+//     if (showflag == SHOW_INVOICE) {
+//         printf(M_QQ("payinvoice") ": [\n");
 
-        MDB_cursor  *cursor;
+//         MDB_cursor  *cursor;
 
-        int retval = mdb_cursor_open(txn, dbi, &cursor);
-        if (retval != 0) {
-            LOGD("err: %s\n", mdb_strerror(retval));
-            mdb_txn_abort(txn);
-        }
+//         int retval = mdb_cursor_open(txn, dbi, &cursor);
+//         if (retval != 0) {
+//             LOGD("err: %s\n", mdb_strerror(retval));
+//             mdb_txn_abort(txn);
+//         }
 
-        int cnt = 0;
-        MDB_val key, data;
-        while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-            if (cnt > 0) {
-                printf(",\n");
-            }
+//         int cnt = 0;
+//         MDB_val key, data;
+//         while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+//             if (cnt > 0) {
+//                 printf(",\n");
+//             }
 
-            printf("[\"");
-            utl_dbg_dump(stdout, key.mv_data, key.mv_size, false);
-            printf("\",");
-            printf(M_QQ("%s") "]", (const char *)data.mv_data);
-            cnt++;
-        }
-        mdb_cursor_close(cursor);
+//             printf("[\"");
+//             utl_dbg_dump(stdout, key.mv_data, key.mv_size, false);
+//             printf("\",");
+//             printf(M_QQ("%s") "]", (const char *)data.mv_data);
+//             cnt++;
+//         }
+//         mdb_cursor_close(cursor);
 
-        printf("\n]");
-    }
-}
+//         printf("\n]");
+//     }
+// }
 
 static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_PREIMAGE) {
-        printf(M_QQ("preimage") ": [");
+        printf(INDENT1 M_QQ("preimage") ": [\n");
 
         lmdb_cursor_t cur;
 
@@ -1001,15 +1001,15 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                 if (cnt_preimage) {
                     printf(",");
                 }
-                printf("{\n");
-                printf(INDENT1 "\"");
+                printf(INDENT2 "{\n");
+                printf(INDENT3 M_QQ("premage") ": \"");
                 utl_dbg_dump(stdout, preimage.preimage, LN_SZ_PREIMAGE, false);
                 printf("\",\n");
-                printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimage.amount_msat);
-                printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimage.expiry);
+                printf(INDENT3 M_QQ("amount") ": %" PRIu64 ",\n", preimage.amount_msat);
+                printf(INDENT3 M_QQ("expiry") ": %" PRIu32 ",\n", preimage.expiry);
                 char time[UTL_SZ_TIME_FMT_STR + 1];
-                printf(INDENT1 M_QQ("creation") ": %s\n", utl_time_fmt(time, preimage.creation_time));
-                printf("}");
+                printf(INDENT3 M_QQ("creation") ": " M_QQ("%s") "\n", utl_time_fmt(time, preimage.creation_time));
+                printf(INDENT2 "}");
                 cnt_preimage++;
             }
         }
@@ -1114,9 +1114,9 @@ static void dbs_cursor_node(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi
     case LN_LMDB_DB_TYPE_ROUTE_SKIP:
         dumpit_route_skip(txn, dbi2);
         break;
-    case LN_LMDB_DB_TYPE_INVOICE:
-        dumpit_invoice(txn, dbi2);
-        break;
+    // case LN_LMDB_DB_TYPE_INVOICE:
+    //     dumpit_invoice(txn, dbi2);
+    //     break;
     case LN_LMDB_DB_TYPE_PREIMAGE:
         dumpit_preimage(txn, dbi2);
         break;
@@ -1191,16 +1191,18 @@ static void print_usage(const char *p_procname)
     fprintf(stderr, "\t\t--version,-v : node information\n");
     fprintf(stderr, "\t\t--datadir,-d [NODEDIR] : db directory(use current directory's db if not set)\n");
     fprintf(stderr, "\t\t--listchannelwallet : 2nd layer wallet info\n");
-    fprintf(stderr, "\t\t--listwallet : 1st layer wallet info\n");
     fprintf(stderr, "\t\t--showchannel,-s : show active channel detail\n");
     fprintf(stderr, "\t\t--listchannel,-l : active channel peer node_id list\n");
     fprintf(stderr, "\t\t--listclosed : closed channels list\n");
     fprintf(stderr, "\t\t--showclosed [CHANNEL_ID] : closed channels list\n");
     fprintf(stderr, "\t\t--listgossipchannel,-c : channel_announcement/channel_update\n");
     fprintf(stderr, "\t\t--listgossipnode,-n : node_announcement\n");
-    fprintf(stderr, "\t\t--listannounced : (internal)announcement received/sent node_id list\n");
-    fprintf(stderr, "\t\t--listskip : (internal)skip routing channel list\n");
-    fprintf(stderr, "\t\t--listinvoice : (internal)paying invoice\n");
+    fprintf(stderr, "\t\t--paytowalletvin : `ptarmcli --paytowallet` input info\n");
+#ifdef DEVELOPER_MODE
+    fprintf(stderr, "\t\t--listannounced : announcement received/sent node_id list\n");
+    fprintf(stderr, "\t\t--listskip : skip routing channel list\n");
+    fprintf(stderr, "\t\t--listinvoice : paying invoice\n");
+#endif
 }
 
 int main(int argc, char *argv[])
@@ -1236,7 +1238,7 @@ int main(int argc, char *argv[])
         { "listannounced", no_argument, NULL, 'a'},
         { "listskip", no_argument, NULL, 'k'},
         { "listinvoice", no_argument, NULL, 'i'},
-        { "listwallet", no_argument, NULL, 'W'},
+        { "paytowalletvin", no_argument, NULL, 'W'},
         { "version", no_argument, NULL, 'v'},
         { "help", no_argument, NULL, 'h'},
         { 0, 0, 0, 0 }
@@ -1364,7 +1366,7 @@ int main(int argc, char *argv[])
             p_env = mpDbNode;
             break;
         case 'i':
-            showflag = SHOW_INVOICE;
+            showflag = SHOW_PREIMAGE;
             p_env = mpDbNode;
             break;
         case 'W':

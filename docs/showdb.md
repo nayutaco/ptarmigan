@@ -6,20 +6,21 @@
 
 ## SYNOPSIS
 
-    swhodb [options]
+    showdb [options]
 
 ### options
 
-* `-d` : DB directory(= contain `db` directory). use current directory if not specified.
-* `-w` : wallet info
-* `-s` : self info
-* `-q` : closed self info
-* `-c` : channel_announcement/channel_update
-* `-n` : node_announcement
-* `-v` : DB version
-* `-a` : (internal)announcement received/sent node_id list
-* `-k` : (internal)routing skip channel list
-* `-i` : (internal)paying invoice list
+* `--datadir [NODEDIR]` : DB directory(= contain `db` directory). use current directory if not specified.
+* `--listchannnelwallet` : wallet info
+* `--showchannel` : self info
+* `--listclosed` : closed self info
+* `--listgossipchannel` : channel_announcement/channel_update
+* `--listgossipnode` : node_announcement
+* `--paytowalletvin` : show `ptarmcli --paytowallet` input information
+* `--version` : DB version
+* `--listannounced` : (internal)announcement received/sent node_id list
+* `--listskip` : (internal)routing skip channel list
+* `--listinvoice` : (internal)paying invoice list
 
 ## DESCRIPTION
 

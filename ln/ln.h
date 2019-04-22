@@ -90,8 +90,11 @@ extern "C" {
 #define LN_CNLUPD_CHFLAGS_DISABLE       (0x02)      ///< b1: disable
 
 // ln_channel_t.shutdown_flag
-#define LN_SHDN_FLAG_SEND               (0x01)      ///< shutdown送信済み
-#define LN_SHDN_FLAG_RECV               (0x02)      ///< shutdown受信済み
+#define LN_SHDN_FLAG_WAIT_SEND_SHDN     (0x01)      ///< waiting to send shutdown
+#define LN_SHDN_FLAG_SEND_SHDN          (0x02)      ///< shutdown sent
+#define LN_SHDN_FLAG_RECV_SHDN          (0x04)      ///< shutdown received
+#define LN_SHDN_FLAG_WAIT_SEND_CLSN     (0x08)      ///< waiting to closing_signed
+#define LN_SHDN_FLAG_SEND_CLSN          (0x10)      ///< closing_signed sent
 
 // ln_close_force_t.p_tx, p_htlc_idxsのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
@@ -190,14 +193,16 @@ typedef struct ln_channel_t ln_channel_t;
  */
 typedef enum {
     LN_STATUS_NONE = 0,
-    LN_STATUS_ESTABLISH = 1,        ///< establish
-    LN_STATUS_NORMAL = 2,           ///< normal operation
-    LN_STATUS_CLOSE_WAIT = 3,       ///< shutdown received or sent
-    LN_STATUS_CLOSE_MUTUAL = 4,     ///< mutual close
-    LN_STATUS_CLOSE_UNI_LOCAL = 5,  ///< unilateral close(from local)
-    LN_STATUS_CLOSE_UNI_REMOTE = 6, ///< unilateral close(from remote)
-    LN_STATUS_CLOSE_REVOKED = 7,    ///< revoked transaction close(from remote)
-    LN_STATUS_CLOSED = 8            ///< closed
+    LN_STATUS_ESTABLISH,                    ///< establish
+    LN_STATUS_NORMAL_OPE,                   ///< normal operation
+    LN_STATUS_CLOSE_WAIT,                   ///< `closing_signed`s were received and sent with the same fee
+    LN_STATUS_CLOSE_MUTUAL,                 ///< mutual close
+    LN_STATUS_CLOSE_UNI_LOCAL,              ///< unilateral close (from local)
+    LN_STATUS_CLOSE_UNI_REMOTE_LAST,        ///< unilateral close (from remote last commit tx)
+    LN_STATUS_CLOSE_UNI_REMOTE_SECOND_LAST, ///< unilateral close (from remote second last commit tx)
+    LN_STATUS_CLOSE_REVOKED,                ///< revoked transaction close (from remote)
+    LN_STATUS_CLOSE_UNKNOWN,                ///< unknown close (trouble)
+    LN_STATUS_CLOSED                        ///< closed
 } ln_status_t;
 
 
@@ -405,6 +410,8 @@ struct ln_channel_t {
     //commitment transaction(local/remote)
     ln_commit_info_t            commit_info_local;              ///< [COMM_01]local commit_tx用
     ln_commit_info_t            commit_info_remote;             ///< [COMM_02]remote commit_tx用
+    uint8_t                     prev_remote_commit_txid[BTC_SZ_TXID];
+                                                                ///< [COMM_03]previous remote commit tx's txid (for second last remote unilateral close)
 
     //gossip_queries
     ln_gquery_t                 gquery;                         ///< [GQRY_01]gossip_queries
@@ -1230,19 +1237,15 @@ uint64_t ln_node_total_msat(void);
  * XXX:
  ********************************************************************/
 
-/** スクリプト用鍵生成/更新
- *
- * @param[in,out]   pChannel
- * @note
- *      - per-commit-secret/per-commit-basepointが変更された場合に呼び出す想定
- */
-bool HIDDEN ln_update_script_pubkeys(ln_channel_t *pChannel);
+//XXX: depends on `ln_channel_t`
+bool ln_wallet_create_to_local_2(
+    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+    const utl_buf_t *pWitScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
-bool HIDDEN ln_update_script_pubkeys_local(ln_channel_t *pChannel);
-
-
-bool HIDDEN ln_update_script_pubkeys_remote(ln_channel_t *pChannel);
+//XXX: depends on `ln_channel_t`
+bool ln_wallet_create_to_remote_2(
+    const ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index);
 
 
 /********************************************************************
@@ -1254,16 +1257,20 @@ unsigned long ln_debug_get(void);
 
 
 #ifdef PTARM_USE_PRINTFUNC
-
 /** [デバッグ用]鍵情報出力
  *
- * @param[in]   pLocal
- * @param[in]   pRemote
  */
-void ln_print_keys(ln_channel_t *pChannel);
+void ln_print_keys(const ln_channel_t *pChannel);
+
+
+void ln_print_keys_2(
+    const ln_funding_info_t *pFundingInfo, const ln_derkey_local_keys_t *pKeysLocal,
+    const ln_derkey_remote_keys_t *pKeysRemote);
 #else
 #define ln_print_keys(...)      //nothing
+#define ln_print_keys_2(...)    //nothing
 #endif
+
 
 #ifdef __cplusplus
 }

@@ -50,6 +50,7 @@
 #include "ln_msg_establish.h"
 #include "ln_local.h"
 #include "ln_setupctl.h"
+#include "ln_close.h"
 #include "ln_establish.h"
 
 
@@ -268,7 +269,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
         LN_FUNDING_STATE_STATE_FUNDING);
 
     //generate keys
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     if (!ln_accept_channel_send(pChannel)) {
@@ -387,7 +388,7 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
     //generate keys
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
 
     //create funding_tx
@@ -405,7 +406,8 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     //initial commit tx(Remoteが持つTo-Local)
     if (!ln_commit_tx_create_remote(
-        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, NULL)) {
+        &pChannel->commit_info_remote, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, NULL)) {
         LOGE("fail: ???\n");
         return false;
     }
@@ -474,14 +476,16 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
     //verify sign
     //  initial commit tx(自分が持つTo-Local)
     if (!ln_commit_tx_create_local(
-        pChannel, &pChannel->commit_info_local, &pChannel->update_info, NULL, 0)) {
+        &pChannel->commit_info_local, &pChannel->update_info,
+        &pChannel->keys_local, NULL, 0)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
 
     //initial commit tx(Remoteが持つTo-Local)
     if (!ln_commit_tx_create_remote(
-        pChannel, &pChannel->commit_info_remote, &pChannel->update_info, NULL)) {
+        &pChannel->commit_info_remote, &pChannel->update_info,
+        &pChannel->keys_local, &pChannel->keys_remote, NULL)) {
         LOGE("fail: ???\n");
         return false;
     }
@@ -542,7 +546,8 @@ bool HIDDEN ln_funding_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //initial commit tx(自分が持つTo-Local)
     //  HTLCは存在しない
     if (!ln_commit_tx_create_local(
-        pChannel, &pChannel->commit_info_local, &pChannel->update_info, NULL, 0)) {
+        &pChannel->commit_info_local, &pChannel->update_info,
+        &pChannel->keys_local, NULL, 0)) {
         LOGE("fail: create_to_local\n");
         return false;
     }
@@ -609,7 +614,7 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //funding中終了
     ln_establish_free(pChannel);
 
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
@@ -776,6 +781,7 @@ void ln_channel_reestablish_before(ln_channel_t *pChannel)
 {
     bool updated = false;
     ln_update_info_clear_pending_updates(&pChannel->update_info, &updated);
+    ln_shutdown_reset(pChannel);
 }
 
 
@@ -987,7 +993,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
 
     //storage_next_indexデクリメントおよびper_commit_secret更新
     ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
-    ln_update_script_pubkeys(pChannel);
+    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
 
     //save the channel
     //  we should save the channel before broadcasting the funding tx
