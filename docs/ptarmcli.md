@@ -20,6 +20,7 @@ ptarmcli [options] [JSON-RPC port number]
 
 * connect peer
   * `-c NODE_ID@IPADDR:PORT` : new connection or already connected node
+    * get all channel information from peer with `--initroutesync`
 
 * information
   * `--getinfo` : get information
@@ -47,9 +48,11 @@ ptarmcli [options] [JSON-RPC port number]
   * `-x` : mutual close(need `-c` option)
   * `-xforce` : unilateral close(need `-c` option)
 
+<!--
 * debug
   * `--debug DECIMAL_VALUE` : debug option
   * `-c NODE_ID -g` : get commitment transaction and HTLC transaction
+-->
 
 * port
   * default port number is 9736
