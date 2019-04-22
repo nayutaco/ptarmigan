@@ -52,5 +52,3 @@ Thumbs.db
 *.code-workspace
 package-lock.json
 yarn.lock
-
-.env
