@@ -1,10 +1,40 @@
-import { Controller, Get, Patch, Put, Param, Post, Body, Delete } from '@nestjs/common';
+import { Controller, Get, Patch, Put, Param, Post, Body, Delete, Logger, Query } from '@nestjs/common';
 import { exec, execSync } from 'child_process';
 import { PtarmiganService } from './ptarmigan.service';
 import { BitcoinService } from '../bitcoin/bitcoin.service';
-import { ApiUseTags, ApiModelProperty, ApiImplicitQuery } from '@nestjs/swagger';
+import { ApiUseTags, ApiModelProperty, ApiImplicitQuery, ApiCreatedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 
-export class AddInvoiceDto {
+export class FeeDto {
+    @ApiModelProperty(
+        {
+            required: true,
+            description: "feerate per kw"
+        }
+    )
+    feeratePerKw: number
+}
+
+export class PaymentHashDto {
+    @ApiModelProperty(
+        {
+            required: true,
+            description: "payment hash"
+        }
+    )
+    paymentHash: string
+}
+
+export class Bolt11Dto {
+    @ApiModelProperty(
+        {
+            required: true,
+            description: "bolt11 invoice"
+        }
+    )
+    bolt11: string
+}
+
+export class InvoiceDto {
     @ApiModelProperty(
         {
             required: true,
@@ -38,10 +68,20 @@ export class PeerDto {
 
     @ApiModelProperty(
         {
-            required: true
+            required: true,
+            default: 9735
         }
     )
-    peerPort: number    
+    peerPort: number
+}
+
+export class PeerNodeDto {
+    @ApiModelProperty(
+        {
+            required: true,
+        }
+    )
+    peerNodeId: string
 }
 
 export class FundDto {
@@ -108,6 +148,23 @@ export class ListUnspentDto {
     addresses: string[]
 }
 
+export class RouteNodeDto{
+    @ApiModelProperty(
+        {
+            required: true,
+            pattern: "^[0-9a-f]+"
+        }
+    )    
+    senderNodeId: string
+    @ApiModelProperty(
+        {
+            required: true,
+            pattern: "^[0-9a-f]+"
+        }
+    )    
+    receiverNodeId: string
+}
+
 @ApiUseTags('ptarmigan')
 @Controller('/')
 export class PtarmiganController {
@@ -126,48 +183,62 @@ export class PtarmiganController {
     */
 
     @Post('stop') // stop -> stop
-    async executeStop() {        
+    async executeStop() {
         return await this.ptarmiganService.requestTCP("stop", []);
     }
 
     @Post('getinfo') // getinfo -> getinfo
+    @ApiCreatedResponse({ description: 'The record has been successfully created.'})
+    @ApiForbiddenResponse({ description: 'Forbidden.'})
     async executeGetInfo(): Promise<string> {
         return await this.ptarmiganService.requestTCP("getinfo", {});
     }
 
-    @Post('setfeerate/:feeratePerKw') // setfeerate -> setfeerate
-    async executeSetFeerate( @Param('feeratePerKw') feeratePerKw: number ) {
-        return await this.ptarmiganService.requestTCP("setfeerate", [feeratePerKw]);
+    @Post('setfeerate') // setfeerate -> setfeerate
+    async executeSetFeerate( @Body() dto: FeeDto ) {
+        //return await this.ptarmiganService.requestTCP("setfeerate", [feeratePerKw]);
+        return await this.ptarmiganService.requestTCP("setfeerate", [dto.feeratePerKw])
     }
 
+    @Post('estimatefundingfee') // estimatefundingfee -> dev-estimatefundingfee
+    async executeEstimateFundingFee( @Body() dto: FeeDto) {
+        return await this.ptarmiganService.requestTCP("estimatefundingfee", [ dto.feeratePerKw ])
+    }
+
+    // TODO: [100], 100レスポンス確認
+    /*
     @Post('estimatefundingfee/:feeratePerKw') // estimatefundingfee -> dev-estimatefundingfee
-    async executeEstimateFundingFee( @Param('feeratePerKw') feeratePerKw: number ) {
-        return await this.ptarmiganService.requestTCP("estimatefundingfee", [feeratePerKw]);
-    }
-
-    @Post('eraseinvoice/:paymentHash') // eraseinvoice -> removeinvoice
-    async executeEraseInvoice( @Param('paymentHash') paymentHash?: string ) {
-        return await this.ptarmiganService.requestTCP("eraseinvoice", [paymentHash]);
-    }    
-
-    /*
-    @Delete('removeallinvoices') // eraseinvoice -> removeallinvoices
-    async executeRemoveAllInvoices() {
-        return await this.ptarmiganService.requestTCP("removeallinvoices", []);
-    }
-    */   
-
-   @Post('listinvoice') // listinvoice -> listinvoices
-   async executeListInvoice() {
-       return await this.ptarmiganService.requestTCP("listinvoice", []);
-   }
-
-    /*
-    @Get('decodeinvoice/:bolt11') // none -> decodeinvoice
-    async executeDecodeInvoice( @Param('bolt11') bolt11: string ) {
-        return await this.ptarmiganService.requestTCP("decodeinvoice", [bolt11]);
+    async executeEstimateFundingFee( @Param('feeratePerKw') feeratePerKw: number) {
+        Logger.log(feeratePerKw)
+        Logger.log(typeof feeratePerKw)
+        return await this.ptarmiganService.requestTCP("estimatefundingfee", [ feeratePerKw ])
     }
     */
+
+    @Post('createinvoice') // createinvoice -> invoice
+    async executeCreateInvoice( @Body() dto: InvoiceDto ) {
+        return await this.ptarmiganService.requestTCP("invoice", [dto.amountMsat, dto.minFinalCltvExpiry])
+    }
+
+    @Post('removeinvoice') // eraseinvoice -> removeinvoice
+    async executeEraseInvoice( @Body() dto: PaymentHashDto) {
+        return await this.ptarmiganService.requestTCP("eraseinvoice", [dto.paymentHash])
+    }
+
+    @Post('removeallinvoices') // eraseinvoice -> removeallinvoices
+    async executeRemoveAllInvoices() {
+        return await this.ptarmiganService.requestTCP("eraseinvoice", ['ALL'])
+    }
+
+   @Post('listinvoices') // listinvoice -> listinvoices
+   async executeListInvoice() {
+       return await this.ptarmiganService.requestTCP("listinvoice", [])
+   }
+
+    @Post('decodeinvoice') // none -> decodeinvoice
+    async executeDecodeInvoice( @Body() dto: Bolt11Dto ) {
+        return await this.ptarmiganService.requestTCP("decodeinvoice", [dto.bolt11])
+    }
 
     // ------------------------------------------------------------------------------
     // peer
@@ -178,22 +249,25 @@ export class PtarmiganController {
     }  
 
     @Post('disconnect') // disconnect -> disconnectpeer
-    async executeDisconnect( @Body() dto: PeerDto ) {
+    async executeDisconnect( @Body() dto: PeerDto) {
         return await this.ptarmiganService.requestTCP("disconnect", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
-    }  
+    }
 
     @Post('getlasterror') // getlasterror -> getlasterror
     async executeGetLastErrort( @Body() dto: PeerDto ) {
         return await this.ptarmiganService.requestTCP("getlasterror", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
     }      
 
-    @ApiImplicitQuery({ name: 'disable', enum: [0, 1]})
-    @Post('disautoconn') // disautoconn -> dev-disableautoconnect
-    async executeDisAutoConn( @Param('disable') disable: number ) {
-        return await this.ptarmiganService.requestTCP("disautoconn", disable)
+    @Post('dev-disautoconn') // disautoconn -> dev-disableautoconnect
+    @ApiImplicitQuery({
+        name: 'enable',
+        enum: [0, 1]
+    })
+    async executeDisAutoConn( @Query('enable') enable: number) {
+        return await this.ptarmiganService.requestTCP("disautoconn", [enable.toString(10)])
     }
 
-    @Post('getcommittx') // getcommittx -> dev-listtransactions
+    @Post('dev-listtransactions') // getcommittx -> dev-listtransactions
     async executeGetCommitTx( @Body() dto: PeerDto ) {
         return await this.ptarmiganService.requestTCP("getcommittx", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
     }
@@ -201,12 +275,21 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // channel
     // ------------------------------------------------------------------------------
-    // TODO: add to pay_fundin.py to openchannel 
-    @Post('fund') // fund -> openchannel
-    async executeFund( @Body() peerDto: PeerDto, fundDto: FundDto) {
-        //let fundingSat: number = 10000
-        //let pushMsat: number   = 10000
-        //this.ptarmiganService.commandExecuteSync("pay_fundin.py", [fundingSat, pushMsat]).toString()
+    
+    /*
+    # 所有amountが少ないケース
+    azureuser@ptarmigan-node:~/work/ptarmigan/install/node$ ../pay_fundin.py 100000 1000 aaa.txt
+    [FeeRate] 0.00001028
+    no input
+    ERROR: You don't have enough amount(P2PKH, P2WPKH).
+
+    # fundingが小さいケース
+    ERROR: funding_satoshis < 100,000 sat
+     */
+    @Post('openchannel') // fund -> openchannel
+    async executeOpenChannel( @Body() peerDto: PeerDto, fundDto: FundDto) {
+        var utime = new Date().getTime() / 1000
+        this.ptarmiganService.commandExecutePayFundin(fundDto.fundingSat, fundDto.pushSat, utime.toString())
         return await this.ptarmiganService.requestTCP("fund", [peerDto.peerNodeId, peerDto.peerAddr, peerDto.peerPort, fundDto.txId, fundDto.txIndex, fundDto.fundingSat, fundDto.pushSat, fundDto.feeratePerKw])
     }
 
@@ -215,11 +298,22 @@ export class PtarmiganController {
         return await this.ptarmiganService.requestTCP("close", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
     }
 
-    @Post('removechannel') // removechannel -> dev-removechannel
+    @Post('dev-removechannel/:channelId') // removechannel -> dev-removechannel
     async executeRemoveChannel( @Param('channelId') channelId: string) {
         return await this.ptarmiganService.requestTCP("removechannel", [channelId])
     }
 
+    @Post('resetroutestate') // removechannel -> dev-removechannel
+    async executeResetRouteState() {
+        return await this.ptarmiganService.requestTCP("resetroutestate", [])
+    } 
+
+    // ------------------------------------------------------------------------------
+    // payment
+    // ------------------------------------------------------------------------------
+
+
+    
     // ------------------------------------------------------------------------------
     // fund
     // ------------------------------------------------------------------------------
@@ -238,19 +332,19 @@ export class PtarmiganController {
         return await this.bitcoinService.requestHTTP("listunspent", [dto.minconf, dto.maxconf, dto.addresses]);
     }
 
-    @Post('getchannels')
-    async executeGetChannelsSync(): Promise<string> {
-        return this.ptarmiganService.commandExecuteSync("showdb", ["-l"]).toString()
+    @Post('listchannels')
+    async executeListChannels(): Promise<string> {
+        return this.ptarmiganService.commandExecuteShowdbGetChannels().toString()
     }
 
-    @Post('getchannels')
-    async executeGetChannels(): Promise<string> {
-        return this.ptarmiganService.commandExecuteSync("showdb", ["-l"]).toString()
+    @Post('listnodes')
+    async executeListNodes(): Promise<string> {
+        return this.ptarmiganService.commandExecuteShowdbListGossipNode().toString()
     }
 
     // TODO: getroute add DTO parameter
     @Post('getroute')
-    async executeGetRoute(): Promise<string> {
-        return this.ptarmiganService.commandExecuteSync("routing", ["-s" + " xxx", "-r" + " yyy"]).toString()
+    async executeGetRoute( @Body() dto: RouteNodeDto): Promise<string> {
+        return this.ptarmiganService.commandExecuteRoutingGetRoute(dto.senderNodeId, dto.receiverNodeId).toString()
     }
 }
