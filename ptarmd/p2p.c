@@ -274,11 +274,14 @@ void *p2p_listener_start(void *pArg)
     ret = bind(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
         LOGE("bind: %s\n", strerror(errno));
+        fprintf(stderr, "fail bind: %s\n", strerror(errno));
+        exit(1);
         goto LABEL_EXIT;
     }
     ret = listen(sock, 1);
     if (ret < 0) {
         LOGE("listen: %s\n", strerror(errno));
+        fprintf(stderr, "fail listen: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fprintf(stderr, "listening...\n");

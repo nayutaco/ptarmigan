@@ -235,7 +235,9 @@ void cmd_json_start(uint16_t Port)
 void cmd_json_stop(void)
 {
     LOGD("stop\n");
-    jrpc_server_stop(&mJrpc);
+    if (mJrpc.port_number != 0) {
+        jrpc_server_stop(&mJrpc);
+    }
 }
 
 
@@ -480,7 +482,9 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
-    jrpc_server_stop(&mJrpc);
+    if (mJrpc.port_number != 0) {
+        jrpc_server_stop(&mJrpc);
+    }
 
     return result;
 }
@@ -764,7 +768,7 @@ static cJSON *cmd_decodeinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         chain = "unknown";
     }
     cJSON_AddItemToObject(result, "chain", cJSON_CreateString(chain));
-    
+
     //amount_msat
     cJSON_AddItemToObject(result, "amount_msat", cJSON_CreateNumber64(p_invoice_data->amount_msat));
     //timestamp
@@ -2102,7 +2106,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
     lnapp_stop(p_conf);
 
     //XXX: block reconnection
-    
+
     if (!lnapp_close_channel_force(p_conf)) {
         ret = RPCERR_CLOSE_FAIL;
         goto LABEL_EXIT;
