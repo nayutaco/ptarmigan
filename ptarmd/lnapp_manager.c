@@ -174,13 +174,17 @@ void lnapp_manager_prune_node()
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         if (!memcmp(mAppConf[lp].node_id, mNodeIdOrigin, BTC_SZ_PUBKEY)) continue; //skip origin node
         if (!mAppConf[lp].enabled) continue;
-        if (mAppConf[lp].ref_counter) continue;
         //no lock required
-        if (ln_status_get(&mAppConf[lp].channel) >= LN_STATUS_ESTABLISH &&
-            ln_status_get(&mAppConf[lp].channel) != LN_STATUS_CLOSED) continue;
+        if (ln_status_get(&mAppConf[lp].channel) < LN_STATUS_ESTABLISH) {
+            ;
+        } else if (ln_status_get(&mAppConf[lp].channel) == LN_STATUS_CLOSED) {
+            lnapp_stop(&mAppConf[lp]);
+        } else {
+            continue;
+        }
+        if (mAppConf[lp].ref_counter) continue;
         LOGD("prune node: ");
         DUMPD(mAppConf[lp].node_id, BTC_SZ_PUBKEY);
-        lnapp_stop(&mAppConf[lp]);
         lnapp_conf_term(&mAppConf[lp]);
     }
     pthread_mutex_unlock(&mMuxAppconf);
