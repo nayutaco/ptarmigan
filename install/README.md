@@ -1,65 +1,15 @@
-# How to use
+# README: install
 
-## Setup
+## install directory
 
-* start bitcoind
+All Ptarmigan executables are in this directory.  
+If you only need the files you want to run, copy this directory.
 
-sample: ~/.bitcoin/bitcoin.conf
+## How to use
 
-```.text
-testnet=1
-server=1
-txindex=1
-rpcuser=bitcoinuser
-rpcpassword=bitcoinpassword
-```
+[document](../docs/howtouse.md)
 
-## Start ptarmigan node
-
-```.bash
-cd install
-./new_nodedir.sh
-cd node
-../ptarmd
-```
-
-## Access ptarmigan node from client app
-
-### Get Information
-
-```.bash
-../ptarmcli -l
-```
-
-### Connect another LN node
-
-```.bash
-../ptarmcli -c [NODE_ID]@[IPv4_ADDR]:[PORT]
-```
-
-### Establish chennel
-
-```.bash
-(connect target before establish)
-
-../pay_fundin.sh [FUND+alpha satoshi] [FUND satoshi] [to peer satoshi]
-../ptarmcli -c [NODE_ID](@[IPv4_ADDR]:[PORT]) -f fundYYYYMMDDhhmmss.conf
-(wait establish...)
-```
-
-### Create invoice
-
-```.bash
-../ptarmcli -i [AMOUNT_MSAT]
-```
-
-### Payment
-
-```.bash
-../ptarmcli -r [INVOICE STRING]
-```
-
-### Catch event
+## Catch event
 
 When event happen, `script/*.sh` is called from `ptarmd`.  
 You can edit script files.
