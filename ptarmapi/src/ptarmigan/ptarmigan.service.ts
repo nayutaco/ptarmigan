@@ -67,27 +67,37 @@ export class PtarmiganService {
     }
 
     commandExecutePayFundin(fundingSat, pushMsat, outputFileName): Buffer {
-        return execSync(this.path + '/pay_fundin.py' + ' ' + fundingSat + ' ' + pushMsat + ' ' + outputFileName, {timeout: 30000})
+        return execSync('python3' + ' ' + this.path + '/pay_fundin.py' + ' ' + fundingSat + ' ' + pushMsat + ' ' + outputFileName, {timeout: 30000})
     }
 
     async commandExecuteOpenChannel(peerNodeId: string, fundingSat: number, pushMsat: number, feeratePerKw: number): Promise<string> {
         let utime = new Date().getTime() / 1000
         let filename = utime.toString() + '.txt'
-        let res = this.commandExecutePayFundin(fundingSat, pushMsat, filename)
-        Logger.log('res:' + res)
-
         try {
-            let content = dotenv.parse(fs.readFileSync(filename))
+            let res = this.commandExecutePayFundin(fundingSat, pushMsat, filename)
+            let content = dotenv.parse(fs.readFileSync(filename + ''))
             let txId = content['txid']
             let txIndex = content['txindex']
             return await this.requestTCP("fund", [peerNodeId, '0.0.0.0', 0, txId, txIndex, feeratePerKw])
-        } catch (err) {
-            if (err.code === 'ENOENT') {
-                Logger.log('file not found')
-                return 'file not found. ERROR: funding_satoshis < 100,000 sat ??'
-            } else {
-                Logger.log('other')
-                return 'error'
+        } catch (error) {
+            Logger.log(error)
+            if (error.status == 1) {
+                // ERR_INVALID_ARG
+                return error.stderr.toString()
+            } else if (error.status == 2) {
+                // ERR_NO_AMOUNT
+                return error.stderr.toString()
+            } else if (error.status == 3) {
+                // ERR_BC_CREATE_TX
+                return error.stderr.toString()
+            } else if (error.status == 4) {
+                // ERR_BC_SEND_TX
+                return error.stderr.toString()
+            } else if (error.status == 100) {
+                // ERR_EXCEPTION
+                return error.stderr.toString()
+            } else if (error.code == 'ENOENT'){
+                return 'File not found'
             }
         }
     }
