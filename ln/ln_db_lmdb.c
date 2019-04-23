@@ -522,6 +522,7 @@ static bool preimage_open(ln_lmdb_db_t *pDb, MDB_txn *pTxn);
 static void preimage_close(ln_lmdb_db_t *pDb, MDB_txn *pTxn, bool bCommit);
 static bool preimage_cmp_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *pDbParam, void *pParam);
 static bool preimage_cmp_all_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *pDbParam, void *pParam);
+static bool preimage_search(ln_db_func_preimage_t pFunc, bool bCommit, void *pFuncParam);
 
 static int wallet_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
@@ -2909,26 +2910,13 @@ bool ln_db_preimage_del(const uint8_t *pPreimage)
 
 bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *pFuncParam)
 {
-    bool found = false;
-    void *p_cur;
-    ln_db_preimage_t preimage;
-    bool detect;
-
-    if (!ln_db_preimage_cur_open(&p_cur)) return false;
-    while (ln_db_preimage_cur_get(p_cur, &detect, &preimage)) {
-        if (!detect) continue;
-        if (!(*pFunc)(preimage.preimage, preimage.amount_msat, preimage.expiry, p_cur, pFuncParam)) continue;
-        found = true;
-        break;
-    }
-    ln_db_preimage_cur_close(p_cur, false);
-    return found;
+    return preimage_search(pFunc, false, pFuncParam);
 }
 
 
 bool ln_db_preimage_del_hash(const uint8_t *pPaymentHash)
 {
-    return ln_db_preimage_search(preimage_cmp_func, (CONST_CAST uint8_t *)pPaymentHash);
+    return preimage_search(preimage_cmp_func, true, (CONST_CAST uint8_t *)pPaymentHash);
 }
 
 
@@ -5688,6 +5676,28 @@ static bool preimage_cmp_all_func(const uint8_t *pPreimage, uint64_t Amount, uin
         LOGD("  remove from DB: %s\n", mdb_strerror(retval));
     }
     return false; //continue
+}
+
+
+/** preimage検索(自分で作成)
+ *  @param[in]bCommit       true    cursor close時にcommitを行う
+ */
+static bool preimage_search(ln_db_func_preimage_t pFunc, bool bCommit, void *pFuncParam)
+{
+    bool found = false;
+    void *p_cur;
+    ln_db_preimage_t preimage;
+    bool detect;
+
+    if (!ln_db_preimage_cur_open(&p_cur)) return false;
+    while (ln_db_preimage_cur_get(p_cur, &detect, &preimage)) {
+        if (!detect) continue;
+        if (!(*pFunc)(preimage.preimage, preimage.amount_msat, preimage.expiry, p_cur, pFuncParam)) continue;
+        found = true;
+        break;
+    }
+    ln_db_preimage_cur_close(p_cur, bCommit);
+    return found;
 }
 
 

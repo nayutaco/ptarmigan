@@ -686,6 +686,8 @@ bool ln_db_preimage_del(const uint8_t *pPreimage);
  * @param[in]       pFunc
  * @param[in,out]   pFuncParam
  * @retval  true    pFuncがtrueを返した(その時点で検索を中断している)
+ * @note
+ *  - DB更新を行わない
  */
 bool ln_db_preimage_search(ln_db_func_preimage_t pFunc, void *pFuncParam);
 

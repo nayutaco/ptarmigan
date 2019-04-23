@@ -24,8 +24,14 @@ import datetime
 +-----+
 '''
 
+ERR_INVALID_ARG = 1
+ERR_NO_AMOUNT = 2
+ERR_BC_CREATE_TX = 3
+ERR_BC_SEND_TX = 4
+ERR_EXCEPTION = 100
 
-def fund_in(name, funding_sat, push_msat):
+
+def fund_in(funding_sat, push_msat):
     fundamount = float(funding_sat) / 100000000
     fundamount = round(fundamount, 8)
 
@@ -43,7 +49,7 @@ def fund_in(name, funding_sat, push_msat):
     sum, cmd_sum, fundsum, txfee, estimate_vsize = aggregate_inputs(fundamount, feerate)
     if sum < fundamount:
         print("ERROR: You don't have enough amount(P2PKH, P2WPKH).", file=sys.stderr)
-        return
+        return ERR_NO_AMOUNT, None
 
     dispfundamount = "{0:.8f}".format(round(fundamount, 8))
     change = round(sum - fundamount - txfee, 8)
@@ -58,7 +64,7 @@ def fund_in(name, funding_sat, push_msat):
     ret, signhex = create_tx(cmd_sum, sum, fundsum, change)
     if not ret:
         print('ERROR: create transaction was failed.', file=sys.stderr)
-        return
+        return ERR_BC_CREATE_TX, None
 
     #fee calclate 2
     vsize = get_vsize(signhex)
@@ -68,14 +74,14 @@ def fund_in(name, funding_sat, push_msat):
         ret, signhex = create_tx(cmd_sum, sum, fundsum, change)
         if not ret:
             print('ERROR: create transaction was failed.', file=sys.stderr)
-            return
+            return ERR_BC_CREATE_TX, None
 
     sendtx = signrawtx(signhex)
     if 'error' in sendtx:
         print('ERROR: sendtransaction was failed.', file=sys.stderr)
         print('--------', file=sys.stderr)
         print(sendtx, file=sys.stderr)
-        return
+        return ERR_BC_SEND_TX, None
     print("[Address] " + newaddr, file=sys.stderr)
     print("[TXID] " + sendtx, file=sys.stderr)
 
@@ -83,9 +89,7 @@ def fund_in(name, funding_sat, push_msat):
     lockvout = lockunspent(sendtx, 0)
     print('[LOCK]', lockvout, file=sys.stderr)
 
-    #CREATE CONF
-    create_conf(name, sendtx, newaddr, funding_sat, push_msat)
-    print('[CREATE] ' + name, file=sys.stderr)
+    return 0, (sendtx, newaddr, funding_sat, push_msat)
 
 
 def aggregate_inputs(fundamount, feerate):
@@ -273,12 +277,33 @@ def create_conf(name, sendtx, newaddr, funding_sat, push_msat):
     conf.close()
 
 
+def create_json(sendtx, newaddr, funding_sat, push_msat):
+    #TXINDEX
+    cmd = "bitcoin-cli gettxout " + sendtx + " 0 | grep " + newaddr + " | wc -c"
+    index = subprocess.check_output(cmd, shell = True)
+    if int(index) > 0:
+        txindex = 0
+    else:
+        txindex = 1
+    #FEERATE(default)
+    feerate_per_kw = 0
+
+    dict_json = {
+        'txid': sendtx,
+        'txindex': txindex,
+        'signaddr': newaddr,
+        'funding_sat': funding_sat,
+        'push_msat': push_msat,
+        'feerate_per_kw': feerate_per_kw}
+    return json.dumps(dict_json)
+
+
 if __name__ == '__main__':
     args = sys.argv
 
     if len(args) != 2 and len(args) != 3 and len(args) != 4:
         print('usage:\n\t' + args[0] + ' FUNDING_SATOSHIS [PUSH_MSAT] [OUTPUT_FILENAME]', file=sys.stderr)
-        sys.exit()
+        sys.exit(ERR_INVALID_ARG)
     if len(args) == 3:
         push_msat = args[2]
     else:
@@ -290,15 +315,32 @@ if __name__ == '__main__':
 
     if not args[1].isdecimal() or not push_msat.isdecimal():
         print('ERROR: invalid arguments', file=sys.stderr)
-        sys.exit()
+        sys.exit(ERR_INVALID_ARG)
     if int(args[1]) < 100000:
         print('ERROR: funding_satoshis < 100,000 sat', file=sys.stderr)
-        sys.exit()
+        sys.exit(ERR_INVALID_ARG)
     elif int(args[1]) > 1000000:
         print('ERROR: funding_satoshis > 1,000,000 sat', file=sys.stderr)
-        sys.exit()
+        sys.exit(ERR_INVALID_ARG)
     if int(push_msat) >= int(args[1]) * 800:
         print('ERROR: funding_satoshis * 1,000 * 80% < push_msat', file=sys.stderr)
-        sys.exit()
+        sys.exit(ERR_INVALID_ARG)
 
-    fund_in(name, args[1], push_msat)
+    #try:
+    ret, *params = fund_in(args[1], push_msat)
+    if ret == 0:
+        #CREATE CONF
+        sendtx = params[0][0]
+        newaddr = params[0][1]
+        funding_sat = params[0][2]
+        push_msat = params[0][3]
+        if name == 'json':
+            print(create_json(sendtx, newaddr, funding_sat, push_msat))
+        else:
+            create_conf(name, sendtx, newaddr, funding_sat, push_msat)
+            print('[CREATE] ' + name, file=sys.stderr)
+    # except:
+    #     print('error happen: exception', file=sys.stderr)
+    #     ret = ERR_EXCEPTION
+
+    sys.exit(ret)
