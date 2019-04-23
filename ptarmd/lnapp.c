@@ -457,8 +457,9 @@ bool lnapp_close_channel_force(lnapp_conf_t *pConf)
     pthread_mutex_lock(&pConf->mux_conf);
     bool ret = false;
 
-    if (ln_status_is_closing(&pConf->channel)) {
-        LOGE("fail: already closing\n");
+    if ( (ln_status_get(&pConf->channel) < LN_STATUS_ESTABLISH) ||
+         ln_status_is_closing(&pConf->channel) ) {
+        LOGE("fail: not normal operation\n");
         goto LABEL_EXIT;
     }
 
