@@ -6,6 +6,8 @@
 ![Issue Welcome](https://img.shields.io/badge/issue-welcome-brightgreen.svg)
 <!-- [![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan) -->
 
+![Ptarmigan](docs/images/ptarmigan_text.png)
+
 ## About
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
