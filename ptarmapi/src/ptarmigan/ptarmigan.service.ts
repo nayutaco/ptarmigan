@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { exec, execSync } from 'child_process';
-import { ConfigService } from 'nestjs-config';
-import * as rp from 'request-promise';
-import * as jayson from 'jayson/promise';
-import { Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common'
+import { exec, execSync } from 'child_process'
+import { ConfigService } from 'nestjs-config'
+import * as rp from 'request-promise'
+import * as jayson from 'jayson/promise'
+import { Logger } from '@nestjs/common'
+import * as fs from 'fs'
+import * as dotenv from 'dotenv'
 
 @Injectable()
 export class PtarmiganService {
@@ -66,5 +68,45 @@ export class PtarmiganService {
 
     commandExecutePayFundin(fundingSat, pushMsat, outputFileName): Buffer {
         return execSync(this.path + '/pay_fundin.py' + ' ' + fundingSat + ' ' + pushMsat + ' ' + outputFileName, {timeout: 30000})
+    }
+
+    async commandExecuteOpenChannel(peerNodeId: string, fundingSat: number, pushMsat: number, feeratePerKw: number): Promise<string> {
+        let utime = new Date().getTime() / 1000
+        let filename = utime.toString() + '.txt'
+        Logger.log(filename)
+        let res = this.commandExecutePayFundin(fundingSat, pushMsat, filename)
+        Logger.log('res:' + res)
+        /*
+        [FeeRate] 0.00001026
+        [Size] 167 bytes
+        [Send] 0.00100233 btc
+        [ReCalc]vsize not same(167 --> 166)
+        [Address] 2MvpDzNbd8k9Zx4VMrh88CniSPoQJBxdatq
+        [TXID] ac828a8c223dd427ef4c1efb818552aed8b4eee549b96a7b09f7285db093eeee
+        [LOCK] True
+        [CREATE] aaa.txt
+
+        txid=ac828a8c223dd427ef4c1efb818552aed8b4eee549b96a7b09f7285db093eeee
+        txindex=0
+        signaddr=2MvpDzNbd8k9Zx4VMrh88CniSPoQJBxdatq
+        funding_sat=100000
+        push_msat=0
+        feerate_per_kw=0
+        */
+        try {
+            let content = dotenv.parse(fs.readFileSync(filename))
+            let txId = content['txid']
+            let txIndex = content['txindex']
+            return await this.requestTCP("fund", [peerNodeId, '0.0.0.0', 0, txId, txIndex, feeratePerKw])
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                // TODO pyスクリプトの修正後にエラー処理を追加する
+                Logger.log('file not found')
+                return 'file not found. ERROR: funding_satoshis < 100,000 sat ??'
+            } else {
+                Logger.log('other')
+                return 'error'
+            }
+        }
     }
 }
