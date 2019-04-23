@@ -87,31 +87,29 @@ export class PeerNodeDto {
 export class FundDto {
     @ApiModelProperty(
         {
-            required: true
+            required: true,
         }
     )
-    txId: string
-    @ApiModelProperty(
-        {
-            required: true
-        }
-    )
-    txIndex: number
+    peerNodeId: string
+
     @ApiModelProperty(
         {
             required: true
         }
     )
     fundingSat: number
+
     @ApiModelProperty(
         {
             required: true
         }
     )
-    pushSat: number
+    pushMsat: number
+
     @ApiModelProperty(
         {
-            required: true
+            required: false,
+            default: 0
         }
     )
     feeratePerKw: number
@@ -249,13 +247,13 @@ export class PtarmiganController {
     }  
 
     @Post('disconnect') // disconnect -> disconnectpeer
-    async executeDisconnect( @Body() dto: PeerDto) {
-        return await this.ptarmiganService.requestTCP("disconnect", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
+    async executeDisconnect( @Body() dto: PeerNodeDto) {
+        return await this.ptarmiganService.requestTCP("disconnect", [dto.peerNodeId, '0.0.0.0', 0])
     }
 
     @Post('getlasterror') // getlasterror -> getlasterror
-    async executeGetLastErrort( @Body() dto: PeerDto ) {
-        return await this.ptarmiganService.requestTCP("getlasterror", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
+    async executeGetLastErrort( @Body() dto: PeerNodeDto ) {
+        return await this.ptarmiganService.requestTCP("getlasterror", [dto.peerNodeId, '0.0.0.0', 0])
     }      
 
     @Post('dev-disautoconn') // disautoconn -> dev-disableautoconnect
@@ -268,8 +266,8 @@ export class PtarmiganController {
     }
 
     @Post('dev-listtransactions') // getcommittx -> dev-listtransactions
-    async executeGetCommitTx( @Body() dto: PeerDto ) {
-        return await this.ptarmiganService.requestTCP("getcommittx", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
+    async executeGetCommitTx( @Body() dto: PeerNodeDto ) {
+        return await this.ptarmiganService.requestTCP("getcommittx", [dto.peerNodeId, '0.0.0.0', 0])
     }
 
     // ------------------------------------------------------------------------------
@@ -287,15 +285,13 @@ export class PtarmiganController {
     ERROR: funding_satoshis < 100,000 sat
      */
     @Post('openchannel') // fund -> openchannel
-    async executeOpenChannel( @Body() peerDto: PeerDto, fundDto: FundDto) {
-        var utime = new Date().getTime() / 1000
-        this.ptarmiganService.commandExecutePayFundin(fundDto.fundingSat, fundDto.pushSat, utime.toString())
-        return await this.ptarmiganService.requestTCP("fund", [peerDto.peerNodeId, peerDto.peerAddr, peerDto.peerPort, fundDto.txId, fundDto.txIndex, fundDto.fundingSat, fundDto.pushSat, fundDto.feeratePerKw])
+    async executeOpenChannel( @Body() dto: FundDto) {
+        return await this.ptarmiganService.commandExecuteOpenChannel(dto.peerNodeId, dto.fundingSat, dto.pushMsat, dto.feeratePerKw)
     }
 
     @Post('close') // close -> closechannel
-    async executeAddInvoice( @Body() dto: PeerDto) {
-        return await this.ptarmiganService.requestTCP("close", [dto.peerNodeId, dto.peerAddr, dto.peerPort])
+    async executeAddInvoice( @Body() dto: PeerNodeDto) {
+        return await this.ptarmiganService.requestTCP("close", [dto.peerNodeId, '0.0.0.0', 0])
     }
 
     @Post('dev-removechannel/:channelId') // removechannel -> dev-removechannel
@@ -307,12 +303,6 @@ export class PtarmiganController {
     async executeResetRouteState() {
         return await this.ptarmiganService.requestTCP("resetroutestate", [])
     } 
-
-    // ------------------------------------------------------------------------------
-    // payment
-    // ------------------------------------------------------------------------------
-
-
     
     // ------------------------------------------------------------------------------
     // fund
