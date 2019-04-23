@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { exec, execSync } from 'child_process';
-import { ConfigService } from 'nestjs-config';
-import * as rp from 'request-promise';
-import * as jayson from 'jayson/promise';
-import { Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common'
+import { exec, execSync } from 'child_process'
+import { ConfigService } from 'nestjs-config'
+import * as rp from 'request-promise'
+import * as jayson from 'jayson/promise'
+import { Logger } from '@nestjs/common'
+import * as fs from 'fs'
+import * as dotenv from 'dotenv'
 
 @Injectable()
 export class PtarmiganService {
@@ -66,5 +68,27 @@ export class PtarmiganService {
 
     commandExecutePayFundin(fundingSat, pushMsat, outputFileName): Buffer {
         return execSync(this.path + '/pay_fundin.py' + ' ' + fundingSat + ' ' + pushMsat + ' ' + outputFileName, {timeout: 30000})
+    }
+
+    async commandExecuteOpenChannel(peerNodeId: string, fundingSat: number, pushMsat: number, feeratePerKw: number): Promise<string> {
+        let utime = new Date().getTime() / 1000
+        let filename = utime.toString() + '.txt'
+        let res = this.commandExecutePayFundin(fundingSat, pushMsat, filename)
+        Logger.log('res:' + res)
+
+        try {
+            let content = dotenv.parse(fs.readFileSync(filename))
+            let txId = content['txid']
+            let txIndex = content['txindex']
+            return await this.requestTCP("fund", [peerNodeId, '0.0.0.0', 0, txId, txIndex, feeratePerKw])
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                Logger.log('file not found')
+                return 'file not found. ERROR: funding_satoshis < 100,000 sat ??'
+            } else {
+                Logger.log('other')
+                return 'error'
+            }
+        }
     }
 }
