@@ -60,6 +60,13 @@ If you have channels, `ptarmd` try connect the peers automatically.
 ../ptarmcli -c NODE_ID@IPv4_ADDRESS:PORT
 ```
 
+You can get peer's all channel information by `--initroutesync`.  
+If you have already connected, disconnect and connect with `--initroutesync`.
+
+```bash
+../ptarmcli -c NODE_ID@IPv4_ADDRESS:PORT --initroutesync
+```
+
 ### open channel
 
 After connecting, you can open channel with connection node.

@@ -113,7 +113,7 @@ static void monfunc_2(lnapp_conf_t *pConf, void *pParam);
 
 static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbParam);
 static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbParam);
-static bool channel_reconnect(ln_channel_t *pChannel);
+static bool channel_reconnect(lnapp_conf_t *pConf);
 static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
@@ -487,7 +487,7 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
     } else if (LN_DBG_NODE_AUTO_CONNECT() &&
         !mDisableAutoConn && !ln_status_is_closing(p_channel) ) {
         //socket未接続であれば、再接続を試行
-        del = channel_reconnect(p_channel);
+        del = channel_reconnect(pConf);
     } else {
         //LOGD("No Auto connect mode\n");
     }
@@ -621,9 +621,10 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
 }
 
 
-static bool channel_reconnect(ln_channel_t *pChannel)
+static bool channel_reconnect(lnapp_conf_t *pConf)
 {
-    const uint8_t *p_node_id = ln_remote_node_id(pChannel);
+    ln_channel_t *p_channel = &pConf->channel;
+    const uint8_t *p_node_id = ln_remote_node_id(p_channel);
     struct {
         char ipaddr[SZ_IPV4_LEN + 1];
         uint16_t port;
@@ -635,15 +636,15 @@ static bool channel_reconnect(ln_channel_t *pChannel)
 
 
     //conn_addr[1]
-    //pChannel->last_connected_addrがあれば、それを使う
-    switch (ln_last_connected_addr(pChannel)->type) {
+    //p_channel->last_connected_addrがあれば、それを使う
+    switch (ln_last_connected_addr(p_channel)->type) {
     case LN_ADDR_DESC_TYPE_IPV4:
         sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
-            ln_last_connected_addr(pChannel)->addr[0],
-            ln_last_connected_addr(pChannel)->addr[1],
-            ln_last_connected_addr(pChannel)->addr[2],
-            ln_last_connected_addr(pChannel)->addr[3]);
-        conn_addr[1].port = ln_last_connected_addr(pChannel)->port;
+            ln_last_connected_addr(p_channel)->addr[0],
+            ln_last_connected_addr(p_channel)->addr[1],
+            ln_last_connected_addr(p_channel)->addr[2],
+            ln_last_connected_addr(p_channel)->addr[3]);
+        conn_addr[1].port = ln_last_connected_addr(p_channel)->port;
         LOGD("conn_addr[1]: %s:%d\n", conn_addr[1].ipaddr, conn_addr[1].port);
         break;
     default:
@@ -677,6 +678,11 @@ static bool channel_reconnect(ln_channel_t *pChannel)
     }
     utl_buf_free(&anno_buf);
 
+    //this mutex was locked in `monfunc_2`
+    //  we need to send json-rpc to reconnect
+    //  and unlock the mutex before that
+    pthread_mutex_unlock(&pConf->mux_conf); //unlock
+
     for (size_t lp = 0; lp < ARRAY_SIZE(conn_addr); lp++) {
         if (!conn_addr[lp].port) continue;
         if (node_connect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port)) {
@@ -690,6 +696,8 @@ static bool channel_reconnect(ln_channel_t *pChannel)
             break;
         }
     }
+
+    pthread_mutex_lock(&pConf->mux_conf); //lock
 
     return false;
 }
