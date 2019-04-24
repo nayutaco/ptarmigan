@@ -39,4 +39,4 @@ func_tag mbedtls https://github.com/ARMmbed/mbedtls.git master mbedtls-2.16.1
 func_tag jansson https://github.com/akheron/jansson.git master refs/tags/v2.12
 func_tag curl https://github.com/curl/curl.git master refs/tags/curl-7_63_0
 func_tag zlib https://github.com/madler/zlib.git master refs/tags/v1.2.11
-func_tag jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly refs/tags/localonly_r1
+func_tag jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly refs/tags/localonly_r2
