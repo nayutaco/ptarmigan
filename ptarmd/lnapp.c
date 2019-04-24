@@ -1933,7 +1933,7 @@ static bool anno_send_cnl(lnapp_conf_t *p_conf, uint64_t short_channel_id, char 
     bool chk = ln_db_cnlanno_info_search_node_id(p_cur_infocnl, short_channel_id, type, ln_remote_node_id(&p_conf->channel));
     if (!chk) {
         LOGD("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
-        lnapp_send_peer_noise(p_conf, p_buf_cnl);
+        /*ignore*/lnapp_send_peer_noise(p_conf, p_buf_cnl);
         ln_db_cnlanno_info_add_node_id(p_cur_infocnl, short_channel_id, type, false, ln_remote_node_id(&p_conf->channel));
         chk = true;
     } else {
@@ -1965,7 +1965,7 @@ static bool anno_send_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_i
             if (ret) {
                 LOGD("send node_anno(%d): ", lp);
                 DUMPD(node[lp], BTC_SZ_PUBKEY);
-                lnapp_send_peer_noise(p_conf, &buf_node);
+                /*ignore*/lnapp_send_peer_noise(p_conf, &buf_node);
                 utl_buf_free(&buf_node);
                 ln_db_nodeanno_info_add_node_id(p_cur_infonode, node[lp], false, ln_remote_node_id(&p_conf->channel));
             }
