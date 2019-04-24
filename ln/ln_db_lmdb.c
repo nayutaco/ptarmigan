@@ -82,7 +82,7 @@
 #define M_WALLET_MAXDBS         (MAX_CHANNELS)              ///< 同時オープンできるDB数
 #define M_WALLET_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
-#define M_FORWARD_MAXDBS        (MAX_CHANNELS)              ///< 同時オープンできるDB数
+#define M_FORWARD_MAXDBS        (MAX_CHANNELS * 3)          ///< 同時オープンできるDB数
 #define M_FORWARD_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
 #define M_PAYMENT_MAXDBS        (10)                        ///< 同時オープンできるDB数
@@ -5868,7 +5868,6 @@ static bool forward_create(uint64_t NextShortChannelId, const char *pDbNamePrefi
         return false;
     }
     MDB_TXN_COMMIT(db.p_txn);
-    MDB_DBI_CLOSE(mpEnvForward, db.dbi);
     return true;
 }
 
@@ -5926,7 +5925,6 @@ static bool forward_save_2(const ln_db_forward_t* pForward, const char *pDbNameP
     }
 
     MDB_TXN_COMMIT(db.p_txn);
-    MDB_DBI_CLOSE(mpEnvForward, db.dbi);
     db.p_txn = NULL;
 
 LABEL_EXIT:
@@ -6007,7 +6005,6 @@ static bool forward_del_2(uint64_t NextShortChannelId, uint64_t PrevShortChannel
     }
 
     MDB_TXN_COMMIT(db.p_txn);
-    MDB_DBI_CLOSE(mpEnvForward, db.dbi);
     return true;
 }
 
@@ -6084,7 +6081,6 @@ static void forward_cur_close(void *pCur, bool bCommit)
     MDB_TXN_CHECK_FORWARD(p_cur->p_txn);
     if (bCommit) {
         MDB_TXN_COMMIT(p_cur->p_txn);
-        MDB_DBI_CLOSE(mpEnvForward, p_cur->dbi);
     } else {
         MDB_TXN_ABORT(p_cur->p_txn);
     }
@@ -6372,7 +6368,6 @@ static void payment_cur_close(void *pCur, bool bCommit)
     MDB_TXN_CHECK_PAYMENT(p_cur->p_txn);
     if (bCommit) {
         MDB_TXN_COMMIT(p_cur->p_txn);
-        MDB_DBI_CLOSE(mpEnvPayment, p_cur->dbi);
     } else {
         MDB_TXN_ABORT(p_cur->p_txn);
     }
