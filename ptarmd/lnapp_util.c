@@ -162,7 +162,6 @@ bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 
 LABEL_ERROR:
     pthread_mutex_unlock(&p_conf->mux_send); //unlock mux_send
-    lnapp_stop_threads(p_conf); //lock mux_conf outside mux_send lock
     utl_buf_free(&buf_enc);
     return false;
 }

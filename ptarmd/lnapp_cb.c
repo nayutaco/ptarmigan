@@ -849,7 +849,10 @@ static void cb_closed(lnapp_conf_t *pConf, void *pParam)
 static void cb_send_req(lnapp_conf_t *pConf, void *pParam)
 {
     utl_buf_t *p_buf = (utl_buf_t *)pParam;
-    (void)lnapp_send_peer_noise(pConf, p_buf);
+    if (!lnapp_send_peer_noise(pConf, p_buf)) {
+        LOGE("fail: send peer noise\n");
+        lnapp_stop_threads(pConf);
+    }
 }
 
 
