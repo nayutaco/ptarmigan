@@ -1714,6 +1714,8 @@ static bool anno_proc(lnapp_conf_t *p_conf)
         goto LABEL_EXIT;
     }
 
+    LOGD("BEGIN 2(locked): last=%" PRIx64 "\n", p_conf->last_anno_cnl);
+
     ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNLANNO);
     if (!ret) {
         LOGE("fail\n");
