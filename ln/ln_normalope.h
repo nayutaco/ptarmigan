@@ -73,4 +73,20 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
 bool ln_fail_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, uint8_t UpdateType, const utl_buf_t *pReason);
 
 
+bool ln_update_fulfill_htlc_forward(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pPreimage);
+
+
+bool ln_update_fulfill_htlc_forward_2(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pPreimage, void *pCur);
+
+
+bool ln_update_fail_htlc_forward(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pReason, uint16_t Len);
+
+
+bool ln_update_fail_htlc_forward_2(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pReason, uint16_t Len, void *pCur);
+
+
 #endif /* LN_NORMALOPE_H__ */
