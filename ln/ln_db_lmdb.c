@@ -4706,6 +4706,15 @@ static bool channel_cmp_func_channel_del(ln_channel_t *pChannel, void *pDbParam,
 }
 
 
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in]   pFunc           search function
+ * @param[in]   pFuncParam      pFunc parameter
+ * @param[in]   bWritable       true: write and txn_commit, false: readonly and txn_abort
+ * @param[in]   bRestore        true: restore secrets
+ * @param[in]   bCont           true: continue if (*pFunc)() return true, false: stop if (*pFunc)() return true
+ * @retval  true    (*pFunc)() return true at least once
+ */
 static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore, bool bCont)
 {
     bool            found = false;
