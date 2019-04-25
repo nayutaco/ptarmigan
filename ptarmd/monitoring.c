@@ -1030,7 +1030,7 @@ static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
              (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ) {
             for (int lp = 0; lp < Num; lp++) {
                 if (pHtlcTx[lp].vin_cnt > 0) {
-                    LOGD("$$$ to_local tx[%d] ==> DB\n", lp);
+                    LOGD("$$$ spending tx[%d] ==> DB\n", lp);
 
                     ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
                     set_wallet_data(&wlt, &pHtlcTx[lp]);
