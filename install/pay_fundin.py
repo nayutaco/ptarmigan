@@ -304,7 +304,7 @@ if __name__ == '__main__':
     if len(args) != 2 and len(args) != 3 and len(args) != 4:
         print('usage:\n\t' + args[0] + ' FUNDING_SATOSHIS [PUSH_MSAT] [OUTPUT_FILENAME]', file=sys.stderr)
         sys.exit(ERR_INVALID_ARG)
-    if len(args) == 3:
+    if len(args) >= 3:
         push_msat = args[2]
     else:
         push_msat = '0'
