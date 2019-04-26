@@ -45,6 +45,7 @@ extern "C" {
 
 #define BTC_SZ_FIELD            (32)                ///< secp256k1の世界
 #define BTC_SZ_SIGN_RS          (64)                ///< サイズ:RS形式の署名
+#define BTC_SZ_SIGN_DER_MAX     (73)                ///< DER format max
 
 #define SIGHASH_ALL             (0x01)
 

@@ -709,7 +709,8 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
     //remote commit_tx
     bool ret = ln_commit_tx_create_remote_close(
         &pChannel->commit_info_remote, &pChannel->update_info,
-        &keys_local_work, &keys_remote_work, pClose);
+        &keys_local_work, &keys_remote_work, &pChannel->shutdown_scriptpk_local,
+        pClose);
     if (!ret) {
         LOGE("fail: create_to_remote\n");
         ln_close_free_forcetx(pClose);
