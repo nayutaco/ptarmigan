@@ -605,6 +605,7 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
     const ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     if (pPreimage) {
         ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
+        utl_buf_free(&p_htlc->buf_preimage);
         if (!utl_buf_alloccopy(&p_htlc->buf_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
     }
 
@@ -1221,6 +1222,11 @@ void ln_idle_proc_inactive(ln_channel_t *pChannel)
     } else {
         /*ignore*/poll_update_add_htlc_forward_inactive(pChannel);
     }
+
+    //this function load update_fulfill/fail_htlc
+    //  but the updates are cleared by `ln_update_info_clear_pending_updates`
+    //  but preimages are remaind
+    /*ignore*/poll_update_del_htlc_forward(pChannel);
 }
 
 
