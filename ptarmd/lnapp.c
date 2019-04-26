@@ -173,7 +173,7 @@ static void load_channel_settings(lnapp_conf_t *p_conf);
 static void load_announce_settings(void);
 
 static bool getnewaddress(utl_buf_t *pBuf);
-static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
+//static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 
 static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result);
 static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result);
@@ -1778,6 +1778,7 @@ static bool anno_proc(lnapp_conf_t *p_conf)
 
         //buf_cnlにはshort_channel_idのchannel_announcement packetが入っている
 
+#if 0 //XXX: takes a long time to complete?
         bool unspent = check_unspent_short_channel_id(short_channel_id);
         if (!unspent) {
             //SPENTであれば削除
@@ -1785,6 +1786,7 @@ static bool anno_proc(lnapp_conf_t *p_conf)
             utl_buf_free(&buf_cnl);
             goto LABEL_EXIT;
         }
+#endif
 
         ret = anno_send(p_conf, short_channel_id, &buf_cnl, p_cur_cnl, p_cur_node, p_cur_infocnl, p_cur_infonode);
         utl_buf_free(&buf_cnl);
@@ -2026,6 +2028,7 @@ static bool getnewaddress(utl_buf_t *pBuf)
 }
 
 
+#if 0
 /** short_channel_idのfunding_tx未使用チェック
  *
  * @param[in]   ShortChannelId      short_channel_id
@@ -2060,6 +2063,7 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
     return true;
 #endif
 }
+#endif
 
 
 static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
