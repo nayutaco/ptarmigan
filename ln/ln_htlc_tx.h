@@ -146,4 +146,28 @@ bool HIDDEN ln_htlc_tx_verify(const btc_tx_t *pTx,
     const utl_buf_t *pWitScript);
 
 
+bool HIDDEN ln_spend_htlc_offered_output_tx_create(
+    btc_tx_t *pTx,
+    uint64_t Value, //dummy
+    const utl_buf_t *pScriptPk,
+    const uint8_t *pTxid,
+    int Index);
+bool HIDDEN ln_spend_htlc_received_output_tx_create(
+    btc_tx_t *pTx,
+    uint64_t Value, //dummy
+    const utl_buf_t *pScriptPk,
+    const uint8_t *pTxid,
+    int Index,
+    uint32_t CltvExpiry);
+bool HIDDEN ln_spend_htlc_offered_output_tx_set_vin0(
+    btc_tx_t *pTx,
+    const uint8_t *pPreimage,
+    const utl_buf_t *pWitScript);
+bool HIDDEN ln_spend_htlc_received_output_tx_set_vin0(
+    btc_tx_t *pTx,
+    const utl_buf_t *pWitScript);
+bool HIDDEN ln_spend_htlc_output_tx_adjust_fee(btc_tx_t *pTx, uint32_t FeeratePerKw);
+bool HIDDEN ln_spend_htlc_output_tx_sign_vin0(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPrivKey);
+
+
 #endif /* LN_HTLC_TX_H__ */

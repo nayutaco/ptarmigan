@@ -264,6 +264,126 @@ bool HIDDEN ln_htlc_tx_verify(
 }
 
 
+bool HIDDEN ln_spend_htlc_offered_output_tx_create(
+    btc_tx_t *pTx,
+    uint64_t Value, //dummy
+    const utl_buf_t *pScriptPk,
+    const uint8_t *pTxid,
+    int Index)
+{
+    //vout
+    btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
+    if (!vout) return false;
+    if (!utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len)) return false;
+
+    pTx->vout[0].opt = (uint16_t)LN_COMMIT_TX_OUTPUT_TYPE_OFFERED;
+    pTx->locktime = 0;
+
+    //vin
+    if (!btc_tx_add_vin(pTx, pTxid, Index)) return false;
+    pTx->vin[0].sequence = 0;
+    return true;
+}
+
+
+bool HIDDEN ln_spend_htlc_received_output_tx_create(
+    btc_tx_t *pTx,
+    uint64_t Value, //dummy
+    const utl_buf_t *pScriptPk,
+    const uint8_t *pTxid,
+    int Index,
+    uint32_t CltvExpiry)
+{
+    //vout
+    btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
+    if (!vout) return false;
+    if (!utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len)) return false;
+
+    pTx->vout[0].opt = (uint16_t)LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED;
+    pTx->locktime = CltvExpiry;
+
+    //vin
+    if (!btc_tx_add_vin(pTx, pTxid, Index)) return false;
+    pTx->vin[0].sequence = 0;
+    return true;
+}
+
+
+bool HIDDEN ln_spend_htlc_offered_output_tx_set_vin0(
+    btc_tx_t *pTx,
+    const uint8_t *pPreimage,
+    const utl_buf_t *pWitScript)
+{
+    // <remotehtlcsig> dummmy
+    // <payment-preimage>
+    // <witness script>
+
+    uint8_t dummy_sig[BTC_SZ_SIGN_DER_MAX] = {0};
+    const utl_buf_t remote_htlc_sig = { (CONST_CAST uint8_t *)dummy_sig, BTC_SZ_SIGN_DER_MAX };
+    const utl_buf_t preimage = { (CONST_CAST uint8_t *)pPreimage, LN_SZ_PREIMAGE };
+    const utl_buf_t *wit_items[] = { &remote_htlc_sig, &preimage, pWitScript };
+    if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
+    return true;
+}
+
+
+bool HIDDEN ln_spend_htlc_received_output_tx_set_vin0(
+    btc_tx_t *pTx,
+    const utl_buf_t *pWitScript)
+{
+    // <remotehtlcsig> dummmy
+    // 0
+    // <witness script>
+
+    uint8_t dummy_sig[BTC_SZ_SIGN_DER_MAX] = {0};
+    const utl_buf_t remote_htlc_sig = { (CONST_CAST uint8_t *)dummy_sig, BTC_SZ_SIGN_DER_MAX };
+    const utl_buf_t zero = UTL_BUF_INIT;
+    const utl_buf_t *wit_items[] = { &remote_htlc_sig, &zero, pWitScript };
+    if (!btc_sw_set_vin_p2wsh(pTx, 0, wit_items, ARRAY_SIZE(wit_items))) return false;
+    return true;
+}
+
+
+bool HIDDEN ln_spend_htlc_output_tx_adjust_fee(btc_tx_t *pTx, uint32_t FeeratePerKw)
+{
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_write(pTx, &txbuf);
+    uint32_t weight = btc_tx_get_weight_raw(txbuf.buf, txbuf.len);
+    if (!weight) return false;
+    uint64_t fee = ((uint64_t)weight * (uint64_t)FeeratePerKw + 999) / 1000;
+    if (fee + BTC_DUST_LIMIT > pTx->vout[0].value) return false;
+    pTx->vout[0].value -= fee;
+    utl_buf_free(&txbuf);
+    return true;
+}
+
+
+bool HIDDEN ln_spend_htlc_output_tx_sign_vin0(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPrivKey)
+{
+    btc_vin_t *p_vin = &pTx->vin[0];
+    uint8_t sighash[BTC_SZ_HASH256];
+
+    if (!btc_sw_sighash_p2wsh_wit(
+        pTx, sighash, 0, Value, &p_vin->witness[p_vin->wit_item_cnt - 1])) return false;
+    utl_buf_t sig = UTL_BUF_INIT;
+    if (!btc_sig_sign(&sig, sighash, pPrivKey)) return false;
+    utl_buf_free(&p_vin->witness[0]);
+    if (!utl_buf_alloccopy(&p_vin->witness[0], sig.buf, sig.len)) {
+        utl_buf_free(&sig);
+        return false;
+    }
+    utl_buf_free(&sig);
+
+    //log
+    btc_tx_print(pTx);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    if (!btc_tx_write(pTx, &txbuf)) return false;
+    LOGD("raw=");
+    DUMPD(txbuf.buf, txbuf.len);
+    return true;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
