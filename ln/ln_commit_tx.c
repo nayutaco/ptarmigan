@@ -1061,7 +1061,7 @@ static bool create_local_htlc_tx(
             DUMPD(preimage, LN_SZ_PREIMAGE);
         } else {
             LOGD("[received]have preimage=NO\n");
-            LOGD("skip create HTLC tx\n");
+            LOGD("stop create HTLC tx (input only)\n");
             return true;
         }
     } else if (pHtlcInfo->type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
