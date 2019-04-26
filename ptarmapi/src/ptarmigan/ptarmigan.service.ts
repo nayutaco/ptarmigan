@@ -79,7 +79,6 @@ export class PtarmiganService {
             const txIndex = content[txindexKey];
             return await this.requestTCP('fund', [peerNodeId, '0.0.0.0', 0, txId, txIndex, feeratePerKw]);
         } catch (error) {
-            Logger.log(error);
             if (error.status === 1) {
                 // ERR_INVALID_ARG
                 return error.stderr.toString();

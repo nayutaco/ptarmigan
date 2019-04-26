@@ -3,6 +3,7 @@ import { exec, execSync } from 'child_process';
 import { PtarmiganService } from './ptarmigan.service';
 import { BitcoinService } from '../bitcoin/bitcoin.service';
 import { ApiUseTags, ApiModelProperty, ApiImplicitQuery, ApiCreatedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
+import { Validate, Matches } from 'class-validator';
 
 export class FeeDto {
     @ApiModelProperty(
@@ -150,14 +151,14 @@ export class RouteNodeDto {
     @ApiModelProperty(
         {
             required: true,
-            pattern: "^[0-9a-f]+"
+            pattern: "^[0-9a-fA-F]."
         }
     )
     senderNodeId: string
     @ApiModelProperty(
         {
             required: true,
-            pattern: "^[0-9a-f]+"
+            pattern: "^[0-9a-fA-F]."
         }
     )
     receiverNodeId: string
@@ -313,17 +314,28 @@ export class PtarmiganController {
 
     @Post('listchannels')
     async executeListChannels(): Promise<string> {
-        return this.ptarmiganService.commandExecuteShowdbGetChannels().toString()
+        try {
+            return this.ptarmiganService.commandExecuteShowdbGetChannels().toString();
+        } catch (error) {
+            return "error";
+        }
     }
 
     @Post('listnodes')
     async executeListNodes(): Promise<string> {
-        return this.ptarmiganService.commandExecuteShowdbListGossipNode().toString()
+        try {
+            return this.ptarmiganService.commandExecuteShowdbListGossipNode().toString();
+        } catch (error) {
+            return "error";
+        }
     }
 
-    // TODO: getroute add DTO parameter
     @Post('getroute')
     async executeGetRoute(@Body() dto: RouteNodeDto): Promise<string> {
-        return this.ptarmiganService.commandExecuteRoutingGetRoute(dto.senderNodeId, dto.receiverNodeId).toString()
+        try {
+            return this.ptarmiganService.commandExecuteRoutingGetRoute(dto.senderNodeId, dto.receiverNodeId).toString();
+        } catch(error) {
+            return "error";
+        }
     }
 }
