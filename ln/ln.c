@@ -1171,7 +1171,19 @@ bool ln_is_offered_htlc_timeout(const ln_channel_t *pChannel, uint16_t UpdateIdx
 
 const utl_buf_t *ln_preimage_remote(const btc_tx_t *pTx)
 {
-    return (pTx->vin[0].wit_item_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
+    utl_buf_t *p_buf = NULL;
+    switch (pTx->vin[0].wit_item_cnt) {
+    case 3: //offered HTLC outputs
+        p_buf = &pTx->vin[0].witness[1];
+        break;
+    case 5: //HTLC success tx
+        p_buf = &pTx->vin[0].witness[3];
+        break;
+    default:
+        return NULL;
+    }
+    if (p_buf->len != LN_SZ_PREIMAGE) return NULL;
+    return p_buf;
 }
 
 
