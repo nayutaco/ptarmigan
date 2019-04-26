@@ -7,7 +7,7 @@ PRJ_HOME=$SCRIPT_DIR/../
 (
 cd $PRJ_HOME
 git fetch --all --prune
-git rebase nayutaco/development
+git rebase nayutaco/master
 DATE=`date +%Y%m%d`
 git push -f origin HEAD:work/$DATE
 cd -
