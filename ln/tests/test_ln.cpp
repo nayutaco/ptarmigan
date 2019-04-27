@@ -76,7 +76,7 @@ extern "C" {
 // FAKE_VALUE_FUNC(bool, ln_msg_funding_signed_read, ln_msg_funding_signed_t *, const uint8_t *, uint16_t );
 typedef uint8_t (fake_sig_t)[LN_SZ_SIGNATURE];
 FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote, ln_commit_info_t *, const ln_update_info_t *, const ln_derkey_local_keys_t *, const ln_derkey_remote_keys_t *, fake_sig_t **);
-FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_commit_info_t *, const ln_update_info_t *, const ln_derkey_local_keys_t *, const ln_derkey_remote_keys_t *, ln_close_force_t *);
+FAKE_VALUE_FUNC(bool, ln_commit_tx_create_remote_close, const ln_commit_info_t *, const ln_update_info_t *, const ln_derkey_local_keys_t *, const ln_derkey_remote_keys_t *, const utl_buf_t *, ln_close_force_t *);
 
 
 ////////////////////////////////////////////////////////////////////////

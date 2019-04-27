@@ -117,12 +117,12 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
 static bool channel_reconnect(lnapp_conf_t *pConf);
 static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
-static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp);
-static bool close_unilateral_local_received(bool spent);
+static void close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp);
+static bool close_unilateral_local_sendreq(const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num);
 
 static bool close_unilateral_remote(ln_channel_t *pChannel);
 static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp);
-static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num);
+
 static bool update_fail_htlc_forward(ln_channel_t *pChannel, ln_close_force_t *pCloseDat, int lp);
 
 static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
@@ -247,33 +247,27 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
     for (int lp = 0; lp < close_dat.num; lp++) {
         const btc_tx_t *p_tx = &close_dat.p_tx[lp];
 
-        switch (lp) {
-        case LN_CLOSE_IDX_COMMIT:
+        if (lp == LN_CLOSE_IDX_COMMIT) {
             LOGD("$$$ commit_tx\n");
-            //for (int lp2 = 0; lp2 < p_tx->vout_cnt; lp2++) {
-            //    LOGD("vout[%d]=%x\n", lp2, p_tx->vout[lp2].opt);
-            //}
-            break;
-        case LN_CLOSE_IDX_TO_LOCAL:
-            if (p_tx->vin_cnt > 0) {
-                LOGD("$$$ to_local tx ==> DB\n");
-
-                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
-                set_wallet_data(&wlt, p_tx);
-                ln_db_wallet_save(&wlt);
+        } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
+            if (p_tx->vin_cnt <= 0) {
+                LOGE("fail: skip tx[%d]\n", lp);
+                continue;
             }
+            LOGD("$$$ to_local tx ==> DB\n");
+            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
+            set_wallet_data(&wlt, p_tx);
+            ln_db_wallet_save(&wlt);
             continue;
-        case LN_CLOSE_IDX_TO_REMOTE:
-            LOGD("$$$ to_remote tx\n");
+        } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
+            //LOGD("$$$ to_remote tx\n");
             continue;
-        default:
+        } else {
+            if (p_tx->vin_cnt <= 0) {
+                LOGE("fail: skip tx[%d]\n", lp);
+                continue;
+            }
             LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
-            break;
-        }
-
-        if (p_tx->vin_cnt <= 0) {
-            LOGD("skip tx[%d]\n", lp);
-            continue;
         }
 
         //check own tx is broadcasted
@@ -308,31 +302,44 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         LOGD("      --> unspent[%d]=%d\n", lp, unspent);
 
         bool send_req = false;
-        switch (p_tx->vout[0].opt) {
-        case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
-            send_req = close_unilateral_local_offered(pChannel, &del, !unspent, &close_dat, lp);
-            break;
-        case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
-            send_req = close_unilateral_local_received(!unspent);
-            break;
-        default:
-            LOGD("opt=%x\n", p_tx->vout[0].opt);
+        if (lp == LN_CLOSE_IDX_COMMIT) {
+            LOGD("local commit tx\n");
             send_req = true;
-            break;
-        }
-
-        if (!unspent) { //spent
-            //delete from wallet DB if INPUT is SPENT
-            ln_db_wallet_del(p_tx->vin[0].txid, p_tx->vin[0].index);
-            LOGD("\n");
-            continue;
+        } else if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
+            LOGD("offered HTLC output\n");
+            if (unspent) {
+                send_req = true;
+            } else {
+                LOGD("\n");
+                //extract preimage
+                close_unilateral_local_offered(pChannel, &del, &close_dat, lp);
+                //delete from wallet DB if INPUT is SPENT ???
+                ln_db_wallet_del(p_tx->vin[0].txid, p_tx->vin[0].index);
+            }
+        } else if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) {
+            LOGD("received HTLC output\n");
+            if (unspent) {
+                if (p_tx->vin[0].wit_item_cnt) { //have preimage
+                    send_req = true;
+                } else {
+                    LOGD("\n");
+                    del = false;
+                    continue;
+                }
+            } else {
+                LOGD("\n");
+                //delete from wallet DB if INPUT is SPENT ???
+                ln_db_wallet_del(p_tx->vin[0].txid, p_tx->vin[0].index);
+            }
+        } else {
+            LOGE("fail: ???\n");
         }
 
         if (send_req) {
             LOGD("sendreq[%d]: ", lp);
             const btc_tx_t *p_htlc_tx = (const btc_tx_t *)close_dat.tx_buf.buf;
             int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
-            if (close_unilateral_local_sendreq(&del, p_tx, p_htlc_tx, num)) {
+            if (close_unilateral_local_sendreq(p_tx, p_htlc_tx, num)) {
                 if (lp == LN_CLOSE_IDX_COMMIT) {
                     LOGD("\n");
                     ln_close_change_stat(pChannel, NULL, pDbParam);
@@ -342,6 +349,9 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
                         LOGE("fail: ???\n");
                     }
                 }
+            } else {
+                LOGD("\n");
+                del = false;
             }
         }
     }
@@ -760,17 +770,10 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
 
 //Unilateral Close Handling: Local Commitment Transaction
 //  HTLC Output Handling: Local Commitment, Local Offers
-static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp)
+static void close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp)
 {
-    LOGD("offered HTLC output\n");
-    if (!spent) {
-        //タイムアウト用Txを展開
-        //  commit_txが展開されてcltv_expiryブロック経過するまではBIP68エラーになる
-        return true; //return send request
-    }
-
     const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
-    if (!p_htlc) return false;
+    if (!p_htlc) return;
 
     LOGD("  neighbor_short_channel_id=%016" PRIx64 "(vout=%d)\n",
         p_htlc->neighbor_short_channel_id, pCloseDat->p_tx[lp].vin[0].index);
@@ -778,7 +781,7 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
     uint32_t confirm;
     if (!btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&pChannel->funding_info))) {
         LOGE("fail: get confirmation\n");
-        return false;
+        return;
     }
 
     btc_tx_t tx = BTC_TX_INIT;
@@ -791,14 +794,14 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
         LOGD("index=%d\n", lp);
         *pDel = false;
         btc_tx_free(&tx);
-        return false;
+        return;
     }
 
     const utl_buf_t *p_buf = ln_preimage_remote(&tx);
     if (!p_buf) {
         LOGE("fail: get preimage\n");
         btc_tx_free(&tx);
-        return false;
+        return;
     }
 
     LOGD("backwind preimage: ");
@@ -807,31 +810,11 @@ static bool close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, b
         p_htlc->neighbor_short_channel_id, p_htlc->neighbor_id, p_buf->buf)) {
         LOGE("fail: ???\n");
         btc_tx_free(&tx);
-        return false;
+        return;
     }
 
     btc_tx_free(&tx);
-    return false; //not return send request
-}
-
-
-// Unilateral Close(自分がcommit_tx展開): Received HTLC output
-//      true: tx展開する
-static bool close_unilateral_local_received(bool spent)
-{
-    bool send_req;
-
-    LOGD("received HTLC output\n");
-    if (!spent) {
-        //展開(preimageがなければsendrawtransactionに失敗する)
-        send_req = true;
-    } else {
-        //展開済みならOK
-        LOGD("-->OK(broadcasted)\n");
-        send_req = false;
-    }
-
-    return send_req;
+    return;
 }
 
 
@@ -868,32 +851,30 @@ static bool close_unilateral_remote(ln_channel_t *pChannel)
             //LOGD("$$$ to_local tx\n");
             continue;
         } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
-            if (p_tx->vin_cnt) {
-                LOGD("$$$ to_remote tx ==> DB\n");
-
-                uint8_t pub[BTC_SZ_PUBKEY];
-                btc_keys_priv2pub(pub, p_tx->vin[0].witness[0].buf);
-
-                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
-                set_wallet_data(&wlt, p_tx);
-                utl_buf_t wit_items[2] = {
-                    { p_tx->vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
-                    { pub, sizeof(pub) }
-                };
-                wlt.wit_item_cnt = ARRAY_SIZE(wit_items);
-                wlt.p_wit_items = wit_items;
-                (void)ln_db_wallet_save(&wlt);
+            if (p_tx->vin_cnt <= 0) {
+                LOGE("fail: skip tx[%d]\n", lp);
+                continue;
             }
+            LOGD("$$$ to_remote tx ==> DB\n");
+            uint8_t pub[BTC_SZ_PUBKEY];
+            btc_keys_priv2pub(pub, p_tx->vin[0].witness[0].buf);
+
+            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
+            set_wallet_data(&wlt, p_tx);
+            utl_buf_t wit_items[2] = {
+                { p_tx->vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
+                { pub, sizeof(pub) }
+            };
+            wlt.wit_item_cnt = ARRAY_SIZE(wit_items);
+            wlt.p_wit_items = wit_items;
+            (void)ln_db_wallet_save(&wlt);
             continue;
         } else {
+            if (p_tx->vin_cnt <= 0) {
+                LOGE("fail: skip tx[%d]\n", lp);
+                continue;
+            }
             LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
-        }
-
-        LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
-
-        if (p_tx->vin_cnt <= 0) {
-            LOGD("skip tx[%d]\n", lp);
-            continue;
         }
 
         //check own tx is broadcasted
@@ -928,23 +909,30 @@ static bool close_unilateral_remote(ln_channel_t *pChannel)
         LOGD("      --> unspent[%d]=%d\n", lp, unspent);
 
         if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
-            if (unspent && p_tx->vin[0].wit_item_cnt) { //unspent && have preimage
-                //broadcast
-                utl_buf_t buf = UTL_BUF_INIT;
-                if (!btc_tx_write(p_tx, &buf)) {
-                    LOGE("fail: ???\n");
+            LOGD("offered HTLC output\n");
+            if (unspent) {
+                if (p_tx->vin[0].wit_item_cnt) { //have preimage
+                    //broadcast
+                    utl_buf_t buf = UTL_BUF_INIT;
+                    if (!btc_tx_write(p_tx, &buf)) {
+                        LOGE("fail: ???\n");
+                        utl_buf_free(&buf);
+                        continue;
+                    }
+                    if (btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len)) {
+                        LOGD("$$$ broadcast\n");
+                    } else {
+                        LOGE("fail: broadcast\n");
+                        del = false;
+                    }
                     utl_buf_free(&buf);
-                    continue;
-                }
-                if (btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len)) {
-                    LOGD("$$$ broadcast\n");
                 } else {
-                    LOGE("fail: broadcast\n");
+                    LOGD("\n");
                     del = false;
                 }
-                utl_buf_free(&buf);
             }
         } else if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) {
+            LOGD("received HTLC output\n");
             if (unspent) {
                 //broadcast
                 utl_buf_t buf = UTL_BUF_INIT;
@@ -955,7 +943,7 @@ static bool close_unilateral_remote(ln_channel_t *pChannel)
                 }
                 if (btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len)) {
                     LOGD("$$$ broadcast\n");
-                    //remote preimage is blocked! (to be timeout)
+                    //remote preimage was blocked! (to be timeout)
                     if (!update_fail_htlc_forward(pChannel, &close_dat, lp)) {
                         LOGE("fail: ???\n");
                     }
@@ -965,6 +953,8 @@ static bool close_unilateral_remote(ln_channel_t *pChannel)
                 }
                 utl_buf_free(&buf);
             } else {
+                LOGD("\n");
+                //extract preimage
                 close_unilateral_remote_received(pChannel, &del, &close_dat, lp);
             }
         } else {
@@ -982,8 +972,6 @@ static bool close_unilateral_remote(ln_channel_t *pChannel)
 //  HTLC Output Handling: Remote Commitment, Remote Offers
 static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp)
 {
-    LOGD("received HTLC output\n");
-
     const ln_htlc_t *p_htlc = ln_htlc(pChannel, pCloseDat->p_htlc_idxs[lp]);
     if (!p_htlc) return;
 
@@ -999,8 +987,9 @@ static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel,
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
-    if (!btcrpc_search_outpoint(&tx, M_SEARCH_OUTPOINT(confirm),
-            txid, pCloseDat->p_tx[lp].vin[0].index)) {
+    if (!btcrpc_search_outpoint(
+        &tx, M_SEARCH_OUTPOINT(confirm),
+        txid, pCloseDat->p_tx[lp].vin[0].index)) {
         LOGD("not found txid: ");
         TXIDD(txid);
         LOGD("index=%d\n", pCloseDat->p_htlc_idxs[lp]);
@@ -1029,7 +1018,7 @@ static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel,
 }
 
 
-static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num)
+static bool close_unilateral_local_sendreq(const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num)
 {
     utl_buf_t buf = UTL_BUF_INIT;
     uint8_t txid[BTC_SZ_TXID];
@@ -1037,27 +1026,25 @@ static bool close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
     btc_tx_write(pTx, &buf);
     bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
     utl_buf_free(&buf);
-    if (ret) {
-        LOGD("$$$ broadcast\n");
-
-        if ( (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ||
-             (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ) {
-            for (int lp = 0; lp < Num; lp++) {
-                if (pHtlcTx[lp].vin_cnt > 0) {
-                    LOGD("$$$ spending tx[%d] ==> DB\n", lp);
-
-                    ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
-                    set_wallet_data(&wlt, &pHtlcTx[lp]);
-                    ln_db_wallet_save(&wlt);
-                }
-            }
-        }
-    } else {
-        *pDel = false;
+    if (!ret) {
         LOGE("fail: broadcast\n");
+        return false;
     }
 
-    return ret;
+    LOGD("$$$ broadcast\n");
+    if ( (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ||
+         (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ) {
+        for (int lp = 0; lp < Num; lp++) {
+            if (pHtlcTx[lp].vin_cnt > 0) {
+                LOGD("$$$ spending tx[%d] ==> DB\n", lp);
+                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
+                set_wallet_data(&wlt, &pHtlcTx[lp]);
+                ln_db_wallet_save(&wlt);
+            }
+        }
+    }
+
+    return true;
 }
 
 
