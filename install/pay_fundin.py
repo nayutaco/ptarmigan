@@ -30,6 +30,9 @@ ERR_BC_CREATE_TX = 3
 ERR_BC_SEND_TX = 4
 ERR_EXCEPTION = 100
 
+# unlock if error happened
+locked_tx = []
+
 
 def fund_in(funding_sat, push_msat):
     fundamount = float(funding_sat) / 100000000
@@ -129,6 +132,7 @@ def aggregate_inputs(fundamount, feerate):
         do_lock = lockunspent(str(lu[i]['txid']), lu[i]['vout'])
         if not do_lock:
             continue
+        locked_tx.append( (str(lu[i]['txid']), lu[i]['vout']) )
         sum += lu[i]['amount']
         txlist.append("{\"txid\":\"" + str(lu[i]['txid']) + "\",\"vout\":" + str(lu[i]['vout']) + "}")
         inputs += 1
@@ -243,9 +247,13 @@ def signrawtx(signhex):
     return sendtx
 
 
-def lockunspent(txid, txindex):
+def lockunspent(txid, txindex, unlock=False):
+    if unlock:
+        unlock_str = 'true'
+    else:
+        unlock_str = 'false'
     outpoint = '{\\"txid\\":\\"' + txid + '\\",\\"vout\\":' + str(txindex) + '}'
-    lockvout = subprocess.run(('bitcoin-cli lockunspent false "[' + outpoint + ']"'), shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    lockvout = subprocess.run(('bitcoin-cli lockunspent ' + unlock_str + ' "[' + outpoint + ']"'), shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return lockvout.stdout.decode("utf8").strip() == 'true'
 
 
@@ -342,5 +350,9 @@ if __name__ == '__main__':
     # except:
     #     print('error happen: exception', file=sys.stderr)
     #     ret = ERR_EXCEPTION
+
+    if ret != 0:
+        for locktx in locked_tx:
+            lockunspent(locktx[0], locktx[1], unlock=True)
 
     sys.exit(ret)
