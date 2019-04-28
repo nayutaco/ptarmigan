@@ -449,6 +449,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //Be sure to save before fowrarding and backwarding
     //  Otherwise there is a possibility of fowrarding and backwarding of the same updates multiple times
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
+    M_DB_SECRET_SAVE(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
     for (uint32_t idx = 0; idx < ARRAY_SIZE(pChannel->update_info.updates); idx++) {
@@ -520,6 +521,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     //Since htlcs are accessed until callback is done, we clear them after callback
     /*ignore*/ ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
+    M_DB_CHANNEL_SAVE(pChannel);
 
     LOGD("END\n");
     return true;
@@ -1885,6 +1887,7 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
     }
 
     ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
+    M_DB_CHANNEL_SAVE(pChannel);
 
     LOGD("END\n");
     return true;
