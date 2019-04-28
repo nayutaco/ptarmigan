@@ -228,10 +228,12 @@ static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData,
         LOGE("fail: read message\n");
         return false;
     }
+#if 0
     if (!ln_msg_node_announcement_verify(&msg, pData, Len)) {
         LOGE("fail: verify\n");
         return false;
     }
+#endif
 
     LOGV("node_id:");
     DUMPV(msg.p_node_id, BTC_SZ_PUBKEY);
@@ -326,10 +328,12 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
             LOGE("fail: invalid pubkey\n");
             return false;
         }
+#if 0
         if (!ln_msg_channel_update_verify(node_id, pData, Len)) {
             LOGE("fail: verify\n");
             return false;
         }
+#endif
     } else {
         //not found
         //  BOLT#11
