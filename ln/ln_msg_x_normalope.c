@@ -190,8 +190,9 @@ static void x_update_fulfill_htlc_print(const ln_msg_x_update_fulfill_htlc_t *pM
 {
 #ifdef PTARM_DEBUG
     LOGD("-[x_update_fulfill_htlc]-------------------------------\n");
-    LOGD("p_payment_preimage: ");
-    DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
+    //LOGD("p_payment_preimage: ");
+    //DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
+    LOGD("p_payment_preimage: ???\n");
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }

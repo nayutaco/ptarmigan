@@ -109,8 +109,9 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
         memcpy(&amount, p, sizeof(uint64_t));
         //p += sizeof(uint64_t);
 
-        LOGD("[%d]secret: ", lp);
-        DUMPD(p_secret, BTC_SZ_PRIVKEY);
+        //LOGD("[%d]secret: ", lp);
+        //DUMPD(p_secret, BTC_SZ_PRIVKEY);
+        LOGD("[%d]\n", lp);
         LOGD("   type: %02x\n", type);
         LOGD("   amount: %" PRIu64 "\n", amount);
 
