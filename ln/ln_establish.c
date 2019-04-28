@@ -745,8 +745,8 @@ bool HIDDEN ln_channel_reestablish_recv(ln_channel_t *pChannel, const uint8_t *p
             //  AND your_last_per_commitment_secret is correct for that next_remote_revocation_number minus 1:
             uint8_t secret[BTC_SZ_PRIVKEY];
             ln_derkey_local_storage_create_per_commitment_secret(&pChannel->keys_local, secret, LN_SECRET_INDEX_INIT - (msg.next_remote_revocation_number - 1));
-            LOGD("secret: ");
-            DUMPD(secret, BTC_SZ_PRIVKEY);
+            //LOGD("secret: ");
+            //DUMPD(secret, BTC_SZ_PRIVKEY);
             if (memcmp(secret, msg.p_your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
                 //MUST NOT broadcast its commitment transaction.
                 //SHOULD fail the channel.

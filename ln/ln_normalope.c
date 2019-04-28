@@ -1661,8 +1661,8 @@ static bool check_recv_add_htlc_bolt4_final(
         utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
         return false;
     }
-    LOGD("match preimage: ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    //LOGD("match preimage: ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
 
     //C2. if the amount paid is less than the amount expected:
     //      incorrect_payment_amount

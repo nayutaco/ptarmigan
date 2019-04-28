@@ -66,7 +66,7 @@
 
 #define M_EXCHANGE_ENDIAN16(val)    ((uint16_t)((val) >> 8) | (((val) & 0xff) << 8))
 
-//#define M_DBG_FAIL
+//#define M_DBG_FAIL //XXX: CAUTION!!: display secret
 
 
 /**************************************************************************

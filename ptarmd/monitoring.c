@@ -804,8 +804,9 @@ static void close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, l
         return;
     }
 
-    LOGD("backwind preimage: ");
-    DUMPD(p_buf->buf, p_buf->len);
+    //LOGD("backwind preimage: ");
+    //DUMPD(p_buf->buf, p_buf->len);
+    LOGD("backwind preimage\n");
     if (!ln_update_fulfill_htlc_forward(
         p_htlc->neighbor_short_channel_id, p_htlc->neighbor_id, p_buf->buf)) {
         LOGE("fail: ???\n");
@@ -1004,8 +1005,9 @@ static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel,
         btc_tx_free(&tx);
         return;
     }
-    LOGD("backwind preimage: ");
-    DUMPD(p_buf->buf, p_buf->len);
+    //LOGD("backwind preimage: ");
+    //DUMPD(p_buf->buf, p_buf->len);
+    LOGD("backwind preimage\n");
 
     if (!ln_update_fulfill_htlc_forward(
         p_htlc->neighbor_short_channel_id, p_htlc->neighbor_id, p_buf->buf)) {

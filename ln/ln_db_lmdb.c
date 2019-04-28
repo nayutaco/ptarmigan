@@ -2882,8 +2882,9 @@ bool ln_db_preimage_del(const uint8_t *pPreimage)
     if (pPreimage) {
         MDB_val key;
 
-        LOGD("remove: ");
-        DUMPD(pPreimage, LN_SZ_PREIMAGE);
+        //LOGD("remove: ");
+        //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+        LOGD("remove\n");
         key.mv_size = LN_SZ_PREIMAGE;
         key.mv_data = (CONST_CAST uint8_t *)pPreimage;
         retval = mdb_del(db.p_txn, db.dbi, &key, NULL);
@@ -5647,8 +5648,9 @@ static bool preimage_cmp_func(const uint8_t *pPreimage, uint64_t Amount, uint32_
     const uint8_t *hash = (const uint8_t *)pParam;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
-    LOGD("compare preimage : ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    //LOGD("compare preimage : ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    LOGD("compare preimage\n");
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
     if (memcmp(preimage_hash, hash, BTC_SZ_HASH256)) {
@@ -5674,8 +5676,9 @@ static bool preimage_cmp_all_func(const uint8_t *pPreimage, uint64_t Amount, uin
     preimage_close_t *param = (preimage_close_t *)pParam;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
-    LOGD("compare preimage : ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    //LOGD("compare preimage : ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    LOGD("compare preimage\n");
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {

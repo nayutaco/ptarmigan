@@ -1058,7 +1058,7 @@ static bool create_local_htlc_tx(
             memcpy(
                 preimage, pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.buf,
                 pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.len);
-            DUMPD(preimage, LN_SZ_PREIMAGE);
+            //DUMPD(preimage, LN_SZ_PREIMAGE);
         } else {
             LOGD("[received]have preimage=NO\n");
             LOGD("stop create HTLC tx (input only)\n");
@@ -1441,7 +1441,7 @@ static bool create_remote_spend_htlc_output_tx(
             memcpy(
                 preimage, pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.buf,
                 pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.len);
-            DUMPD(preimage, LN_SZ_PREIMAGE);
+            //DUMPD(preimage, LN_SZ_PREIMAGE);
 
             if (!ln_spend_htlc_offered_output_tx_set_vin0(&tx, preimage, &pHtlcInfo->wit_script)) {
                 LOGE("fail: ???\n");
