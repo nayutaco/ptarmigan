@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
         { "sendpayment", required_argument, NULL, 'r' },
-        { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
+        { "listpayment", optional_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
         { "createinvoice", required_argument, NULL, 'i' },
         { "listinvoice", no_argument, NULL, 'm' },
@@ -1038,11 +1038,23 @@ static void optfunc_listpayment(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
+    const char *payment_id = "";
+    if ((optarg != NULL) && (optarg[0] != '\0')) {
+        uint32_t id;
+        bool ret = utl_str_scan_u32(&id, optarg);
+        if (!ret) {
+            strcpy(mErrStr, "invalid parameter");
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
+        payment_id = optarg;
+    }
+
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "listpayment") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+            M_QQ("params") ":[%s]"
+        "}", payment_id);
     *pOption = M_OPTIONS_EXEC;
 }
 

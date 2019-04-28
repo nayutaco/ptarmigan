@@ -1478,7 +1478,7 @@ LABEL_EXIT:
  */
 static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)params; (void)id;
+    (void)id;
 
     bool ret;
     cJSON *result = NULL;
@@ -1539,15 +1539,27 @@ static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result = NULL;
     void *p_cur;
     uint64_t            payment_id;
+    uint64_t            selected_id = UINT64_MAX;
     ln_payment_info_t   info;
 
     LOGD("$$$: [JSONRPC]listpayment\n");
+
+    if (params != NULL) {
+        cJSON *json;
+        json = cJSON_GetArrayItem(params, 0);
+        if (json && (json->type == cJSON_Number)) {
+            selected_id = json->valueu64;
+        }
+    }
 
     result = cJSON_CreateArray();
     if (!ln_db_payment_info_cur_open(&p_cur)) {
         return result;
     }
     while (ln_db_payment_info_cur_get(p_cur, &payment_id, &info)) {
+        if ((selected_id != UINT64_MAX) && (selected_id != payment_id)) {
+            continue;
+        }
         cJSON *json = cJSON_CreateObject();
 
         cJSON_AddItemToObject(json, "payment_id", cJSON_CreateNumber64(payment_id));
@@ -1601,6 +1613,9 @@ static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
 
         cJSON_AddItemToArray(result, json);
+        if ((selected_id != UINT64_MAX) && (selected_id == payment_id)) {
+            break;
+        }
     }
     ln_db_payment_info_cur_close(p_cur, false);
     return result;
