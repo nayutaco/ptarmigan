@@ -17,7 +17,7 @@ export class BitcoinService {
         private readonly config: ConfigService,
     ) {
         this.config = config;
-        this.port = Number.parseInt(this.config.get('ptarmigan.bitcoindPort'), 10),
+        this.port = Number.parseInt(this.config.get('ptarmigan.bitcoindRpcPort'), 10),
         this.host = this.config.get('ptarmigan.bitcoindHost'),
         this.username = this.config.get('ptarmigan.bitcoindUser'),
         this.password = this.config.get('ptarmigan.bitcoindPassword'),

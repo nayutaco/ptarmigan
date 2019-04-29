@@ -174,23 +174,14 @@ export class PtarmiganController {
     ) {
     }
 
-    /*
-    @Get('help') // none -> help
-    async executeHelp() {
-        return await this.ptarmiganService.requestTCP("help", []);
-    }
-    */
-
     @Post('stop') // stop -> stop
     async executeStop() {
         return await this.ptarmiganService.requestTCP("stop", []);
     }
 
     @Post('getinfo') // getinfo -> getinfo
-    @ApiCreatedResponse({ description: 'The record has been successfully created.' })
-    @ApiForbiddenResponse({ description: 'Forbidden.' })
     async executeGetInfo(): Promise<string> {
-        return await this.ptarmiganService.requestTCP("getinfo", {});
+        return await this.ptarmiganService.requestTCP("getinfo", []);
     }
 
     @Post('setfeerate') // setfeerate -> setfeerate
@@ -204,16 +195,6 @@ export class PtarmiganController {
         return await this.ptarmiganService.requestTCP("estimatefundingfee", [dto.feeratePerKw])
     }
 
-    // TODO: [100], 100レスポンス確認
-    /*
-    @Post('estimatefundingfee/:feeratePerKw') // estimatefundingfee -> dev-estimatefundingfee
-    async executeEstimateFundingFee( @Param('feeratePerKw') feeratePerKw: number) {
-        Logger.log(feeratePerKw)
-        Logger.log(typeof feeratePerKw)
-        return await this.ptarmiganService.requestTCP("estimatefundingfee", [ feeratePerKw ])
-    }
-    */
-
     @Post('createinvoice') // createinvoice -> invoice
     async executeCreateInvoice(@Body() dto: InvoiceDto) {
         return await this.ptarmiganService.requestTCP("invoice", [dto.amountMsat, dto.minFinalCltvExpiry])
@@ -226,7 +207,7 @@ export class PtarmiganController {
 
     @Post('removeallinvoices') // eraseinvoice -> removeallinvoices
     async executeRemoveAllInvoices() {
-        return await this.ptarmiganService.requestTCP("eraseinvoice", ['ALL'])
+        return await this.ptarmiganService.requestTCP("eraseinvoice", [''])
     }
 
     @Post('listinvoices') // listinvoice -> listinvoices
@@ -280,8 +261,13 @@ export class PtarmiganController {
     }
 
     @Post('close') // close -> closechannel
-    async executeAddInvoice(@Body() dto: PeerNodeDto) {
+    async executeCloseChannel(@Body() dto: PeerNodeDto) {
         return await this.ptarmiganService.requestTCP("close", [dto.peerNodeId, '0.0.0.0', 0])
+    }
+
+    @Post('forceclose') // close -> closechannel
+    async executeForceCloseChannel(@Body() dto: PeerNodeDto) {
+        return await this.ptarmiganService.requestTCP("close", [dto.peerNodeId, '0.0.0.0', 0, 'force'])
     }
 
     @Post('dev-removechannel/:channelId') // removechannel -> dev-removechannel
