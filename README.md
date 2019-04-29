@@ -46,6 +46,7 @@ rpcuser=bitcoinuser
 rpcpassword=bitcoinpassword
 server=1
 txindex=1
+testnet=1
 ```
 
 ```bash
@@ -66,7 +67,7 @@ cd [NODENAME]
 
 # start ptarmigan daemon
 #   CHAIN=mainnet, testnet or regtest
-../ptarmd --network=[CHAIN]
+../ptarmd --network=testnet
 ```
 
 * [NOTE](docs/INSTALL.md#NOTE)
