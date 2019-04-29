@@ -372,5 +372,5 @@ static void show_version(void)
     // no version API
     fprintf(stderr, "\tinih: r42\n");
     fprintf(stderr, "\tlibbase58: commit 1cb26b5bfff6b52995a2d88a4b7e1041df589d35\n");
-    fprintf(stderr, "\tjsonrpc-c(customized): localonly_r1\n");
+    fprintf(stderr, "\tjsonrpc-c(customized): localonly_r2\n");
 }
