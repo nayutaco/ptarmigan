@@ -2548,7 +2548,7 @@ ln_db_route_skip_t ln_db_route_skip_search(uint64_t ShortChannelId)
 
     retval = node_db_open(&db, M_DBI_ROUTE_SKIP, 0, 0);
     if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        //LOGE("ERR: %s\n", mdb_strerror(retval));
         return LN_DB_ROUTE_SKIP_NONE;
     }
 

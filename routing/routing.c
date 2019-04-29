@@ -49,7 +49,7 @@
  * macros
  **************************************************************************/
 
-#define M_SPOIL_STDERR                      // stderrへの出力を破棄する
+//#define M_SPOIL_STDERR                      // stderrへの出力を破棄する
 
 #define OPT_SENDER                          (0x01)  // -s指定あり
 #define OPT_RECVER                          (0x02)  // -r指定あり
