@@ -1623,7 +1623,7 @@ bool ln_db_cnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update_t *
     retval = cnlupd_load(&db, &buf_upd, &timestamp, pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
     if (retval) {
         //新規
-        LOGD("new: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
+        //LOGD("new: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
         update = true;
     } else {
         if (timestamp > pUpd->timestamp) {
@@ -1826,7 +1826,7 @@ bool ln_db_nodeanno_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announcem
     retval = nodeanno_load(&db, &buf_node, &timestamp, pAnno->p_node_id);
     if (retval) { //XXX: check error code
         //新規
-        LOGV("new node_announcement\n");
+        //LOGV("new node_announcement\n");
         update = true;
     } else {
         if (timestamp > pAnno->timestamp) {
@@ -4946,7 +4946,7 @@ static int cnlanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
  */
 static int cnlanno_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
+    //LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
     uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
