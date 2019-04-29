@@ -17,10 +17,17 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   const config = ConfigService;
+<<<<<<< HEAD
   Logger.log('ptarmdRpcPort: ' + config.get('ptarmigan.ptarmdRpcPort'));
   Logger.log('ptarmdHost: + ' + config.get('ptarmigan.ptarmdHost'));
   Logger.log('bitcoindRpcPort: ' + config.get('ptarmigan.bitcoindRpcPort'));
   Logger.log('bitcoindHost: ' + config.get('ptarmigan.bitcoindHost'));
+=======
+  Logger.log(config.get('ptarmigan.bitcoindPort'));
+  Logger.log(config.get('ptarmigan.bitcoindHost'));
+  Logger.log(config.get('ptarmigan.bitcoindUser'));
+  Logger.log(config.get('ptarmigan.bitcoindPassword'));
+>>>>>>> upstream/master
 
   await app.listen(3000);
 }

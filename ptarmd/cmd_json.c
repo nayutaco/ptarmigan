@@ -137,6 +137,7 @@ static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_listpayment_json(void *p_cur, uint64_t PaymentId, const ln_payment_info_t *pInfo);
 static cJSON *cmd_removepayment(jrpc_context *ctx, cJSON *params, cJSON *id);
 #ifdef USE_BITCOINJ
 static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -1478,7 +1479,7 @@ LABEL_EXIT:
  */
 static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)params; (void)id;
+    (void)id;
 
     bool ret;
     cJSON *result = NULL;
@@ -1534,82 +1535,111 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)ctx; (void)params; (void)id;
+    (void)ctx; (void)id;
 
     cJSON *result = NULL;
     void *p_cur;
     uint64_t            payment_id;
+    uint64_t            selected_id = UINT64_MAX;
     ln_payment_info_t   info;
 
     LOGD("$$$: [JSONRPC]listpayment\n");
 
-    result = cJSON_CreateArray();
-    if (!ln_db_payment_info_cur_open(&p_cur)) {
-        return result;
+    if (params != NULL) {
+        cJSON *json;
+        json = cJSON_GetArrayItem(params, 0);
+        if (json && (json->type == cJSON_Number)) {
+            selected_id = json->valueu64;
+        }
     }
-    while (ln_db_payment_info_cur_get(p_cur, &payment_id, &info)) {
-        cJSON *json = cJSON_CreateObject();
 
-        cJSON_AddItemToObject(json, "payment_id", cJSON_CreateNumber64(payment_id));
-
-        char str_hash[BTC_SZ_HASH256 * 2 + 1];
-        utl_str_bin2str(str_hash, info.payment_hash, BTC_SZ_HASH256);
-        cJSON_AddItemToObject(json, "payment_hash", cJSON_CreateString(str_hash));
-
-        if (info.state == LN_PAYMENT_STATE_SUCCEEDED) {
-            char str_preimage[LN_SZ_PREIMAGE * 2 + 1];
-            utl_str_bin2str(str_preimage, info.preimage, LN_SZ_PREIMAGE);
-            cJSON_AddItemToObject(json, "preimage", cJSON_CreateString(str_preimage));
+    result = cJSON_CreateArray();
+    if (selected_id != UINT64_MAX) {
+        //single
+        if (!ln_db_payment_info_load(&info, selected_id)) {
+            return result;
         }
-
-        cJSON_AddItemToObject(json, "additional_amount_msat", cJSON_CreateNumber64(info.additional_amount_msat));
-        cJSON_AddItemToObject(json, "block_count", cJSON_CreateNumber(info.block_count));
-        cJSON_AddItemToObject(json, "retry_count", cJSON_CreateNumber(info.retry_count));
-        cJSON_AddItemToObject(json, "max_retry_count", cJSON_CreateNumber(info.max_retry_count));
-
-        if (info.auto_remove) {
-            cJSON_AddItemToObject(json, "auto_remove", cJSON_CreateString("true"));
-        } else {
-            cJSON_AddItemToObject(json, "auto_remove", cJSON_CreateString("false"));
+        if (!ln_db_payment_info_cur_open(&p_cur)) {
+            return result;
         }
-
-        switch (info.state) {
-        case LN_PAYMENT_STATE_PROCESSING:
-            cJSON_AddItemToObject(json, "state", cJSON_CreateString("processing"));
-            break;
-        case LN_PAYMENT_STATE_SUCCEEDED:
-            cJSON_AddItemToObject(json, "state", cJSON_CreateString("succeeded"));
-            break;
-        case LN_PAYMENT_STATE_FAILED:
-            cJSON_AddItemToObject(json, "state", cJSON_CreateString("failed"));
-            break;
-        default:
-            ;
-        }
-
-        utl_buf_t buf_invoice = UTL_BUF_INIT;
-        if (ln_db_payment_invoice_load_2(&buf_invoice, payment_id, p_cur)) {
-            char *p_invoice = (char *)UTL_DBG_MALLOC(buf_invoice.len + 1);
-            if (p_invoice) {
-                memcpy(p_invoice, buf_invoice.buf, buf_invoice.len);
-                p_invoice[buf_invoice.len] = '\0';
-                cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
-            } else {
-                LOGE("fail: ???\n");
-            }
-            utl_buf_free(&buf_invoice);
-        }
-
+        cJSON *json = cmd_listpayment_json(p_cur, selected_id, &info);
         cJSON_AddItemToArray(result, json);
+    } else {
+        //all list
+        if (!ln_db_payment_info_cur_open(&p_cur)) {
+            return result;
+        }
+        while (ln_db_payment_info_cur_get(p_cur, &payment_id, &info)) {
+            cJSON *json = cmd_listpayment_json(p_cur, payment_id, &info);
+            cJSON_AddItemToArray(result, json);
+        }
     }
     ln_db_payment_info_cur_close(p_cur, false);
     return result;
 }
 
 
+static cJSON *cmd_listpayment_json(void *p_cur, uint64_t PaymentId, const ln_payment_info_t *pInfo)
+{
+    cJSON *json = cJSON_CreateObject();
+
+    cJSON_AddItemToObject(json, "payment_id", cJSON_CreateNumber64(PaymentId));
+
+    char str_hash[BTC_SZ_HASH256 * 2 + 1];
+    utl_str_bin2str(str_hash, pInfo->payment_hash, BTC_SZ_HASH256);
+    cJSON_AddItemToObject(json, "payment_hash", cJSON_CreateString(str_hash));
+
+    if (pInfo->state == LN_PAYMENT_STATE_SUCCEEDED) {
+        char str_preimage[LN_SZ_PREIMAGE * 2 + 1];
+        utl_str_bin2str(str_preimage, pInfo->preimage, LN_SZ_PREIMAGE);
+        cJSON_AddItemToObject(json, "preimage", cJSON_CreateString(str_preimage));
+    }
+
+    cJSON_AddItemToObject(json, "additional_amount_msat", cJSON_CreateNumber64(pInfo->additional_amount_msat));
+    cJSON_AddItemToObject(json, "block_count", cJSON_CreateNumber(pInfo->block_count));
+    cJSON_AddItemToObject(json, "retry_count", cJSON_CreateNumber(pInfo->retry_count));
+    cJSON_AddItemToObject(json, "max_retry_count", cJSON_CreateNumber(pInfo->max_retry_count));
+
+    if (pInfo->auto_remove) {
+        cJSON_AddItemToObject(json, "auto_remove", cJSON_CreateString("true"));
+    } else {
+        cJSON_AddItemToObject(json, "auto_remove", cJSON_CreateString("false"));
+    }
+
+    switch (pInfo->state) {
+    case LN_PAYMENT_STATE_PROCESSING:
+        cJSON_AddItemToObject(json, "state", cJSON_CreateString("processing"));
+        break;
+    case LN_PAYMENT_STATE_SUCCEEDED:
+        cJSON_AddItemToObject(json, "state", cJSON_CreateString("succeeded"));
+        break;
+    case LN_PAYMENT_STATE_FAILED:
+        cJSON_AddItemToObject(json, "state", cJSON_CreateString("failed"));
+        break;
+    default:
+        LOGE("fail: ???\n");
+    }
+
+    utl_buf_t buf_invoice = UTL_BUF_INIT;
+    if (ln_db_payment_invoice_load_2(&buf_invoice, PaymentId, p_cur)) {
+        char *p_invoice = (char *)UTL_DBG_MALLOC(buf_invoice.len + 1);
+        if (p_invoice) {
+            memcpy(p_invoice, buf_invoice.buf, buf_invoice.len);
+            p_invoice[buf_invoice.len] = '\0';
+            cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
+        } else {
+            LOGE("fail: ???\n");
+        }
+        utl_buf_free(&buf_invoice);
+    }
+
+    return json;
+}
+
+
 static cJSON *cmd_removepayment(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)ctx; (void)params; (void)id;
+    (void)ctx; (void)id;
 
     cJSON *result = NULL;
     bool ret = false;

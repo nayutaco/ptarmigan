@@ -30,12 +30,15 @@ ERR_BC_CREATE_TX = 3
 ERR_BC_SEND_TX = 4
 ERR_EXCEPTION = 100
 
+# unlock if error happened
+locked_tx = []
+
 
 def fund_in(funding_sat, push_msat):
     fundamount = float(funding_sat) / 100000000
     fundamount = round(fundamount, 8)
 
-    sum = 0         # input amount
+    sum_amount = 0  # input amount
     cmd_sum = ''
     fundsum = 0     # output amount + txfee
 
@@ -46,13 +49,13 @@ def fund_in(funding_sat, push_msat):
     fundfee = round(227 * feerate / 1000, 8)
     fundamount += fundfee
 
-    sum, cmd_sum, fundsum, txfee, estimate_vsize = aggregate_inputs(fundamount, feerate)
-    if sum < fundamount:
+    sum_amount, cmd_sum, fundsum, txfee, estimate_vsize = aggregate_inputs(fundamount, feerate)
+    if sum_amount < fundamount:
         print("ERROR: You don't have enough amount(P2PKH, P2WPKH).", file=sys.stderr)
         return ERR_NO_AMOUNT, None
 
     dispfundamount = "{0:.8f}".format(round(fundamount, 8))
-    change = round(sum - fundamount - txfee, 8)
+    change = round(sum_amount - fundamount - txfee, 8)
 
     print("[Size] " + str(estimate_vsize) + " bytes", file=sys.stderr)
     print("[Send] " + dispfundamount + " btc", file=sys.stderr)
@@ -61,7 +64,7 @@ def fund_in(funding_sat, push_msat):
     newaddr = getnewaddress()
     cmd_sum = cmd_sum +  " \'[{\"" + newaddr + "\":" + dispfundamount + "}"
 
-    ret, signhex = create_tx(cmd_sum, sum, fundsum, change)
+    ret, signhex = create_tx(cmd_sum, sum_amount, fundsum, change)
     if not ret:
         print('ERROR: create transaction was failed.', file=sys.stderr)
         return ERR_BC_CREATE_TX, None
@@ -70,8 +73,8 @@ def fund_in(funding_sat, push_msat):
     vsize = get_vsize(signhex)
     if vsize != estimate_vsize:
         print('[ReCalc]vsize not same(' + str(estimate_vsize) + ' --> ' + str(vsize) + ')', file=sys.stderr)
-        txfee, fundsum, change = calc_txfee(sum, vsize, feerate, fundamount)
-        ret, signhex = create_tx(cmd_sum, sum, fundsum, change)
+        txfee, fundsum, change = calc_txfee(sum_amount, vsize, feerate, fundamount)
+        ret, signhex = create_tx(cmd_sum, sum_amount, fundsum, change)
         if not ret:
             print('ERROR: create transaction was failed.', file=sys.stderr)
             return ERR_BC_CREATE_TX, None
@@ -93,7 +96,7 @@ def fund_in(funding_sat, push_msat):
 
 
 def aggregate_inputs(fundamount, feerate):
-    sum = 0
+    sum_amount = 0
     txlist = []
     cmd_sum = ''
     fundsum = 0
@@ -129,11 +132,12 @@ def aggregate_inputs(fundamount, feerate):
         do_lock = lockunspent(str(lu[i]['txid']), lu[i]['vout'])
         if not do_lock:
             continue
-        sum += lu[i]['amount']
+        locked_tx.append( (str(lu[i]['txid']), lu[i]['vout']) )
+        sum_amount += lu[i]['amount']
         txlist.append("{\"txid\":\"" + str(lu[i]['txid']) + "\",\"vout\":" + str(lu[i]['vout']) + "}")
         inputs += 1
 
-        if sum >= fundamount:
+        if sum_amount >= fundamount:
             #TX INPUT
             for x in txlist :
                 if x == txlist[0] :
@@ -146,7 +150,7 @@ def aggregate_inputs(fundamount, feerate):
             #TX AMOUNT
             #   version(4)
             #   mark,flags(2)
-            #   vin_cnt(1)
+            #   vin_cnt(n)
             #   vin(signature length=73)
             #       native P2WPKH(68.25) = outpoint(36) + scriptSig(1) + sequence(4) + witness(1 + 1+73 + 1+33)/4
             #       nested P2WPKH(90.25) = outpoint(36) + scriptSig(23) + sequence(4) + witness(1 + 1+73 + 1+33)/4
@@ -156,14 +160,15 @@ def aggregate_inputs(fundamount, feerate):
             #       mainoutput = nested P2WPKH(32)
             #       change     = nested P2WPKH(32)
             #   locktime(4)
-            #      (version + mark,flags + vout_cnt + vout + 4) = 75
+            #      (version + mark,flags + vout_cnt + vout + locktime) = 75
             estimate_vsize = 75 + (p2wpkh * 69 + p2sh * 91 + p2pkh * 149)
-            txfee, fundsum, _ = calc_txfee(sum, estimate_vsize, feerate, fundamount)
-            if fundsum <= sum :
+            txfee, fundsum, _ = calc_txfee(sum_amount, estimate_vsize, feerate, fundamount)
+            if fundsum <= sum_amount :
                 #print('  p2wpkh=' + str(p2wpkh) + ', p2sh=' + str(p2sh) + ', p2pkh=' + str(p2wpkh))
                 break
 
     # https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+    sum_amount = 0
     if inputs == 0:
         print('no input', file=sys.stderr)
     elif inputs < 0xfd:
@@ -172,18 +177,18 @@ def aggregate_inputs(fundamount, feerate):
         estimate_vsize += 3
     else:
         estimate_vsize += 5
-    return sum, cmd_sum, fundsum, txfee, estimate_vsize
+    return sum_amount, cmd_sum, fundsum, txfee, estimate_vsize
 
 
-def calc_txfee(sum, vsize, feerate, fundamount):
+def calc_txfee(sum_amount, vsize, feerate, fundamount):
     txfee = round(vsize * feerate / 1000, 8)
     fundsum = fundamount + txfee
-    change = round(sum - fundamount - txfee, 8)
+    change = round(sum_amount - fundamount - txfee, 8)
     return txfee, fundsum, change
 
 
-def create_tx(cmd_sum, sum, fundsum, change):
-    if sum - fundsum >  0.00000547 :
+def create_tx(cmd_sum, sum_amount, fundsum, change):
+    if sum_amount - fundsum >  0.00000547 :
         changeaddr = getnewaddress()
         cmd = cmd_sum +  ",{\"" +changeaddr + "\":" + str(change) + "}"
     else:
@@ -243,9 +248,13 @@ def signrawtx(signhex):
     return sendtx
 
 
-def lockunspent(txid, txindex):
+def lockunspent(txid, txindex, unlock=False):
+    if unlock:
+        unlock_str = 'true'
+    else:
+        unlock_str = 'false'
     outpoint = '{\\"txid\\":\\"' + txid + '\\",\\"vout\\":' + str(txindex) + '}'
-    lockvout = subprocess.run(('bitcoin-cli lockunspent false "[' + outpoint + ']"'), shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    lockvout = subprocess.run(('bitcoin-cli lockunspent ' + unlock_str + ' "[' + outpoint + ']"'), shell = True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return lockvout.stdout.decode("utf8").strip() == 'true'
 
 
@@ -342,5 +351,9 @@ if __name__ == '__main__':
     # except:
     #     print('error happen: exception', file=sys.stderr)
     #     ret = ERR_EXCEPTION
+
+    if ret != 0:
+        for locktx in locked_tx:
+            lockunspent(locktx[0], locktx[1], unlock=True)
 
     sys.exit(ret)

@@ -231,25 +231,11 @@ bool HIDDEN ln_update_fulfill_htlc_recv(ln_channel_t *pChannel, const uint8_t *p
         return true;
     }
 
-    ln_msg_x_update_fulfill_htlc_t forward_msg;
-    forward_msg.p_payment_preimage = msg.p_payment_preimage;
-    utl_buf_t buf = UTL_BUF_INIT;
-    if (!ln_msg_x_update_fulfill_htlc_write(&buf, &forward_msg)) {
+    if (!ln_update_fulfill_htlc_forward(
+        p_htlc->neighbor_short_channel_id, p_htlc->neighbor_id, msg.p_payment_preimage)) {
         M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
         return false;
     }
-
-    ln_db_forward_t param;
-    param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
-    param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
-    param.prev_htlc_id = p_htlc->neighbor_id;
-    param.p_msg = &buf;
-    if (!ln_db_forward_del_htlc_save(&param)) {
-        M_SEND_ERR(pChannel, LNERR_ERROR, "internal error: fulfill_htlc");
-        utl_buf_free(&buf);
-        return false;
-    }
-    utl_buf_free(&buf);
 
     LOGD("END\n");
     return true;
@@ -449,6 +435,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //Be sure to save before fowrarding and backwarding
     //  Otherwise there is a possibility of fowrarding and backwarding of the same updates multiple times
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
+    M_DB_SECRET_SAVE(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 
     for (uint32_t idx = 0; idx < ARRAY_SIZE(pChannel->update_info.updates); idx++) {
@@ -468,23 +455,13 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
                 LOGE("fail: ???\n");
             }
 
-            ln_msg_x_update_fail_htlc_t msg;
-            msg.len = p_htlc->buf_onion_reason.len;
-            msg.p_reason = p_htlc->buf_onion_reason.buf;
-            utl_buf_t buf = UTL_BUF_INIT;
-            /*ignore(XXX: need to check)*/ln_msg_x_update_fail_htlc_write(&buf, &msg);
-
-            ln_db_forward_t param;
-            param.next_short_channel_id = p_htlc->neighbor_short_channel_id;
-            param.prev_short_channel_id = p_htlc->neighbor_short_channel_id;
-            param.prev_htlc_id = p_htlc->neighbor_id;
-            param.p_msg = &buf;
-            if (ln_db_forward_del_htlc_save(&param)) {
+            if (ln_update_fail_htlc_forward(
+                p_htlc->neighbor_short_channel_id, p_htlc->neighbor_id,
+                p_htlc->buf_onion_reason.buf, p_htlc->buf_onion_reason.len)) {
                 LOGD("\n");
             } else {
                 LOGE("fail: ???\n");
             }
-            utl_buf_free(&buf);
 
             ln_cb_param_start_bwd_del_htlc_t cb_param;
             cb_param.update_type = p_update->type;
@@ -520,6 +497,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     //Since htlcs are accessed until callback is done, we clear them after callback
     /*ignore*/ ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
+    M_DB_CHANNEL_SAVE(pChannel);
 
     LOGD("END\n");
     return true;
@@ -629,6 +607,7 @@ bool ln_fulfill_htlc_set(ln_channel_t *pChannel, uint64_t HtlcId, const uint8_t 
     const ln_update_t *p_update = &pChannel->update_info.updates[update_idx];
     if (pPreimage) {
         ln_htlc_t *p_htlc = &pChannel->update_info.htlcs[p_update->type_specific_idx];
+        utl_buf_free(&p_htlc->buf_preimage);
         if (!utl_buf_alloccopy(&p_htlc->buf_preimage, pPreimage, LN_SZ_PREIMAGE)) return false;
     }
 
@@ -738,20 +717,8 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
             if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
                 LOGE("fail: ???\n");
             }
-            ln_msg_x_update_fail_htlc_t forward_msg;
-            forward_msg.len = reason.len;
-            forward_msg.p_reason = reason.buf;
-            utl_buf_free(&buf);
-            if (ln_msg_x_update_fail_htlc_write(&buf, &forward_msg)) {
-                ln_db_forward_t param;
-                param.next_short_channel_id = prev_short_channel_id;
-                param.prev_short_channel_id = prev_short_channel_id;
-                param.prev_htlc_id = prev_htlc_id;
-                param.p_msg = &buf;
-                if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
-                    LOGE("fail: ???\n");
-                }
-            } else {
+            if (!ln_update_fail_htlc_forward_2(
+                prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
                 LOGE("fail: ???\n");
             }
             b_commit = true;
@@ -863,20 +830,8 @@ static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel)
             utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
         }
 
-        ln_msg_x_update_fail_htlc_t forward_msg;
-        forward_msg.len = reason.len;
-        forward_msg.p_reason = reason.buf;
-        utl_buf_free(&buf);
-        if (ln_msg_x_update_fail_htlc_write(&buf, &forward_msg)) {
-            ln_db_forward_t param;
-            param.next_short_channel_id = prev_short_channel_id;
-            param.prev_short_channel_id = prev_short_channel_id;
-            param.prev_htlc_id = prev_htlc_id;
-            param.p_msg = &buf;
-            if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
-                LOGE("fail: ???\n");
-            }
-        } else {
+        if (!ln_update_fail_htlc_forward_2(
+            prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
             LOGE("fail: ???\n");
         }
         b_commit = true;
@@ -922,20 +877,8 @@ static bool poll_update_add_htlc_forward_closing(ln_channel_t *pChannel)
         utl_push_init(&push_reason, &reason, 0);
         utl_push_u16be(&push_reason, LNONION_PERM_CHAN_FAIL);
 
-        ln_msg_x_update_fail_htlc_t forward_msg;
-        forward_msg.len = reason.len;
-        forward_msg.p_reason = reason.buf;
-        utl_buf_free(&buf);
-        if (ln_msg_x_update_fail_htlc_write(&buf, &forward_msg)) {
-            ln_db_forward_t param;
-            param.next_short_channel_id = prev_short_channel_id;
-            param.prev_short_channel_id = prev_short_channel_id;
-            param.prev_htlc_id = prev_htlc_id;
-            param.p_msg = &buf;
-            if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
-                LOGE("fail: ???\n");
-            }
-        } else {
+        if (!ln_update_fail_htlc_forward_2(
+            prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
             LOGE("fail: ???\n");
         }
         b_commit = true;
@@ -983,36 +926,13 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
         }
 
         if (succeeded) {
-            ln_msg_x_update_fulfill_htlc_t forward_msg;
-            forward_msg.p_payment_preimage = preimage;
-            utl_buf_free(&buf);
-            if (ln_msg_x_update_fulfill_htlc_write(&buf, &forward_msg)) {
-                ln_db_forward_t param;
-                param.next_short_channel_id = prev_short_channel_id;
-                param.prev_short_channel_id = prev_short_channel_id;
-                param.prev_htlc_id = prev_htlc_id;
-                param.p_msg = &buf;
-                if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
-                    LOGE("fail: ???\n");
-                }
-            } else {
+            if (!ln_update_fulfill_htlc_forward_2(
+                prev_short_channel_id, prev_htlc_id, preimage, p_cur)) {
                 LOGE("fail: ???\n");
             }
         } else {
-            ln_msg_x_update_fail_htlc_t forward_msg;
-            forward_msg.len = reason.len;
-            forward_msg.p_reason = reason.buf;
-            utl_buf_free(&buf);
-            if (ln_msg_x_update_fail_htlc_write(&buf, &forward_msg)) {
-                ln_db_forward_t param;
-                param.next_short_channel_id = prev_short_channel_id;
-                param.prev_short_channel_id = prev_short_channel_id;
-                param.prev_htlc_id = prev_htlc_id;
-                param.p_msg = &buf;
-                if (!ln_db_forward_del_htlc_save_2(&param, p_cur)) {
-                    LOGE("fail: ???\n");
-                }
-            } else {
+            if (!ln_update_fail_htlc_forward_2(
+                prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
                 LOGE("fail: ???\n");
             }
         }
@@ -1304,6 +1224,11 @@ void ln_idle_proc_inactive(ln_channel_t *pChannel)
     } else {
         /*ignore*/poll_update_add_htlc_forward_inactive(pChannel);
     }
+
+    //this function load update_fulfill/fail_htlc
+    //  but the updates are cleared by `ln_update_info_clear_pending_updates`
+    //  but preimages are remaind
+    /*ignore*/poll_update_del_htlc_forward(pChannel);
 }
 
 
@@ -1311,6 +1236,104 @@ void ln_idle_proc_origin(ln_channel_t *pChannel)
 {
     /*ignore*/poll_update_add_htlc_forward_origin(pChannel);
     /*ignore*/poll_update_del_htlc_forward_origin(pChannel);
+}
+
+
+bool ln_update_fulfill_htlc_forward(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pPreimage)
+{
+    ln_msg_x_update_fulfill_htlc_t msg;
+    msg.p_payment_preimage = pPreimage;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_x_update_fulfill_htlc_write(&buf, &msg)) {
+        return false;
+    }
+
+    ln_db_forward_t param;
+    param.next_short_channel_id = NeighborShortChannelId;
+    param.prev_short_channel_id = NeighborShortChannelId;
+    param.prev_htlc_id = NeighborId;
+    param.p_msg = &buf;
+    if (!ln_db_forward_del_htlc_save(&param)) {
+        utl_buf_free(&buf);
+        return false;
+    }
+    utl_buf_free(&buf);
+    return true;
+}
+
+
+bool ln_update_fulfill_htlc_forward_2(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pPreimage, void *pCur)
+{
+    ln_msg_x_update_fulfill_htlc_t msg;
+    msg.p_payment_preimage = pPreimage;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_x_update_fulfill_htlc_write(&buf, &msg)) {
+        return false;
+    }
+
+    ln_db_forward_t param;
+    param.next_short_channel_id = NeighborShortChannelId;
+    param.prev_short_channel_id = NeighborShortChannelId;
+    param.prev_htlc_id = NeighborId;
+    param.p_msg = &buf;
+    if (!ln_db_forward_del_htlc_save_2(&param, pCur)) {
+        utl_buf_free(&buf);
+        return false;
+    }
+    utl_buf_free(&buf);
+    return true;
+}
+
+
+bool ln_update_fail_htlc_forward(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pReason, uint16_t Len)
+{
+    ln_msg_x_update_fail_htlc_t msg;
+    msg.len = Len;
+    msg.p_reason = pReason;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_x_update_fail_htlc_write(&buf, &msg)) {
+        return false;
+    }
+
+    ln_db_forward_t param;
+    param.next_short_channel_id = NeighborShortChannelId;
+    param.prev_short_channel_id = NeighborShortChannelId;
+    param.prev_htlc_id = NeighborId;
+    param.p_msg = &buf;
+    if (!ln_db_forward_del_htlc_save(&param)) {
+        utl_buf_free(&buf);
+        return false;
+    }
+    utl_buf_free(&buf);
+    return true;
+}
+
+
+bool ln_update_fail_htlc_forward_2(
+    uint64_t NeighborShortChannelId, uint64_t NeighborId, const uint8_t *pReason, uint16_t Len, void *pCur)
+{
+    ln_msg_x_update_fail_htlc_t msg;
+    msg.len = Len;
+    msg.p_reason = pReason;
+    utl_buf_t buf = UTL_BUF_INIT;
+    if (!ln_msg_x_update_fail_htlc_write(&buf, &msg)) {
+        return false;
+    }
+
+    ln_db_forward_t param;
+    param.next_short_channel_id = NeighborShortChannelId;
+    param.prev_short_channel_id = NeighborShortChannelId;
+    param.prev_htlc_id = NeighborId;
+    param.p_msg = &buf;
+    if (!ln_db_forward_del_htlc_save_2(&param, pCur)) {
+        utl_buf_free(&buf);
+        return false;
+    }
+    utl_buf_free(&buf);
+    return true;
 }
 
 
@@ -1638,8 +1661,8 @@ static bool check_recv_add_htlc_bolt4_final(
         utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
         return false;
     }
-    LOGD("match preimage: ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    //LOGD("match preimage: ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
 
     //C2. if the amount paid is less than the amount expected:
     //      incorrect_payment_amount
@@ -1885,6 +1908,7 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
     }
 
     ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
+    M_DB_CHANNEL_SAVE(pChannel);
 
     LOGD("END\n");
     return true;

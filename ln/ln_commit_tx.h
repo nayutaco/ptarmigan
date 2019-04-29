@@ -134,6 +134,7 @@ bool HIDDEN ln_commit_tx_create_remote_close(
     const ln_update_info_t *pUpdateInfo,
     const ln_derkey_local_keys_t *pKeysLocal,
     const ln_derkey_remote_keys_t *pKeysRemote,
+    const utl_buf_t *pScriptPk,
     ln_close_force_t *pClose);
 
 

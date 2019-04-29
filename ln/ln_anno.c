@@ -201,7 +201,7 @@ static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
         LOGE("fail: save\n");
         return false;
     }
-    LOGD("save channel_announcement: %016" PRIx64 "\n", msg.short_channel_id);
+    //LOGD("save channel_announcement: %016" PRIx64 "\n", msg.short_channel_id);
 
     ln_cb_param_notify_annodb_update_t db;
     db.type = LN_CB_ANNO_TYPE_CNL_ANNO;
@@ -228,13 +228,15 @@ static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData,
         LOGE("fail: read message\n");
         return false;
     }
+#if 0
     if (!ln_msg_node_announcement_verify(&msg, pData, Len)) {
         LOGE("fail: verify\n");
         return false;
     }
+#endif
 
-    LOGV("node_id:");
-    DUMPV(msg.p_node_id, BTC_SZ_PUBKEY);
+    //LOGV("node_id:");
+    //DUMPV(msg.p_node_id, BTC_SZ_PUBKEY);
 
     utl_buf_t buf = UTL_BUF_INIT;
     buf.buf = (CONST_CAST uint8_t *)pData;
@@ -243,8 +245,8 @@ static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData,
         LOGE("fail: save\n");
         return false;
     }
-    LOGD("save node_announcement: ");
-    DUMPD(msg.p_node_id, BTC_SZ_PUBKEY);
+    //LOGD("save node_announcement: ");
+    //DUMPD(msg.p_node_id, BTC_SZ_PUBKEY);
 
     ln_cb_param_notify_annodb_update_t db;
     db.type = LN_CB_ANNO_TYPE_NODE_ANNO;
@@ -317,7 +319,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         return true;
     }
 
-    LOGV("recv channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
+    //LOGV("recv channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
 
     uint8_t node_id[BTC_SZ_PUBKEY];
     if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, dir)) {
@@ -326,10 +328,12 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
             LOGE("fail: invalid pubkey\n");
             return false;
         }
+#if 0
         if (!ln_msg_channel_update_verify(node_id, pData, Len)) {
             LOGE("fail: verify\n");
             return false;
         }
+#endif
     } else {
         //not found
         //  BOLT#11
@@ -353,7 +357,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         LOGE("fail: save\n");
         return false;
     }
-    LOGD("save channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
+    //LOGD("save channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
 
     ln_cb_param_notify_annodb_update_t db;
     db.type = LN_CB_ANNO_TYPE_CNL_UPD;

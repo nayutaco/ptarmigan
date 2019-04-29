@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
         { "sendpayment", required_argument, NULL, 'r' },
-        { "listpayment", no_argument, NULL, M_OPT_LISTPAYMENT },
+        { "listpayment", optional_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
         { "createinvoice", required_argument, NULL, 'i' },
         { "listinvoice", no_argument, NULL, 'm' },
@@ -305,14 +305,14 @@ static void print_help(void)
     fprintf(stderr, "\tCONNECT:\n");
     fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
 #if defined(USE_BITCOIND)
-    fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF [--private]: funding\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -f FUND.CONF [--private]: funding\n");
 #elif defined(USE_BITCOINJ)
-    fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
 #endif
-    fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -x : mutual close channel\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -xforce: unilateral close channel\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -w : get last error\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -q : disconnect node\n");
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\tINVOICE:\n");
@@ -342,7 +342,7 @@ static void print_help(void)
     fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
     fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
     fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -g : get commitment transaction\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -g : get commitment transaction\n");
     fprintf(stderr, "\t\t-X CHANNEL_ID : delete channel from DB\n");
     fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
     fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
@@ -1038,11 +1038,23 @@ static void optfunc_listpayment(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
+    const char *payment_id = "";
+    if ((optarg != NULL) && (optarg[0] != '\0')) {
+        uint32_t id;
+        bool ret = utl_str_scan_u32(&id, optarg);
+        if (!ret) {
+            strcpy(mErrStr, "invalid parameter");
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
+        payment_id = optarg;
+    }
+
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "listpayment") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+            M_QQ("params") ":[%s]"
+        "}", payment_id);
     *pOption = M_OPTIONS_EXEC;
 }
 

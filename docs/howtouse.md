@@ -115,7 +115,7 @@ You can check channel status with `ptarmcli --getinfo`.
 ../ptarmcli --listpayment
 
 # specify PAYMENT_ID
-../ptarmcli --listpayment | jq -e '.result[] | select (.payment_id==PAYMENT_ID)'
+../ptarmcli --listpayment=PAYMENT_ID
 ```
 
 ### close channel

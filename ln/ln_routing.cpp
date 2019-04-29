@@ -622,6 +622,8 @@ lnerr_route_t ln_routing_calculate(
         pResult->hop_datain[lp].amt_to_forward = msat[lp];
         pResult->hop_datain[lp].outgoing_cltv_value = cltv[lp];
         memcpy(pResult->hop_datain[lp].pubkey, p_now, BTC_SZ_PUBKEY);
+        LOGD("  route [%d]", lp);
+        DUMPD(p_now, BTC_SZ_PUBKEY);
     }
 
     //最後
@@ -629,6 +631,8 @@ lnerr_route_t ln_routing_calculate(
     pResult->hop_datain[pResult->num_hops - 1].amt_to_forward = msat[pResult->num_hops - 1];
     pResult->hop_datain[pResult->num_hops - 1].outgoing_cltv_value = cltv[pResult->num_hops - 1];
     memcpy(pResult->hop_datain[pResult->num_hops - 1].pubkey, p_next, BTC_SZ_PUBKEY);
+    LOGD("  route [%d]", pResult->num_hops - 1);
+    DUMPD(p_next, BTC_SZ_PUBKEY);
 
 #ifdef M_GRAPHVIZ
     // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp

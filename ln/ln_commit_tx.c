@@ -168,21 +168,21 @@ static bool create_remote_spend_tx(
     const ln_commit_tx_info_t *pCommitTxInfo,
     const ln_update_info_t *pUpdateInfo,
     const ln_derkey_local_keys_t *pKeysLocal,
-    const ln_derkey_remote_keys_t *pKeysRemote);
+    const ln_derkey_remote_keys_t *pKeysRemote,
+    const utl_buf_t *pScriptPk,
+    uint32_t FeeratePerKw);
 
 static bool create_remote_spend_htlc_output_tx(
     const ln_commit_info_t *pCommitInfo,
     btc_tx_t *pCloseTxHtlc,
     const btc_tx_t *pTxCommit,
-    const utl_buf_t *pWitScriptToLocal,
     const ln_commit_tx_htlc_info_t *pHtlcInfo,
+    const ln_update_info_t *pUpdateInfo,
+    const utl_buf_t *pScriptPk,
     const btc_keys_t *pHtlcKey,
-    uint64_t Fee,
     uint32_t VoutIdx,
-    const uint8_t *pPaymentHash);
+    uint32_t FeeratePerKw);
 
-static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPaymentHash, bool bClosing);
-static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 static bool save_vouts_remote(const ln_commit_tx_info_t *pCommitTxInfo);
 
 
@@ -574,6 +574,7 @@ bool ln_commit_tx_create_remote_close(
     const ln_update_info_t *pUpdateInfo,
     const ln_derkey_local_keys_t *pKeysLocal,
     const ln_derkey_remote_keys_t *pKeysRemote,
+    const utl_buf_t *pScriptPk,
     ln_close_force_t *pClose)
 {
     LOGD("BEGIN\n");
@@ -625,7 +626,8 @@ bool ln_commit_tx_create_remote_close(
     TXIDD(pCommitInfo->txid);
 
     if (!create_remote_spend_tx(
-        pCommitInfo, pClose, &tx_commit, &commit_tx_info, pUpdateInfo, pKeysLocal, pKeysRemote)) goto LABEL_EXIT;
+        pCommitInfo, pClose, &tx_commit, &commit_tx_info, pUpdateInfo, pKeysLocal, pKeysRemote,
+        pScriptPk, commit_tx_info.base_fee_info.feerate_per_kw)) goto LABEL_EXIT;
     memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(btc_tx_t));
     btc_tx_init(&tx_commit); //force clear
 
@@ -1048,17 +1050,18 @@ static bool create_local_htlc_tx(
     const ln_update_info_t *pUpdateInfo,
     const btc_keys_t *pHtlcKey)
 {
-    bool ret_img = false;
-    uint8_t preimage[LN_SZ_PREIMAGE];
+    uint8_t preimage[LN_SZ_PREIMAGE] = {0};
 
     if (pHtlcInfo->type == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) {
-        ret_img = search_preimage(
-            preimage,
-            pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].payment_hash,
-            true);
-        LOGD("[received]have preimage=%s\n", (ret_img) ? "yes" : "NO");
-        if (!ret_img) {
-            LOGD("skip create HTLC tx\n");
+        if (pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.len) {
+            LOGD("[received]have preimage=yes\n");
+            memcpy(
+                preimage, pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.buf,
+                pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.len);
+            //DUMPD(preimage, LN_SZ_PREIMAGE);
+        } else {
+            LOGD("[received]have preimage=NO\n");
+            LOGD("stop create HTLC tx (input only)\n");
             return true;
         }
     } else if (pHtlcInfo->type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
@@ -1272,7 +1275,9 @@ static bool create_remote_spend_tx(
     const ln_commit_tx_info_t *pCommitTxInfo,
     const ln_update_info_t *pUpdateInfo,
     const ln_derkey_local_keys_t *pKeysLocal,
-    const ln_derkey_remote_keys_t *pKeysRemote)
+    const ln_derkey_remote_keys_t *pKeysRemote,
+    const utl_buf_t *pScriptPk,
+    uint32_t FeeratePerKw)
 {
     uint16_t htlc_num = 0;
 
@@ -1304,17 +1309,12 @@ static bool create_remote_spend_tx(
             btc_tx_init(&tx); //force clear
             continue;
         }
-        const ln_commit_tx_htlc_info_t *p_htlc_info = pCommitTxInfo->pp_htlc_info[htlc_idx];
-        const uint8_t *p_payment_hash = pUpdateInfo->htlcs[p_htlc_info->htlc_idx].payment_hash;
-        uint64_t fee_sat =
-            (p_htlc_info->type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ?
-            pCommitTxInfo->base_fee_info.htlc_timeout_fee :
-            pCommitTxInfo->base_fee_info.htlc_success_fee;
 
+        const ln_commit_tx_htlc_info_t *p_htlc_info = pCommitTxInfo->pp_htlc_info[htlc_idx];
         if (!create_remote_spend_htlc_output_tx(
             pCommitInfo, &p_close_tx_htlcs[htlc_num], pTxCommit,
-            &pCommitTxInfo->to_local.wit_script, p_htlc_info,
-            &htlckey, fee_sat, vout_idx, p_payment_hash)) return false;
+            p_htlc_info, pUpdateInfo, pScriptPk,
+            &htlckey, vout_idx, FeeratePerKw)) return false;
         pClose->p_htlc_idxs[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
         htlc_num++;
     }
@@ -1411,65 +1411,72 @@ LABEL_EXIT:
 
 /** remote HTLCからの送金先情報作成
  *
- *  1. HTLC tx作成
- *  2. HTLC Success txを作成する予定にする
- *  3. HTLC種別での分岐
- *      3.1 [offered HTLC]preimage検索
- *          - [close && 検索成功]
- *              - preimageがあるofferedなので、即時broadcast可能tx作成にする
- *      3.2 [else]
- *          - [close]
- *              - HTLC Timeout tx作成にする
- *  4. HTLC tx署名
- *  5. [close]
- *      5.1. [(offered HTLC && preimageあり) || received HTLC]
- *          -# 署名したHTLC txを処理結果にコピー
- *
- * @param[in]       pCommitInfo
- * @param[out]      pCloseTxHtlc        Close処理結果のHTLC tx
- * @param[in]       pTxCommit
- * @param[in]       pWitScriptToLocal
- * @param[in]       pHtlcInfo
- * @param[in]       pHtlcKey
- * @param[in]       Fee
- * @param[in]       VoutIdx
- * @param[in]       pPaymentHash
- * @retval  true    成功
  */
 static bool create_remote_spend_htlc_output_tx(
     const ln_commit_info_t *pCommitInfo,
     btc_tx_t *pCloseTxHtlc,
     const btc_tx_t *pTxCommit,
-    const utl_buf_t *pWitScriptToLocal,
     const ln_commit_tx_htlc_info_t *pHtlcInfo,
+    const ln_update_info_t *pUpdateInfo,
+    const utl_buf_t *pScriptPk,
     const btc_keys_t *pHtlcKey,
-    uint64_t Fee,
     uint32_t VoutIdx,
-    const uint8_t *pPaymentHash)
+    uint32_t FeeratePerKw)
 {
     LOGD("---HTLC[%d]\n", VoutIdx);
     btc_tx_t tx = BTC_TX_INIT;
-    if (!ln_htlc_tx_create(
-        &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScriptToLocal,
-        pHtlcInfo->type, pHtlcInfo->cltv_expiry, pCommitInfo->txid, VoutIdx)) return false;
+    uint64_t value = pTxCommit->vout[VoutIdx].value;
 
     if (pHtlcInfo->type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
-        uint8_t preimage[LN_SZ_PREIMAGE];
-        if (search_preimage(preimage, pPaymentHash, true)) {
+        uint8_t preimage[LN_SZ_PREIMAGE] = {0};
+
+        if (!ln_spend_htlc_offered_output_tx_create(
+            &tx, value, pScriptPk, pCommitInfo->txid, VoutIdx)) {
+            LOGE("fail: ???\n");
+            goto LABEL_ERROR;
+        }
+
+        if (pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.len) {
             LOGD("[offered]have preimage\n");
-            utl_buf_free(&tx.vout[0].script);
-            tx.locktime = 0;
-            if (!ln_wallet_htlc_tx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-                &tx, pHtlcKey->priv, preimage, &pHtlcInfo->wit_script, LN_HTLC_TX_SIG_REMOTE_OFFER)) goto LABEL_ERROR;
+            memcpy(
+                preimage, pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.buf,
+                pUpdateInfo->htlcs[pHtlcInfo->htlc_idx].buf_preimage.len);
+            //DUMPD(preimage, LN_SZ_PREIMAGE);
+
+            if (!ln_spend_htlc_offered_output_tx_set_vin0(&tx, preimage, &pHtlcInfo->wit_script)) {
+                LOGE("fail: ???\n");
+                goto LABEL_ERROR;
+            }
+            if (!ln_spend_htlc_output_tx_adjust_fee(&tx, FeeratePerKw)) {
+                LOGE("fail: ???\n");
+                goto LABEL_ERROR;
+            }
+            if (!ln_spend_htlc_output_tx_sign_vin0(&tx, value, pHtlcKey->priv)) {
+                LOGE("fail: ???\n");
+                goto LABEL_ERROR;
+            }
         } else {
             LOGD("[offered]no preimage\n");
         }
     } else {
         LOGD("[received]\n");
-        utl_buf_free(&tx.vout[0].script);
-        tx.locktime = pHtlcInfo->cltv_expiry;
-        if (!ln_wallet_htlc_tx_set_vin0( //wit[0]に署名用秘密鍵を設定しておく(wallet用)
-            &tx, pHtlcKey->priv, NULL, &pHtlcInfo->wit_script, LN_HTLC_TX_SIG_REMOTE_RECV)) goto LABEL_ERROR;
+        if (!ln_spend_htlc_received_output_tx_create(
+            &tx, value, pScriptPk, pCommitInfo->txid, VoutIdx, pHtlcInfo->cltv_expiry)) {
+            LOGE("fail: ???\n");
+            goto LABEL_ERROR;
+        }
+        if (!ln_spend_htlc_received_output_tx_set_vin0(&tx, &pHtlcInfo->wit_script)) {
+            LOGE("fail: ???\n");
+            goto LABEL_ERROR;
+        }
+        if (!ln_spend_htlc_output_tx_adjust_fee(&tx, FeeratePerKw)) {
+            LOGE("fail: ???\n");
+            goto LABEL_ERROR;
+        }
+        if (!ln_spend_htlc_output_tx_sign_vin0(&tx, value, pHtlcKey->priv)) {
+            LOGE("fail: ???\n");
+            goto LABEL_ERROR;
+        }
     }
 
     memcpy(pCloseTxHtlc, &tx, sizeof(tx));
@@ -1503,54 +1510,3 @@ static bool save_vouts_remote(const ln_commit_tx_info_t *pCommitTxInfo)
     return true;
 }
 
-
-/** payment_hashと一致するpreimage検索
- *
- * @param[out]      pPreimage
- * @param[in]       pPaymentHash        payment_hash
- * @param[in]       bClosing        true:一致したexpiryをUINT32_MAXに変更する
- * @retval  true    検索成功
- */
-static bool search_preimage(uint8_t *pPreimage, const uint8_t *pPaymentHash, bool bClosing)
-{
-    if (!LN_DBG_MATCH_PREIMAGE()) {
-        LOGE("DBG: HTLC preimage mismatch\n");
-        return false;
-    }
-    // LOGD("pPaymentHash(%d)=", bClosing);
-    // DUMPD(pPaymentHash, BTC_SZ_HASH256);
-
-    preimage_t param;
-    param.image = pPreimage;
-    param.hash = pPaymentHash;
-    param.b_closing = bClosing;
-    if (!ln_db_preimage_search(search_preimage_func, &param)) return false;
-    return true;
-}
-
-
-/** search_preimage用処理関数
- *
- * SHA256(preimage)がpayment_hashと一致した場合にtrueを返す。
- * bClosingがtrueの場合、該当するpreimageのexpiryをUINT32_MAXにする(自動削除させないため)。
- */
-static bool search_preimage_func(const uint8_t *pPreimage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
-{
-    (void)Amount; (void)Expiry;
-
-    preimage_t *param = (preimage_t *)p_param;
-
-    //LOGD("compare preimage : ");
-    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
-    uint8_t payment_hash[BTC_SZ_HASH256];
-    ln_payment_hash_calc(payment_hash, pPreimage);
-    if (memcmp(payment_hash, param->hash, BTC_SZ_HASH256)) return false;
-    //LOGD("preimage match!: ");
-    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
-    memcpy(param->image, pPreimage, LN_SZ_PREIMAGE);
-    if (param->b_closing && Expiry != UINT32_MAX) {
-        //期限切れによる自動削除をしない
-        ln_db_preimage_set_expiry(p_db_param, UINT32_MAX); //XXX:
-    }
-    return true;
-}
