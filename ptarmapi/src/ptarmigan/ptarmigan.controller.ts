@@ -180,11 +180,6 @@ export class PtarmiganController {
     }
 
     @Post('getinfo') // getinfo -> getinfo
-<<<<<<< HEAD
-=======
-    @ApiCreatedResponse({ description: 'The record has been successfully created.' })
-    @ApiForbiddenResponse({ description: 'Forbidden.' })
->>>>>>> upstream/master
     async executeGetInfo(): Promise<string> {
         return await this.ptarmiganService.requestTCP("getinfo", []);
     }
@@ -266,11 +261,7 @@ export class PtarmiganController {
     }
 
     @Post('close') // close -> closechannel
-<<<<<<< HEAD
     async executeCloseChannel(@Body() dto: PeerNodeDto) {
-=======
-    async executeAddInvoice(@Body() dto: PeerNodeDto) {
->>>>>>> upstream/master
         return await this.ptarmiganService.requestTCP("close", [dto.peerNodeId, '0.0.0.0', 0])
     }
 
