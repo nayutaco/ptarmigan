@@ -1,4 +1,4 @@
-# How to use (testnet)
+# How to use
 
 [Installation](INSTALL.md)
 
