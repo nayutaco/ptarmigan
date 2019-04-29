@@ -19,7 +19,7 @@ export class PtarmiganService {
         private readonly config: ConfigService,
     ) {
         this.config = config;
-        this.port = Number.parseInt(this.config.get('ptarmigan.ptarmdPort'), 10),
+        this.port = Number.parseInt(this.config.get('ptarmigan.ptarmdRpcPort'), 10),
         this.host = this.config.get('ptarmigan.ptarmdHost'),
         this.path = this.config.get('ptarmigan.ptarmdPath'),
         this.nodePath = this.config.get('ptarmigan.ptarmdNodePath'),
