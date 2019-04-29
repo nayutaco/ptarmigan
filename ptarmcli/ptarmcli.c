@@ -305,14 +305,14 @@ static void print_help(void)
     fprintf(stderr, "\tCONNECT:\n");
     fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
 #if defined(USE_BITCOIND)
-    fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF [--private]: funding\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -f FUND.CONF [--private]: funding\n");
 #elif defined(USE_BITCOINJ)
-    fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
 #endif
-    fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -x : mutual close channel\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -xforce: unilateral close channel\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -w : get last error\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -q : disconnect node\n");
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\tINVOICE:\n");
@@ -342,7 +342,7 @@ static void print_help(void)
     fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
     fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
     fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
-    fprintf(stderr, "\t\t-c PEER NODE_ID -g : get commitment transaction\n");
+    fprintf(stderr, "\t\t-c PEER_NODE_ID -g : get commitment transaction\n");
     fprintf(stderr, "\t\t-X CHANNEL_ID : delete channel from DB\n");
     fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
     fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
