@@ -390,7 +390,7 @@ static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam)
     ln_cb_param_notify_annodb_update_t *p_cb_param = (ln_cb_param_notify_annodb_update_t *)pParam;
 
     if (p_cb_param->type != LN_CB_ANNO_TYPE_NONE) {
-        LOGD("update anno db: %d\n", (int)p_cb_param->type);
+        //LOGD("update anno db: %d\n", (int)p_cb_param->type);
         pConf->annodb_updated = true;
     }
     if (p_cb_param->type == LN_CB_ANNO_TYPE_CNL_ANNO) {
@@ -402,7 +402,7 @@ static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam)
             pConf->annodb_cont = false;
         }
         pConf->annodb_stamp = now;
-        LOGD("annodb_stamp: %u\n", pConf->annodb_stamp);
+        //LOGD("annodb_stamp: %u\n", pConf->annodb_stamp);
     }
 }
 
