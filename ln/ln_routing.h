@@ -54,9 +54,6 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
-bool ln_routing_init(const uint8_t *pPayerId);
-
-
 /** 支払いルート作成
  *
  * @param[out]  pResult

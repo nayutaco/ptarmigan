@@ -434,55 +434,20 @@ static graph_t::vertex_descriptor ver_add(graph_t& GRoute, const uint8_t *pNodeI
 }
 
 
-bool ln_routing_init(const uint8_t *pPayerId)
-{
-    nodes_result_t rt_res;
-    rt_res.node_num = 0;
-    rt_res.p_nodes = NULL;
-
-    bool ret = load_db(&rt_res, pPayerId);
-    if (!ret) {
-        LOGE("fail: load_db\n");
-        return false;
-    }
-
-LOGD("ADD EDGE\n");
-    for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        M_DBGLOGV("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
-        M_DBGLOGV("    [1]");
-        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
-        M_DBGLOGV("    [2]");
-        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[1].node_id, BTC_SZ_PUBKEY);
-
-        ver_add(mGraph, rt_res.p_nodes[lp].ninfo[0].node_id);
-        ver_add(mGraph, rt_res.p_nodes[lp].ninfo[1].node_id);
-    }
-LOGD("\n");
-LOGD("ADD EDGE - END\n");
-
-    return true;
-}
-
-
 lnerr_route_t ln_routing_calculate(
     ln_routing_result_t *pResult, const uint8_t *pPayerId, const uint8_t *pPayeeId,
     uint32_t CltvExpiry, uint64_t AmountMsat, uint8_t AddNum, const ln_r_field_t *pAddRoute)
 {
     pResult->num_hops = 0;
 
+    nodes_result_t rt_res;
+    rt_res.node_num = 0;
+    rt_res.p_nodes = NULL;
+
     if ((pPayerId == NULL) || (pPayeeId == NULL)) {
         LOGE("fail: null input\n");
         return LNROUTE_PARAM;
     }
-
-    LOGD("start node_id : ");
-    DUMPD(pPayerId, BTC_SZ_PUBKEY);
-    LOGD("end node_id   : ");
-    DUMPD(pPayeeId, BTC_SZ_PUBKEY);
-
-    nodes_result_t rt_res;
-    rt_res.node_num = 0;
-    rt_res.p_nodes = NULL;
 
     bool ret = load_db(&rt_res, pPayerId);
     if (!ret) {
@@ -494,6 +459,11 @@ lnerr_route_t ln_routing_calculate(
         add_r_field(&rt_res, pPayeeId, pAddRoute, AddNum);
     }
     LOGD("node_num: %d\n", rt_res.node_num);
+
+    LOGD("start node_id : ");
+    DUMPD(pPayerId, BTC_SZ_PUBKEY);
+    LOGD("end node_id   : ");
+    DUMPD(pPayeeId, BTC_SZ_PUBKEY);
 
     bool set_start = false;
     bool set_goal = false;

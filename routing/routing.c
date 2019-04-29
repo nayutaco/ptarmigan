@@ -231,11 +231,6 @@ int main(int argc, char* argv[])
     btc_init(gtype, true);
 
     if ((options & OPT_CLEARSDB) == 0) {
-        if (!ln_routing_init(send_node_id)) {
-            fprintf(fp_err, "fail: route initialize\n");
-            return -1;
-        }
-
         ln_routing_result_t result;
         lnerr_route_t rerr = ln_routing_calculate(&result, send_node_id,
                     recv_node_id, cltv_expiry, amtmsat, 0, NULL);
