@@ -33,7 +33,7 @@ make full
 # takes a lot of time...
 ```
 
-[more...](docs/INSTALL.md)
+[NOTE](docs/INSTALL.md#NOTE)
 
 ## Starting `bitcoind`
 
@@ -71,7 +71,8 @@ cd [NODENAME]
 ../ptarmd --network=testnet
 ```
 
-* [NOTE](docs/INSTALL.md#NOTE)
+## How to use
+
 * [How to use](docs/howtouse.md)
 * [How to use REST API](docs/howtouse_rest_api.md)
 
