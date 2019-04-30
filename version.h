@@ -4,6 +4,6 @@
 /** @def    PTARM_VERSION
  *  @brief  ptarmigan version
  */
-#define PTARM_VERSION         "0.2.0"
+#define PTARM_VERSION         "0.2.1"
 
 #endif /* VERSION_H__ */
