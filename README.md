@@ -18,7 +18,7 @@
 * Ubuntu 18.04
 * bitcoind
   * above v0.17(`getnetworkinfo` version > 170000)
-  * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
+  * for bitcoin mainnet/testnet/regtest
   * nested in BIP16 P2SH
 
 ## Install
