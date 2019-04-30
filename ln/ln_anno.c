@@ -350,6 +350,7 @@ LOGD("channel_update\n");
     if (!ret) {
         LOGE("fail through: add channel\n");
     }
+    ln_routing_create_dot("gossip.dot");
 
     //BOLT07
     //  if the timestamp is unreasonably far in the future:

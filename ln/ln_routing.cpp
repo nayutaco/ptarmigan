@@ -401,11 +401,11 @@ void ln_routing_create_dot(const char *pFilename)
              << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
              ;
 
-    graph_traits < graph_t >::edge_iterator ei, ei_end;
+    boost::graph_traits<graph_t>::edge_iterator ei, ei_end;
     for (boost::tie(ei, ei_end) = edges(mGraph); ei != ei_end; ++ei) {
-        graph_traits < graph_t >::edge_descriptor e = *ei;
-        graph_traits < graph_t >::vertex_descriptor u = source(e, mGraph);
-        graph_traits < graph_t >::vertex_descriptor v = target(e, mGraph);
+        boost::graph_traits<graph_t>::edge_descriptor e = *ei;
+        boost::graph_traits<graph_t>::vertex_descriptor u = source(e, mGraph);
+        boost::graph_traits<graph_t>::vertex_descriptor v = target(e, mGraph);
         if (u != v) {
             char node1[128] = "\"";
             char node2[128] = "\"";

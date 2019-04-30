@@ -91,6 +91,8 @@ lnerr_route_t ln_routing_calculate(
 void ln_routing_clear_skipdb(void);
 
 
+void ln_routing_create_dot(const char *pFilename);
+
 #ifdef __cplusplus
 }
 #endif //__cplusplus
