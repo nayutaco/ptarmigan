@@ -86,11 +86,6 @@ using namespace boost;
  * typedefs
  **************************************************************************/
 
-extern "C" {
-    bool ln_get_ids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
-    bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *pData, uint16_t Len);
-}
-
 struct node_t {
     const uint8_t*  p_node;
 };
@@ -105,11 +100,7 @@ struct fee_t {
 };
 
 typedef adjacency_list <
-                listS,
-                vecS,
-                bidirectionalS,
-                node_t,
-                fee_t
+    listS, vecS, bidirectionalS, node_t, fee_t
 > graph_t;
 typedef graph_traits <graph_t>::vertex_descriptor vertex_descriptor_t;
 
@@ -137,6 +128,28 @@ struct param_channel_t {
 
 
 /********************************************************************
+ * prototypes
+ ********************************************************************/
+
+extern "C" {
+    bool ln_get_ids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
+    bool ln_channel_update_get_params(ln_msg_channel_update_t *pUpd, const uint8_t *pData, uint16_t Len);
+}
+
+static int direction(const uint8_t **ppNode1, const uint8_t **ppNode2, const uint8_t *pNode1, const uint8_t *pNode2);
+static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths);
+static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf, ln_db_route_skip_t rskip);
+static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_param);
+static void add_r_field(
+        nodes_result_t *p_result,
+        const uint8_t *pPayeeId,
+        const ln_r_field_t *pAddRoute,
+        int AddNum);
+static bool load_db(nodes_result_t *p_result, const uint8_t *pPayerId);
+static graph_t::vertex_descriptor vertex_desc_get(graph_t& GRoute, const uint8_t *pNodeId);
+
+
+/********************************************************************
  * static variables
  ********************************************************************/
 
@@ -144,7 +157,288 @@ static graph_t mGraph;
 
 
 /********************************************************************
- * functions
+ * public functions
+ ********************************************************************/
+
+lnerr_route_t ln_routing_calculate(
+    ln_routing_result_t *pResult, const uint8_t *pPayerId, const uint8_t *pPayeeId,
+    uint32_t CltvExpiry, uint64_t AmountMsat, uint8_t AddNum, const ln_r_field_t *pAddRoute)
+{
+    pResult->num_hops = 0;
+
+    nodes_result_t rt_res;
+    rt_res.node_num = 0;
+    rt_res.p_nodes = NULL;
+
+    if ((pPayerId == NULL) || (pPayeeId == NULL)) {
+        LOGE("fail: null input\n");
+        return LNROUTE_PARAM;
+    }
+
+    bool ret = load_db(&rt_res, pPayerId);
+    if (!ret) {
+        LOGE("fail: load_db\n");
+        return LNROUTE_LOADDB;
+    }
+
+    if (AddNum > 0) {
+        add_r_field(&rt_res, pPayeeId, pAddRoute, AddNum);
+    }
+    LOGD("node_num: %d\n", rt_res.node_num);
+
+    LOGD("start node_id : ");
+    DUMPD(pPayerId, BTC_SZ_PUBKEY);
+    LOGD("end node_id   : ");
+    DUMPD(pPayeeId, BTC_SZ_PUBKEY);
+
+    bool set_start = false;
+    bool set_goal = false;
+    graph_t::vertex_descriptor pnt_start = static_cast<graph_t::vertex_descriptor>(-1);
+    graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
+
+LOGD("ADD EDGE: %lu\n", rt_res.node_num);
+    //Edge追加
+    for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
+        M_DBGLOGV("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        M_DBGLOGV("    [1]");
+        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("    [2]");
+        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[1].node_id, BTC_SZ_PUBKEY);
+
+        graph_t::vertex_descriptor node1 = vertex_desc_get(mGraph, rt_res.p_nodes[lp].ninfo[0].node_id);
+        graph_t::vertex_descriptor node2 = vertex_desc_get(mGraph, rt_res.p_nodes[lp].ninfo[1].node_id);
+
+        if (!set_start) {
+            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
+                pnt_start = node1;
+                set_start = true;
+            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
+                pnt_start = node2;
+                set_start = true;
+            }
+        }
+        if (!set_goal) {
+            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayeeId, BTC_SZ_PUBKEY) == 0) {
+                pnt_goal = node1;
+                set_goal = true;
+            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayeeId, BTC_SZ_PUBKEY) == 0) {
+                pnt_goal = node2;
+                set_goal = true;
+            }
+        }
+
+        if (node1 != node2) {
+            if (rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
+                //channel_update1
+                bool inserted = false;
+                graph_t::edge_descriptor e1;
+
+                boost::tie(e1, inserted) = add_edge(node1, node2, mGraph);
+                mGraph[e1].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
+                mGraph[e1].fee_base_msat = rt_res.p_nodes[lp].ninfo[0].fee_base_msat;
+                mGraph[e1].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[0].fee_prop_millionths;
+                mGraph[e1].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta;
+                mGraph[e1].node_id = rt_res.p_nodes[lp].ninfo[0].node_id;
+
+                mGraph[e1].weight = edgefee(AmountMsat, mGraph[e1].fee_base_msat, mGraph[e1].fee_prop_millionths);
+                if (rt_res.p_nodes[lp].ninfo[0].route_skip == LN_DB_ROUTE_SKIP_WORK) {
+                    M_DBGLOG("HEAVY1: %016" PRIx64 "\n", mGraph[e1].short_channel_id);
+                    mGraph[e1].weight *= 100;
+                }
+            }
+            if (rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
+                //channel_update2
+                bool inserted = false;
+                graph_t::edge_descriptor e2;
+
+                boost::tie(e2, inserted) = add_edge(node2, node1, mGraph);
+                mGraph[e2].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
+                mGraph[e2].fee_base_msat = rt_res.p_nodes[lp].ninfo[1].fee_base_msat;
+                mGraph[e2].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[1].fee_prop_millionths;
+                mGraph[e2].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta;
+                mGraph[e2].node_id = rt_res.p_nodes[lp].ninfo[1].node_id;
+
+                mGraph[e2].weight = edgefee(AmountMsat, mGraph[e2].fee_base_msat, mGraph[e2].fee_prop_millionths);
+                if (rt_res.p_nodes[lp].ninfo[1].route_skip == LN_DB_ROUTE_SKIP_WORK) {
+                    M_DBGLOG("HEAVY2: %016" PRIx64 "\n", mGraph[e2].short_channel_id);
+                    mGraph[e2].weight *= 100;
+                }
+            }
+        }
+    }
+LOGD("\n");
+LOGD("ADD EDGE - END\n");
+
+    //LOGD("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
+    if (!set_start) {
+        LOGE("fail: no start node\n");
+        return LNROUTE_NOSTART;
+    }
+    if (!set_goal) {
+        LOGE("fail: no goal node\n");
+        return LNROUTE_NOGOAL;
+    }
+
+    std::vector<vertex_descriptor_t> pt(num_vertices(mGraph));     //parent
+    std::vector<uint64_t> dist(num_vertices(mGraph));
+    dijkstra_shortest_paths(mGraph, pnt_start,
+                weight_map(boost::get(&fee_t::weight, mGraph)).
+                    predecessor_map(&pt[0]).
+                        distance_map(&dist[0]));
+
+    if (pt[pnt_goal] == pnt_goal) {
+        LOGE("fail: cannot find route\n");
+        UTL_DBG_FREE(rt_res.p_nodes);
+        return LNROUTE_NOTFOUND;
+    }
+
+    //逆順に入っているので、並べ直す
+    //ついでに、min_final_cltv_expiryを足す
+    std::deque<vertex_descriptor_t> route;        //std::vectorにはpush_front()がない
+    std::deque<uint64_t> msat;
+    std::deque<uint32_t> cltv;
+
+    CltvExpiry += M_SHADOW_ROUTE;
+
+    route.push_front(pnt_goal);
+    msat.push_front(AmountMsat);
+    cltv.push_front(CltvExpiry);
+
+    for (vertex_descriptor_t vtx = pnt_goal; vtx != pnt_start; vtx = pt[vtx]) {
+        bool found;
+        graph_t::edge_descriptor eg;
+        boost::tie(eg, found) = edge(pt[vtx], vtx, mGraph);
+        if (!found) {
+            LOGE("fail: not foooooooooound\n");
+            return LNROUTE_NOTFOUND;
+        }
+
+        route.push_front(pt[vtx]);
+        msat.push_front(AmountMsat);
+        cltv.push_front(CltvExpiry);
+
+        AmountMsat = AmountMsat + edgefee(AmountMsat, mGraph[eg].fee_base_msat, mGraph[eg].fee_prop_millionths);
+        CltvExpiry += mGraph[eg].cltv_expiry_delta;
+    }
+
+    if (route.size() > LN_HOP_MAX + 1) {
+        //先頭に自ノードが入るため+1
+        LOGE("fail: too many hops\n");
+        UTL_DBG_FREE(rt_res.p_nodes);
+        return LNROUTE_TOOMANYHOP;
+    }
+
+    //戻り値の作成
+    pResult->num_hops = (uint8_t)route.size();
+    const uint8_t *p_next;
+
+    for (int lp = 0; lp < pResult->num_hops - 1; lp++) {
+        const uint8_t *p_now  = mGraph[route[lp]].p_node;
+        p_next = mGraph[route[lp + 1]].p_node;
+
+        const uint8_t *p_node_id1;
+        const uint8_t *p_node_id2;
+        direction(&p_node_id1, &p_node_id2, p_now, p_next);
+        uint64_t sci = 0;
+        for (uint32_t lp3 = 0; lp3 < rt_res.node_num; lp3++) {
+            if ( (memcmp(p_node_id1, rt_res.p_nodes[lp3].ninfo[0].node_id, BTC_SZ_PUBKEY) == 0) &&
+                 (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, BTC_SZ_PUBKEY) == 0) ) {
+                sci = rt_res.p_nodes[lp3].short_channel_id;
+                break;
+            }
+        }
+        if (sci == 0) {
+            LOGE("not match!\n");
+            return LNROUTE_NOTFOUND;
+        }
+
+        pResult->hop_datain[lp].short_channel_id = sci;
+        pResult->hop_datain[lp].amt_to_forward = msat[lp];
+        pResult->hop_datain[lp].outgoing_cltv_value = cltv[lp];
+        memcpy(pResult->hop_datain[lp].pubkey, p_now, BTC_SZ_PUBKEY);
+        LOGD("  route [%d]", lp);
+        DUMPD(p_now, BTC_SZ_PUBKEY);
+    }
+
+    //最後
+    pResult->hop_datain[pResult->num_hops - 1].short_channel_id = 0;
+    pResult->hop_datain[pResult->num_hops - 1].amt_to_forward = msat[pResult->num_hops - 1];
+    pResult->hop_datain[pResult->num_hops - 1].outgoing_cltv_value = cltv[pResult->num_hops - 1];
+    memcpy(pResult->hop_datain[pResult->num_hops - 1].pubkey, p_next, BTC_SZ_PUBKEY);
+    LOGD("  route [%d]", pResult->num_hops - 1);
+    DUMPD(p_next, BTC_SZ_PUBKEY);
+
+#ifdef M_GRAPHVIZ
+    // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
+    std::ofstream dot_file("gossip.dot");
+
+    dot_file << "digraph D {\n"
+             //<< "  rankdir=LR\n"
+             //<< "  ratio=\"fill\"\n"
+             << "  graph[layout=circo];\n"
+             //<< "  edge[style=\"bold\"];\n"
+             << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
+             ;
+
+    graph_traits < graph_t >::edge_iterator ei, ei_end;
+    for (boost::tie(ei, ei_end) = edges(mGraph); ei != ei_end; ++ei) {
+        graph_traits < graph_t >::edge_descriptor e = *ei;
+        graph_traits < graph_t >::vertex_descriptor u = source(e, mGraph);
+        graph_traits < graph_t >::vertex_descriptor v = target(e, mGraph);
+        if (u != v) {
+            char node1[128] = "\"";
+            char node2[128] = "\"";
+            const uint8_t *p_node1 = mGraph[u].p_node;
+            const uint8_t *p_node2 = mGraph[v].p_node;
+            for (int lp = 0; lp < 6; lp++) {
+                char s[3];
+                sprintf(s, "%02x", p_node1[lp]);
+                strcat(node1, s);
+                sprintf(s, "%02x", p_node2[lp]);
+                strcat(node2, s);
+            }
+            strcat(node1, "\"");
+            strcat(node2, "\"");
+            int col = memcmp(p_node1, p_node2, BTC_SZ_PUBKEY);
+            if (col > 0) {
+                dot_file << node1 << " -> " << node2
+                        << "["
+                        << "label=\""
+                        << std::hex << mGraph[e].short_channel_id << std::dec
+                        //<< ","
+                        //<< mGraph[e].fee_base_msat
+                        //<< ","
+                        //<< mGraph[e].fee_prop_millionths
+                        //<< ","
+                        //<< mGraph[e].cltv_expiry_delta
+                        << "\""
+                        << ", color=\"black\""
+                        << ", fontcolor=\"#804040\""
+                        << ", arrowhead=\"none\""
+                        << "]" << std::endl;
+            }
+        }
+    }
+    dot_file << "}";
+#endif  //M_GRAPHVIZ
+
+    UTL_DBG_FREE(rt_res.p_nodes);
+
+    return LNROUTE_OK;
+}
+
+
+void ln_routing_clear_skipdb(void)
+{
+    bool bret;
+
+    bret = ln_db_route_skip_drop(false);
+    LOGD("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
+}
+
+
+/********************************************************************
+ * private functions
  ********************************************************************/
 
 static int direction(const uint8_t **ppNode1, const uint8_t **ppNode2, const uint8_t *pNode1, const uint8_t *pNode2)
@@ -409,7 +703,8 @@ static bool load_db(nodes_result_t *p_result, const uint8_t *pPayerId)
 }
 
 
-static graph_t::vertex_descriptor ver_add(graph_t& GRoute, const uint8_t *pNodeId)
+//GRouteの中にpNodeIdがあればそのvertex_descriptorを、なければ追加して返す。
+static graph_t::vertex_descriptor vertex_desc_get(graph_t& GRoute, const uint8_t *pNodeId)
 {
     graph_t::vertex_descriptor vtx = static_cast<graph_t::vertex_descriptor>(-1);
     bool ret = false;
@@ -431,281 +726,4 @@ static graph_t::vertex_descriptor ver_add(graph_t& GRoute, const uint8_t *pNodeI
     }
 
     return vtx;
-}
-
-
-lnerr_route_t ln_routing_calculate(
-    ln_routing_result_t *pResult, const uint8_t *pPayerId, const uint8_t *pPayeeId,
-    uint32_t CltvExpiry, uint64_t AmountMsat, uint8_t AddNum, const ln_r_field_t *pAddRoute)
-{
-    pResult->num_hops = 0;
-
-    nodes_result_t rt_res;
-    rt_res.node_num = 0;
-    rt_res.p_nodes = NULL;
-
-    if ((pPayerId == NULL) || (pPayeeId == NULL)) {
-        LOGE("fail: null input\n");
-        return LNROUTE_PARAM;
-    }
-
-    bool ret = load_db(&rt_res, pPayerId);
-    if (!ret) {
-        LOGE("fail: load_db\n");
-        return LNROUTE_LOADDB;
-    }
-
-    if (AddNum > 0) {
-        add_r_field(&rt_res, pPayeeId, pAddRoute, AddNum);
-    }
-    LOGD("node_num: %d\n", rt_res.node_num);
-
-    LOGD("start node_id : ");
-    DUMPD(pPayerId, BTC_SZ_PUBKEY);
-    LOGD("end node_id   : ");
-    DUMPD(pPayeeId, BTC_SZ_PUBKEY);
-
-    bool set_start = false;
-    bool set_goal = false;
-    graph_t::vertex_descriptor pnt_start = static_cast<graph_t::vertex_descriptor>(-1);
-    graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
-
-LOGD("ADD EDGE: %lu\n", rt_res.node_num);
-    //Edge追加
-    for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        M_DBGLOGV("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
-        M_DBGLOGV("    [1]");
-        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
-        M_DBGLOGV("    [2]");
-        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[1].node_id, BTC_SZ_PUBKEY);
-
-        graph_t::vertex_descriptor node1 = ver_add(mGraph, rt_res.p_nodes[lp].ninfo[0].node_id);
-        graph_t::vertex_descriptor node2 = ver_add(mGraph, rt_res.p_nodes[lp].ninfo[1].node_id);
-
-        if (!set_start) {
-            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
-                pnt_start = node1;
-                set_start = true;
-            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
-                pnt_start = node2;
-                set_start = true;
-            }
-        }
-        if (!set_goal) {
-            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayeeId, BTC_SZ_PUBKEY) == 0) {
-                pnt_goal = node1;
-                set_goal = true;
-            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayeeId, BTC_SZ_PUBKEY) == 0) {
-                pnt_goal = node2;
-                set_goal = true;
-            }
-        }
-
-        if (node1 != node2) {
-            if (rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
-                //channel_update1
-                bool inserted = false;
-                graph_t::edge_descriptor e1;
-
-                boost::tie(e1, inserted) = add_edge(node1, node2, mGraph);
-                mGraph[e1].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
-                mGraph[e1].fee_base_msat = rt_res.p_nodes[lp].ninfo[0].fee_base_msat;
-                mGraph[e1].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[0].fee_prop_millionths;
-                mGraph[e1].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta;
-                mGraph[e1].node_id = rt_res.p_nodes[lp].ninfo[0].node_id;
-
-                mGraph[e1].weight = edgefee(AmountMsat, mGraph[e1].fee_base_msat, mGraph[e1].fee_prop_millionths);
-                if (rt_res.p_nodes[lp].ninfo[0].route_skip == LN_DB_ROUTE_SKIP_WORK) {
-                    M_DBGLOG("HEAVY1: %016" PRIx64 "\n", mGraph[e1].short_channel_id);
-                    mGraph[e1].weight *= 100;
-                }
-            }
-            if (rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
-                //channel_update2
-                bool inserted = false;
-                graph_t::edge_descriptor e2;
-
-                boost::tie(e2, inserted) = add_edge(node2, node1, mGraph);
-                mGraph[e2].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
-                mGraph[e2].fee_base_msat = rt_res.p_nodes[lp].ninfo[1].fee_base_msat;
-                mGraph[e2].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[1].fee_prop_millionths;
-                mGraph[e2].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta;
-                mGraph[e2].node_id = rt_res.p_nodes[lp].ninfo[1].node_id;
-
-                mGraph[e2].weight = edgefee(AmountMsat, mGraph[e2].fee_base_msat, mGraph[e2].fee_prop_millionths);
-                if (rt_res.p_nodes[lp].ninfo[1].route_skip == LN_DB_ROUTE_SKIP_WORK) {
-                    M_DBGLOG("HEAVY2: %016" PRIx64 "\n", mGraph[e2].short_channel_id);
-                    mGraph[e2].weight *= 100;
-                }
-            }
-        }
-    }
-LOGD("\n");
-LOGD("ADD EDGE - END\n");
-
-    //LOGD("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
-    if (!set_start) {
-        LOGE("fail: no start node\n");
-        return LNROUTE_NOSTART;
-    }
-    if (!set_goal) {
-        LOGE("fail: no goal node\n");
-        return LNROUTE_NOGOAL;
-    }
-
-    std::vector<vertex_descriptor_t> pt(num_vertices(mGraph));     //parent
-    std::vector<uint64_t> dist(num_vertices(mGraph));
-    dijkstra_shortest_paths(mGraph, pnt_start,
-                weight_map(boost::get(&fee_t::weight, mGraph)).
-                    predecessor_map(&pt[0]).
-                        distance_map(&dist[0]));
-
-    if (pt[pnt_goal] == pnt_goal) {
-        LOGE("fail: cannot find route\n");
-        UTL_DBG_FREE(rt_res.p_nodes);
-        return LNROUTE_NOTFOUND;
-    }
-
-    //逆順に入っているので、並べ直す
-    //ついでに、min_final_cltv_expiryを足す
-    std::deque<vertex_descriptor_t> route;        //std::vectorにはpush_front()がない
-    std::deque<uint64_t> msat;
-    std::deque<uint32_t> cltv;
-
-    CltvExpiry += M_SHADOW_ROUTE;
-
-    route.push_front(pnt_goal);
-    msat.push_front(AmountMsat);
-    cltv.push_front(CltvExpiry);
-
-    for (vertex_descriptor_t vtx = pnt_goal; vtx != pnt_start; vtx = pt[vtx]) {
-        bool found;
-        graph_t::edge_descriptor eg;
-        boost::tie(eg, found) = edge(pt[vtx], vtx, mGraph);
-        if (!found) {
-            LOGE("fail: not foooooooooound\n");
-            return LNROUTE_NOTFOUND;
-        }
-
-        route.push_front(pt[vtx]);
-        msat.push_front(AmountMsat);
-        cltv.push_front(CltvExpiry);
-
-        AmountMsat = AmountMsat + edgefee(AmountMsat, mGraph[eg].fee_base_msat, mGraph[eg].fee_prop_millionths);
-        CltvExpiry += mGraph[eg].cltv_expiry_delta;
-    }
-
-    if (route.size() > LN_HOP_MAX + 1) {
-        //先頭に自ノードが入るため+1
-        LOGE("fail: too many hops\n");
-        UTL_DBG_FREE(rt_res.p_nodes);
-        return LNROUTE_TOOMANYHOP;
-    }
-
-    //戻り値の作成
-    pResult->num_hops = (uint8_t)route.size();
-    const uint8_t *p_next;
-
-    for (int lp = 0; lp < pResult->num_hops - 1; lp++) {
-        const uint8_t *p_now  = mGraph[route[lp]].p_node;
-        p_next = mGraph[route[lp + 1]].p_node;
-
-        const uint8_t *p_node_id1;
-        const uint8_t *p_node_id2;
-        direction(&p_node_id1, &p_node_id2, p_now, p_next);
-        uint64_t sci = 0;
-        for (uint32_t lp3 = 0; lp3 < rt_res.node_num; lp3++) {
-            if ( (memcmp(p_node_id1, rt_res.p_nodes[lp3].ninfo[0].node_id, BTC_SZ_PUBKEY) == 0) &&
-                 (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, BTC_SZ_PUBKEY) == 0) ) {
-                sci = rt_res.p_nodes[lp3].short_channel_id;
-                break;
-            }
-        }
-        if (sci == 0) {
-            LOGE("not match!\n");
-            return LNROUTE_NOTFOUND;
-        }
-
-        pResult->hop_datain[lp].short_channel_id = sci;
-        pResult->hop_datain[lp].amt_to_forward = msat[lp];
-        pResult->hop_datain[lp].outgoing_cltv_value = cltv[lp];
-        memcpy(pResult->hop_datain[lp].pubkey, p_now, BTC_SZ_PUBKEY);
-        LOGD("  route [%d]", lp);
-        DUMPD(p_now, BTC_SZ_PUBKEY);
-    }
-
-    //最後
-    pResult->hop_datain[pResult->num_hops - 1].short_channel_id = 0;
-    pResult->hop_datain[pResult->num_hops - 1].amt_to_forward = msat[pResult->num_hops - 1];
-    pResult->hop_datain[pResult->num_hops - 1].outgoing_cltv_value = cltv[pResult->num_hops - 1];
-    memcpy(pResult->hop_datain[pResult->num_hops - 1].pubkey, p_next, BTC_SZ_PUBKEY);
-    LOGD("  route [%d]", pResult->num_hops - 1);
-    DUMPD(p_next, BTC_SZ_PUBKEY);
-
-#ifdef M_GRAPHVIZ
-    // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
-    std::ofstream dot_file("gossip.dot");
-
-    dot_file << "digraph D {\n"
-             //<< "  rankdir=LR\n"
-             //<< "  ratio=\"fill\"\n"
-             << "  graph[layout=circo];\n"
-             //<< "  edge[style=\"bold\"];\n"
-             << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
-             ;
-
-    graph_traits < graph_t >::edge_iterator ei, ei_end;
-    for (boost::tie(ei, ei_end) = edges(mGraph); ei != ei_end; ++ei) {
-        graph_traits < graph_t >::edge_descriptor e = *ei;
-        graph_traits < graph_t >::vertex_descriptor u = source(e, mGraph);
-        graph_traits < graph_t >::vertex_descriptor v = target(e, mGraph);
-        if (u != v) {
-            char node1[128] = "\"";
-            char node2[128] = "\"";
-            const uint8_t *p_node1 = mGraph[u].p_node;
-            const uint8_t *p_node2 = mGraph[v].p_node;
-            for (int lp = 0; lp < 6; lp++) {
-                char s[3];
-                sprintf(s, "%02x", p_node1[lp]);
-                strcat(node1, s);
-                sprintf(s, "%02x", p_node2[lp]);
-                strcat(node2, s);
-            }
-            strcat(node1, "\"");
-            strcat(node2, "\"");
-            int col = memcmp(p_node1, p_node2, BTC_SZ_PUBKEY);
-            if (col > 0) {
-                dot_file << node1 << " -> " << node2
-                        << "["
-                        << "label=\""
-                        << std::hex << mGraph[e].short_channel_id << std::dec
-                        //<< ","
-                        //<< mGraph[e].fee_base_msat
-                        //<< ","
-                        //<< mGraph[e].fee_prop_millionths
-                        //<< ","
-                        //<< mGraph[e].cltv_expiry_delta
-                        << "\""
-                        << ", color=\"black\""
-                        << ", fontcolor=\"#804040\""
-                        << ", arrowhead=\"none\""
-                        << "]" << std::endl;
-            }
-        }
-    }
-    dot_file << "}";
-#endif  //M_GRAPHVIZ
-
-    UTL_DBG_FREE(rt_res.p_nodes);
-
-    return LNROUTE_OK;
-}
-
-
-void ln_routing_clear_skipdb(void)
-{
-    bool bret;
-
-    bret = ln_db_route_skip_drop(false);
-    LOGD("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
 }
