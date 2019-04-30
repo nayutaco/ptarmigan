@@ -74,11 +74,7 @@ cd [NODENAME]
 ## How to use
 
 * [How to use](docs/howtouse.md)
-* [How to use REST API](docs/howtouse_rest_api.md)
-
-Note: `ptarmigan` has interfaces of CLI, JSON-RPC and REST API.
-But CLI and JSON-RPC will change in the near future.
-Try the newer REST API interface.
+* [How to use REST API(Work In Progress)](docs/howtouse_rest_api.md)
 
 ## Dependency
 

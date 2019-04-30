@@ -93,6 +93,7 @@
 
 #define M_WAIT_POLL_SEC         (10)        //監視スレッドの待ち間隔[sec]
 #define M_WAIT_PING_SEC         (60)        //ping送信待ち[sec](pingは30秒以上の間隔をあけること)
+#define M_WAIT_ANNO_FIRST_SEC   (1)        //監視スレッドでのannounce処理間隔[sec] for first time
 #define M_WAIT_ANNO_SEC         (1)         //監視スレッドでのannounce処理間隔[sec]
 #define M_WAIT_ANNO_LONG_SEC    (30)        //監視スレッドでのannounce処理間隔(長めに空ける)[sec]
 #define M_WAIT_RECV_TO_MSEC     (50)        //socket受信待ちタイムアウト[msec]
@@ -108,7 +109,10 @@
 #define M_FLAGRECV_FUNDINGLOCKED    (0x08)  ///< receive funding locked
 #define M_FLAGRECV_END              (0x80)  ///< 初期化完了
 
-#define M_ANNO_UNIT             (10)        ///< 1回のanno_proc()での処理単位
+//warkaround for write-timeout
+//#define M_ANNO_UNIT             (10)        ///< 1回のanno_proc()での処理単位
+#define M_ANNO_UNIT             (1)         ///< 1回のanno_proc()での処理単位
+
 #define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
 
 #define M_PING_CNT              (M_WAIT_PING_SEC / M_WAIT_POLL_SEC)
@@ -1638,12 +1642,12 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
 static void *thread_anno_start(void *pArg)
 {
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
-    int slp = M_WAIT_ANNO_SEC;
+    int slp = M_WAIT_ANNO_FIRST_SEC;
+    bool first = true;
 
     LOGD("[THREAD]anno initialize: %d\n", p_conf->active);
 
     while (p_conf->active) {
-        //ループ解除まで時間が長くなるので、短くチェックする
         for (int lp = 0; lp < slp; lp++) {
             sleep(1);
             if (!p_conf->active) {
@@ -1652,6 +1656,10 @@ static void *thread_anno_start(void *pArg)
             // if (p_conf->annodb_updated) {
             //     break;
             // }
+        }
+        if (first) {
+            first = false;
+            slp = M_WAIT_ANNO_SEC;
         }
 
         if ((p_conf->flag_recv & M_FLAGRECV_END) == 0) {
