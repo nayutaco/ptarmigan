@@ -14,6 +14,7 @@ import { FundDto } from 'src/model/fund';
 import { ListUnspentDto } from 'src/model/list-unspent';
 import { RouteNodeDto } from 'src/model/route-node';
 import { PaymentIdDto } from 'src/model/payment-id';
+import { SendPaymentDto } from 'src/model/send-payment';
 
 @ApiUseTags('ptarmigan')
 @Controller('/')
@@ -134,8 +135,8 @@ export class PtarmiganController {
     // payment
     // ------------------------------------------------------------------------------
     @Post('sendpayment') // routepay -> sendpayment
-    async executeSendPayment(@Body() dto: Bolt11Dto) {
-        return await this.ptarmiganService.requestTCP('sendpayment', [dto.bolt11]);
+    async executeSendPayment(@Body() dto: SendPaymentDto) {
+        return await this.ptarmiganService.requestTCP('routepay', [dto.bolt11, dto.addAmountMsat]);
     }
 
     @Post('listpayment') // listpayment -> listpayments
@@ -145,7 +146,7 @@ export class PtarmiganController {
 
     @Post('removepayment') // removepayment -> removepayment
     async executeRemovePaymentState(@Body() dto: PaymentIdDto) {
-        return await this.ptarmiganService.requestTCP('resetroutestate', [dto.paymentId]);
+        return await this.ptarmiganService.requestTCP('removepayment', [dto.paymentId]);
     }
 
     // ------------------------------------------------------------------------------
