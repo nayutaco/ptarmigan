@@ -30,7 +30,7 @@ $ npm install
 $ npm run start
 ```
 
-## 
+## Example
 ```
 $ curl -X POST "http://localhost:3000/getinfo" -H "accept: application/json"
 ```
