@@ -7,5 +7,5 @@ export class PaymentIdDto {
             description: 'payment id',
         },
     )
-    paymentId: string;
+    paymentId: number;
 }
