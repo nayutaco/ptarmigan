@@ -47,6 +47,7 @@
 #include "ln_local.h"
 #include "ln_setupctl.h"
 #include "ln_anno.h"
+#include "ln_routing.h"
 
 
 /**************************************************************************
@@ -298,6 +299,8 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 {
     (void)pChannel;
 
+LOGD("channel_update\n");
+
     ln_msg_channel_update_t msg;
     uint64_t now = (uint64_t)utl_time_time();
 
@@ -310,7 +313,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         LOGD("through: chain_hash mismatch\n");
         return true;
     }
-    int dir = msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION;
+    int dir = (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? 1 : 0;
 
     //timestamp check
     if (ln_db_cnlupd_need_to_prune(now, msg.timestamp)) {
@@ -321,10 +324,10 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 
     //LOGV("recv channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
 
-    uint8_t node_id[BTC_SZ_PUBKEY];
-    if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, dir)) {
+    uint8_t node_id[2][BTC_SZ_PUBKEY];
+    if (get_node_id_from_channel_announcement(pChannel, node_id[dir], msg.short_channel_id, dir)) {
         //found
-        if (!btc_keys_check_pub(node_id)) {
+        if (!btc_keys_check_pub(node_id[dir])) {
             LOGE("fail: invalid pubkey\n");
             return false;
         }
@@ -340,6 +343,12 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
         //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
         LOGD("through: not found channel_announcement in DB, but save\n");
+    }
+
+    get_node_id_from_channel_announcement(pChannel, node_id[1 - dir], msg.short_channel_id, 1 - dir);
+    bool ret = ln_routing_add_channel(&msg, node_id[0], node_id[1]);
+    if (!ret) {
+        LOGE("fail through: add channel\n");
     }
 
     //BOLT07

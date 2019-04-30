@@ -31,6 +31,7 @@
 #include "ln_err.h"
 #include "ln_onion.h"
 #include "ln_invoice.h"
+#include "ln_msg_anno.h"
 
 
 #ifdef __cplusplus
@@ -53,6 +54,14 @@ typedef struct {
 /********************************************************************
  * prototypes
  ********************************************************************/
+
+bool ln_routing_init(const uint8_t *pPayerId);
+
+
+bool ln_routing_add_channel(
+        const ln_msg_channel_update_t *pChannelUpdate,
+        const uint8_t *pNode1, const uint8_t *pNode2);
+
 
 /** 支払いルート作成
  *
