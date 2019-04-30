@@ -168,9 +168,9 @@ def aggregate_inputs(fundamount, feerate):
                 break
 
     # https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
-    sum_amount = 0
     if inputs == 0:
         print('no input', file=sys.stderr)
+        sum_amount = 0
     elif inputs < 0xfd:
         estimate_vsize += 1
     elif inputs <= 0xffff:
