@@ -5,6 +5,15 @@
 ## start `ptarmd`(ptarmigan daemon)
 
 * start `bitcoind` before starting `ptarmd`.
+
+```text
+rpcuser=bitcoinuser
+rpcpassword=bitcoinpassword
+server=1
+txindex=1
+testnet=1
+```
+
 * default behavior
   * work files: current directory
   * chain: mainnet
@@ -22,8 +31,8 @@ cd ptarmigan/install
 ./new_nodedir.sh [NODE_NAME]
 cd [NODE_NAME]
 
-# start!
-../ptarmd
+# start with testnet!
+../ptarmd --network=testnet
 ```
 
 ## daemon control `ptarmcli`(ptarmigan client)
