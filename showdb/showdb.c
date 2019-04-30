@@ -929,6 +929,9 @@ static void dumpit_route_skip(MDB_txn *txn, MDB_dbi dbi)
                 case LN_DB_ROUTE_SKIP_TEMP:
                     printf(M_QQ("temp") "]");
                     break;
+                case LN_DB_ROUTE_SKIP_PERM:
+                    printf(M_QQ("perm") "]");
+                    break;
                 case LN_DB_ROUTE_SKIP_WORK:
                     printf(M_QQ("work") "]");
                     break;
