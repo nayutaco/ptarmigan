@@ -1,6 +1,6 @@
 # ptarmigan-api
 
-[ptarmigan rest-api](https://github.com/nayutaco/ptarmigan) Lightning Network implementation ptarmigan REST-API
+[ptarmigan rest-api](../ptarmapi) Lightning Network implementation ptarmigan REST-API
 
 ## Configration
 
