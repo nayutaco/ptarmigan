@@ -33,7 +33,7 @@ make full
 # takes a lot of time...
 ```
 
-[NOTE](docs/INSTALL.md#NOTE)
+[NOTE and details](docs/INSTALL.md)
 
 ## Starting `bitcoind`
 
