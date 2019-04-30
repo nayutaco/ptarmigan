@@ -139,7 +139,7 @@ export class PtarmiganController {
         return await this.ptarmiganService.requestTCP('routepay', [dto.bolt11, dto.addAmountMsat]);
     }
 
-    @Post('listpayment') // listpayment -> listpayments
+    @Post('listpayments') // listpayment -> listpayments
     async executeListPaymentState() {
         return await this.ptarmiganService.requestTCP('listpayment', []);
     }
