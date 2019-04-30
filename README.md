@@ -11,14 +11,14 @@
 ## About
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
-* In Japanese, `ptarmigan` is called "雷(thunder)鳥(bird)".
+* In Japanese, `ptarmigan` is called "雷 (thunder) 鳥 (bird)".
 
 ## Setup
 
 * Ubuntu 18.04
 * bitcoind
-  * above v0.17(`getnetworkinfo` version > 170000)
-  * for bitcoin mainnet/testnet/regtest
+  * above v0.17 (`getnetworkinfo` version > 170000)
+  * for bitcoin mainnet / testnet / regtest
   * nested in BIP16 P2SH
 
 ## Install
@@ -29,7 +29,8 @@ sudo apt install -y git autoconf pkg-config build-essential libtool python3 wget
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
 make full
-(takes a lot of time...)
+
+# takes a lot of time...
 ```
 
 [more...](docs/INSTALL.md)
@@ -74,7 +75,7 @@ cd [NODENAME]
 * [How to use](docs/howtouse.md)
 * [How to use REST API](docs/howtouse_rest_api.md)
 
-Note: ptarmigan has an interface of CLI, JSON-RPC and REST API.
+Note: `ptarmigan` has an interface of CLI, JSON-RPC and REST API.
 But CLI and JSON-RPC will change in the near future.
 Try the newer REST API interface.
 
