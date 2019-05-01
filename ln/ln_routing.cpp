@@ -41,7 +41,7 @@
 #include <deque>
 #include <vector>
 
-#define M_GRAPHVIZ
+//#define M_GRAPHVIZ
 #include <boost/config.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
@@ -728,6 +728,7 @@ static graph_t::vertex_descriptor routing_vertex_add(graph_t& Graph, const uint8
     for (graph_t::vertex_iterator st = ver_its.first, et = ver_its.second; st != et; st++) {
         if (memcmp(Graph[*st].node_id, pNodeId, BTC_SZ_PUBKEY) == 0) {
             //find
+            LOGD("find vertex\n");
             ret = true;
             vtx = *st;
             break;
@@ -738,6 +739,7 @@ static graph_t::vertex_descriptor routing_vertex_add(graph_t& Graph, const uint8
         vtx = add_vertex(Graph);
         //property
         memcpy(Graph[vtx].node_id, pNodeId, BTC_SZ_PUBKEY);
+        LOGD("add vertex\n");
     }
 
     return vtx;
@@ -754,6 +756,18 @@ static void routing_edge_add(graph_t& Graph,
 {
     bool inserted = false;
     graph_t::edge_descriptor desc;
+
+    boost::graph_traits<graph_t>::edge_iterator ei, ei_end;
+    for (boost::tie(ei, ei_end) = edges(mGraph); ei != ei_end; ++ei) {
+        boost::graph_traits<graph_t>::edge_descriptor e = *ei;
+        boost::graph_traits<graph_t>::vertex_descriptor u = source(e, mGraph);
+        boost::graph_traits<graph_t>::vertex_descriptor v = target(e, mGraph);
+        if ((u == Node1) && (v == Node2)) {
+            //find
+            LOGD("find edge\n");
+            return;
+        }
+    }
 
     //edge
     boost::tie(desc, inserted) = add_edge(Node1, Node2, Graph);
@@ -774,4 +788,5 @@ static void routing_edge_add(graph_t& Graph,
         M_DBGLOG("HEAVY: %016" PRIx64 "\n", Graph[desc].short_channel_id);
         Graph[desc].weight *= 100;
     }
+    LOGD("add edge\n");
 }
