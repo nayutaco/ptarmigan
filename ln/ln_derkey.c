@@ -34,7 +34,7 @@
 
 #include "ln_derkey.h"
 #include "ln_local.h"
-//#define M_DBG_PRINT
+//#define M_DBG_PRINT //XXX: CAUTION!!: display secret
 
 /**************************************************************************
  * prototypes

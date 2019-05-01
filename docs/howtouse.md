@@ -5,6 +5,15 @@
 ## start `ptarmd`(ptarmigan daemon)
 
 * start `bitcoind` before starting `ptarmd`.
+
+```text
+rpcuser=bitcoinuser
+rpcpassword=bitcoinpassword
+server=1
+txindex=1
+testnet=1
+```
+
 * default behavior
   * work files: current directory
   * chain: mainnet
@@ -22,17 +31,17 @@ cd ptarmigan/install
 ./new_nodedir.sh [NODE_NAME]
 cd [NODE_NAME]
 
-# start!
-../ptarmd
+# start with testnet!
+../ptarmd --network=testnet
 ```
 
 ## daemon control `ptarmcli`(ptarmigan client)
 
 * You can access to `ptarmd` with JSON-RPC or `ptarmcli`.
   * JSON-RPC uses TCP socket(not http/https)
-* `ptarmcli` send/receive JSON-RPC TCP socket.
+* `ptarmcli` send/receive JSON-RPC TCP socket internal.
 * You can omit `ptarmcli` rpcport option if..
-  * `ptarmd` uses 9735 port.
+  * `ptarmd` uses port 9735 and JRON-RPC port 9736.
   * in the same directory as `ptarmd` working directory.
 
 ### get information
@@ -57,13 +66,14 @@ If you have channels, `ptarmd` try connect the peers automatically.
 * port number
 
 ```bash
+# two connection method
+
+# a. Only connect peer(not request peer's routing information)
 ../ptarmcli -c NODE_ID@IPv4_ADDRESS:PORT
-```
 
-You can get peer's all channel information by `--initroutesync`.  
-If you have already connected, disconnect and connect with `--initroutesync`.
-
-```bash
+# b. Get peer's all routing information by `--initroutesync`.
+#    Routing information is used for payment.
+#    (If you have already connected, disconnect and connect with `--initroutesync`.)
 ../ptarmcli -c NODE_ID@IPv4_ADDRESS:PORT --initroutesync
 ```
 
@@ -81,6 +91,15 @@ After connecting, you can open channel with connection node.
 
 Establishing channel need some blocks.
 You can check channel status with `ptarmcli --getinfo`.
+
+#### memo
+
+`pay_fundin.py` only support P2PKH / native P2WPKH / P2WPKH nested in BIP16 P2SH.  
+If using "regtest", you send to `bitcoin-cli getnewaddress`.
+
+```bash
+bitcoin-cli sendtoaddress `bitcoin-cli getnewaddress` 0.1
+```
 
 ### request payment
 
@@ -114,7 +133,7 @@ You can check channel status with `ptarmcli --getinfo`.
 ../ptarmcli --listpayment
 
 # specify PAYMENT_ID
-../ptarmcli --listpayment | jq -e '.result[] | select (.payment_id==PAYMENT_ID)'
+../ptarmcli --listpayment=PAYMENT_ID
 ```
 
 ### close channel
@@ -143,7 +162,9 @@ Amount in channel will pay to bitcoind after some blocks.
 
 ## troubleshooting
 
-### wrong conf file
+### startup
+
+#### wrong conf file
 
 ```text
 fail: no rpcuser or rpcpassword[xxx/.bitcoin/bitcoin.conf]
@@ -152,7 +173,7 @@ fail: wrong conf file.
 
 * There is no description of `rpcuser` or `rpcpassword` in conf file.
 
-### can't access bitcoind
+#### can't access bitcoind
 
 ```text
 fail: initialize btcrpc
@@ -161,7 +182,7 @@ fail: initialize btcrpc
 * bitcoind not started
 * bitcoind JSON-RPC disabled
 
-### DB file version mismatch
+#### DB file version mismatch
 
 ```text
 DB checking: open...done!
@@ -172,3 +193,11 @@ fail: node init
 
 * exist DB file version and `ptarmd`'s DB file version not same
   * [INSTALL/NOTE](INSTALL.md#NOTE)
+
+### Payment
+
+#### `ptarmcli --sendpayment` always fail
+
+* check amount you can send.
+* get channel information `ptarmcli --getinfo` and check status "normal operation".
+* disconnect peer and connect with `--initroutesync` for getting route information.

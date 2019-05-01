@@ -168,8 +168,12 @@ TEST_F(lnapp, send_cnl_ok1)
 
     ln_db_cnlanno_info_search_node_id_fake.return_val = true;
     
-    bool ret = anno_send_cnl(&conf, 0, 0, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata_cnl(&conf, &push, 0, 0, NULL, NULL);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -182,8 +186,12 @@ TEST_F(lnapp, send_cnl_ok2)
 
     ln_db_cnlanno_info_search_node_id_fake.return_val = false;
     
-    bool ret = anno_send_cnl(&conf, 0, 0, NULL, &buf);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata_cnl(&conf, &push, 0, 0, NULL, &buf);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -199,8 +207,12 @@ TEST_F(lnapp, send_node_ok1)
     ln_db_nodeanno_info_search_node_id_fake.return_val_seq = seq;
     ln_db_nodeanno_info_search_node_id_fake.return_val_seq_len = ARRAY_SIZE(seq);
     
-    bool ret = anno_send_node(&conf, 0, 0, &buf);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata_node(&conf, &push, 0, 0, &buf);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -216,8 +228,12 @@ TEST_F(lnapp, send_node_ok2)
     ln_db_nodeanno_info_search_node_id_fake.return_val_seq = seq;
     ln_db_nodeanno_info_search_node_id_fake.return_val_seq_len = ARRAY_SIZE(seq);
     
-    bool ret = anno_send_node(&conf, 0, 0, &buf);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata_node(&conf, &push, 0, 0, &buf);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -230,8 +246,12 @@ TEST_F(lnapp, send_node_ng)
 
     ln_get_ids_cnl_anno_fake.return_val = false;
     
-    bool ret = anno_send_node(&conf, 0, 0, &buf);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata_node(&conf, &push, 0, 0, &buf);
     ASSERT_FALSE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -255,8 +275,12 @@ TEST_F(lnapp, send_ok1)
     };
     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-    bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -285,8 +309,12 @@ TEST_F(lnapp, send_ok2)
     };
     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-    bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -316,8 +344,12 @@ TEST_F(lnapp, send_ok2)
 //     };
 //     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-//     bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+//     utl_buf_t buf2 = UTL_BUF_INIT;
+//     utl_push_t push;
+//     utl_push_init(&push, &buf2, 0);
+//     bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
 //     ASSERT_TRUE(ret);
+//     utl_buf_free(&buf2);
 // }
 
 
@@ -337,8 +369,12 @@ TEST_F(lnapp, send_ng1)
     };
     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-    bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
     ASSERT_FALSE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -363,8 +399,12 @@ TEST_F(lnapp, send_ng2)
     };
     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-    bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
     ASSERT_FALSE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -389,8 +429,12 @@ TEST_F(lnapp, send_ng3)
     };
     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-    bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
     ASSERT_FALSE(ret);
+    utl_buf_free(&buf2);
 }
 
 
@@ -415,8 +459,12 @@ TEST_F(lnapp, send_ng4)
     };
     ln_db_cnlanno_cur_get_fake.custom_fake = local::ln_db_cnlanno_cur_get;
 
-    bool ret = anno_send(&conf, 0, &buf, NULL, NULL, NULL, NULL);
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_push_t push;
+    utl_push_init(&push, &buf2, 0);
+    bool ret = anno_senddata(&conf, &push, 0, &buf, NULL, NULL, NULL, NULL);
     ASSERT_TRUE(ret);
+    utl_buf_free(&buf2);
 }
 
 

@@ -30,18 +30,19 @@ ptarmcli [options] [JSON-RPC port number]
     * FUND_CONFIG_FILE can create by `pay_fundin.py`
 
 * invoice
-  * `--addinvoice AMOUNT_MSAT` : add invoice
+  * `--addinvoice=AMOUNT_MSAT` : add invoice
   * `--listinvoice` : list invoices
-  * `--removeinvoice PAYMENT_HASH` : erase a payment_hash
-  * `--removeinvoice ALL` : erase all payment_hashs
+  * `--removeinvoice=PAYMENT_HASH` : erase a payment_hash
+  * `--removeinvoice=ALL` : erase all payment_hashs
 
 * payment
   * `--sendpayment BOLT11_INVOICE[,ADD_AMOUNT_MSAT]` : payment with BOLT11 invoice format
   * `--listpayment` : list payments
-  * `--removepayment PAYMENT_ID` : remove a payment from the payment list
+  * `--listpayment=PAYMENT_ID` : list specified payment
+  * `--removepayment=PAYMENT_ID` : remove a payment from the payment list
 
 * fee
-  * `--setfeerate FEERATE_PER_KW` : set feerate_per_kw
+  * `--setfeerate=FEERATE_PER_KW` : set feerate_per_kw
     * if set not 0 value, send `update_fee`
 
 * close channel

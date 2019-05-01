@@ -124,7 +124,7 @@ bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
     uint16_t type = utl_int_pack_u16be(pBuf->buf);
     LOGD("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_msg_name(type), p_conf->sock, pBuf->len);
 
-    pthread_mutex_lock(&p_conf->mux_send);
+    pthread_mutex_lock(&p_conf->mux_send); //lock mux_send
 
     utl_buf_t buf_enc = UTL_BUF_INIT;
     struct pollfd fds;
@@ -133,7 +133,7 @@ bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
     bool ret = ln_noise_enc(&p_conf->noise, &buf_enc, pBuf);
     if (!ret) {
         LOGE("fail: noise encode\n");
-        goto LABEL_EXIT;
+        goto LABEL_ERROR;
     }
 
     len = buf_enc.len;
@@ -142,25 +142,28 @@ bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
         fds.events = POLLOUT;
         int polr = poll(&fds, 1, M_WAIT_SEND_TO_MSEC);
         if (polr <= 0) {
-            LOGE("fail poll: %s\n", strerror(errno));
-            break;
+            LOGE("fail: poll %s\n", strerror(errno));
+            goto LABEL_ERROR;
         }
         ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
         if (sz < 0) {
-            LOGE("fail write: %s\n", strerror(errno));
-            lnapp_stop_threads(p_conf);
-            break;
+            LOGE("fail: write %s\n", strerror(errno));
+            goto LABEL_ERROR;
         }
         len -= sz;
         if (len > 0) {
             utl_thread_msleep(M_WAIT_SEND_WAIT_MSEC);
         }
     }
-    utl_buf_free(&buf_enc);
 
-LABEL_EXIT:
     pthread_mutex_unlock(&p_conf->mux_send);
-    return len == 0;
+    utl_buf_free(&buf_enc);
+    return true;
+
+LABEL_ERROR:
+    pthread_mutex_unlock(&p_conf->mux_send); //unlock mux_send
+    utl_buf_free(&buf_enc);
+    return false;
 }
 
 

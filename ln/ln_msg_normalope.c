@@ -197,8 +197,9 @@ static void update_fulfill_htlc_print(const ln_msg_update_fulfill_htlc_t *pMsg)
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("id: %" PRIu64 "\n", pMsg->id);
-    LOGD("p_payment_preimage: ");
-    DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
+    //LOGD("p_payment_preimage: ");
+    //DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
+    LOGD("p_payment_preimage: ???\n");
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
@@ -471,8 +472,9 @@ static void revoke_and_ack_print(const ln_msg_revoke_and_ack_t *pMsg)
     LOGD("-[revoke_and_ack]-------------------------------\n");
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("per_commitment_secret: ");
-    DUMPD(pMsg->p_per_commitment_secret, BTC_SZ_PRIVKEY);
+    //LOGD("per_commitment_secret: ");
+    //DUMPD(pMsg->p_per_commitment_secret, BTC_SZ_PRIVKEY);
+    LOGD("per_commitment_secret: ???\n");
     LOGD("next_per_commitment_point: ");
     DUMPD(pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");

@@ -144,8 +144,6 @@ extern "C" {
 #define LN_DB_KEY_RLEN              (3)                 ///< [revoked]key長
 
 #define LN_DB_DBI_ROUTE_SKIP        "route_skip"
-#define LN_DB_ROUTE_SKIP_TEMP       ((uint8_t)1)    // 一時的にskip
-#define LN_DB_ROUTE_SKIP_WORK       ((uint8_t)2)    // 一時的にrouteに含める
 
 
 /**************************************************************************

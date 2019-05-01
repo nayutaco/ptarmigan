@@ -1623,7 +1623,7 @@ bool ln_db_cnlupd_save(const utl_buf_t *pCnlUpd, const ln_msg_channel_update_t *
     retval = cnlupd_load(&db, &buf_upd, &timestamp, pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
     if (retval) {
         //新規
-        LOGD("new: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
+        //LOGD("new: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
         update = true;
     } else {
         if (timestamp > pUpd->timestamp) {
@@ -1826,7 +1826,7 @@ bool ln_db_nodeanno_save(const utl_buf_t *pNodeAnno, const ln_msg_node_announcem
     retval = nodeanno_load(&db, &buf_node, &timestamp, pAnno->p_node_id);
     if (retval) { //XXX: check error code
         //新規
-        LOGV("new node_announcement\n");
+        //LOGV("new node_announcement\n");
         update = true;
     } else {
         if (timestamp > pAnno->timestamp) {
@@ -2882,8 +2882,9 @@ bool ln_db_preimage_del(const uint8_t *pPreimage)
     if (pPreimage) {
         MDB_val key;
 
-        LOGD("remove: ");
-        DUMPD(pPreimage, LN_SZ_PREIMAGE);
+        //LOGD("remove: ");
+        //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+        LOGD("remove\n");
         key.mv_size = LN_SZ_PREIMAGE;
         key.mv_data = (CONST_CAST uint8_t *)pPreimage;
         retval = mdb_del(db.p_txn, db.dbi, &key, NULL);
@@ -4706,6 +4707,15 @@ static bool channel_cmp_func_channel_del(ln_channel_t *pChannel, void *pDbParam,
 }
 
 
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in]   pFunc           search function
+ * @param[in]   pFuncParam      pFunc parameter
+ * @param[in]   bWritable       true: write and txn_commit, false: readonly and txn_abort
+ * @param[in]   bRestore        true: restore secrets
+ * @param[in]   bCont           true: continue if (*pFunc)() return true, false: stop if (*pFunc)() return true
+ * @retval  true    (*pFunc)() return true at least once
+ */
 static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable, bool bRestore, bool bCont)
 {
     bool            found = false;
@@ -4936,7 +4946,7 @@ static int cnlanno_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
  */
 static int cnlanno_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
+    //LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
     uint8_t key_data[M_SZ_CNLANNO_INFO_KEY];
@@ -5638,8 +5648,9 @@ static bool preimage_cmp_func(const uint8_t *pPreimage, uint64_t Amount, uint32_
     const uint8_t *hash = (const uint8_t *)pParam;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
-    LOGD("compare preimage : ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    //LOGD("compare preimage : ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    LOGD("compare preimage\n");
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
     if (memcmp(preimage_hash, hash, BTC_SZ_HASH256)) {
@@ -5665,8 +5676,9 @@ static bool preimage_cmp_all_func(const uint8_t *pPreimage, uint64_t Amount, uin
     preimage_close_t *param = (preimage_close_t *)pParam;
     uint8_t preimage_hash[BTC_SZ_HASH256];
 
-    LOGD("compare preimage : ");
-    DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    //LOGD("compare preimage : ");
+    //DUMPD(pPreimage, LN_SZ_PREIMAGE);
+    LOGD("compare preimage\n");
     ln_payment_hash_calc(preimage_hash, pPreimage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {

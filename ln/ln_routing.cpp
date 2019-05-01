@@ -259,7 +259,7 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
         //チャネルは開設している && normal operation
         ln_db_route_skip_t rskip = ln_db_route_skip_search(pChannel->short_channel_id);
         if ((rskip != LN_DB_ROUTE_SKIP_NONE) && (rskip != LN_DB_ROUTE_SKIP_WORK)) {
-            M_DBGLOG("skip DB: %016" PRIx64 "\n", pChannel->short_channel_id);
+            LOGD("  skip DB: %016" PRIx64 "\n", pChannel->short_channel_id);
             return false;
         }
 
@@ -286,11 +286,11 @@ static bool comp_func_channel(ln_channel_t *pChannel, void *p_db_param, void *p_
         }
 
         M_DBGLOGV("[channel]nodenum=%d\n",  p_param_channel->p_result->node_num);
-        M_DBGLOGV("[channel]short_channel_id: %016" PRIx64 "\n", pChannel->short_channel_id);
+        LOGD("[channel]short_channel_id: %016" PRIx64 "\n", pChannel->short_channel_id);
         M_DBGLOGV("[channel]p_payer= ");
         M_DBGDUMPV(p_param_channel->p_payer, BTC_SZ_PUBKEY);
-        M_DBGLOGV("[channel]pChannel->peer_node_id= ");
-        M_DBGDUMPV(pChannel->peer_node_id, BTC_SZ_PUBKEY);
+        LOGD("[channel]pChannel->peer_node_id= ");
+        DUMPD(pChannel->peer_node_id, BTC_SZ_PUBKEY);
     } else {
         M_DBGLOG("skip\n");
     }
@@ -363,6 +363,9 @@ static bool load_db(nodes_result_t *p_result, const uint8_t *pPayerId)
     param_channel.p_payer = pPayerId;
     ln_db_channel_search_readonly_nokey(comp_func_channel, &param_channel);
 
+    LOGD("added local route: %" PRIu32 "\n", p_result->node_num);
+    uint32_t prev_node_num = p_result->node_num;
+
     //channel_anno
     void *p_cur;
 
@@ -382,7 +385,7 @@ static bool load_db(nodes_result_t *p_result, const uint8_t *pPayerId)
         while ((ret = ln_db_cnlanno_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
             ln_db_route_skip_t rskip = ln_db_route_skip_search(short_channel_id);
             if ((rskip != LN_DB_ROUTE_SKIP_NONE) && (rskip != LN_DB_ROUTE_SKIP_WORK)) {
-                M_DBGLOG("skip DB: %016" PRIx64 "\n", short_channel_id);
+                LOGE("  skip DB: %016" PRIx64 "\n", short_channel_id);
                 utl_buf_free(&buf_cnl);
                 continue;
             }
@@ -395,6 +398,8 @@ static bool load_db(nodes_result_t *p_result, const uint8_t *pPayerId)
     }
 
     ln_db_anno_commit(true);
+
+    LOGD("added announce route: %" PRIu32 "\n", p_result->node_num - prev_node_num);
 
     return true;
 }
@@ -617,6 +622,8 @@ lnerr_route_t ln_routing_calculate(
         pResult->hop_datain[lp].amt_to_forward = msat[lp];
         pResult->hop_datain[lp].outgoing_cltv_value = cltv[lp];
         memcpy(pResult->hop_datain[lp].pubkey, p_now, BTC_SZ_PUBKEY);
+        LOGD("  route [%d]", lp);
+        DUMPD(p_now, BTC_SZ_PUBKEY);
     }
 
     //最後
@@ -624,6 +631,8 @@ lnerr_route_t ln_routing_calculate(
     pResult->hop_datain[pResult->num_hops - 1].amt_to_forward = msat[pResult->num_hops - 1];
     pResult->hop_datain[pResult->num_hops - 1].outgoing_cltv_value = cltv[pResult->num_hops - 1];
     memcpy(pResult->hop_datain[pResult->num_hops - 1].pubkey, p_next, BTC_SZ_PUBKEY);
+    LOGD("  route [%d]", pResult->num_hops - 1);
+    DUMPD(p_next, BTC_SZ_PUBKEY);
 
 #ifdef M_GRAPHVIZ
     // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp

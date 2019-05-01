@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { Logger } from '@nestjs/common';
+import {ConfigService} from 'nestjs-config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // swagger setting
   const options = new DocumentBuilder()
     .setTitle('ptarmigan REST-API')
@@ -13,6 +15,12 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup('api', app, document);
+
+  const config = ConfigService;
+  Logger.log('ptarmdRpcPort: ' + config.get('ptarmigan.ptarmdRpcPort'));
+  Logger.log('ptarmdHost: + ' + config.get('ptarmigan.ptarmdHost'));
+  Logger.log('bitcoindRpcPort: ' + config.get('ptarmigan.bitcoindRpcPort'));
+  Logger.log('bitcoindHost: ' + config.get('ptarmigan.bitcoindHost'));
 
   await app.listen(3000);
 }

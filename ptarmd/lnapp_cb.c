@@ -78,32 +78,12 @@
  * macros
  **************************************************************************/
 
-#define M_WAIT_POLL_SEC         (10)        //監視スレッドの待ち間隔[sec]
-#define M_WAIT_PING_SEC         (60)        //ping送信待ち[sec](pingは30秒以上の間隔をあけること)
-#define M_WAIT_ANNO_SEC         (1)         //監視スレッドでのannounce処理間隔[sec]
-#define M_WAIT_ANNO_LONG_SEC    (30)        //監視スレッドでのannounce処理間隔(長めに空ける)[sec]
-#define M_WAIT_RECV_TO_MSEC     (50)        //socket受信待ちタイムアウト[msec]
-#define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
-#define M_WAIT_RECV_THREAD_MSEC (100)       //recv_thread開始待ち[msec]
-#define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
-#define M_WAIT_CHANREEST_MSEC   (3600000)   //channel_reestablish受信待ち[msec]
-
 //lnapp_conf_t.flag_recv
 #define M_FLAGRECV_INIT             (0x01)  ///< receive init
 #define M_FLAGRECV_INIT_EXCHANGED   (0x02)  ///< exchange init
 #define M_FLAGRECV_REESTABLISH      (0x04)  ///< receive channel_reestablish
 #define M_FLAGRECV_FUNDINGLOCKED    (0x08)  ///< receive funding locked
 #define M_FLAGRECV_END              (0x80)  ///< 初期化完了
-
-#define M_ANNO_UNIT             (10)        ///< 1回のanno_proc()での処理単位
-#define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
-
-#define M_PING_CNT              (M_WAIT_PING_SEC / M_WAIT_POLL_SEC)
-#define M_MISSING_PONG          (60)        ///< not ping reply
-
-#define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
-#define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
-#define M_ERRSTR_CANNOTSTART            "fail: can't start payment(local_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
 #define M_SZ_SCRIPT_PARAM       (512)
 
@@ -390,7 +370,7 @@ static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam)
     ln_cb_param_notify_annodb_update_t *p_cb_param = (ln_cb_param_notify_annodb_update_t *)pParam;
 
     if (p_cb_param->type != LN_CB_ANNO_TYPE_NONE) {
-        LOGD("update anno db: %d\n", (int)p_cb_param->type);
+        //LOGD("update anno db: %d\n", (int)p_cb_param->type);
         pConf->annodb_updated = true;
     }
     if (p_cb_param->type == LN_CB_ANNO_TYPE_CNL_ANNO) {
@@ -402,7 +382,7 @@ static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam)
             pConf->annodb_cont = false;
         }
         pConf->annodb_stamp = now;
-        LOGD("annodb_stamp: %u\n", pConf->annodb_stamp);
+        //LOGD("annodb_stamp: %u\n", pConf->annodb_stamp);
     }
 }
 
@@ -849,7 +829,10 @@ static void cb_closed(lnapp_conf_t *pConf, void *pParam)
 static void cb_send_req(lnapp_conf_t *pConf, void *pParam)
 {
     utl_buf_t *p_buf = (utl_buf_t *)pParam;
-    (void)lnapp_send_peer_noise(pConf, p_buf);
+    if (!lnapp_send_peer_noise(pConf, p_buf)) {
+        LOGE("fail: send peer noise\n");
+        lnapp_stop_threads(pConf);
+    }
 }
 
 

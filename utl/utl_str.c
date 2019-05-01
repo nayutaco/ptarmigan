@@ -141,7 +141,8 @@ bool utl_str_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
         str[0] = *(pStr + 2 * lp);
         str[1] = *(pStr + 2 * lp + 1);
         if (!isxdigit(str[0]) || !isxdigit(str[1])) {
-            LOGE("fail: str=%s\n", str);
+            //LOGE("fail: str=%s\n", str);
+            LOGE("fail: ???\n");
             ret = false;
             break;
         }
