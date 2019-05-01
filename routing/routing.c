@@ -239,7 +239,7 @@ int main(int argc, char* argv[])
 
         ln_routing_result_t result;
         lnerr_route_t rerr = ln_routing_calculate(&result, send_node_id,
-                    recv_node_id, cltv_expiry, amtmsat, 0, NULL);
+                    recv_node_id, cltv_expiry, amtmsat);
         if (rerr == LNROUTE_OK) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {

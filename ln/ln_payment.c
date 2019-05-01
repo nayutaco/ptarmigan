@@ -287,14 +287,18 @@ static ln_payment_error_t route_invoice(
         goto LABEL_ERROR;
     }
 
+    ln_routing_add_rfield(
+        p_invoice_data->r_field_num,
+        p_invoice_data->r_field,
+        p_invoice_data->pubkey);
+
     p_invoice_data->amount_msat += AdditionalAmountMsat;
 
     ln_routing_result_t route_result;
     lnerr_route_t err = ln_routing_calculate(
         &route_result, ln_node_get_id(), p_invoice_data->pubkey,
         BlockCount + p_invoice_data->min_final_cltv_expiry,
-        p_invoice_data->amount_msat, p_invoice_data->r_field_num,
-        p_invoice_data->r_field);
+        p_invoice_data->amount_msat);
     if (err != LNROUTE_OK) {
         LOGE("fail: routing\n");
         switch (err) {
