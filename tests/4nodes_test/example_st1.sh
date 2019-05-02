@@ -26,7 +26,7 @@ ln -s ../testfiles/sendrawtx.sh sendrawtx.sh
 
 bitcoind -conf=$CONFFILE -datadir=$DATADIR -daemon
 sleep $SLEEP_TM
-cli generate 432
+./generate.sh 432
 
 # 1台のPCで複数ノードを立ち上げるので、ディレクトリをそれぞれ作る。
 # 起動したディレクトリに関連ファイルを作成するためだ。
