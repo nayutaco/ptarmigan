@@ -84,7 +84,7 @@ echo wait...
 sleep 2
 
 # mining
-bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
+./generate.sh 6
 
 while :
 do
