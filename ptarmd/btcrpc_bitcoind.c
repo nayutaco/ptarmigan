@@ -155,24 +155,24 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
         json_t *p_result;
 
         ret = btcrpc_getblockcount(&height);
-        if (!ret) {
-            goto LABEL_EXIT;
+        if (ret) {
+            ret = getblockhash_rpc(&p_root, &p_result, &p_json, height);
         }
-        ret = getblockhash_rpc(&p_root, &p_result, &p_json, height);
-        if (!ret) {
-            goto LABEL_EXIT;
+        if (ret) {
+            ret = json_is_string(p_result);
         }
-        ret = json_is_string(p_result);
-        if (!ret) {
-            goto LABEL_EXIT;
+        if (ret) {
+            ret = utl_str_str2bin_rev(bhash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
         }
-        ret = utl_str_str2bin_rev(bhash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
         if (ret) {
             ln_creationhash_set(bhash);
         }
+        if (p_root != NULL) {
+            json_decref(p_root);
+        }
+        UTL_DBG_FREE(p_json);
     }
 
-LABEL_EXIT:
     return ret;
 }
 
