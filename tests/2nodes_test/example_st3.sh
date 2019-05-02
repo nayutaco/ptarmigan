@@ -21,7 +21,7 @@ echo wait...
 sleep 10
 
 # mining
-bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
+./generate.sh 6
 
 # 少し待つ
 echo wait............

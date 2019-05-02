@@ -1,3 +1,4 @@
 #!/bin/sh
 set -eu
-bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate $1
+ADDR=`bitcoin-cli -conf=$PWD/regtest.conf -datadir=$PWD getnewaddress`
+bitcoin-cli -conf=$PWD/regtest.conf -datadir=$PWD generatetoaddress $1 $ADDR
