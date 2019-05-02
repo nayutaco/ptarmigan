@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/queue.h>
 
 #include "utl_common.h"
 
@@ -299,24 +300,53 @@ typedef struct {
 } ln_anno_param_t;
 
 
-/** @typedef    ln_gquery_t
+#ifdef USE_GOSSIP_QUERY
+/** @struct     encoded_ids_t
+ *  @brief      encided_short_ids list
+ */
+typedef struct encoded_ids_t {
+    LIST_ENTRY(encoded_ids_t) list;
+    utl_buf_t               encoded_short_ids;
+} encoded_ids_t;
+
+LIST_HEAD(encoded_ids_head_t, encoded_ids_t);
+
+
+/** @typedef    ln_gossip_query_t
  *  @brief
  */
 typedef struct {
+    struct {
+        //for sending query_channel_range
+        uint32_t        first_blocknum;
+
+        /**
+         * 0の場合、query_channel_rangeの送信可
+         * BOLT#07:
+         *  MUST NOT send this if it has sent a previous query_channel_range to this peer and not received all reply_channel_range replies.
+         */
+        uint32_t        rest_blocks;
+
+        //for sending query_short_channel_ids
+        //  1. 受信したreply_channel_rangeのencoded_short_idsを展開する
+        //  2. 展開したencoded_short_idsを、1回に受信できるサイズにしてsend_encoded_idsに積む
+        struct encoded_ids_head_t   send_encoded_ids;
+
+        /**
+         * for sending query_short_channel_ids
+         * BOLT#07:
+         *  MUST NOT send query_short_channel_ids if it has sent a previous query_short_channel_ids to this peer and not received reply_short_channel_ids_end.
+         */
+        bool            wait_query_short_channel_ids_end;   //true:reply_short_channel_ids_end待ち
+                                                            // == can't send query_short_channel_ids
+    } request;
+
     //for receiving query_channel_range
     //  query_channel_rangeを1回受信すると、その範囲のreply_channel_rangeを返す。
     //  reply_channel_rangeは複数回に分ける可能性がある(サイズ次第)。
     //  ここでは、query_channel_range受信時にp_reply_rangeを全部準備する想定。
     //  sent_reply_range_numは送信ごとにインクリメントし、reply_range_numと等しくなれば全送信完了。
     //
-    //  だが。
-    //  reply_channel_rangeで返すべきデータがBOLT messageの最大長になるとしよう。
-    //  encoded_short_idsはきっとzlib圧縮されているだろう。
-    //  BOLTの考察で、zlib圧縮して65,535byteだった場合、short_channel_idsであれば
-    //  展開後のサイズは3,669,960byteくらいが最大になる、とのことであった。
-    //      https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#query-messages
-    //  short_channel_id数にすると46万程度。
-    //  現状では46万ものチャネル情報はないため、複数回のreply_channel_range返信は後回しとする。
     // uint32_t        sent_reply_range_num;   ///< sent reply_channel_range count
     // uint32_t        reply_range_num;        ///< p_reply_range count
     // struct {
@@ -330,19 +360,12 @@ typedef struct {
     //      可能性として、query_short_channel_idsで要求された個数よりも
     //          現状の数が少ないことがありうる(closeされた場合など)。
     //      その場合はsent_reply_anno_numを進めて続けるので、どちらかといえばindexか？
-    uint32_t        sent_reply_anno_num;    ///< sent announcment count
-    uint32_t        reply_anno_num;         ///< p_reply_short_ids count
-    uint64_t        *p_reply_short_ids;     ///< decoded short_channel_ids
+    // uint32_t        sent_reply_anno_num;    ///< sent announcment count
+    // uint32_t        reply_anno_num;         ///< p_reply_short_ids count
+    // uint64_t        *p_reply_short_ids;     ///< decoded short_channel_ids
 
-    //for sending query_short_channel_ids
-    //  query_short_channel_idsを1回送信すると、reply_short_channel_ids_endを
-    //  受信するまではquery_short_channel_idsを送信できない。
-    //  node接続後に問い合わせて、それ以降問い合わせたいことがあるかどうかはわからないが、
-    //  一応管理しておく。
-    bool            wait_query_short_channel_ids_end;   //true:reply_short_channel_ids_end待ち
-                                                        // == can't send query_short_channel_ids
-} ln_gquery_t;
-
+} ln_gossip_query_t;
+#endif
 
 /// @}
 
@@ -413,8 +436,10 @@ struct ln_channel_t {
     uint8_t                     prev_remote_commit_txid[BTC_SZ_TXID];
                                                                 ///< [COMM_03]previous remote commit tx's txid (for second last remote unilateral close)
 
+#ifdef USE_GOSSIP_QUERY
     //gossip_queries
-    ln_gquery_t                 gquery;                         ///< [GQRY_01]gossip_queries
+    ln_gossip_query_t           gossip_query;                   ///< [GQRY_01]gossip_queries
+#endif
 
     //last error
     int                         err;                            ///< [ERRO_01]error code(ln_err.h)

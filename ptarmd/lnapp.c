@@ -165,6 +165,9 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
 static bool send_announcement_signatures(lnapp_conf_t *p_conf);
 
 static void *thread_anno_start(void *pArg);
+#ifdef USE_GOSSIP_QUERY
+static void gossip_proc(lnapp_conf_t *p_conf);
+#endif
 static bool anno_proc(lnapp_conf_t *p_conf);
 static bool anno_senddata(
     lnapp_conf_t *p_conf, utl_push_t *p_push,
@@ -747,14 +750,14 @@ void *lnapp_thread_channel_start(void *pArg)
     // send `channel_update` for private/before publish channel
     send_cnlupd_before_announce(p_conf);
 
-#ifdef USE_GQUERY
+#ifdef USE_GOSSIP_QUERY
     ret = ln_query_channel_range_send(p_channel, 0, UINT32_MAX);
     if (ret) {
         (void)ln_gossip_timestamp_filter_send(p_channel);
     } else {
         LOGE("fail: ln_query_channel_range_send\n");
     }
-#endif  //USE_GQUERY
+#endif  //USE_GOSSIP_QUERY
 
     {
         // method: connected
@@ -1672,6 +1675,10 @@ static void *thread_anno_start(void *pArg)
             continue;
         }
 
+#ifdef USE_GOSSIP_QUERY
+        gossip_proc(p_conf);
+#endif
+
         bool retcnl = anno_proc(p_conf);
         if (retcnl) {
             //channel_listの最後まで見終わった
@@ -1694,6 +1701,34 @@ static void *thread_anno_start(void *pArg)
 
     return NULL;
 }
+
+
+#ifdef USE_GOSSIP_QUERY
+//試作
+static void gossip_proc(lnapp_conf_t *p_conf)
+{
+    pthread_mutex_lock(&p_conf->mux_conf);
+    ln_channel_t *p_channel = &p_conf->channel;
+    struct encoded_ids_t *p_list = LIST_FIRST(&p_channel->gossip_query.request.send_encoded_ids);
+    if (p_list != NULL) {
+        bool ret = ln_query_short_channel_ids_send(
+                        &p_conf->channel,
+                        p_list->encoded_short_ids.buf,
+                        p_list->encoded_short_ids.len);
+        if (ret) {
+            //remove
+            LIST_REMOVE(p_list, list);
+            utl_buf_free(&p_list->encoded_short_ids);
+            UTL_DBG_FREE(p_list);
+        } else {
+            LOGE("fail: send query_short_channel_ids\n");
+        }
+    } else {
+        LOGD("request list is clean\n");
+    }
+    pthread_mutex_unlock(&p_conf->mux_conf);
+}
+#endif
 
 
 /** channel_announcement/channel_update/node_announcement送信

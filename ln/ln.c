@@ -229,6 +229,10 @@ bool ln_init(
         pChannel->commit_info_remote.p_funding_info =
         &pChannel->funding_info;
 
+#ifdef USE_GOSSIP_QUERY
+    LIST_INIT(&pChannel->gossip_query.request.send_encoded_ids);
+#endif
+
     LOGD("END\n");
 
     return true;
@@ -1438,6 +1442,16 @@ static void channel_clear(ln_channel_t *pChannel)
     memset(pChannel->peer_node_id, 0, BTC_SZ_PUBKEY);
     pChannel->anno_flag = 0;
     pChannel->shutdown_flag = 0;
+
+#ifdef USE_GOSSIP_QUERY
+    encoded_ids_t *p = LIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
+    while (p) {
+        encoded_ids_t *p_bak = p;
+        p = LIST_NEXT(p, list);
+        utl_buf_free(&p_bak->encoded_short_ids);
+        UTL_DBG_FREE(p_bak);
+    }
+#endif
 
     ln_establish_free(pChannel);
 }
