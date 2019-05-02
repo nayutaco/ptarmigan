@@ -52,8 +52,6 @@
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答
 
-#define M_BITCOIND_RPC_METHOD_DEPRECATED (-32) //ref. https://github.com/bitcoin/bitcoin/blob/master/src/rpc/protocol.h
-
 
 /**************************************************************************
  * typedefs
@@ -73,7 +71,6 @@ typedef struct {
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight);
 static bool getrawtx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
 static bool getrawtxstr(btc_tx_t *pTx, const char *txid);
-static bool signrawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode);
 static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
@@ -82,7 +79,6 @@ static bool getversion(int64_t *pVersion);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail);
-static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction);
 static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction);
 static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction);
 static bool gettxout_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, int idx);
@@ -448,10 +444,6 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 
 bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount)
 {
-    int code = 0;
-
-    if (signrawtx(pTx, pData, Len, Amount, &code)) return true;
-    if (code != M_BITCOIND_RPC_METHOD_DEPRECATED) return false;
     return signrawtx_with_wallet(pTx, pData, Len, Amount);
 }
 
@@ -757,52 +749,6 @@ LABEL_EXIT:
 }
 
 
-static bool signrawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode)
-{
-    (void)Amount;
-
-    bool result = false;
-    bool ret;
-    char *p_json = NULL;
-    char *transaction;
-    json_t *p_root = NULL;
-    json_t *p_result;
-
-    *pCode = 0;
-    transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
-    utl_str_bin2str(transaction, pData, Len);
-
-    ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
-    UTL_DBG_FREE(transaction);
-    if (ret) {
-        json_t *p_hex;
-
-        p_hex = json_object_get(p_result, M_HEX);
-        if (json_is_string(p_hex)) {
-            const char *p_sigtx = (const char *)json_string_value(p_hex);
-            size_t len = strlen(p_sigtx) / 2;
-            uint8_t *p_buf = UTL_DBG_MALLOC(len);
-            utl_str_str2bin(p_buf, len, p_sigtx);
-            btc_tx_free(pTx);
-            result = btc_tx_read(pTx, p_buf, len);
-            UTL_DBG_FREE(p_buf);
-        } else {
-            int code = error_result(p_root);
-            LOGD("err code=%d\n", code);
-            *pCode = code;
-        }
-    } else {
-        LOGE("fail: signrawtransaction_rpc()\n");
-    }
-    if (p_root != NULL) {
-        json_decref(p_root);
-    }
-    UTL_DBG_FREE(p_json);
-
-    return result;
-}
-
-
 static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount)
 {
     (void)Amount;
@@ -842,6 +788,7 @@ static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Le
         json_decref(p_root);
     }
     UTL_DBG_FREE(p_json);
+    LOGD("result=%d\n", result);
 
     return result;
 }
@@ -1099,30 +1046,6 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
             M_1("method", "getrawtransaction") M_NEXT
             M_QQ("params") ":[" M_QQ("%s") ", %s]"
         "}", pTxid, (detail) ? "true" : "false");
-
-    bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
-    UTL_DBG_FREE(data);
-
-    return ret;
-}
-
-
-/** [cURL]signrawtransaction
- *
- */
-static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
-{
-    size_t len = 256 + strlen(pTransaction);
-    char *data = (char *)UTL_DBG_MALLOC(len);
-    snprintf(data, len,
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
-
-            ///////////////////////////////////////////
-            M_1("method", "signrawtransaction") M_NEXT
-            M_QQ("params") ":[" M_QQ("%s") "]"
-        "}", pTransaction);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
     UTL_DBG_FREE(data);
