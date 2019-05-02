@@ -405,6 +405,7 @@ static void connect_nodelist(void)
     bool bconf = conf_connect_load(FNAME_CONF_CONNLIST, p_conf);
     if (!bconf) {
         LOGD("no connect list\n");
+        UTL_DBG_FREE(p_conf);
         return;
     }
     for (int lp = 0; lp < PTARMD_CONNLIST_MAX; lp++) {
