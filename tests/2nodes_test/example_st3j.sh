@@ -14,7 +14,7 @@
 ADDR=`./ptarmcli --getnewaddress 4445 | jq -er '.result'`
 echo sendtoaddress ${ADDR}
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` sendtoaddress ${ADDR} 0.1
-bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 1
+./generate.sh 1
 sleep 3
 
 # node_4444からnode_3333へチャネルを開く。
@@ -28,7 +28,7 @@ fi
 sleep 2
 
 # mining
-bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
+./generate.sh 6
 
 while :
 do
