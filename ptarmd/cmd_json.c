@@ -1052,7 +1052,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_db_route_skip_work(true);
 
     cJSON       *result = NULL;
-    int         err = 0;
+    int         err = RPCERR_PARSE;
     cJSON       *json;
     int32_t     block_count;
     int         index = 0;
@@ -1060,7 +1060,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint64_t    add_amount_msat = 0;
 
     if (params == NULL) {
-        err = RPCERR_PARSE;
         goto LABEL_ERROR;
     }
 
