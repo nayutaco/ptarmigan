@@ -301,15 +301,15 @@ typedef struct {
 
 
 #ifdef USE_GOSSIP_QUERY
-/** @struct     encoded_ids_t
+/** @struct     ln_anno_encoded_ids_t
  *  @brief      encided_short_ids list
  */
-typedef struct encoded_ids_t {
-    LIST_ENTRY(encoded_ids_t) list;
+typedef struct ln_anno_encoded_ids_t {
+    LIST_ENTRY(ln_anno_encoded_ids_t) list;
     utl_buf_t               encoded_short_ids;
-} encoded_ids_t;
+} ln_anno_encoded_ids_t;
 
-LIST_HEAD(encoded_ids_head_t, encoded_ids_t);
+LIST_HEAD(ln_anno_encoded_ids_head_t, ln_anno_encoded_ids_t);
 
 
 /** @typedef    ln_gossip_query_t
@@ -330,7 +330,7 @@ typedef struct {
         //for sending query_short_channel_ids
         //  1. 受信したreply_channel_rangeのencoded_short_idsを展開する
         //  2. 展開したencoded_short_idsを、1回に受信できるサイズにしてsend_encoded_idsに積む
-        struct encoded_ids_head_t   send_encoded_ids;
+        struct ln_anno_encoded_ids_head_t   send_encoded_ids;
 
         /**
          * for sending query_short_channel_ids

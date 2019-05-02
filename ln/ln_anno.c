@@ -672,9 +672,9 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
 #endif
 
                 //find last pointer
-                struct encoded_ids_t *p_list = LIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
+                struct ln_anno_encoded_ids_t *p_list = LIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
                 while (p_list != NULL) {
-                    struct encoded_ids_t *p_next = LIST_NEXT(p_list, list);
+                    struct ln_anno_encoded_ids_t *p_next = LIST_NEXT(p_list, list);
                     if (p_next == NULL) {
                         break;
                     }
@@ -683,7 +683,7 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
                 //add last
                 uint64_t cnt = 0;
                 while (ids > 0) {
-                    struct encoded_ids_t *p_encoded = (struct encoded_ids_t *)UTL_DBG_MALLOC(sizeof(struct encoded_ids_t));
+                    struct ln_anno_encoded_ids_t *p_encoded = (struct ln_anno_encoded_ids_t *)UTL_DBG_MALLOC(sizeof(struct ln_anno_encoded_ids_t));
                     utl_buf_alloc(&p_encoded->encoded_short_ids, 1 + sizeof(uint64_t) * M_SEND_ENCODED_IDS);
                     uint8_t *p = p_encoded->encoded_short_ids.buf;
                     *p = LN_GOSSIPQUERY_ENCODE_NONE;
@@ -709,7 +709,7 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
 #if 0
                 LOGD("------------------------------------\n");
                 cnt = 0;
-                struct encoded_ids_t *p_var;
+                struct ln_anno_encoded_ids_t *p_var;
                 LIST_FOREACH(p_var, &pChannel->gossip_query.request.send_encoded_ids, list) {
                     LOGD("encode: %02x\n", p_var->encoded_short_ids.buf[0]);
                     const uint8_t *p = p_var->encoded_short_ids.buf + 1;

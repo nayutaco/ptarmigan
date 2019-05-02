@@ -1444,9 +1444,9 @@ static void channel_clear(ln_channel_t *pChannel)
     pChannel->shutdown_flag = 0;
 
 #ifdef USE_GOSSIP_QUERY
-    encoded_ids_t *p = LIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
+    ln_anno_encoded_ids_t *p = LIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
     while (p) {
-        encoded_ids_t *p_bak = p;
+        ln_anno_encoded_ids_t *p_bak = p;
         p = LIST_NEXT(p, list);
         utl_buf_free(&p_bak->encoded_short_ids);
         UTL_DBG_FREE(p_bak);
