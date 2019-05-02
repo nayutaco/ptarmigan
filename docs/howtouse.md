@@ -83,6 +83,7 @@ After connecting, you can open channel with connection node.
 
 ```bash
 # create funding file
+# (this script use current bitcoind wallet.)
 ../pay_fundin.py AMOUNT_SAT
 (create fund_xxxx.conf)
 

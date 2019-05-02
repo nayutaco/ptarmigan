@@ -9,12 +9,7 @@ if [ ${BASENAME} != "install" ]; then
 	exit 1
 fi
 
-DATADIR=$PWD/instanttest
-mkdir -p ${DATADIR}
-bitcoind -datadir=${DATADIR} -conf=$PWD/../tools/regtesttest.conf -daemon
-sleep 5
-
-CLI="bitcoin-cli -datadir=${DATADIR} -conf=$PWD/../tools/regtesttest.conf"
+CLI="bitcoin-cli"
 
 CHAIN=`${CLI} getblockchaininfo | jq -r -e '.chain'`
 if [ "${CHAIN}" != "regtest" ]; then
@@ -24,7 +19,7 @@ fi
 
 BLOCK=`${CLI} getblockcount`
 if [ ${BLOCK} -lt 500 ]; then
-    bitcoin-cli generate 500
+    ${CLI} generate 500
     sleep 5
 fi
 ${CLI} sendtoaddress `${CLI} getnewaddress` 0.1
