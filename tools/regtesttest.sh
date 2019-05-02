@@ -32,9 +32,9 @@ rm -rf aaaa bbbb
 ./new_nodedir.sh bbbb
 
 cd aaaa
-../ptarmd --network=regtest --conf=$PWD/../../tools/regtesttest.conf --port=12345&
+../ptarmd --network=regtest --port=12345&
 cd ../bbbb
-../ptarmd --network=regtest --conf=$PWD/../../tools/regtesttest.conf --port=23456&
+../ptarmd --network=regtest --port=23456&
 cd ..
 
 sleep 2
@@ -151,11 +151,9 @@ echo --------------------------------------
 ./ptarmcli -q 12346
 ./ptarmcli -q 23457
 
-${CLI} stop
 sleep 3
-rm -rf ${DATADIR}
-rm -rf aaaa
-rm -rf bbbb
+
+rm -rf aaaa bbbb
 
 echo --------------------------------------
 
