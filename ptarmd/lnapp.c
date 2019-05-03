@@ -1709,7 +1709,7 @@ static void gossip_proc(lnapp_conf_t *p_conf)
 {
     pthread_mutex_lock(&p_conf->mux_conf);
     ln_channel_t *p_channel = &p_conf->channel;
-    struct ln_anno_encoded_ids_t *p_list = LIST_FIRST(&p_channel->gossip_query.request.send_encoded_ids);
+    struct ln_anno_encoded_ids_t *p_list = SLIST_FIRST(&p_channel->gossip_query.request.send_encoded_ids);
     if (p_list != NULL) {
         bool ret = ln_query_short_channel_ids_send(
                         &p_conf->channel,
@@ -1717,7 +1717,7 @@ static void gossip_proc(lnapp_conf_t *p_conf)
                         p_list->encoded_short_ids.len);
         if (ret) {
             //remove
-            LIST_REMOVE(p_list, list);
+            SLIST_REMOVE_HEAD(p_list, list);
             utl_buf_free(&p_list->encoded_short_ids);
             UTL_DBG_FREE(p_list);
         } else {

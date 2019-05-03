@@ -230,7 +230,7 @@ bool ln_init(
         &pChannel->funding_info;
 
 #ifdef USE_GOSSIP_QUERY
-    LIST_INIT(&pChannel->gossip_query.request.send_encoded_ids);
+    SLIST_INIT(&pChannel->gossip_query.request.send_encoded_ids);
 #endif
 
     LOGD("END\n");
@@ -1444,10 +1444,10 @@ static void channel_clear(ln_channel_t *pChannel)
     pChannel->shutdown_flag = 0;
 
 #ifdef USE_GOSSIP_QUERY
-    ln_anno_encoded_ids_t *p = LIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
+    ln_anno_encoded_ids_t *p = SLIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
     while (p) {
         ln_anno_encoded_ids_t *p_bak = p;
-        p = LIST_NEXT(p, list);
+        p = SLIST_NEXT(p, list);
         utl_buf_free(&p_bak->encoded_short_ids);
         UTL_DBG_FREE(p_bak);
     }

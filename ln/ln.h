@@ -305,11 +305,11 @@ typedef struct {
  *  @brief      encided_short_ids list
  */
 typedef struct ln_anno_encoded_ids_t {
-    LIST_ENTRY(ln_anno_encoded_ids_t) list;
+    SLIST_ENTRY(ln_anno_encoded_ids_t) list;
     utl_buf_t               encoded_short_ids;
 } ln_anno_encoded_ids_t;
 
-LIST_HEAD(ln_anno_encoded_ids_head_t, ln_anno_encoded_ids_t);
+SLIST_HEAD(ln_anno_encoded_ids_head_t, ln_anno_encoded_ids_t);
 
 
 /** @typedef    ln_gossip_query_t
