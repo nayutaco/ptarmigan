@@ -19,11 +19,9 @@ fi
 
 BLOCK=`${CLI} getblockcount`
 if [ ${BLOCK} -lt 500 ]; then
-    ${CLI} generate 500
+    ${CLI} generatetoaddress 500 `${CLI} getnewaddress`
     sleep 5
 fi
-${CLI} sendtoaddress `${CLI} getnewaddress` 0.1
-${CLI} generate 1
 
 sleep 5
 
@@ -52,7 +50,7 @@ sleep 1
 
 sleep 1
 
-${CLI} generate 1
+${CLI} generatetoaddress 1  `${CLI} getnewaddress`
 
 while :
 do
@@ -120,7 +118,7 @@ echo --------------------------------------
 ./ptarmcli -c ${NODE1} -x 23457
 
 sleep 3
-${CLI} generate 1
+${CLI} generatetoaddress 1  `${CLI} getnewaddress`
 
 while :
 do
