@@ -3250,22 +3250,33 @@ bool ln_db_revoked_tx_load(ln_channel_t *pChannel, void *pDbParam)
 
 bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDbParam)
 {
+    bool ret = true;
+    int retval;
     MDB_val key, data;
     ln_lmdb_db_t   db;
+    ln_lmdb_db_t   *p_db_param = (ln_lmdb_db_t *)pDbParam;
     char        db_name[M_SZ_CHANNEL_DB_NAME_STR + 1];
     utl_buf_t buf = UTL_BUF_INIT;
     utl_push_t push;
 
-    db.p_txn = ((ln_lmdb_db_t *)pDbParam)->p_txn;
-    assert(db.p_txn);
+    if (pDbParam != NULL) {
+        db.p_txn = p_db_param->p_txn;
+    } else {
+        retval = MDB_TXN_BEGIN(mpEnvChannel, NULL, 0, &db.p_txn);
+        if (retval) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            return false;
+        }
+    }
 
     memcpy(db_name, M_PREF_REVOKED_TX, M_SZ_PREF_STR);
     utl_str_bin2str(db_name + M_SZ_PREF_STR, pChannel->channel_id, LN_SZ_CHANNEL_ID);
 
-    int retval = MDB_DBI_OPEN(db.p_txn, db_name, MDB_CREATE, &db.dbi);
+    retval = MDB_DBI_OPEN(db.p_txn, db_name, MDB_CREATE, &db.dbi);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
 
     key.mv_size = LN_DB_KEY_RLEN;
@@ -3280,7 +3291,8 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
     utl_buf_free(&buf);
 
@@ -3295,7 +3307,8 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
     utl_buf_free(&buf);
 
@@ -3305,7 +3318,8 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
 
     key.mv_data = LN_DB_KEY_RVS;
@@ -3314,7 +3328,8 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
 
     key.mv_data = LN_DB_KEY_RVN;
@@ -3326,7 +3341,8 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
 
     key.mv_data = LN_DB_KEY_RVC;
@@ -3335,7 +3351,8 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
-        return false;
+        ret = false;
+        goto LABEL_EXIT;
     }
 
     if (bUpdate) {
@@ -3344,15 +3361,22 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
         retval = MDB_DBI_OPEN(db.p_txn, db_name, 0, &db.dbi);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
-            return false;
+            ret = false;
+            goto LABEL_EXIT;
         }
         retval = channel_save(pChannel, &db);
         if (retval) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
-            return false;
+            ret = false;
+            goto LABEL_EXIT;
         }
     }
-    return true;
+
+LABEL_EXIT:
+    if (pDbParam == NULL) {
+        MDB_TXN_COMMIT(db.p_txn);
+    }
+    return ret;
 }
 
 
