@@ -210,19 +210,6 @@ typedef enum {
  * typedefs : HTLC
  **************************************************************************/
 
-/** @struct ln_fundin_t
- *  @brief  open_channelでのfund_in情報
- *  @note
- *      - open_channelする方が #ln_establish_t .p_fundinに設定して使う
- */
-typedef struct {
-    uint8_t                     txid[BTC_SZ_TXID];              ///< 2-of-2へ入金するTXID
-    int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
-    uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
-    utl_buf_t                   change_spk;                     ///< 2-of-2へ入金したお釣りの送金先ScriptPubkey
-} ln_fundin_t;
-
-
 /** @struct ln_establish_param_t
  *  @brief  Establish関連のパラメータ
  *  @note
@@ -243,7 +230,6 @@ typedef struct {
  *  @brief  [Establish]ワーク領域
  */
 typedef struct {
-    ln_fundin_t                 *p_fundin;          ///< 非NULL:open_channel側
     ln_establish_param_t        param;              ///< channel establish parameter
 } ln_establish_t;
 

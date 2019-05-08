@@ -90,9 +90,6 @@ void ln_funding_info_set_txid(ln_funding_info_t *pFundingInfo, const uint8_t *pT
 const uint8_t *ln_funding_info_txid(const ln_funding_info_t *pFundingInfo);
 
 
-void ln_funding_info_set_txindex(ln_funding_info_t *pFundingInfo, uint32_t Txindex);
-
-
 /** funding_txのTXINDEX取得
  *
  * @param[in]           pFundingInfo        funding info

@@ -261,9 +261,29 @@ static void cb_funding_tx_sign(lnapp_conf_t *pConf, void *pParam)
 
     ln_cb_param_sign_funding_tx_t *p_cb_param = (ln_cb_param_sign_funding_tx_t *)pParam;
 
+    //P2WSH
+    const uint8_t *p_witprog = p_cb_param->p_buf_scriptpk->buf;
+    if (p_cb_param->p_buf_scriptpk->len != BTC_SZ_WITPROG_P2WSH) {
+        LOGE("fail: invalid length: %d\n", (int)p_cb_param->p_buf_scriptpk->len);
+        p_cb_param->ret = false;
+        return;
+    }
+    if (p_witprog[0] != 0) {
+        LOGE("fail: not P2WSH\n");
+        p_cb_param->ret = false;
+        return;
+    }
+    if (p_witprog[1] != BTC_SZ_HASH256) {
+        LOGE("fail: not P2WSH len\n");
+        p_cb_param->ret = false;
+        return;
+    }
+
     p_cb_param->ret = btcrpc_sign_fundingtx(
-        p_cb_param->p_tx, p_cb_param->buf_tx.buf,
-        p_cb_param->buf_tx.len, p_cb_param->fundin_amount);
+        p_cb_param->p_tx,
+        p_cb_param->p_buf_scriptpk,
+        p_cb_param->amount,
+        monitor_btc_feerate_per_kw() * 4);
 }
 
 
@@ -426,7 +446,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *pConf, void *pParam)
             p_cb_param->p_forward_param->outgoing_cltv_value, str_hash);
         ptarmd_call_script(PTARMD_EVT_FORWARD, param);
 
-#if 0 //XXX: channel_id   
+#if 0 //XXX: channel_id
         ptarmd_eventlog(
             ln_channel_id(&p_nextconf->channel),
             "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",

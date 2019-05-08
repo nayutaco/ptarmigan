@@ -513,25 +513,9 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //funding parameter
     //txid
-    json = cJSON_GetArrayItem(params, index++);
-#ifdef USE_BITCOIND
-    if (json && (json->type == cJSON_String)) {
-        utl_str_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
-        LOGD("txid=%s\n", json->valuestring);
-    } else {
-        goto LABEL_EXIT;
-    }
-#endif
+    (void)cJSON_GetArrayItem(params, index++);
     //txindex
-    json = cJSON_GetArrayItem(params, index++);
-#ifdef USE_BITCOIND
-    if (json && (json->type == cJSON_Number)) {
-        fundconf.txindex = json->valueint;
-        LOGD("txindex=%d\n", json->valueint);
-    } else {
-        goto LABEL_EXIT;
-    }
-#endif
+    (void)cJSON_GetArrayItem(params, index++);
     //funding_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {

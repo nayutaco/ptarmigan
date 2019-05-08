@@ -126,13 +126,13 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 
 
 /** [bitcoin IF]signrawtransaction for funding transaction
- * @param[in,out]  pTx      (in)[SPV]vout[0]=scriptPubKey, (out)signed transaction
- * @param[in]   pData       [bitcoind]raw transaction, [SPV]ignore
- * @param[in]   Len         [bitcoind]pData length, [SPV]ignore
- * @param[in]   Amount      [bitcoind]fundin amount, [SPV]ignore
+ * @param[out]  pTx         signed transaction
+ * @param[in]   pAddr       send address
+ * @param[in]   Amount      send amount
+ * @param[in]   feeratePerKb    feerate per KB(1000byte)
  * @retval  true        success
  */
-bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount);
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pAddr, uint64_t Amount, uint32_t feeratePerKb);
 
 
 /** [bitcoin IF]sendrawtransaction

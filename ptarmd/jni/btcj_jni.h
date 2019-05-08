@@ -70,7 +70,7 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
 bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid);
 bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
 bool btcj_search_vout(btcj_buf_t **ppTxBuf, uint32_t blks, const btcj_buf_t *pVout);
-bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_t **ppTxData);
+bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, uint32_t feeratePerKb, btcj_buf_t **ppTxData);
 bool btcj_sendraw_tx(uint8_t *pTxid, int *pCode, const btcj_buf_t *pTxData);
 bool btcj_is_tx_broadcasted(const uint8_t *pTxid);
 bool btcj_check_unspent(const uint8_t *pPeerId, bool *pUnspent, const uint8_t *pTxid, uint32_t VIndex);

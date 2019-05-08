@@ -82,7 +82,7 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign);
  **************************************************************************/
 
 bool /*HIDDEN*/ ln_open_channel_send(
-    ln_channel_t *pChannel, const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushMSat, uint32_t FeeRate,
+    ln_channel_t *pChannel, uint64_t FundingSat, uint64_t PushMSat, uint32_t FeeRate,
     uint8_t PrivChannel)
 {
     if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
@@ -105,13 +105,6 @@ bool /*HIDDEN*/ ln_open_channel_send(
 
     //temporary_channel_id
     btc_rng_rand(pChannel->channel_id, LN_SZ_CHANNEL_ID);
-
-#if defined(USE_BITCOIND)
-    pChannel->establish.p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));
-    memcpy(pChannel->establish.p_fundin, pFundin, sizeof(ln_fundin_t));
-#else
-    (void)pFundin;
-#endif
 
     //open_channel
     ln_msg_open_channel_t msg;
@@ -460,7 +453,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
         return false;
     }
 
-    ln_funding_info_set_txindex(&pChannel->funding_info, msg.funding_output_index);
+    pChannel->funding_info.txindex = msg.funding_output_index;
 
     //署名チェック用
     btc_tx_free(&pChannel->funding_info.tx_data);
@@ -859,85 +852,21 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
         &pChannel->funding_info.wit_script, &pChannel->funding_info.key_order,
         pChannel->keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
         pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
-
-    if (pChannel->establish.p_fundin != NULL) {
-        //output
-        ln_funding_info_set_txindex(&pChannel->funding_info, M_FUNDING_INDEX);      //TODO: vout#0は2-of-2、vout#1はchangeにしている
-        //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-        btc_sw_add_vout_p2wsh_wit(
-                &pChannel->funding_info.tx_data, pChannel->funding_info.funding_satoshis, &pChannel->funding_info.wit_script);
-
-        //vout#1:P2WPKH - change(amountは後で代入)
-        btc_tx_add_vout_spk(&pChannel->funding_info.tx_data, (uint64_t)-1, &pChannel->establish.p_fundin->change_spk);
-
-        //input
-        //vin#0
-        btc_tx_add_vin(
-            &pChannel->funding_info.tx_data, pChannel->establish.p_fundin->txid, pChannel->establish.p_fundin->index);
-
-        //FEE計算
-        // LEN+署名(72) + LEN+公開鍵(33)
-        //  この時点では、pChannel->funding_info.tx_data に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
-        //
-        //    (length)
-        //      version:4
-        //      flag:1
-        //      mark:1
-        //      vin_cnt: 1
-        //          txid+index: 36
-        //          scriptSig: 1+23
-        //          sequence: 4
-        //      vout_cnt: 2
-        //          amount: 8
-        //          scriptPubKey: 1+34
-        //          amount: 8
-        //          scriptPubKey: 1+23
-        //      wit_item_cnt: 2
-        //          sig: 1+72
-        //          pub: 1+33
-        //      locktime: 4
-        //ToDo: issue #344: nested in BIP16 size
-        uint64_t fee = ln_calc_fee(
-            LN_SZ_FUNDINGTX_VSIZE,
-            ln_update_info_get_feerate_per_kw_committed(&pChannel->update_info, true));
-        LOGD("fee=%" PRIu64 "\n", fee);
-        if (pChannel->establish.p_fundin->amount >= pChannel->funding_info.funding_satoshis + fee) {
-            pChannel->funding_info.tx_data.vout[1].value =
-                pChannel->establish.p_fundin->amount - pChannel->funding_info.funding_satoshis - fee;
-        } else {
-            LOGE("fail: amount too short:\n");
-            LOGD("    amount=%" PRIu64 "\n", pChannel->establish.p_fundin->amount);
-            LOGD("    funding_satoshis=%" PRIu64 "\n", pChannel->funding_info.funding_satoshis);
-            LOGD("    fee=%" PRIu64 "\n", fee);
-            return false;
-        }
-    } else {
-        //for SPV
-        //fee計算と署名はSPVに任せる(LN_CB_TYPE_SIGN_FUNDING_TXで吸収する)
-
-        //funding address(vout[0])
-        btc_sw_add_vout_p2wsh_wit(
-            &pChannel->funding_info.tx_data, pChannel->funding_info.funding_satoshis, &pChannel->funding_info.wit_script);
-        btc_tx_add_vin(&pChannel->funding_info.tx_data, ln_funding_info_txid(&pChannel->funding_info), 0); //dummy
-    }
-
     //sign
     if (!bSign) return true; //not sign
 
+    utl_buf_t two_of_two = UTL_BUF_INIT;
+    btc_script_p2wsh_create_scriptpk(&two_of_two, &pChannel->funding_info.wit_script);
+
     ln_cb_param_sign_funding_tx_t param;
     param.p_tx =  &pChannel->funding_info.tx_data;
-    utl_buf_init(&param.buf_tx);
-    if (pChannel->establish.p_fundin != NULL) {
-        btc_tx_write(param.p_tx, &param.buf_tx);
-        param.fundin_amount = pChannel->establish.p_fundin->amount;
-    } else {
-        param.fundin_amount = 0;
-    }
+    param.p_buf_scriptpk = &two_of_two;
+    param.amount = pChannel->funding_info.funding_satoshis;
     ln_callback(pChannel, LN_CB_TYPE_SIGN_FUNDING_TX, &param);
-    utl_buf_free(&param.buf_tx);
     if (!param.ret) {
         LOGE("fail: signature\n");
         btc_tx_free(&pChannel->funding_info.tx_data);
+        utl_buf_free(&two_of_two);
         return false;
     }
 
@@ -948,8 +877,6 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     M_DBG_PRINT_TX(&pChannel->funding_info.tx_data);
 
     //search funding vout
-    utl_buf_t two_of_two = UTL_BUF_INIT;
-    btc_script_p2wsh_create_scriptpk(&two_of_two, &pChannel->funding_info.wit_script);
     uint32_t lp;
     for (lp = 0; lp < pChannel->funding_info.tx_data.vout_cnt; lp++) {
         if (utl_buf_equal(&pChannel->funding_info.tx_data.vout[lp].script, &two_of_two)) break;
@@ -957,10 +884,12 @@ static bool create_funding_tx(ln_channel_t *pChannel, bool bSign)
     utl_buf_free(&two_of_two);
     if (lp == pChannel->funding_info.tx_data.vout_cnt) {
         //not found
+        LOGE("fail: vout not found\n");
         btc_tx_free(&pChannel->funding_info.tx_data);
         return false;
     }
-    ln_funding_info_set_txindex(&pChannel->funding_info, lp);
+    pChannel->funding_info.txindex = lp;
+
     LOGD("funding_txindex=%d\n", ln_funding_info_txindex(&pChannel->funding_info));
     return true;
 }

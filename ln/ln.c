@@ -334,8 +334,6 @@ bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_param_t *pPar
     LOGD("BEGIN\n");
 
     if (pParam) {
-        pChannel->establish.p_fundin = NULL;       //open_channel送信側が設定する
-
         memcpy(&pChannel->establish.param, pParam, sizeof(ln_establish_param_t));
         LOGD("dust_limit_sat= %" PRIu64 "\n", pChannel->establish.param.dust_limit_sat);
         LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pChannel->establish.param.max_htlc_value_in_flight_msat);
@@ -354,11 +352,6 @@ bool ln_establish_alloc(ln_channel_t *pChannel, const ln_establish_param_t *pPar
 
 void ln_establish_free(ln_channel_t *pChannel)
 {
-    if (pChannel->establish.p_fundin != NULL) {
-        LOGD("pChannel->establish.p_fundin=%p\n", pChannel->establish.p_fundin);
-        UTL_DBG_FREE(pChannel->establish.p_fundin);
-        LOGD("free\n");
-    }
     pChannel->funding_info.state = (ln_funding_state_t)((pChannel->funding_info.state & ~LN_FUNDING_STATE_STATE_FUNDING) | LN_FUNDING_STATE_STATE_OPENED);
 }
 

@@ -78,10 +78,6 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
-#ifdef USE_BITCOIND
-#define M_TMPFUNDCONF       "fundtmp.conf"
-#endif
-
 #define M_CHK_INIT      {\
     if (*pOption != M_OPTIONS_INIT) {           	\
         fprintf(stderr, "fail: too many options\n");   	\
@@ -304,11 +300,7 @@ static void print_help(void)
 
     fprintf(stderr, "\tCONNECT:\n");
     fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
-#if defined(USE_BITCOIND)
-    fprintf(stderr, "\t\t-c PEER_NODE_ID -f FUND.CONF [--private]: funding\n");
-#elif defined(USE_BITCOINJ)
     fprintf(stderr, "\t\t-c PEER_NODE_ID -f AMOUNT_SATOSHIS [--private]: funding\n");
-#endif
     fprintf(stderr, "\t\t-c PEER_NODE_ID -x : mutual close channel\n");
     fprintf(stderr, "\t\t-c PEER_NODE_ID -xforce: unilateral close channel\n");
     fprintf(stderr, "\t\t-c PEER_NODE_ID -w : get last error\n");
@@ -488,22 +480,18 @@ static void optfunc_funding(int *pOption, bool *pConn)
 
     bool bret = false;
     funding_conf_t fundconf;
+
     conf_funding_init(&fundconf);
-#ifdef USE_BITCOIND
-    bret = conf_funding_load(optarg, &fundconf);
-    bool bitcoindconf_fail = bret;
-#endif
-    if (!bret) {
-        //SPVの場合、funding_satoshisだけの指定でも受け付けられる
-        const char *param = strtok(optarg, ",");
-        char *endp = NULL;
-        fundconf.funding_sat = (uint64_t)strtoul(param, &endp, 10);
-        if ((endp != NULL) && (*endp != 0x00)) {
-            //変換失敗
-            LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
-        } else {
-            bret = true;
-        }
+    const char *param = strtok(optarg, ",");
+    char *endp = NULL;
+    fundconf.funding_sat = (uint64_t)strtoul(param, &endp, 10);
+    if ((endp != NULL) && (*endp != 0x00)) {
+        //変換失敗
+        LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
+    } else {
+        bret = true;
+    }
+    if (bret) {
         param = strtok(NULL, ",");
         if ((param != NULL) && (*param != '\0')) {
             fundconf.push_msat = (uint64_t)strtoul(param, &endp, 10);
@@ -521,30 +509,6 @@ static void optfunc_funding(int *pOption, bool *pConn)
             }
         }
     }
-#ifdef USE_BITCOIND
-    if (!bitcoindconf_fail) {
-        LOGD("execute script\n");
-
-        ssize_t buff_len;
-        char exec_path[PATH_MAX];
-        if((buff_len = readlink("/proc/self/exe", exec_path, sizeof(exec_path) - 1)) != -1) {
-            exec_path[buff_len] = '\0';
-            dirname(exec_path);
-        }
-
-        size_t sclen = strlen(exec_path) + 128;
-        char *cmdline = (char *)UTL_DBG_MALLOC(sclen);  //UTL_DBG_FREE: この中
-        snprintf(cmdline, sclen, "python3 %s/pay_fundin.py %" PRIu64 " %" PRIu64 " " M_TMPFUNDCONF,
-                    exec_path,
-                    fundconf.funding_sat,
-                    fundconf.push_msat);
-        fprintf(stderr, "cmdline: %s\n", cmdline);
-        system(cmdline);
-        UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
-        bret = conf_funding_load(M_TMPFUNDCONF, &fundconf);
-        unlink(M_TMPFUNDCONF);
-    }
-#endif
     if (bret) {
         char txid[BTC_SZ_TXID * 2 + 1];
 
