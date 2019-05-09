@@ -1145,6 +1145,7 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 
     if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) return;
     if (!M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag)) return;
+    if (pChannel->status != LN_STATUS_NORMAL_OPE) return;
 
     if (ln_is_shutdowning(pChannel)) {
         /*ignore*/poll_update_add_htlc_forward_closing(pChannel);
