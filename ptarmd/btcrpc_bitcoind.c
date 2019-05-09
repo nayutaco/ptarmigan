@@ -471,7 +471,7 @@ bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Am
         char change_addr[BTC_SZ_ADDR_STR_MAX + 1];
         ret = btcrpc_getnewaddress(change_addr);
         if (ret) {
-            btc_tx_add_vout_spk(&tx_nosign, change, pWitProg);
+            btc_tx_add_vout_addr(&tx_nosign, change, change_addr);
         } else {
             LOGE("fail: getnewaddress\n");
             return false;
@@ -1370,7 +1370,8 @@ static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
 
              ///////////////////////////////////////////
              M_JSON_STR("method", "getnewaddress") M_NEXT
-             M_QQ("params") ":[]"
+             //M_QQ("params") ":[" M_QQ("") ", " M_QQ("bech32") "]"
+             M_QQ("params") ":[" M_QQ("") ", " M_QQ("p2sh-segwit") "]"
              "}");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
