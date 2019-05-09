@@ -869,7 +869,8 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
     uint64_t fee = (pChannel->p_revoked_type[WitIndex] == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? fee_info.htlc_timeout_fee : fee_info.htlc_success_fee;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
-    ln_htlc_tx_create(pTx, Value - fee, &pChannel->shutdown_scriptpk_local, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
+    ln_htlc_tx_create(pTx, Value - fee, NULL, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
+    btc_tx_add_vout_spk(pTx, Value - fee, &pChannel->shutdown_scriptpk_local);
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;

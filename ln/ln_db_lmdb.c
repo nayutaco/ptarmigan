@@ -3095,7 +3095,7 @@ bool ln_db_payment_hash_search(
     MDB_val     key, data;
     bool        found = false;
 
-    if (mdb_txn_env(((ln_lmdb_db_t *)pDbParam)->p_txn) == mpEnvNode) {
+    if (pDbParam && (mdb_txn_env(((ln_lmdb_db_t *)pDbParam)->p_txn) == mpEnvNode)) {
         p_txn = ((ln_lmdb_db_t *)pDbParam)->p_txn;
     } else {
         pDbParam = NULL;

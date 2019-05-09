@@ -44,6 +44,7 @@
 #include "btcrpc.h"
 #include "cmd_json.h"
 #include "monitoring.h"
+#include "wallet.h"
 
 
 /**************************************************************************
@@ -1062,6 +1063,7 @@ static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t 
 {
     bool del = false;
     bool save = true;
+    bool revoked = false;
     bool ret;
 
     ptarmd_eventlog(ln_channel_id(pChannel), "close: ugly way");
@@ -1078,6 +1080,7 @@ static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t 
             if (ret) {
                 del = ln_revoked_cnt_dec(pChannel);
                 ln_set_revoked_confm(pChannel, confm);
+                revoked = true;
             } else {
                 save = false;
             }
@@ -1086,6 +1089,7 @@ static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t 
             ret = close_revoked_to_remote(pChannel, pTx, lp);
             if (ret) {
                 save = true;
+                revoked = true;
             }
         } else {
             for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(pChannel); lp2++) {
@@ -1107,6 +1111,23 @@ static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t 
     }
     if (save) {
         ln_db_revoked_tx_save(pChannel, true, pDbParam);
+    }
+    if (revoked) {
+        //pay to wallet
+        char *p_result = NULL;
+        uint64_t vout_amount = 0;
+        uint32_t feerate_per_kw = monitor_btc_feerate_per_kw();
+        char addr[BTC_SZ_ADDR_STR_MAX + 1];
+        ret = btc_keys_spk2addr(addr, &pChannel->shutdown_scriptpk_local);
+        if (ret) {
+            ret = wallet_from_ptarm(&p_result, &vout_amount, true, addr, feerate_per_kw);
+        }
+        if (ret) {
+            LOGD("broadcast: %s\n", p_result);
+        } else {
+            LOGE("fail\n");
+        }
+        UTL_DBG_FREE(p_result);
     }
 
     return del;

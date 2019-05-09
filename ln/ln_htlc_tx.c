@@ -49,8 +49,10 @@ bool HIDDEN ln_htlc_tx_create(
     int Index)
 {
     //vout
-    if (!btc_sw_add_vout_p2wsh_wit(pTx, Value, pWitScript)) return false;
-    pTx->vout[0].opt = (uint16_t)Type;
+    if (pWitScript != NULL) {
+        if (!btc_sw_add_vout_p2wsh_wit(pTx, Value, pWitScript)) return false;
+        pTx->vout[0].opt = (uint16_t)Type;
+    }
     switch (Type) {
     case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
         LOGD("HTLC Success\n");
