@@ -1189,7 +1189,7 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
 
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
             set_wallet_data(&wlt, &tx);
-            wlt.sequence = ln_commit_info_remote(pChannel)->to_self_delay;
+            wlt.sequence = BTC_TX_SEQUENCE;
             ln_db_wallet_save(&wlt);
         }
 
