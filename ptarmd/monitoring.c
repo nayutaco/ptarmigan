@@ -1274,8 +1274,6 @@ static void set_wallet_data(ln_db_wallet_t *pWlt, const btc_tx_t *pTx)
 /** 最新のfeerate_per_kw取得
  *
  * @return      bitcoind estimatesmartfeeから算出したfeerate_per_kw(取得失敗=0)
- * @note
- *      - #LN_FEERATE_PER_KW_MIN未満になる場合、#LN_FEERATE_PER_KW_MINを返す
  */
 static uint32_t get_latest_feerate_kw(void)
 {
@@ -1285,13 +1283,6 @@ static uint32_t get_latest_feerate_kw(void)
     bool ret = btcrpc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
     if (ret) {
         feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
-        if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
-            // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
-            //      https://github.com/ElementsProject/lightning/issues/1443
-            //      https://github.com/ElementsProject/lightning/issues/1391
-            //LOGD("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
-            feerate_kw = LN_FEERATE_PER_KW_MIN;
-        }
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
     } else if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
         LOGD("regtest\n");

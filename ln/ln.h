@@ -892,6 +892,8 @@ bool ln_is_announced(const ln_channel_t *pChannel);
  *
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
  * @return          feerate_per_kw
+ * @note
+ *      - #LN_FEERATE_PER_KW_MIN未満になる場合、#LN_FEERATE_PER_KW_MINを返す
  */
 uint32_t ln_feerate_per_kw_calc(uint64_t feerate_kb);
 

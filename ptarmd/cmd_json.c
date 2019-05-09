@@ -1907,12 +1907,11 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         ret = RPCERR_BLOCKCHAIN;
         goto LABEL_EXIT;
     }
-    uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
-    if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN) {
+    if (pFund->funding_sat < LN_FUNDING_SATOSHIS_MIN) {
         char str[256];
-        sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ") feerate_per_kw=%" PRIu32 "\n",
-                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN, feerate_per_kw);
-        LOGD(str);
+        snprintf(str, sizeof(str), "funding_sat too low(%" PRIu64 " < %d)",
+                pFund->funding_sat, LN_FUNDING_SATOSHIS_MIN);
+        LOGD("%s\n", str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);
         ret = M_RPCERR_FREESTRING;

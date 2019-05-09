@@ -80,7 +80,7 @@ const struct {
     // METHOD_PTARM_SEARCHVOUT,
     { "searchVout", "(ILjava/util/List;)Ljava/util/List;" },
     // METHOD_PTARM_SIGNRAWTX,
-    { "signRawTx", "(J[BJ)[B" },
+    { "signRawTx", "(J[B)[B" },
     // METHOD_PTARM_SENDRAWTX,
     { "sendRawTx", "([B)[B" },
     // METHOD_PTARM_CHECKBROADCAST,
@@ -501,14 +501,13 @@ bool btcj_search_vout(btcj_buf_t **ppTxBuf, uint32_t Blks, const btcj_buf_t *pVo
     return true;
 }
 //-----------------------------------------------------------------------------
-bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, uint32_t feeratePerKb, btcj_buf_t **ppTxData)
+bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_t **ppTxData)
 {
     LOGD("amount=%" PRIu64 ", scriptPubKey=", Amount);
     DUMPD(pScriptPubKey->buf, pScriptPubKey->len);
-    LOGD("feeratePerKb=%" PRIu32 "\n", feeratePerKb);
 
     jbyteArray pubKey = buf2jbarray(pScriptPubKey);
-    jbyteArray ret = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SIGNRAWTX], (jlong)Amount, pubKey, (jlong)feeratePerKb);
+    jbyteArray ret = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SIGNRAWTX], (jlong)Amount, pubKey);
     check_exception(env);
     if(ret != NULL) {
         *ppTxData = jbarray2buf(ret);

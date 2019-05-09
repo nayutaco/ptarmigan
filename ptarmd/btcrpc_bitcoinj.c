@@ -126,7 +126,6 @@ typedef struct {
     const uint8_t   *p_scriptpubkey;
     size_t          len;
     uint64_t        amount;
-    uint32_t        feeratePerKb;
 } signrawtx_t;
 
 
@@ -522,7 +521,7 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 }
 
 
-bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Amount, uint32_t feeratePerKb)
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Amount)
 {
     //P2WSH
     const uint8_t *p_witprog = pWitProg->buf;
@@ -534,7 +533,6 @@ bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Am
     param.p_scriptpubkey = p_witprog + BTC_OFFSET_WITPROG;
     param.len = BTC_SZ_HASH256;
     param.amount = Amount;
-    param.feeratePerKb = feeratePerKb;
     call_jni(METHOD_PTARM_SIGNRAWTX, &param);
     if (param.ret) {
         LOGD_BTCRESULT("send ok\n");
@@ -918,7 +916,7 @@ static void jni_sign_rawtx(void *pArg)
 
     btcj_buf_t scriptpubkey = { (CONST_CAST uint8_t *)p->p_scriptpubkey, p->len };
     btcj_buf_t *p_tx = NULL;
-    p->ret = btcj_signraw_tx(p->amount, &scriptpubkey, p->feeratePerKb, &p_tx);
+    p->ret = btcj_signraw_tx(p->amount, &scriptpubkey, &p_tx);
     if (p->ret) {
         btc_tx_free(p->p_tx);
         p->ret = btc_tx_read(p->p_tx, p_tx->buf, p_tx->len);

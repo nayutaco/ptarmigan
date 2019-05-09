@@ -36,7 +36,7 @@
  * macros
  **************************************************************************/
 
-#define LN_FUNDING_SATOSHIS_MIN         (1000)      ///< minimum funding_sat(BOLTに規定はない)
+#define LN_FUNDING_SATOSHIS_MIN         (100000)        ///< minimum funding_sat(BOLTに規定はない)
 #define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
 
 

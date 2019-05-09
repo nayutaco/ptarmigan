@@ -78,7 +78,7 @@ static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint3
 static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *pVout);
 static bool getversion(int64_t *pVersion);
-static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKb);
+static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKw);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail);
@@ -447,16 +447,26 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 }
 
 
-bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Amount, uint32_t feeratePerKb)
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Amount)
 {
     //pTxのINPUTを埋めてsignrawtx_with_wallet()する
 
     bool ret;
+
+    uint64_t feerate_kb;
+    ret = btcrpc_estimatefee(&feerate_kb, 6);
+    if (!ret) {
+        LOGE("fail: feerate\n");
+        return false;
+    }
+
     uint64_t sum_amount = 0;
     uint64_t change = 0;
     uint64_t txfee = 0;
     btc_tx_t tx_nosign = BTC_TX_INIT;
-    int retval = create_funding_input(&tx_nosign, &sum_amount, &txfee, Amount, feeratePerKb);
+    int retval = create_funding_input(
+                &tx_nosign, &sum_amount, &txfee, Amount,
+                ln_feerate_per_kw_calc(feerate_kb));
     if (retval == 0) {
         change = sum_amount - Amount - txfee;
         LOGD("funding: %" PRIu64 "\n", Amount);
@@ -1046,7 +1056,7 @@ static bool getversion(int64_t *pVersion)
 }
 
 
-static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKb)
+static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKw)
 {
     int retval = RPCERR_FUNDING;
     bool ret;
@@ -1119,21 +1129,24 @@ static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *p
             sum_amount += tmp_amount;
             inputs++;
 
-            // version(4)
+            //[unit:weight]
+            //
+            // version(4*4)
             // mark,flags(2)
-            // vin_cnt(n)
+            // vin_cnt(4*n)
             // vin(signature length=73)
-            //     native P2WPKH(68.25) = outpoint(36) + scriptSig(1) + sequence(4) + witness(1 + 1+73 + 1+33)/4
-            //     nested P2WPKH(90.25) = outpoint(36) + scriptSig(23) + sequence(4) + witness(1 + 1+73 + 1+33)/4
-            //     P2PKH(149)           = outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4)
-            // vout_cnt(1)
-            // vout(74)
-            //     mainoutput(42) = amount(8) + native P2WSH(1 + 33)
-            //     change(32)     = amount(8) + nested P2WPKH(1 + 23)
-            // locktime(4)
-            //     (version + mark,flags + vout_cnt + vout + locktime) = 85
-            uint64_t estimate_vsize = 85 + (p2wpkh * 69 + p2sh * 91 + p2pkh * 149);
-            txfee_sat = (estimate_vsize * FeeratePerKb + 999) / 1000;
+            //     native P2WPKH(273) = 4*(outpoint(36) + scriptSig(1) + sequence(4)) + witness(1 + 1+73 + 1+33)
+            //     nested P2WPKH(361) = 4*(outpoint(36) + scriptSig(23) + sequence(4)) + witness(1 + 1+73 + 1+33)
+            //     P2PKH(596)         = 4*(outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4))
+            // vout_cnt(4*1)
+            // vout(4*75)
+            //     mainoutput(172) = 4*(amount(8) + native P2WSH(1 + 34))
+            //     change(128)     = 4*(amount(8) + nested P2WPKH(1 + 23))
+            // locktime(4*4)
+            //     (version + vout_cnt + vout + locktime) + mark,flags = 4*86 = 338
+            const uint64_t OTHERS = 4 * (4 + 1 + 75 + 4) + 2;
+            uint64_t estimate_weight = OTHERS + (p2wpkh * 273 + p2sh * 361 + p2pkh * 596);
+            txfee_sat = (estimate_weight * FeeratePerKw + 999) / 1000;
             if (FundingSat + txfee_sat < sum_amount) {
                 break;
             }
@@ -1584,7 +1597,7 @@ int main(void)
         0x28, 0x65, 0xfa, 0x6d, 0x84, 0x18,
     };
     const utl_buf_t buf_addr = { .buf = (CONST_CAST uint8_t *)ADDR, .len = sizeof(ADDR) };
-    ret = btcrpc_sign_fundingtx(&tx, &buf_addr, 100000, 1200);
+    ret = btcrpc_sign_fundingtx(&tx, &buf_addr, 100000);
     if (!ret) {
         printf("fail: fundingtx\n");
         return 0;

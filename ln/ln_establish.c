@@ -214,11 +214,10 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
         return false;
     }
 
-    uint64_t fee = ln_estimate_initcommittx_fee(msg.feerate_per_kw);
-    if (msg.funding_satoshis < fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN) {
+    if (msg.funding_satoshis < LN_FUNDING_SATOSHIS_MIN) {
         char str[256];
-        sprintf(str, "funding_satoshis too low(%" PRIu64 " < %" PRIu64 ")",
-            msg.funding_satoshis, fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN);
+        snprintf(str, sizeof(str), "funding_satoshis too low(%" PRIu64 " < %d)",
+            msg.funding_satoshis, LN_FUNDING_SATOSHIS_MIN);
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", str);
         return false;
     }

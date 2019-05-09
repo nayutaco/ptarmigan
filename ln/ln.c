@@ -1076,7 +1076,15 @@ bool ln_is_announced(const ln_channel_t *pChannel)
 
 uint32_t ln_feerate_per_kw_calc(uint64_t feerate_kb)
 {
-    return (uint32_t)(feerate_kb / 4);
+    uint64_t feerate_kw = (uint32_t)(feerate_kb / 4);
+    if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
+        // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
+        //      https://github.com/ElementsProject/lightning/issues/1443
+        //      https://github.com/ElementsProject/lightning/issues/1391
+        //LOGD("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
+        feerate_kw = LN_FEERATE_PER_KW_MIN;
+    }
+    return feerate_kw;
 }
 
 

@@ -282,8 +282,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *pConf, void *pParam)
     p_cb_param->ret = btcrpc_sign_fundingtx(
         p_cb_param->p_tx,
         p_cb_param->p_buf_scriptpk,
-        p_cb_param->amount,
-        monitor_btc_feerate_per_kw() * 4);
+        p_cb_param->amount);
 }
 
 

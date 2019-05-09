@@ -129,10 +129,9 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
  * @param[out]  pTx         signed transaction
  * @param[in]   pAddr       send address
  * @param[in]   Amount      send amount
- * @param[in]   feeratePerKb    feerate per KB(1000byte)
  * @retval  true        success
  */
-bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pAddr, uint64_t Amount, uint32_t feeratePerKb);
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pAddr, uint64_t Amount);
 
 
 /** [bitcoin IF]sendrawtransaction
