@@ -1130,7 +1130,11 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     while (p_conf->active && ((p_conf->flag_recv & M_FLAGRECV_FUNDINGLOCKED) == 0)) {
         utl_thread_msleep(M_WAIT_RECV_MSG_MSEC);
     }
-    LOGD("exchange: funding_locked\n");
+    if (p_conf->active) {
+        LOGD("exchange: funding_locked\n");
+    } else {
+        return false;
+    }
 
     //set short_channel_id
     (void)set_short_channel_id(p_conf);
