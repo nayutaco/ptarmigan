@@ -1907,13 +1907,26 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         ret = RPCERR_BLOCKCHAIN;
         goto LABEL_EXIT;
     }
-    if (pFund->funding_sat < LN_FUNDING_SATOSHIS_MIN) {
+    if ( (pFund->funding_sat < LN_FUNDING_SATOSHIS_MIN) ||
+         (pFund->funding_sat > LN_FUNDING_SATOSHIS_MAX) ) {
         char str[256];
-        snprintf(str, sizeof(str), "funding_sat too low(%" PRIu64 " < %d)",
-                pFund->funding_sat, LN_FUNDING_SATOSHIS_MIN);
-        LOGD("%s\n", str);
+        if (pFund->funding_sat < LN_FUNDING_SATOSHIS_MIN) {
+            snprintf(str, sizeof(str), "funding_satoshis too low(<%d)",
+                    LN_FUNDING_SATOSHIS_MIN);
+        } else {
+            snprintf(str, sizeof(str), "funding_satoshis too high(>%d)",
+                    LN_FUNDING_SATOSHIS_MAX);
+        }
+        LOGE("%s\n", str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);
+        ret = M_RPCERR_FREESTRING;
+        goto LABEL_EXIT;
+    }
+    if (LN_SATOSHI2MSAT(pFund->funding_sat) < pFund->push_msat) {
+        LOGE("push_msat too high\n");
+        ctx->error_code = RPCERR_FUNDING;
+        ctx->error_message = strdup_cjson("push_msat too high");
         ret = M_RPCERR_FREESTRING;
         goto LABEL_EXIT;
     }

@@ -102,6 +102,17 @@ bool /*HIDDEN*/ ln_open_channel_send(
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "feerate_per_kw too low");
         return false;
     }
+    if (FundingSat < LN_FUNDING_SATOSHIS_MIN) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "funding_satoshis too low");
+        return false;
+    } else if (FundingSat > LN_FUNDING_SATOSHIS_MAX) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "funding_satoshis too high");
+        return false;
+    }
+    if (LN_SATOSHI2MSAT(FundingSat) < PushMSat) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "push_msat too high");
+        return false;
+    }
 
     //temporary_channel_id
     btc_rng_rand(pChannel->channel_id, LN_SZ_CHANNEL_ID);
@@ -216,9 +227,19 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
 
     if (msg.funding_satoshis < LN_FUNDING_SATOSHIS_MIN) {
         char str[256];
-        snprintf(str, sizeof(str), "funding_satoshis too low(%" PRIu64 " < %d)",
-            msg.funding_satoshis, LN_FUNDING_SATOSHIS_MIN);
+        snprintf(str, sizeof(str), "funding_satoshis too low(<%d)",
+            LN_FUNDING_SATOSHIS_MIN);
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", str);
+        return false;
+    } else if (msg.funding_satoshis > LN_FUNDING_SATOSHIS_MAX) {
+        char str[256];
+        snprintf(str, sizeof(str), "funding_satoshis too high(>%d)",
+            LN_FUNDING_SATOSHIS_MAX);
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", str);
+        return false;
+    }
+    if (LN_SATOSHI2MSAT(msg.funding_satoshis) < msg.push_msat) {
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "push_msat too high");
         return false;
     }
 
