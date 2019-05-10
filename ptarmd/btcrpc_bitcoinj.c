@@ -521,24 +521,10 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 }
 
 
-bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount)
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Amount)
 {
-    (void)pData; (void)Len; (void)Amount;
-
     //P2WSH
-    const uint8_t *p_witprog = pTx->vout[0].script.buf;
-    if (pTx->vout[0].script.len != BTC_SZ_WITPROG_P2WSH) {
-        LOGE("fail: invalid length\n");
-        return false;
-    }
-    if (p_witprog[0] != 0) {
-        LOGE("fail: not P2WSH\n");
-        return false;
-    }
-    if (p_witprog[1] != BTC_SZ_HASH256) {
-        LOGE("fail: not P2WSH len\n");
-        return false;
-    }
+    const uint8_t *p_witprog = pWitProg->buf;
 
     LOGD_BTCTRACE("\n");
 
@@ -546,7 +532,7 @@ bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, ui
     param.p_tx = pTx;
     param.p_scriptpubkey = p_witprog + BTC_OFFSET_WITPROG;
     param.len = BTC_SZ_HASH256;
-    param.amount = pTx->vout[0].value;
+    param.amount = Amount;
     call_jni(METHOD_PTARM_SIGNRAWTX, &param);
     if (param.ret) {
         LOGD_BTCRESULT("send ok\n");

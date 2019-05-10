@@ -99,6 +99,7 @@ extern "C" {
 #define RPCERR_PORTNUM              (-20009)
 
 #define RPCERR_FUNDING              (-21000)
+#define RPCERR_FUNDING_LESS_INPUT   (-21001)
 
 #define RPCERR_INVOICE_FULL         (-22000)
 #define RPCERR_INVOICE_ERASE        (-22001)
@@ -316,7 +317,7 @@ bool ptarmd_execpath_set(void);
 
 
 /**
- * 
+ *
  */
 const char *ptarmd_execpath_get(void);
 
@@ -366,13 +367,13 @@ bool ptarmd_nodefail_get(
 
 
 /** Establish Parameter取得
- * 
+ *
  */
 const ln_establish_param_t *ptarmd_get_establish_param(void);
 
 
 /** イベントコール
- * 
+ *
  */
 void ptarmd_call_script(ptarmd_event_t event, const char *param);
 

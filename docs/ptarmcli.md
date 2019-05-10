@@ -26,8 +26,8 @@ ptarmcli [options] [JSON-RPC port number]
   * `--getinfo` : get information
 
 * funding
-  * `-f FUND_CONFIG_FILE` : open channel(need `-c` option)
-    * FUND_CONFIG_FILE can create by `pay_fundin.py`
+  * `-f FUNDING_SATOSHI[,PUSH_MSAT[,FEERATE_PER_KW]]` : open channel(need `-c` option)
+    * start open channel
 
 * invoice
   * `--addinvoice=AMOUNT_MSAT` : add invoice
@@ -63,18 +63,6 @@ ptarmcli [options] [JSON-RPC port number]
 Control `ptarmd`.  
 `ptarmcli` and `ptarmd` are connect with TCP JSON-RPC(not HTTP).
 
-### Configuration File Format
-
-* fund config file format (`-f`)
-
-```text
-txid=[fund-in txid]
-txindex=[fund-in outpoint index]
-funding_sat=[funding satoshis in txid amount]
-push_sat=[push satoshis for peer node]
-feerate_per_kw=[feerate_per_kw for `open_channel`]
-```
-
 ### Command and JSON-RPC command
 
 #### connect
@@ -94,31 +82,11 @@ ptarmcli -c 02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882@1
 ```
 
 #### funding
-For funding, it needs a config file.
+
+fund 10 mBTC(1000000 satoshi), and give 5000 satoshi.
 
 ```bash
-../pay_fundin.py 1000000 50000 
-
-[FeeRate] 0.00001000
-[Size] 167 bytes
-[Send] 0.01000227 btc
-[Address] 2NCvy3cefpVHBGrjC6RgAJPCZZEeLpvvYcE
-[TXID] 04c7fe01a3721ebb0ab417dad804b22ad7aebd812bd81c5141ede9ff8645cd17
-[LOCK] True
-[CREATE] fund_20190415053538.conf
-
-----
-cat fund_20190415053538.conf
-
-txid=04c7fe01a3721ebb0ab417dad804b22ad7aebd812bd81c5141ede9ff8645cd17
-txindex=0
-signaddr=2NCvy3cefpVHBGrjC6RgAJPCZZEeLpvvYcE
-funding_sat=1000000
-push_msat=50000
-feerate_per_kw=0
-----
-
-ptarmcli -c 028df7753f0802ec2b781ffd44da838b7b57baebe2930132411fded4399e33bf58 -f fund_20190415053538.conf
+ptarmcli -c 028df7753f0802ec2b781ffd44da838b7b57baebe2930132411fded4399e33bf58 -f 1000000,50000
 
 ```
 
@@ -129,7 +97,7 @@ ptarmcli -c 028df7753f0802ec2b781ffd44da838b7b57baebe2930132411fded4399e33bf58 -
         "028df7753f0802ec2b781ffd44da838b7b57baebe2930132411fded4399e33bf58",
         "0.0.0.0",
         0,
-        "04c7fe01a3721ebb0ab417dad804b22ad7aebd812bd81c5141ede9ff8645cd17",
+        "",
         0,
         1000000,
         50000,

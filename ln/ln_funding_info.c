@@ -45,12 +45,6 @@ const uint8_t *ln_funding_info_txid(const ln_funding_info_t *pFundingInfo)
 }
 
 
-void ln_funding_info_set_txindex(ln_funding_info_t *pFundingInfo, uint32_t Txindex)
-{
-    pFundingInfo->txindex = Txindex;
-}
-
-
 uint32_t ln_funding_info_txindex(const ln_funding_info_t *pFundingInfo)
 {
     return pFundingInfo->txindex;

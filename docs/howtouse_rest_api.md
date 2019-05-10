@@ -8,7 +8,7 @@
 ```
 # copy .env file
 $ cd $INSTALL_DIR/ptarmigan/ptarmapi/
-$ cp.env-sample .env
+$ cp .env-sample .env
 
 # edit .env change to your environment
 $ vi .env

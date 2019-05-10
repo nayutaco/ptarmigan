@@ -1173,73 +1173,29 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
  */
 static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundingConf)
 {
-    ln_fundin_t fundin;
-    utl_buf_init(&fundin.change_spk);
-
     //Establish開始
     LOGD("  funding_sat: %" PRIu64 "\n", pFundingConf->funding_sat);
     LOGD("  push_msat: %" PRIu64 "\n", pFundingConf->push_msat);
 
-    bool ret = getnewaddress(&fundin.change_spk);
-    if (!ret) {
-        LOGE("fail: getnewaddress\n");
-        return false;
-    }
-
-    bool unspent;
-#if defined(USE_BITCOIND)
-    //事前にfund-in txがunspentかどうかチェックしようとしている。
-    //SPVの場合は1st Layerの処理も内部で行うので、チェック不要。
-    ret = btcrpc_check_unspent(NULL, &unspent, &fundin.amount, pFundingConf->txid, pFundingConf->txindex);
-    LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
-#elif defined(USE_BITCOINJ)
-    //内部でfund-in txを生成するため、チェック不要
-    unspent = true;
-    ret = true;
-#endif
-    if (ret && unspent) {
-        uint32_t feerate_kw;
-        if (pFundingConf->feerate_per_kw == 0) {
-            feerate_kw = monitor_btc_feerate_per_kw();
-        } else {
-            feerate_kw = pFundingConf->feerate_per_kw;
-        }
-        LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
-
-#if defined(USE_BITCOIND)
-        //bitcoindはptarmdがfunding_txを作るため、fee計算する
-        uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
-        LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
-        if (fundin.amount < pFundingConf->funding_sat + estfee) {
-            //amountが足りないと思われる
-            LOGE("fail: amount too short\n");
-            LOGD("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin.amount, pFundingConf->funding_sat, estfee);
-            return false;
-        }
-
-        memcpy(fundin.txid, pFundingConf->txid, BTC_SZ_TXID);
-        fundin.index = pFundingConf->txindex;
-#elif defined(USE_BITCOINJ)
-        //funding_txをbitcoinjが作るため、fundin未使用
-        memset(&fundin, 0, sizeof(fundin));
-#endif
-
-        pthread_mutex_lock(&p_conf->mux_conf);
-        ret = ln_open_channel_send(&p_conf->channel,
-                        &fundin,
-                        pFundingConf->funding_sat,
-                        pFundingConf->push_msat,
-                        feerate_kw,
-                        pFundingConf->priv_channel);
-        pthread_mutex_unlock(&p_conf->mux_conf);
-        if (ret) {
-            LOGD("SEND: open_channel\n");
-        } else {
-            LOGE("fail: open_channel\n");
-        }
+    uint32_t feerate_kw;
+    if (pFundingConf->feerate_per_kw == 0) {
+        feerate_kw = monitor_btc_feerate_per_kw();
     } else {
-        LOGD("through: check_unspent: ");
-        TXIDD(pFundingConf->txid);
+        feerate_kw = pFundingConf->feerate_per_kw;
+    }
+    LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
+
+    pthread_mutex_lock(&p_conf->mux_conf);
+    bool ret = ln_open_channel_send(&p_conf->channel,
+                    pFundingConf->funding_sat,
+                    pFundingConf->push_msat,
+                    feerate_kw,
+                    pFundingConf->priv_channel);
+    pthread_mutex_unlock(&p_conf->mux_conf);
+    if (ret) {
+        LOGD("SEND: open_channel\n");
+    } else {
+        LOGE("fail: open_channel\n");
     }
 
     return ret;

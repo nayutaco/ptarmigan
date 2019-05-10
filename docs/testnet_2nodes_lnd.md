@@ -110,23 +110,11 @@ lncli --no-macaroons create
 lncli --no-macaroons getinfo
 ```
 
-8. [ptarmigan] Creating fund-in transaction
-
-```bash
-../pay_fundin.py 1000000 0
-```
-
-* Create a channel that sends you 10mBTC and the other person 0.
-  * 1000000 (fund-in satoshi) is the amount of money that is sent to an adress before sending payment to the channel.
-  * 1000000 (channel satoshi) is the amount of sending payment to the channel.
-  * 0 (push msatoshi) is the amount out of channel satoshi to be sent to the other person.
-* `pay_fundin.py` will create a file in `fund_yyyymmddhhmmss.conf` format.
-
 9. [ptarmigan] Starting Channel Establishment
 
 ```bash
 ../ptarmcli -c [PEER NODE_ID]@[IPv4 ADDR]:[PORT]
-../ptarmcli -c [PEER NODE_ID] -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c [PEER NODE_ID] -f 1000000
 ```
 
 10. [btc] Waiting for generating a block

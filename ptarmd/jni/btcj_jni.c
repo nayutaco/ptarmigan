@@ -503,12 +503,11 @@ bool btcj_search_vout(btcj_buf_t **ppTxBuf, uint32_t Blks, const btcj_buf_t *pVo
 //-----------------------------------------------------------------------------
 bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_t **ppTxData)
 {
-    //LOGD("amount=%" PRIu64 ", scriptPubKey=", Amount);
-    //DUMPD(scriptPubKey->buf, scriptPubKey->len);
+    LOGD("amount=%" PRIu64 ", scriptPubKey=", Amount);
+    DUMPD(pScriptPubKey->buf, pScriptPubKey->len);
 
-    jlong amnt = Amount;
     jbyteArray pubKey = buf2jbarray(pScriptPubKey);
-    jbyteArray ret = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SIGNRAWTX], amnt, pubKey);
+    jbyteArray ret = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SIGNRAWTX], (jlong)Amount, pubKey);
     check_exception(env);
     if(ret != NULL) {
         *ppTxData = jbarray2buf(ret);

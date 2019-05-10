@@ -514,27 +514,9 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //funding parameter
     //txid
-    json = cJSON_GetArrayItem(params, index++);
-#ifdef USE_BITCOIND
-    if (json && (json->type == cJSON_String)) {
-        utl_str_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
-        LOGD("txid=%s\n", json->valuestring);
-    } else {
-        LOGE("txid\n");
-        goto LABEL_EXIT;
-    }
-#endif
+    (void)cJSON_GetArrayItem(params, index++);
     //txindex
-    json = cJSON_GetArrayItem(params, index++);
-#ifdef USE_BITCOIND
-    if (json && (json->type == cJSON_Number)) {
-        fundconf.txindex = json->valueint;
-        LOGD("txindex=%d\n", json->valueint);
-    } else {
-        LOGE("txindex\n");
-        goto LABEL_EXIT;
-    }
-#endif
+    (void)cJSON_GetArrayItem(params, index++);
     //funding_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
@@ -1929,14 +1911,26 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
         ret = RPCERR_BLOCKCHAIN;
         goto LABEL_EXIT;
     }
-    uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
-    if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN) {
+    if ( (pFund->funding_sat < LN_FUNDING_SATOSHIS_MIN) ||
+         (pFund->funding_sat > LN_FUNDING_SATOSHIS_MAX) ) {
         char str[256];
-        sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ") feerate_per_kw=%" PRIu32 "\n",
-                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDING_SATOSHIS_MIN, feerate_per_kw);
-        LOGD(str);
+        if (pFund->funding_sat < LN_FUNDING_SATOSHIS_MIN) {
+            snprintf(str, sizeof(str), "funding_satoshis too low(<%d)",
+                    LN_FUNDING_SATOSHIS_MIN);
+        } else {
+            snprintf(str, sizeof(str), "funding_satoshis too high(>%d)",
+                    LN_FUNDING_SATOSHIS_MAX);
+        }
+        LOGE("%s\n", str);
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup_cjson(str);
+        ret = M_RPCERR_FREESTRING;
+        goto LABEL_EXIT;
+    }
+    if (LN_SATOSHI2MSAT(pFund->funding_sat) < pFund->push_msat) {
+        LOGE("push_msat too high\n");
+        ctx->error_code = RPCERR_FUNDING;
+        ctx->error_message = strdup_cjson("push_msat too high");
         ret = M_RPCERR_FREESTRING;
         goto LABEL_EXIT;
     }
