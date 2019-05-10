@@ -31,6 +31,7 @@
 #include "ln_err.h"
 #include "ln_onion.h"
 #include "ln_invoice.h"
+#include "ln_msg_anno.h"
 
 
 #ifdef __cplusplus
@@ -54,6 +55,22 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+bool ln_routing_init(const uint8_t *pPayerId);
+
+
+/**
+ * 
+ * @note
+ *      - channel_update情報の方向はpNode1==>pNode2となるように呼び出すこと
+ */
+bool ln_routing_add_channel(
+        const ln_msg_channel_update_t *pChannelUpdate,
+        const uint8_t *pNode1, const uint8_t *pNode2);
+
+
+void ln_routing_add_rfield(uint8_t AddNum, const ln_r_field_t *pAddRoute, const uint8_t *pPayeeId);
+
+
 /** 支払いルート作成
  *
  * @param[out]  pResult
@@ -70,9 +87,7 @@ lnerr_route_t ln_routing_calculate(
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
         uint32_t CltvExpiry,
-        uint64_t AmountMsat,
-        uint8_t AddNum,
-        const ln_r_field_t *pAddRoute);
+        uint64_t AmountMsat);
 
 
 /** routing skip DB削除
@@ -81,6 +96,8 @@ lnerr_route_t ln_routing_calculate(
  */
 void ln_routing_clear_skipdb(void);
 
+
+void ln_routing_create_dot(const char *pFilename);
 
 #ifdef __cplusplus
 }

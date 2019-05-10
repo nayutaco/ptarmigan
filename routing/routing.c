@@ -49,7 +49,7 @@
  * macros
  **************************************************************************/
 
-#define M_SPOIL_STDERR                      // stderrへの出力を破棄する
+//#define M_SPOIL_STDERR                      // stderrへの出力を破棄する
 
 #define OPT_SENDER                          (0x01)  // -s指定あり
 #define OPT_RECVER                          (0x02)  // -r指定あり
@@ -231,9 +231,15 @@ int main(int argc, char* argv[])
     btc_init(gtype, true);
 
     if ((options & OPT_CLEARSDB) == 0) {
+        bret = ln_routing_init(send_node_id);
+        if (!bret) {
+            fprintf(fp_err, "fail: routing init\n");
+            return -11;
+        }
+
         ln_routing_result_t result;
         lnerr_route_t rerr = ln_routing_calculate(&result, send_node_id,
-                    recv_node_id, cltv_expiry, amtmsat, 0, NULL);
+                    recv_node_id, cltv_expiry, amtmsat);
         if (rerr == LNROUTE_OK) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {

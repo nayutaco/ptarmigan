@@ -47,6 +47,7 @@
 #include "ln_local.h"
 #include "ln_setupctl.h"
 #include "ln_anno.h"
+#include "ln_routing.h"
 
 
 /**************************************************************************
@@ -67,7 +68,7 @@
 
 static void proc_announcement_signatures(ln_channel_t *pChannel);
 static bool create_local_channel_announcement(ln_channel_t *pChannel);
-static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);
+static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint8_t *pOtherId, uint64_t short_channel_id, uint8_t Dir);
 static bool create_channel_update(ln_channel_t *pChannel, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 
 
@@ -269,11 +270,25 @@ bool HIDDEN ln_node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
 
 bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel)
 {
+LOGD("channel_update_send\n");
+
     ln_msg_channel_update_t msg;
     utl_buf_t buf = UTL_BUF_INIT;
     if (!create_channel_update(pChannel, &msg, &buf, (uint32_t)utl_time_time(), 0)) {
         LOGE("fail: create channel_update\n");
         return false;
+    }
+    int dir = (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? 1 : 0;
+
+    uint8_t node_id[2][BTC_SZ_PUBKEY];
+    bool ret = get_node_id_from_channel_announcement(pChannel, node_id[dir], node_id[1 - dir], msg.short_channel_id, dir);
+    if (ret) {
+        LOGD("add_channel: %d ==> %d\n", dir, 1-dir);
+        ret = ln_routing_add_channel(&msg, node_id[dir], node_id[1 - dir]);
+        if (!ret) {
+            LOGE("fail through: add channel\n");
+        }
+        ln_routing_create_dot("gossip.dot");
     }
 
     if (!ln_db_cnlupd_save(&buf, &msg, NULL)) {
@@ -298,7 +313,7 @@ bool /*HIDDEN*/ ln_channel_update_send(ln_channel_t *pChannel)
 //called by `ln_channel_update_recv` only
 static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    (void)pChannel;
+LOGD("channel_update_recv\n");
 
     ln_msg_channel_update_t msg;
     uint64_t now = (uint64_t)utl_time_time();
@@ -312,7 +327,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         LOGD("through: chain_hash mismatch\n");
         return true;
     }
-    int dir = msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION;
+    int dir = (msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION) ? 1 : 0;
 
     //timestamp check
     if (ln_db_cnlupd_need_to_prune(now, msg.timestamp)) {
@@ -323,10 +338,11 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 
     //LOGV("recv channel_update: %016" PRIx64 ":%d\n", msg.short_channel_id, dir);
 
-    uint8_t node_id[BTC_SZ_PUBKEY];
-    if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, dir)) {
+    uint8_t node_id[2][BTC_SZ_PUBKEY];
+    bool ret = get_node_id_from_channel_announcement(pChannel, node_id[dir], node_id[1 - dir], msg.short_channel_id, dir);
+    if (ret) {
         //found
-        if (!btc_keys_check_pub(node_id)) {
+        if (!btc_keys_check_pub(node_id[dir])) {
             LOGE("fail: invalid pubkey\n");
             return false;
         }
@@ -336,6 +352,12 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
             return false;
         }
 #endif
+        LOGD("add_channel: %d ==> %d\n", dir, 1-dir);
+        ret = ln_routing_add_channel(&msg, node_id[dir], node_id[1 - dir]);
+        if (!ret) {
+            LOGE("fail through: add channel\n");
+        }
+        ln_routing_create_dot("gossip.dot");
     } else {
         //not found
         //  BOLT#11
@@ -868,7 +890,7 @@ static bool create_local_channel_announcement(ln_channel_t *pChannel)
 }
 
 
-static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint64_t ShortChannelId, uint8_t Dir)
+static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint8_t *pOtherId, uint64_t ShortChannelId, uint8_t Dir)
 {
     bool ret = false;
 
@@ -881,7 +903,13 @@ static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_
             LOGE("fail\n");
             goto LABEL_EXIT;
         }
-        memcpy(pNodeId, Dir ? msg.p_node_id_2 : msg.p_node_id_1, BTC_SZ_PUBKEY);
+        if (Dir) {
+            memcpy(pNodeId, msg.p_node_id_2, BTC_SZ_PUBKEY);
+            memcpy(pOtherId, msg.p_node_id_1, BTC_SZ_PUBKEY);
+        } else {
+            memcpy(pNodeId, msg.p_node_id_1, BTC_SZ_PUBKEY);
+            memcpy(pOtherId, msg.p_node_id_2, BTC_SZ_PUBKEY);
+        }
     } else {
         if (ShortChannelId != pChannel->short_channel_id) goto LABEL_EXIT;
         btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
@@ -889,9 +917,11 @@ static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_
              ((order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) && (Dir == 1)) ) {
             LOGD("this channel: my node\n");
             memcpy(pNodeId, ln_node_get_id(), BTC_SZ_PUBKEY);
+            memcpy(pOtherId, pChannel->peer_node_id, BTC_SZ_PUBKEY);
         } else {
             LOGD("this channel: peer node\n");
             memcpy(pNodeId, pChannel->peer_node_id, BTC_SZ_PUBKEY);
+            memcpy(pOtherId, ln_node_get_id(), BTC_SZ_PUBKEY);
         }
     }
 

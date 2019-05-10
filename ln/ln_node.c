@@ -43,6 +43,7 @@
 #include "ln_node.h"
 #include "ln_local.h"
 #include "ln_db_lmdb.h"
+#include "ln_routing.h"
 
 
 /**************************************************************************
@@ -180,6 +181,10 @@ bool ln_node_init(const ln_node_t *pNode)
     LOGD("my node_id: ");
     DUMPD(mNode.keys.pub, BTC_SZ_PUBKEY);
     print_node();
+
+    if (!ln_routing_init(mNode.keys.pub)) {
+        LOGE("fail: routing init\n");
+    }
 
     ret = true;
 
