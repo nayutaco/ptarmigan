@@ -272,8 +272,7 @@ TEST_F(ln, ln_accept_channel_recv_ok)
     LnInit(&channel);
     channel.funding_info.role = LN_FUNDING_ROLE_FUNDER;       //funder
 
-    const uint8_t CHANGE_SPK[] = { 0x12, 0x34, 0x56 };
-
+    static utl_buf_t two_of_two = UTL_BUF_INIT;
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
     public:
@@ -282,8 +281,10 @@ TEST_F(ln, ln_accept_channel_recv_ok)
             switch (Type) {
             case LN_CB_TYPE_SIGN_FUNDING_TX:
                 {
+                    LOGD("LN_CB_TYPE_SIGN_FUNDING_TX\n");
                     ln_cb_param_sign_funding_tx_t *p_sig = (ln_cb_param_sign_funding_tx_t *)pTypeSpecificParam;
                     p_sig->ret = true;  //署名OK
+                    btc_tx_add_vout_spk(p_sig->p_tx, p_sig->amount, &two_of_two);
                 }
                 break;
             default:
@@ -311,29 +312,27 @@ TEST_F(ln, ln_accept_channel_recv_ok)
     channel.p_callback = dummy::callback;
     ln_msg_accept_channel_read_fake.custom_fake = dummy::ln_msg_accept_channel_read;
 
-    memcpy(pubkey, LN_DUMMY::PUB, sizeof(pubkey));
+    memcpy(pubkey, LN_DUMMY::PUB2, sizeof(pubkey));
     channel.commit_info_local.dust_limit_sat = 10000;
     channel.commit_info_local.channel_reserve_sat = 800;
     memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     channel.funding_info.funding_satoshis = 100000;
 
-#ifdef USE_BITCOIND
-    channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
-    ln_fundin_t *p_fundin = channel.establish.p_fundin;
-    utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
-    p_fundin->amount = 500000;
-#endif
-
     memcpy(channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
+
+    utl_buf_init(&channel.funding_info.wit_script);
+    btc_script_2of2_create_redeem_sorted(
+        &channel.funding_info.wit_script, &channel.funding_info.key_order,
+        channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING],
+        channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING]);
+    btc_script_p2wsh_create_scriptpk(&two_of_two, &channel.funding_info.wit_script);
 
     bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
 
-#ifdef USE_BITCOIND
-    utl_buf_free(&p_fundin->change_spk);
-    UTL_DBG_FREE(channel.establish.p_fundin);
-#endif
+    utl_buf_free(&two_of_two);
+
     ln_term(&channel);
 }
 
@@ -350,8 +349,6 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
     ln_channel_t channel;
     LnInit(&channel);
     channel.funding_info.role = LN_FUNDING_ROLE_FUNDER;       //funder
-
-    const uint8_t CHANGE_SPK[] = { 0x12, 0x34, 0x56 };
 
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
@@ -396,22 +393,12 @@ TEST_F(ln, ln_accept_channel_recv_receiver1)
     memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     channel.funding_info.funding_satoshis = 100000;
 
-#ifdef USE_BITCOIND
-    channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
-    ln_fundin_t *p_fundin = channel.establish.p_fundin;
-    utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
-#endif
-
     memcpy(channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
 
-#ifdef USE_BITCOIND
-    utl_buf_free(&p_fundin->change_spk);
-    UTL_DBG_FREE(channel.establish.p_fundin);
-#endif
     ln_term(&channel);
 }
 
@@ -429,8 +416,6 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
     ln_channel_t channel;
     LnInit(&channel);
     channel.funding_info.role = LN_FUNDING_ROLE_FUNDER;       //funder
-
-    const uint8_t CHANGE_SPK[] = { 0x12, 0x34, 0x56 };
 
     static uint8_t pubkey[BTC_SZ_PUBKEY];
     class dummy {
@@ -475,21 +460,11 @@ TEST_F(ln, ln_accept_channel_recv_receiver2)
     memcpy(channel.channel_id, LN_DUMMY::CHANNEL_ID, LN_SZ_CHANNEL_ID);
     channel.funding_info.funding_satoshis = 100000;
 
-#ifdef USE_BITCOIND
-    channel.establish.p_fundin = (ln_fundin_t *)UTL_DBG_CALLOC(1, sizeof(ln_fundin_t));
-    ln_fundin_t *p_fundin = channel.establish.p_fundin;
-    utl_buf_alloccopy(&p_fundin->change_spk, CHANGE_SPK, sizeof(CHANGE_SPK));
-#endif
-
     memcpy(channel.keys_local.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB1, BTC_SZ_PUBKEY);
     memcpy(channel.keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], LN_DUMMY::PUB2, BTC_SZ_PUBKEY);
 
     bool ret = ln_accept_channel_recv(&channel, NULL, 0);
     ASSERT_FALSE(ret);
 
-#ifdef USE_BITCOIND
-    utl_buf_free(&p_fundin->change_spk);
-    UTL_DBG_FREE(channel.establish.p_fundin);
-#endif
     ln_term(&channel);
 }

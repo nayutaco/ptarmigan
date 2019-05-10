@@ -82,25 +82,11 @@ If you have channels, `ptarmd` try connect the peers automatically.
 After connecting, you can open channel with connection node.
 
 ```bash
-# create funding file
-# (this script use current bitcoind wallet.)
-../pay_fundin.py AMOUNT_SAT
-(create fund_xxxx.conf)
-
-../ptarmcli -c NODE_ID -f fund_xxxx.conf
+../ptarmcli -c NODE_ID -f AMOUNT_SAT
 ```
 
 Establishing channel need some blocks.
 You can check channel status with `ptarmcli --getinfo`.
-
-#### memo
-
-`pay_fundin.py` only support P2PKH / native P2WPKH / P2WPKH nested in BIP16 P2SH.  
-If using "regtest", you send to `bitcoin-cli getnewaddress`.
-
-```bash
-bitcoin-cli sendtoaddress `bitcoin-cli getnewaddress` 0.1
-```
 
 ### request payment
 

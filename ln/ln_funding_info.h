@@ -36,7 +36,7 @@
  * macros
  **************************************************************************/
 
-#define LN_FUNDING_SATOSHIS_MIN         (1000)      ///< minimum funding_sat(BOLTに規定はない)
+#define LN_FUNDING_SATOSHIS_MIN         (100000)        ///< minimum funding_sat(BOLTに規定はない)
 #define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
 
 
@@ -88,9 +88,6 @@ void ln_funding_info_set_txid(ln_funding_info_t *pFundingInfo, const uint8_t *pT
  * @return      funding_txのTXID
  */
 const uint8_t *ln_funding_info_txid(const ln_funding_info_t *pFundingInfo);
-
-
-void ln_funding_info_set_txindex(ln_funding_info_t *pFundingInfo, uint32_t Txindex);
 
 
 /** funding_txのTXINDEX取得

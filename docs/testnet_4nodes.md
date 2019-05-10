@@ -47,23 +47,17 @@ lncli --no-macaroons getinfo
   * Following results are for `feerate_per_kw = 10000`.
 
 ```bash
-../pay_fundin.py 800000 300000000
-../ptarmcli -c [c-lightning NODE_ID] -f fund_yyyymmddhhddss.conf
+../ptarmcli -c [c-lightning NODE_ID] -f 800000,300000000
 ../ptarmcli -l
 (wait... status: "wait_minimum_depth")
-rm fund_yyyymmddhhddss.conf
 
-../pay_fundin.py 800000 400000000
-../ptarmcli -c [eclair NODE_ID] -f fund_yyyymmddhhddss.conf
+../ptarmcli -c [eclair NODE_ID] -f 800000,400000000
 ../ptarmcli -l
 (wait... status: "wait_minimum_depth")
-rm fund_yyyymmddhhddss.conf
 
-../pay_fundin.py 800000 500000000
-../ptarmcli -c [lnd NODE_ID] -f fund_yyyymmddhhddss.conf
+../ptarmcli -c [lnd NODE_ID] -f 800000,500000000
 ../ptarmcli -l
 (wait... status: "wait_minimum_depth")
-rm fund_yyyymmddhhddss.conf
 ```
 
 ## Waiting for opening channels

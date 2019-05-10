@@ -110,27 +110,12 @@ You should wait untill finishing log output.
 `ptarmcli` shows current connection information.  
 Connected node `status` is `"connected"` in the log.  
 
-10. Generate funding transactionn related command file
-
-First, send testnet bitcoin to segwit address, then send testnet bitcoinn payment channnel.
-
-```bash
-../pay_fundin.py 1000000 500000
-```
-
-These command generate a file `fund_yyyymmddhhmmss.conf`.  
-File contents means the following:
-
-  1. create 10mBTC segwit transaction
-  2. send the transaction
-  3. fund channel 10mBTC (give 500000msat for peer node)
-
-Note that unit is satoshi.
-
 11. Fund payment channel
 
+fund channel 10mBTC, and give 500000msat for peer node.
+
 ```bash
-../ptarmcli -c [peer node_id] -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c [peer node_id] -f 1000000,500000
 ```
 
 12. Wait until funding transaction get into bitcoin testnet block (it will take time)

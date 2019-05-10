@@ -45,12 +45,13 @@
 #define M_RPCHEADER         "\"jsonrpc\": \"1.0\", \"id\": \"ptarmdrpc\""
 #define M_NEXT              ","
 #define M_QQ(str)           "\"" str "\""
-#define M_1(item,value)     M_QQ(item) ":" M_QQ(value)
+#define M_JSON_STR(item,str)    M_QQ(item) ":" M_QQ(str)
+#define M_JSON_NUM(item,ctrl)   M_QQ(item) ":" ctrl
 
 #define M_MIN_BITCOIND_VERSION  (170000)        //必要とするバージョン
 
-//#define M_DBG_SHOWRPC       //RPCの命令
-//#define M_DBG_SHOWREPLY     //RPCの応答
+// #define M_DBG_SHOWRPC       //RPCの命令
+// #define M_DBG_SHOWREPLY     //RPCの応答
 
 
 /**************************************************************************
@@ -71,11 +72,12 @@ typedef struct {
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight);
 static bool getrawtx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
 static bool getrawtxstr(btc_tx_t *pTx, const char *txid);
-static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
+static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pRawTx, size_t Len, uint64_t Amount);
 static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *pVout);
 static bool getversion(int64_t *pVersion);
+static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKw);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail);
@@ -88,7 +90,8 @@ static bool getblockcount_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
 static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, int nBlock);
 static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
-//static bool dumpprivkey_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pAddr);
+static bool listunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
+
 static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pData);
 static int error_result(json_t *p_root);
 
@@ -345,6 +348,7 @@ LABEL_EXIT:
     UTL_DBG_FREE(p_json);
 
     if ((*pBIndex == -1) || (*pBHeight == -1)) {
+        LOGE("fail\n");
         ret = false;
     }
 
@@ -442,9 +446,61 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 }
 
 
-bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount)
+bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Amount)
 {
-    return signrawtx_with_wallet(pTx, pData, Len, Amount);
+    //pTxのINPUTを埋めてsignrawtx_with_wallet()する
+
+    bool ret;
+
+    uint64_t feerate_kb;
+    ret = btcrpc_estimatefee(&feerate_kb, 6);
+    if (!ret) {
+        LOGE("fail: feerate\n");
+        return false;
+    }
+
+    uint64_t sum_amount = 0;
+    uint64_t change = 0;
+    uint64_t txfee = 0;
+    btc_tx_t tx_nosign = BTC_TX_INIT;
+    int retval = create_funding_input(
+                &tx_nosign, &sum_amount, &txfee, Amount,
+                ln_feerate_per_kw_calc(feerate_kb));
+    if (retval == 0) {
+        change = sum_amount - Amount - txfee;
+        LOGD("funding: %" PRIu64 "\n", Amount);
+        LOGD("change : %" PRIu64 "\n", change);
+        LOGD("fee    : %" PRIu64 "\n", txfee);
+    } else {
+        LOGE("fail: %d\n", retval);
+        return false;
+    }
+    btc_tx_add_vout_spk(&tx_nosign, Amount, pWitProg);
+    if (change > 0) {
+        char change_addr[BTC_SZ_ADDR_STR_MAX + 1];
+        ret = btcrpc_getnewaddress(change_addr);
+        if (ret) {
+            btc_tx_add_vout_addr(&tx_nosign, change, change_addr);
+        } else {
+            LOGE("fail: getnewaddress\n");
+            return false;
+        }
+    }
+
+    utl_buf_t buf_rawtx = UTL_BUF_INIT;
+    ret = btc_tx_write(&tx_nosign, &buf_rawtx);
+    if (ret) {
+        btc_tx_print(&tx_nosign);
+        ret = signrawtx_with_wallet(pTx, buf_rawtx.buf, buf_rawtx.len, Amount);
+    } else {
+        LOGE("fail: sign\n");
+    }
+    if (ret) {
+        btc_tx_print(pTx);
+    }
+    utl_buf_free(&buf_rawtx);
+    btc_tx_free(&tx_nosign);
+    return ret;
 }
 
 
@@ -592,12 +648,12 @@ void btcrpc_set_creationhash(const uint8_t *pHash)
 
 
 void btcrpc_set_channel(const uint8_t *pPeerId,
-                uint64_t ShortChannelId,
-                const uint8_t *pFundingTxid,
-                int FundingIdx,
-                const utl_buf_t *pRedeemScript,
-                const uint8_t *pMinedHash,
-                uint32_t LastConfirm)
+                        uint64_t ShortChannelId,
+                        const uint8_t *pFundingTxid,
+                        int FundingIdx,
+                        const utl_buf_t *pRedeemScript,
+                        const uint8_t *pMinedHash,
+                        uint32_t LastConfirm)
 {
     (void)pPeerId; (void)ShortChannelId; (void)pFundingTxid;
     (void)FundingIdx; (void)pRedeemScript; (void)pMinedHash; (void)LastConfirm;
@@ -749,7 +805,14 @@ LABEL_EXIT:
 }
 
 
-static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount)
+/**
+ *
+ * @param[out]      pTx         signed transaction
+ * @param[in]       pRawTx      transaction for signature
+ * @param[in]       Len         pRawTx length
+ * @param[in]       Amount      previous amount
+ */
+static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pRawTx, size_t Len, uint64_t Amount)
 {
     (void)Amount;
 
@@ -761,7 +824,7 @@ static bool signrawtx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Le
     json_t *p_result;
 
     transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
-    utl_str_bin2str(transaction, pData, Len);
+    utl_str_bin2str(transaction, pRawTx, Len);
 
     ret = signrawtransactionwithwallet_rpc(&p_root, &p_result, &p_json, transaction);
     UTL_DBG_FREE(transaction);
@@ -872,9 +935,9 @@ static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, ui
             ret = getrawtxstr(&tx, txid);
             //LOGD("txid=%s\n", txid);
             if ( ret &&
-                 (tx.vin_cnt == 1) &&
-                 (memcmp(tx.vin[0].txid, pTxid, BTC_SZ_TXID) == 0) &&
-                 (tx.vin[0].index == VIndex) ) {
+                    (tx.vin_cnt == 1) &&
+                    (memcmp(tx.vin[0].txid, pTxid, BTC_SZ_TXID) == 0) &&
+                    (tx.vin[0].index == VIndex) ) {
                 //一致
                 memcpy(pTx, &tx, sizeof(btc_tx_t));
                 btc_tx_init(&tx);     //freeさせない
@@ -992,6 +1055,131 @@ static bool getversion(int64_t *pVersion)
 }
 
 
+static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKw)
+{
+    int retval = RPCERR_FUNDING;
+    bool ret;
+    char *p_json = NULL;
+    json_t *p_root = NULL;
+    json_t *p_result;
+
+    ret = listunspent_rpc(&p_root, &p_result, &p_json);
+    if (ret) {
+        size_t index = 0;
+        json_t *p_value = NULL;
+        uint64_t sum_amount = 0;
+        uint64_t txfee_sat = 0;
+        int p2wpkh = 0;
+        int p2sh = 0;
+        int p2pkh = 0;
+        int inputs = 0;
+
+        json_array_foreach(p_result, index, p_value) {
+            //txid, vout, address, label, scriptPubKey, amount, confirmations, spendable, solvable, safe
+            json_t *p;
+            uint64_t tmp_amount;
+
+            p = json_object_get(p_value, "amount");
+            if (p && json_is_real(p)) {
+                tmp_amount = (uint64_t)(json_real_value(p) * (uint64_t)100000000);
+            } else {
+                continue;
+            }
+            p = json_object_get(p_value, "scriptPubKey");
+            if (p && json_string_length(p) > 2) {
+                const char *p_str = json_string_value(p);
+                if (memcmp(p_str, "00", 2) == 0) {
+                    p2wpkh++;
+                    //LOGD("native P2WPKH\n");
+                } else if (memcmp(p_str, "a9", 2) == 0) {
+                    p2sh++;
+                    //LOGD("nested P2WPKH\n");
+                } else if (memcmp(p_str, "76", 2) == 0) {
+                    p2pkh++;
+                    //LOGD("P2PKH\n");
+                } else {
+                    continue;
+                }
+            }
+            p = json_object_get(p_value, "txid");
+            if (!p || !json_is_string(p)) {
+                continue;
+            }
+            char txid_str[BTC_SZ_TXID * 2 + 1];
+            strncpy(txid_str, json_string_value(p), sizeof(txid_str));
+            txid_str[64] = '\0';
+            p = json_object_get(p_value, "vout");
+            if (!p || !json_is_integer(p)) {
+                continue;
+            }
+            int vout = (int)json_integer_value(p);
+
+            char outpoint[256];
+            snprintf(outpoint, sizeof(outpoint),
+                    "{"
+                        M_JSON_STR("txid", "%s") M_NEXT
+                        M_JSON_NUM("vout", "%d")
+                    "},",
+                    txid_str, vout);
+
+            uint8_t txid[BTC_SZ_TXID];
+            utl_str_str2bin_rev(txid, BTC_SZ_TXID, txid_str);
+            (void)btc_tx_add_vin(pTx, txid, vout);
+            sum_amount += tmp_amount;
+            inputs++;
+
+            //[unit:weight]
+            //
+            // version(4*4)
+            // mark,flags(2)
+            // vin_cnt(4*n)
+            // vin(signature length=73)
+            //     native P2WPKH(273) = 4*(outpoint(36) + scriptSig(1) + sequence(4)) + witness(1 + 1+73 + 1+33)
+            //     nested P2WPKH(361) = 4*(outpoint(36) + scriptSig(23) + sequence(4)) + witness(1 + 1+73 + 1+33)
+            //     P2PKH(596)         = 4*(outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4))
+            // vout_cnt(4*1)
+            // vout(4*75)
+            //     mainoutput(172) = 4*(amount(8) + native P2WSH(1 + 34))
+            //     change(128)     = 4*(amount(8) + nested P2WPKH(1 + 23))
+            // locktime(4*4)
+            //     (version + vout_cnt + vout + locktime) + mark,flags = 4*86 = 338
+            const uint64_t OTHERS = 4 * (4 + 1 + 75 + 4) + 2;
+            uint64_t estimate_weight = OTHERS + (p2wpkh * 273 + p2sh * 361 + p2pkh * 596);
+            txfee_sat = (estimate_weight * FeeratePerKw + 999) / 1000;
+            if (FundingSat + txfee_sat < sum_amount) {
+                break;
+            }
+        }
+        if (inputs > 0) {
+            LOGD("INPUT    = %" PRIu64 "\n", sum_amount);
+            LOGD("OUTPUT   = %" PRIu64 "\n", FundingSat);
+            LOGD("txfee_btc= %" PRIu64 "\n", txfee_sat);
+            if (sum_amount >= (FundingSat + txfee_sat)) {
+                LOGD("  remain %" PRIu64 "\n", sum_amount - FundingSat - txfee_sat);
+                *pSumAmount = sum_amount;
+                *pTxFee = txfee_sat;
+                retval = 0;
+            } else {
+                LOGE("less amount: -%" PRIu64 "\n", FundingSat + txfee_sat - sum_amount);
+                retval = RPCERR_FUNDING_LESS_INPUT;
+            }
+        } else {
+            LOGE("no input\n");
+            retval = RPCERR_FUNDING_LESS_INPUT;
+        }
+    } else {
+        LOGE("fail: listunspent\n");
+        retval = RPCERR_BLOCKCHAIN;
+    }
+    if (p_root != NULL) {
+        json_decref(p_root);
+    }
+    UTL_DBG_FREE(p_json);
+
+    return retval;
+}
+
+
 /**************************************************************************
  * private functions: JSON-RPC
  **************************************************************************/
@@ -1038,14 +1226,14 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
 {
     char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
     snprintf(data, TXJSON_SIZE,
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "getrawtransaction") M_NEXT
-            M_QQ("params") ":[" M_QQ("%s") ", %s]"
-        "}", pTxid, (detail) ? "true" : "false");
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "getrawtransaction") M_NEXT
+             M_QQ("params") ":[" M_QQ("%s") ", %s]"
+             "}", pTxid, (detail) ? "true" : "false");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
     UTL_DBG_FREE(data);
@@ -1062,14 +1250,14 @@ static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult,
     size_t len = 256 + strlen(pTransaction);
     char *data = (char *)UTL_DBG_MALLOC(len);
     snprintf(data, len,
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "signrawtransactionwithwallet") M_NEXT
-            M_QQ("params") ":[" M_QQ("%s") "]"
-        "}", pTransaction);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "signrawtransactionwithwallet") M_NEXT
+             M_QQ("params") ":[" M_QQ("%s") "]"
+             "}", pTransaction);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
     UTL_DBG_FREE(data);
@@ -1086,14 +1274,14 @@ static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
     size_t len = 256 + strlen(pTransaction);
     char *data = (char *)UTL_DBG_MALLOC(len);
     snprintf(data, len,
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "sendrawtransaction") M_NEXT
-            M_QQ("params") ":[" M_QQ("%s") "]"
-        "}", pTransaction);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "sendrawtransaction") M_NEXT
+             M_QQ("params") ":[" M_QQ("%s") "]"
+             "}", pTransaction);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
     UTL_DBG_FREE(data);
@@ -1106,14 +1294,14 @@ static bool gettxout_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, cons
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "gettxout") M_NEXT
-            M_QQ("params") ":[" M_QQ("%s") ",%d]"
-        "}", pTxid, idx);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "gettxout") M_NEXT
+             M_QQ("params") ":[" M_QQ("%s") ",%d]"
+             "}", pTxid, idx);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1125,14 +1313,14 @@ static bool getblock_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, cons
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "getblock") M_NEXT
-            M_QQ("params") ":[" M_QQ("%s") "]"
-        "}", pBlock);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "getblock") M_NEXT
+             M_QQ("params") ":[" M_QQ("%s") "]"
+             "}", pBlock);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1144,14 +1332,14 @@ static bool getblockhash_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, 
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "getblockhash") M_NEXT
-            M_QQ("params") ":[ %d ]"
-        "}", BHeight);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "getblockhash") M_NEXT
+             M_QQ("params") ":[ %d ]"
+             "}", BHeight);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1166,14 +1354,14 @@ static bool getblockcount_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "getblockcount") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "getblockcount") M_NEXT
+             M_QQ("params") ":[]"
+             "}");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1188,14 +1376,15 @@ static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "getnewaddress") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "getnewaddress") M_NEXT
+             //M_QQ("params") ":[" M_QQ("") ", " M_QQ("bech32") "]"
+             M_QQ("params") ":[" M_QQ("") ", " M_QQ("p2sh-segwit") "]"
+             "}");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1210,14 +1399,14 @@ static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, i
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "estimatesmartfee") M_NEXT
-            M_QQ("params") ":[%d]"
-        "}", nBlock);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "estimatesmartfee") M_NEXT
+             M_QQ("params") ":[%d]"
+             "}", nBlock);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1232,14 +1421,14 @@ static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson
 {
     char data[512];
     snprintf(data, sizeof(data),
-        "{"
-            ///////////////////////////////////////////
-            M_RPCHEADER M_NEXT
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-            ///////////////////////////////////////////
-            M_1("method", "getnetworkinfo") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "getnetworkinfo") M_NEXT
+             M_QQ("params") ":[]"
+             "}");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1247,26 +1436,26 @@ static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson
 }
 
 
-/** [cURL]dumpprivkey
+/** [cURL]listunspent
  *
  */
-// static bool dumpprivkey_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pAddr)
-// {
-//     char data[512];
-//     snprintf(data, sizeof(data),
-//         "{"
-//             ///////////////////////////////////////////
-//             M_RPCHEADER M_NEXT
-//
-//             ///////////////////////////////////////////
-//             M_1("method", "dumpprivkey") M_NEXT
-//             M_QQ("params") ":[" M_QQ("%s") "]"
-//         "}", pAddr);
+static bool listunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
+{
+    char data[512];
+    snprintf(data, sizeof(data),
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
 
-//     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "listunspent") M_NEXT
+             M_QQ("params") ":[0]"
+             "}");
 
-//     return ret;
-// }
+    bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
+
+    return ret;
+}
 
 
 /** JSON-RPC処理
@@ -1363,27 +1552,94 @@ static int error_result(json_t *p_root)
 }
 
 
-#ifdef JSONRPC_TEST
+#if 0
 /**************************************************************************
-	gcc -o tst -I.. -I../include -I../libs/install/include -I../ptarm/include -DNETKIND=1 -DJSONRPC_TEST misc.c btcrpc.c -L../libs/install/lib -lcurl -ljansson -L../ptarm -lptarm -lbase58 -lmbedcrypto -llmdb -pthread
+gcc -ggdb -W -Wall -o tst -DPTARM_USE_PRINTFUNC -DUSE_BITCOIND btcrpc_bitcoind.c -I../utl -I../libs/install/include -L../libs/install/lib -I../ln -I../btc -L../utl -pthread -L../btc -lbtc -L../ln -lln -lbtc -lutl -ljansson -lcurl -lrt -lz -llmdb -lbase58  -lmbedcrypto -lstdc++
+ **************************************************************************/
+
+#include <inttypes.h>
+
+int main(void)
+{
+    utl_log_init_stderr();
+
+    bool ret;
+    rpc_conf_t rpc_conf;
+    strcpy(rpc_conf.rpcuser, "bitcoinuser");
+    strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
+    strcpy(rpc_conf.rpcurl, "127.0.0.1");
+
+    btc_block_chain_t chain = BTC_BLOCK_CHAIN_BTCREGTEST;
+    rpc_conf.rpcport = 18443;
+    btc_init(chain, true);
+    ret = btcrpc_init(&rpc_conf);
+    if (!ret) {
+        printf("fail: btcrpc_init\n");
+        return 0;
+    }
+
+    printf("-[getgenesisblock]-------------------------\n");
+    uint8_t genesis[BTC_SZ_HASH256];
+    ret = btcrpc_getgenesisblock(genesis);
+    if (!ret) {
+        printf("fail: getgenesisblock\n");
+        return 0;
+    }
+    if (memcmp(btc_block_get_genesis_hash(chain), genesis, BTC_SZ_HASH256) != 0) {
+        printf("fail: genesis not match\n");
+        return 0;
+    }
+
+    btc_tx_t tx = BTC_TX_INIT;
+    const uint8_t ADDR[] = {
+        0x00, 0x14, 0x89, 0xf9, 0x11, 0x9e, 0xe0, 0xb7, 0xf0, 0x42, 0xd3, 0x3e, 0x5d, 0x62, 0x16, 0x6d,
+        0x28, 0x65, 0xfa, 0x6d, 0x84, 0x18,
+    };
+    const utl_buf_t buf_addr = { .buf = (CONST_CAST uint8_t *)ADDR, .len = sizeof(ADDR) };
+    ret = btcrpc_sign_fundingtx(&tx, &buf_addr, 100000);
+    if (!ret) {
+        printf("fail: fundingtx\n");
+        return 0;
+    }
+    btc_tx_free(&tx);
+
+    printf("--------------------------\n");
+
+    btcrpc_term();
+    btc_term();
+}
+#endif
+
+
+#if 0
+/**************************************************************************
+	gcc -o tst -DUSE_BITCOIND btcrpc_bitcoind.c -I../utl -I../libs/install/include -L../libs/install/lib -I../ln -I../btc -L../utl -pthread -L../btc -lbtc -L../ln -lln -lbtc -lutl -ljansson -lcurl -lrt -lz -llmdb -lbase58  -lmbedcrypto -lstdc++
  **************************************************************************/
 
 #include <inttypes.h>
 
 int main(int argc, char *argv[])
 {
+    utl_log_init_stderr();
+
+    rpc_conf_t rpc_conf;
+    strcpy(rpc_conf.rpcuser, "bitcoinuser");
+    strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
+    strcpy(rpc_conf.rpcurl, "127.0.0.1");
+
+    btc_block_chain_t chain = BTC_BLOCK_CHAIN_BTCTEST;
+    rpc_conf.rpcport = 18332;
+    btc_init(chain, true);
+    btcrpc_init(&rpc_conf);
+
+    //height: 1514192
+    //index : 9
     const uint8_t TXID[] = {
-        0x49, 0x19, 0x7d, 0x36, 0xaf, 0x1d, 0xa5, 0xa8,
-        0x8d, 0x08, 0x44, 0x72, 0xdf, 0x34, 0x4d, 0xf1,
-        0x2b, 0xa9, 0xa8, 0x1e, 0xf8, 0x98, 0xb1, 0x10,
-        0xe4, 0x50, 0x6e, 0x93, 0xdb, 0x29, 0x81, 0xa4,
+        0x3f, 0x23, 0x6b, 0x93, 0xd3, 0x03, 0xf7, 0x90,
+        0xfb, 0xd9, 0x22, 0x79, 0x24, 0xf4, 0xda, 0x42,
+        0xa7, 0xb1, 0x9f, 0x20, 0x23, 0x37, 0xcd, 0x60,
+        0x10, 0x6f, 0x7f, 0x10, 0x59, 0x78, 0x40, 0x8d,
     };
-//    const uint8_t TXID[] = {
-//        0x87, 0x48, 0xc6, 0x00, 0x69, 0xad, 0xa7, 0x73,
-//        0x47, 0x04, 0xe9, 0x9f, 0xb2, 0xd0, 0x0f, 0x83,
-//        0x86, 0xad, 0xfa, 0x2e, 0xc7, 0x87, 0x78, 0x82,
-//        0x7e, 0x5a, 0x11, 0xd1, 0x2f, 0xef, 0x7b, 0x78,
-//    };
 
     const uint8_t TX[] = {
         0x02, 0x00, 0x00, 0x00, 0x01, 0xd8, 0xfe, 0xfd,
@@ -1418,92 +1674,125 @@ int main(int argc, char *argv[])
         0x00, 0x00, 0x00,
     };
 
-    btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
-
-    rpc_conf_t rpc_conf;
-
-    strcpy(rpc_conf.rpcuser, "bitcoinuser");
-    strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
-    strcpy(rpc_conf.rpcurl, "127.0.0.1");
-    btcrpc_init(&rpc_conf);
-
     bool ret;
 
-//    fprintf(stderr, "-[getblockcount]-------------------------\n");
-//    int blocks = getblockcount();
-//    fprintf(stderr, "blocks = %d\n", blocks);
+    printf("-[getgenesisblock]-------------------------\n");
+    uint8_t genesis[BTC_SZ_HASH256];
+    ret = btcrpc_getgenesisblock(genesis);
+    if (!ret) {
+        printf("fail: getgenesisblock\n");
+        return 0;
+    }
+    if (memcmp(btc_block_get_genesis_hash(chain), genesis, BTC_SZ_HASH256) != 0) {
+        printf("fail: genesis not match\n");
+        return 0;
+    }
 
-//    fprintf(stderr, "-[short_channel_info]-------------------------\n");
-//    int32_t bindex;
-//    int32_t bheight;
-//    ret = btcrpc_get_short_channel_param(NULL, &bindex, &bheight, NULL, TXID);
-//    if (ret) {
-//        fprintf(stderr, "index = %d\n", bindex);
-//        fprintf(stderr, "height = %d\n", bheight);
-//    }
+    printf("-[getblockcount]-------------------------\n");
+    int32_t blocks;
+    ret = btcrpc_getblockcount(&blocks);
+    if (!ret) {
+        printf("fail: getblockcount\n");
+        return 0;
+    }
+    printf("blocks = %d\n", blocks);
 
-//    int32_t conf;
-//    fprintf(stderr, "-conf-------------------------\n");
-//    bool b = btcrpc_get_confirmations(&conf, TXID);
-//    fprintf(stderr, "confirmations = %d(%d)\n", (int)conf, b);
+    printf("-[short_channel_info]-------------------------\n");
+    int32_t bheight;
+    int32_t bindex;
+    ret = btcrpc_get_short_channel_param(NULL, &bheight, &bindex, NULL, TXID);
+    if (!ret) {
+        printf("fail: get short_channel_param\n");
+        return 0;
+    }
+    printf("height = %d\n", bheight);
+    printf("index = %d\n", bindex);
+    if ((bheight != 1514192) || (bindex != 9)) {
+        printf("fail: not height or bindex\n");
+        return 0;
+    }
 
-//    fprintf(stderr, "-getnewaddress-------------------------\n");
-//    char addr[BTC_SZ_ADDR_STR_MAX + 1];
-//    ret = btcrpc_getnewaddress(addr);
-//    if (ret) {
-//        fprintf(stderr, "addr=%s\n", addr);
-//    }
+    int32_t conf;
+    printf("-conf-------------------------\n");
+    ret = btcrpc_get_confirmations(&conf, TXID);
+    if (!ret) {
+        printf("fail: get confirmation\n");
+        return 0;
+    }
+    printf("confirmations = %d\n", (int)conf);
 
-//    fprintf(stderr, "-dumpprivkey-------------------------\n");
-//    char wif[BTC_SZ_WIF_STR_MAX + 1];
-//    ret = btcrpc_dumpprivkey(wif, addr);
-//    if (ret) {
-//        fprintf(stderr, "wif=%s\n", wif);
-//    }
+    printf("-getnewaddress-------------------------\n");
+    char addr[BTC_SZ_ADDR_STR_MAX + 1];
+    ret = btcrpc_getnewaddress(addr);
+    if (!ret) {
+        printf("fail: get newaddress\n");
+        return 0;
+    }
+    printf("addr=%s\n", addr);
 
-    //fprintf(stderr, "-gettxout-------------------------\n");
-    //bool unspent;
-    //uint64_t value;
-    //ret = btcrpc_check_unspent(NULL, &unspent, &value, TXID, 1);
-    //if (ret && unspent) {
-    //    fprintf(stderr, "value=%" PRIu64 "\n", value);
-    //}
+    printf("-check_unspent-------------------------\n");
+    bool unspent;
+    uint64_t value;
+    ret = btcrpc_check_unspent(NULL, &unspent, &value, TXID, 1);
+    if (!ret) {
+        printf("fail: check unspent\n");
+        return 0;
+    }
+    printf("unspent: %d\n", unspent);
+    if (unspent) {
+        printf("value: value=%" PRIu64 "\n", value);
+        if (value != 7775309) {
+            printf("fail: value not match\n");
+            return 0;
+        }
+    }
 
-//    fprintf(stderr, "-getrawtx------------------------\n");
-//    ret = btcrpc_is_tx_broadcasted(TXID);
-//    fprintf(stderr, "ret=%d\n", ret);
+    printf("-is_tx_broadcasted------------------------\n");
+    ret = btcrpc_is_tx_broadcasted(TXID);
+    if (!ret) {
+        printf("fail: check broadcasted\n");
+        return 0;
+    }
 
-//    fprintf(stderr, "--------------------------\n");
+//    printf("-sendrawtx-------------------------\n");
 //    uint8_t txid[BTC_SZ_TXID];
-//    bool ret = btcrpc_send_rawtx(txid, NULL, TX, sizeof(TX));
+//    ret = btcrpc_send_rawtx(txid, NULL, TX, sizeof(TX));
 //    if (ret) {
 //        for (int lp = 0; lp < sizeof(txid); lp++) {
-//            fprintf(stderr, "%02x", txid[lp]);
+//            printf("%02x", txid[lp]);
 //        }
-//        fprintf(stderr, "\n");
+//        printf("\n");
 //    }
 
-    // fprintf(stderr, "--------------------------\n");
-    // {
-    //     uint32_t bheight;
-    //     uint32_t bindex;
-    //     uint32_t vindex;
-    //     bool unspent;
-    //     uint64_t short_channel_id;
-    //     uint8_t txid[BTC_SZ_TXID];
+    printf("-short_channel_id_get_param-------------------------\n");
+    {
+        uint32_t bheight;
+        uint32_t bindex;
+        uint32_t vindex;
+        bool unspent;
+        uint64_t short_channel_id;
+        uint8_t txid[BTC_SZ_TXID];
 
-    //     short_channel_id = 0x11a7810000440000ULL;
-    //     ln_short_channel_id_get_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
-    //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
+        short_channel_id = 0x11a7810000440000ULL;
+        ln_short_channel_id_get_param(&bheight, &bindex, &vindex, short_channel_id);
+        unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
+        printf("%016" PRIx64 " = %d\n", short_channel_id, unspent);
+        if ((bheight != 1156993) || (bindex != 68)) {
+            printf("fail: short_channel_id\n");
+            return 0;
+        }
 
-    //     short_channel_id = 0x11a2eb0000210000ULL;
-    //     ln_short_channel_id_get_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
-    //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
-    // }
+        short_channel_id = 0x11a2eb0000210000ULL;
+        ln_short_channel_id_get_param(&bheight, &bindex, &vindex, short_channel_id);
+        unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
+        printf("%016" PRIx64 " = %d\n", short_channel_id, unspent);
+        if ((bheight != 1155819) || (bindex != 33)) {
+            printf("fail: short_channel_id\n");
+            return 0;
+        }
+    }
 
-    fprintf(stderr, "--------------------------\n");
+    printf("-estimatefee-------------------------\n");
     {
         uint64_t feeperrate;
         bool ret = btcrpc_estimatefee(&feeperrate, 3);
@@ -1514,7 +1803,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    fprintf(stderr, "--------------------------\n");
+    printf("--------------------------\n");
 
     btcrpc_term();
     btc_term();
