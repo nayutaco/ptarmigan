@@ -63,40 +63,7 @@ export class PtarmiganService {
         return execSync(this.path + '/routing' + ' -d ' + this.nodePath + ' -s ' + senderNodeId + ' -r ' + receiverNodeId, {timeout: 30000});
     }
 
-    commandExecutePayFundin(fundingSat, pushMsat, outputFileName): Buffer {
-        return execSync('python3' + ' ' + this.path + '/pay_fundin.py' + ' ' + fundingSat + ' ' + pushMsat + ' ' + outputFileName, {timeout: 30000});
-    }
-
     async commandExecuteOpenChannel(peerNodeId: string, fundingSat: number, pushMsat: number, feeratePerKw: number): Promise<string> {
-        const utime = new Date().getTime() / 1000;
-        const filename = utime.toString() + '.txt';
-        try {
-            const res = this.commandExecutePayFundin(fundingSat, pushMsat, filename);
-            const content = dotenv.parse(fs.readFileSync(filename + ''));
-            const txidKey = 'txid';
-            const txId = content[txidKey];
-            const txindexKey = 'txindex';
-            const txIndex = content[txindexKey];
-            return await this.requestTCP('fund', [peerNodeId, '0.0.0.0', 0, txId, txIndex, feeratePerKw]);
-        } catch (error) {
-            if (error.status === 1) {
-                // ERR_INVALID_ARG
-                return error.stderr.toString();
-            } else if (error.status === 2) {
-                // ERR_NO_AMOUNT
-                return error.stderr.toString();
-            } else if (error.status === 3) {
-                // ERR_BC_CREATE_TX
-                return error.stderr.toString();
-            } else if (error.status === 4) {
-                // ERR_BC_SEND_TX
-                return error.stderr.toString();
-            } else if (error.status === 100) {
-                // ERR_EXCEPTION
-                return error.stderr.toString();
-            } else if (error.code === 'ENOENT') {
-                return 'File not found';
-            }
-        }
+        return await this.requestTCP('fund', [peerNodeId, '0.0.0.0', 0, '', '', fundingSat, pushMsat, feeratePerKw]);
     }
 }
