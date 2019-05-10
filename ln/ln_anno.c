@@ -58,6 +58,8 @@
 
 #define M_UPDCNL_TIMERANGE                  ((uint32_t)(60 * 60))   //1hour
 
+#define M_SEND_ENCODED_IDS                  (50)
+
 
 /**************************************************************************
  * prototypes
@@ -389,11 +391,12 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
 
 bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEncodedIds, uint16_t Len)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
     }
-    if (pChannel->gquery.wait_query_short_channel_ids_end) {
+    if (pChannel->gossip_query.request.wait_query_short_channel_ids_end) {
         LOGE("fail: already query_short_channel_ids\n");
         return false;
     }
@@ -405,15 +408,20 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEnc
     msg.len = Len;
     msg.p_encoded_short_ids = pEncodedIds;
     if (!ln_msg_query_short_channel_ids_write(&buf, &msg)) return false;
-    pChannel->gquery.wait_query_short_channel_ids_end = true;
+    pChannel->gossip_query.request.wait_query_short_channel_ids_end = true;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
+#else
+    (void)pChannel; (void)pEncodedIds; (void)Len;
+    return false;
+#endif
 }
 
 
 bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGD("through: not gossip_queries\n");
         return true;
@@ -435,11 +443,16 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
     UTL_DBG_FREE(p_short_channel_ids);
 
     return true;
+#else
+    (void)pChannel; (void)pData; (void)Len;
+    return false;
+#endif
 }
 
 
 bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_query_short_channel_ids_t *pMsg)
 {
+#ifdef USE_GOSSIP_QUERY
     (void)pMsg;
 
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
@@ -456,16 +469,21 @@ bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_qu
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
+#else
+    (void)pChannel; (void)pMsg;
+    return false;
+#endif
 }
 
 
 bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
     }
-    if (!pChannel->gquery.wait_query_short_channel_ids_end) {
+    if (!pChannel->gossip_query.request.wait_query_short_channel_ids_end) {
         LOGE("fail: query_short_channel_ids not sent\n");
         return false;
     }
@@ -473,15 +491,24 @@ bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const ui
     if (!ln_msg_reply_short_channel_ids_end_read(&msg, pData, Len)) {
         return false;
     }
-    pChannel->gquery.wait_query_short_channel_ids_end = false;
+    pChannel->gossip_query.request.wait_query_short_channel_ids_end = false;
     return true;
+#else
+    (void)pChannel; (void)pData; (void)Len;
+    return false;
+#endif
 }
 
 
 bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, uint32_t Num)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
+        return false;
+    }
+    if (pChannel->gossip_query.request.rest_blocks != 0) {
+        LOGE("fail: not all reply_channel_range received\n");
         return false;
     }
 
@@ -498,12 +525,20 @@ bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, ui
     if (!ln_msg_query_channel_range_write(&buf, &msg)) return false;
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
+
+    pChannel->gossip_query.request.first_blocknum = FirstBlock;
+    pChannel->gossip_query.request.rest_blocks = Num;
     return true;
+#else
+    (void)pChannel; (void)FirstBlock; (void)Num;
+    return false;
+#endif
 }
 
 
 bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGD("through: not gossip_queries\n");
         return true;
@@ -517,11 +552,16 @@ bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
         return false;
     }
     return true;
+#else
+    (void)pChannel; (void)pData; (void)Len;
+    return false;
+#endif
 }
 
 
 bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_channel_range_t *pMsg)
 {
+#ifdef USE_GOSSIP_QUERY
     bool ret;
 
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
@@ -583,11 +623,16 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
     utl_buf_free(&buf);
     utl_buf_free(&encoded_ids);
     return true;
+#else
+    (void)pChannel; (void)pMsg;
+    return false;
+#endif
 }
 
 
 bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -596,30 +641,105 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
     ln_msg_reply_channel_range_t msg;
     bool ret = ln_msg_reply_channel_range_read(&msg, pData, Len);
     if (ret) {
-        uint64_t *p_short_ids = NULL;
-        size_t ids = 0;
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ret = ln_msg_gossip_ids_decode(&p_short_ids, &ids, msg.p_encoded_short_ids, msg.len);
-        if (ret) {
-            if (msg.len > 1) {
-                ret = ln_query_short_channel_ids_send(pChannel, msg.p_encoded_short_ids, msg.len);
-                assert(ret);
-            }
+        if (msg.first_blocknum != pChannel->gossip_query.request.first_blocknum) {
+            LOGE("fail: not first_blocknum(require=%" PRIu32 ", get=%" PRIu32 ")\n",
+                pChannel->gossip_query.request.first_blocknum,
+                msg.first_blocknum);
+            return true;
+        }
+        if (msg.number_of_blocks > pChannel->gossip_query.request.rest_blocks) {
+            LOGE("fail: too large blocks(rest=%" PRIu32 ", get=%" PRIu32 ")\n",
+                pChannel->gossip_query.request.rest_blocks,
+                msg.number_of_blocks);
+            return true;
+        }
+        pChannel->gossip_query.request.first_blocknum += msg.number_of_blocks;
+        pChannel->gossip_query.request.rest_blocks -= msg.number_of_blocks;
+        if (msg.len > 1) {
+            //分解してlistに追加
+            uint64_t *p_short_ids = NULL;
+            size_t ids = 0;
+            ret = ln_msg_gossip_ids_decode(&p_short_ids, &ids, msg.p_encoded_short_ids, msg.len);
+            if (ret) {
+                LOGD("IDS=%" PRIu64 "\n", ids);
+#if 0
+                //debug
+                char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+                for (size_t lp = 0; lp < ids; lp++) {
+                    ln_short_channel_id_string(str_sci, p_short_ids[lp]);
+                    LOGD("[%ld]%s\n", lp, str_sci);
+                }
+#endif
 
-            //debug
-            for (size_t lp = 0; lp < ids; lp++) {
-                ln_short_channel_id_string(str_sci, p_short_ids[lp]);
-                LOGD("[%ld]%s\n", lp, str_sci);
+                //find last pointer
+                struct ln_anno_encoded_ids_t *p_list = SLIST_FIRST(&pChannel->gossip_query.request.send_encoded_ids);
+                while (p_list != NULL) {
+                    struct ln_anno_encoded_ids_t *p_next = SLIST_NEXT(p_list, list);
+                    if (p_next == NULL) {
+                        break;
+                    }
+                    p_list = p_next;
+                }
+                //add last
+                uint64_t cnt = 0;
+                while (ids > 0) {
+                    struct ln_anno_encoded_ids_t *p_encoded = (struct ln_anno_encoded_ids_t *)UTL_DBG_MALLOC(sizeof(struct ln_anno_encoded_ids_t));
+                    utl_buf_alloc(&p_encoded->encoded_short_ids, 1 + sizeof(uint64_t) * M_SEND_ENCODED_IDS);
+                    uint8_t *p = p_encoded->encoded_short_ids.buf;
+                    *p = LN_GOSSIPQUERY_ENCODE_NONE;
+                    for (int lp = 0; lp < M_SEND_ENCODED_IDS; lp++) {
+                        utl_int_unpack_u64be(p + 1 + sizeof(uint64_t) * lp, p_short_ids[cnt]);
+                        cnt++;
+                        ids--;
+                        if (ids == 0) {
+                            p_encoded->encoded_short_ids.len = 1 + sizeof(uint64_t) * (lp + 1);
+                            p = (uint8_t *)UTL_DBG_REALLOC(p, p_encoded->encoded_short_ids.len);
+                            break;
+                        }
+                    }
+                    if (p_list != NULL) {
+                        SLIST_INSERT_AFTER(p_list, p_encoded, list);
+                    } else {
+                        SLIST_INSERT_HEAD(&pChannel->gossip_query.request.send_encoded_ids, p_encoded, list);
+                    }
+                    p_list = p_encoded;
+                }
+                UTL_DBG_FREE(p_short_ids);
+
+#if 0
+                LOGD("------------------------------------\n");
+                cnt = 0;
+                struct ln_anno_encoded_ids_t *p_var;
+                SLIST_FOREACH(p_var, &pChannel->gossip_query.request.send_encoded_ids, list) {
+                    LOGD("encode: %02x\n", p_var->encoded_short_ids.buf[0]);
+                    const uint8_t *p = p_var->encoded_short_ids.buf + 1;
+                    int num = (p_var->encoded_short_ids.len - 1) / sizeof(uint64_t);
+                    for (int lp = 0; lp < num; lp++) {
+                        uint64_t sci = utl_int_pack_u64be(p + sizeof(uint64_t) * lp);
+                        ln_short_channel_id_string(str_sci, sci);
+                        LOGD("  [%2d]%s\n", cnt, str_sci);
+                        cnt++;
+                    }
+                }
+                LOGD("------------------------------------\n");
+#endif
             }
-            UTL_DBG_FREE(p_short_ids);
+        }
+        if (pChannel->gossip_query.request.rest_blocks == 0) {
+            LOGD("all reply_channel_range received.\n");
         }
     }
     return true;
+#else
+    (void)pChannel; (void)pData; (void)Len;
+    return false;
+#endif
 }
 
 
 bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -634,11 +754,16 @@ bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
+#else
+    (void)pChannel;
+    return false;
+#endif
 }
 
 
 bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
+#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGD("through: not gossip_queries\n");
         return true;
@@ -647,6 +772,10 @@ bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_
     ln_msg_gossip_timestamp_filter_t msg;
     ln_msg_gossip_timestamp_filter_read(&msg, pData, Len);
     return true;
+#else
+    (void)pChannel; (void)pData; (void)Len;
+    return false;
+#endif
 }
 
 

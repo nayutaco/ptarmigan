@@ -95,9 +95,9 @@ bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool b
     msg.gflen = 0;
     msg.p_globalfeatures = NULL;
     pChannel->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
-#ifdef USE_GQUERY
+#ifdef USE_GOSSIP_QUERY
     pChannel->lfeature_local |= LN_INIT_LF_OPT_GSP_QUERY;
-#endif  //USE_GQUERY
+#endif  //USE_GOSSIP_QUERY
     msg.lflen = sizeof(pChannel->lfeature_local);
     msg.p_localfeatures = &pChannel->lfeature_local;
     LOGD("localfeatures: ");
