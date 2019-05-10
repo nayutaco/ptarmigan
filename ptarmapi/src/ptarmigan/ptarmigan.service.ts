@@ -76,8 +76,8 @@ export class PtarmiganService {
             const txidKey = 'txid';
             const txId = content[txidKey];
             const txindexKey = 'txindex';
-            const txIndex = content[txindexKey];
-            return await this.requestTCP('fund', [peerNodeId, '0.0.0.0', 0, txId, txIndex, feeratePerKw]);
+            const txIndex = parseInt(content[txindexKey]);
+            return await this.requestTCP('fund', [peerNodeId, '0.0.0.0', 0, txId, txIndex, fundingSat, pushMsat, feeratePerKw]);
         } catch (error) {
             if (error.status === 1) {
                 // ERR_INVALID_ARG

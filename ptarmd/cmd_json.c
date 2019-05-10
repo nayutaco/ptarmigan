@@ -510,6 +510,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (err) {
         goto LABEL_EXIT;
     }
+    err = RPCERR_PARSE;
 
     //funding parameter
     //txid
@@ -519,6 +520,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         utl_str_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
         LOGD("txid=%s\n", json->valuestring);
     } else {
+        LOGE("txid\n");
         goto LABEL_EXIT;
     }
 #endif
@@ -529,6 +531,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         fundconf.txindex = json->valueint;
         LOGD("txindex=%d\n", json->valueint);
     } else {
+        LOGE("txindex\n");
         goto LABEL_EXIT;
     }
 #endif
@@ -538,6 +541,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         fundconf.funding_sat = json->valueu64;
         LOGD("funding_sat=%" PRIu64 "\n", fundconf.funding_sat);
     } else {
+        LOGE("funding_sat\n");
         goto LABEL_EXIT;
     }
     //push_msat
@@ -546,6 +550,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         fundconf.push_msat = json->valueu64;
         LOGD("push_msat=%" PRIu64 "\n", fundconf.push_msat);
     } else {
+        LOGE("push_msat\n");
         goto LABEL_EXIT;
     }
     //feerate_per_kw
