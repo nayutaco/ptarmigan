@@ -230,7 +230,8 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     if (ret && !unspent) {
         *p_wlt->pp_result = UTL_DBG_STRDUP("not unspent");
         LOGE("%s\n", *p_wlt->pp_result);
-        ln_db_wallet_del(pWallet->p_txid, pWallet->index);
+        //remain DB if you cannot get.
+        //ln_db_wallet_del(pWallet->p_txid, pWallet->index);
         return false;
     }
 
