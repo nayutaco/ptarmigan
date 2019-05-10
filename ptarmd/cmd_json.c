@@ -614,6 +614,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         amount_msat = json->valueu64;
         LOGD("amount_msat=%" PRIu64 "\n", amount_msat);
     } else {
+        err = RPCERR_PARSE;
         goto LABEL_EXIT;
     }
     //min_final_cltv_expiry
@@ -633,7 +634,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     const char *DESC = "ptarmigan";
     size_t desc_len = strlen(DESC);
     if (desc_len > 20) {
-        err = 0;
+        err = M_RPCERR_FREESTRING;
         ctx->error_code = RPCERR_INVOICE_FAIL;
         ctx->error_message = strdup_cjson("too long description");
         goto LABEL_EXIT;
@@ -674,7 +675,7 @@ LABEL_EXIT:
         }
         UTL_DBG_FREE(p_r_field);
     }
-    if (err) {
+    if (err && (err != M_RPCERR_FREESTRING)) {
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
