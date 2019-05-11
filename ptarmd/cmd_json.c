@@ -1758,7 +1758,8 @@ static void cmd_dev_send_error_cb(lnapp_conf_t *pConf, void *pParam)
 {
     (void)pParam;
 
-    ln_error_send(&pConf->channel, 0, "DEBUG: error send");
+    ln_error_set(&pConf->channel, 0, "DEBUG: error send");
+    ln_error_send(&pConf->channel);
 }
 
 
