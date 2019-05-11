@@ -183,9 +183,8 @@ LABEL_EXIT:
 }
 
 
-bool /*HIDDEN*/ ln_error_send(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
+bool /*HIDDEN*/ ln_error_send(ln_channel_t *pChannel)
 {
-    ln_error_set(pChannel, Err, pFormat);
     ln_msg_error_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.p_data = (const uint8_t *)pChannel->err_msg;
