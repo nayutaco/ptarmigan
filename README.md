@@ -17,9 +17,8 @@
 
 * Ubuntu 18.04
 * bitcoind
-  * above v0.17 (`getnetworkinfo` version > 170000)
-  * for bitcoin mainnet / testnet / regtest
-  * nested in BIP16 P2SH
+  * above v0.17 (`getnetworkinfo` version >= 170000)
+  * bitcoin mainnet / testnet / regtest
 
 ## Install
 
@@ -104,19 +103,19 @@ Try the newer REST API interface.
 ### application
 
 * [bitcoind](https://github.com/bitcoin/bitcoin)
-  * bitcoin-cli
-    * `getnewaddress`
-    * `sendtoaddress`
-    * `gettxout`
   * JSON-RPC
-    * `getblockcount`
     * `getrawtransaction`
-    * `signrawtransaction`
+    * `signrawtransactionwithwallet`
     * `sendrawtransaction`
     * `gettxout`
     * `getblock`
+    * `getblockhash`
+    * `getblockcount`
     * `getnewaddress`
     * `estimatesmartfee`
+    * `getnetworkinfo`
+    * `listunspent`
+    * `lockunspent`
 
 ## Security
 

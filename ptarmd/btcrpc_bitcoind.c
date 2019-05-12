@@ -78,6 +78,7 @@ static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, ui
 static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *pVout);
 static bool getversion(int64_t *pVersion);
 static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *pTxFee, uint64_t FundingSat, uint64_t FeeratePerKw);
+static bool lockunspent(const char *pOutPoint);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail);
@@ -91,6 +92,7 @@ static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
 static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, int nBlock);
 static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 static bool listunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
+static bool lockunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pOutPoint);
 
 static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pData);
 static int error_result(json_t *p_root);
@@ -490,13 +492,9 @@ bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Am
     utl_buf_t buf_rawtx = UTL_BUF_INIT;
     ret = btc_tx_write(&tx_nosign, &buf_rawtx);
     if (ret) {
-        btc_tx_print(&tx_nosign);
         ret = signrawtx_with_wallet(pTx, buf_rawtx.buf, buf_rawtx.len, Amount);
     } else {
         LOGE("fail: sign\n");
-    }
-    if (ret) {
-        btc_tx_print(pTx);
     }
     utl_buf_free(&buf_rawtx);
     btc_tx_free(&tx_nosign);
@@ -1119,8 +1117,14 @@ static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *p
                     "{"
                         M_JSON_STR("txid", "%s") M_NEXT
                         M_JSON_NUM("vout", "%d")
-                    "},",
+                    "}",
                     txid_str, vout);
+            ret = lockunspent(outpoint);
+            LOGD("lockunspent: %s\n", outpoint);
+            if (!ret) {
+                LOGE("fail: lockunspent\n");
+                continue;
+            }
 
             uint8_t txid[BTC_SZ_TXID];
             utl_str_str2bin_rev(txid, BTC_SZ_TXID, txid_str);
@@ -1177,6 +1181,28 @@ static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *p
     UTL_DBG_FREE(p_json);
 
     return retval;
+}
+
+
+static bool lockunspent(const char *pOutPoint)
+{
+    bool ret;
+    char *p_json = NULL;
+    json_t *p_root = NULL;
+    json_t *p_result;
+
+    ret = lockunspent_rpc(&p_root, &p_result, &p_json, pOutPoint);
+    if (ret) {
+        ret = json_boolean_value(p_result);
+    } else {
+        LOGE("fail: lockunspent_rpc\n");
+    }
+    if (p_root != NULL) {
+        json_decref(p_root);
+    }
+    UTL_DBG_FREE(p_json);
+
+    return ret;
 }
 
 
@@ -1290,7 +1316,7 @@ static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
 }
 
 
-static bool gettxout_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, int idx)
+static bool gettxout_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, int Idx)
 {
     char data[512];
     snprintf(data, sizeof(data),
@@ -1301,7 +1327,7 @@ static bool gettxout_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, cons
              ///////////////////////////////////////////
              M_JSON_STR("method", "gettxout") M_NEXT
              M_QQ("params") ":[" M_QQ("%s") ",%d]"
-             "}", pTxid, idx);
+             "}", pTxid, Idx);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1458,6 +1484,28 @@ static bool listunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
 }
 
 
+/** [cURL]lockunspent
+ *
+ */
+static bool lockunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pOutPoint)
+{
+    char data[512];
+    snprintf(data, sizeof(data),
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
+
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "lockunspent") M_NEXT
+             M_QQ("params") ":[false,[%s]]"
+             "}", pOutPoint);
+
+    bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
+
+    return ret;
+}
+
+
 /** JSON-RPC処理
  *
  * @retval  true    成功
@@ -1601,6 +1649,7 @@ int main(void)
         printf("fail: fundingtx\n");
         return 0;
     }
+    btc_tx_print(&tx);
     btc_tx_free(&tx);
 
     printf("--------------------------\n");
