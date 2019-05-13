@@ -1,6 +1,14 @@
-# build ptarmd for SPV
+# Build Ptarmigan for SPV
 
-## build
+## Easy for Raspberry Pi Zero settings
+
+```bash
+cd ptarmigan
+./tools/rpi_bj.sh
+# edit options.mak and install/jdk.sh for Raspbery Pi Zero
+```
+
+## Build
 
 * JDK
   * Raspberry Pi2/3(Cortex-A)
@@ -14,7 +22,6 @@ sudo apt install -y openjdk-8-jdk
 ```
 
 * configure
-
   * `options.mak`
     * set `NODE_TYPE=BITCOINJ`
 
@@ -25,7 +32,7 @@ make clean
 make
 ```
 
-## execute
+## Execute
 
 * configure
 
@@ -34,14 +41,14 @@ cd install
 
 # edit your environment(if need)
 vi jdk.sh
-(uncomment your TARGET)
+(select your TARGET)
 
 source jdk.sh
 ```
 
-## usage
+## Usage
 
-* start (testnet)
+* start node
 
 ```bash
 cd install
