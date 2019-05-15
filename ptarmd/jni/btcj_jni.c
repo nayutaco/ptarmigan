@@ -62,7 +62,7 @@ const struct {
     const char *sig;
 } kMethod[METHOD_PTARM_MAX] = {
     // METHOD_PTARM_SPV_START,
-    { "spv_start", "()I" },
+    { "spv_start", "(Ljava/lang/String;)I" },
     // METHOD_PTARM_SETCREATIONHASH,
     { "setCreationHash", "([B)V" },
     // METHOD_PTARM_GETBLOCKCOUNT,
@@ -133,7 +133,7 @@ bool btcj_init(btc_block_chain_t Gen)
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
     // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
-    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=info";
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug";
     opt[2].optionString = "-Dorg.slf4j.simpleLogger.log.co.nayuta.lightning=debug";
     opt[3].optionString = "-Dorg.slf4j.simpleLogger.showDateTime=true";
     opt[4].optionString = "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ssZ";
@@ -179,35 +179,17 @@ bool btcj_init(btc_block_chain_t Gen)
 
     // コンストラクタ呼び出し
     LOGD("call ctor\n");
-    jmethodID method = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/lang/String;)V");
+    jmethodID method = (*env)->GetMethodID(env, cls, "<init>", "()V");
     if ((*env)->ExceptionCheck(env) || (method == NULL)) {
         LOGE("fail: ctor\n");
         return false;
     }
-    const char *p_chain;
-    switch (Gen) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        p_chain = "main";
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-        p_chain = "test";
-        break;
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        p_chain = "regtest";
-        break;
-    default:
-        LOGE("fail: unknown genesis block hash\n");
-        assert(0);
-        return false;
-    }
-    jstring param = (*env)->NewStringUTF(env, p_chain);
-    jobject obj = (*env)->NewObject(env, cls, method, param);
+    jobject obj = (*env)->NewObject(env, cls, method);
     if(obj == NULL) {
         LOGE("fail: NewObject\n");
         return false;
     }
     ptarm_obj = (jobject)(*env)->NewGlobalRef(env, obj);
-    (*env)->DeleteLocalRef(env, param);
     (*env)->DeleteLocalRef(env, obj);
     //
     LOGD("get methods\n");
@@ -303,7 +285,7 @@ bool btcj_init(btc_block_chain_t Gen)
     (*env)->DeleteLocalRef(env, cls);
 
     LOGD("SPV start\n");
-    ret = btcj_spv_start();
+    ret = btcj_spv_start(Gen);
     switch (ret) {
     case BTCJ_INI_SPV_START_OK:
         LOGD("OK!\n");
@@ -348,12 +330,30 @@ bool btcj_release(void)
     return true;
 }
 //-----------------------------------------------------------------------------
-int btcj_spv_start(void)
+int btcj_spv_start(btc_block_chain_t Gen)
 {
     LOGD("\n");
-    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SPV_START]);
+    const char *p_chain;
+    switch (Gen) {
+    case BTC_BLOCK_CHAIN_BTCMAIN:
+        p_chain = "main";
+        break;
+    case BTC_BLOCK_CHAIN_BTCTEST:
+        p_chain = "test";
+        break;
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
+        p_chain = "regtest";
+        break;
+    default:
+        LOGE("fail: unknown genesis block hash\n");
+        assert(0);
+        return false;
+    }
+    jstring param = (*env)->NewStringUTF(env, p_chain);
+    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SPV_START], param);
     check_exception(env);
     LOGD("ret=%d\n", ret);
+    (*env)->DeleteLocalRef(env, param);
     //
     return ret;
 }
