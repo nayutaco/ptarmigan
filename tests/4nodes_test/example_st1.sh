@@ -18,7 +18,6 @@ ln -s $INSTALL_DIR/ptarmd ptarmd
 ln -s $INSTALL_DIR/showdb showdb
 ln -s $INSTALL_DIR/routing routing
 ln -s $INSTALL_DIR/default_conf.sh default_conf.sh
-ln -s ../testfiles/fund-test-in.sh fund-test-in.sh
 ln -s ../testfiles/regtest.conf regtest.conf
 ln -s ../testfiles/generate.sh generate.sh
 ln -s ../testfiles/getrawtx.sh getrawtx.sh

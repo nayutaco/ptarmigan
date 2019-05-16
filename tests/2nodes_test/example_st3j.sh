@@ -18,7 +18,7 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` sendtoaddress ${ADDR} 0.1
 sleep 3
 
 # node_4444からnode_3333へチャネルを開く。
-FUND=`./ptarmcli -c conf/peer3333.conf -f 600000,300000,1000 4445`
+FUND=`./ptarmcli -c conf/peer3333.conf -f 600000,300000000,2000 4445`
 echo FUNDING: ${FUND}
 FUND=`echo ${FUND} | jq -e '.result' | grep -c 'Progressing'`
 if [ ${FUND} -eq 0 ]; then

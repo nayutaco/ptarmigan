@@ -9,4 +9,4 @@ rm -rf \
     tmp.*
 
 # remove synbolic link
-rm ptarmcli ptarmd showdb routing fund-test-in.sh regtest.conf generate.sh getrawtx.sh sendrawtx.sh default_conf.sh
+rm ptarmcli ptarmd showdb routing regtest.conf generate.sh getrawtx.sh sendrawtx.sh default_conf.sh
