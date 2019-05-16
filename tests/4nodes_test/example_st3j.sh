@@ -69,14 +69,16 @@ done
 sleep 3
 
 # node_4444からnode_3333へチャネルを開く。
-./ptarmcli -c conf/peer3333.conf -f 600000,300000 4445
+./ptarmcli -c conf/peer3333.conf -f 600000,300000000 4445
 
 # node_5555からnode_3333へチャネルを開く。
-./ptarmcli -c conf/peer3333.conf -f 600000,300000 5556
+./ptarmcli -c conf/peer3333.conf -f 600000,300000000 5556
 
 # node_6666からnode_5555へチャネルを開く。
-./ptarmcli -c conf/peer5555.conf -f 600000,300000 6667
+./ptarmcli -c conf/peer5555.conf -f 600000,300000000 6667
 
+# 少し待つ
+echo wait...
 sleep 2
 
 # mining

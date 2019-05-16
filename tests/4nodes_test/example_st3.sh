@@ -58,26 +58,16 @@ mv node_6666/ptarm_*.conf conf/peer6666.conf
 ./ptarmcli -c conf/peer3333.conf 4445
 ./ptarmcli -c conf/peer3333.conf 5556
 ./ptarmcli -c conf/peer5555.conf 6667
-sleep 1
+sleep 3
 
 # node_4444からnode_3333へチャネルを開く。
-./fund-test-in.sh > node_4444/fund4444_3333.conf
-sleep 1
-./ptarmcli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
-
-sleep 2
+./ptarmcli -c conf/peer3333.conf -f 600000,300000000 4445
 
 # node_5555からnode_3333へチャネルを開く。
-./fund-test-in.sh > node_5555/fund5555_3333.conf
-sleep 1
-./ptarmcli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
-
-sleep 2
+./ptarmcli -c conf/peer3333.conf -f 600000,300000000 5556
 
 # node_6666からnode_5555へチャネルを開く。
-./fund-test-in.sh > node_6666/fund6666_5555.conf
-sleep 1
-./ptarmcli -c conf/peer5555.conf -f node_6666/fund6666_5555.conf 6667
+./ptarmcli -c conf/peer5555.conf -f 600000,300000000 6667
 
 # 少し待つ
 echo wait...

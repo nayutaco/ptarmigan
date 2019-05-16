@@ -635,6 +635,15 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     }
     UTL_DBG_FREE(p_json);
 
+    if (!result) {
+        //regtest
+        if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
+            LOGD("force regtest feerate\n");
+            *pFeeSatoshi = 4 * LN_FEERATE_PER_KW;
+            result = true;
+        }
+    }
+
     return result;
 }
 
@@ -1122,7 +1131,7 @@ static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *p
             ret = lockunspent(outpoint);
             LOGD("lockunspent: %s\n", outpoint);
             if (!ret) {
-                LOGE("fail: lockunspent\n");
+                LOGD("skip: lockunspent\n");
                 continue;
             }
 

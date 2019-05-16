@@ -1305,9 +1305,6 @@ static uint32_t get_latest_feerate_kw(void)
     if (ret) {
         feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
-    } else if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
-        LOGD("regtest\n");
-        feerate_kw = LN_FEERATE_PER_KW;
     } else {
         LOGE("fail: estimatefee\n");
         feerate_kw = 0;
@@ -1343,7 +1340,7 @@ static bool update_btc_values(void)
         mMonParam.feerate_per_kw = mFeeratePerKw;
     }
     if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
-        mMonParam.feerate_per_kw = 0;
+        mMonParam.feerate_per_kw = LN_FEERATE_PER_KW_MIN;
     }
     bool ret = btcrpc_getblockcount(&mMonParam.height);
 #endif
