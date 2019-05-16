@@ -1051,12 +1051,16 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             btc_dbg_dump_txid(stdout, genesis);
             printf("\",\n");
             const char *p_net;
-            switch (chain) {
-            case BTC_MAINNET:
+            btc_block_chain_t bchain = btc_block_get_chain(ln_genesishash_get());
+            switch(bchain) {
+            case BTC_BLOCK_CHAIN_BTCMAIN:
                 p_net = "mainnet";
                 break;
-            case BTC_TESTNET:
+            case BTC_BLOCK_CHAIN_BTCTEST:
                 p_net = "testnet";
+                break;
+            case BTC_BLOCK_CHAIN_BTCREGTEST:
+                p_net = "regtest";
                 break;
             default:
                 p_net = "unknown";
