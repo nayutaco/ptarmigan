@@ -585,6 +585,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result = NULL;
     int index = 0;
     uint32_t min_final_cltv_expiry;
+    char description[LN_INVOICE_DESC_MAX + 1] = "";
 
     if (params == NULL) {
         goto LABEL_EXIT;
@@ -608,20 +609,26 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         //デフォルト値
         min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     }
+    //description
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        strncpy(description, json->valuestring, sizeof(description));
+        description[sizeof(description) - 1] = '\0';
+        LOGD("description=%s\n", description);
+    }
 
     LOGD("$$$: [JSONRPC]invoice\n");
 
     ln_invoice_desc_t desc;
     desc.type = LN_INVOICE_DESC_TYPE_STRING;
-    const char *DESC = "ptarmigan";
-    size_t desc_len = strlen(DESC);
-    if (desc_len > 20) {
+    size_t desc_len = strlen(description);
+    if (desc_len > LN_INVOICE_DESC_MAX) {
         err = M_RPCERR_FREESTRING;
         ctx->error_code = RPCERR_INVOICE_FAIL;
         ctx->error_message = strdup_cjson("too long description");
         goto LABEL_EXIT;
     }
-    utl_buf_alloccopy(&desc.data, (const uint8_t *)DESC, desc_len);
+    utl_buf_alloccopy(&desc.data, (const uint8_t *)description, desc_len);
 
     uint8_t preimage_hash[BTC_SZ_HASH256];
     err = cmd_invoice_proc(preimage_hash, amount_msat, &desc);

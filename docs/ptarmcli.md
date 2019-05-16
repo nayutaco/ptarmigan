@@ -30,7 +30,7 @@ ptarmcli [options] [JSON-RPC port number]
     * start open channel
 
 * invoice
-  * `--addinvoice=AMOUNT_MSAT` : add invoice
+  * `--addinvoice=AMOUNT_MSAT[,MIN_FINAL_CLTV_EXPIRY[,DESCRIPTION]]` : add invoice
   * `--listinvoice` : list invoices
   * `--removeinvoice=PAYMENT_HASH` : erase a payment_hash
   * `--removeinvoice=ALL` : erase all payment_hashs
@@ -119,6 +119,21 @@ ptarmcli -i 123000
     "params":[ 
                 123000,
                 0
+             ]
+}
+```
+
+```bash
+ptarmcli -i 123000,2000,"nayuta lightning"
+```
+
+```json
+{
+    "method":"invoice",
+    "params":[ 
+                123000,
+                2000,
+                "nayuta lightning"
              ]
 }
 ```
