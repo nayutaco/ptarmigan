@@ -548,20 +548,26 @@ static void optfunc_invoice(int *pOption, bool *pConn)
     const char *param = strtok(optarg, ",");
     uint64_t amount = (uint64_t)strtoull(param, NULL, 10);
     uint32_t min_final_cltv_expiry = 0;
+    char description[LN_INVOICE_DESC_MAX + 1] = "ptarmigan";
     if (errno == 0) {
         param = strtok(NULL, ",");
         if ((param != NULL) && (*param != '\0')) {
             min_final_cltv_expiry = (uint32_t)strtoul(param, NULL, 10);
+        }
+        param = strtok(NULL, ",");
+        if ((param != NULL) && (*param != '\0')) {
+            strncpy(description, param, sizeof(description));
+            description[sizeof(description) - 1] = '\0';
         }
         snprintf(mBuf, BUFFER_SIZE,
             "{"
                 M_STR("method", "invoice") M_NEXT
                 M_QQ("params") ":[ "
                     //invoice
-                    "%" PRIu64 ",%" PRIu32
+                    "%" PRIu64 ",%" PRIu32 "," M_QQ("%s")
                 " ]"
             "}",
-                amount, min_final_cltv_expiry);
+                amount, min_final_cltv_expiry, description);
 
         *pOption = M_OPTIONS_EXEC;
     } else {
