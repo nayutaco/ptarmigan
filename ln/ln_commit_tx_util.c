@@ -66,14 +66,8 @@ uint64_t HIDDEN ln_commit_tx_calc_obscured_commit_num_mask(const uint8_t *pOpenP
 {
     uint64_t obs = 0;
     uint8_t base[32];
-    mbedtls_sha256_context ctx;
 
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pOpenPayBasePt, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pAcceptPayBasePt, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, base);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(base, pOpenPayBasePt, BTC_SZ_PUBKEY, pAcceptPayBasePt, BTC_SZ_PUBKEY);
 
     for (int lp = 0; lp < M_SZ_OBSCURED_COMMIT_NUM; lp++) {
         obs <<= 8;

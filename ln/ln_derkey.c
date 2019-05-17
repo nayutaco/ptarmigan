@@ -55,14 +55,8 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
     int ret;
 
     //sha256(per-commitment-point || basepoint)
-    mbedtls_sha256_context ctx;
     uint8_t hash[BTC_SZ_HASH256];
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, hash);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(hash, pPerCommitPoint, BTC_SZ_PUBKEY, pBasePoint, BTC_SZ_PUBKEY);
 
     mbedtls_mpi h;
     mbedtls_mpi_init(&h);
@@ -92,13 +86,7 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     int ret;
 
     //sha256(per-commitment-point || basepoint)
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, pPrivKey);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(pPrivKey, pPerCommitPoint, BTC_SZ_PUBKEY, pBasePoint, BTC_SZ_PUBKEY);
 
     mbedtls_mpi a;
     mbedtls_mpi b;
@@ -143,24 +131,13 @@ bool HIDDEN ln_derkey_revocation_pubkey(uint8_t *PubKey,
     int ret;
     uint8_t hash1[BTC_SZ_HASH256];
     uint8_t hash2[BTC_SZ_HASH256];
-    mbedtls_sha256_context ctx;
     mbedtls_ecp_keypair keypair;
 
     //sha256(revocation-basepoint || per-commitment-point)
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, hash1);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(hash1, pBasePoint, BTC_SZ_PUBKEY, pPerCommitPoint, BTC_SZ_PUBKEY);
 
     //sha256(per-commitment-point || revocation-basepoint)
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, hash2);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(hash2, pPerCommitPoint, BTC_SZ_PUBKEY, pBasePoint, BTC_SZ_PUBKEY);
 
     size_t sz;
     mbedtls_mpi h1;
@@ -218,16 +195,10 @@ bool HIDDEN ln_derkey_revocation_privkey(uint8_t *pPrivKey,
     int ret;
     uint8_t hash1[BTC_SZ_HASH256];
     uint8_t hash2[BTC_SZ_HASH256];
-    mbedtls_sha256_context ctx;
     mbedtls_ecp_keypair keypair;
 
     //sha256(revocation-basepoint || per-commitment-point)
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, hash1);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(hash1, pBasePoint, BTC_SZ_PUBKEY, pPerCommitPoint, BTC_SZ_PUBKEY);
 
     mbedtls_mpi a;
     mbedtls_mpi b;
@@ -243,12 +214,7 @@ bool HIDDEN ln_derkey_revocation_privkey(uint8_t *pPrivKey,
     if (ret) goto LABEL_EXIT;
 
     //sha256(per-commitment-point || revocation-basepoint)
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
-    mbedtls_sha256_finish(&ctx, hash2);
-    mbedtls_sha256_free(&ctx);
+    btc_md_sha256cat(hash2, pPerCommitPoint, BTC_SZ_PUBKEY, pBasePoint, BTC_SZ_PUBKEY);
 
     mbedtls_mpi_read_binary(&b, hash2, BTC_SZ_PRIVKEY);
     mbedtls_mpi_read_binary(&c, pPerCommitSecret, BTC_SZ_PRIVKEY);
