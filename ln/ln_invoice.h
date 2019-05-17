@@ -11,7 +11,7 @@
 #define LN_INVOICE_TESTNET      ((uint8_t)5)
 #define LN_INVOICE_REGTEST      ((uint8_t)6)
 
-#define LN_INVOICE_DESC_MAX     (20)
+#define LN_INVOICE_DESC_MAX     (32)
 
 #ifdef __cplusplus
 extern "C" {
