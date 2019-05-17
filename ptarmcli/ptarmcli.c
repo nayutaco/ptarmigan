@@ -48,14 +48,29 @@
  * macros
  **************************************************************************/
 
-#define M_OPTSTRING     "c:hta:l::q::f:i:e:mp:r:R:x::wg::s:X:"
-
 #define M_OPTIONS_INIT  (0xff)
-#define M_OPTIONS_CONN  (0xf0)
-#define M_OPTIONS_EXEC  (2)
-#define M_OPTIONS_STOP  (1)
-#define M_OPTIONS_HELP  (0)
-#define M_OPTIONS_ERR   (-1)
+#define M_OPTIONS_STOP  (0xf1)
+#define M_OPTIONS_ERR   (0xfe)
+
+#define M_OPTSTRING                 "hta:c:l::q::f:i:e:mp:r:x::wg::s:X:"
+#define M_OPT_HELP                  'h'
+#define M_OPT_TEST                  't'
+#define M_OPT_ADDR                  'a'
+#define M_OPT_CONN                  'c'
+#define M_OPT_GETINFO               'l'
+#define M_OPT_DISCONNECT            'q'
+#define M_OPT_FUND                  'f'
+#define M_OPT_INVOICE               'i'
+#define M_OPT_INVOICEERASE          'e'
+#define M_OPT_INVOICELIST           'm'
+#define M_OPT_TESTPAYMENT           'p'
+#define M_OPT_SENDPAYMENT           'r'
+#define M_OPT_CLOSE                 'x'
+#define M_OPT_GETLASTERROR          'w'
+#define M_OPT_GETCOMMITTX           'g'
+#define M_OPT_DISABLE_AUTOCONN      's'
+#define M_OPT_REMOVECHANNEL         'X'
+
 
 #define M_OPT_SETFEERATE            '\x01'
 #define M_OPT_ESTIMATEFUNDINGFEE    '\x02'
@@ -69,6 +84,7 @@
 #define M_OPT_LISTPAYMENT           '\x0a'
 #define M_OPT_REMOVEPAYMENT         '\x0b'
 #define M_OPT_DECODEINVOICE         '\x0c'
+#define M_OPT_INVOICE_DESC          '\x0d'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -81,15 +97,15 @@
 #define M_CHK_INIT      {\
     if (*pOption != M_OPTIONS_INIT) {           	\
         fprintf(stderr, "fail: too many options\n");   	\
-        *pOption = M_OPTIONS_HELP;              	\
+        *pOption = M_OPTIONS_ERR;              	\
         return;                                 	\
     }                                           	\
 }
 
 #define M_CHK_CONN      {\
-    if (*pOption != M_OPTIONS_CONN) {           	\
+    if (*pOption != M_OPT_CONN) {           	\
         fprintf(stderr, "fail: need -c option first\n");\
-        *pOption = M_OPTIONS_HELP;              	\
+        *pOption = M_OPTIONS_ERR;              	\
         return;                                 	\
     }                                           	\
 }
@@ -108,6 +124,7 @@ static char         mAddr[256];
 static char         mErrStr[256];
 static uint8_t      mInitRouteSync;
 static uint8_t      mPrivChannel;
+static char         mInvoiceDesc[LN_INVOICE_DESC_MAX + 1] = "";
 
 
 /********************************************************************
@@ -115,6 +132,7 @@ static uint8_t      mPrivChannel;
  ********************************************************************/
 
 static void print_help(void);
+static void print_error(const char *pErr);
 static void optfunc_help(int *pOption, bool *pConn);
 static void optfunc_test(int *pOption, bool *pConn);
 static void optfunc_addr(int *pOption, bool *pConn);
@@ -141,7 +159,6 @@ static void optfunc_getbalance(int *pOption, bool *pConn);
 static void optfunc_emptywallet(int *pOption, bool *pConn);
 static void optfunc_initroutesync(int *pOption, bool *pConn);
 static void optfunc_noinitroutesync(int *pOption, bool *pConn);
-static void optfunc_privchannel(int *pOption, bool *pConn);
 static void optfunc_listpayment(int *pOption, bool *pConn);
 static void optfunc_removepayment(int *pOption, bool *pConn);
 static void optfunc_decodeinvoice(int *pOption, bool *pConn);
@@ -157,24 +174,24 @@ static const struct {
     char        opt;
     void        (*func)(int *pOption, bool *pConn);
 } OPTION_FUNCS[] = {
-    { 'h', optfunc_help },
-    { 't', optfunc_test },
-    { 'a', optfunc_addr },
+    { M_OPT_HELP,               optfunc_help },
+    { M_OPT_TEST,               optfunc_test },
+    { M_OPT_ADDR,               optfunc_addr },
 
-    { 'c', optfunc_conn_param },
-    { 'l', optfunc_getinfo },
-    { 'q', optfunc_disconnect },
-    { 'f', optfunc_funding },
-    { 'i', optfunc_invoice },
-    { 'e', optfunc_erase },
-    { 'm', optfunc_listinvoice },
-    { 'p', optfunc_payment },
-    { 'r', optfunc_routepay },
-    { 'x', optfunc_close },
-    { 'w', optfunc_getlasterr },
-    { 'g', optfunc_getcommittx },
-    { 's', optfunc_disable_autoconn },
-    { 'X', optfunc_remove_channel },
+    { M_OPT_CONN,               optfunc_conn_param },
+    { M_OPT_GETINFO,            optfunc_getinfo },
+    { M_OPT_DISCONNECT,         optfunc_disconnect },
+    { M_OPT_FUND,               optfunc_funding },
+    { M_OPT_INVOICE,            optfunc_invoice },
+    { M_OPT_INVOICEERASE,       optfunc_erase },
+    { M_OPT_INVOICELIST,        optfunc_listinvoice },
+    { M_OPT_TESTPAYMENT,        optfunc_payment },
+    { M_OPT_SENDPAYMENT,        optfunc_routepay },
+    { M_OPT_CLOSE,              optfunc_close },
+    { M_OPT_GETLASTERROR,       optfunc_getlasterr },
+    { M_OPT_GETCOMMITTX,        optfunc_getcommittx },
+    { M_OPT_DISABLE_AUTOCONN,   optfunc_disable_autoconn },
+    { M_OPT_REMOVECHANNEL,      optfunc_remove_channel },
 
     //long opt
     { M_OPT_SETFEERATE,         optfunc_setfeerate },
@@ -185,7 +202,6 @@ static const struct {
     { M_OPT_INITROUTESYNC,      optfunc_initroutesync },
     { M_OPT_PAYTOWALLET,        optfunc_walletback },
     { M_OPT_NOINITROUTESYNC,    optfunc_noinitroutesync },
-    { M_OPT_PRIVCHANNEL,        optfunc_privchannel },
     { M_OPT_LISTPAYMENT,        optfunc_listpayment },
     { M_OPT_REMOVEPAYMENT,      optfunc_removepayment },
     { M_OPT_DECODEINVOICE,      optfunc_decodeinvoice },
@@ -201,9 +217,9 @@ static const struct {
 int main(int argc, char *argv[])
 {
     const struct option OPTIONS[] = {
-        { "help", no_argument, NULL, 'h' },
-        { "stop", no_argument, NULL, 'q' },
-        { "getinfo", no_argument, NULL, 'l' },
+        { "help", no_argument, NULL, M_OPT_HELP },
+        { "stop", no_argument, NULL, M_OPT_DISCONNECT },
+        { "getinfo", no_argument, NULL, M_OPT_GETINFO },
         { "setfeerate", required_argument, NULL, M_OPT_SETFEERATE },
         { "estimatefundingfee", optional_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
         { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
@@ -212,31 +228,48 @@ int main(int argc, char *argv[])
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
         { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "private", no_argument, NULL, M_OPT_PRIVCHANNEL },
-        { "sendpayment", required_argument, NULL, 'r' },
+        { "sendpayment", required_argument, NULL, M_OPT_SENDPAYMENT },
         { "listpayment", optional_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
-        { "createinvoice", required_argument, NULL, 'i' },
-        { "listinvoice", no_argument, NULL, 'm' },
-        { "removeinvoice", required_argument, NULL, 'e' },
+        { "createinvoice", required_argument, NULL, M_OPT_INVOICE },
+        { "listinvoice", no_argument, NULL, M_OPT_INVOICELIST },
+        { "removeinvoice", required_argument, NULL, M_OPT_INVOICEERASE },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
+        { "description", required_argument, NULL, M_OPT_INVOICE_DESC },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
 
     int option = M_OPTIONS_INIT;
     bool conn = false;
+    bool set_privchannel = false;
+    bool set_invoicedesc = false;
     mAddr[0] = '\0';
     mTcpSend = true;
     mInitRouteSync = PTARMD_ROUTESYNC_DEFAULT;
     mPrivChannel = 0;
     int opt;
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
-        if (opt == M_OPT_PRIVCHANNEL) {
-            optfunc_privchannel(&option, &conn);
+        switch (opt) {
+        case M_OPT_PRIVCHANNEL:
+            // fund
+            mPrivChannel = 1;
+            set_privchannel = true;
             break;
-        } else if (opt == '?') {
-            print_help();
+        case M_OPT_INVOICE_DESC:
+            // invoice
+            if (strlen(optarg) > LN_INVOICE_DESC_MAX) {
+                print_error("description too long");
+                return -1;
+            }
+            strncpy(mInvoiceDesc, optarg, sizeof(mInvoiceDesc));
+            mInvoiceDesc[sizeof(mInvoiceDesc) - 1] = '\0';
+            set_invoicedesc = true;
+            break;
+        case '?':
             return -1;
+        default:
+            break;
         }
     }
 
@@ -253,10 +286,10 @@ int main(int argc, char *argv[])
     }
 
     if (option == M_OPTIONS_ERR) {
-        fprintf(stderr, "{ " M_QQ("error") ": {" M_QQ("code") ": -1," M_QQ("message") ":" M_QQ("%s") "} }\n", mErrStr);
+        print_error(mErrStr);
         return -1;
     }
-    if ((option == M_OPTIONS_INIT) || (option == M_OPTIONS_HELP) || (!conn && (option == M_OPTIONS_CONN))) {
+    if ((option == M_OPTIONS_INIT) || (option == M_OPT_HELP) || (!conn && (option == M_OPT_CONN))) {
         print_help();
         return -1;
     }
@@ -265,6 +298,15 @@ int main(int argc, char *argv[])
     if (conn) {
         connect_rpc();
     }
+    if (set_privchannel && (option != M_OPT_FUND)) {
+        print_error("invalid option: --private");
+        return -1;
+    }
+    if (set_invoicedesc && (option != M_OPT_INVOICE)) {
+        print_error("invalid option: --description");
+        return -1;
+    }
+
     uint16_t port = 0;
     if (optind == argc) {
         if (ln_db_have_db_dir()) {
@@ -308,7 +350,7 @@ static void print_help(void)
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\tINVOICE:\n");
-    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT : create invoice and add list\n");
+    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT [--description DESCRIPTION] : create invoice and add list\n");
     fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
     fprintf(stderr, "\t\t--listinvoice : list created invoices\n");
     fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
@@ -341,6 +383,18 @@ static void print_help(void)
 }
 
 
+static void print_error(const char *pErr)
+{
+    fprintf(stdout,
+        "{ "
+            M_QQ("error") ": {"
+                M_QQ("code") ": -1,"
+                M_QQ("message") ":" M_QQ("%s")
+            "}"
+        "}\n", pErr);
+}
+
+
 /********************************************************************
  * commands
  ********************************************************************/
@@ -349,7 +403,7 @@ static void optfunc_help(int *pOption, bool *pConn)
 {
     (void)pConn;
 
-    *pOption = M_OPTIONS_HELP;
+    *pOption = M_OPT_HELP;
 }
 
 
@@ -373,7 +427,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
 {
     if (*pOption != M_OPTIONS_INIT) {
         fprintf(stderr, "fail: '-c' must first\n");
-        *pOption = M_OPTIONS_HELP;
+        *pOption = M_OPTIONS_ERR;
         return;
     }
 
@@ -387,7 +441,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         strcpy(mPeerAddr, peer.ipaddr);
         mPeerPort = peer.port;
         utl_str_bin2str(mPeerNodeId, peer.node_id, BTC_SZ_PUBKEY);
-        *pOption = M_OPTIONS_CONN;
+        *pOption = M_OPT_CONN;
     } else if (optlen >= (BTC_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
         ln_node_conn_t node_conn;
         bool dec_ret = ln_node_addr_dec(&node_conn, optarg);
@@ -396,20 +450,20 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
             strcpy(mPeerAddr, node_conn.addr);
             mPeerPort = node_conn.port;
             *pConn = true;
-            *pOption = M_OPTIONS_CONN;
+            *pOption = M_OPT_CONN;
         } else {
-            fprintf(stderr, "fail: peer configuration file\n");
-            *pOption = M_OPTIONS_HELP;
+            strcpy(mErrStr, "peer connect string");
+            *pOption = M_OPTIONS_ERR;
         }
     } else if (optlen == BTC_SZ_PUBKEY * 2) {
         //node_idだけ指定した可能性あり(connectとしては使用できない)
         strcpy(mPeerAddr, "0.0.0.0");
         mPeerPort = 0;
         strcpy(mPeerNodeId, optarg);
-        *pOption = M_OPTIONS_CONN;
+        *pOption = M_OPT_CONN;
     } else {
-        fprintf(stderr, "fail: peer configuration file\n");
-        *pOption = M_OPTIONS_HELP;
+        strcpy(mErrStr, "peer connect string");
+        *pOption = M_OPTIONS_ERR;
     }
 }
 
@@ -431,13 +485,13 @@ static void optfunc_getinfo(int *pOption, bool *pConn)
     }
     strncat(mBuf, "]}", BUFFER_SIZE);
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_GETINFO;
 }
 
 
 static void optfunc_disconnect(int *pOption, bool *pConn)
 {
-    if (*pOption == M_OPTIONS_CONN) {
+    if (*pOption == M_OPT_CONN) {
         //特定接続を切る
         snprintf(mBuf, BUFFER_SIZE,
             "{"
@@ -449,13 +503,12 @@ static void optfunc_disconnect(int *pOption, bool *pConn)
             "}",
                 mPeerNodeId, mPeerAddr, mPeerPort);
 
-        *pOption = M_OPTIONS_EXEC;
         *pConn = false;
     } else {
         //ptarmd終了
         stop_rpc();
-        *pOption = M_OPTIONS_STOP;
     }
+    *pOption = M_OPT_DISCONNECT;
 }
 
 
@@ -470,7 +523,7 @@ static void optfunc_getnewaddress(int *pOption, bool *pConn)
             M_STR("method", "getnewaddress") M_NEXT
             M_QQ("params") ":[]"
         "}");
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_GETNEWADDRESS;
 }
 
 
@@ -530,10 +583,10 @@ static void optfunc_funding(int *pOption, bool *pConn)
                 mPrivChannel);
 
         *pConn = false;
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_FUND;
     } else {
-        fprintf(stderr, "fail: funding configuration file\n");
-        *pOption = M_OPTIONS_HELP;
+        strcpy(mErrStr, "funding");
+        *pOption = M_OPTIONS_ERR;
     }
 }
 
@@ -548,16 +601,10 @@ static void optfunc_invoice(int *pOption, bool *pConn)
     const char *param = strtok(optarg, ",");
     uint64_t amount = (uint64_t)strtoull(param, NULL, 10);
     uint32_t min_final_cltv_expiry = 0;
-    char description[LN_INVOICE_DESC_MAX + 1] = "ptarmigan";
     if (errno == 0) {
         param = strtok(NULL, ",");
         if ((param != NULL) && (*param != '\0')) {
             min_final_cltv_expiry = (uint32_t)strtoul(param, NULL, 10);
-        }
-        param = strtok(NULL, ",");
-        if ((param != NULL) && (*param != '\0')) {
-            strncpy(description, param, sizeof(description));
-            description[sizeof(description) - 1] = '\0';
         }
         snprintf(mBuf, BUFFER_SIZE,
             "{"
@@ -567,9 +614,9 @@ static void optfunc_invoice(int *pOption, bool *pConn)
                     "%" PRIu64 ",%" PRIu32 "," M_QQ("%s")
                 " ]"
             "}",
-                amount, min_final_cltv_expiry, description);
+                amount, min_final_cltv_expiry, mInvoiceDesc);
 
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_INVOICE;
     } else {
         sprintf(mErrStr, "%s", strerror(errno));
         *pOption = M_OPTIONS_ERR;
@@ -601,7 +648,7 @@ static void optfunc_erase(int *pOption, bool *pConn)
             "}",
                 pPaymentHash);
 
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_INVOICEERASE;
     } else {
         strcpy(mErrStr, "invalid param");
         *pOption = M_OPTIONS_ERR;
@@ -620,7 +667,7 @@ static void optfunc_listinvoice(int *pOption, bool *pConn)
             M_STR("method", "listinvoice") M_NEXT
             M_QQ("params") ":[]"
         "}");
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_INVOICELIST;
 }
 
 
@@ -639,7 +686,7 @@ static void optfunc_decodeinvoice(int *pOption, bool *pConn)
         "}",
             optarg);
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_DECODEINVOICE;
 }
 
 
@@ -693,7 +740,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     }
     strcat(mBuf, "] ]}");
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_TESTPAYMENT;
 }
 
 
@@ -732,7 +779,7 @@ static void optfunc_close(int *pOption, bool *pConn)
             mPeerNodeId, mPeerAddr, mPeerPort, (optarg == NULL) ? "" : ",\"force\"");
 
     *pConn = false;
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_CLOSE;
 }
 
 
@@ -751,7 +798,7 @@ static void optfunc_getlasterr(int *pOption, bool *pConn)
             mPeerNodeId, mPeerAddr, mPeerPort);
 
     *pConn = false;
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_GETLASTERROR;
 }
 
 
@@ -766,7 +813,7 @@ static void optfunc_debug(int *pOption, bool *pConn)
             M_QQ("params") ":[ %d ]"
         "}", debug);
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_DEBUG;
 }
 
 
@@ -796,7 +843,7 @@ static void optfunc_getcommittx(int *pOption, bool *pConn)
             mPeerNodeId, mPeerAddr, mPeerPort, p_opt);
 
     *pConn = false;
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_GETCOMMITTX;
 }
 
 
@@ -813,10 +860,10 @@ static void optfunc_disable_autoconn(int *pOption, bool *pConn)
                 M_QQ("params") ":[ \"%s\" ]"
             "}", optarg);
 
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_DISABLE_AUTOCONN;
     } else {
         fprintf(stderr, "fail: invalid option\n");
-        *pOption = M_OPTIONS_HELP;
+        *pOption = M_OPTIONS_ERR;
     }
 }
 
@@ -829,7 +876,7 @@ static void optfunc_remove_channel(int *pOption, bool *pConn)
 
     if (strlen(optarg) != LN_SZ_CHANNEL_ID * 2) {
         fprintf(stderr, "fail: invalid option: %s\n", optarg);
-        *pOption = M_OPTIONS_HELP;
+        *pOption = M_OPTIONS_ERR;
         return;
     }
 
@@ -842,7 +889,7 @@ static void optfunc_remove_channel(int *pOption, bool *pConn)
         "}",
             optarg);
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_REMOVECHANNEL;
 }
 
 
@@ -870,7 +917,7 @@ static void optfunc_setfeerate(int *pOption, bool *pConn)
             "}",
                 (uint32_t)feerate_per_kw);
 
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_SETFEERATE;
     } else {
         sprintf(mErrStr, "%s", strerror(errno));
         *pOption = M_OPTIONS_ERR;
@@ -909,7 +956,7 @@ static void optfunc_estimatefundingfee(int *pOption, bool *pConn)
         "}",
             (uint32_t)feerate_per_kw);
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_ESTIMATEFUNDINGFEE;
 }
 
 
@@ -941,7 +988,7 @@ static void optfunc_walletback(int *pOption, bool *pConn)
             M_QQ("params") ":[ %" PRIu32 ", %" PRIu32 " ]"
         "}", to_send, feerate_per_kw);
 
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_PAYTOWALLET;
 }
 
 
@@ -956,7 +1003,7 @@ static void optfunc_getbalance(int *pOption, bool *pConn)
             M_STR("method", "getbalance") M_NEXT
             M_QQ("params") ":[]"
         "}");
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_GETBALANCE;
 }
 
 
@@ -971,7 +1018,7 @@ static void optfunc_emptywallet(int *pOption, bool *pConn)
             M_STR("method", "emptywallet") M_NEXT
             M_QQ("params") ":[" M_QQ("%s") "]"
         "}", optarg);
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_EMPTYWALLET;
 }
 
 
@@ -992,13 +1039,6 @@ static void optfunc_noinitroutesync(int *pOption, bool *pConn)
     M_CHK_CONN
 
     mInitRouteSync = PTARMD_ROUTESYNC_NONE;
-}
-
-
-static void optfunc_privchannel(int *pOption, bool *pConn)
-{
-    (void)pOption; (void)pConn;
-    mPrivChannel = 1;
 }
 
 
@@ -1025,7 +1065,7 @@ static void optfunc_listpayment(int *pOption, bool *pConn)
             M_STR("method", "listpayment") M_NEXT
             M_QQ("params") ":[%s]"
         "}", payment_id);
-    *pOption = M_OPTIONS_EXEC;
+    *pOption = M_OPT_LISTPAYMENT;
 }
 
 
@@ -1054,7 +1094,7 @@ static void optfunc_removepayment(int *pOption, bool *pConn)
             "}",
                 payment_id);
 
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_REMOVEPAYMENT;
     } else {
         sprintf(mErrStr, "%s", strerror(errno));
         *pOption = M_OPTIONS_ERR;
@@ -1119,7 +1159,7 @@ static void routepay(int *pOption)
                     M_QQ("%s") ",%" PRIu64 "]}",
                 invoice, add_amount_msat);
 
-        *pOption = M_OPTIONS_EXEC;
+        *pOption = M_OPT_SENDPAYMENT;
     }
 }
 
