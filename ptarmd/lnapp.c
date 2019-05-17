@@ -1320,7 +1320,9 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
         int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
         if (polr < 0) {
             LOGD("poll: %s\n", strerror(errno));
-            break;
+            if (errno != EINTR) {
+                break;
+            }
         } else if (polr == 0) {
             //timeout
 

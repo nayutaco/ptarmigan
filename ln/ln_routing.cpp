@@ -596,7 +596,7 @@ lnerr_route_t ln_routing_calculate(
 
     //戻り値の作成
     pResult->num_hops = (uint8_t)route.size();
-    const uint8_t *p_next;
+    const uint8_t *p_next = NULL;
 
     for (int lp = 0; lp < pResult->num_hops - 1; lp++) {
         const uint8_t *p_now  = groute[route[lp]].p_node;
