@@ -14,6 +14,15 @@ build:
 	$(MAKE) -C showdb
 	$(MAKE) -C routing
 
+release:
+	$(MAKE) -C utl release
+	$(MAKE) -C btc release
+	$(MAKE) -C ln release
+	$(MAKE) -C ptarmd release
+	$(MAKE) -C ptarmcli
+	$(MAKE) -C showdb
+	$(MAKE) -C routing
+
 install:
 	-@mkdir -p $(INSTALL_DIR)
 ifeq ($(NODE_TYPE),BITCOINJ)
