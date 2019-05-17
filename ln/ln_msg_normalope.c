@@ -134,6 +134,8 @@ static void update_add_htlc_print(const ln_msg_update_add_htlc_t *pMsg)
     LOGD("onion_routing_packet(top 34bytes only): ");
     DUMPD(pMsg->p_onion_routing_packet, 34);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -201,6 +203,8 @@ static void update_fulfill_htlc_print(const ln_msg_update_fulfill_htlc_t *pMsg)
     //DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     LOGD("p_payment_preimage: ???\n");
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -269,6 +273,8 @@ static void update_fail_htlc_print(const ln_msg_update_fail_htlc_t *pMsg)
     LOGD("reason: ");
     DUMPD(pMsg->p_reason, pMsg->len);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -338,6 +344,8 @@ static void update_fail_malformed_htlc_print(const ln_msg_update_fail_malformed_
     DUMPD(pMsg->p_sha256_of_onion, BTC_SZ_HASH256);
     LOGD("failure_code: %04x\n", pMsg->failure_code);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -410,6 +418,8 @@ static void commitment_signed_print(const ln_msg_commitment_signed_t *pMsg)
         DUMPD(pMsg->p_htlc_signature + lp * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
     }
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -478,6 +488,8 @@ static void revoke_and_ack_print(const ln_msg_revoke_and_ack_t *pMsg)
     LOGD("next_per_commitment_point: ");
     DUMPD(pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -540,5 +552,7 @@ static void update_fee_print(const ln_msg_update_fee_t *pMsg)
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("feerate_per_kw: %u\n", pMsg->feerate_per_kw);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }

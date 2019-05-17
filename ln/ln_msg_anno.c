@@ -178,6 +178,8 @@ static void announcement_signatures_print(const ln_msg_announcement_signatures_t
     LOGD("bitcoin_signature: ");
     DUMPD(pMsg->p_bitcoin_signature, LN_SZ_SIGNATURE);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 #endif
@@ -281,6 +283,8 @@ static void channel_announcement_print(const ln_msg_channel_announcement_t *pMsg
     LOGD("bitcoin_key_2: ");
     DUMPD(pMsg->p_bitcoin_key_2, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -452,6 +456,8 @@ static void node_announcement_print(const ln_msg_node_announcement_t *pMsg)
     LOGD("addresses: ");
     DUMPD(pMsg->p_addresses, pMsg->addrlen);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif
 }
 #endif
@@ -541,6 +547,8 @@ static void node_announcement_addresses_print(const ln_msg_node_announcement_add
         LOGD("port: %u\n", addr_desc->port);
     }
     LOGD("--------------------------------\n");
+#else
+    (void)pAddrs;
 #endif
 }
 #endif
@@ -665,6 +673,8 @@ static void channel_update_print(const ln_msg_channel_update_t *pMsg)
         LOGD("htlc_maximum_msat: %" PRIu64 "\n", pMsg->htlc_maximum_msat);
     }
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -764,6 +774,8 @@ static void query_short_channel_ids_print(const ln_msg_query_short_channel_ids_t
     }
     DUMPD(pMsg->p_encoded_short_ids, len);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -822,6 +834,8 @@ static void reply_short_channel_ids_end_print(const ln_msg_reply_short_channel_i
     DUMPD(pMsg->p_chain_hash, BTC_SZ_HASH256);
     LOGD("complete: %02x\n", pMsg->complete);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -883,6 +897,8 @@ static void query_channel_range_print(const ln_msg_query_channel_range_t *pMsg)
     LOGD("first_blocknum: %" PRIu32 "\n", pMsg->first_blocknum);
     LOGD("number_of_blocks: %" PRIu32 "\n", pMsg->number_of_blocks);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -958,6 +974,8 @@ static void reply_channel_range_print(const ln_msg_reply_channel_range_t *pMsg)
     }
     DUMPD(pMsg->p_encoded_short_ids, len);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -1021,6 +1039,8 @@ static void gossip_timestamp_filter_print(const ln_msg_gossip_timestamp_filter_t
     LOGD("first_timestamp: %" PRIu32 "(%s)\n", pMsg->first_timestamp, str_time);
     LOGD("timestamp_range: %" PRIu32 "\n", pMsg->timestamp_range);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
