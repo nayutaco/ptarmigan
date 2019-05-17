@@ -50,14 +50,16 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
-#ifdef PTARM_USE_PRINTFUNC
+#ifndef PTARM_UTL_LOG_MACRO_DISABLED
+#if defined(PTARM_USE_PRINTFUNC) && defined(PTARM_DEBUG)
 static const char *KEYS_STR[LN_BASEPOINT_IDX_NUM + 1] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPT_IDX_NUM] = {
     "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
-#endif  //PTARM_USE_PRINTFUNC
+#endif  //PTARM_USE_PRINTFUNC || PTARM_DEBUG
+#endif  //PTARM_UTL_LOG_MACRO_DISABLED
 
 
 /**************************************************************************
@@ -98,7 +100,6 @@ void ln_print_keys_2(
     const ln_funding_info_t *pFundingInfo, const ln_derkey_local_keys_t *pKeysLocal,
     const ln_derkey_remote_keys_t *pKeysRemote)
 {
-//#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
     LOGD("  funding_txid: ");
     TXIDD(pFundingInfo->txid);
@@ -131,10 +132,9 @@ void ln_print_keys_2(
 
     LOGD("prev_percommit: ");
     DUMPD(pKeysRemote->prev_per_commitment_point, BTC_SZ_PUBKEY);
-#endif
-//#else
-//    (void)fp; (void)pLocal; (void)pRemote;
-//#endif  //M_DBG_VERBOSE
+#else
+    (void)pFundingInfo; (void)pKeysLocal; (void)pKeysRemote;
+#endif  //PTARM_DEBUG
 }
 
 #endif  //PTARM_USE_PRINTFUNC

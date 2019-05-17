@@ -36,25 +36,7 @@ void utl_log_dump(int Pri, const char* pFname, int Line, int Flag, const char *p
 void utl_log_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len);
 
 
-#ifdef PTARM_UTL_LOG_MACRO_DISABLED
-#define LOGE(...)       //none
-#define DUMPE(...)      //none
-#define TXIDE(...)      //none
-
-#define LOGI(...)       //none
-#define DUMPI(...)      //none
-#define TXIDI(...)      //none
-
-#define LOGD(...)       //none
-#define LOGD2(...)      //none
-#define DUMPD(...)      //none
-#define TXIDD(...)      //none
-
-#define LOGV(...)       //none
-#define DUMPV(...)      //none
-#define TXIDV(...)      //none
-
-#elif defined(ANDROID) //PTARM_UTL_LOG_MACRO_DISABLED
+#if defined(ANDROID) //PTARM_UTL_LOG_MACRO_DISABLED
 #include <android/log.h>
 
 #define LOGV            ((void)__android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", __VA_ARGS__))

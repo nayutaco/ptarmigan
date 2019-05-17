@@ -28,12 +28,14 @@ static inline int tid(void) {
 static pthread_mutex_t  mMux;
 static FILE             *mFp;
 
+#ifndef PTARM_UTL_LOG_MACRO_DISABLED
 //UTL_LOG_PRI_xxx
 //  Error
 //  Info
 //  Debug
 //  Verbose
 static const char M_MARK[] = "EIDV";
+#endif
 
 
 bool utl_log_init(void)
@@ -101,6 +103,7 @@ void utl_log_term(void)
 
 void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const char *pFmt, ...)
 {
+#ifndef PTARM_UTL_LOG_MACRO_DISABLED
     if ((mFp == NULL) || (Pri > UTL_LOG_PRI)) {
         return;
     }
@@ -141,22 +144,33 @@ void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *
     }
 
     pthread_mutex_unlock(&mMux);
+#else
+    (void)Pri; (void)pFname; (void)Line; (void)Flag; (void)pTag; (void)pFunc; (void)pFmt;
+#endif
 }
 
 
 void utl_log_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
+#ifndef PTARM_UTL_LOG_MACRO_DISABLED
     char *p_str = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
     utl_str_bin2str(p_str, (const uint8_t *)pData, Len);
     utl_log_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     UTL_DBG_FREE(p_str);
+#else
+    (void)Pri; (void)pFname; (void)Line; (void)Flag; (void)pTag; (void)pFunc; (void)pData; (void)Len;
+#endif
 }
 
 
 void utl_log_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
+#ifndef PTARM_UTL_LOG_MACRO_DISABLED
     char *p_str = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
     utl_str_bin2str_rev(p_str, (const uint8_t *)pData, Len);
     utl_log_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     UTL_DBG_FREE(p_str);
+#else
+    (void)Pri; (void)pFname; (void)Line; (void)Flag; (void)pTag; (void)pFunc; (void)pData; (void)Len;
+#endif
 }

@@ -114,6 +114,8 @@ static void shutdown_print(const ln_msg_shutdown_t *pMsg)
     LOGD("scriptpubkey: ");
     DUMPD(pMsg->p_scriptpubkey, pMsg->len);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -180,5 +182,7 @@ static void closing_signed_print(const ln_msg_closing_signed_t *pMsg)
     LOGD("signature: ");
     DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }

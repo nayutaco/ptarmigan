@@ -233,6 +233,8 @@ static void open_channel_print(const ln_msg_open_channel_t *pMsg)
     LOGD("shutdown_scriptpubkey: ");
     DUMPD(pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -374,6 +376,8 @@ static void accept_channel_print(const ln_msg_accept_channel_t *pMsg)
     LOGD("shutdown_scriptpubkey: ");
     DUMPD(pMsg->p_shutdown_scriptpubkey, pMsg->shutdown_len);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -444,6 +448,8 @@ static void funding_created_print(const ln_msg_funding_created_t *pMsg)
     LOGD("signature: ");
     DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -507,6 +513,8 @@ static void funding_signed_print(const ln_msg_funding_signed_t *pMsg)
     LOGD("signature: ");
     DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -570,6 +578,8 @@ static void funding_locked_print(const ln_msg_funding_locked_t *pMsg)
     LOGD("next_per_commitment_point: ");
     DUMPD(pMsg->p_next_per_commitment_point, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -654,5 +664,7 @@ static void channel_reestablish_print(const ln_msg_channel_reestablish_t *pMsg, 
         DUMPD(pMsg->p_my_current_per_commitment_point, BTC_SZ_PUBKEY);
     }
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg; (void)bOptionDataLossProtect;
 #endif  //PTARM_DEBUG
 }

@@ -130,6 +130,8 @@ static void init_print(const ln_msg_init_t *pMsg)
     LOGD("  option_upfront_shutdown_script: %d\n", (pMsg->p_localfeatures[0] & 0x30) >> 4);
     LOGD("  gossip_queries:                 %d\n", (pMsg->p_localfeatures[0] & 0xc0) >> 6);
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
@@ -207,6 +209,8 @@ static void error_print(const ln_msg_error_t *pMsg)
     }
     LOGD2("\n");
     LOGD("--------------------------------\n");
+#else
+    (void)pMsg;
 #endif  //PTARM_DEBUG
 }
 
