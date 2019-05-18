@@ -63,7 +63,6 @@ FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_payment_hash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
-FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_cnlupd_need_to_prune, uint64_t , uint32_t );
 FAKE_VALUE_FUNC(bool, ln_db_cnlupd_save, const utl_buf_t *, const ln_msg_channel_update_t *, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_cnlanno_load, utl_buf_t *, uint64_t );
@@ -240,7 +239,6 @@ protected:
         RESET_FAKE(ln_db_channel_search_readonly)
         RESET_FAKE(ln_db_payment_hash_save)
         RESET_FAKE(ln_db_preimage_search)
-        RESET_FAKE(ln_db_preimage_set_expiry)
         RESET_FAKE(ln_db_cnlupd_need_to_prune)
         RESET_FAKE(ln_db_cnlupd_save)
         RESET_FAKE(ln_db_cnlanno_load)

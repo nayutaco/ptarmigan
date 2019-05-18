@@ -116,7 +116,7 @@ bool ln_update_info_clear_htlc(ln_update_info_t *pInfo, uint16_t UpdateIdx)
     //clear htlc
     ln_htlc_t *p_htlc = &pInfo->htlcs[p_update->type_specific_idx];
     if (p_htlc->buf_preimage.len) {
-        /*ignore*/ ln_db_preimage_del(p_htlc->buf_preimage.buf); //XXX: delete outside the function
+        /*ignore*/ ln_db_preimage_used(p_htlc->buf_preimage.buf); //XXX: delete outside the function
     }
     utl_buf_free(&p_htlc->buf_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);

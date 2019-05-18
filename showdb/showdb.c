@@ -950,38 +950,6 @@ static void dumpit_route_skip(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-// static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
-// {
-//     if (showflag == SHOW_INVOICE) {
-//         printf(M_QQ("payinvoice") ": [\n");
-
-//         MDB_cursor  *cursor;
-
-//         int retval = mdb_cursor_open(txn, dbi, &cursor);
-//         if (retval != 0) {
-//             LOGD("err: %s\n", mdb_strerror(retval));
-//             mdb_txn_abort(txn);
-//         }
-
-//         int cnt = 0;
-//         MDB_val key, data;
-//         while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-//             if (cnt > 0) {
-//                 printf(",\n");
-//             }
-
-//             printf("[\"");
-//             utl_dbg_dump(stdout, key.mv_data, key.mv_size, false);
-//             printf("\",");
-//             printf(M_QQ("%s") "]", (const char *)data.mv_data);
-//             cnt++;
-//         }
-//         mdb_cursor_close(cursor);
-
-//         printf("\n]");
-//     }
-// }
-
 static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_PREIMAGE) {
@@ -1005,6 +973,20 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                     printf(",");
                 }
                 printf(INDENT2 "{\n");
+                const char *p_state;
+                switch (preimage.state) {
+                case LN_DB_PREIMAGE_STATE_NONE:
+                    p_state = "none";
+                    break;
+                case LN_DB_PREIMAGE_STATE_USED:
+                    p_state = "used";
+                    break;
+                case LN_DB_PREIMAGE_STATE_UNKNOWN:
+                default:
+                    p_state = "unknown";
+                    break;
+                }
+                printf(INDENT3 M_QQ("state") ": " M_QQ("%s") ",\n", p_state);
                 printf(INDENT3 M_QQ("premage") ": \"");
                 utl_dbg_dump(stdout, preimage.preimage, LN_SZ_PREIMAGE, false);
                 printf("\",\n");
@@ -1017,6 +999,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
             }
         }
         mdb_cursor_close(cur.p_cursor);
+        printf("\n" INDENT1 "]\n");
     }
 }
 
@@ -1121,9 +1104,6 @@ static void dbs_cursor_node(ln_lmdb_db_type_t db_type, MDB_txn *txn, MDB_dbi dbi
     case LN_LMDB_DB_TYPE_ROUTE_SKIP:
         dumpit_route_skip(txn, dbi2);
         break;
-    // case LN_LMDB_DB_TYPE_INVOICE:
-    //     dumpit_invoice(txn, dbi2);
-    //     break;
     case LN_LMDB_DB_TYPE_PREIMAGE:
         dumpit_preimage(txn, dbi2);
         break;
@@ -1197,19 +1177,18 @@ static void print_usage(const char *p_procname)
     fprintf(stderr, "\t%s <option>\n", p_procname);
     fprintf(stderr, "\t\t--version,-v : node information\n");
     fprintf(stderr, "\t\t--datadir,-d [NODEDIR] : db directory(use current directory's db if not set)\n");
-    fprintf(stderr, "\t\t--listchannelwallet : 2nd layer wallet info\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "\t\t--showchannel,-s : show active channel detail\n");
+    fprintf(stderr, "\t\t--listchannelwallet,-w : 2nd layer wallet info\n");
     fprintf(stderr, "\t\t--listchannel,-l : active channel peer node_id list\n");
     fprintf(stderr, "\t\t--listclosed : closed channels list\n");
     fprintf(stderr, "\t\t--showclosed [CHANNEL_ID] : closed channels list\n");
     fprintf(stderr, "\t\t--listgossipchannel,-c : channel_announcement/channel_update\n");
     fprintf(stderr, "\t\t--listgossipnode,-n : node_announcement\n");
-    fprintf(stderr, "\t\t--paytowalletvin : `ptarmcli --paytowallet` input info\n");
-#ifdef DEVELOPER_MODE
     fprintf(stderr, "\t\t--listannounced : announcement received/sent node_id list\n");
     fprintf(stderr, "\t\t--listskip : skip routing channel list\n");
     fprintf(stderr, "\t\t--listinvoice : paying invoice\n");
-#endif
+    fprintf(stderr, "\t\t--paytowalletvin : `ptarmcli --paytowallet` input info\n");
 }
 
 int main(int argc, char *argv[])
@@ -1486,7 +1465,7 @@ int main(int argc, char *argv[])
         }
         UTL_DBG_FREE(name);
     }
-    if (cnt_channel || cnt_node || cnt_preimage) {
+    if (cnt_channel || cnt_node) {
         printf("\n" INDENT1 "]\n");
     }
     if (cnt_wallet) {

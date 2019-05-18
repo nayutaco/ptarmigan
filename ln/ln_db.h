@@ -78,6 +78,16 @@ typedef enum {
 } ln_db_cur_t;
 
 
+/** @typedef    ln_db_preimage_state_t
+ *  @brief      created preimage status
+ */
+typedef enum {
+    LN_DB_PREIMAGE_STATE_NONE = 0,
+    LN_DB_PREIMAGE_STATE_USED = 1,
+    LN_DB_PREIMAGE_STATE_UNKNOWN = UINT8_MAX
+} ln_db_preimage_state_t;
+
+
 /** @typedef    ln_db_preimage_t
  *  @brief      preimage/invoice
  */
@@ -86,6 +96,7 @@ typedef struct {
     uint64_t    amount_msat;
     uint64_t    creation_time;
     uint32_t    expiry;
+    ln_db_preimage_state_t  state;
 } ln_db_preimage_t;
 
 
@@ -666,11 +677,12 @@ bool ln_db_invoice_drop(void);
 
 /** preimage保存
  *
- * @param[in,out]   pPreimage   creation_timeのみoutput
- * @param[in,out]   pDb
+ * @param[in]       pPreimage   preimage information
+ * @param[in]       pBolt11     BOLT11 format invoice
+ * @param[in,out]   pDb         (nullable)
  * @retval  true
  */
-bool ln_db_preimage_save(ln_db_preimage_t *pPreimage, void *pDb);
+bool ln_db_preimage_save(const ln_db_preimage_t *pPreimage, const char *pBolt11, void *pDb);
 
 
 /** preimage削除
@@ -727,10 +739,12 @@ void ln_db_preimage_cur_close(void *pCur, bool bCommit);
 bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage);
 
 
-/** preimage expiry更新
+/** preimage使用済み
  *
+ * @param[in]       pPreimage
+ * @retval  true
  */
-bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry);
+bool ln_db_preimage_used(const uint8_t *pPreimage);
 
 
 /********************************************************************
