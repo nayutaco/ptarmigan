@@ -930,6 +930,9 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
                 prev_short_channel_id, prev_htlc_id, preimage, p_cur)) {
                 LOGE("fail: ???\n");
             }
+            ln_cb_param_nofity_final_add_htlc_recv_t param;
+            param.p_add_htlc = &msg;
+            ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADDFINAL_HTLC_RECV, &param);
         } else {
             if (!ln_update_fail_htlc_forward_2(
                 prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {

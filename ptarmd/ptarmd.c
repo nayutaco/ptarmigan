@@ -127,6 +127,8 @@ static const char *kSCRIPT[] = {
     "payment.sh",
     //PTARMD_EVT_FORWARD,
     "forward.sh",
+    //PTARMD_EVT_ADDFINAL
+    "addfinal.sh",
     //PTARMD_EVT_FULFILL,
     "fulfill.sh",
     //PTARMD_EVT_FAIL,
@@ -135,7 +137,7 @@ static const char *kSCRIPT[] = {
     "htlcchanged.sh",
     //PTARMD_EVT_CLOSED
     "closed.sh",
-    //ptarmd_event_t
+    //PTARMD_EVT_DBCLOSED
     "dbclosed.sh"
 };
 
