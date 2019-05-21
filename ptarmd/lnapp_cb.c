@@ -440,12 +440,14 @@ static void cb_addfinal_htlc_recv(lnapp_conf_t *pConf, void *pParam)
     // $2: node_id
     // $3: payment_hash
     // $4: amount_msat
+    // $5: local_msat
     char str_node_id[BTC_SZ_PUBKEY * 2 + 1];
     utl_str_bin2str(str_node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
     char param[M_SZ_SCRIPT_PARAM];
     snprintf(
-        param, sizeof(param), "%s %s %s %" PRIu64,
-        str_sci, str_node_id, str_payment_hash, p_addhtlc->amount_msat);
+        param, sizeof(param), "%s %s %s %" PRIu64 " %" PRIu64,
+        str_sci, str_node_id, str_payment_hash,
+        p_addhtlc->amount_msat, ln_node_total_msat());
     ptarmd_call_script(PTARMD_EVT_ADDFINAL, param);
 
     DBGTRACE_END
