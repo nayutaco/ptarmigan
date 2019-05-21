@@ -108,7 +108,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *pConf, void *pParam);
 static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam);
 static void cb_funding_locked(lnapp_conf_t *pConf, void *pParam);
 static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam);
-static void cb_add_htlc_recv(lnapp_conf_t *pConf, void *pParam);
+static void cb_addfinal_htlc_recv(lnapp_conf_t *pConf, void *pParam);
 static void cb_fulfill_htlc_recv(lnapp_conf_t *pConf, void *pParam);
 static void cbsub_fulfill_backwind(lnapp_conf_t *pConf, ln_cb_param_notify_fulfill_htlc_recv_t *pCbParam);
 static void cbsub_fulfill_originnode(lnapp_conf_t *pConf, ln_cb_param_notify_fulfill_htlc_recv_t *pCbParam);
@@ -150,7 +150,7 @@ void lnapp_notify_cb(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificP
         { "  LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV: funding_locked receive", cb_funding_locked },
         { NULL/*"  LN_CB_TYPE_NOTIFY_ANNODB_UPDATE: announcement DB update"*/, cb_update_anno_db },
 
-        { "  LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
+        { "  LN_CB_TYPE_NOTIFY_ADDFINAL_HTLC_RECV: final update_add_htlc receive", cb_addfinal_htlc_recv },
         { "  LN_CB_TYPE_START_BWD_DEL_HTLC: delete htlc", cb_bwd_delhtlc_start },
         { "  LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
 
@@ -406,7 +406,7 @@ static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam)
 }
 
 
-/** LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV: update_add_htlc受信(後処理)
+/** LN_CB_TYPE_NOTIFY_ADDFINAL_HTLC_RECV: update_add_htlc受信(final node only)
  *
  * add_htlc受信後は、以下のどれかになる。
  *      - add_htlcがOK
@@ -415,63 +415,38 @@ static void cb_update_anno_db(lnapp_conf_t *pConf, void *pParam)
  *      - add_htlcがNG
  *          - fail_htlcを巻き戻していく
  */
-static void cb_add_htlc_recv(lnapp_conf_t *pConf, void *pParam)
+static void cb_addfinal_htlc_recv(lnapp_conf_t *pConf, void *pParam)
 {
     DBGTRACE_BEGIN
 
-    ln_cb_param_nofity_add_htlc_recv_t *p_cb_param = (ln_cb_param_nofity_add_htlc_recv_t *)pParam;
-    const char *p_info;
-    char str_stat[256];
+    const ln_cb_param_nofity_final_add_htlc_recv_t *p_param = (const ln_cb_param_nofity_final_add_htlc_recv_t *)pParam;
+    const ln_msg_x_update_add_htlc_t *p_addhtlc = p_param->p_add_htlc;
 
-    if (p_cb_param->next_short_channel_id) {
-        LOGD("forward\n");
-
-        snprintf(
-            str_stat, sizeof(str_stat), "-->[fwd]0x%016" PRIx64 ", cltv=%d",
-            p_cb_param->next_short_channel_id,
-            p_cb_param->p_forward_param->outgoing_cltv_value);
-        p_info = str_stat;
-
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
-        char str_hash[BTC_SZ_HASH256 * 2 + 1];
-        utl_str_bin2str(str_hash, p_cb_param->p_payment_hash, BTC_SZ_HASH256);
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
-        char param[M_SZ_SCRIPT_PARAM];
-        snprintf(
-            param, sizeof(param), "%s %s %" PRIu64 " %" PRIu32 " %s",
-            str_sci, node_id, p_cb_param->p_forward_param->amt_to_forward,
-            p_cb_param->p_forward_param->outgoing_cltv_value, str_hash);
-        ptarmd_call_script(PTARMD_EVT_FORWARD, param);
-
-#if 0 //XXX: channel_id
-        ptarmd_eventlog(
-            ln_channel_id(&p_nextconf->channel),
-            "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",
-            p_cb_param->p_forward_param->amt_to_forward,
-            p_cb_param->p_forward_param->outgoing_cltv_value);
-#endif
-
-        p_cb_param->ret = true;
-    } else {
-        LOGD("final node\n");
-
-        p_info = "final node";
-        p_cb_param->ret = true;
-
-        char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
-        utl_str_bin2str(str_payment_hash, p_cb_param->p_payment_hash, BTC_SZ_HASH256);
-        char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
-        ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
-        ptarmd_eventlog(NULL, "payment final node: payment_hash=%s, short_channel_id=%s", str_payment_hash, str_sci);
-    }
-
+    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
+    utl_str_bin2str(str_payment_hash, p_addhtlc->p_payment_hash, BTC_SZ_HASH256);
+    char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
+    ptarmd_eventlog(
+        NULL,
+        "payment final node: payment_hash=%s, short_channel_id=%s",
+        str_payment_hash, str_sci);
     ptarmd_eventlog(
         ln_channel_id(&pConf->channel),
-        "[RECV]add_htlc: %s(HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d)",
-        p_info, p_cb_param->prev_htlc_id,
-        p_cb_param->amount_msat, p_cb_param->cltv_expiry);
+        "[RECV]add_htlc: %s(amount_msat=%" PRIu64 ")",
+        str_payment_hash, p_addhtlc->amount_msat);
+
+    // method: addfinal
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: payment_hash
+    // $4: amount_msat
+    char str_node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(str_node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
+    char param[M_SZ_SCRIPT_PARAM];
+    snprintf(
+        param, sizeof(param), "%s %s %s %" PRIu64,
+        str_sci, str_node_id, str_payment_hash, p_addhtlc->amount_msat);
+    ptarmd_call_script(PTARMD_EVT_ADDFINAL, param);
 
     DBGTRACE_END
 }

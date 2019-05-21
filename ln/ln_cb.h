@@ -53,7 +53,7 @@ typedef enum {
     LN_CB_TYPE_WAIT_FUNDING_TX,             ///< funding_tx安定待ち要求
     LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV,  ///< funding_locked受信通知
     LN_CB_TYPE_NOTIFY_ANNODB_UPDATE,        ///< announcement DB更新通知
-    LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
+    LN_CB_TYPE_NOTIFY_ADDFINAL_HTLC_RECV,  ///< update_add_htlc受信通知(final node only)
     LN_CB_TYPE_START_BWD_DEL_HTLC,          ///< HTLC削除処理開始
     LN_CB_TYPE_NOTIFY_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, ///< revoke_and_ack交換通知
@@ -100,20 +100,12 @@ typedef struct {
 } ln_cb_param_wait_funding_tx_t;
 
 
-/** @struct ln_cb_param_nofity_add_htlc_recv_t
- *  @brief  update_add_htlc受信通知(#LN_CB_TYPE_NOTIFY_ADD_HTLC_RECV)
+/** @struct ln_cb_param_nofity_final_add_htlc_recv_t
+ *  @brief  update_add_htlc受信通知(#LN_CB_TYPE_NOTIFY_ADDFINAL_HTLC_RECV)
  */
 typedef struct {
-    bool                    ret;                    ///< callback処理結果
-    uint64_t                next_short_channel_id;
-    uint64_t                prev_htlc_id;           ///< HTLC id
-    const uint8_t           *p_payment_hash;        ///< payment_hash
-    const ln_msg_x_update_add_htlc_t    *p_forward_param;
-    uint64_t                amount_msat;            ///<
-    uint32_t                cltv_expiry;            ///<
-    utl_buf_t               *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
-    const utl_buf_t         *p_shared_secret;       ///< onion shared secret
-} ln_cb_param_nofity_add_htlc_recv_t;
+    ln_msg_x_update_add_htlc_t  *p_add_htlc;
+} ln_cb_param_nofity_final_add_htlc_recv_t;
 
 
 typedef struct {
