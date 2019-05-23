@@ -45,6 +45,18 @@ ptarmd [--network=NETWORK] [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCO
     * if no `rpcuser` or `rpcpassword`, read from ~/.bitcoin/bitcoin.conf
     * if no `rpcport`, use default rpc port number(mainnet=8332, testnet=18332, regtest=18443)
 
+* --bitcoinrpcuser=USERNAME
+  * bitcoin RPC username
+    * default: read from bitcoin.conf
+
+* --bitcoinrpcpassword=PASSWORD
+  * bitcoin RPC password
+    * default: read from bitcoin.conf
+
+* --bitcoinrpcport=PORT
+  * bitcoin RPC port
+    * default: read from bitcoin.conf
+
 * --datadir=DATA_DIR
   * working directory
     * default: current directory

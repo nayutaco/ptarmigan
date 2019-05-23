@@ -54,6 +54,11 @@
 
 #define M_OPTSTRING     "p:n:a:c:d:xNhv"
 
+#define M_OPT_CLEARCHANNELDB            '\x10'
+#define M_OPT_BITCOINRPCUSER            '\x11'
+#define M_OPT_BITCOINRPCPASSWORD        '\x12'
+#define M_OPT_BITCOINRPCPORT            '\x13'
+
 
 /********************************************************************
  * prototypes
@@ -78,6 +83,9 @@ int main(int argc, char *argv[])
     uint16_t my_rpcport = 0;
 #if defined(USE_BITCOIND)
     char bitcoinconf[PATH_MAX] = "";
+    char bitcoinrpcuser[SZ_RPC_USER + 1] = "";
+    char bitcoinrpcpassword[SZ_RPC_PASSWD + 1] = "";
+    uint16_t bitcoinrpcport = 0;
 #endif
 
     const struct option OPTIONS[] = {
@@ -92,7 +100,12 @@ int main(int argc, char *argv[])
         { "color", required_argument, NULL, 'C' },
         { "rpcport", required_argument, NULL, 'P' },
         { "version", no_argument, NULL, 'v' },
-        { "clear_channel_db", no_argument, NULL, '\x10' },
+        { "clear_channel_db", no_argument, NULL, M_OPT_CLEARCHANNELDB },
+#if defined(USE_BITCOIND)
+        { "bitcoinrpcuser", required_argument, NULL, M_OPT_BITCOINRPCUSER },
+        { "bitcoinrpcpassword", required_argument, NULL, M_OPT_BITCOINRPCPASSWORD },
+        { "bitcoinrpcport", required_argument, NULL, M_OPT_BITCOINRPCPORT },
+#endif
         { "help", no_argument, NULL, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -174,6 +187,10 @@ int main(int argc, char *argv[])
             break;
         case 'c':
 #if defined(USE_BITCOIND)
+            if (strlen(optarg) > sizeof(bitcoinconf) - 1) {
+                fprintf(stderr, "fail: conf file path too long.\n");
+                return -1;
+            }
             strncpy(bitcoinconf, optarg, sizeof(bitcoinconf) - 1);
             bitcoinconf[sizeof(bitcoinconf) - 1] = '\0';
 #endif
@@ -210,7 +227,7 @@ int main(int argc, char *argv[])
         case 'h':
             //help
             goto LABEL_EXIT;
-        case '\x10':
+        case M_OPT_CLEARCHANNELDB:
             //clear_channel_db
             printf("!!!!!!!!!!!!!!\n");
             printf("!!! DANGER !!!\n");
@@ -224,6 +241,31 @@ int main(int argc, char *argv[])
                 printf("canceled.\n");
             }
             return 0;
+#if defined(USE_BITCOIND)
+        case M_OPT_BITCOINRPCUSER:
+            if (strlen(optarg) > sizeof(bitcoinrpcuser) - 1) {
+                fprintf(stderr, "fail: RPCUSER too long.\n");
+                return -1;
+            }
+            strncpy(bitcoinrpcuser, optarg, sizeof(bitcoinrpcuser) - 1);
+            bitcoinrpcuser[sizeof(bitcoinrpcuser) - 1] = '\0';
+            break;
+        case M_OPT_BITCOINRPCPASSWORD:
+            if (strlen(optarg) > sizeof(bitcoinrpcpassword) - 1) {
+                fprintf(stderr, "fail: RPCPASSWORD too long.\n");
+                return -1;
+            }
+            strncpy(bitcoinrpcpassword, optarg, sizeof(bitcoinrpcpassword) - 1);
+            bitcoinrpcpassword[sizeof(bitcoinrpcpassword) - 1] = '\0';
+            break;
+        case M_OPT_BITCOINRPCPORT:
+            bret = utl_str_scan_u16(&bitcoinrpcport, optarg);
+            if (!bret || (bitcoinrpcport == 0)) {
+                fprintf(stderr, "fail: invaoid RPCPORT.\n");
+                return -1;
+            }
+            break;
+#endif
         default:
             break;
         }
@@ -240,8 +282,23 @@ int main(int argc, char *argv[])
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
         bret = conf_btcrpc_load_default(&rpc_conf, chain);
-        if (!bret || (strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
+        if (!bret) {
             fprintf(stderr, "fail: wrong conf file.\n");
+            goto LABEL_EXIT;
+        }
+        if (strlen(bitcoinrpcuser) > 0) {
+            strcpy(rpc_conf.rpcuser, bitcoinrpcuser);
+        }
+        if (strlen(bitcoinrpcpassword) > 0) {
+            strcpy(rpc_conf.rpcpasswd, bitcoinrpcpassword);
+        }
+        if (bitcoinrpcport != 0) {
+            rpc_conf.rpcport = bitcoinrpcport;
+        }
+        if ( (strlen(rpc_conf.rpcuser) == 0) ||
+             (strlen(rpc_conf.rpcpasswd) == 0) ||
+             (rpc_conf.rpcport == 0) ) {
+            fprintf(stderr, "fail: RPC configuration.\n");
             goto LABEL_EXIT;
         }
     }
@@ -302,6 +359,9 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t--alias NAME : alias name(default: \"node_xxxxxxxxxxxx\" or previous saved)\n");
 #if defined(USE_BITCOIND)
     fprintf(stderr, "\t\t--conf BITCOIN_CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
+    fprintf(stderr, "\t\t--bitcoinuser USER : bitcoin RPC user\n");
+    fprintf(stderr, "\t\t--bitcoinpassword PASS : bitcoin RPC password\n");
+    fprintf(stderr, "\t\t--bitcoinport PORT : bitcoin RPC port number\n");
     fprintf(stderr, "\t\t--announceip IPADDRv4 : announce IPv4 address(default: none)\n");
 #endif
     fprintf(stderr, "\t\t--datadir DIR_PATH : working directory(default: current)\n");
