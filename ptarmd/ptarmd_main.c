@@ -57,7 +57,8 @@
 #define M_OPT_CLEARCHANNELDB            '\x10'
 #define M_OPT_BITCOINRPCUSER            '\x11'
 #define M_OPT_BITCOINRPCPASSWORD        '\x12'
-#define M_OPT_BITCOINRPCPORT            '\x13'
+#define M_OPT_BITCOINRPCURL             '\x13'
+#define M_OPT_BITCOINRPCPORT            '\x14'
 
 
 /********************************************************************
@@ -85,6 +86,7 @@ int main(int argc, char *argv[])
     char bitcoinconf[PATH_MAX] = "";
     char bitcoinrpcuser[SZ_RPC_USER + 1] = "";
     char bitcoinrpcpassword[SZ_RPC_PASSWD + 1] = "";
+    char bitcoinrpcurl[SZ_RPC_URL + 1] = "";
     uint16_t bitcoinrpcport = 0;
 #endif
 
@@ -104,6 +106,7 @@ int main(int argc, char *argv[])
 #if defined(USE_BITCOIND)
         { "bitcoinrpcuser", required_argument, NULL, M_OPT_BITCOINRPCUSER },
         { "bitcoinrpcpassword", required_argument, NULL, M_OPT_BITCOINRPCPASSWORD },
+        { "bitcoinrpcurl", required_argument, NULL, M_OPT_BITCOINRPCURL },
         { "bitcoinrpcport", required_argument, NULL, M_OPT_BITCOINRPCPORT },
 #endif
         { "help", no_argument, NULL, 'h' },
@@ -258,6 +261,14 @@ int main(int argc, char *argv[])
             strncpy(bitcoinrpcpassword, optarg, sizeof(bitcoinrpcpassword) - 1);
             bitcoinrpcpassword[sizeof(bitcoinrpcpassword) - 1] = '\0';
             break;
+        case M_OPT_BITCOINRPCURL:
+            if (strlen(optarg) > sizeof(bitcoinrpcurl) - 1) {
+                fprintf(stderr, "fail: RPCURL too long.\n");
+                return -1;
+            }
+            strncpy(bitcoinrpcurl, optarg, sizeof(bitcoinrpcurl) - 1);
+            bitcoinrpcurl[sizeof(bitcoinrpcurl) - 1] = '\0';
+            break;
         case M_OPT_BITCOINRPCPORT:
             bret = utl_str_scan_u16(&bitcoinrpcport, optarg);
             if (!bret || (bitcoinrpcport == 0)) {
@@ -301,6 +312,9 @@ int main(int argc, char *argv[])
             fprintf(stderr, "fail: RPC configuration.\n");
             goto LABEL_EXIT;
         }
+    }
+    if (strlen(bitcoinrpcurl) > 0) {
+        strcpy(rpc_conf.rpcurl, bitcoinrpcurl);
     }
 #endif
     bret = btc_init(chain, true);
@@ -361,6 +375,7 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t--conf BITCOIN_CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(stderr, "\t\t--bitcoinuser USER : bitcoin RPC user\n");
     fprintf(stderr, "\t\t--bitcoinpassword PASS : bitcoin RPC password\n");
+    fprintf(stderr, "\t\t--bitcoinurl URL : bitcoin RPC URL\n");
     fprintf(stderr, "\t\t--bitcoinport PORT : bitcoin RPC port number\n");
     fprintf(stderr, "\t\t--announceip IPADDRv4 : announce IPv4 address(default: none)\n");
 #endif
