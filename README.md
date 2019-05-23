@@ -19,6 +19,8 @@
 * bitcoind
   * above v0.17 (`getnetworkinfo` version >= 170000)
   * bitcoin mainnet / testnet / regtest
+  * NOTE
+    * not support bitcoin.conf section format
 
 ## Install
 
