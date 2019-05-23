@@ -114,12 +114,6 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf, btc_block_cha
         strcpy(pRpcConf->rpcurl, "127.0.0.1");
     }
 
-    if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
-        LOGE("fail: no rpcuser or rpcpassword[%s]\n", pConfFile);
-        fprintf(stderr, "fail: no rpcuser or rpcpassword[%s]\n", pConfFile);
-        return false;
-    }
-
 #ifdef M_DEBUG
     fprintf(stderr, "rpcuser=%s\n", pRpcConf->rpcuser);
     fprintf(stderr, "rpcpassword=%s\n", pRpcConf->rpcpasswd);
