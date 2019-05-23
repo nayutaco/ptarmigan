@@ -304,8 +304,10 @@ static const struct {
  * public functions
  **************************************************************************/
 
-bool btcrpc_init(const rpc_conf_t *pRpcConf)
+bool btcrpc_init(const rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
 {
+    (void)pRpcConf;
+
     pthread_mutex_init(&mMuxCall, NULL);
     pthread_mutex_init(&mMuxApi, NULL);
     pthread_cond_init(&mCondApi, NULL);
@@ -314,7 +316,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
 
     mLoopJni = JNILOOP_INI;
 
-    pthread_create(&mTh, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
+    pthread_create(&mTh, NULL, &thread_jni_start, (void*)&Chain);
 
     //wait jni start...
     int count = M_JVM_START_COUNT;
@@ -755,11 +757,11 @@ static void call_jni(btcj_method_t Method, void *pParam)
 
 static void *thread_jni_start(void *pArg)
 {
-    const rpc_conf_t *p_rpcconf = (const rpc_conf_t *)pArg;
+    btc_block_chain_t chain = *(btc_block_chain_t *)pArg;
 
     LOGD("[THREAD]jni initialize\n");
 
-    bool ret = btcj_init(p_rpcconf->gen);
+    bool ret = btcj_init(chain);
     if (!ret) {
         LOGE("fail: jvm init\n");
         mLoopJni = JNILOOP_ABORT;

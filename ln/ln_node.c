@@ -436,6 +436,21 @@ static void print_node(void)
     } else {
         printf("port=%d\n", mNode.addr.port);
     }
+    printf("chain: ");
+    switch (btc_block_get_chain(ln_genesishash_get())) {
+    case BTC_BLOCK_CHAIN_BTCMAIN:
+        printf("bitcoin mainnet\n");
+        break;
+    case BTC_BLOCK_CHAIN_BTCTEST:
+        printf("bitcoin testnet\n");
+        break;
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
+        printf("bitcoin regtest\n");
+        break;
+    default:
+        printf("unknown chain\n");
+        break;
+    }
     printf("=============================================\n");
 }
 

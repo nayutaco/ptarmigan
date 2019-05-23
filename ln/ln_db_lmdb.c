@@ -891,8 +891,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     //LOGD("wif=%s\n", pWif);
     LOGD("alias=%s\n", pNodeName);
     LOGD("port=%d\n", *pPort);
-    LOGD("genesis hash (db, node):\n");
-    if (btc_block_get_chain(genesis) != btc_block_get_chain(ln_genesishash_get())) {
+    if (memcmp(genesis, ln_genesishash_get(), BTC_SZ_HASH256) != 0) {
         LOGE("fail: genesis hash not match\n");
         if (bStdErr) fprintf(stderr, "genesis hash not match\n");
         retval = -1;

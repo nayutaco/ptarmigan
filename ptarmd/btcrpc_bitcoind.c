@@ -124,8 +124,10 @@ static const char *M_FEERATE        =   "feerate";
  * public functions
  **************************************************************************/
 
-bool btcrpc_init(const rpc_conf_t *pRpcConf)
+bool btcrpc_init(const rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
 {
+    (void)Chain;
+
     pthread_mutex_init(&mMux, NULL);
     curl_global_init(CURL_GLOBAL_ALL);
     mCurl = curl_easy_init();
