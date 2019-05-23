@@ -63,7 +63,9 @@
  * prototypes
  **************************************************************************/
 
+#ifdef USE_BITCOIND
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
+#endif  //USE_BITCOIND
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_channel_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_connect_conf(void* user, const char* section, const char* name, const char* value);
@@ -80,35 +82,43 @@ static int handler_connect_conf(void* user, const char* section, const char* nam
 void conf_btcrpc_init(rpc_conf_t *pRpcConf)
 {
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
-    pRpcConf->gen = BTC_BLOCK_CHAIN_BTCMAIN;
 }
 
 
-bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
+#if defined(USE_BITCOIND)
+bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
 {
     LOGD("load bitcoin.conf: %s\n", pConfFile);
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
-        LOGE("fail bitcoin.conf parse[%s]", pConfFile);
+        LOGE("fail bitcoin.conf parse[%s]\n", pConfFile);
         fprintf(stderr, "fail bitcoin.conf parse[%s]\n", pConfFile);
         return false;
     }
-#if defined(USE_BITCOIND)
     if (pRpcConf->rpcport == 0) {
-        pRpcConf->rpcport = 8332;
+        switch (Chain) {
+        case BTC_BLOCK_CHAIN_BTCMAIN:
+            pRpcConf->rpcport = 8332;
+            break;
+        case BTC_BLOCK_CHAIN_BTCTEST:
+            pRpcConf->rpcport = 18332;
+            break;
+        case BTC_BLOCK_CHAIN_BTCREGTEST:
+            pRpcConf->rpcport = 18443;
+            break;
+        default:
+            LOGE("unknown chain\n");
+            break;
+        }
     }
     if (strlen(pRpcConf->rpcurl) == 0) {
         strcpy(pRpcConf->rpcurl, "127.0.0.1");
     }
 
     if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
-        LOGE("fail: no rpcuser or rpcpassword[%s]", pConfFile);
+        LOGE("fail: no rpcuser or rpcpassword[%s]\n", pConfFile);
         fprintf(stderr, "fail: no rpcuser or rpcpassword[%s]\n", pConfFile);
         return false;
     }
-#else
-    LOGE("fail: not bitcoind\n");
-    return false;
-#endif
 
 #ifdef M_DEBUG
     fprintf(stderr, "rpcuser=%s\n", pRpcConf->rpcuser);
@@ -121,12 +131,13 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
 }
 
 
-bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf)
+bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
 {
     char path[512];
     sprintf(path, "%s/.bitcoin/bitcoin.conf", getenv("HOME"));
-    return conf_btcrpc_load(path, pRpcConf);
+    return conf_btcrpc_load(path, pRpcConf, Chain);
 }
+#endif  //USE_BITCOIND
 
 
 void conf_anno_init(anno_conf_t *pAnnoConf)
@@ -197,11 +208,11 @@ bool conf_connect_load(const char *pConfFile, connect_conf_t *pConnConf)
  * private functions
  **************************************************************************/
 
+#ifdef USE_BITCOIND
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value)
 {
     (void)section;
 
-#ifdef USE_BITCOIND
     rpc_conf_t* pconfig = (rpc_conf_t *)user;
 
     if (strcmp(name, "rpcuser") == 0) {
@@ -213,27 +224,12 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
     } else if (strcmp(name, "rpcurl") == 0) {
         //bitcoin.confには無い。ptarmiganテスト用。
         strcpy(pconfig->rpcurl, value);
-    } else if (strcmp(name, "testnet") == 0) {
-        //testnet
-        pconfig->gen = BTC_BLOCK_CHAIN_BTCTEST;
-        if (pconfig->rpcport == 0) {
-            pconfig->rpcport = 18332;
-        }
-    } else if (strcmp(name, "regtest") == 0) {
-        //regtest
-        pconfig->gen = BTC_BLOCK_CHAIN_BTCREGTEST;
-        if (pconfig->rpcport == 0) {
-            pconfig->rpcport = 18443;
-        }
     } else {
         //return 0;  /* unknown section/name, error */
     }
     return 1;
-#else
-    (void)user; (void)name; (void)value;
-    return 0;
-#endif
 }
+#endif
 
 
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value)

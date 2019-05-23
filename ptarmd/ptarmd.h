@@ -218,7 +218,6 @@ typedef struct {
     char            rpcurl[SZ_RPC_URL];
     uint16_t        rpcport;
 #endif
-    btc_block_chain_t   gen;
 } rpc_conf_t;
 
 

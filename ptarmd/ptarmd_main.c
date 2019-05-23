@@ -76,6 +76,9 @@ int main(int argc, char *argv[])
     ln_node_t node = LN_NODE_INIT;
     int opt;
     uint16_t my_rpcport = 0;
+#if defined(USE_BITCOIND)
+    char bitcoinconf[PATH_MAX] = "";
+#endif
 
     const struct option OPTIONS[] = {
         { "network", required_argument, NULL, 'N' },
@@ -171,11 +174,8 @@ int main(int argc, char *argv[])
             break;
         case 'c':
 #if defined(USE_BITCOIND)
-            //load btcconf file
-            bret = conf_btcrpc_load(optarg, &rpc_conf);
-            if (!bret) {
-                goto LABEL_EXIT;
-            }
+            strncpy(bitcoinconf, optarg, sizeof(bitcoinconf) - 1);
+            bitcoinconf[sizeof(bitcoinconf) - 1] = '\0';
 #endif
             break;
         case 'N':
@@ -230,16 +230,21 @@ int main(int argc, char *argv[])
     }
 
 #if defined(USE_BITCOIND)
+    //load bitcoin.conf file
+    if (strlen(bitcoinconf) > 0) {
+        bret = conf_btcrpc_load(bitcoinconf, &rpc_conf, chain);
+        if (!bret) {
+            goto LABEL_EXIT;
+        }
+    }
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
-        bret = conf_btcrpc_load_default(&rpc_conf);
+        bret = conf_btcrpc_load_default(&rpc_conf, chain);
         if (!bret || (strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
             fprintf(stderr, "fail: wrong conf file.\n");
             goto LABEL_EXIT;
         }
     }
-#elif defined(USE_BITCOINJ)
-    rpc_conf.gen = chain;
 #endif
     bret = btc_init(chain, true);
     if (!bret) {
@@ -257,7 +262,7 @@ int main(int argc, char *argv[])
 
     //bitcoind起動確認
     uint8_t genesis[BTC_SZ_HASH256];
-    bret = btcrpc_init(&rpc_conf);
+    bret = btcrpc_init(&rpc_conf, chain);
     if (!bret) {
         fprintf(stderr, "fail: initialize btcrpc\n");
         return -1;

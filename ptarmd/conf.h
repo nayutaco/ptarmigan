@@ -31,8 +31,10 @@ extern "C" {
 
 
 void conf_btcrpc_init(rpc_conf_t *pRpcConf);
-bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf);
-bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf);
+#if defined(USE_BITCOIND)
+bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf, btc_block_chain_t Chain);
+bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf, btc_block_chain_t Chain);
+#endif  //USE_BITCOIND
 
 void conf_anno_init(anno_conf_t *pAnnoConf);
 bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf);
