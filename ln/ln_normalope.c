@@ -1646,8 +1646,9 @@ static bool check_recv_add_htlc_bolt4_final(
     bool detect = false;
     for (;;) {
         detect = false;
-        if (!ln_db_preimage_cur_get(p_cur, &detect, &preimage)) break;     //from invoice
+        if (!ln_db_preimage_cur_get(p_cur, &detect, &preimage, NULL)) break;     //from invoice
         if (!detect) continue;
+        if (preimage.state != LN_DB_PREIMAGE_STATE_UNUSED) continue;
         memcpy(pPreimage, preimage.preimage, LN_SZ_PREIMAGE);
         ln_payment_hash_calc(preimage_hash, pPreimage);
         if (memcmp(preimage_hash, pForwardParam->p_payment_hash, BTC_SZ_HASH256)) continue;

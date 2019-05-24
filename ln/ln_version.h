@@ -4,7 +4,7 @@
 /** @def    LN_DB_VERSION
  *  @brief  database version
  */
-#define LN_DB_VERSION    ((int32_t)(-68))
+#define LN_DB_VERSION    ((int32_t)(-69))
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -114,6 +114,7 @@
     -66: update `ln_channel_t::shutdown_flag`
     -67: update `ln_channel_t::status`
     -68: add `ln_channel_t::prev_remote_commit_txid`
+    -69: add `ln_db_preimage_t::status` (auto update: -68 ==> -69)
  */
 
 #endif /* LN_VERSION_H__ */

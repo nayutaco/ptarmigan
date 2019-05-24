@@ -78,6 +78,17 @@ typedef enum {
 } ln_db_cur_t;
 
 
+/** @typedef    ln_db_preimage_state_t
+ *  @brief      created preimage status
+ */
+typedef enum {
+    LN_DB_PREIMAGE_STATE_UNUSED = 0,    ///< unused(including outdated)
+    LN_DB_PREIMAGE_STATE_USED = 1,      ///< used(already received)
+    LN_DB_PREIMAGE_STATE_EXPIRE = 2,    ///< unused and expire(not save DB)
+    LN_DB_PREIMAGE_STATE_UNKNOWN = UINT8_MAX
+} ln_db_preimage_state_t;
+
+
 /** @typedef    ln_db_preimage_t
  *  @brief      preimage/invoice
  */
@@ -86,6 +97,7 @@ typedef struct {
     uint64_t    amount_msat;
     uint64_t    creation_time;
     uint32_t    expiry;
+    ln_db_preimage_state_t  state;
 } ln_db_preimage_t;
 
 
@@ -172,10 +184,11 @@ typedef bool (*ln_db_func_wallet_t)(const ln_db_wallet_t *pWallet, void *pParam)
  * @param[in,out]   pWif            ノードの秘密鍵
  * @param[in,out]   pNodeName       ノード名
  * @param[in,out]   pPort           ポート番号
+ * @param[in]       bAutoUpdate     true:auto version update(if it can)
  * @param[in]       bStdErr         エラーをstderrに出力
  * @retval  true    初期化成功
  */
-bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr);
+bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bAutoUpdate, bool bStdErr);
 
 
 /** db終了
@@ -623,54 +636,17 @@ bool ln_db_route_skip_drop(bool bTemp);
 
 
 /********************************************************************
- * invoice
- ********************************************************************/
-
-#if 0 //XXX: deprecated
-/** "routepay" invoice保存
- *
- */
-bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint8_t *pPaymentHash);
-
-
-/** "routepay" invoice取得
- *
- */
-bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_t *pPaymentHash);
-
-
-/** "routepay" 全payment_hash取得
- *
- * @attention
- *      - 内部で UTL_DBG_REALLOC()するため、使用後に UTL_DBG_FREE()すること
- */
-int ln_db_invoice_load_payment_hashs(uint8_t **ppPaymentHash);
-
-
-/** "routepay" invoice削除
- *
- */
-bool ln_db_invoice_del(const uint8_t *pPaymentHash);
-
-
-/** "routepay" DB削除
- *
- */
-bool ln_db_invoice_drop(void);
-#endif
-
-
-/********************************************************************
  * payment preimage
  ********************************************************************/
 
 /** preimage保存
  *
- * @param[in,out]   pPreimage   creation_timeのみoutput
- * @param[in,out]   pDb
+ * @param[in]       pPreimage   preimage information
+ * @param[in]       pBolt11     BOLT11 format invoice
+ * @param[in,out]   pDb         (nullable)
  * @retval  true
  */
-bool ln_db_preimage_save(ln_db_preimage_t *pPreimage, void *pDb);
+bool ln_db_preimage_save(const ln_db_preimage_t *pPreimage, const char *pBolt11, void *pDb);
 
 
 /** preimage削除
@@ -722,15 +698,18 @@ void ln_db_preimage_cur_close(void *pCur, bool bCommit);
  * @param[in]       pCur
  * @param[out]      pDetect     true:取得成功
  * @param[out]      pPreimage
+ * @param[out]      ppBolt11    (not NULL)BOLT11 invoice string
  * @retval  true        エラーでは無い
  */
-bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage);
+bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage, const char **ppBolt11);
 
 
-/** preimage expiry更新
+/** preimage使用済み
  *
+ * @param[in]       pPreimage
+ * @retval  true
  */
-bool ln_db_preimage_set_expiry(void *pCur, uint32_t Expiry);
+bool ln_db_preimage_used(const uint8_t *pPreimage);
 
 
 /********************************************************************
