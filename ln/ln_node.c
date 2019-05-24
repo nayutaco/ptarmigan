@@ -121,7 +121,7 @@ bool ln_node_init(const ln_node_t *pNode)
     LOGD("port: %d\n", pNode->addr.port);
 
     memcpy(&mNode, pNode, sizeof(ln_node_t));
-    if (!ln_db_init(wif, mNode.alias, &mNode.addr.port, true)) {
+    if (!ln_db_init(wif, mNode.alias, &mNode.addr.port, true, true)) {
         LOGE("fail: db init\n");
         goto LABEL_EXIT;
     }

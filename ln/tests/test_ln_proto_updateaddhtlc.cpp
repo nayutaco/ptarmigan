@@ -62,13 +62,13 @@ FAKE_VOID_FUNC(ln_db_preimage_cur_close, void *, bool);
 FAKE_VALUE_FUNC(bool, ln_db_cnlupd_load, utl_buf_t *, uint32_t *, uint64_t, uint8_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_del, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_open, void **);
-FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_cur_get, void *, bool *, ln_db_preimage_t *, const char**);
+FAKE_VALUE_FUNC(bool, ln_db_preimage_used, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_channel_search_readonly_nokey, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_payment_hash_save, const uint8_t*, const uint8_t*, ln_commit_tx_output_type_t, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
-FAKE_VALUE_FUNC(bool, ln_db_preimage_set_expiry, void *, uint32_t);
 FAKE_VALUE_FUNC(bool, ln_db_forward_add_htlc_save, const ln_db_forward_t *);
 
 FAKE_VALUE_FUNC(bool, ln_msg_open_channel_write, utl_buf_t *, const ln_msg_open_channel_t *);
@@ -95,12 +95,12 @@ protected:
         RESET_FAKE(ln_db_preimage_del)
         RESET_FAKE(ln_db_preimage_cur_open)
         RESET_FAKE(ln_db_preimage_cur_get)
+        RESET_FAKE(ln_db_preimage_used)
         RESET_FAKE(ln_db_channel_search)
         RESET_FAKE(ln_db_channel_search_readonly)
         RESET_FAKE(ln_db_channel_search_readonly_nokey)
         RESET_FAKE(ln_db_payment_hash_save)
         RESET_FAKE(ln_db_preimage_search)
-        RESET_FAKE(ln_db_preimage_set_expiry)
         RESET_FAKE(ln_db_forward_add_htlc_save)
         RESET_FAKE(ln_msg_open_channel_read)
         RESET_FAKE(ln_msg_accept_channel_write)
@@ -434,12 +434,15 @@ TEST_F(ln, update_add_htlc_recv1)
         static bool ln_db_preimage_cur_open(void **ppCur) {
             return true;
         }
-        static bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage) {
+        static bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage, const char**ppBolt11) {
             *pDetect = true;
             pPreimage->amount_msat = LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT;
             memcpy(pPreimage->preimage, LN_UPDATE_ADD_HTLC_A::PREIMAGE, LN_SZ_PREIMAGE);
             pPreimage->creation_time = 1538375408;
             pPreimage->expiry = LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY;
+            if (ppBolt11) {
+                *ppBolt11 = "";
+            }
             return true;
         }
         static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
@@ -504,12 +507,15 @@ TEST_F(ln, update_add_htlc_recv2)
         static bool ln_db_preimage_cur_open(void **ppCur) {
             return true;
         }
-        static bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage) {
+        static bool ln_db_preimage_cur_get(void *pCur, bool *pDetect, ln_db_preimage_t *pPreimage, const char **ppBolt11) {
             *pDetect = true;
             pPreimage->amount_msat = LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT;
             memcpy(pPreimage->preimage, LN_UPDATE_ADD_HTLC_A::PREIMAGE, LN_SZ_PREIMAGE);
             pPreimage->creation_time = 1538375408;
             pPreimage->expiry = LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY;
+            if (ppBolt11) {
+                *ppBolt11 = "";
+            }
             return true;
         }
         static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
