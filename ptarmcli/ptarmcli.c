@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
         { "listpayment", optional_argument, NULL, M_OPT_LISTPAYMENT },
         { "removepayment", required_argument, NULL, M_OPT_REMOVEPAYMENT },
         { "createinvoice", required_argument, NULL, M_OPT_INVOICE },
-        { "listinvoice", no_argument, NULL, M_OPT_INVOICELIST },
+        { "listinvoice", optional_argument, NULL, M_OPT_INVOICELIST },
         { "removeinvoice", required_argument, NULL, M_OPT_INVOICEERASE },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "description", required_argument, NULL, M_OPT_INVOICE_DESC },
@@ -662,11 +662,24 @@ static void optfunc_listinvoice(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
+    char payment_hash[1 + 2 * BTC_SZ_HASH256 + 1 + 1] = "";
+    if (optarg != NULL) {
+        if (strlen(optarg) == 2 * BTC_SZ_HASH256) {
+            strcpy(payment_hash, "\"");
+            strcat(payment_hash, optarg);
+            strcat(payment_hash, "\"");
+        } else {
+            strcpy(mErrStr, "invalid param");
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
+    }
+
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "listinvoice") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+            M_QQ("params") ":[%s]"
+        "}", payment_hash);
     *pOption = M_OPT_INVOICELIST;
 }
 

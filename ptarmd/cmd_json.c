@@ -821,15 +821,25 @@ LABEL_EXIT:
  */
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)ctx; (void)params; (void)id;
+    (void)ctx; (void)id;
 
     cJSON *result = NULL;
     uint8_t preimage_hash[BTC_SZ_HASH256];
     ln_db_preimage_t preimage;
     void *p_cur;
     bool ret;
+    const uint8_t *p_selected_hash = NULL;
+    uint8_t selected_hash[BTC_SZ_HASH256];
 
     LOGD("$$$: [JSONRPC]listinvoice\n");
+
+    if (params != NULL) {
+        cJSON *json = cJSON_GetArrayItem(params, 0);
+        if (json && (json->type == cJSON_String)) {
+            utl_str_str2bin(selected_hash, BTC_SZ_HASH256, json->valuestring);
+            p_selected_hash = selected_hash;
+        }
+    }
 
     result = cJSON_CreateArray();
     ret = ln_db_preimage_cur_open(&p_cur);
@@ -839,6 +849,13 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         ret = ln_db_preimage_cur_get(p_cur, &detect, &preimage, &p_bolt11);
         if (detect) {
             ln_payment_hash_calc(preimage_hash, preimage.preimage);
+
+            if (p_selected_hash != NULL) {
+                if (memcmp(selected_hash, preimage_hash, BTC_SZ_HASH256) != 0) {
+                    continue;
+                }
+            }
+
             cJSON *json = cJSON_CreateObject();
 
             const char *p_state;
@@ -878,6 +895,10 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             //     APP_FREE(p_r_field);
             // }
             cJSON_AddItemToArray(result, json);
+
+            if (p_selected_hash != NULL) {
+                break;
+            }
         }
     }
     ln_db_preimage_cur_close(p_cur, false);
