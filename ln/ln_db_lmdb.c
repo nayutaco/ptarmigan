@@ -2798,6 +2798,7 @@ void ln_db_preimage_cur_close(void *pCur, bool bCommit)
     } else {
         MDB_TXN_ABORT(p_cur->p_txn);
     }
+    UTL_DBG_FREE(pCur);
 }
 
 

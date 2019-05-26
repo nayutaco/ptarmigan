@@ -628,6 +628,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     err = cmd_invoice_proc(
             &p_invoice, preimage_hash, &r_fieldnum,
             amount_msat, min_final_cltv_expiry, &desc);
+    utl_buf_free(&desc.data);
 
 LABEL_EXIT:
     if (err == 0) {
