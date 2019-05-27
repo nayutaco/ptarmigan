@@ -193,7 +193,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     }
 
     if (ln_funding_info_funding_now(&pChannel->funding_info) || (pChannel->short_channel_id != 0)) {
-        const char *p_err_msg = "can't create multi channel";
+        const char *p_err_msg = "Multiple channels unsupported";
         ln_msg_error_t errmsg;
         errmsg.p_channel_id = msg.p_temporary_channel_id;
         errmsg.p_data = (const uint8_t *)p_err_msg;
