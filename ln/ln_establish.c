@@ -193,6 +193,10 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     }
 
     if (ln_funding_info_funding_now(&pChannel->funding_info) || (pChannel->short_channel_id != 0)) {
+        //NOTE:
+        //  lnd return RPC Error code 177 receiving this message.
+        //      "Multiple"=177, "Hello Multiple"=172, "multiple"=209, ...
+        //  Please be careful if you change this message.
         const char *p_err_msg = "Multiple channels unsupported";
         ln_msg_error_t errmsg;
         errmsg.p_channel_id = msg.p_temporary_channel_id;
