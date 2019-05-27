@@ -405,7 +405,6 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         return result;
     }
 
-#ifdef DEVELOPER_MODE
     //blockcount
     int32_t block_count;
     bool ret = monitor_btc_getblockcount(&block_count);
@@ -414,7 +413,6 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     } else {
         LOGE("fail getblockcount()\n");
     }
-#endif
 
     //peer info
     p2p_show_channel(result_peer);
