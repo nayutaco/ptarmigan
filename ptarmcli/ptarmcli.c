@@ -85,6 +85,7 @@
 #define M_OPT_REMOVEPAYMENT         '\x0b'
 #define M_OPT_DECODEINVOICE         '\x0c'
 #define M_OPT_INVOICE_DESC          '\x0d'
+#define M_OPT_INVOICE_EXPIRY        '\x0e'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -125,6 +126,7 @@ static char         mErrStr[256];
 static uint8_t      mInitRouteSync;
 static uint8_t      mPrivChannel;
 static char         mInvoiceDesc[LN_INVOICE_DESC_MAX + 1] = "";
+static uint32_t     mInvoiceExpiry = LN_INVOICE_EXPIRY;
 
 
 /********************************************************************
@@ -236,6 +238,7 @@ int main(int argc, char *argv[])
         { "removeinvoice", required_argument, NULL, M_OPT_INVOICEERASE },
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "description", required_argument, NULL, M_OPT_INVOICE_DESC },
+        { "invoiceexpiry", required_argument, NULL, M_OPT_INVOICE_EXPIRY },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
@@ -244,6 +247,7 @@ int main(int argc, char *argv[])
     bool conn = false;
     bool set_privchannel = false;
     bool set_invoicedesc = false;
+    bool set_invoiceexpiry = false;
     mAddr[0] = '\0';
     mTcpSend = true;
     mInitRouteSync = PTARMD_ROUTESYNC_DEFAULT;
@@ -265,6 +269,14 @@ int main(int argc, char *argv[])
             strncpy(mInvoiceDesc, optarg, sizeof(mInvoiceDesc));
             mInvoiceDesc[sizeof(mInvoiceDesc) - 1] = '\0';
             set_invoicedesc = true;
+            break;
+        case M_OPT_INVOICE_EXPIRY:
+            // invoice
+            set_invoiceexpiry = utl_str_scan_u32(&mInvoiceExpiry, optarg);
+            if (!set_invoiceexpiry) {
+                print_error("invalid invoice expiry");
+                return -1;
+            }
             break;
         case '?':
             return -1;
@@ -304,6 +316,10 @@ int main(int argc, char *argv[])
     }
     if (set_invoicedesc && (option != M_OPT_INVOICE)) {
         print_error("invalid option: --description");
+        return -1;
+    }
+    if (set_invoiceexpiry && (option != M_OPT_INVOICE)) {
+        print_error("invalid option: --invoiceexpiry");
         return -1;
     }
 
@@ -350,9 +366,9 @@ static void print_help(void)
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\tINVOICE:\n");
-    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT [--description DESCRIPTION] : create invoice and add list\n");
+    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT [--description=DESCRIPTION] [--invoiceexpiry=INVOICE_EXPIRY_SECOND] : create invoice and add list\n");
     fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
-    fprintf(stderr, "\t\t--listinvoice : list created invoices\n");
+    fprintf(stderr, "\t\t--listinvoice[=PAYMENT_HASH] : list created invoices\n");
     fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
     fprintf(stderr, "\tPAYMENT:\n");
     fprintf(stderr, "\t\t--sendpayment BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
@@ -611,10 +627,10 @@ static void optfunc_invoice(int *pOption, bool *pConn)
                 M_STR("method", "invoice") M_NEXT
                 M_QQ("params") ":[ "
                     //invoice
-                    "%" PRIu64 ",%" PRIu32 "," M_QQ("%s")
+                    "%" PRIu64 ",%" PRIu32 "," M_QQ("%s") ",%" PRIu32
                 " ]"
             "}",
-                amount, min_final_cltv_expiry, mInvoiceDesc);
+                amount, min_final_cltv_expiry, mInvoiceDesc, mInvoiceExpiry);
 
         *pOption = M_OPT_INVOICE;
     } else {

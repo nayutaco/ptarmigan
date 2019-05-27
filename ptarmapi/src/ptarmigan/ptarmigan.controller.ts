@@ -6,6 +6,7 @@ import { ApiUseTags, ApiModelProperty, ApiImplicitQuery, ApiCreatedResponse, Api
 import { Validate, Matches } from 'class-validator';
 import { FeeDto } from 'src/model/fee';
 import { InvoiceDto } from 'src/model/invoice';
+import { ListInvoiceDto } from 'src/model/list-invoice';
 import { PaymentHashDto } from 'src/model/payment-hash';
 import { Bolt11Dto } from 'src/model/bolt11';
 import { PeerDto } from 'src/model/peer';
@@ -48,7 +49,7 @@ export class PtarmiganController {
 
     @Post('createinvoice') // createinvoice -> invoice
     async executeCreateInvoice(@Body() dto: InvoiceDto) {
-        return await this.ptarmiganService.requestTCP('invoice', [dto.amountMsat, dto.minFinalCltvExpiry]);
+        return await this.ptarmiganService.requestTCP('invoice', [dto.amountMsat, dto.minFinalCltvExpiry, dto.description, dto.invoiceExpiry]);
     }
 
     @Post('removeinvoice') // eraseinvoice -> removeinvoice
@@ -62,8 +63,8 @@ export class PtarmiganController {
     }
 
     @Post('listinvoices') // listinvoice -> listinvoices
-    async executeListInvoice() {
-        return await this.ptarmiganService.requestTCP('listinvoice', []);
+    async executeListInvoice(@Body() dto: ListInvoiceDto) {
+        return await this.ptarmiganService.requestTCP('listinvoice', [dto.paymentHash]);
     }
 
     @Post('decodeinvoice') // none -> decodeinvoice

@@ -83,6 +83,7 @@ extern "C" {
 #define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 #define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
+#define LN_INVOICE_EXPIRY_MIN           (60)        ///< invoice expiry minimum
 
 #define LN_FEE_COMMIT_BASE_WEIGHT       (724ULL)    ///< commit_tx base weight for the fee calculation
 
