@@ -187,7 +187,8 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     }
     if (ln_funding_info_funding_now(&pChannel->funding_info)) {
         M_SET_ERR(pChannel, LNERR_ALREADY_FUNDING, "already funding");
-        return false;
+        LOGD("BUT! DO! NOTHING!\n");
+        return true;
     }
     if (pChannel->short_channel_id != 0) {
         M_SET_ERR(pChannel, LNERR_ALREADY_FUNDING, "already established");
