@@ -185,21 +185,26 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
         M_SET_ERR(pChannel, LNERR_INV_SIDE, "not fundee");
         return false;
     }
-    if (ln_funding_info_funding_now(&pChannel->funding_info)) {
-        M_SET_ERR(pChannel, LNERR_ALREADY_FUNDING, "already funding");
-        LOGD("BUT! DO! NOTHING!\n");
-        return true;
-    }
-    if (pChannel->short_channel_id != 0) {
-        M_SET_ERR(pChannel, LNERR_ALREADY_FUNDING, "already established");
-        return false;
-    }
 
     ln_msg_open_channel_t msg;
     if (!ln_msg_open_channel_read(&msg, pData, Len)) {
         M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
         return false;
     }
+
+    if (ln_funding_info_funding_now(&pChannel->funding_info) || (pChannel->short_channel_id != 0)) {
+        const char *p_err_msg = "can't create multi channel";
+        ln_msg_error_t errmsg;
+        errmsg.p_channel_id = msg.p_temporary_channel_id;
+        errmsg.p_data = (const uint8_t *)p_err_msg;
+        errmsg.len = strlen(p_err_msg);
+        utl_buf_t buf = UTL_BUF_INIT;
+        ln_msg_error_write(&buf, &errmsg);
+        ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
+        utl_buf_free(&buf);
+        return true;
+    }
+
     memcpy(pChannel->channel_id, msg.p_temporary_channel_id, LN_SZ_CHANNEL_ID);
     memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_FUNDING], msg.p_funding_pubkey, BTC_SZ_PUBKEY);
     memcpy(pChannel->keys_remote.basepoints[LN_BASEPOINT_IDX_REVOCATION], msg.p_revocation_basepoint, BTC_SZ_PUBKEY);
