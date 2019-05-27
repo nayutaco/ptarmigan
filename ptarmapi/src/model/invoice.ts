@@ -15,4 +15,18 @@ export class InvoiceDto {
         },
     )
     minFinalCltvExpiry?: number;
+
+    @ApiModelProperty(
+        {
+            required: false,
+        },
+    )
+    description?: string;
+
+    @ApiModelProperty(
+        {
+            required: false,
+        },
+    )
+    invoiceExpiry?: number;
 }

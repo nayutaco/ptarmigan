@@ -158,6 +158,7 @@ static int cmd_invoice_proc(
     uint8_t *pRFieldNum,
     uint64_t AmountMsat,
     uint32_t MinFinalCltvExpiry,
+    uint32_t InvoiceExpiry,
     const ln_invoice_desc_t *pDesc);
 static int cmd_eraseinvoice_proc(const uint8_t *pPaymentHash);
 #if 0
@@ -574,6 +575,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint64_t amount_msat = 0;
     cJSON *result = NULL;
     int index = 0;
+    uint32_t invoice_expiry = LN_INVOICE_EXPIRY;
     uint32_t min_final_cltv_expiry;
     char description[LN_INVOICE_DESC_MAX + 1] = "";
     char *p_invoice = NULL;
@@ -609,6 +611,18 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         description[sizeof(description) - 1] = '\0';
         LOGD("description=%s\n", description);
     }
+    //expiry
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        if (json->valueint < LN_INVOICE_EXPIRY_MIN) {
+            err = M_RPCERR_FREESTRING;
+            ctx->error_code = RPCERR_INVOICE_FAIL;
+            ctx->error_message = strdup_cjson("invoice expiry too short");
+            goto LABEL_EXIT;
+        }
+        invoice_expiry = json->valueint;
+        LOGD("invoice_expiry=%d\n", invoice_expiry);
+    }
 
     size_t desc_len = strlen(description);
     if (desc_len > LN_INVOICE_DESC_MAX) {
@@ -625,7 +639,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint8_t preimage_hash[BTC_SZ_HASH256];
     err = cmd_invoice_proc(
             &p_invoice, preimage_hash, &r_fieldnum,
-            amount_msat, min_final_cltv_expiry, &desc);
+            amount_msat, min_final_cltv_expiry, invoice_expiry, &desc);
     utl_buf_free(&desc.data);
 
 LABEL_EXIT:
@@ -1990,6 +2004,7 @@ static int cmd_invoice_proc(
     uint8_t *pRFieldNum,
     uint64_t AmountMsat,
     uint32_t MinFinalCltvExpiry,
+    uint32_t InvoiceExpiry,
     const ln_invoice_desc_t *pDesc)
 {
     (void)pDesc;
@@ -1999,7 +2014,7 @@ static int cmd_invoice_proc(
     ln_db_preimage_t preimage;
     btc_rng_rand(preimage.preimage, LN_SZ_PREIMAGE);
     preimage.amount_msat = AmountMsat;
-    preimage.expiry = LN_INVOICE_EXPIRY;
+    preimage.expiry = InvoiceExpiry;
     preimage.creation_time = (uint64_t)utl_time_time();
 
     ln_payment_hash_calc(pPaymentHash, preimage.preimage);
@@ -2009,7 +2024,7 @@ static int cmd_invoice_proc(
     *ppInvoice = create_bolt11(
                         pPaymentHash, AmountMsat,
                         pDesc,
-                        LN_INVOICE_EXPIRY,
+                        InvoiceExpiry,
                         p_r_field, *pRFieldNum,
                         MinFinalCltvExpiry);
     UTL_DBG_FREE(p_r_field);
