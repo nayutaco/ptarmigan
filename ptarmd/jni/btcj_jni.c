@@ -133,7 +133,7 @@ bool btcj_init(btc_block_chain_t Gen)
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
     // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
-    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug";
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=info";
     opt[2].optionString = "-Dorg.slf4j.simpleLogger.log.co.nayuta.lightning=debug";
     opt[3].optionString = "-Dorg.slf4j.simpleLogger.showDateTime=true";
     opt[4].optionString = "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ssZ";
