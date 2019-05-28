@@ -6585,7 +6585,6 @@ static bool auto_update_68_to_69(void)
         goto LABEL_EXIT;
     }
 
-    uint64_t now = (uint64_t)utl_time_time();
     while (true) {
         MDB_val         key, data;
         int retval = mdb_cursor_get(p_cur->p_cursor, &key, &data, MDB_NEXT_NODUP);
