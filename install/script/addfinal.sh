@@ -9,5 +9,13 @@ set -eu
 #   $5: local_msat
 DATE=`date -u +"%Y-%m-%dT%H:%M:%S.%N"`
 cat << EOS | jq -e '.'
-{ "method":"addfinal", "short_channel_id":"$1", "node_id":"$2", "date":"$DATE", "payment_hash":"$3", "amount_msat":$4, "local_msat":$5 }
+{
+    "method":"addfinal",
+    "date":"$DATE",
+    "short_channel_id":"$1",
+    "node_id":"$2",
+    "payment_hash":"$3",
+    "amount_msat":$4,
+    "local_msat":$5
+}
 EOS

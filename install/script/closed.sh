@@ -6,5 +6,11 @@ set -eu
 #   $3: closing_txid
 DATE=`date -u +"%Y-%m-%dT%H:%M:%S.%N"`
 cat << EOS | jq -e '.'
-{ "method":"closed", "short_channel_id":"$1", "node_id":"$2", "date":"$DATE", "closing_txid":"$3" }
+{
+    "method":"closed",
+    "date":"$DATE",
+    "short_channel_id":"$1",
+    "node_id":"$2",
+    "closing_txid":"$3"
+}
 EOS

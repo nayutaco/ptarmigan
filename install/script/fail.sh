@@ -6,5 +6,11 @@ set -eu
 #   $3: info
 DATE=`date -u +"%Y-%m-%dT%H:%M:%S.%N"`
 cat << EOS | jq -e '.'
-{ "method":"fail", "short_channel_id":"$1", "node_id":"$2", "date":"$DATE", "info":"$3" }
+{
+    "method":"fail",
+    "date":"$DATE",
+    "short_channel_id":"$1",
+    "node_id":"$2",
+    "info":"$3"
+}
 EOS
