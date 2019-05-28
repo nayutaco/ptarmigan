@@ -6608,11 +6608,7 @@ static bool auto_update_68_to_69(void)
         info.amount = p_info68->amount;
         info.creation = p_info68->creation;
         info.expiry = p_info68->expiry;
-        if (now <= p_info68->creation + p_info68->expiry) {
-            info.state = LN_DB_PREIMAGE_STATE_UNUSED;
-        } else {
-            //expired
-        }
+        info.state = LN_DB_PREIMAGE_STATE_UNUSED;
         info.bolt11[0] = '\0';
 
         data.mv_data = &info;
