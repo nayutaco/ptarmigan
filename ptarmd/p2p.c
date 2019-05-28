@@ -148,6 +148,11 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;
     struct hostent *host = gethostbyname(pConn->ipaddr);
+    if (host == NULL) {
+        LOGE("gethostbyname\n");
+        *pErrCode = RPCERR_SOCK;
+        goto LABEL_EXIT;
+    }
     sv_addr.sin_addr.s_addr = *(unsigned int *)host->h_addr_list[0];
     sv_addr.sin_port = htons(pConn->port);
     errno = 0;
