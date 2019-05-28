@@ -304,7 +304,8 @@ bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
         goto LABEL_EXIT;
     }
 
-    strcpy(conf.conn_str, pConnHandshake->conn.ipaddr);
+    strncpy(conf.conn_str, pConnHandshake->conn.ipaddr, SZ_CONN_STR);
+    conf.conn_str[SZ_CONN_STR] = '\0';
     conf.conn_port = pConnHandshake->conn.port;
     conf.routesync = pConnHandshake->conn.routesync;
 

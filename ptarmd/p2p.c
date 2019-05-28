@@ -145,18 +145,7 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     }
     fcntl(sock, F_SETFL, O_NONBLOCK);
 
-    memset(&sv_addr, 0, sizeof(sv_addr));
-    sv_addr.sin_family = AF_INET;
-    struct hostent *host = gethostbyname(pConn->ipaddr);
-    if (host == NULL) {
-        LOGE("gethostbyname\n");
-        *pErrCode = RPCERR_SOCK;
-        goto LABEL_EXIT;
-    }
-    sv_addr.sin_addr.s_addr = *(unsigned int *)host->h_addr_list[0];
-    sv_addr.sin_port = htons(pConn->port);
-    errno = 0;
-    ret = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    ret = connect_byname(sock, pConn->ipaddr, pConn->port);
     if ((ret < 0) && (errno == EINPROGRESS)) {
         //timeout check
         struct pollfd fds;
@@ -444,3 +433,23 @@ static void show_channel(lnapp_conf_t *pConf, void *pParam)
     pthread_mutex_unlock(&pConf->mux_conf);
 }
 
+
+static int connect_byname(int sock, const char *name, int port)
+{
+    int ret;
+    struct sockaddr_in sv_addr;
+
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    struct hostent *host = gethostbyname(name);
+    if (host == NULL) {
+        LOGE("gethostbyname\n");
+        return -1;
+    }
+    sv_addr.sin_addr.s_addr = *(unsigned int *)host->h_addr_list[0];
+    sv_addr.sin_port = htons(port);
+    errno = 0;
+    ret = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+
+    return ret;
+}

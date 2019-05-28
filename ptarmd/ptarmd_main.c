@@ -298,10 +298,12 @@ int main(int argc, char *argv[])
             goto LABEL_EXIT;
         }
         if (strlen(bitcoinrpcuser) > 0) {
-            strcpy(rpc_conf.rpcuser, bitcoinrpcuser);
+            strncpy(rpc_conf.rpcuser, bitcoinrpcuser, SZ_RPC_USER - 1);
+            rpc_conf.rpcuser[SZ_RPC_USER - 1] = '\0';
         }
         if (strlen(bitcoinrpcpassword) > 0) {
-            strcpy(rpc_conf.rpcpasswd, bitcoinrpcpassword);
+            strncpy(rpc_conf.rpcpasswd, bitcoinrpcpassword, SZ_RPC_PASSWD - 1);
+            rpc_conf.rpcuser[SZ_RPC_PASSWD - 1] = '\0';
         }
         if (bitcoinrpcport != 0) {
             rpc_conf.rpcport = bitcoinrpcport;
@@ -314,7 +316,8 @@ int main(int argc, char *argv[])
         }
     }
     if (strlen(bitcoinrpcurl) > 0) {
-        strcpy(rpc_conf.rpcurl, bitcoinrpcurl);
+        strncpy(rpc_conf.rpcurl, bitcoinrpcurl, SZ_RPC_URL - 1);
+        rpc_conf.rpcurl[SZ_RPC_URL - 1] = '\0';
     }
 #endif
     bret = btc_init(chain, true);

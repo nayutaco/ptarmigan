@@ -2247,7 +2247,8 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
     }
     json = cJSON_GetArrayItem(params, (*pIndex)++);
     if (json && (json->type == cJSON_String)) {
-        strcpy(pConn->ipaddr, json->valuestring);
+        strncpy(pConn->ipaddr, json->valuestring, SZ_IPV4_LEN);
+        pConn->ipaddr[SZ_IPV4_LEN] = '\0';
         LOGD("pConn->ipaddr=%s\n", json->valuestring);
     } else {
         LOGE("fail: ipaddr\n");
