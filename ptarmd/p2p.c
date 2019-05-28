@@ -33,6 +33,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <assert.h>
 #include <pthread.h>
 
@@ -146,7 +147,8 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
 
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;
-    sv_addr.sin_addr.s_addr = inet_addr(pConn->ipaddr);
+    struct hostent *host = gethostbyname(pConn->ipaddr);
+    sv_addr.sin_addr.s_addr = *(unsigned int *)host->h_addr_list[0];
     sv_addr.sin_port = htons(pConn->port);
     errno = 0;
     ret = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
