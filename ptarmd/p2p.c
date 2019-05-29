@@ -82,6 +82,7 @@ typedef struct {
 
 static void search_node_by_short_channel_id(lnapp_conf_t *pConf, void *pParam);
 static void show_channel(lnapp_conf_t *pConf, void *pParam);
+static int connect_byname(int sock, const char *name, int port);
 
 
 /********************************************************************
@@ -122,7 +123,6 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     bool bret = false;
     int ret;
     int sock = -1;
-    struct sockaddr_in sv_addr;
 
     if (!btc_keys_check_pub(pConn->node_id)) {
         LOGD("invalid node_id\n");
@@ -437,19 +437,31 @@ static void show_channel(lnapp_conf_t *pConf, void *pParam)
 static int connect_byname(int sock, const char *name, int port)
 {
     int ret;
-    struct sockaddr_in sv_addr;
+    struct addrinfo hints;
+    struct addrinfo *ainfo;
+    char port_str[6];
 
-    memset(&sv_addr, 0, sizeof(sv_addr));
-    sv_addr.sin_family = AF_INET;
-    struct hostent *host = gethostbyname(name);
-    if (host == NULL) {
-        LOGE("gethostbyname\n");
-        return -1;
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = AF_INET;
+    ret = getaddrinfo(name, port_str, &hints, &ainfo);
+    if (!ret) {
+        struct addrinfo *rp;
+        for (rp = ainfo; rp != NULL; rp = rp->ai_next) {
+            struct sockaddr_in *in = (struct sockaddr_in *)rp->ai_addr;
+            LOGD("addr: %s\n", inet_ntoa(in->sin_addr));
+            ret = connect(sock, rp->ai_addr, rp->ai_addrlen);
+            if (!ret) {
+                break;
+            }
+        }
+        freeaddrinfo(ainfo);
+    } else {
+        LOGE("fail: getaddrinfo(%s)\n", gai_strerror(ret));
     }
-    sv_addr.sin_addr.s_addr = *(unsigned int *)host->h_addr_list[0];
-    sv_addr.sin_port = htons(port);
-    errno = 0;
-    ret = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+
 
     return ret;
 }
