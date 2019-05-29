@@ -324,7 +324,8 @@ void ptarmd_nodefail_add(
 
         nodefaillist_t *nf = (nodefaillist_t *)UTL_DBG_MALLOC(sizeof(nodefaillist_t));
         memcpy(nf->node_id, pNodeId, BTC_SZ_PUBKEY);
-        strcpy(nf->ipaddr, pAddr);
+        strncpy(nf->ipaddr, pAddr, SZ_IPV4_LEN);
+        nf->ipaddr[SZ_IPV4_LEN] = '\0';
         nf->port = Port;
         LIST_INSERT_HEAD(&mNodeFailListHead, nf, list);
     }

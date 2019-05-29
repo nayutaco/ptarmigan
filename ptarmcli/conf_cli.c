@@ -201,7 +201,7 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
 
     peer_conf_t* pconfig = (peer_conf_t *)user;
 
-    if (strcmp(name, "ipaddr") == 0) {
+    if ((strcmp(name, "ipaddr") == 0) && (strlen(value) <= SZ_IPV4_LEN)) {
         strcpy(pconfig->ipaddr, value);
     } else if (strcmp(name, "port") == 0) {
         pconfig->port = (uint16_t)atoi(value);

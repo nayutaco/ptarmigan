@@ -209,13 +209,13 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
 
     rpc_conf_t* pconfig = (rpc_conf_t *)user;
 
-    if (strcmp(name, "rpcuser") == 0) {
+    if ((strcmp(name, "rpcuser") == 0) && (strlen(value) < SZ_RPC_USER)) {
         strcpy(pconfig->rpcuser, value);
-    } else if (strcmp(name, "rpcpassword") == 0) {
+    } else if ((strcmp(name, "rpcpassword") == 0) && (strlen(value) < SZ_RPC_PASSWD)) {
         strcpy(pconfig->rpcpasswd, value);
     } else if (strcmp(name, "rpcport") == 0) {
         pconfig->rpcport = atoi(value);
-    } else if (strcmp(name, "rpcurl") == 0) {
+    } else if ((strcmp(name, "rpcurl") == 0) && (strlen(value) < SZ_RPC_URL)) {
         //bitcoin.confには無い。ptarmiganテスト用。
         strcpy(pconfig->rpcurl, value);
     } else {

@@ -116,7 +116,7 @@
  * static variables
  **************************************************************************/
 
-static char         mPeerAddr[INET6_ADDRSTRLEN];
+static char         mPeerAddr[INET6_ADDRSTRLEN + 1];
 static uint16_t     mPeerPort;
 static char         mPeerNodeId[BTC_SZ_PUBKEY * 2 + 1];
 static char         mBuf[BUFFER_SIZE];
@@ -435,7 +435,8 @@ static void optfunc_addr(int *pOption, bool *pConn)
 {
     (void)pOption; (void)pConn;
 
-    strcpy(mAddr, optarg);
+    strncpy(mAddr, optarg, sizeof(mAddr));
+    mAddr[sizeof(mAddr) - 1] = '\0';
 }
 
 
@@ -507,6 +508,10 @@ static void optfunc_getinfo(int *pOption, bool *pConn)
 
 static void optfunc_disconnect(int *pOption, bool *pConn)
 {
+    if (*pOption == M_OPTIONS_ERR) {
+        return;
+    }
+
     if (*pOption == M_OPT_CONN) {
         //特定接続を切る
         snprintf(mBuf, BUFFER_SIZE,

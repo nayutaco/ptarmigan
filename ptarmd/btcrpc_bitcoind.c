@@ -583,11 +583,9 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_STR_MAX + 1])
 
     ret = getnewaddress_rpc(&p_root, &p_result, &p_json);
     if (ret) {
-        if (json_is_string(p_result)) {
-            if (strlen(json_string_value(p_result)) <= BTC_SZ_ADDR_STR_MAX) {
-                strcpy(pAddr,  (const char *)json_string_value(p_result));
-                result = true;
-            }
+        if (json_is_string(p_result) && (json_string_length(p_result) <= BTC_SZ_ADDR_STR_MAX)) {
+            strcpy(pAddr,  (const char *)json_string_value(p_result));
+            result = true;
         }
     } else {
         LOGE("fail: getnewaddress_rpc()\n");
@@ -717,7 +715,7 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
         LOGE("fail: getblockhash_rpc\n");
         return false;
     }
-    if (json_is_string(p_result)) {
+    if (json_is_string(p_result) && (json_string_length(p_result) == BTC_SZ_HASH256 * 2)) {
         strcpy(blockhash, (const char *)json_string_value(p_result));
     } else {
         LOGD("error: M_RESULT\n");
@@ -938,6 +936,9 @@ static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, ui
         char txid[BTC_SZ_TXID * 2 + 1] = "";
 
         json_array_foreach(p_tx, index, p_value) {
+            if (json_string_length(p_value) != BTC_SZ_TXID * 2) {
+                continue;
+            }
             strcpy(txid, (const char *)json_string_value(p_value));
             btc_tx_t tx = BTC_TX_INIT;
 
@@ -998,6 +999,9 @@ static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *p
         char txid[BTC_SZ_TXID * 2 + 1] = "";
 
         json_array_foreach(p_tx, index, p_value) {
+            if (json_string_length(p_value) != BTC_SZ_TXID * 2) {
+                continue;
+            }
             strcpy(txid, (const char *)json_string_value(p_value));
             btc_tx_t tx = BTC_TX_INIT;
 
