@@ -112,4 +112,12 @@ bool HIDDEN ln_node_search_node_id(uint8_t *pNodeId, uint64_t ShortChannelId);
  */
 bool ln_node_addr_dec(ln_node_conn_t *pNodeConn, const char *pConnStr);
 
+
+/** get announcement IP address string
+ * 
+ * @param[out]  pIpStr      `ptarmd --announceip`
+ * @retval  true    success
+ */
+bool ln_node_get_announceip(char *pIpStr);
+
 #endif /* LN_NODE_H__ */

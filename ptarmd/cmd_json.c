@@ -379,8 +379,9 @@ LABEL_EXIT:
  */
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)ctx; (void)params; (void)id;
+    (void)ctx; (void)id;
 
+    bool ret;
     cJSON *json;
     int level = 0;
     cJSON *result = cJSON_CreateObject();
@@ -391,7 +392,6 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         level = json->valueint;
     }
 
-    uint64_t total_amount = ln_node_total_msat();
 
     LOGD("$$$: [JSONRPC]getinfo\n");
 
@@ -400,15 +400,23 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
-    cJSON_AddNumber64ToObject(result, "total_local_msat", total_amount);
+
+    char anno_ip[SZ_CONN_STR + 1];
+    ret = ln_node_get_announceip(anno_ip);
+    if (ret) {
+        cJSON_AddItemToObject(result, "announce_ip", cJSON_CreateString(anno_ip));
+    }
 
     if (level == 1) {
         return result;
     }
 
+    uint64_t total_amount = ln_node_total_msat();
+    cJSON_AddNumber64ToObject(result, "total_local_msat", total_amount);
+
     //blockcount
     int32_t block_count;
-    bool ret = monitor_btc_getblockcount(&block_count);
+    ret = monitor_btc_getblockcount(&block_count);
     if (ret) {
         cJSON_AddItemToObject(result, "block_count", cJSON_CreateNumber(block_count));
     } else {
