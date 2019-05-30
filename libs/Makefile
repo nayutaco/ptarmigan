@@ -79,6 +79,9 @@ ifeq ("$(wildcard $(BOOST_VER_FILE).tar.gz)","")
 	rm -rf boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz
 	wget https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz
 endif
+ifeq ("$(wildcard $(BOOST_VER_FILE).tar.gz)","")
+	wget -O $(BOOST_VER_FILE).tar.gz https://sourceforge.net/projects/boost/files/boost/$(BOOST_VER)/$(BOOST_VER_FILE).tar.gz/download
+endif
 ifeq ("$(wildcard boost)","")
 	rm -rf $(BOOST_VER_FILE)
 	tar zxf $(BOOST_VER_FILE).tar.gz
