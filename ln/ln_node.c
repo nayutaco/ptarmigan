@@ -270,6 +270,22 @@ bool ln_node_addr_dec(ln_node_conn_t *pNodeConn, const char *pConnStr)
 }
 
 
+bool ln_node_get_announceip(char *pIpStr)
+{
+    bool ret = false;
+    if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {
+        sprintf(pIpStr, "%d.%d.%d.%d:%d",
+                mNode.addr.addr[0],
+                mNode.addr.addr[1],
+                mNode.addr.addr[2],
+                mNode.addr.addr[3],
+                mNode.addr.port);
+        ret = true;
+    }
+    return ret;
+}
+
+
 /********************************************************************
  * HIDDEN
  ********************************************************************/
@@ -426,13 +442,9 @@ static void print_node(void)
     utl_dbg_dump(stdout, mNode.keys.pub, BTC_SZ_PUBKEY, true);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);
-    if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {
-        printf("ipv4=%d.%d.%d.%d:%d\n",
-                mNode.addr.addr[0],
-                mNode.addr.addr[1],
-                mNode.addr.addr[2],
-                mNode.addr.addr[3],
-                mNode.addr.port);
+    char anno_ip[128];
+    if (ln_node_get_announceip(anno_ip)) {
+        printf("announce ipv4=%s\n", anno_ip);
     } else {
         printf("port=%d\n", mNode.addr.port);
     }
