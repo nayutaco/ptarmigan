@@ -26,6 +26,11 @@
 #include <pthread.h>
 #include <getopt.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
 #define LOG_TAG     "ptarmd_main"
 #include "utl_log.h"
@@ -69,6 +74,7 @@ static void reset_getopt(void);
 static void sig_set_catch_sigs(sigset_t *pSigSet);
 static void *sig_handler_start(void *pArg);
 static void show_version(void);
+static bool resolve_byname(char *pIpStr, const char *name, int port);
 
 
 /********************************************************************
@@ -129,6 +135,10 @@ int main(int argc, char *argv[])
                 return -1;
             }
             break;
+        case 'p':
+            //port num
+            node.addr.port = (uint16_t)atoi(optarg);
+            break;
         case '?':
             //invalid option
             return -1;
@@ -155,10 +165,6 @@ int main(int argc, char *argv[])
         //    //`d` option is used to change working directory.
         //    // It is done at the beginning of this process.
         //    break;
-        case 'p':
-            //port num
-            node.addr.port = (uint16_t)atoi(optarg);
-            break;
         case 'n':
             //node name(alias)
             if (strlen(optarg) > LN_SZ_ALIAS_STR) {
@@ -174,7 +180,15 @@ int main(int argc, char *argv[])
                 uint8_t ipbin[LN_ADDR_DESC_ADDR_LEN_IPV4];
                 bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
                 if (!addrret) {
-                    fprintf(stderr, "fail(-a): invalid address format\n");
+                    LOGD("resolve..\n");
+                    char ip_str[SZ_CONN_STR + 1];
+                    addrret = resolve_byname(ip_str, optarg, node.addr.port);
+                    if (addrret) {
+                        addrret = utl_addr_ipv4_str2bin(ipbin, ip_str);
+                    }
+                }
+                if (!addrret) {
+                    fprintf(stderr, "fail(--announceip): invalid address format\n");
                     return -1;
                 }
                 node.addr.type = LN_ADDR_DESC_TYPE_IPV4;
@@ -183,7 +197,7 @@ int main(int argc, char *argv[])
                     LOGD("ipv4=");
                     DUMPD(node.addr.addr, sizeof(node.addr.addr));
                 } else {
-                    fprintf(stderr, "fail(-a): not routable address\n");
+                    fprintf(stderr, "fail(--announceip): not routable address\n");
                     return -1;
                 }
             }
@@ -456,4 +470,35 @@ static void show_version(void)
     fprintf(stderr, "\tinih: r42\n");
     fprintf(stderr, "\tlibbase58: commit 1cb26b5bfff6b52995a2d88a4b7e1041df589d35\n");
     fprintf(stderr, "\tjsonrpc-c(customized): localonly_r2\n");
+}
+
+
+static bool resolve_byname(char *pIpStr, const char *name, int port)
+{
+    int retval;
+    struct addrinfo hints;
+    struct addrinfo *ainfo;
+    char port_str[6];
+
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = AF_INET;
+    retval = getaddrinfo(name, port_str, &hints, &ainfo);
+    if (!retval) {
+        struct addrinfo *rp;
+        for (rp = ainfo; rp != NULL; rp = rp->ai_next) {
+            struct sockaddr_in *in = (struct sockaddr_in *)rp->ai_addr;
+            strcpy(pIpStr, inet_ntoa(in->sin_addr));
+            LOGD("addr: %s\n", pIpStr);
+            break;
+        }
+        freeaddrinfo(ainfo);
+    } else {
+        LOGE("fail: getaddrinfo(%s)\n", gai_strerror(retval));
+    }
+
+
+    return retval == 0;
 }
