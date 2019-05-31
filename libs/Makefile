@@ -75,18 +75,20 @@ clean_mbedtls:
 mbedtls_all: clean_mbedtls mk_mbedtls
 
 mk_boost:
-ifeq ("$(wildcard $(BOOST_VER_FILE).tar.gz)","")
-	rm -rf boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz
-	-wget https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz
-endif
-ifeq ("$(wildcard $(BOOST_VER_FILE).tar.gz)","")
-	wget -O $(BOOST_VER_FILE).tar.gz https://sourceforge.net/projects/boost/files/boost/$(BOOST_VER)/$(BOOST_VER_FILE).tar.gz/download
-endif
-ifeq ("$(wildcard boost)","")
-	rm -rf $(BOOST_VER_FILE)
-	tar zxf $(BOOST_VER_FILE).tar.gz
-	ln -s $(BOOST_VER_FILE) boost
-endif
+	-@if [ ! -f $(BOOST_VER_FILE).tar.gz ]; then\
+		rm -rf boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz ;\
+		wget -O boost.tgz https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz &&\
+		mv boost.tgz $(BOOST_VER_FILE).tar.gz ;\
+	fi
+	@if [ ! -f $(BOOST_VER_FILE).tar.gz ]; then\
+		wget -O boost.tgz https://sourceforge.net/projects/boost/files/boost/$(BOOST_VER)/$(BOOST_VER_FILE).tar.gz/download &&\
+		mv boost.tgz $(BOOST_VER_FILE).tar.gz ;\
+	fi
+	if [ ! -d boost ]; then\
+		rm -rf $(BOOST_VER_FILE) ;\
+		tar zxf $(BOOST_VER_FILE).tar.gz ;\
+		ln -s $(BOOST_VER_FILE) boost ;\
+	fi
 	cd boost; \
 	./bootstrap.sh; \
 	./b2 tools/bcp; \
@@ -126,5 +128,5 @@ clean:
 	-$(MAKE) -C jansson clean
 	-$(MAKE) -C curl clean
 	-$(MAKE) -C zlib clean
-	-$(RM) -rf $(INSTALL_DIR) bech32 boost $(BOOST_VER_FILE)
+	-$(RM) -rf $(INSTALL_DIR) bech32 boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz
 
