@@ -64,6 +64,7 @@
 #define M_OPT_BITCOINRPCPASSWORD        '\x12'
 #define M_OPT_BITCOINRPCURL             '\x13'
 #define M_OPT_BITCOINRPCPORT            '\x14'
+#define M_OPT_ANNOUNCEIP_FORCE          '\x15'
 
 
 /********************************************************************
@@ -88,6 +89,7 @@ int main(int argc, char *argv[])
     ln_node_t node = LN_NODE_INIT;
     int opt;
     uint16_t my_rpcport = 0;
+    bool announceip_force = false;
 #if defined(USE_BITCOIND)
     char bitcoinconf[PATH_MAX] = "";
     char bitcoinrpcuser[SZ_RPC_USER + 1] = "";
@@ -103,6 +105,7 @@ int main(int argc, char *argv[])
 #if defined(USE_BITCOIND)
         { "conf", required_argument, NULL, 'c' },
         { "announceip", required_argument, NULL, 'a' },
+        { "announceip_force", no_argument, NULL, M_OPT_ANNOUNCEIP_FORCE },
 #endif
         { "datadir", required_argument, NULL, 'd' },
         { "color", required_argument, NULL, 'C' },
@@ -139,6 +142,11 @@ int main(int argc, char *argv[])
             //port num
             node.addr.port = (uint16_t)atoi(optarg);
             break;
+#if defined(USE_BITCOIND)
+        case M_OPT_ANNOUNCEIP_FORCE:
+            announceip_force = true;
+            break;
+#endif
         case '?':
             //invalid option
             return -1;
@@ -193,8 +201,8 @@ int main(int argc, char *argv[])
                 }
                 node.addr.type = LN_ADDR_DESC_TYPE_IPV4;
                 memcpy(node.addr.addr, ipbin, sizeof(ipbin));
-                if (utl_net_ipv4_addr_is_routable(node.addr.addr)) {
-                    LOGD("ipv4=");
+                if (announceip_force || utl_net_ipv4_addr_is_routable(node.addr.addr)) {
+                    LOGD("announce ipv4=");
                     DUMPD(node.addr.addr, sizeof(node.addr.addr));
                 } else {
                     fprintf(stderr, "fail(--announceip): not routable address\n");
