@@ -86,6 +86,7 @@
 #define M_OPT_DECODEINVOICE         '\x0c'
 #define M_OPT_INVOICE_DESC          '\x0d'
 #define M_OPT_INVOICE_EXPIRY        '\x0e'
+#define M_OPT_CONNADDR              '\x0f'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -118,7 +119,7 @@
 
 static char         mPeerAddr[INET6_ADDRSTRLEN + 1];
 static uint16_t     mPeerPort;
-static char         mPeerNodeId[BTC_SZ_PUBKEY * 2 + 1];
+static char         mPeerNodeId[LN_SZ_ADDRESS + 1];
 static char         mBuf[BUFFER_SIZE];
 static bool         mTcpSend;
 static char         mAddr[256];
@@ -139,6 +140,7 @@ static void optfunc_help(int *pOption, bool *pConn);
 static void optfunc_test(int *pOption, bool *pConn);
 static void optfunc_addr(int *pOption, bool *pConn);
 static void optfunc_conn_param(int *pOption, bool *pConn);
+static void optfunc_connaddr(int *pOption, bool *pConn);
 static void optfunc_getinfo(int *pOption, bool *pConn);
 static void optfunc_disconnect(int *pOption, bool *pConn);
 static void optfunc_getnewaddress(int *pOption, bool *pConn);
@@ -180,7 +182,6 @@ static const struct {
     { M_OPT_TEST,               optfunc_test },
     { M_OPT_ADDR,               optfunc_addr },
 
-    { M_OPT_CONN,               optfunc_conn_param },
     { M_OPT_GETINFO,            optfunc_getinfo },
     { M_OPT_DISCONNECT,         optfunc_disconnect },
     { M_OPT_FUND,               optfunc_funding },
@@ -222,6 +223,8 @@ int main(int argc, char *argv[])
         { "help", no_argument, NULL, M_OPT_HELP },
         { "stop", no_argument, NULL, M_OPT_DISCONNECT },
         { "getinfo", no_argument, NULL, M_OPT_GETINFO },
+        { "connect", required_argument, NULL, M_OPT_CONN },
+        { "connaddr", required_argument, NULL, M_OPT_CONNADDR },
         { "setfeerate", required_argument, NULL, M_OPT_SETFEERATE },
         { "estimatefundingfee", optional_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
         { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
@@ -277,6 +280,12 @@ int main(int argc, char *argv[])
                 print_error("invalid invoice expiry");
                 return -1;
             }
+            break;
+        case M_OPT_CONN:
+            optfunc_conn_param(&option, &conn);
+            break;
+        case M_OPT_CONNADDR:
+            optfunc_connaddr(&option, &conn);
             break;
         case '?':
             return -1;
@@ -443,7 +452,7 @@ static void optfunc_addr(int *pOption, bool *pConn)
 static void optfunc_conn_param(int *pOption, bool *pConn)
 {
     if (*pOption != M_OPTIONS_INIT) {
-        fprintf(stderr, "fail: '-c' must first\n");
+        strcpy(mErrStr, "'--connect or --connaddr' must first");
         *pOption = M_OPTIONS_ERR;
         return;
     }
@@ -482,6 +491,29 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         strcpy(mErrStr, "peer connect string");
         *pOption = M_OPTIONS_ERR;
     }
+}
+
+
+static void optfunc_connaddr(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    if (*pOption != M_OPTIONS_INIT) {
+        strcpy(mErrStr, "'--connect or --connaddr' must first");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+    if (strlen(optarg) > LN_SZ_ADDRESS) {
+        // <node_id> + @ + <address> + : + <port>
+        strcpy(mErrStr, "'--connaddr' parameter too long");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+    strcpy(mPeerNodeId, optarg);
+    mPeerAddr[0] = '\0';
+    mPeerPort = 0;
+    *pOption = M_OPT_CONN;
+    *pConn = true;
 }
 
 

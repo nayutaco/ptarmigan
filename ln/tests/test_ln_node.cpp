@@ -181,6 +181,19 @@ TEST_F(ln, ln_node_addr_dec_skip_addr2)
 }
 
 
+TEST_F(ln, ln_node_addr_dec_ng_no_addr)
+{
+    const char CONN_STR[] = "03694d1090cbaef885bcdf56ce47e78b62e130b929107d32f501b1628c4e01bd53"
+                            "@:12345";
+
+    ln_node_conn_t conn;
+
+    memset(&conn, 0, sizeof(conn));
+    bool ret = ln_node_addr_dec(&conn, CONN_STR);
+    ASSERT_FALSE(ret);
+}
+
+
 TEST_F(ln, ln_node_addr_dec_ng_addr_len1)
 {
     const char CONN_STR[] = "03694d1090cbaef885bcdf56ce47e78b62e130b929107d32f501b1628c4e01bd53"

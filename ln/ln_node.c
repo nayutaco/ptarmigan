@@ -138,15 +138,11 @@ bool ln_node_init(const ln_node_t *pNode)
         strncpy((char *)alias, mNode.alias, LN_SZ_ALIAS_STR);
 
         if (mNode.addr.type == LN_ADDR_DESC_TYPE_IPV4) {
-            if (utl_net_ipv4_addr_is_routable(mNode.addr.addr)) {
-                addrs.addresses[0].type = mNode.addr.type;
-                addrs.addresses[0].p_addr = mNode.addr.addr;
-                addrs.addresses[0].port = mNode.addr.port;
-                addrs.num = 1;
-            } else {
-                LOGE("fail: not routable address\n");
-                return false;
-            }
+            // BTCPayServer unittest may use local address.
+            addrs.addresses[0].type = mNode.addr.type;
+            addrs.addresses[0].p_addr = mNode.addr.addr;
+            addrs.addresses[0].port = mNode.addr.port;
+            addrs.num = 1;
         } else {
             LOGD("no IP address\n");
             addrs.num = 0;

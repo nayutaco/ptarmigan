@@ -15,6 +15,6 @@ cat << EOS | jq -e '.'
     "node_id":"$2",
     "amt_to_forward":$3,
     "outgoing_cltv_value":$4,
-    "payment_id":"$5"
+    "payment_id":$5
 }
 EOS
