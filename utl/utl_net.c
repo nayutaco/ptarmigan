@@ -19,6 +19,12 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
 #include "utl_common.h"
 #include "utl_local.h"
 #include "utl_net.h"
@@ -77,6 +83,37 @@ bool utl_net_ipv4_addr_is_routable(const uint8_t* addr)
         if (ipv4_addr_is_subset(reserved[i].addr, reserved[i].mask_bit_num, addr)) return false;
     }
     return true;
+}
+
+
+bool utl_net_resolve(char *pIpStr, const char *pName, int Port)
+{
+    int retval;
+    struct addrinfo hints;
+    struct addrinfo *ainfo;
+    char port_str[6];
+
+    snprintf(port_str, sizeof(port_str), "%d", Port);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = AF_INET;
+    retval = getaddrinfo(pName, port_str, &hints, &ainfo);
+    if (!retval) {
+        struct addrinfo *rp;
+        for (rp = ainfo; rp != NULL; rp = rp->ai_next) {
+            struct sockaddr_in *in = (struct sockaddr_in *)rp->ai_addr;
+            strcpy(pIpStr, inet_ntoa(in->sin_addr));
+            LOGD("addr: %s\n", pIpStr);
+            break;
+        }
+        freeaddrinfo(ainfo);
+    } else {
+        LOGE("fail: getaddrinfo(%s)\n", gai_strerror(retval));
+    }
+
+
+    return retval == 0;
 }
 
 

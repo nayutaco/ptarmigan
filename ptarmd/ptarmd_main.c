@@ -59,6 +59,7 @@
 #define M_OPT_BITCOINRPCPASSWORD        '\x12'
 #define M_OPT_BITCOINRPCURL             '\x13'
 #define M_OPT_BITCOINRPCPORT            '\x14'
+#define M_OPT_ANNOUNCEIP_FORCE          '\x15'
 
 
 /********************************************************************
@@ -82,6 +83,7 @@ int main(int argc, char *argv[])
     ln_node_t node = LN_NODE_INIT;
     int opt;
     uint16_t my_rpcport = 0;
+    bool announceip_force = false;
 #if defined(USE_BITCOIND)
     char bitcoinconf[PATH_MAX] = "";
     char bitcoinrpcuser[SZ_RPC_USER + 1] = "";
@@ -97,6 +99,7 @@ int main(int argc, char *argv[])
 #if defined(USE_BITCOIND)
         { "conf", required_argument, NULL, 'c' },
         { "announceip", required_argument, NULL, 'a' },
+        { "announceip_force", no_argument, NULL, M_OPT_ANNOUNCEIP_FORCE },
 #endif
         { "datadir", required_argument, NULL, 'd' },
         { "color", required_argument, NULL, 'C' },
@@ -129,6 +132,15 @@ int main(int argc, char *argv[])
                 return -1;
             }
             break;
+        case 'p':
+            //port num
+            node.addr.port = (uint16_t)atoi(optarg);
+            break;
+#if defined(USE_BITCOIND)
+        case M_OPT_ANNOUNCEIP_FORCE:
+            announceip_force = true;
+            break;
+#endif
         case '?':
             //invalid option
             return -1;
@@ -155,10 +167,6 @@ int main(int argc, char *argv[])
         //    //`d` option is used to change working directory.
         //    // It is done at the beginning of this process.
         //    break;
-        case 'p':
-            //port num
-            node.addr.port = (uint16_t)atoi(optarg);
-            break;
         case 'n':
             //node name(alias)
             if (strlen(optarg) > LN_SZ_ALIAS_STR) {
@@ -174,16 +182,24 @@ int main(int argc, char *argv[])
                 uint8_t ipbin[LN_ADDR_DESC_ADDR_LEN_IPV4];
                 bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
                 if (!addrret) {
-                    fprintf(stderr, "fail(-a): invalid address format\n");
+                    LOGD("resolve..\n");
+                    char ip_str[SZ_CONN_STR + 1];
+                    addrret = utl_net_resolve(ip_str, optarg, node.addr.port);
+                    if (addrret) {
+                        addrret = utl_addr_ipv4_str2bin(ipbin, ip_str);
+                    }
+                }
+                if (!addrret) {
+                    fprintf(stderr, "fail(--announceip): invalid address format\n");
                     return -1;
                 }
                 node.addr.type = LN_ADDR_DESC_TYPE_IPV4;
                 memcpy(node.addr.addr, ipbin, sizeof(ipbin));
-                if (utl_net_ipv4_addr_is_routable(node.addr.addr)) {
-                    LOGD("ipv4=");
+                if (announceip_force || utl_net_ipv4_addr_is_routable(node.addr.addr)) {
+                    LOGD("announce ipv4=");
                     DUMPD(node.addr.addr, sizeof(node.addr.addr));
                 } else {
-                    fprintf(stderr, "fail(-a): not routable address\n");
+                    fprintf(stderr, "fail(--announceip): not routable address\n");
                     return -1;
                 }
             }

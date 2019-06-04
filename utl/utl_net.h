@@ -55,6 +55,14 @@ extern "C" {
 bool utl_net_ipv4_addr_is_routable(const uint8_t* addr);
 
 
+/** name resolution
+ * 
+ * @param[out]  pIpStr      first resolved result
+ * @param[in]   pName       name
+ * @param[in]   Port        port number
+ */
+bool utl_net_resolve(char *pIpStr, const char *pName, int Port);
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

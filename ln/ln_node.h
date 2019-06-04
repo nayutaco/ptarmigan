@@ -35,6 +35,9 @@
 #define LN_NODE_ADDR_INIT               { LN_ADDR_DESC_TYPE_NONE, "", 0}
 #define LN_NODE_INIT                    { {{0},{0}}, "", {0}, LN_NODE_ADDR_INIT }
 
+#define LN_SZ_ADDRESS                   (250)
+#define LN_SZ_ADDRESS_STR               "250"
+
 
 /********************************************************************
  * typedefs

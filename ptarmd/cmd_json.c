@@ -35,6 +35,7 @@
 
 #define LOG_TAG     "lnapp"
 #include "utl_log.h"
+#include "utl_net.h"
 #include "utl_time.h"
 
 #include "btc_crypto.h"
@@ -172,6 +173,8 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId);
 static int cmd_close_unilateral_proc(const uint8_t *pNodeId);
 
 static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn);
+static int json_connect_ipaddr(cJSON *params, int *pIndex, peer_conn_t *pConn);
+static int json_connect_name(cJSON *params, int *pIndex, peer_conn_t *pConn);
 static char *create_bolt11(
                 const uint8_t *pPaymentHash,
                 uint64_t Amount,
@@ -2235,7 +2238,27 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
     pConn->routesync = PTARMD_ROUTESYNC_DEFAULT;
 
     //peer_node_id, peer_addr, peer_port
-    json = cJSON_GetArrayItem(params, (*pIndex)++);
+    int err = RPCERR_PARSE;
+    json = cJSON_GetArrayItem(params, *pIndex);
+    if (json && (json->type == cJSON_String)) {
+        if (strlen(json->valuestring) == BTC_SZ_PUBKEY * 2) {
+            err = json_connect_ipaddr(params, pIndex, pConn);
+        } else {
+            err = json_connect_name(params, pIndex, pConn);
+        }
+    } else {
+        LOGE("fail: node_id\n");
+        err = RPCERR_PARSE;
+    }
+
+    return err;
+}
+
+
+static int json_connect_ipaddr(cJSON *params, int *pIndex, peer_conn_t *pConn)
+{
+    //peer_node_id, peer_addr, peer_port
+    cJSON *json = cJSON_GetArrayItem(params, (*pIndex)++);
     if (json && (json->type == cJSON_String)) {
         bool ret = utl_str_str2bin(pConn->node_id, BTC_SZ_PUBKEY, json->valuestring);
         if (ret) {
@@ -2270,6 +2293,45 @@ static int json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
         LOGE("fail: port\n");
         return RPCERR_PORTNUM;
     }
+
+    return 0;
+}
+
+
+static int json_connect_name(cJSON *params, int *pIndex, peer_conn_t *pConn)
+{
+    cJSON *json = cJSON_GetArrayItem(params, *pIndex);
+    if (json && (json->type != cJSON_String)) {
+        LOGE("fail: not string\n");
+        return RPCERR_PARSE;
+    }
+
+    char node_id_str[BTC_SZ_PUBKEY * 2 + 1] = "";
+    char addr_str[LN_SZ_ADDRESS + 1] = "";
+    int port = -1;
+    int results = sscanf(json->valuestring, "%66s@%" LN_SZ_ADDRESS_STR "[^:]:%d", node_id_str, addr_str, &port);
+    if ( (results != 3) ||
+         (strlen(node_id_str) != BTC_SZ_PUBKEY * 2) ||
+         (strlen(addr_str) < 3) ||      // shortest name: x.x
+         (port <= 0) || (0x10000 <= port) ) {
+        LOGE("fail: invalid string(%s)\n", json->valuestring);
+        return RPCERR_PARSE;
+    }
+    bool ret = utl_net_resolve(pConn->ipaddr, addr_str, port);
+    if (!ret) {
+        LOGE("fail: resolve\n");
+        return RPCERR_ADDRESS;
+    }
+    if (!utl_str_str2bin(pConn->node_id, BTC_SZ_PUBKEY, node_id_str)) {
+        LOGE("fail: node_id\n");
+        return RPCERR_NODEID;
+    }
+    if (!btc_keys_check_pub(pConn->node_id)) {
+        LOGE("fail: not pubkey\n");
+        return RPCERR_NODEID;
+    }
+    pConn->port = (uint16_t)port;
+    (*pIndex) += 3; //node_id, addr, port
 
     return 0;
 }
