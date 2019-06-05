@@ -74,9 +74,6 @@ extern "C" {
 #define FNAME_CHANNEL_LOG           FNAME_LOGDIR "/chan_%s.log"
 #define FNAME_FMT_NODECONF          "ptarm_nodeinfo.conf"
 
-#define FNAME_INVOICEDIR            "invoices"
-#define FNAME_INVOICE_LOG           FNAME_INVOICEDIR "/invoice_%s.log"
-
 //need update ptarmd_error_cstr()
 #define RPCERR_ERROR                (-10000)
 #define RPCERR_NOCONN               (-10001)
@@ -145,7 +142,6 @@ typedef enum {
     PTARMD_EVT_DISCONNECTED,
     PTARMD_EVT_ESTABLISHED,
     PTARMD_EVT_PAYMENT,
-    PTARMD_EVT_FORWARD,
     PTARMD_EVT_ADDFINAL,
     PTARMD_EVT_FULFILL,
     PTARMD_EVT_FAIL,

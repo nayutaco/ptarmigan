@@ -125,8 +125,6 @@ static const char *kSCRIPT[] = {
     "established.sh",
     //PTARMD_EVT_PAYMENT,
     "payment.sh",
-    //PTARMD_EVT_FORWARD,
-    "forward.sh",
     //PTARMD_EVT_ADDFINAL
     "addfinal.sh",
     //PTARMD_EVT_FULFILL,
@@ -167,7 +165,6 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
     bool bret;
 
     mkdir(FNAME_LOGDIR, 0755);
-    mkdir(FNAME_INVOICEDIR, 0755);
 
     bret = ln_node_init(pNode);
     if (!bret) {

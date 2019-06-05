@@ -532,12 +532,9 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *pConf, ln_cb_param_notify_ful
     //    LOGE("fail: ???\n");
     //}
 
+    //log
     uint8_t hash[BTC_SZ_HASH256];
     ln_payment_hash_calc(hash, pCbParam->p_preimage);
-    cmd_json_pay_result(hash, pCbParam->p_preimage, "success");
-    //ln_db_route_skip_work(false);
-
-    //log
     char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
     utl_str_bin2str(str_payment_hash, hash, BTC_SZ_HASH256);
     ptarmd_eventlog(NULL, "payment fulfill[id=%" PRIu64 "]: payment_hash=%s, amount_msat=%" PRIu64,
