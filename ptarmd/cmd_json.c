@@ -281,29 +281,6 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 }
 
 
-void cmd_json_pay_result(const uint8_t *pPaymentHash, const uint8_t *pPaymentPreimage, const char *pResultStr)
-{
-    //log file
-    char str_payment_hash[BTC_SZ_HASH256 * 2 + 1];
-    char fname[256];
-    FILE *fp;
-
-    utl_str_bin2str(str_payment_hash, pPaymentHash, BTC_SZ_HASH256);
-    sprintf(fname, FNAME_INVOICE_LOG, str_payment_hash);
-    fp = fopen(fname, "a");
-    if (fp != NULL) {
-        char time[UTL_SZ_TIME_FMT_STR + 1];
-        fprintf(fp, "  result(%s)=%s\n", utl_time_str_time(time), pResultStr);
-        if (pPaymentPreimage != NULL) {
-            char str_payment_preimage[LN_SZ_PREIMAGE * 2 + 1];
-            utl_str_bin2str(str_payment_preimage, pPaymentPreimage, LN_SZ_PREIMAGE);
-            fprintf(fp, "  preimage:%s\n", str_payment_preimage);
-        }
-        fclose(fp);
-    }
-}
-
-
 /********************************************************************
  * private functions : JSON-RPC
  ********************************************************************/
