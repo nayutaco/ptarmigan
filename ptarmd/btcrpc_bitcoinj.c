@@ -174,6 +174,7 @@ typedef struct {
     const uint8_t   *p_scriptpubkey;
     const uint8_t   *mined_hash;
     uint32_t        last_confirm;
+    const uint8_t   *last_hash;
 } setchannel_t;
 
 
@@ -392,13 +393,13 @@ void btcrpc_set_creationhash(const uint8_t *pHash)
 }
 
 
-bool btcrpc_getblockcount(int32_t *pBlockCount)
+bool btcrpc_getblockcount(int32_t *pBlockCount, uint8_t *pHash)
 {
     LOGD_BTCTRACE("\n");
 
     getblockcount_t param;
     param.p_cnt = pBlockCount;
-    param.p_hash = NULL;
+    param.p_hash = pHash;
     call_jni(METHOD_PTARM_GETBLOCKCOUNT, &param);
 
     if (param.ret) {
@@ -648,7 +649,8 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
                 int FundingIdx,
                 const utl_buf_t *pRedeemScript,
                 const uint8_t *pMinedHash,
-                uint32_t LastConfirm)
+                uint32_t LastConfirm,
+                const uint8_t *pLastHash)
 {
     LOGD_BTCTRACE("\n");
 
@@ -663,6 +665,7 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
     param.p_scriptpubkey = witprog + BTC_OFFSET_WITPROG;
     param.mined_hash = pMinedHash;
     param.last_confirm = LastConfirm;
+    param.last_hash = pLastHash;
     call_jni(METHOD_PTARM_SETCHANNEL, &param);
 }
 
@@ -998,6 +1001,8 @@ static void jni_set_channel(void *pArg)
     LOGD("mined_hash=");
     TXIDD(p->mined_hash);
     LOGD("last_confirm=%" PRIu32 "\n", p->last_confirm);
+    LOGD("last_hash=");
+    TXIDD(p->last_hash);
 
     btcj_set_channel(p->p_peer_id,
                 p->short_channel_id,
@@ -1005,7 +1010,8 @@ static void jni_set_channel(void *pArg)
                 p->fundingidx,
                 p->p_scriptpubkey,
                 p->mined_hash,
-                p->last_confirm);
+                p->last_confirm,
+                p->last_hash);
 }
 
 

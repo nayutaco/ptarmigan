@@ -49,10 +49,11 @@ void btcrpc_term(void);
 
 /** [bitcoin IF]getblockcount
  *
- * @param[out]  *pBlockCount    current block count
+ * @param[out]  pBlockCount     current block count
+ * @param[out]  pHash           (!NULL)current block hash
  * @retval  true        success
  */
-bool btcrpc_getblockcount(int32_t *pBlockCount);
+bool btcrpc_getblockcount(int32_t *pBlockCount, uint8_t *pHash);
 
 
 /** [bitcoin IF]get genesis blockhash
@@ -199,6 +200,7 @@ void btcrpc_set_creationhash(const uint8_t *pHash);
  * @param[in]   pRedeemScript   funding_txのvout
  * @param[in]   pMinedHash      funding_tx mined blockhash(not change if NULL)
  * @param[in]   LastConfirm     last checked funding_tx confirmation
+ * @param[in]   pLastHash       last checked blockhash
  */
 void btcrpc_set_channel(const uint8_t *pPeerId,
                 uint64_t ShortChannelId,
@@ -206,7 +208,8 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
                 int FundingIdx,
                 const utl_buf_t *pRedeemScript,
                 const uint8_t *pMinedHash,
-                uint32_t LastConfirm);
+                uint32_t LastConfirm,
+                const uint8_t *pLastHash);
 
 
 /** [bitcoin IF]delete channel watching

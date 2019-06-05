@@ -252,6 +252,9 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     btc_dbg_dump_txid(stdout, pChannel->funding_blockhash);
     printf("\",\n");
     printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", pChannel->funding_last_confirm);
+    printf(INDENT3 M_QQ("last_blockhash") ": \"");
+    btc_dbg_dump_txid(stdout, pChannel->funding_last_blockhash);
+    printf("\",\n");
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
     btc_dbg_dump_txid(stdout, ln_funding_info_txid(&pChannel->funding_info));

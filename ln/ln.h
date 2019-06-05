@@ -383,6 +383,7 @@ struct ln_channel_t {
     ln_establish_t              establish;                      ///< [FUND_02]Establishワーク領域
     uint8_t                     funding_blockhash[BTC_SZ_HASH256];      ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
     uint32_t                    funding_last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
+    uint8_t                     funding_last_blockhash[BTC_SZ_HASH256]; ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
 
     //msg:announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
@@ -891,7 +892,16 @@ const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel);
 uint32_t ln_funding_last_confirm_get(const ln_channel_t *pChannel);
 
 
-void ln_funding_last_confirm_set(ln_channel_t *pChannel, uint32_t Conf);
+const uint8_t *ln_funding_last_blockhash(const ln_channel_t *pChannel);
+
+
+void ln_funding_last_confirm_set(ln_channel_t *pChannel, uint32_t Conf, const uint8_t *pHash, bool bSave);
+
+
+/** get last checked blockhash
+ * 
+ */
+const uint8_t *ln_funding_last_blockhash(const ln_channel_t *pChannel);
 
 
 bool ln_announcement_is_gossip_query(const ln_channel_t *pChannel);

@@ -161,7 +161,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
         json_t *p_root = NULL;
         json_t *p_result;
 
-        ret = btcrpc_getblockcount(&height);
+        ret = btcrpc_getblockcount(&height, NULL);
         if (ret) {
             ret = getblockhash_rpc(&p_root, &p_result, &p_json, height);
         }
@@ -193,7 +193,7 @@ void btcrpc_term(void)
 }
 
 
-bool btcrpc_getblockcount(int32_t *pBlockCount)
+bool btcrpc_getblockcount(int32_t *pBlockCount, uint8_t *pHash)
 {
     bool retval = false;
     bool ret;
@@ -212,6 +212,27 @@ bool btcrpc_getblockcount(int32_t *pBlockCount)
         json_decref(p_root);
     }
     UTL_DBG_FREE(p_json);
+
+    if (pHash != NULL) {
+        ret = getblockhash_rpc(&p_root, &p_result, &p_json, *pBlockCount);
+        if (ret && json_is_string(p_result)) {
+            ret = utl_str_str2bin(pHash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
+        } else {
+            LOGE("fail: getblockhash_rpc\n");
+        }
+        if (ret) {
+            // https://github.com/lightningnetwork/lightning-rfc/issues/237
+            for (int lp = 0; lp < BTC_SZ_HASH256 / 2; lp++) {
+                uint8_t tmp = pHash[lp];
+                pHash[lp] = pHash[BTC_SZ_HASH256 - lp - 1];
+                pHash[BTC_SZ_HASH256 - lp - 1] = tmp;
+            }
+        }
+        if (p_root != NULL) {
+            json_decref(p_root);
+        }
+        UTL_DBG_FREE(p_json);
+    }
 
     return retval;
 }
@@ -403,7 +424,7 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
 
     bool ret;
     int32_t height;
-    ret = btcrpc_getblockcount(&height);
+    ret = btcrpc_getblockcount(&height, NULL);
 
     //現在からBlksの間に、使用したtransactionがあるかどうか
     if (ret) {
@@ -431,7 +452,7 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 
     bool ret;
     int32_t height;
-    ret = btcrpc_getblockcount(&height);
+    ret = btcrpc_getblockcount(&height, NULL);
 
     //現在からBlksの間に使用したtransactionがあるかどうか
     if (ret) {
@@ -660,10 +681,11 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
                         int FundingIdx,
                         const utl_buf_t *pRedeemScript,
                         const uint8_t *pMinedHash,
-                        uint32_t LastConfirm)
+                        uint32_t LastConfirm,
+                        const uint8_t *pLastHash)
 {
     (void)pPeerId; (void)ShortChannelId; (void)pFundingTxid;
-    (void)FundingIdx; (void)pRedeemScript; (void)pMinedHash; (void)LastConfirm;
+    (void)FundingIdx; (void)pRedeemScript; (void)pMinedHash; (void)LastConfirm; (void)pLastHash;
 }
 
 

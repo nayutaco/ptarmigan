@@ -347,6 +347,7 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, funding_info, ln_funding_info_t, minimum_depth),                    //[FUND_01]
     M_ITEM(ln_channel_t, funding_blockhash),    //[FUNDSPV_01]
     M_ITEM(ln_channel_t, funding_last_confirm), //[FUNDSPV_02]
+    M_ITEM(ln_channel_t, funding_last_blockhash), //[FUNDSPV_03]
 
     //
     //anno
@@ -1248,6 +1249,11 @@ bool ln_db_channel_save_last_confirm(const ln_channel_t *pChannel, void *pDbPara
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDbParam;
     int retval = channel_item_save(pChannel, &DBCHANNEL_KEY, p_db);
     LOGD("last_confirm=%" PRIu32 ", retval=%d\n", pChannel->funding_last_confirm, retval);
+
+    if (retval == 0) {
+        const fixed_item_t LASTBHASH = M_ITEM(ln_channel_t, funding_last_blockhash);
+        retval = channel_item_save(pChannel, &LASTBHASH, p_db);
+    }
     return retval == 0;
 }
 
@@ -6359,15 +6365,18 @@ static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *
         key.mv_size = strlen(pItems[lp].p_name);
         key.mv_data = (CONST_CAST char *)pItems[lp].p_name;
         retval = mdb_get(pDb->p_txn, pDb->dbi, &key, &data);
-        if (retval) {
-            LOGE("fail: %s\n", mdb_strerror(retval));
-            LOGE("fail: %s\n", pItems[lp].p_name);
+        if (retval == 0) {
+            //LOGD("%s: %lu\n", pItems[lp].p_name, pItems[lp].offset);
+            memcpy((uint8_t *)pData + pItems[lp].offset, data.mv_data,  pItems[lp].data_len);
+        } else {
             if (retval != MDB_NOTFOUND) {
+                LOGE("fail: %s\n", mdb_strerror(retval));
+                LOGE("fail: %s\n", pItems[lp].p_name);
                 return retval;
+            } else {
+                LOGE("item \"%s\" not found.\n", pItems[lp].p_name);
             }
         }
-        //LOGD("%s: %lu\n", pItems[lp].p_name, pItems[lp].offset);
-        memcpy((uint8_t *)pData + pItems[lp].offset, data.mv_data,  pItems[lp].data_len);
     }
 
     return 0;

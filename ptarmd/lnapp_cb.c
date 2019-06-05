@@ -311,7 +311,16 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
         p_cb_param->ret = true;
     }
 
+    int32_t bcount;
+    uint8_t bhash[BTC_SZ_HASH256];
     if (p_cb_param->ret) {
+        p_cb_param->ret = btcrpc_getblockcount(&bcount, bhash);
+    }
+    if (p_cb_param->ret) {
+        LOGD("start blockhash: ");
+        TXIDD(bhash);
+        ln_funding_last_confirm_set(&pConf->channel, 0, bhash, true);
+
         //fundingの監視は thread_poll_start()に任せる
         LOGD("$$$ watch funding_txid: ");
         TXIDD(ln_funding_info_txid(&pConf->channel.funding_info));
@@ -324,7 +333,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
             ln_funding_info_txindex(&pConf->channel.funding_info),
             ln_funding_info_wit_script(&pConf->channel.funding_info),
             ln_funding_blockhash(&pConf->channel),
-            ln_funding_last_confirm_get(&pConf->channel));
+            ln_funding_last_confirm_get(&pConf->channel),
+            ln_funding_last_blockhash(&pConf->channel));
 
         const char *p_str;
         if (ln_funding_info_is_funder(&pConf->channel.funding_info, true)) {

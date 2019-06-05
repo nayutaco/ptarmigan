@@ -556,17 +556,23 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
     }
 
     if (pParam->confm > ln_funding_last_confirm_get(p_channel)) {
-        ln_funding_last_confirm_set(p_channel, pParam->confm);
-        ln_db_channel_save_last_confirm(p_channel, pDbParam);
+        int32_t bcount;
+        uint8_t bhash[BTC_SZ_HASH256];
+        bool ret = btcrpc_getblockcount(&bcount, bhash);
+        if (!ret) {
+            ln_funding_last_confirm_set(p_channel, pParam->confm, bhash, false);
+            ln_db_channel_save_last_confirm(p_channel, pDbParam);
 
-        btcrpc_set_channel(
-            ln_remote_node_id(p_channel),
-            ln_short_channel_id(p_channel),
-            ln_funding_info_txid(&p_channel->funding_info),
-            ln_funding_info_txindex(&p_channel->funding_info),
-            ln_funding_info_wit_script(&p_channel->funding_info),
-            ln_funding_blockhash(p_channel),
-            ln_funding_last_confirm_get(p_channel));
+            btcrpc_set_channel(
+                ln_remote_node_id(p_channel),
+                ln_short_channel_id(p_channel),
+                ln_funding_info_txid(&p_channel->funding_info),
+                ln_funding_info_txindex(&p_channel->funding_info),
+                ln_funding_info_wit_script(&p_channel->funding_info),
+                ln_funding_blockhash(p_channel),
+                ln_funding_last_confirm_get(p_channel),
+                ln_funding_last_blockhash(p_channel));
+        }
     }
 
     return del;
@@ -1318,7 +1324,7 @@ static bool update_btc_values(void)
 {
 #ifdef USE_BITCOINJ
     int32_t height;
-    bool ret = btcrpc_getblockcount(&height);
+    bool ret = btcrpc_getblockcount(&height, NULL);
     if (ret && (height != mMonParam.height)) {
         mMonParam.height = height;
 
@@ -1342,7 +1348,7 @@ static bool update_btc_values(void)
     if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
         mMonParam.feerate_per_kw = LN_FEERATE_PER_KW_MIN;
     }
-    bool ret = btcrpc_getblockcount(&mMonParam.height);
+    bool ret = btcrpc_getblockcount(&mMonParam.height, NULL);
 #endif
     return ret;
 }
