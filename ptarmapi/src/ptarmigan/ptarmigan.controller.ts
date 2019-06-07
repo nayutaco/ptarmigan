@@ -16,6 +16,7 @@ import { ListUnspentDto } from 'src/model/list-unspent';
 import { RouteNodeDto } from 'src/model/route-node';
 import { PaymentIdDto } from 'src/model/payment-id';
 import { SendPaymentDto } from 'src/model/send-payment';
+import { ListPaymentDto, listPaymentDto } from 'src/model/list-payment';
 
 @ApiUseTags('ptarmigan')
 @Controller('/')
@@ -141,8 +142,13 @@ export class PtarmiganController {
     }
 
     @Post('listpayments') // listpayment -> listpayments
-    async executeListPaymentState() {
+    async executeListPaymentsState() {
         return await this.ptarmiganService.requestTCP('listpayment', []);
+    }
+
+    @Post('listpayment') // listpayment -> listpayment=0
+    async executeListPaymentState(@Body() dto: listPaymentDto) {
+        return await this.ptarmiganService.requestTCP('listpayment', [dto.listpayment]);
     }
 
     @Post('removepayment') // removepayment -> removepayment
