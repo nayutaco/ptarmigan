@@ -293,6 +293,20 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
 
     ln_cb_param_wait_funding_tx_t *p_cb_param = (ln_cb_param_wait_funding_tx_t *)pParam;
 
+    int32_t blkcnt;
+    uint8_t bhash[BTC_SZ_HASH256];
+    p_cb_param->ret = btcrpc_getblockcount(&blkcnt, bhash);
+    if (p_cb_param->ret) {
+        LOGD("blockcount=%d\n", blkcnt);
+        LOGD("blockhash=");
+        TXIDD(bhash);
+        p_cb_param->ret = (ln_funding_last_confirm_get(&pConf->channel) == 0);
+    }
+    if (!p_cb_param->ret) {
+        LOGE("fail: get blockcount/hash\n");
+        return;
+    }
+
     if (p_cb_param->b_send) {
         uint8_t txid[BTC_SZ_TXID];
 
@@ -323,8 +337,11 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
             ln_funding_info_txid(&pConf->channel.funding_info),
             ln_funding_info_txindex(&pConf->channel.funding_info),
             ln_funding_info_wit_script(&pConf->channel.funding_info),
-            ln_funding_blockhash(&pConf->channel),
-            ln_funding_last_confirm_get(&pConf->channel));
+            bhash,
+            0);
+
+        //save current blockhash to funding_blockhash
+        ln_funding_blockhash_set(&pConf->channel, bhash);
 
         const char *p_str;
         if (ln_funding_info_is_funder(&pConf->channel.funding_info, true)) {

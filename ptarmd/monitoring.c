@@ -451,7 +451,18 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
     ln_channel_t    *p_channel = &pConf->channel;
 
     p_param->confm = 0;
-    (void)btcrpc_get_confirmations(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
+    bool b_get = btcrpc_get_confirmations(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
+    if (b_get) {
+        if (p_param->confm > pConf->funding_confirm) {
+            LOGD2("***********************************\n");
+            LOGD2("* CONFIRMATION: %d\n", pConf->funding_confirm);
+            LOGD2("*    funding_txid: ");
+            TXIDD(ln_funding_info_txid(&pConf->channel.funding_info));
+            LOGD2("***********************************\n");
+
+            pConf->funding_confirm = p_param->confm;
+        }
+    }
 
     bool del = false;
 
@@ -555,18 +566,35 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
         }
     }
 
-    if (pParam->confm > ln_funding_last_confirm_get(p_channel)) {
+    uint32_t last_conf = ln_funding_last_confirm_get(p_channel);
+    if (pParam->confm > last_conf) {
+        // confirmation update
         ln_funding_last_confirm_set(p_channel, pParam->confm);
         ln_db_channel_save_last_confirm(p_channel, pDbParam);
 
-        btcrpc_set_channel(
-            ln_remote_node_id(p_channel),
-            ln_short_channel_id(p_channel),
-            ln_funding_info_txid(&p_channel->funding_info),
-            ln_funding_info_txindex(&p_channel->funding_info),
-            ln_funding_info_wit_script(&p_channel->funding_info),
-            ln_funding_blockhash(p_channel),
-            ln_funding_last_confirm_get(p_channel));
+        if (last_conf == 0) {
+            // first confirmation update
+            int32_t bheight = 0;
+            int32_t bindex = 0;
+            uint8_t mined_hash[BTC_SZ_HASH256];
+            bool ret = btcrpc_get_short_channel_param(
+                ln_remote_node_id(p_channel),
+                &bheight, &bindex, mined_hash,
+                ln_funding_info_txid(&p_channel->funding_info));
+            if (ret) {
+                //mined block hash
+                ln_funding_blockhash_set(p_channel, mined_hash);
+
+                btcrpc_set_channel(
+                    ln_remote_node_id(p_channel),
+                    ln_short_channel_id(p_channel),
+                    ln_funding_info_txid(&p_channel->funding_info),
+                    ln_funding_info_txindex(&p_channel->funding_info),
+                    ln_funding_info_wit_script(&p_channel->funding_info),
+                    ln_funding_blockhash(p_channel),
+                    pParam->confm);
+            }
+        }
     }
 
     return del;
@@ -1318,7 +1346,7 @@ static bool update_btc_values(void)
 {
 #ifdef USE_BITCOINJ
     int32_t height;
-    bool ret = btcrpc_getblockcount(&height);
+    bool ret = btcrpc_getblockcount(&height, NULL);
     if (ret && (height != mMonParam.height)) {
         mMonParam.height = height;
 
@@ -1342,7 +1370,7 @@ static bool update_btc_values(void)
     if (mMonParam.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
         mMonParam.feerate_per_kw = LN_FEERATE_PER_KW_MIN;
     }
-    bool ret = btcrpc_getblockcount(&mMonParam.height);
+    bool ret = btcrpc_getblockcount(&mMonParam.height, NULL);
 #endif
     return ret;
 }

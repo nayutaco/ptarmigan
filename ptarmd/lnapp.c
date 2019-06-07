@@ -1399,34 +1399,6 @@ static void *thread_poll_start(void *pArg)
             continue;
         }
 
-        uint32_t bak_conf = p_conf->funding_confirm;
-        bool b_get = btcrpc_get_confirmations(&p_conf->funding_confirm, ln_funding_info_txid(&p_conf->channel.funding_info));
-        if (b_get) {
-            if (bak_conf != p_conf->funding_confirm) {
-                const uint8_t *oldhash = ln_funding_blockhash(&p_conf->channel);
-                if (utl_mem_is_all_zero(oldhash, BTC_SZ_HASH256)) {
-                    int32_t bheight = 0;
-                    int32_t bindex = 0;
-                    uint8_t mined_hash[BTC_SZ_HASH256];
-                    bool ret = btcrpc_get_short_channel_param(
-                        ln_remote_node_id(&p_conf->channel), &bheight, &bindex, mined_hash, ln_funding_info_txid(&p_conf->channel.funding_info));
-                    if (ret) {
-                        //mined block hash
-                        ln_funding_blockhash_set(&p_conf->channel, mined_hash);
-                    }
-                }
-
-                LOGD2("***********************************\n");
-                LOGD2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
-                LOGD2("*    funding_txid: ");
-                TXIDD(ln_funding_info_txid(&p_conf->channel.funding_info));
-                LOGD2("***********************************\n");
-            }
-        } else {
-            //LOGD("funding_tx not detect: ");
-            //TXIDD(ln_funding_info_txid(&p_conf->channel));
-        }
-
         //funding_tx
         if (p_conf->funding_waiting) {
             //funding_tx確定待ち(確定後はEstablishシーケンスの続きを行う)
@@ -2115,10 +2087,8 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
     cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_info_txindex(&p_channel->funding_info)));
     //confirmation
-    uint32_t confirm;
-    bool b_get = btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&p_channel->funding_info));
-    if (b_get) {
-        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+    if (pAppConf->funding_confirm > 0) {
+        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(pAppConf->funding_confirm));
     }
     //feerate_per_kw
     cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
@@ -2207,10 +2177,8 @@ static void show_channel_fundwait(const lnapp_conf_t *pAppConf, cJSON *result)
     cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
     cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_info_txindex(&p_channel->funding_info)));
     //confirmation
-    uint32_t confirm;
-    bool b_get = btcrpc_get_confirmations(&confirm, ln_funding_info_txid(&p_channel->funding_info));
-    if (b_get) {
-        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+    if (pAppConf->funding_confirm > 0) {
+        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(pAppConf->funding_confirm));
     }
     //minimum_depth
     cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_funding_info_minimum_depth(&p_channel->funding_info)));

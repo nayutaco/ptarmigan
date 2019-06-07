@@ -387,7 +387,6 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_
 }
 
 
-
 const uint8_t *ln_funding_blockhash(const ln_channel_t *pChannel)
 {
     return pChannel->funding_blockhash;

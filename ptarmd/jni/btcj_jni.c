@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <jni.h>
+#include <time.h>
 #include <inttypes.h>
 #include <string.h>
+
+#include <jni.h>
 #include "btcj_jni.h"
 
 #define LOG_TAG     "btcj_jni"
 #include "utl_log.h"
+#include "utl_time.h"
 
 #include "btc_sw.h"
 
@@ -129,18 +132,31 @@ bool btcj_init(btc_block_chain_t Gen)
                 ptarmd_execpath_get());
     LOGD("optjar=%s\n", optjar);
 
+    struct tm tmval;
+    time_t now = utl_time_time();
+    gmtime_r(&now, &tmval);
+    char str[512];
+    snprintf(str, sizeof(str),
+        "-Dorg.slf4j.simpleLogger.logFile=./logs/bitcoinj-ptarmigan%04d%02d%02dT%02d%02d%02dZ.log",
+            tmval.tm_year + 1900,
+            tmval.tm_mon + 1,
+            tmval.tm_mday,
+            tmval.tm_hour,
+            tmval.tm_min,
+            tmval.tm_sec);
+
     JavaVMOption opt[9];
     // .classファイルを配置するディレクトリか、.jarファイルのパスを指定する
     opt[0].optionString = optjar;
     // https://stackoverflow.com/questions/14544991/how-to-configure-slf4j-simple
-    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=info";
+    opt[1].optionString = "-Dorg.slf4j.simpleLogger.defaultLogLevel=warn";
     opt[2].optionString = "-Dorg.slf4j.simpleLogger.log.co.nayuta.lightning=debug";
     opt[3].optionString = "-Dorg.slf4j.simpleLogger.showDateTime=true";
     opt[4].optionString = "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ssZ";
     opt[5].optionString = "-DsimpleLogger.showThreadName=false";
     opt[6].optionString = "-DsimpleLogger.showLogName=false";
     opt[7].optionString = "-Dorg.slf4j.simpleLogger.showShortLogName=true";
-    opt[8].optionString = "-Dorg.slf4j.simpleLogger.logFile=./logs/bitcoinj-ptarmigan.log";
+    opt[8].optionString = str;
     //
     JavaVMInitArgs vm_args = {
         .version = JNI_VERSION_1_8,
@@ -779,7 +795,7 @@ static inline void _check_exception(JNIEnv *env, const char *pFuncName, int Line
 {
     if ((*env)->ExceptionCheck(env)) {
         LOGE("fail: exception(%s(): %d)!!\n", pFuncName, Line);
-        //abort();
         (*env)->ExceptionClear(env);
+        abort();
     }
 }
