@@ -392,13 +392,13 @@ void btcrpc_set_creationhash(const uint8_t *pHash)
 }
 
 
-bool btcrpc_getblockcount(int32_t *pBlockCount)
+bool btcrpc_getblockcount(int32_t *pBlockCount, uint8_t *pHash)
 {
     LOGD_BTCTRACE("\n");
 
     getblockcount_t param;
     param.p_cnt = pBlockCount;
-    param.p_hash = NULL;
+    param.p_hash = pHash;
     call_jni(METHOD_PTARM_GETBLOCKCOUNT, &param);
 
     if (param.ret) {

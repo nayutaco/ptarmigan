@@ -6359,15 +6359,18 @@ static int fixed_items_load(void *pData, ln_lmdb_db_t *pDb, const fixed_item_t *
         key.mv_size = strlen(pItems[lp].p_name);
         key.mv_data = (CONST_CAST char *)pItems[lp].p_name;
         retval = mdb_get(pDb->p_txn, pDb->dbi, &key, &data);
-        if (retval) {
+        if (retval == 0) {
+            //LOGD("%s: %lu\n", pItems[lp].p_name, pItems[lp].offset);
+            memcpy((uint8_t *)pData + pItems[lp].offset, data.mv_data,  pItems[lp].data_len);
+        } else {
+            if (retval != MDB_NOTFOUND) {
             LOGE("fail: %s\n", mdb_strerror(retval));
             LOGE("fail: %s\n", pItems[lp].p_name);
-            if (retval != MDB_NOTFOUND) {
                 return retval;
+            } else {
+                LOGE("item \"%s\" not found.\n", pItems[lp].p_name);
             }
         }
-        //LOGD("%s: %lu\n", pItems[lp].p_name, pItems[lp].offset);
-        memcpy((uint8_t *)pData + pItems[lp].offset, data.mv_data,  pItems[lp].data_len);
     }
 
     return 0;
