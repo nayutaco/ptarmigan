@@ -1,6 +1,6 @@
 import { ApiModelProperty } from '@nestjs/swagger';
 
-export class listPaymentDto {
+export class ListPaymentDto {
     @ApiModelProperty(
         {
             required: true,
