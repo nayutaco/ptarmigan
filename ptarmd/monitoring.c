@@ -454,13 +454,13 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
     bool b_get = btcrpc_get_confirmations(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
     if (b_get) {
         if (p_param->confm > pConf->funding_confirm) {
+            pConf->funding_confirm = p_param->confm;
+
             LOGD2("***********************************\n");
             LOGD2("* CONFIRMATION: %d\n", pConf->funding_confirm);
             LOGD2("*    funding_txid: ");
             TXIDD(ln_funding_info_txid(&pConf->channel.funding_info));
             LOGD2("***********************************\n");
-
-            pConf->funding_confirm = p_param->confm;
         }
     }
 

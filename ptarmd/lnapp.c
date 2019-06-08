@@ -354,8 +354,6 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
     pthread_mutex_lock(&pAppConf->mux_conf);
     if (pAppConf->th) {
         LOGD("stop lnapp: sock=%d\n", pAppConf->sock);
-        fprintf(stderr, "stop: ");
-        utl_dbg_dump(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
         pAppConf->active = false;
         pthread_cond_signal(&pAppConf->cond);
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
@@ -733,33 +731,6 @@ void *lnapp_thread_channel_start(void *pArg)
     //force send ping
     poll_ping(p_conf);
 
-    if (ln_funding_locked_needs(p_channel)) {
-        //funding_locked交換
-        ret = exchange_funding_locked(p_conf);
-        if (!ret) {
-            LOGE("fail: exchange funding_locked\n");
-            goto LABEL_JOIN;
-        }
-    }
-
-    p_conf->annosig_send_req = ln_open_channel_announce(p_channel);
-
-    //初期化完了
-    LOGD("*** message inited ***\n");
-    p_conf->flag_recv |= M_FLAGRECV_END;
-
-    // send `channel_update` for private/before publish channel
-    send_cnlupd_before_announce(p_conf);
-
-#ifdef USE_GOSSIP_QUERY
-    ret = ln_query_channel_range_send(p_channel, 0, UINT32_MAX);
-    if (ret) {
-        (void)ln_gossip_timestamp_filter_send(p_channel);
-    } else {
-        LOGE("fail: ln_query_channel_range_send\n");
-    }
-#endif  //USE_GOSSIP_QUERY
-
     {
         // method: connected
         // $1: short_channel_id
@@ -787,6 +758,33 @@ void *lnapp_thread_channel_start(void *pArg)
             fclose(fp);
         }
     }
+
+    if (ln_funding_locked_needs(p_channel)) {
+        //funding_locked交換
+        ret = exchange_funding_locked(p_conf);
+        if (!ret) {
+            LOGE("fail: exchange funding_locked\n");
+            goto LABEL_JOIN;
+        }
+    }
+
+    p_conf->annosig_send_req = ln_open_channel_announce(p_channel);
+
+    //初期化完了
+    LOGD("*** message inited ***\n");
+    p_conf->flag_recv |= M_FLAGRECV_END;
+
+    // send `channel_update` for private/before publish channel
+    send_cnlupd_before_announce(p_conf);
+
+#ifdef USE_GOSSIP_QUERY
+    ret = ln_query_channel_range_send(p_channel, 0, UINT32_MAX);
+    if (ret) {
+        (void)ln_gossip_timestamp_filter_send(p_channel);
+    } else {
+        LOGE("fail: ln_query_channel_range_send\n");
+    }
+#endif  //USE_GOSSIP_QUERY
 
     pthread_mutex_lock(&p_conf->mux_conf);
     while (p_conf->active) {
@@ -1481,7 +1479,10 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = set_short_channel_id(p_conf);
         if (ret) {
             ret = exchange_funding_locked(p_conf);
-            assert(ret);
+            if (!ret) {
+                LOGE("fail: exchange_funding_locked\n");
+                return;
+            }
 
             // send `channel_update` for private/before publish channel
             send_cnlupd_before_announce(p_conf);
