@@ -70,7 +70,7 @@ void ln_init_localfeatures_set(uint8_t lf)
 }
 
 
-void HIDDEN ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
+void /*HIDDEN*/ ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...)
 {
     va_list ap;
 

@@ -72,7 +72,7 @@
  */
 void ln_init_localfeatures_set(uint8_t lf);
 
-void HIDDEN ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
+void /*HIDDEN*/ ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
 
 bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool bHaveCnl);
 bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len);
