@@ -301,7 +301,7 @@ typedef struct lnapp_conf_t lnapp_conf_t;
 /** start
  *
  */
-int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode);
+int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode, btc_block_chain_t GenType);
 
 
 /** stop all threads

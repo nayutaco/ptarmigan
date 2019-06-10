@@ -39,7 +39,7 @@ bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf, btc_block_chain_t Chain);
 void conf_anno_init(anno_conf_t *pAnnoConf);
 bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf);
 
-void conf_channel_init(channel_conf_t *pEstConf);
+void conf_channel_init(channel_conf_t *pEstConf, btc_block_chain_t GenType);
 bool conf_channel_load(const char *pConfFile, channel_conf_t *pEstConf);
 
 void conf_connect_init(connect_conf_t *pConnConf);

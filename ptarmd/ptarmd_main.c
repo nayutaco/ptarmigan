@@ -369,7 +369,7 @@ int main(int argc, char *argv[])
         goto LABEL_EXIT;
     }
 
-    ptarmd_start(my_rpcport, &node);
+    ptarmd_start(my_rpcport, &node, gentype);
 
     btcrpc_term();
 
