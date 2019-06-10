@@ -146,7 +146,7 @@ static const char *kSCRIPT[] = {
  * prototypes
  ********************************************************************/
 
-static void load_channel_settings(void);
+static void load_channel_settings(btc_block_chain_t GenType);
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
 static void set_channels(void);
 
@@ -162,7 +162,7 @@ static char gExecPath[PATH_MAX];
  * entry point
  ********************************************************************/
 
-int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
+int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode, btc_block_chain_t GenType)
 {
     bool bret;
 
@@ -194,7 +194,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode)
         fclose(fp);
     }
 
-    load_channel_settings();
+    load_channel_settings(GenType);
     btcrpc_set_creationhash(ln_creationhash_get());
     set_channels();
     lnapp_global_init();
@@ -496,11 +496,11 @@ const char *ptarmd_error_cstr(int ErrCode)
  *
  * @param[in,out]       p_conf
  */
-static void load_channel_settings(void)
+static void load_channel_settings(btc_block_chain_t GenType)
 {
     channel_conf_t econf;
 
-    conf_channel_init(&econf);
+    conf_channel_init(&econf, GenType);
     (void)conf_channel_load(FNAME_CONF_CHANNEL, &econf);
     mEstablishParam.dust_limit_sat = econf.dust_limit_sat;
     mEstablishParam.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;

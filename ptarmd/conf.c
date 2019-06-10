@@ -51,6 +51,7 @@
 #define M_HTLC_MINIMUM_MSAT_EST         (0)
 #define M_TO_SELF_DELAY                 (40)
 #define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_RECEIVED_MAX)
+#define M_MIN_DEPTH_MAINNET             (3)
 #define M_MIN_DEPTH                     (1)
 
 //  init
@@ -156,7 +157,7 @@ bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf)
 }
 
 
-void conf_channel_init(channel_conf_t *pChannConf)
+void conf_channel_init(channel_conf_t *pChannConf, btc_block_chain_t GenType)
 {
     memset(pChannConf, 0, sizeof(channel_conf_t));
 
@@ -166,7 +167,7 @@ void conf_channel_init(channel_conf_t *pChannConf)
     pChannConf->htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
     pChannConf->to_self_delay = M_TO_SELF_DELAY;
     pChannConf->max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
-    pChannConf->min_depth = M_MIN_DEPTH;
+    pChannConf->min_depth = (GenType == BTC_BLOCK_CHAIN_BTCMAIN) ? M_MIN_DEPTH_MAINNET : M_MIN_DEPTH;
     pChannConf->localfeatures = M_LOCALFEATURES;
 }
 
