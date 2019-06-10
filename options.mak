@@ -45,17 +45,21 @@ endif
 ifeq ($(NODE_TYPE),BITCOINJ)
 CFLAGS += -DUSE_BITCOINJ
 NODESET=1
-ifeq ($(JDK_COMPILE),x86_64)
+ifneq ($(strip $(GNU_PREFIX)),)
+    #use own jvm
+    JDK_HOME := $(dir $(lastword $(MAKEFILE_LIST)))/libs
+    JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
+    JDK_CPU := client
+    BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
+else ifeq ($(JDK_COMPILE),x86_64)
     #JDK for x86_64
     JDK_HOME := /usr/lib/jvm/java-8-openjdk-amd64
     JDK_CPU := amd64/server
-endif
-ifeq ($(JDK_COMPILE),RASPI)
+else ifeq ($(JDK_COMPILE),RASPI)
     #JDK for oracle-java8-jdk (Raspberry-Pi 2/3)
     JDK_HOME := /usr/lib/jvm/jdk-8-oracle-arm32-vfp-hflt
     JDK_CPU := arm/server
-endif
-ifeq ($(JDK_COMPILE),RASPI_ARM11)
+else ifeq ($(JDK_COMPILE),RASPI_ARM11)
     #JDK for openjdk-8-jdk (Raspberry-Pi 1/Zero)
     JDK_HOME := /usr/lib/jvm/java-8-openjdk-armhf
     JDK_CPU := arm/client
