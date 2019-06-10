@@ -1,19 +1,17 @@
 # Build Ptarmigan for SPV
 
-## Easy for Raspberry Pi Zero settings
+## Easy for Raspberry Pi settings
 
 ```bash
 cd ptarmigan
 ./tools/rpi_bj.sh
-# edit options.mak and install/jdk.sh for Raspbery Pi Zero
+# edit options.mak and install/jdk.sh for Raspbery Pi
 ```
 
 ## Build
 
 * JDK
-  * Raspberry Pi2/3(Cortex-A)
-    * already installed (maybe)
-  * Raspberry Pi1/Zero (Arm11)
+  * Raspberry Pi
     * install `openjdk-8-jdk`
 
 ```bash
