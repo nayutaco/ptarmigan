@@ -1,7 +1,7 @@
 #!/bin/sh
 
 TARGET=x86_64
-#TARGET=RASPI_ARM11
+#TARGET=ARM_RASPI
 
 if [ "$TARGET" = "x86_64" ]; then
 #JDK for x86_64
