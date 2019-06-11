@@ -634,9 +634,6 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //pubkeys.prev_per_commitment_pointはrevoke_and_ackでのみ更新する
     memcpy(pChannel->keys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
 
-    //funding中終了
-    ln_establish_free(pChannel);
-
     ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     ln_print_keys(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
