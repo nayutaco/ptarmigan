@@ -148,14 +148,16 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 
 /** [bitcoin IF]check TXID is broadcasted
  *
+ * @param[in]   pPeerId         peer node_id
  * @param[in]   pTxid       TXID
  * @retval  true        broadcasted(including mempool)
  */
-bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid);
+bool btcrpc_is_tx_broadcasted(const uint8_t *pPeerId, const uint8_t *pTxid);
 
 
-/** [bitcoin IF]vout unspent確認
+/** [bitcoin IF]check unspent
  *
+ * @param[in]   pPeerId         peer node_id
  * @param[out]  pUnspent        (success and not NULL)true:unspent
  * @param[out]  pSat            [bitcoind](success and not NULL)amount[satoshi]
  * @param[in]   pTxid

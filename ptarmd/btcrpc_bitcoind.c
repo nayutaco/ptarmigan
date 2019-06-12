@@ -562,8 +562,10 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 }
 
 
-bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
+bool btcrpc_is_tx_broadcasted(const uint8_t *pPeerId, const uint8_t *pTxid)
 {
+    (void)pPeerId;
+
     char txid[BTC_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
@@ -1833,7 +1835,7 @@ int main(int argc, char *argv[])
     }
 
     printf("-is_tx_broadcasted------------------------\n");
-    ret = btcrpc_is_tx_broadcasted(TXID);
+    ret = btcrpc_is_tx_broadcasted(NULL, TXID);
     if (!ret) {
         printf("fail: check broadcasted\n");
         return 0;

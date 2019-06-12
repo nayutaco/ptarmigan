@@ -140,6 +140,7 @@ typedef struct {
 
 typedef struct {
     bool            ret;
+    const uint8_t   *p_peerid;
     const uint8_t   *p_txid;
 } checkbroadcast_t;
 
@@ -566,7 +567,7 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 }
 
 
-bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
+bool btcrpc_is_tx_broadcasted(const uint8_t *pPeerId, const uint8_t *pTxid)
 {
     if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
@@ -575,6 +576,7 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
     LOGD_BTCTRACE("\n");
 
     checkbroadcast_t param;
+    param.p_peerid = pPeerId;
     param.p_txid = pTxid;
     call_jni(METHOD_PTARM_CHECKBROADCAST, &param);
     LOGD_BTCRESULT("result=%d\n", param.ret);
@@ -947,7 +949,7 @@ static void jni_is_tx_broadcasted(void *pArg)
     LOGD("\n");
 
     checkbroadcast_t *p = (checkbroadcast_t *)pArg;
-    p->ret = btcj_is_tx_broadcasted(p->p_txid);
+    p->ret = btcj_is_tx_broadcasted(p->p_peerid, p->p_txid);
 }
 
 

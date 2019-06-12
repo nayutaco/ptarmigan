@@ -87,7 +87,7 @@ const struct {
     // METHOD_PTARM_SENDRAWTX,
     { "sendRawTx", "([B)[B" },
     // METHOD_PTARM_CHECKBROADCAST,
-    { "checkBroadcast", "([B)Z" },
+    { "checkBroadcast", "([B[B)Z" },
     // METHOD_PTARM_CHECKUNSPENT,
     { "checkUnspent", "([B[BI)I" },
     // METHOD_PTARM_GETNEWADDRESS,
@@ -565,14 +565,17 @@ bool btcj_sendraw_tx(uint8_t *pTxid, int *pCode, const btcj_buf_t *pTxData)
     return ret;
 }
 //-----------------------------------------------------------------------------
-bool btcj_is_tx_broadcasted(const uint8_t *pTxid)
+bool btcj_is_tx_broadcasted(const uint8_t *pPeerId, const uint8_t *pTxid)
 {
-    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
-    jobject txHash = buf2jbarray(&buf);
-    jboolean ret = (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_CHECKBROADCAST], txHash);
+    const btcj_buf_t buf_id = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
+    jbyteArray peer_id = buf2jbarray(&buf_id);
+    const btcj_buf_t buf_hash = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
+    jobject txHash = buf2jbarray(&buf_hash);
+    jboolean ret = (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_CHECKBROADCAST], peer_id, txHash);
     check_exception(env);
     LOGD("result=%d\n", ret);
     //
+    (*env)->DeleteLocalRef(env, peer_id);
     (*env)->DeleteLocalRef(env, txHash);
     //
     return ret;
