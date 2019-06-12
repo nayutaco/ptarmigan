@@ -252,7 +252,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             LOGD("$$$ commit_tx\n");
         } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
             if (p_tx->vin_cnt <= 0) {
-                LOGE("fail: skip tx[%d]\n", lp);
+                LOGD("skip to_local: tx[%d]\n", lp);
                 continue;
             }
             LOGD("$$$ to_local tx ==> DB\n");
@@ -265,7 +265,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
             continue;
         } else {
             if (p_tx->vin_cnt <= 0) {
-                LOGE("fail: skip tx[%d]\n", lp);
+                LOGD("skip HTLC: tx[%d]\n", lp);
                 continue;
             }
             LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
@@ -290,9 +290,9 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         //    false: spent
         bool unspent;
         if (!btcrpc_check_unspent(
-            ln_remote_node_id(pChannel), &unspent, NULL,
-            p_tx->vin[0].txid, p_tx->vin[0].index)) {
-            LOGE("fail: check unspent\n");
+                ln_remote_node_id(pChannel), &unspent, NULL,
+                p_tx->vin[0].txid, p_tx->vin[0].index)) {
+            LOGD("fail: check unspent\n");
             del = false;
             continue;
         }
