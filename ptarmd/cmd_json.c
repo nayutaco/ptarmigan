@@ -344,6 +344,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -411,6 +412,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     if (level == 1) {
+        LOGD("exit\n");
         return result;
     }
 
@@ -429,6 +431,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     //peer info
     p2p_show_channel(result_peer);
     cJSON_AddItemToObject(result, "peers", result_peer);
+    LOGD("exit\n");
     return result;
 }
 
@@ -462,6 +465,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -488,7 +492,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (mJrpc.port_number != 0) {
         jrpc_server_stop(&mJrpc);
     }
-
+    LOGD("exit\n");
     return result;
 }
 
@@ -570,6 +574,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -679,6 +684,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -722,6 +728,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -837,6 +844,7 @@ LABEL_EXIT:
         ctx->error_message = error_str_cjson(err);
     }
     ln_invoice_decode_free(p_invoice_data);
+    LOGD("exit\n");
     return result;
 }
 
@@ -926,7 +934,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
     }
     ln_db_preimage_cur_close(p_cur, false);
-
+    LOGD("exit\n");
     return result;
 }
 
@@ -1079,6 +1087,7 @@ LABEL_ERROR:
     ctx->error_code = err;
     ctx->error_message = error_str_cjson(err);
     ln_db_route_skip_drop(true);
+    LOGD("exit\n");
     return NULL;
 }
 
@@ -1170,6 +1179,7 @@ LABEL_ERROR:
     ln_db_route_skip_work(false);
 
     UTL_DBG_FREE(p_invoice);
+    LOGD("exit\n");
     return result;
 }
 
@@ -1215,7 +1225,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
-
+    LOGD("exit\n");
     return result;
 }
 
@@ -1258,6 +1268,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return NULL;
 }
 
@@ -1324,6 +1335,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1361,6 +1373,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1389,6 +1402,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
             //none
         }
     }
+    LOGD("exit\n");
     if (p_str != NULL) {
         return cJSON_CreateString(p_str);
     } else {
@@ -1417,6 +1431,7 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
         utl_str_str2bin(channel_id, sizeof(channel_id), json->valuestring);
         ret = ln_db_channel_del(channel_id);
     }
+    LOGD("exit\n");
     if (ret) {
         return cJSON_CreateString(kOK);
     } else {
@@ -1464,6 +1479,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1513,6 +1529,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1571,7 +1588,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
             ctx->error_message = error_str_cjson(RPCERR_WALLET_ERR);
         }
     }
-
+    LOGD("exit\n");
     return result;
 }
 
@@ -1618,6 +1635,7 @@ static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
     }
     ln_db_payment_info_cur_close(p_cur, false);
+    LOGD("exit\n");
     return result;
 }
 
@@ -1709,6 +1727,7 @@ LABEL_EXIT:
         ctx->error_code = RPCERR_PAY_REMOVE;
         ctx->error_message = error_str_cjson(RPCERR_PAY_REMOVE);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1734,6 +1753,7 @@ static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_code = RPCERR_BLOCKCHAIN;
         ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1758,6 +1778,7 @@ static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_code = RPCERR_BLOCKCHAIN;
         ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
     }
+    LOGD("exit\n");
     return result;
 }
 
@@ -1804,6 +1825,7 @@ LABEL_EXIT:
         ctx->error_code = err;
         ctx->error_message = error_str_cjson(err);
     }
+    LOGD("exit\n");
     return result;
 }
 #endif
