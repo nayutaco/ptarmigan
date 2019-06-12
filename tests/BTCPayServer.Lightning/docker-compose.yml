@@ -1,0 +1,338 @@
+version: "3"
+
+services:
+
+  bitcoind:
+    restart: unless-stopped
+    image: nicolasdorier/docker-bitcoin:0.17.0
+    environment:
+      BITCOIN_NETWORK: regtest
+      BITCOIN_EXTRA_ARGS: |
+        rpcuser=ceiwHEbqWI83
+        rpcpassword=DwubwWsoo3
+        server=1
+        rpcport=43782
+        port=39388
+        whitelist=0.0.0.0/0
+        zmqpubrawblock=tcp://0.0.0.0:28332
+        zmqpubrawtx=tcp://0.0.0.0:28333
+        deprecatedrpc=signrawtransaction
+        addresstype=p2sh-segwit
+    ports: 
+      - "37393:43782"
+      - "23823:28332"
+    expose:
+      - "43782" # RPC
+      - "39388" # P2P
+    volumes:
+      - "bitcoind_dir:/data"
+
+  lightningd:
+    restart: unless-stopped
+    stop_signal: SIGKILL
+    image: btcpayserver/lightning:v0.7.0-1-dev
+    environment:
+      EXPOSE_TCP: "true"
+      LIGHTNINGD_OPT: |
+        bitcoin-datadir=/etc/bitcoin
+        bitcoin-rpcconnect=bitcoind
+        network=regtest
+        bind-addr=0.0.0.0
+        announce-addr=lightningd
+        log-level=debug
+        dev-broadcast-interval=1000
+        dev-bitcoind-poll=1
+    ports:
+      - "48532:9835" # api port
+    expose:
+      - "9735" # server port
+      - "9835" # api port
+    volumes:
+      - "bitcoind_dir:/etc/bitcoin"
+      - "lightningd_dir:/root/.lightning"
+    links:
+      - bitcoind
+
+  lightningd_dest:
+    restart: unless-stopped
+    stop_signal: SIGKILL
+    image: btcpayserver/lightning:v0.7.0-1-dev
+    environment:
+      EXPOSE_TCP: "true"
+      LIGHTNINGD_OPT: |
+        bitcoin-datadir=/etc/bitcoin
+        bitcoin-rpcconnect=bitcoind
+        network=regtest
+        bind-addr=0.0.0.0
+        announce-addr=lightningd_dest
+        log-level=debug
+        dev-broadcast-interval=1000
+        dev-bitcoind-poll=1
+    ports:
+      - "42549:9835" # api port
+    expose:
+      - "9735" # server port
+      - "9835" # api port
+    volumes:
+      - "bitcoind_dir:/etc/bitcoin"
+      - "lightningd_dest_dir:/root/.lightning"
+    links:
+      - bitcoind
+
+  charge:
+    restart: unless-stopped
+    image: shesek/lightning-charge:0.4.6-standalone
+    environment:
+      NETWORK: regtest
+      API_TOKEN: foiewnccewuify
+      BITCOIND_RPCCONNECT: bitcoind
+    volumes:
+      - "bitcoind_dir:/etc/bitcoin"
+      - "lightning_charge_dir:/data"
+      - "lightningd_dir:/etc/lightning"
+    expose:
+      - "9112" # Charge
+      - "9735" # Lightning
+    ports:
+      - "37462:9112" # Charge
+    links:
+      - lightningd
+
+  lnd:
+    restart: unless-stopped
+    image: btcpayserver/lnd:v0.6-beta
+    environment:
+      LND_CHAIN: "btc"
+      LND_ENVIRONMENT: "regtest"
+      LND_EXTRA_ARGS: |
+        restlisten=0.0.0.0:8080
+        bitcoin.node=bitcoind
+        bitcoind.rpchost=bitcoind:43782
+        bitcoind.zmqpubrawblock=tcp://bitcoind:28332
+        bitcoind.zmqpubrawtx=tcp://bitcoind:28333
+        trickledelay=1000
+        externalip=lnd:9735
+        no-macaroons=1
+        debuglevel=debug
+        noseedbackup=1
+    ports:
+      - "32736:8080"
+    expose:
+      - "9735"
+    volumes:
+      - "lnd_dir:/data"
+      - "bitcoind_dir:/deps/.bitcoin"
+    links:
+      - bitcoind
+
+  lnd_dest:
+    restart: unless-stopped
+    image: btcpayserver/lnd:v0.6-beta
+    environment:
+      LND_CHAIN: "btc"
+      LND_ENVIRONMENT: "regtest"
+      LND_EXTRA_ARGS: |
+        restlisten=0.0.0.0:8080
+        bitcoin.node=bitcoind
+        bitcoind.rpchost=bitcoind:43782
+        bitcoind.zmqpubrawblock=tcp://bitcoind:28332
+        bitcoind.zmqpubrawtx=tcp://bitcoind:28333
+        trickledelay=1000
+        externalip=lnd_dest:9735
+        no-macaroons=1
+        debuglevel=debug
+        noseedbackup=1
+    ports:
+      - "42802:8080"
+    expose:
+      - "9735"
+    volumes:
+      - "lnd_dest_dir:/data"
+      - "bitcoind_dir:/deps/.bitcoin"
+    links:
+      - bitcoind
+      
+  eclair:
+    restart: unless-stopped
+    stop_signal: SIGKILL
+    image: acinq/eclair:v0.3
+    environment:
+      JAVA_OPTS: |
+        -Xmx256m
+        -Declair.printToConsole
+        -Declair.headless
+        -Declair.chain=regtest
+        -Declair.server.binding-ip=0.0.0.0
+        -Declair.server.public-ips.0=eclair
+        -Declair.server.port=9735
+        -Declair.api.enabled=true
+        -Declair.api.binding-ip=0.0.0.0
+        -Declair.api.port=8080
+        -Declair.node-alias=eclair
+        -Declair.api.password=bukkake
+        -Declair.bitcoind.host=bitcoind
+        -Declair.bitcoind.rpcport=43782
+        -Declair.bitcoind.rpcuser=ceiwHEbqWI83
+        -Declair.bitcoind.rpcpassword=DwubwWsoo3
+        -Declair.bitcoind.zmqblock=tcp://bitcoind:28332
+        -Declair.bitcoind.zmqtx=tcp://bitcoind:28333
+        -Declair.max-feerate-mismatch=10000
+        -Declair.ping-disconnect=false
+    ports:
+      - "4570:8080" # api port
+      - "9735:9735" # server port
+    expose:
+      - "9735" # server port
+      - "8080" # api port
+    volumes:
+      - "bitcoind_dir:/etc/bitcoin"
+      - "eclair_dir:/data"
+    links:
+      - bitcoind
+      - eclair_dest
+      
+  eclair_dest:
+    restart: unless-stopped
+    stop_signal: SIGKILL
+    image: acinq/eclair:v0.3
+    environment:
+      JAVA_OPTS: |
+        -Xmx256m
+        -Declair.printToConsole
+        -Declair.headless
+        -Declair.chain=regtest
+        -Declair.server.binding-ip=0.0.0.0
+        -Declair.server.public-ips.0=eclair_dest
+        -Declair.server.port=9736
+        -Declair.api.enabled=true
+        -Declair.api.binding-ip=0.0.0.0
+        -Declair.api.port=8080
+        -Declair.api.password=bukkake
+        -Declair.node-alias=eclair_dest
+        -Declair.bitcoind.host=bitcoind
+        -Declair.bitcoind.rpcport=43782
+        -Declair.bitcoind.rpcuser=ceiwHEbqWI83
+        -Declair.bitcoind.rpcpassword=DwubwWsoo3
+        -Declair.bitcoind.zmqblock=tcp://bitcoind:28332
+        -Declair.bitcoind.zmqtx=tcp://bitcoind:28333
+        -Declair.max-feerate-mismatch=10000
+        -Declair.ping-disconnect=false
+    ports:
+      - "4571:8080" # api port
+      - "9736:9736" # server port
+    expose:
+      - "9736" # server port
+      - "8080" # api port
+    volumes:
+      - "bitcoind_dir:/etc/bitcoin"
+      - "eclair_dest_dir:/data"
+    links:
+      - bitcoind
+  
+  ptarmigan:
+    restart: unless-stopped
+    stop_signal: SIGKILL
+    build:
+      context: ../../
+      dockerfile: ./tests/BTCPayServer.Lightning/ptarm/Dockerfile
+    environment:
+      NODE_NAME: test
+      CHAIN: regtest
+      LIGHTNING_PORT: 12345
+      RPC_PORT: 43782
+      RPC_USER: ceiwHEbqWI83
+      RPC_PASSWORD: DwubwWsoo3
+      RPC_URL: bitcoind
+      ANNOUNCE_IP: ptarmigan
+    ports:
+      - "3000:3000"
+      - "12345:12345"
+    expose:
+      - "3000"
+      - "12345"
+    volumes:
+      - "bitcoind_dir:/root/.bitcoin"
+      - "ptarmigan_dir:/data"
+    links:
+      - bitcoind
+      
+  ptarmigan_dest:
+    restart: unless-stopped
+    stop_signal: SIGKILL
+    build:
+      context: ../../
+      dockerfile: ./tests/BTCPayServer.Lightning/ptarm/Dockerfile
+    environment:
+      NODE_NAME: test
+      CHAIN: regtest
+      LIGHTNING_PORT: 54321
+      RPC_PORT: 43782
+      RPC_USER: ceiwHEbqWI83
+      RPC_PASSWORD: DwubwWsoo3
+      RPC_URL: bitcoind
+      ANNOUNCE_IP: ptarmigan_dest
+    ports:
+      - "3001:3000"
+      - "54321:54321"
+    expose:
+      - "3001"
+      - "54321"
+    volumes:
+      - "bitcoind_dir:/root/.bitcoin"
+      - "ptarmigan_dest_dir:/data"
+    links:
+      - bitcoind
+      
+  dev:
+    image: coscale/docker-sleep
+    depends_on:
+      - bitcoind
+      - charge
+      - eclair
+      - eclair_dest
+      - lightningd
+      - lightningd_dest
+      - lnd
+      - lnd_dest
+      - ptarmigan
+      - ptarmigan_dest
+      
+  tests:
+    image: nayutaco/btcpayserver.lightning.tests:1.0.0
+    expose:
+      - "80"
+    links:
+      - bitcoind
+      - charge
+      - eclair
+      - eclair_dest
+      - lightningd
+      - lightningd_dest
+      - lnd
+      - lnd_dest
+      - ptarmigan
+      - ptarmigan_dest
+    depends_on:
+      - bitcoind
+      - charge
+      - eclair
+      - eclair_dest
+      - lightningd
+      - lightningd_dest
+      - lnd
+      - lnd_dest
+      - ptarmigan
+      - ptarmigan_dest
+      
+volumes:
+  lnd_dir:
+  lnd_dest_dir:
+  bitcoind_dir:
+  lightningd_dir:
+  lightning_charge_dir:
+  lightningd_dest_dir:
+  eclair_dir:
+  eclair_dest_dir:
+  ptarmigan_dir:
+  ptarmigan_dest_dir:
+
