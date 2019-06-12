@@ -2,7 +2,9 @@ _build/
 _ggtest/
 /libs/*
 /install/
-/tests/
+/tests/*
+!/tests/BTCPayServer.Lightning
+
 .vscode/
 
 ptarmd/ptarmd
