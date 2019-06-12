@@ -276,7 +276,7 @@ bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam)
         btc_tx_txid(p_tx, txid);
         LOGD("txid[%d]= ", lp);
         TXIDD(txid);
-        if (btcrpc_is_tx_broadcasted(txid)) {
+        if (btcrpc_is_tx_broadcasted(ln_remote_node_id(pChannel), txid)) {
             LOGD("already broadcasted[%d] --> OK\n", lp);
             continue;
         }
@@ -913,7 +913,7 @@ static bool close_unilateral_remote(ln_channel_t *pChannel)
         btc_tx_txid(p_tx, txid);
         LOGD("txid[%d]= ", lp);
         TXIDD(txid);
-        if (btcrpc_is_tx_broadcasted(txid)) {
+        if (btcrpc_is_tx_broadcasted(ln_remote_node_id(pChannel), txid)) {
             LOGD("already broadcasted[%d] --> OK\n", lp);
             continue;
         }

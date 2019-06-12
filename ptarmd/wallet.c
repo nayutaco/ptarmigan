@@ -219,12 +219,6 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         return false;
     }
 
-    //INPUT確認
-    // ret = btcrpc_is_tx_broadcasted(pWallet->p_txid);
-    // if (!ret) {
-    //     LOGD("not broadcasted\n");
-    //     return false;
-    // }
     bool unspent;
     ret = btcrpc_check_unspent(NULL, &unspent, NULL, pWallet->p_txid, pWallet->index);
     if (ret && !unspent) {
