@@ -50,6 +50,13 @@ ifneq ($(strip $(GNU_PREFIX)),)
     JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
     JDK_CPU := client
     BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
+else ifeq ($(shell uname -p)$(NODE_TYPE)$(JDK_COMPILE),x86_64BITCOINJARM_RASPI)
+    #cross compile and use own jvm
+    GNU_PREFIX := arm-linux-gnueabihf-
+    JDK_HOME := $(dir $(lastword $(MAKEFILE_LIST)))/libs
+    JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
+    JDK_CPU := client
+    BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
 else ifeq ($(JDK_COMPILE),x86_64)
     #JDK for x86_64
     JDK_HOME := /usr/lib/jvm/java-8-openjdk-amd64
