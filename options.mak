@@ -38,46 +38,51 @@ MAX_CHANNELS=10
 ######################################
 
 ifeq ($(NODE_TYPE),BITCOIND)
-CFLAGS += -DUSE_BITCOIND
-NODESET=1
+    $(info bitcoind version)
+    CFLAGS += -DUSE_BITCOIND
+    NODESET=1
 endif
 ifeq ($(NODE_TYPE),BITCOINJ)
-CFLAGS += -DUSE_BITCOINJ
-NODESET=1
-ifneq ($(strip $(GNU_PREFIX)),)
-    #use own jvm
-    JDK_HOME := $(dir $(lastword $(MAKEFILE_LIST)))/libs
-    JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
-    JDK_CPU := client
-    BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
-else ifeq ($(shell uname -p)$(NODE_TYPE)$(JDK_COMPILE),x86_64BITCOINJARM_RASPI)
-    #cross compile and use own jvm
-    GNU_PREFIX := arm-linux-gnueabihf-
-    JDK_HOME := $(dir $(lastword $(MAKEFILE_LIST)))/libs
-    JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
-    JDK_CPU := client
-    BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
-else ifeq ($(JDK_COMPILE),x86_64)
-    #JDK for x86_64
-    JDK_HOME := /usr/lib/jvm/java-8-openjdk-amd64
-    JDK_CPU := amd64/server
-else ifeq ($(JDK_COMPILE),ARM_RASPI)
-    #JDK for openjdk-8-jdk (Raspberry-Pi)
-    JDK_HOME := /usr/lib/jvm/java-8-openjdk-armhf
-    JDK_CPU := arm/client
-endif
-ifeq ($(JDK_HOME),)
-    $(error You must set JDK_COMPILE in options.mak.)
-endif
-SPV_JAR_PATH = $(JDK_HOME)/jre/lib/$(JDK_CPU)
-USE_SPV_JVM = -L$(SPV_JAR_PATH)
-JVM_PATH = $(SPV_JAR_PATH)/libjvm.so
-JAR_EXISTS = $(shell ls $(JVM_PATH) | grep $(JVM_PATH))
-#$(info $(JVM_PATH))
-#$(info $(JAR_EXISTS))
-ifneq ($(JAR_EXISTS),$(JVM_PATH))
-    $(error  libjvm.so not found.)
-endif
+    CFLAGS += -DUSE_BITCOINJ
+    NODESET=1
+    ifneq ($(strip $(GNU_PREFIX)),)
+        #use own jvm
+        $(info cross compile SPV version)
+        JDK_HOME := $(dir $(lastword $(MAKEFILE_LIST)))/libs
+        JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
+        JDK_CPU := client
+        BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
+    else ifeq ($(shell uname -p)$(NODE_TYPE)$(JDK_COMPILE),x86_64BITCOINJARM_RASPI)
+        #cross compile and use own jvm
+        $(info SPV version for ARM automatic)
+        GNU_PREFIX := arm-linux-gnueabihf-
+        JDK_HOME := $(dir $(lastword $(MAKEFILE_LIST)))/libs
+        JDK_X86_HOME := /usr/lib/jvm/java-8-openjdk-amd64
+        JDK_CPU := client
+        BUILD_PTARMD_LIB_INCPATHS += -I$(JDK_X86_HOME)/include -I$(JDK_X86_HOME)/include/linux
+    else ifeq ($(JDK_COMPILE),x86_64)
+        $(info SPV version for x86_64)
+        #JDK for x86_64
+        JDK_HOME := /usr/lib/jvm/java-8-openjdk-amd64
+        JDK_CPU := amd64/server
+    else ifeq ($(JDK_COMPILE),ARM_RASPI)
+        $(info SPV version for ARM)
+        #JDK for openjdk-8-jdk (Raspberry-Pi)
+        JDK_HOME := /usr/lib/jvm/java-8-openjdk-armhf
+        JDK_CPU := arm/client
+    endif
+    ifeq ($(JDK_HOME),)
+        $(error You must set JDK_COMPILE in options.mak.)
+    endif
+    SPV_JAR_PATH = $(JDK_HOME)/jre/lib/$(JDK_CPU)
+    USE_SPV_JVM = -L$(SPV_JAR_PATH)
+    JVM_PATH = $(SPV_JAR_PATH)/libjvm.so
+    JAR_EXISTS = $(shell ls $(JVM_PATH) | grep $(JVM_PATH))
+    #$(info $(JVM_PATH))
+    #$(info $(JAR_EXISTS))
+    ifneq ($(JAR_EXISTS),$(JVM_PATH))
+        $(error  libjvm.so not found.)
+    endif
 endif
 
 ifneq ($(NODESET),1)
