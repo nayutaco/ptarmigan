@@ -25,7 +25,7 @@
 ## Install
 
 ```bash
-sudo apt install -y git autoconf pkg-config build-essential libtool python3 wget jq bc
+sudo apt install -y git autoconf pkg-config build-essential libtool python python3 wget jq bc
 
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
