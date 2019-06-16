@@ -57,7 +57,7 @@
 #define LOGD_BTCRESULT      LOGD
 #define DUMPD_BTCRESULT     DUMPD
 #define TXIDD_BTCRESULT     TXIDD
-#define LOGD_BTCFAIL        LOGD
+#define LOGD_BTCFAIL        LOGE
 #define LOGD_PTHREAD        LOGD
 #define LOGD_JNI            LOGD
 #endif
@@ -492,6 +492,7 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
     param.v_index = VIndex;
     call_jni(METHOD_PTARM_SEARCHOUTPOINT, &param);
     if (param.ret) {
+        LOGD_BTCTRACE("success\n");
         btc_tx_print(pTx);
     } else {
         LOGD_BTCFAIL("fail\n");
