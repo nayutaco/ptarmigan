@@ -382,7 +382,8 @@ struct ln_channel_t {
     ln_funding_info_t           funding_info;                   ///< [FUND_01]funding info
     ln_establish_t              establish;                      ///< [FUND_02]Establishワーク領域
     uint8_t                     funding_blockhash[BTC_SZ_HASH256];      ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
-    uint32_t                    funding_last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
+    uint32_t                    funding_last_confirm;                   ///< [FUNDSPV_02]last unspent funding_tx confirmation
+                                                                        //      update: funding_unspent()
 
     //msg:announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど

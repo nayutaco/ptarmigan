@@ -627,7 +627,7 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
         if (!ret) {
             p_list = (monchanlist_t *)UTL_DBG_MALLOC(sizeof(monchanlist_t));
             memcpy(p_list->channel_id, ln_channel_id(p_channel), LN_SZ_CHANNEL_ID);
-            p_list->last_check_confm = 0;
+            p_list->last_check_confm = ln_funding_last_confirm_get(&pConf->channel);
             monchanlist_add(p_list);
         }
         btc_tx_t *p_tx = NULL;
