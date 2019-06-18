@@ -2,7 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/nayutaco/ptarmigan.svg?style=svg)](https://circleci.com/gh/nayutaco/ptarmigan)
 
-Japanese description is [here]().
+Japanese description is [here](https://github.com/nayutaco/ptarmigan/blob/master/tests/BTCPayServer.Lightning/README.md#btcpayserverlightning%E3%82%92%E7%94%A8%E3%81%84%E3%81%9Fptarmigan%E3%81%AE%E3%83%86%E3%82%B9%E3%83%88).
 
 Perform the following test using [BTCPayServer.Lightning](https://github.com/btcapayserver/BTCPayServer.Lightning).
 
@@ -46,7 +46,7 @@ Ptarmiganは、現在、さらなる安定化のためにリファクタリン�
 
 そのリファクタリングには、破壊的なものも含まれております。
 
-最新のPtarmiganがBTCPayServer.Lightningで動かないのは、よくありません。
+最新のPtarmiganがBTCPayServer.Lightningで動かないのは、よくありません。
 
 常に最新のPtarmiganがBTCPayServer.Lightningで安定して動くために、BTCPayServer.Lightning上での動作確認を同時に実行するようにしました。
 
