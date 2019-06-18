@@ -585,6 +585,7 @@ static int lmdb_init(const init_param_t  *p_param);
 static int lmdb_compaction(const init_param_t  *p_param);
 
 static bool auto_update_68_to_69(void);
+static bool auto_update_69_to_70(void);
 
 #ifndef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *pEnv, MDB_txn *pParent, unsigned int Flags, MDB_txn **ppTxn, int Line) {
@@ -3219,6 +3220,7 @@ LABEL_EXIT:
  * [wallet]wallet
  ********************************************************************/
 
+#if 0
 bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index)
 {
     int             retval;
@@ -3255,6 +3257,7 @@ bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index)
     MDB_TXN_COMMIT(db.p_txn);
     return true;
 }
+#endif
 
 
 /**
@@ -3284,6 +3287,7 @@ bool ln_db_wallet_save(const ln_db_wallet_t *pWallet)
     //     LOGD("[%d]", lp);
     //     DUMPD(pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
     // }
+    // LOGD("mined_height=%d\n", pWallet->mined_height);
 
     if (pWallet->wit_item_cnt < 2) {
         LOGE("fail: wit_item_cnt < 2\n");
@@ -3318,7 +3322,8 @@ bool ln_db_wallet_save(const ln_db_wallet_t *pWallet)
         sizeof(uint64_t) +  //amount
         sizeof(uint32_t) +  //sequence
         sizeof(uint32_t) +  //locktime
-        sizeof(uint8_t);    //datanum
+        sizeof(uint8_t) +   //datanum
+        sizeof(uint32_t);   //mined_height
     for (uint32_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
         //len + data
         LOGD("[%d]len=%d, ", lp, pWallet->p_wit_items[lp].len);
@@ -3348,6 +3353,8 @@ bool ln_db_wallet_save(const ln_db_wallet_t *pWallet)
         memcpy(p_pos, pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
         p_pos += pWallet->p_wit_items[lp].len;
     }
+    memcpy(p_pos, &pWallet->mined_height, sizeof(uint32_t));
+    p_pos += sizeof(uint32_t);
 
     data.mv_data = p_wit_items;
     retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
@@ -3440,6 +3447,11 @@ bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc,
                     wallet.p_wit_items[lp].buf = NULL;
                 }
             }
+        }
+        if (data.mv_size >= (size_t)((void *)p_data - data.mv_data + sizeof(uint32_t))) {
+            memcpy(&wallet.mined_height, p_data, sizeof(uint32_t));
+        } else {
+            wallet.mined_height = 0;
         }
         bool stop = (*pWalletFunc)(&wallet, pFuncParam);
         UTL_DBG_FREE(wallet.p_wit_items);
@@ -5676,6 +5688,12 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
                     *pVer = -69;
                 }
             }
+            if ((*pVer == -69) && (LN_DB_VERSION <= -70)) {
+                auto_update &= auto_update_69_to_70();
+                if (auto_update) {
+                    *pVer = -70;
+                }
+            }
         }
         if (!auto_update) {
             fprintf(stderr, "FAIL\n\n");
@@ -6629,3 +6647,46 @@ static bool auto_update_68_to_69(void)
 LABEL_EXIT:
     return ret;
 }
+
+
+#if defined(USE_BITCOIND)
+static bool auto_update_69_to_70(void)
+{
+    LOGE("bitcoind auto update.\n");
+    return true;
+}
+
+#elif defined(USE_BITCOINJ)
+/** auto update: -69 ==> -70
+ *
+    -70: add `ln_db_wallet_t::mined_height` (bitcoind auto update: -69 ==> -70)
+ */
+static bool auto_update_69_to_70_func(const ln_db_wallet_t *pWallet, void *p_param)
+{
+    bool *p_ret = (bool *)p_param;
+
+    bool ret = false;
+
+    if ((pWallet->sequence != 0) && (pWallet->sequence < BTC_TX_SEQUENCE)) {
+        LOGD("have sequence\n");
+        *p_ret = true;
+        ret = true;
+    } else if (pWallet->locktime != 0) {
+        LOGD("have locktime\n");
+        *p_ret = true;
+        ret = true;
+    }
+    return ret;
+}
+
+
+static bool auto_update_69_to_70(void)
+{
+    bool have_wallet = false;
+    (void)ln_db_wallet_search(auto_update_69_to_70_func, &have_wallet);
+    if (have_wallet) {
+        LOGE("bitcoinj need mined_height.\n");
+    }
+    return !have_wallet;
+}
+#endif

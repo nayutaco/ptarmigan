@@ -48,7 +48,7 @@ extern "C" {
 #define LN_DB_WALLET_TYPE_TO_REMOTE     ((uint8_t)2)
 #define LN_DB_WALLET_TYPE_HTLC_OUTPUT   ((uint8_t)3)
 
-#define LN_DB_WALLET_INIT(t)    { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_item_cnt*/, NULL/*p_wit_items*/ }
+#define LN_DB_WALLET_INIT(t)    { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_item_cnt*/, NULL/*p_wit_items*/, 0/*mined_height*/ }
 
 
 /**************************************************************************
@@ -118,6 +118,7 @@ typedef struct {
     uint32_t    locktime;                   ///< <locktime>
     uint32_t    wit_item_cnt;
     utl_buf_t   *p_wit_items;               ///< p_wit_items[wit_item_cnt]
+    uint32_t    mined_height;               ///< outpointがminingされたblockcount
 } ln_db_wallet_t;
 
 
@@ -773,7 +774,7 @@ bool ln_db_revoked_tx_save(const ln_channel_t *pChannel, bool bUpdate, void *pDb
  * @param[in]   Index
  * @retval  true    読み込み成功
  */
-bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index);
+//bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index);
 
 
 /** 送金可能なINPUTを登録

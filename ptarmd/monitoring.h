@@ -72,9 +72,8 @@ uint32_t monitor_btc_feerate_per_kw(void);
 /** Unilateral Close(自分が展開)
  *
  * @param[in,out]       pChannel    チャネル情報
- * @param[in,out]       pDbParam    DB情報
  */
-bool monitor_close_unilateral_local(ln_channel_t *pChannel, void *pDbParam);
+bool monitor_close_unilateral_local(ln_channel_t *pChannel);
 
 
 #ifdef __cplusplus

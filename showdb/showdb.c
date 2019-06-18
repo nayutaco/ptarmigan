@@ -248,7 +248,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((pChannel->funding_info.state & LN_FUNDING_STATE_STATE_FUNDING) == LN_FUNDING_STATE_STATE_FUNDING));
     printf(INDENT4 M_QQ("is_opened") ": %d\n", ((pChannel->funding_info.state & LN_FUNDING_STATE_STATE_OPENED) == LN_FUNDING_STATE_STATE_OPENED));
     printf(INDENT3 "},\n");
-    printf(INDENT3 M_QQ("mined_block") ": \"");
+    printf(INDENT3 M_QQ("mined_blockhash") ": \"");
     btc_dbg_dump_txid(stdout, pChannel->funding_blockhash);
     printf("\",\n");
     printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", pChannel->funding_last_confirm);
@@ -692,7 +692,8 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     printf(INDENT2 M_QQ("type") ": " M_QQ("%s") ",\n", p_type_str);
     printf(INDENT2 M_QQ("amount") ": %" PRIu64 ",\n", pWallet->amount);
     printf(INDENT2 M_QQ("sequence") ": %" PRIu32 ",\n", pWallet->sequence);
-    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 "\n", pWallet->locktime);
+    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 ",\n", pWallet->locktime);
+    printf(INDENT2 M_QQ("mined_height") ": %" PRIu32 "\n", pWallet->mined_height);
     // if (pWallet->wit_item_cnt > 0) {
     //     printf(INDENT2 M_QQ("privkey") ": \"");
     //     utl_dbg_dump(stdout, pWallet->p_wit_items[0].buf, pWallet->p_wit_items[0].len, false);

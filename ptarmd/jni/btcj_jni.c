@@ -32,6 +32,14 @@ enum {
 };
 
 
+enum {
+    M_FIELD_SEARCHOUTPOINT_HEIGHT,
+    M_FIELD_SEARCHOUTPOINT_TX,
+    //
+    M_FIELD_SEARCHOUTPOINT_MAX
+};
+
+
 static JNIEnv *env;
 static JavaVM *jvm;
 
@@ -50,6 +58,7 @@ static jmethodID list_get_method;
 static jmethodID list_size_method;
 static jmethodID system_exit_method;
 static jfieldID ptarmcls_field[M_FIELD_PTARMCHAN_MAX];
+static jfieldID searchoutpoint_field[M_FIELD_SEARCHOUTPOINT_MAX];
 
 static uint8_t* hash2bytes(jobject hash_obj);
 static jbyteArray buf2jbarray(const btcj_buf_t *buf);
@@ -78,7 +87,7 @@ const struct {
     // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
     { "getTxidFromShortChannelId", "(J)Lorg/bitcoinj/core/Sha256Hash;" },
     // METHOD_PTARM_SEARCHOUTPOINT,
-    { "searchOutPoint", "(I[BI)[B" },
+    { "searchOutPoint", "(I[BI)Lco/nayuta/lightning/Ptarmigan$SearchOutPointResult;" },
     // METHOD_PTARM_SEARCHVOUT,
     { "searchVout", "(ILjava/util/List;)Ljava/util/List;" },
     // METHOD_PTARM_SIGNRAWTX,
@@ -118,6 +127,11 @@ const struct {
     { "bIndex", "I" },
     // M_FIELD_PTARMCHAN_MINEDHASH,
     { "minedHash", "[B" },
+}, kFieldSearchOutpoint[M_FIELD_SEARCHOUTPOINT_MAX] = {
+    // M_FIELD_SEARCHOUTPOINT_HEIGHT,
+    { "height", "I" },
+    // M_FIELD_SEARCHOUTPOINT_TX,
+    { "tx", "[B" },
 };
 
 
@@ -205,8 +219,7 @@ bool btcj_init(btc_block_chain_t Gen)
         }
     }
 
-    LOGD("Class: Ptarmigan\n");
-
+    LOGD("Class: ShortChannelParam\n");
     cls = (*env)->FindClass(env, "co/nayuta/lightning/Ptarmigan$ShortChannelParam");
     if(cls == NULL) {
         LOGE("fail: FindClass()\n");
@@ -219,6 +232,22 @@ bool btcj_init(btc_block_chain_t Gen)
         ptarmcls_field[lp] = (*env)->GetFieldID(env, cls, kField[lp].name, kField[lp].sig);
         if(ptarmcls_field[lp] == NULL) {
             LOGE("fail: get field id(%s)\n", kField[lp].name);
+            return false;
+        }
+    }
+
+    LOGD("Class: SearchOutPointResult\n");
+    cls = (*env)->FindClass(env, "co/nayuta/lightning/Ptarmigan$SearchOutPointResult");
+    if(cls == NULL) {
+        LOGE("fail: FindClass()\n");
+        return false;
+    }
+    //field
+    LOGD("get fields\n");
+    for(size_t lp = 0; lp < ARRAY_SIZE(kFieldSearchOutpoint); lp++) {
+        searchoutpoint_field[lp] = (*env)->GetFieldID(env, cls, kFieldSearchOutpoint[lp].name, kFieldSearchOutpoint[lp].sig);
+        if(searchoutpoint_field[lp] == NULL) {
+            LOGE("fail: get field id(%s)\n", kFieldSearchOutpoint[lp].name);
             return false;
         }
     }
@@ -459,20 +488,26 @@ bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid)
     return hash_obj != NULL;
 }
 //-----------------------------------------------------------------------------
-bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
+bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t *pMined, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
     jobject txHash = buf2jbarray(&buf);
-    jbyteArray retval = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SEARCHOUTPOINT], Blks, txHash, VIndex);
+    jobject param_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SEARCHOUTPOINT], Blks, txHash, VIndex);
     check_exception(env);
     //
-    bool ret;
-    if(retval != NULL) {
-        *ppTx = jbarray2buf(retval);
-        ret = true;
-        LOGD("success\n");
+    bool ret = false;
+    if(param_obj != NULL) {
+        *pMined = (*env)->GetIntField(env, param_obj, searchoutpoint_field[M_FIELD_SEARCHOUTPOINT_HEIGHT]);
+        jbyteArray hash_obj = (*env)->GetObjectField(env, param_obj, searchoutpoint_field[M_FIELD_SEARCHOUTPOINT_TX]);
+        if(hash_obj != NULL) {
+            *ppTx = jbarray2buf(hash_obj);
+            ret = true;
+            (*env)->DeleteLocalRef(env, hash_obj);
+            LOGD("success\n");
+        } else {
+            LOGE("fail\n");
+        }
     } else {
-        ret = false;
         LOGE("fail\n");
     }
     //
