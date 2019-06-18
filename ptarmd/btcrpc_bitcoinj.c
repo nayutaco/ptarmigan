@@ -106,6 +106,7 @@ typedef struct {
 typedef struct {
     bool            ret;
     btc_tx_t        *p_tx;
+    uint32_t        *p_mined;
     uint32_t        blks;
     const uint8_t   *p_txid;
     uint32_t        v_index;
@@ -477,7 +478,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
 }
 
 
-bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t *pMined, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
     if (utl_mem_is_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
@@ -487,6 +488,7 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
 
     searchoutpoint_t param;
     param.p_tx = pTx;
+    param.p_mined = pMined;
     param.blks = Blks;
     param.p_txid = pTxid;
     param.v_index = VIndex;
@@ -878,11 +880,13 @@ static void jni_search_outpoint(void *pArg)
 
     searchoutpoint_t *p = (searchoutpoint_t *)pArg;
     btcj_buf_t *p_txbuf;
-    p->ret = btcj_search_outpoint(&p_txbuf, p->blks, p->p_txid, p->v_index);
+    p->ret = btcj_search_outpoint(&p_txbuf, p->p_mined, p->blks, p->p_txid, p->v_index);
     if (p->ret) {
         p->ret = btc_tx_read(p->p_tx, p_txbuf->buf, p_txbuf->len);
         UTL_DBG_FREE(p_txbuf->buf);
         UTL_DBG_FREE(p_txbuf);
+
+        LOGD("mined_height=%d\n", *p->p_mined);
     }
 }
 

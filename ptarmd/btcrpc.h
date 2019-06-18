@@ -99,6 +99,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
 /** [bitcoin IF]search outpoint matched transaction from blocks
  *
  * @param[out]  pTx         transaction
+ * @param[out]  pMined      pTx mined blockcount
  * @param[in]   Blks        number of blocks
  * @param[in]   pTxid       search vin[0]
  * @param[in]   VIndex      vout index
@@ -107,7 +108,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
  * @note
  *      - search only pTxid.vin_cnt equals 1
  */
-bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
+bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t *pMined, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin IF]search transactions matched scriptPubKey from blocks

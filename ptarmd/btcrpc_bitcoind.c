@@ -416,7 +416,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
 }
 
 
-bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t *pMined, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
     if (Blks == 0) {
         return false;
@@ -434,6 +434,8 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
         for (uint32_t lp = 0; lp < Blks; lp++) {
             ret = search_outpoint(pTx, height - lp, pTxid, VIndex);
             if (ret) {
+                *pMined = height - lp;
+                LOGD("  mined=%d\n", *pMined);
                 break;
             }
         }

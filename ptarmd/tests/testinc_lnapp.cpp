@@ -19,7 +19,7 @@ FAKE_VALUE_FUNC(bool, btcrpc_getgenesisblock, uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_get_confirmations, uint32_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_get_short_channel_param, const uint8_t*, int32_t*, int32_t*, uint8_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_gettxid_from_short_channel, uint8_t*, int, int);
-FAKE_VALUE_FUNC(bool, btcrpc_search_outpoint, btc_tx_t*, uint32_t, const uint8_t*, uint32_t);
+FAKE_VALUE_FUNC(bool, btcrpc_search_outpoint, btc_tx_t*, uin32_t*, uint32_t, const uint8_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, btcrpc_search_vout, utl_buf_t*, uint32_t, const utl_buf_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_sign_fundingtx, btc_tx_t*, const utl_buf_t*, uint64_t);
 FAKE_VALUE_FUNC(bool, btcrpc_send_rawtx, uint8_t*, int*, const uint8_t*, uint32_t);
@@ -38,7 +38,7 @@ FAKE_VALUE_FUNC(bool, ptarmd_nodefail_get, const uint8_t*, const char*, uint16_t
 FAKE_VALUE_FUNC(char*, ptarmd_error_str, int);
 FAKE_VALUE_FUNC(bool, monitor_btc_getblockcount, int32_t*);
 FAKE_VALUE_FUNC(uint32_t, monitor_btc_feerate_per_kw);
-FAKE_VALUE_FUNC(bool, monitor_close_unilateral_local, ln_channel_t*, void*);
+FAKE_VALUE_FUNC(bool, monitor_close_unilateral_local, ln_channel_t*);
 FAKE_VALUE_FUNC(int, cmd_json_connect, const uint8_t*, const char*, uint16_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay, const char*, uint64_t);
 FAKE_VALUE_FUNC(int, cmd_json_pay_retry, const uint8_t*);

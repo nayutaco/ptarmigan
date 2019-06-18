@@ -21,6 +21,7 @@
 typedef struct {
     btc_tx_t        tx;
     uint64_t        amount;
+    int32_t         block_count;
     char            **pp_result;
 } wallet_t;
 
@@ -45,6 +46,12 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
 
     LOGD("sendto=%s, feerate_per_kw=%" PRIu32 "\n", pAddr, FeeratePerKw);
     *ppResult = NULL;
+
+    ret = btcrpc_getblockcount(&wallet.block_count, NULL);
+    if (!ret) {
+        LOGE("fail\n");
+        return false;
+    }
 
     btc_tx_init(&wallet.tx);
     wallet.amount = 0;
@@ -209,8 +216,8 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         LOGD("[%d][%d]", lp, pWallet->p_wit_items[lp].len);
         DUMPD(pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
     }
+    LOGD("mined_height=%d\n", pWallet->mined_height);
 
-    bool ret;
     wallet_t *p_wlt = (wallet_t *)p_param;
 
     if (pWallet->wit_item_cnt == 0) {
@@ -219,15 +226,15 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         return false;
     }
 
-    bool unspent;
-    ret = btcrpc_check_unspent(NULL, &unspent, NULL, pWallet->p_txid, pWallet->index);
-    if (ret && !unspent) {
-        *p_wlt->pp_result = UTL_DBG_STRDUP("not unspent");
-        LOGE("%s\n", *p_wlt->pp_result);
-        //remain DB if you cannot get.
-        //ln_db_wallet_del(pWallet->p_txid, pWallet->index);
-        return false;
-    }
+    // bool unspent;
+    // bool ret = btcrpc_check_unspent(NULL, &unspent, NULL, pWallet->p_txid, pWallet->index);
+    // if (!ret || !unspent) {
+    //     *p_wlt->pp_result = UTL_DBG_STRDUP("not unspent");
+    //     LOGE("%s\n", *p_wlt->pp_result);
+    //     //remain DB if you cannot get.
+    //     //ln_db_wallet_del(pWallet->p_txid, pWallet->index);
+    //     return false;
+    // }
 
     if (pWallet->p_wit_items[0].len != BTC_SZ_PRIVKEY) {
         *p_wlt->pp_result = UTL_DBG_STRDUP("FATAL: maybe BUG");
@@ -238,13 +245,19 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     if ( (pWallet->sequence != BTC_TX_SEQUENCE) ||
          ((p_wlt->tx.locktime != 0) && (p_wlt->tx.locktime < BTC_TX_LOCKTIME_LIMIT)) ) {
         uint32_t confm;
+#if defined(USE_BITCOIND)
         bool ret = btcrpc_get_confirmations(&confm, pWallet->p_txid);
+#elif defined(USE_BITCOINJ)
+        confm = p_wlt->block_count - pWallet->mined_height + 1;
+        LOGD("confirm=%d\n", (int)confm);
+        bool ret = true;
+#endif
         if (ret) {
             if (pWallet->sequence != BTC_TX_SEQUENCE) {
                 if (confm < pWallet->sequence) {
                     char str[512];
                     snprintf(str, sizeof(str),
-                        "fail: less sequence(confm=%" PRIu32 ", sequence=%" PRIu32 ")",
+                        "fail: less sequence(confirmation=%" PRIu32 ", need=%" PRIu32 ")",
                             confm, pWallet->sequence);
                     *p_wlt->pp_result = UTL_DBG_STRDUP(str);
                     LOGE("%s\n", *p_wlt->pp_result);
@@ -254,7 +267,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
                 if (confm < p_wlt->tx.locktime) {
                     char str[512];
                     snprintf(str, sizeof(str),
-                        "fail: less locktime(confm=%" PRIu32 ", locktime=%" PRIu32 ")",
+                        "fail: less locktime(confirmation=%" PRIu32 ", need=%" PRIu32 ")",
                             confm, p_wlt->tx.locktime);
                     *p_wlt->pp_result = UTL_DBG_STRDUP(str);
                     LOGE("%s\n", *p_wlt->pp_result);

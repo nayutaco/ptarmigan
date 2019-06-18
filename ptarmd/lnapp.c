@@ -472,7 +472,7 @@ bool lnapp_close_channel_force(lnapp_conf_t *pConf)
 
     LOGD("close: bad way(local): htlc=%d\n", ln_commit_info_local(&pConf->channel)->num_htlc_outputs);
     ptarmd_eventlog(ln_channel_id(&pConf->channel), "close: bad way(local)");
-    (void)monitor_close_unilateral_local(&pConf->channel, NULL);
+    (void)monitor_close_unilateral_local(&pConf->channel);
 
     ret = true;
 
