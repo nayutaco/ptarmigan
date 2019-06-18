@@ -114,4 +114,4 @@ test_clean:
 test-integration: test-i
 
 test-i:
-	cd tests/4nodes_test; timeout 250 ./all_test.sh
+	cd tests/4nodes_test; timeout 280 ./all_test.sh
