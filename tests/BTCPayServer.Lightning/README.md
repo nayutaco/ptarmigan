@@ -1,11 +1,15 @@
-# Testing Ptarmigan with BTCPayServer.Lightning.
+# Testing Ptarmigan with BTCPayServer.Lightning
 
-Perform the following test using [BTCPayServer.Lightning] (https://github.com/btcapayserver/BTCPayServer.Lightning).
+[![CircleCI](https://circleci.com/gh/nayutaco/ptarmigan.svg?style=svg)](https://circleci.com/gh/nayutaco/ptarmigan)
 
-`` `
+Japanese description is [here]().
+
+Perform the following test using [BTCPayServer.Lightning](https://github.com/btcapayserver/BTCPayServer.Lightning).
+
+```
 1. BTCPayServer.Lightning Ptarmigan operation check
 2. Ptarmigan, LND, c-lightning, Eclair interconnection test
-`` `
+```
 
 ## 1. About BTCPayServer.Lightning Ptarmigan operation check
 
