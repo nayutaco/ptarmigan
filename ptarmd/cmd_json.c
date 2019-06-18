@@ -136,7 +136,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id);
-static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_paytowallet(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listpayment_json(void *p_cur, uint64_t PaymentId, const ln_payment_info_t *pInfo);
 static cJSON *cmd_removepayment(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -229,7 +229,8 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_removechannel,"removechannel", NULL);
     jrpc_register_procedure(&mJrpc, cmd_setfeerate,   "setfeerate", NULL);
     jrpc_register_procedure(&mJrpc, cmd_estimatefundingfee, "estimatefundingfee", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_walletback, "walletback", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_paytowallet, "walletback", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_paytowallet, "paytowallet", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listpayment, "listpayment", NULL);
     jrpc_register_procedure(&mJrpc, cmd_removepayment, "removepayment", NULL);
 #ifdef USE_BITCOINJ
@@ -1514,7 +1515,7 @@ LABEL_EXIT:
 /** DBに残っている1st layerのamountをwalletに返す : ptarmcli -W
  *
  */
-static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
+static cJSON *cmd_paytowallet(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
@@ -1523,7 +1524,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     bool tosend = false;
     uint32_t feerate_per_kw = 0;
 
-    LOGD("$$$ [JSONRPC]walletback\n");
+    LOGD("$$$ [JSONRPC]paytowallet\n");
 
     if (params != NULL) {
         cJSON *json;
