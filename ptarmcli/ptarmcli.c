@@ -158,7 +158,7 @@ static void optfunc_disable_autoconn(int *pOption, bool *pConn);
 static void optfunc_remove_channel(int *pOption, bool *pConn);
 static void optfunc_setfeerate(int *pOption, bool *pConn);
 static void optfunc_estimatefundingfee(int *pOption, bool *pConn);
-static void optfunc_walletback(int *pOption, bool *pConn);
+static void optfunc_paytowallet(int *pOption, bool *pConn);
 static void optfunc_getbalance(int *pOption, bool *pConn);
 static void optfunc_emptywallet(int *pOption, bool *pConn);
 static void optfunc_initroutesync(int *pOption, bool *pConn);
@@ -203,7 +203,7 @@ static const struct {
     { M_OPT_GETBALANCE,         optfunc_getbalance },
     { M_OPT_EMPTYWALLET,        optfunc_emptywallet },
     { M_OPT_INITROUTESYNC,      optfunc_initroutesync },
-    { M_OPT_PAYTOWALLET,        optfunc_walletback },
+    { M_OPT_PAYTOWALLET,        optfunc_paytowallet },
     { M_OPT_NOINITROUTESYNC,    optfunc_noinitroutesync },
     { M_OPT_LISTPAYMENT,        optfunc_listpayment },
     { M_OPT_REMOVEPAYMENT,      optfunc_removepayment },
@@ -1026,7 +1026,7 @@ static void optfunc_estimatefundingfee(int *pOption, bool *pConn)
 }
 
 
-static void optfunc_walletback(int *pOption, bool *pConn)
+static void optfunc_paytowallet(int *pOption, bool *pConn)
 {
     (void)pConn;
 
@@ -1050,7 +1050,7 @@ static void optfunc_walletback(int *pOption, bool *pConn)
 
     snprintf(mBuf, BUFFER_SIZE,
         "{"
-            M_STR("method", "walletback") M_NEXT
+            M_STR("method", "paytowallet") M_NEXT
             M_QQ("params") ":[ %" PRIu32 ", %" PRIu32 " ]"
         "}", to_send, feerate_per_kw);
 
