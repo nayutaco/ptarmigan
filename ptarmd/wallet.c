@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "cJSON.h"
+
 #define LOG_TAG     "wallet"
 #include "utl_log.h"
 
@@ -21,8 +23,8 @@
 typedef struct {
     btc_tx_t        tx;
     uint64_t        amount;
-    int32_t         block_count;
-    char            **pp_result;
+    int32_t         block_count;    //mined_height相当
+    cJSON           *p_list;        //outpoint
 } wallet_t;
 
 
@@ -38,14 +40,17 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param);
  ********************************************************************/
 
 // ptarmiganから外部walletへ送金
-bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const char *pAddr, uint32_t FeeratePerKw)
+bool wallet_from_ptarm(void *pJson, bool bToSend, const char *pAddr, uint32_t FeeratePerKw)
 {
     bool ret;
     wallet_t wallet;
     uint8_t txhash[BTC_SZ_HASH256];
+    char str_msg[512] = "";
+    uint64_t vout_amount = 0;
+
+    cJSON *p_result = (cJSON *)pJson;
 
     LOGD("sendto=%s, feerate_per_kw=%" PRIu32 "\n", pAddr, FeeratePerKw);
-    *ppResult = NULL;
 
     ret = btcrpc_getblockcount(&wallet.block_count, NULL);
     if (!ret) {
@@ -55,22 +60,24 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
 
     btc_tx_init(&wallet.tx);
     wallet.amount = 0;
-    wallet.pp_result = ppResult;
+    if (p_result != NULL) {
+        wallet.p_list = cJSON_CreateArray();
+    } else {
+        wallet.p_list = NULL;
+    }
 
     ln_db_wallet_search(wallet_dbfunc, &wallet);
     if (wallet.tx.vin_cnt == 0) {
-        if (*ppResult == NULL) {
-            *ppResult = UTL_DBG_STRDUP("no input");
-        }
-        LOGD("%s\n", *ppResult);
-        ret = false;
+        ret = true;
+        strcpy(str_msg, "no input");
+        LOGE("%s\n", str_msg);
         goto LABEL_EXIT;
     }
 
     ret = btc_tx_add_vout_addr(&wallet.tx, wallet.amount, pAddr); //feeを引く前
     if (!ret) {
-        *ppResult = UTL_DBG_STRDUP("fail: btc_tx_add_vout_addr");
-        LOGD("%s\n", *ppResult);
+        strcpy(str_msg, "btc_tx_add_vout_addr");
+        LOGE("%s\n", str_msg);
         goto LABEL_EXIT;
     }
 
@@ -88,21 +95,18 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
         fee = ((uint64_t)weight * (uint64_t)FeeratePerKw + 999) / 1000;
         LOGD("fee=%" PRIu64 "\n", fee);
         if (fee + BTC_DUST_LIMIT > wallet.tx.vout[0].value) {
-            char str[512];
-            snprintf(str, sizeof(str),
+            snprintf(str_msg, sizeof(str_msg),
                 "fail: amount(%" PRIu64 ") is too low to send(fee=%" PRIu64 ", dust=%" PRIu64 ")",
                     wallet.tx.vout[0].value, fee, BTC_DUST_LIMIT);
-            *ppResult = UTL_DBG_STRDUP(str);
-            LOGD("%s\n", *ppResult);
-            ret = false;
+            LOGE("%s\n", str_msg);
+            ret = true;
             goto LABEL_EXIT;
         }
 
-        wallet.tx.vout[0].value -= fee;
         utl_buf_free(&txbuf);
-
-        *pAmount = wallet.tx.vout[0].value;
     }
+    wallet.tx.vout[0].value -= fee;
+    vout_amount = wallet.tx.vout[0].value;
 
     //署名
     for (uint32_t lp = 0; lp < wallet.tx.vin_cnt; lp++) {
@@ -172,24 +176,27 @@ bool wallet_from_ptarm(char **ppResult, uint64_t *pAmount, bool bToSend, const c
 
             char str_txid[BTC_SZ_TXID * 2 + 1];
             utl_str_bin2str_rev(str_txid, txid, BTC_SZ_TXID);
-            size_t len = 256 + sizeof(str_txid);
-            *ppResult = (char *)UTL_DBG_MALLOC(len);
-            snprintf(*ppResult, len, "pay to '%s', txid=%s", pAddr, str_txid);
+            snprintf(str_msg, sizeof(str_msg), "pay to '%s', txid=%s", pAddr, str_txid);
         } else {
             LOGE("fail: broadcast\n");
         }
     } else {
-        char str[512];
-        snprintf(str, sizeof(str),
+        snprintf(str_msg, sizeof(str_msg),
             "Can pay to wallet(fee=%" PRIu64 ")",
                 fee);
-        *ppResult = UTL_DBG_STRDUP(str);
     }
     utl_buf_free(&txbuf);
 
     btc_tx_free(&wallet.tx);
 
 LABEL_EXIT:
+    if (p_result != NULL) {
+        cJSON *p_message = cJSON_CreateObject();
+        cJSON_AddStringToObject(p_message, "message", str_msg);
+        cJSON_AddNumber64ToObject(p_message, "amount", vout_amount);
+        cJSON_AddItemToObject(p_result, "wallet", p_message);
+        cJSON_AddItemToObject(p_result, "list", wallet.p_list);
+    }
     return ret;
 }
 
@@ -207,6 +214,8 @@ bool wallet_to_ptarm(void)
 
 static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
 {
+    wallet_t *p_wlt = (wallet_t *)p_param;
+
     LOGD("txid=");
     TXIDD(pWallet->p_txid);
     LOGD("index=%d\n", pWallet->index);
@@ -216,13 +225,12 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         LOGD("[%d][%d]", lp, pWallet->p_wit_items[lp].len);
         DUMPD(pWallet->p_wit_items[lp].buf, pWallet->p_wit_items[lp].len);
     }
+    LOGD("sequence=%d\n", pWallet->sequence);
+    LOGD("locktime=%d\n", p_wlt->tx.locktime);
     LOGD("mined_height=%d\n", pWallet->mined_height);
 
-    wallet_t *p_wlt = (wallet_t *)p_param;
-
     if (pWallet->wit_item_cnt == 0) {
-        *p_wlt->pp_result = UTL_DBG_STRDUP("no witness");
-        LOGE("%s\n", *p_wlt->pp_result);
+        LOGE("no witness\n");
         return false;
     }
 
@@ -237,48 +245,49 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     // }
 
     if (pWallet->p_wit_items[0].len != BTC_SZ_PRIVKEY) {
-        *p_wlt->pp_result = UTL_DBG_STRDUP("FATAL: maybe BUG");
-        LOGE("%s\n", *p_wlt->pp_result);
+        LOGE("FATAL: maybe BUG\n");
         return false;
     }
 
+    bool ret = true;
+    char str_msg[512];
     if ( (pWallet->sequence != BTC_TX_SEQUENCE) ||
          ((p_wlt->tx.locktime != 0) && (p_wlt->tx.locktime < BTC_TX_LOCKTIME_LIMIT)) ) {
         uint32_t confm;
 #if defined(USE_BITCOIND)
-        bool ret = btcrpc_get_confirmations(&confm, pWallet->p_txid);
+        ret = btcrpc_get_confirmations(&confm, pWallet->p_txid);
 #elif defined(USE_BITCOINJ)
         confm = p_wlt->block_count - pWallet->mined_height + 1;
         LOGD("confirm=%d\n", (int)confm);
-        bool ret = true;
 #endif
         if (ret) {
             if (pWallet->sequence != BTC_TX_SEQUENCE) {
                 if (confm < pWallet->sequence) {
-                    char str[512];
-                    snprintf(str, sizeof(str),
-                        "fail: less sequence(confirmation=%" PRIu32 ", need=%" PRIu32 ")",
+                    snprintf(str_msg, sizeof(str_msg),
+                        "less confirmation(current=%" PRIu32 ", need=%" PRIu32 ")",
                             confm, pWallet->sequence);
-                    *p_wlt->pp_result = UTL_DBG_STRDUP(str);
-                    LOGE("%s\n", *p_wlt->pp_result);
+                    LOGD("%s\n", str_msg);
                     ret = false;
                 }
             } else {
                 if (confm < p_wlt->tx.locktime) {
-                    char str[512];
-                    snprintf(str, sizeof(str),
-                        "fail: less locktime(confirmation=%" PRIu32 ", need=%" PRIu32 ")",
+                    snprintf(str_msg, sizeof(str_msg),
+                        "less confirmation(current=%" PRIu32 ", need=%" PRIu32 ")",
                             confm, p_wlt->tx.locktime);
-                    *p_wlt->pp_result = UTL_DBG_STRDUP(str);
-                    LOGE("%s\n", *p_wlt->pp_result);
+                    LOGD("%s\n", str_msg);
                     ret = false;
                 }
             }
-        }
-        if (!ret) {
-            return false;
+        } else {
+            strcpy(str_msg, "fail get confirmation");
+            LOGD("%s\n", str_msg);
         }
     }
+
+    if (!ret) {
+        goto LABEL_EXIT;
+    }
+    strcpy(str_msg, "payable");
 
     p_wlt->amount += pWallet->amount;
     btc_vin_t *p_vin = btc_tx_add_vin(&p_wlt->tx,
@@ -317,5 +326,38 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         DUMPD(p_wit_items->buf, p_wit_items->len);
     }
 
+LABEL_EXIT:
+    if (p_wlt->p_list != NULL) {
+        cJSON *p_json = cJSON_CreateObject();
+        const char *p_type_str;
+        switch (pWallet->type) {
+        case LN_DB_WALLET_TYPE_TO_LOCAL:
+            p_type_str = "to_local output";
+            break;
+        case LN_DB_WALLET_TYPE_TO_REMOTE:
+            p_type_str = "to_remote output";
+            break;
+        case LN_DB_WALLET_TYPE_HTLC_OUTPUT:
+            p_type_str = "HTLC_tx output";
+            break;
+        default:
+            p_type_str = "unknown";
+        }
+        cJSON_AddStringToObject(p_json, "type", p_type_str);
+
+        char outpoint[BTC_SZ_TXID * 2 + 1 + 10];
+        utl_str_bin2str_rev(outpoint, pWallet->p_txid, BTC_SZ_TXID);
+        char idx[5];
+        (void)utl_str_itoa(idx, sizeof(idx), pWallet->index);
+        strncat(outpoint, ":", sizeof(outpoint));
+        strncat(outpoint, idx, sizeof(outpoint));
+        outpoint[sizeof(outpoint) - 1] = '\0';
+        cJSON_AddStringToObject(p_json, "outpoint", outpoint);
+        cJSON_AddNumber64ToObject(p_json, "amount", pWallet->amount);
+        cJSON_AddStringToObject(p_json, "state", str_msg);
+
+        cJSON_AddItemToArray(p_wlt->p_list, p_json);
+
+    }
     return false;       //継続
 }

@@ -501,7 +501,11 @@ static bool funding_spent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPara
     bool ret;
     char txid_str[BTC_SZ_TXID * 2 + 1];
     ln_channel_t *p_channel = &pConf->channel;
+#if defined(USE_BITCOIND)
+    uint32_t mined_height = UINT32_MAX; //0の場合はwallet DBに保存しないため
+#elif defined(USE_BITCOINJ)
     uint32_t mined_height = 0;
+#endif
 
     btc_tx_t close_tx = BTC_TX_INIT;
     ln_status_t stat = ln_status_get(p_channel);
@@ -720,11 +724,15 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
                 LOGD("skip to_local: tx[%d]\n", lp);
                 continue;
             }
-            LOGD("$$$ to_local tx ==> DB\n");
-            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
-            set_wallet_data(&wlt, p_tx);
-            wlt.mined_height = MinedHeight;
-            (void)ln_db_wallet_save(&wlt);
+            if (MinedHeight > 0) {
+                LOGD("$$$ to_local tx ==> DB\n");
+                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
+                set_wallet_data(&wlt, p_tx);
+                wlt.mined_height = MinedHeight;
+                (void)ln_db_wallet_save(&wlt);
+            } else {
+                LOGD("MinedHeight==0\n");
+            }
             continue;
         } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
             //LOGD("$$$ to_remote tx\n");
@@ -808,10 +816,10 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
             int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
             if (close_unilateral_local_sendreq(p_tx, p_htlc_tx, num, MinedHeight)) {
                 if (lp == LN_CLOSE_IDX_COMMIT) {
-                    LOGD("\n");
+                    LOGD("commit_tx\n");
                     ln_close_change_stat(pChannel, NULL, pDbParam);
                 } else if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
-                    LOGD("\n");
+                    LOGD("offered\n");
                     if (!update_fail_htlc_forward(pChannel, &close_dat, lp)) {
                         LOGE("fail: ???\n");
                     }
@@ -929,16 +937,20 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, uint32_t MinedHeight
             uint8_t pub[BTC_SZ_PUBKEY];
             btc_keys_priv2pub(pub, p_tx->vin[0].witness[0].buf);
 
-            ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
-            set_wallet_data(&wlt, p_tx);
-            utl_buf_t wit_items[2] = {
-                { p_tx->vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
-                { pub, sizeof(pub) }
-            };
-            wlt.wit_item_cnt = ARRAY_SIZE(wit_items);
-            wlt.p_wit_items = wit_items;
-            wlt.mined_height = MinedHeight;
-            (void)ln_db_wallet_save(&wlt);
+            if (MinedHeight > 0) {
+                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
+                set_wallet_data(&wlt, p_tx);
+                utl_buf_t wit_items[2] = {
+                    { p_tx->vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
+                    { pub, sizeof(pub) }
+                };
+                wlt.wit_item_cnt = ARRAY_SIZE(wit_items);
+                wlt.p_wit_items = wit_items;
+                wlt.mined_height = MinedHeight;
+                (void)ln_db_wallet_save(&wlt);
+            } else {
+                LOGD("MinedHeight==0\n");
+            }
             continue;
         } else {
             if (p_tx->vin_cnt <= 0) {
@@ -1110,16 +1122,21 @@ static bool close_unilateral_local_sendreq(const btc_tx_t *pTx, const btc_tx_t *
          (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ) {
         for (int lp = 0; lp < Num; lp++) {
             if (pHtlcTx[lp].vin_cnt > 0) {
-                LOGD("$$$ spending tx[%d] ==> DB\n", lp);
-                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
-                set_wallet_data(&wlt, &pHtlcTx[lp]);
-                wlt.mined_height = MinedHeight;
-                (void)ln_db_wallet_save(&wlt);
+                if (MinedHeight > 0) {
+                    LOGD("$$$ spending tx[%d] ==> DB\n", lp);
+                    ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
+                    set_wallet_data(&wlt, &pHtlcTx[lp]);
+                    wlt.mined_height = MinedHeight;     //TODO:ここにはHTLC_txのmined_heightを入れねばならぬ
+                    (void)ln_db_wallet_save(&wlt);
+                } else {
+                    LOGD("MinedHeight==0\n");
+                    ret = false;
+                }
             }
         }
     }
 
-    return true;
+    return ret;
 }
 
 
@@ -1185,20 +1202,17 @@ static bool close_revoked_first(ln_channel_t *pChannel, btc_tx_t *pTx, uint32_t 
     }
     if (revoked) {
         //pay to wallet
-        char *p_result = NULL;
-        uint64_t vout_amount = 0;
         uint32_t feerate_per_kw = monitor_btc_feerate_per_kw();
         char addr[BTC_SZ_ADDR_STR_MAX + 1];
         ret = btc_keys_spk2addr(addr, &pChannel->shutdown_scriptpk_local);
         if (ret) {
-            ret = wallet_from_ptarm(&p_result, &vout_amount, true, addr, feerate_per_kw);
+            ret = wallet_from_ptarm(NULL, true, addr, feerate_per_kw);
         }
         if (ret) {
-            LOGD("broadcast: %s\n", p_result);
+            LOGD("broadcast\n");
         } else {
             LOGE("fail\n");
         }
-        UTL_DBG_FREE(p_result);
     }
 
     return del;
@@ -1278,7 +1292,6 @@ static bool close_revoked_to_local(const ln_channel_t *pChannel, const btc_tx_t 
     if (ret) {
         if (tx.vin_cnt > 0) {
             LOGD("$$$ to_local tx ==> DB\n");
-
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
             set_wallet_data(&wlt, &tx);
             wlt.sequence = BTC_TX_SEQUENCE;
@@ -1307,7 +1320,6 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
     if (ret) {
         if (tx.vin_cnt > 0) {
             LOGD("$$$ to_remote tx ==> DB\n");
-
             ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
             set_wallet_data(&wlt, &tx);
             uint8_t pub[BTC_SZ_PUBKEY];
@@ -1318,7 +1330,7 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
                 { pub, sizeof(pub) }
             };
             wlt.p_wit_items = witbuf;
-            wlt.mined_height = MinedHeight;
+            wlt.mined_height = MinedHeight;     //revoked transaction closeは即座に使用できる
             (void)ln_db_wallet_save(&wlt);
         }
 
