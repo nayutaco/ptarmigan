@@ -1520,7 +1520,6 @@ static cJSON *cmd_paytowallet(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     bool ret;
-    cJSON *result = NULL;
     bool tosend = false;
     uint32_t feerate_per_kw = 0;
 
@@ -1546,25 +1545,17 @@ static cJSON *cmd_paytowallet(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_message = error_str_cjson(RPCERR_BLOCKCHAIN);
         return NULL;
     }
-    char *p_result = NULL;
-    uint64_t vout_amount = 0;
     if (feerate_per_kw == 0) {
         feerate_per_kw = monitor_btc_feerate_per_kw();
     }
-    ret = wallet_from_ptarm(&p_result, &vout_amount, tosend, addr, feerate_per_kw);
-    if (ret) {
-        result = cJSON_CreateObject();
-        cJSON_AddItemToObject(result, "message", cJSON_CreateString(p_result));
-        cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(vout_amount));
-        UTL_DBG_FREE(p_result);
-    } else {
+
+    cJSON *result = cJSON_CreateObject();
+    ret = wallet_from_ptarm(result, tosend, addr, feerate_per_kw);
+    if (!ret) {
+        cJSON_Delete(result);
+        result = NULL;
         ctx->error_code = RPCERR_WALLET_ERR;
-        if (p_result != NULL) {
-            ctx->error_message = strdup_cjson(p_result);
-            UTL_DBG_FREE(p_result);
-        } else {
-            ctx->error_message = error_str_cjson(RPCERR_WALLET_ERR);
-        }
+        ctx->error_message = error_str_cjson(RPCERR_WALLET_ERR);
     }
     LOGD("exit\n");
     return result;
