@@ -234,22 +234,25 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         return false;
     }
 
-    // bool unspent;
-    // bool ret = btcrpc_check_unspent(NULL, &unspent, NULL, pWallet->p_txid, pWallet->index);
-    // if (!ret || !unspent) {
-    //     *p_wlt->pp_result = UTL_DBG_STRDUP("not unspent");
-    //     LOGE("%s\n", *p_wlt->pp_result);
-    //     //remain DB if you cannot get.
-    //     //ln_db_wallet_del(pWallet->p_txid, pWallet->index);
-    //     return false;
-    // }
+#if defined(USE_BITCOIND)
+    bool unspent;
+    bool ret = btcrpc_check_unspent(NULL, &unspent, NULL, pWallet->p_txid, pWallet->index);
+    if (!ret || !unspent) {
+        LOGE("fail btcrpc_check_unspent() or already spent\n");
+        //remain DB if you cannot get.
+        //ln_db_wallet_del(pWallet->p_txid, pWallet->index);
+        return false;
+    }
+#else
+    bool ret;
+#endif
 
     if (pWallet->p_wit_items[0].len != BTC_SZ_PRIVKEY) {
         LOGE("FATAL: maybe BUG\n");
         return false;
     }
 
-    bool ret = true;
+    ret = true;
     char str_msg[512];
     if ( (pWallet->sequence != BTC_TX_SEQUENCE) ||
          ((p_wlt->tx.locktime != 0) && (p_wlt->tx.locktime < BTC_TX_LOCKTIME_LIMIT)) ) {
