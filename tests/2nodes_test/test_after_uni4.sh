@@ -136,7 +136,7 @@ fi
 echo ---------- OK: after spend: to_remote output ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne $((BASECOUNT+1) ]; then
+if [ $blockcount -ne $((BASECOUNT+1)) ]; then
     echo blockcount is not +1\($blockcount\)
     exit 1
 fi

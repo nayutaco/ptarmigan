@@ -185,7 +185,7 @@ fi
 echo ---------- OK: commit_tx conf=20 ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne $((BASECOUNT+20) ]; then
+if [ $blockcount -ne $((BASECOUNT+20)) ]; then
     echo blockcount is not +20\($blockcount\)
     exit 1
 fi
