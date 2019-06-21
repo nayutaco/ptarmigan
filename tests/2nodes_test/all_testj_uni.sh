@@ -1,10 +1,15 @@
 #!/bin/bash
 set -eu
 
+if [ ! -f ./test_after_uni$1.sh ]; then
+    echo unknown test pattern
+    exit 1
+fi
+
 START=`date +%s`
 
 ./testj_prepare.sh
-./test_after_uni1.sh
+./test_after_uni$1.sh BITCOINJ
 
 if [ $# -eq 1 ] && [ $1 == "stop" ]; then
     exit 0

@@ -55,10 +55,10 @@ sleep 5 # XXX: TODO
 check_amount
 echo st4e end
 
-TARGET_NODE=4445
+TARGET_NODE=3334
 
-echo quit 3333
-./ptarmcli -q 3334
+echo quit 4444
+./ptarmcli -q 4445
 sleep 3
 
 blockcount=`getblockcount`
@@ -67,49 +67,36 @@ if [ $blockcount -ne 438 ]; then
     exit 1
 fi
 
-echo unilateral close from 4444
-./ptarmcli -c conf/peer3333.conf -xforce ${TARGET_NODE}
+echo unilateral close from 3333
+./ptarmcli -c conf/peer4444.conf -xforce ${TARGET_NODE}
 
 echo 4444がoffered HTLC、3333がreceived HTLCを持った状態。
-echo unilateral closeを4444が行い、4444を確認していく\(local unilateral close\)。3333はkill済み。
+echo unilateral closeを3333が行い、3333を確認していく\(local unilateral close\)。4444はkill済み。
 echo    to_self_delay: node_3333=30, node_4444=31
 echo
-echo デフォルトではinvoiceのmin_final_cltv_expiryは9で、オフセットも含めると19になっている。
-echo 次のgenerateでcommit_txがminingされ、さらに18generateするとHTLC Timeout Txを展開。
-echo spending to_local output txは、to_self_delayが30なので、commit_txが30confでspendableになる。
-echo HTLC Timeout Txが30confになるとspendableになる。
+echo 次のgenerateでcommit_txがminingされるが、preimageを持っているのでHTLC success TXを展開。
+echo spending to_local output txは、to_self_delayが31なので31confでspendableになる。
 
 # (alpha=438)
 # blockcount: alpha
 #       local commit_tx broadcast
 # blockcount: alpha+1
 #       commit_tx conf=1
-# ...
-#
-# blockcount: alpha+19
-#       commit_tx conf=19
-#       offered HTLC ==> HTLC Timeout tx broadcast
-# blockcount: alpha+20
-#       commit_tx conf=20
+#       received HTLC ==> HTLC success tx broadcast
+# blockcount: alpha+2
+#       commit_tx conf=2
 #       HTLC_tx conf=1
 #
 # ...
 #
-# blockcount: alpha+30
-#       commit_tx conf=30 ==> spendable
-#       HTLC_tx conf=11
-#
-# ...
-#
-# blockcount: alpha+49
-#       HTLC_tx conf=30 ==> spendable
+# blockcount: alpha+31
+#       commit_tx conf=31 ==> spendable
+#       HTLC_tx conf=30
+# blockcount: alpha+32
+#       HTLC_tx conf=31 ==> spendable
+
 
 ./generate.sh 1
-blockcount=`getblockcount`
-if [ $blockcount -ne 439 ]; then
-    echo blockcount isnot 439
-    exit 1
-fi
 sleep 30
 echo ---------- commit_tx conf=1 ---------------
 ./ptarmcli --getinfo ${TARGET_NODE}
@@ -121,15 +108,33 @@ if [ ${AMOUNT} -ne 0 ]; then
     exit 1
 fi
 LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
-if [ ${LIST} -ne 1 ]; then
-    echo ERROR: list.len != 1
+if [ ${LIST} -ne 2 ]; then
+    echo ERROR: list.len != 2
     exit 1
 fi
 echo ---------- OK: commit_tx conf=1 ---------------
 
-./generate.sh 18
+./generate.sh 1
 sleep 30
-echo ---------- commit_tx conf=19, HTLC_tx conf=0 ---------------
+echo ---------- commit_tx conf=2, HTLC_tx conf=1 ---------------
+./ptarmcli --getinfo ${TARGET_NODE}
+P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
+echo ${P2W} | jq .
+AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
+if [ ${AMOUNT} -ne 0 ]; then
+    echo ERROR: amount != 0
+    exit 1
+fi
+LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
+if [ ${LIST} -ne 2 ]; then
+    echo ERROR: list.len != 2
+    exit 1
+fi
+echo ---------- OK: commit_tx conf=1 ---------------
+
+./generate.sh 28
+sleep 30
+echo ---------- commit_tx conf=30, HTLC_tx conf=29 ---------------
 ./ptarmcli --getinfo ${TARGET_NODE}
 P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
 echo ${P2W} | jq .
@@ -147,29 +152,11 @@ else
     echo ERROR: list.len=${LIST}
     exit 1
 fi
-echo ---------- OK: commit_tx conf=19, HTLC_tx conf=0 ---------------
+echo ---------- OK: commit_tx conf=30, HTLC_tx conf=29 ---------------
 
 ./generate.sh 1
 sleep 30
-echo ---------- commit_tx conf=20, HTLC_tx conf=1 ---------------
-./ptarmcli --getinfo ${TARGET_NODE}
-P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
-echo ${P2W} | jq .
-AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
-if [ ${AMOUNT} -ne 0 ]; then
-    echo ERROR: amount != 0
-    exit 1
-fi
-LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
-if [ ${LIST} -ne 2 ]; then
-    echo ERROR: list.len != 2
-    exit 1
-fi
-echo ---------- OK: commit_tx conf=20, HTLC_tx conf=1 ---------------
-
-./generate.sh 10
-sleep 30
-echo ---------- commit_tx conf=30, HTLC_tx conf=11 ---------------
+echo ---------- commit_tx conf=31, HTLC_tx conf=30 ---------------
 ./ptarmcli --getinfo ${TARGET_NODE}
 P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
 echo ${P2W} | jq .
@@ -183,7 +170,7 @@ if [ ${LIST} -ne 2 ]; then
     echo ERROR: list.len != 2
     exit 1
 fi
-echo ---------- OK: commit_tx conf=40, HTLC_tx conf=21 ---------------
+echo ---------- OK: commit_tx conf=31, HTLC_tx conf=30 ---------------
 
 echo ---------- spend: to_local output ---------------
 P2W=`./ptarmcli --paytowallet=1 ${TARGET_NODE}`
@@ -215,27 +202,9 @@ if [ ${LIST} -ne 1 ]; then
 fi
 echo ---------- OK: after spend: to_local output ---------------
 
-./generate.sh 18
-sleep 30
-echo ---------- HTLC_tx conf=29 ---------------
-./ptarmcli --getinfo ${TARGET_NODE}
-P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
-echo ${P2W} | jq .
-AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
-if [ ${AMOUNT} -ne 0 ]; then
-    echo ERROR: amount != 0
-    exit 1
-fi
-LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
-if [ ${LIST} -ne 1 ]; then
-    echo ERROR: list.len != 1
-    exit 1
-fi
-echo ---------- OK: HTLC_tx conf=29 ---------------
-
 ./generate.sh 1
 sleep 30
-echo ---------- HTLC_tx conf=30 ---------------
+echo ---------- HTLC_tx conf=31 ---------------
 ./ptarmcli --getinfo ${TARGET_NODE}
 P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
 echo ${P2W} | jq .
@@ -249,7 +218,7 @@ if [ ${LIST} -ne 1 ]; then
     echo ERROR: list.len != 1
     exit 1
 fi
-echo ---------- OK: HTLC_tx conf=30 ---------------
+echo ---------- OK: HTLC_tx conf=31 ---------------
 
 echo ---------- spend: HTLC_tx ---------------
 P2W=`./ptarmcli --paytowallet=1 ${TARGET_NODE}`
@@ -282,7 +251,7 @@ fi
 echo ---------- OK: after spend: HTLC_tx ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne 487 ]; then
-    echo blockcount is not 487
+if [ $blockcount -ne 470 ]; then
+    echo blockcount isnot 470
     exit 1
 fi
