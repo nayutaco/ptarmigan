@@ -61,11 +61,8 @@ echo quit 4444
 ./ptarmcli -q 4445
 sleep 3
 
-blockcount=`getblockcount`
-if [ $blockcount -ne 438 ]; then
-    echo blockcount isnot 438
-    exit 1
-fi
+BASECOUNT=`getblockcount`
+echo BASECOUNT=${BASECOUNT}
 
 echo unilateral close from 3333
 ./ptarmcli -c conf/peer4444.conf -xforce ${TARGET_NODE}
@@ -251,7 +248,7 @@ fi
 echo ---------- OK: after spend: HTLC_tx ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne 470 ]; then
-    echo blockcount isnot 470
+if [ $blockcount -ne $((BASECOUNT+32) ]; then
+    echo blockcount is not +32\($blockcount\)
     exit 1
 fi

@@ -61,11 +61,8 @@ echo quit 3333
 ./ptarmcli -q 3334
 sleep 3
 
-blockcount=`getblockcount`
-if [ $blockcount -ne 438 ]; then
-    echo blockcount isnot 438
-    exit 1
-fi
+BASECOUNT=`getblockcount`
+echo BASECOUNT=${BASECOUNT}
 
 echo unilateral close from 4444
 ./ptarmcli -c conf/peer3333.conf -xforce ${TARGET_NODE}
@@ -105,11 +102,6 @@ echo HTLC Timeout Txが30confになるとspendableになる。
 #       HTLC_tx conf=30 ==> spendable
 
 ./generate.sh 1
-blockcount=`getblockcount`
-if [ $blockcount -ne 439 ]; then
-    echo blockcount isnot 439
-    exit 1
-fi
 sleep 30
 echo ---------- commit_tx conf=1 ---------------
 ./ptarmcli --getinfo ${TARGET_NODE}
@@ -282,7 +274,7 @@ fi
 echo ---------- OK: after spend: HTLC_tx ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne 487 ]; then
-    echo blockcount is not 487
+if [ $blockcount -ne $((BASECOUNT+49)) ]; then
+    echo blockcount is not +49\($blockcount\)
     exit 1
 fi

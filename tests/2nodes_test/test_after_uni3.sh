@@ -60,11 +60,8 @@ TARGET_NODE=4445
 CLOSE_PUBKEY=`./showdb -d node_4444 -s | jq -r .channel_info[0].close.local_scriptPubKey`
 echo CLOSE_PUBKEY=${CLOSE_PUBKEY}
 
-blockcount=`getblockcount`
-if [ $blockcount -ne 438 ]; then
-    echo blockcount isnot 438
-    exit 1
-fi
+BASECOUNT=`getblockcount`
+echo BASECOUNT=${BASECOUNT}
 
 echo unilateral close from 3333
 ./ptarmcli -c conf/peer4444.conf -xforce 3334
@@ -95,11 +92,6 @@ echo received HTLC outputから取り戻す場合は直接1st layerのwalletに�
 #       received HTLC ==> auto spend to 1st layer wallet
 
 ./generate.sh 1
-blockcount=`getblockcount`
-if [ $blockcount -ne 439 ]; then
-    echo blockcount isnot 439
-    exit 1
-fi
 sleep 30
 echo ---------- commit_tx conf=1 ---------------
 ./ptarmcli --getinfo ${TARGET_NODE}
@@ -193,7 +185,7 @@ fi
 echo ---------- OK: commit_tx conf=20 ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne 458 ]; then
-    echo blockcount is not 458\($blockcount\)
+if [ $blockcount -ne $((BASECOUNT+20) ]; then
+    echo blockcount is not +20\($blockcount\)
     exit 1
 fi

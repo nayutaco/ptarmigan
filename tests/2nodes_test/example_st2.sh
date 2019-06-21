@@ -7,7 +7,7 @@
 for i in 3333 4444
 do
     cp ../testfiles/channel_$i.conf ./node_$i/channel.conf
-    ./ptarmd -d ./node_$i -c ../regtest.conf -p $i --network=regtest&
+    ./ptarmd -d ./node_$i -c ../regtest.conf -p $i --network=regtest > ./node_$i/ptarmd.log &
 done
 
 while :
