@@ -60,11 +60,8 @@ TARGET_NODE=3334
 CLOSE_PUBKEY=`./showdb -d node_3333 -s | jq -r .channel_info[0].close.local_scriptPubKey`
 echo CLOSE_PUBKEY=${CLOSE_PUBKEY}
 
-blockcount=`getblockcount`
-if [ $blockcount -ne 438 ]; then
-    echo blockcount isnot 438
-    exit 1
-fi
+BASECOUNT=`getblockcount`
+echo BASECOUNT=${BASECOUNT}
 
 echo unilateral close from 4444
 ./ptarmcli -c conf/peer3333.conf -xforce 4445
@@ -139,8 +136,8 @@ fi
 echo ---------- OK: after spend: to_remote output ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne 439 ]; then
-    echo blockcount is not 439\($blockcount\)
+if [ $blockcount -ne $((BASECOUNT+1) ]; then
+    echo blockcount is not +1\($blockcount\)
     exit 1
 fi
 
