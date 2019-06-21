@@ -248,7 +248,7 @@ fi
 echo ---------- OK: after spend: HTLC_tx ---------------
 
 blockcount=`getblockcount`
-if [ $blockcount -ne $((BASECOUNT+32) ]; then
+if [ $blockcount -ne $((BASECOUNT+32)) ]; then
     echo blockcount is not +32\($blockcount\)
     exit 1
 fi
