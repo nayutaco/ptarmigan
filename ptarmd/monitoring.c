@@ -933,9 +933,20 @@ static bool close_unilateral_remote(ln_channel_t *pChannel, uint32_t MinedHeight
                 LOGE("fail: skip tx[%d]\n", lp);
                 continue;
             }
-            LOGD("$$$ to_remote tx ==> DB\n");
+            LOGD("$$$ to_remote tx\n");
             uint8_t pub[BTC_SZ_PUBKEY];
             btc_keys_priv2pub(pub, p_tx->vin[0].witness[0].buf);
+
+            bool unspent;
+            if (btcrpc_check_unspent(
+                    ln_remote_node_id(pChannel), &unspent, NULL,
+                    p_tx->vin[0].txid, p_tx->vin[0].index)) {
+                if (!unspent) {
+                    LOGD("already spent\n");
+                    continue;
+                }
+            }
+            LOGD("register to_remote ==> DB");
 
             if (MinedHeight > 0) {
                 ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_REMOTE);
