@@ -6,7 +6,7 @@ START=`date +%s`
 ./testd_prepare.sh
 ./test_after.sh BITCOIND
 
-if [ $# -eq 1 ] && [ $1 == "stop" ]; then
+if [ $# -eq 1 ] && [ $1 = "stop" ]; then
     exit 0
 fi
 

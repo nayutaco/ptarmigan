@@ -13,7 +13,7 @@ START=`date +%s`
 
 echo ---------------- test$1 end ----------------
 
-if [ $# -eq 2 ] && [ $2 == "stop" ]; then
+if [ $# -eq 2 ] && [ $2 = "stop" ]; then
     exit 0
 fi
 

@@ -17,7 +17,7 @@ check_amount() {
     msat3_after=`amount 3334`
     msat4_after=`amount 4445`
     echo msat3=${msat3_after} msat4=${msat4_after}
-    if [ $# -eq 1 ] && [ "$1" == "same" ]; then
+    if [ $# -eq 1 ] && [ "$1" = "same" ]; then
         if [ ${msat3} -ne ${msat3_after} ]; then
             echo invalid amount3: != ${msat3}
             exit 1

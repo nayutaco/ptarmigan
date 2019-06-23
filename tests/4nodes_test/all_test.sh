@@ -24,7 +24,7 @@ check_amount() {
     msat5_after=`amount 5556`
     msat6_after=`amount 6667`
     echo msat3=${msat3_after} msat4=${msat4_after} msat5=${msat5_after} msat6=${msat6_after}
-    if [ $# -eq 1 ] && [ "$1" == "same" ]; then
+    if [ $# -eq 1 ] && [ "$1" = "same" ]; then
         if [ ${msat3} -ne ${msat3_after} ]; then
             echo invalid amount3: != ${msat3}
             exit 1
@@ -228,7 +228,7 @@ echo st5 end
 check_live
 check_log
 
-if [ $# -eq 1 ] && [ $1 == "stop" ]; then
+if [ $# -eq 1 ] && [ $1 = "stop" ]; then
     exit 0
 fi
 
