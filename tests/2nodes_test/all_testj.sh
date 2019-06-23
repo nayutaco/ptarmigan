@@ -6,7 +6,7 @@ START=`date +%s`
 ./testj_prepare.sh
 ./test_after.sh BITCOINJ
 
-if [ $# -eq 1 ] && [ $1 == "stop" ]; then
+if [ $# -eq 1 ] && [ $1 = "stop" ]; then
     exit 0
 fi
 

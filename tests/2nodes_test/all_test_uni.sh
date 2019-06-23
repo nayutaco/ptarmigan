@@ -13,9 +13,10 @@ START=`date +%s`
 
 echo ---------------- test$1 end ----------------
 
-bitcoin-cli -datadir=. -conf=regtest.conf listtransactions | jq -e '.| map(select(.category == "receive"))'
+bitcoin-cli -datadir=. -conf=regtest.conf listunspent | jq -e '. | map(select(.amount < 1))'
+# bitcoin-cli -datadir=. -conf=regtest.conf listtransactions | jq -e '.| map(select(.category == "receive"))'
 
-if [ $# -eq 2 ] && [ $2 == "stop" ]; then
+if [ $# -eq 2 ] && [ $2 = "stop" ]; then
     exit 0
 fi
 

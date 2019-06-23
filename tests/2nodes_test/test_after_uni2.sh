@@ -22,7 +22,7 @@ check_amount() {
     msat3_after=`amount 3334`
     msat4_after=`amount 4445`
     echo msat3=${msat3_after} msat4=${msat4_after}
-    if [ $# -eq 1 ] && [ "$1" == "same" ]; then
+    if [ $# -eq 1 ] && [ "$1" = "same" ]; then
         if [ ${msat3} -ne ${msat3_after} ]; then
             echo invalid amount3: != ${msat3}
             exit 1
@@ -276,7 +276,7 @@ echo 最後の送金をマイニングして確定させる。
 echo bitcoindならlisttransactionsで2つrecieveが見えるはず。
 ./generate.sh 1
 
-if [ "$1" == "BITCOIND" ]; then
+if [ "$1" = "BITCOIND" ]; then
     # 1BTCより大きいものはminingだろうから、それより小さいものだけ出力
     CNT=`bitcoin-cli -datadir=. -conf=regtest.conf listunspent | jq -e '. | map(select(.amount < 1)) | length'`
     if [ ${CNT} -eq 2 ]; then
