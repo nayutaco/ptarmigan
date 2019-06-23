@@ -46,6 +46,53 @@ check_amount() {
 }
 
 
+# 1: amount require type(SAME, DIFF)
+# 2: amount require value
+# 3: list require type(SAME, DIFF)
+# 4: list require items
+check_paytowallet() {
+    ./ptarmcli --getinfo ${TARGET_NODE}
+
+    P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
+    echo ${P2W} | jq .
+    AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
+    LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
+
+    ret=0
+    if [ "$1" = "SAME" ]; then
+        if [ ${AMOUNT} -eq $2 ]; then
+            echo OK: amount == $2
+        else
+            echo ERROR: amount != $2
+            ret=1
+        fi
+    else
+        if [ ${AMOUNT} -ne $2 ]; then
+            echo OK: amount != $2
+        else
+            echo ERROR: amount == $2
+            ret=1
+        fi
+    fi
+    if [ "$3" = "SAME" ]; then
+        if [ ${LIST} -eq $4 ]; then
+            echo OK: list == $4
+        else
+            echo ERROR: list != $4
+            ret=1
+        fi
+    else
+        if [ ${LIST} -ne $4 ]; then
+            echo OK: list != $4
+        else
+            echo ERROR: list == $4
+            ret=1
+        fi
+    fi
+    return ${ret}
+}
+
+
 echo node_3333 no-fulfill return
 ./ptarmcli --debug 1 3334
 
@@ -80,57 +127,53 @@ echo 次のgenerateでcommit_txがminingされるが、preimageを持ってい�
 # (alpha=438)
 # blockcount: alpha
 #       remote commit_tx broadcast
-# blockcount: alpha+1
+# blockcount: alpha+1 *A
 #       commit_tx conf=1
 #       to_remote output ==> spendable
 #       offered HTLC ==> auto spend to 1st layer wallet
-# blockcount: alpha+2
+# blockcount: alpha+2 *B
 #       commit_tx conf=2
 
+# *A
+#   remote commit_tx=1conf
+#   to_remote:
+#       paytowallet可能
+#   offered HTLC:
+#       preimage持ちなので自動送金。
 ./generate.sh 1
 sleep 30
 echo ---------- commit_tx conf=1 ---------------
-./ptarmcli --getinfo ${TARGET_NODE}
-P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
-echo ${P2W} | jq .
-AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
-if [ ${AMOUNT} -eq 0 ]; then
-    echo ERROR: amount == 0
-    exit 1
-fi
-LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
-if [ ${LIST} -ne 1 ]; then
-    echo ERROR: list.len != 1
+if [ "$1" = "BITCOIND" ]; then
+    check_paytowallet DIFF 0 SAME 1
+    if [ $? -eq 0 ]; then
+        echo OK if bitcoind version
+    else
+        exit 1
+    fi
+elif [ "$1" = "BITCOINJ" ]; then
+    check_paytowallet SAME 0 SAME 0
+    if [ $? -eq 0 ]; then
+        echo OK if bitcoinj version
+    else
+        exit 1
+    fi
+else
+    echo ERROR
     exit 1
 fi
 echo ---------- OK: commit_tx conf=1 ---------------
 
+#   to_remote:
+#       paytowallet対象
 echo ---------- spend: to_remote output ---------------
 P2W=`./ptarmcli --paytowallet=1 ${TARGET_NODE}`
 echo ${P2W} | jq .
-AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
-if [ ${AMOUNT} -eq 0 ]; then
-    echo ERROR: amount == 0
-    exit 1
-fi
-LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
-if [ ${LIST} -ne 1 ]; then
-    echo ERROR: list.len != 1
-    exit 1
-fi
 echo ---------- OK: spend: to_remote output ---------------
 
+#   残なし
 echo ---------- after spend: to_remote output ---------------
-P2W=`./ptarmcli --paytowallet ${TARGET_NODE}`
-echo ${P2W} | jq .
-AMOUNT=`echo ${P2W} | jq -r -e '.result.wallet.amount'`
-if [ ${AMOUNT} -ne 0 ]; then
-    echo ERROR: amount != 0
-    exit 1
-fi
-LIST=`echo ${P2W} | jq -r -e '.result.list | length'`
-if [ ${LIST} -ne 0 ]; then
-    echo ERROR: list.len != 0
+check_paytowallet SAME 0 SAME 0
+if [ $? -ne 0 ]; then
     exit 1
 fi
 echo ---------- OK: after spend: to_remote output ---------------
@@ -152,4 +195,15 @@ if [ "$1" == "BITCOIND" ]; then
         exit 1
     fi
     echo ---------- OK: after spend: HTLC ---------------
+fi
+
+if [ "$1" == "BITCOIND" ]; then
+    # 1BTCより大きいものはminingだろうから、それより小さいものだけ出力
+    CNT=`bitcoin-cli -datadir=. -conf=regtest.conf listunspent | jq -e '. | map(select(.amount < 1)) | length'`
+    if [ ${CNT} -eq 2 ]; then
+        echo unspent == 2\(to_remote and HTLC\)
+    else
+        echo ERROR: unspent != 2
+        exit 1
+    fi
 fi

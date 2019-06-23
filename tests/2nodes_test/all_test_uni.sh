@@ -11,7 +11,11 @@ START=`date +%s`
 ./testd_prepare.sh
 ./test_after_uni$1.sh BITCOIND
 
-if [ $# -eq 1 ] && [ $1 == "stop" ]; then
+echo ---------------- test$1 end ----------------
+
+bitcoin-cli -datadir=. -conf=regtest.conf listtransactions | jq -e '.| map(select(.category == "receive"))'
+
+if [ $# -eq 2 ] && [ $2 == "stop" ]; then
     exit 0
 fi
 

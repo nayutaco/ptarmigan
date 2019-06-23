@@ -546,6 +546,8 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
             //TXIDはLE/BE変換
             utl_str_str2bin_rev(pTxid, BTC_SZ_TXID, (const char *)json_string_value(p_result));
             result = true;
+            LOGD("broadcast txid=");
+            TXIDD(pTxid);
         } else {
             int code = error_result(p_root);
             if (pCode) {
