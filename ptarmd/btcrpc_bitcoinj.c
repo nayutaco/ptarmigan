@@ -561,7 +561,7 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
     param.len = Len;
     call_jni(METHOD_PTARM_SENDRAWTX, &param);
     if (param.ret) {
-        LOGD_BTCRESULT("txid=");
+        LOGD_BTCRESULT("broadcast txid=");
         TXIDD_BTCRESULT(pTxid);
     } else {
         LOGD_BTCFAIL("fail\n");

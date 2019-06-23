@@ -11,11 +11,11 @@ START=`date +%s`
 ./testj_prepare.sh
 ./test_after_uni$1.sh BITCOINJ
 
-if [ $# -eq 1 ] && [ $1 == "stop" ]; then
+echo ---------------- test$1 end ----------------
+
+if [ $# -eq 2 ] && [ $2 == "stop" ]; then
     exit 0
 fi
-
-exit 0
 
 echo clean start
 ./clean.sh

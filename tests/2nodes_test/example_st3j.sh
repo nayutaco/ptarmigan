@@ -12,7 +12,7 @@
 
 
 ADDR=`./ptarmcli --getnewaddress 4445 | jq -er '.result'`
-if [ "$ADDR" == "" ]; then
+if [ "$ADDR" = "" ]; then
     echo "??? fail getnewaddress ???"
     exit 1
 fi
@@ -20,6 +20,7 @@ echo sendtoaddress ${ADDR}
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` sendtoaddress ${ADDR} 0.1
 ./generate.sh 1
 sleep 3
+echo balance=`./ptarmcli --getbalance 4445`
 
 # node_4444からnode_3333へチャネルを開く。
 FUND=`./ptarmcli -c conf/peer3333.conf -f 600000,300000000,2000 4445`
