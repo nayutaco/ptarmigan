@@ -143,22 +143,8 @@ echo 次のgenerateでcommit_txがminingされるが、preimageを持ってい�
 ./generate.sh 1
 sleep 30
 echo ---------- commit_tx conf=1 ---------------
-if [ "$1" = "BITCOIND" ]; then
-    check_paytowallet DIFF 0 SAME 1
-    if [ $? -eq 0 ]; then
-        echo OK if bitcoind version
-    else
-        exit 1
-    fi
-elif [ "$1" = "BITCOINJ" ]; then
-    check_paytowallet SAME 0 SAME 0
-    if [ $? -eq 0 ]; then
-        echo OK if bitcoinj version
-    else
-        exit 1
-    fi
-else
-    echo ERROR
+check_paytowallet DIFF 0 SAME 1
+if [ $? -ne 0 ]; then
     exit 1
 fi
 echo ---------- OK: commit_tx conf=1 ---------------
