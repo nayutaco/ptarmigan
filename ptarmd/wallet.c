@@ -243,7 +243,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
         //ln_db_wallet_del(pWallet->p_txid, pWallet->index);
         return false;
     }
-#else
+#elif defined(USE_BITCOINJ)
     bool ret;
 #endif
 
