@@ -250,9 +250,12 @@ typedef struct {
  *  @note
  *      - p_tx, p_htlc_idxsの添字
  *          - commit_tx: LN_CLOSE_IDX_COMMIT
- *          - to_local output: LN_CLOSE_IDX_TO_LOCAL
- *          - to_remote output: LN_CLOSE_IDX_TO_REMOTE
- *          - HTLC: LN_CLOSE_IDX_HTLC～
+ *          - spending from to_local output tx: LN_CLOSE_IDX_TO_LOCAL
+ *          - spending from to_remote output tx: LN_CLOSE_IDX_TO_REMOTE
+ *          - HTLC_tx: LN_CLOSE_IDX_HTLC～
+ * 
+ *      - tx_buf.buf = btc_tx_t pointer array(len = tx_buf.size / sizeof(btc_tx_t*)
+ *          - spending from HTLC_tx tx
  */
 typedef struct {
     int             num;                            ///< p_txのtransaction数

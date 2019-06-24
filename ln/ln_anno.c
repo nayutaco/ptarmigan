@@ -114,7 +114,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
     }
 
     if (!pChannel->cnl_anno.buf) {
-        create_local_channel_announcement(pChannel);
+        if (!create_local_channel_announcement(pChannel)) return false;
     }
 
     uint8_t *p_sig_node;
@@ -835,6 +835,9 @@ static void proc_announcement_signatures(ln_channel_t *pChannel)
 static bool create_local_channel_announcement(ln_channel_t *pChannel)
 {
     LOGD("short_channel_id=%016" PRIx64 "\n", pChannel->short_channel_id);
+    if (pChannel->short_channel_id == 0) {
+        return false;
+    }
     utl_buf_free(&pChannel->cnl_anno);
 
     uint8_t dummy_signature[LN_SZ_SIGNATURE] = {0};
