@@ -307,6 +307,15 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
         return;
     }
 
+    btcrpc_set_channel(
+        ln_remote_node_id(&pConf->channel),
+        ln_short_channel_id(&pConf->channel),
+        ln_funding_info_txid(&pConf->channel.funding_info),
+        ln_funding_info_txindex(&pConf->channel.funding_info),
+        ln_funding_info_wit_script(&pConf->channel.funding_info),
+        bhash,
+        0);
+
     if (p_cb_param->b_send) {
         uint8_t txid[BTC_SZ_TXID];
 
@@ -330,15 +339,6 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
         LOGD("$$$ watch funding_txid: ");
         TXIDD(ln_funding_info_txid(&pConf->channel.funding_info));
         pConf->funding_waiting = true;
-
-        btcrpc_set_channel(
-            ln_remote_node_id(&pConf->channel),
-            ln_short_channel_id(&pConf->channel),
-            ln_funding_info_txid(&pConf->channel.funding_info),
-            ln_funding_info_txindex(&pConf->channel.funding_info),
-            ln_funding_info_wit_script(&pConf->channel.funding_info),
-            bhash,
-            0);
 
         //save current blockhash to funding_blockhash
         ln_funding_blockhash_set(&pConf->channel, bhash);
