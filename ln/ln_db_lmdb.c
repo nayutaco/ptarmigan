@@ -76,7 +76,7 @@
 
 #define M_ANNO_MAXDBS           (50)                        ///< 同時オープンできるDB数
 //#define M_ANNO_MAPSIZE        ((size_t)4294963200)        // DB最大長[byte] Ubuntu 18.04(64bit)で使用できたサイズ
-#define M_ANNO_MAPSIZE          ((size_t)1073741824)        // DB最大長[byte] Raspberry Piで使用できたサイズ
+#define M_ANNO_MAPSIZE          ((size_t)2147483648)        // DB最大長[byte] Raspberry Piで使用できたサイズ
                                                             // 32bit環境ではsize_tが4byteになるため、32bitの範囲内にすること
 
 #define M_WALLET_MAXDBS         (MAX_CHANNELS)              ///< 同時オープンできるDB数
