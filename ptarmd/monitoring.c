@@ -120,7 +120,7 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
 
 static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint32_t MinedHeight);
 static void close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp);
-static bool close_unilateral_local_sendreq(const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num, uint32_t MinedHeight);
+static bool close_unilateral_local_htlc_sendreq(const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num);
 
 static bool close_unilateral_remote(ln_channel_t *pChannel, uint32_t MinedHeight);
 static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel, ln_close_force_t *pCloseDat, int lp);
@@ -691,6 +691,22 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
 }
 
 
+/* unilateral closeにおけるbitcoindとbitcoinjの実装差異について
+ *
+ *  bitcoindの場合、どのtransactionに対してもTXIDからconfirmationを取得できる。
+ *  ptarmcli paytowalletでvinとして使用可能かどうかのチェックは容易である。
+ *  また、TXIDが展開済みかどうかもmempoolの段階でチェックするため、btcrpc_is_tx_broadcasted()で
+ *  事前にチェックできてしまう。
+ * 
+ *  bitcoinjの場合、今のところminingされた情報しか取得できていない。
+ *  また、展開済みかどうかも同じ要領で確認しているため、bitcoindよりも１テンポ遅れる。
+ *  そしてもう1つ、bitcoinjではconfirmationが簡単には取得できない。
+ *  そのため、miningされたblockcountを保持して、現在のheightからの差分でconfirmationを計算している。
+ * 
+ * こうした理由から、set_wallet_data()の前後でbitcoind/bitcoinjによる違いが生じている。
+ * wallet.cにも類似した実装がある。
+ */
+
 /* unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
  *
  *  to_local output
@@ -704,6 +720,8 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
  */
 static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint32_t MinedHeight)
 {
+    (void)pDbParam;
+
     LOGD("closed: unilateral close[local]\n");
 
     ln_close_force_t close_dat;
@@ -717,12 +735,12 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
     for (int lp = 0; lp < close_dat.num; lp++) {
         const btc_tx_t *p_tx = &close_dat.p_tx[lp];
 
+        bool not_proc = true;
         if (lp == LN_CLOSE_IDX_COMMIT) {
             LOGD("$$$ commit_tx\n");
         } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
             if (p_tx->vin_cnt <= 0) {
                 LOGD("skip to_local: tx[%d]\n", lp);
-                continue;
             }
             if (MinedHeight > 0) {
                 LOGD("$$$ to_local tx ==> DB\n");
@@ -733,16 +751,18 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
             } else {
                 LOGD("MinedHeight==0\n");
             }
-            continue;
         } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
-            //LOGD("$$$ to_remote tx\n");
-            continue;
+            LOGD("$$$ to_remote tx\n");
         } else {
             if (p_tx->vin_cnt <= 0) {
                 LOGD("skip HTLC: tx[%d]\n", lp);
-                continue;
+            } else {
+                LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
+                not_proc = false;
             }
-            LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
+        }
+        if (not_proc) {
+            continue;
         }
 
         //check own tx is broadcasted
@@ -752,6 +772,39 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
         TXIDD(txid);
         if (btcrpc_is_tx_broadcasted(ln_remote_node_id(pChannel), txid)) {
             LOGD("already broadcasted[%d] --> OK\n", lp);
+
+#ifdef USE_BITCOINJ
+            int32_t blkcnt = 0;
+            uint32_t confm = 0;
+
+            ret = monitor_btc_getblockcount(&blkcnt);
+            if (ret) {
+                ret = btcrpc_get_confirmations(&confm, txid);
+            }
+            if (ret && (confm > 0)) {
+                //HTLC_txのconfirmationが確認できた場合に成功とする
+                LOGD("already broadcasted: confm=%d\n", (int)confm);
+                const btc_tx_t *p_htlc_tx = (const btc_tx_t *)close_dat.tx_buf.buf;
+                int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
+                //展開したtxのvoutは、それぞれwallet DBに保存する
+                for (int lp = 0; lp < num; lp++) {
+                    if (p_htlc_tx[lp].vin_cnt > 0) {
+                        LOGD("$$$ spending tx[%d] ==> DB\n", lp);
+                        ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
+                        set_wallet_data(&wlt, &p_htlc_tx[lp]);
+                        wlt.mined_height = blkcnt - confm + 1;
+                        (void)ln_db_wallet_save(&wlt);
+                    }
+                }
+                LOGD("OK\n");
+            } else {
+                ret = false;
+            }
+            if (!ret) {
+                del = false;
+            }
+#endif
+
             continue;
         }
 
@@ -777,10 +830,7 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
         LOGD("      --> unspent[%d]=%d\n", lp, unspent);
 
         bool send_req = false;
-        if (lp == LN_CLOSE_IDX_COMMIT) {
-            LOGD("local commit tx: \n");
-            send_req = false;
-        } else if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
+        if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
             LOGD("offered HTLC output\n");
             if (unspent) {
                 send_req = true;
@@ -811,14 +861,11 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
         }
 
         if (send_req) {
-            LOGD("sendreq[%d]: ", lp);
+            LOGD("sendreq HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             const btc_tx_t *p_htlc_tx = (const btc_tx_t *)close_dat.tx_buf.buf;
             int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
-            if (close_unilateral_local_sendreq(p_tx, p_htlc_tx, num, MinedHeight)) {
-                if (lp == LN_CLOSE_IDX_COMMIT) {
-                    LOGD("commit_tx\n");
-                    ln_close_change_stat(pChannel, NULL, pDbParam);
-                } else if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
+            if (close_unilateral_local_htlc_sendreq(p_tx, p_htlc_tx, num)) {
+                if (p_tx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) {
                     LOGD("offered\n");
                     if (!update_fail_htlc_forward(pChannel, &close_dat, lp)) {
                         LOGE("fail: ???\n");
@@ -890,6 +937,75 @@ static void close_unilateral_local_offered(ln_channel_t *pChannel, bool *pDel, l
 
     btc_tx_free(&tx);
     return;
+}
+
+
+/** [unilateral close]broadcast and save wallet DB
+ *      commit_txとto_localはここを通らない。
+ *          commit_tx: unilateral close要求でbroadcast、wallet DBに保存するものはない。
+ *          to_local : commit_txがminingされたらwallet DBに保存している。
+ *      対象はoffered/received HTLC outputである。
+ */
+static bool close_unilateral_local_htlc_sendreq(const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num)
+{
+    bool ret;
+    utl_buf_t buf = UTL_BUF_INIT;
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_write(pTx, &buf);
+
+#ifdef USE_BITCOINJ
+    //bitcoinjでは、miningされるまで送信したかどうかの確証が得られないため、何度もこのルートを通る。
+    int32_t blkcnt = 0;
+    uint32_t confm = 0;
+
+    btc_tx_txid(pTx, txid);
+    ret = monitor_btc_getblockcount(&blkcnt);
+    if (ret) {
+        ret = btcrpc_get_confirmations(&confm, txid);
+    }
+    if (ret && (confm > 0)) {
+        //HTLC_txのconfirmationが確認できた場合に成功とする
+        LOGD("already broadcasted: confm=%d\n", (int)confm);
+        //展開したtxのvoutは、それぞれwallet DBに保存する
+        for (int lp = 0; lp < Num; lp++) {
+            if (pHtlcTx[lp].vin_cnt > 0) {
+                LOGD("$$$ spending tx[%d] ==> DB\n", lp);
+                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
+                set_wallet_data(&wlt, &pHtlcTx[lp]);
+                wlt.mined_height = blkcnt - confm + 1;
+                (void)ln_db_wallet_save(&wlt);
+            }
+        }
+        LOGD("OK\n");
+        return true;
+    }
+#endif
+
+    ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
+    utl_buf_free(&buf);
+    if (ret) {
+        LOGD("$$$ broadcast\n");
+    } else {
+        LOGE("fail: broadcast\n");
+    }
+
+#if defined(USE_BITCOIND)
+    if (ret) {
+        for (int lp = 0; lp < Num; lp++) {
+            if (pHtlcTx[lp].vin_cnt > 0) {
+                LOGD("$$$ spending tx[%d] ==> DB\n", lp);
+                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
+                set_wallet_data(&wlt, &pHtlcTx[lp]);
+                wlt.mined_height = 0;
+                (void)ln_db_wallet_save(&wlt);
+            }
+        }
+    }
+
+    return ret;
+#elif defined(USE_BITCOINJ)
+    return false;
+#endif
 }
 
 
@@ -1101,42 +1217,6 @@ static void close_unilateral_remote_received(ln_channel_t *pChannel, bool *pDel,
     }
 
     btc_tx_free(&tx);
-}
-
-
-static bool close_unilateral_local_sendreq(const btc_tx_t *pTx, const btc_tx_t *pHtlcTx, int Num, uint32_t MinedHeight)
-{
-    utl_buf_t buf = UTL_BUF_INIT;
-    uint8_t txid[BTC_SZ_TXID];
-
-    btc_tx_write(pTx, &buf);
-    bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
-    utl_buf_free(&buf);
-    if (!ret) {
-        LOGE("fail: broadcast\n");
-        return false;
-    }
-
-    LOGD("$$$ broadcast\n");
-    if ( (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ||
-         (pTx->vout[0].opt == LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED) ) {
-        for (int lp = 0; lp < Num; lp++) {
-            if (pHtlcTx[lp].vin_cnt > 0) {
-                if (MinedHeight > 0) {
-                    LOGD("$$$ spending tx[%d] ==> DB\n", lp);
-                    ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_HTLC_OUTPUT);
-                    set_wallet_data(&wlt, &pHtlcTx[lp]);
-                    wlt.mined_height = MinedHeight;     //TODO:ここにはHTLC_txのmined_heightを入れねばならぬ
-                    (void)ln_db_wallet_save(&wlt);
-                } else {
-                    LOGD("MinedHeight==0\n");
-                    ret = false;
-                }
-            }
-        }
-    }
-
-    return ret;
 }
 
 
