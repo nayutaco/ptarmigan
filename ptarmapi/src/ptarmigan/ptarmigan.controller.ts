@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Put, Param, Post, Body, Delete, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Put, Param, Post, Body, Delete, Logger, Query, Next } from '@nestjs/common';
 import { exec, execSync } from 'child_process';
 import { PtarmiganService } from './ptarmigan.service';
 import { BitcoinService } from '../bitcoin/bitcoin.service';
@@ -17,6 +17,10 @@ import { RouteNodeDto } from 'src/model/route-node';
 import { PaymentIdDto } from 'src/model/payment-id';
 import { SendPaymentDto } from 'src/model/send-payment';
 import { ListPaymentDto } from 'src/model/list-payment';
+import { AddFinalDto } from 'src/model/addfinal';
+import { ListInvoiceResponseDto } from 'src/model/list-Invoice-response';
+import { CacheService } from '../cache/cache.servies'
+import { InvoicesGateway } from '../notifications/invoices.gateway';
 
 @ApiUseTags('ptarmigan')
 @Controller('/')
@@ -25,6 +29,8 @@ export class PtarmiganController {
     constructor(
         private readonly ptarmiganService: PtarmiganService,
         private readonly bitcoinService: BitcoinService,
+        private readonly cacheService: CacheService,
+        private readonly invoicesGateway: InvoicesGateway
     ) {
     }
 
@@ -200,4 +206,45 @@ export class PtarmiganController {
             return 'error';
         }
     }
+
+    // ------------------------------------------------------------------------------
+    // invoice notifications
+    // ------------------------------------------------------------------------------
+
+    @Post('notification/htlcchanged') // addfinal.sh -> websocket
+    async executeHtlcChangedNotification() {
+        try {
+            const clients = this.invoicesGateway.clients;
+
+            const paymentHashs: AddFinalDto[] = await this.cacheService.getPaymentHashs();
+
+            for (let paymentHash of paymentHashs) {
+                const response: string = await this.ptarmiganService.requestTCP('listinvoice', [paymentHash.paymentHash]);
+
+                const listInvoiceResponse: ListInvoiceResponseDto = JSON.parse(JSON.stringify(response));
+
+                if (listInvoiceResponse !== null && listInvoiceResponse.result !== null) {
+                    const listInvoiceReslt = listInvoiceResponse.result[0];
+
+                    this.cacheService.delete(paymentHash.id);
+
+                    for (let client of clients) {
+                        client.send(JSON.stringify(listInvoiceReslt));
+                    }
+                }
+            }
+        } catch (error) {
+            return 'error';
+        }
+    }
+
+    @Post('notification/addfinal') // addfinal.sh -> lru-cache
+    async executeAddFinalNotification(@Body() dto: AddFinalDto) {
+        try {
+            await this.cacheService.write(dto);
+        } catch (error) {
+            return 'error';
+        }
+    }
+
 }

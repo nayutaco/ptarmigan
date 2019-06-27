@@ -2,16 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
-import {ConfigService} from 'nestjs-config';
+import { ConfigService } from 'nestjs-config';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   // swagger setting
   const options = new DocumentBuilder()
     .setTitle('ptarmigan REST-API')
     .setDescription('Lightning Network implementation ptarmigan REST-API')
-    .setVersion('0.1')
+    .setVersion('0.2')
     .build();
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup('api', app, document);
