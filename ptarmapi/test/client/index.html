@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Ptarmigan invoices notification api connection test(websocket)s</title>
+</head>
+
+<body>
+  <h1 id="title">Ptarmigan invoices notification API connection test(websocket)</h1>
+  <h3>status</h3>
+  <div id="status">
+  </div>
+  <script>
+    // websocket url
+    const url = 'ws://127.0.0.1:3001/ws';
+
+    document.getElementById('title').insertAdjacentHTML('afterend', '<p>url: ' + url + '</p>');
+
+    //websocket connect to remote server 
+    const socket = new WebSocket(url);
+    socket.onopen = function () {
+      console.log('Connected');
+      document.getElementById('status').insertAdjacentHTML('afterend', '<p>Connected</p>');
+
+      socket.onmessage = function (data) {
+        console.log(data);
+        document.getElementById('status').insertAdjacentHTML('afterend', '<p>recived message: ' + data.data + '</p>');
+      };
+    };
+  </script>
+</body>
+
+</html>
