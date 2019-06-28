@@ -42,7 +42,7 @@
  * macros
  **************************************************************************/
 
-#define M_JVM_START_COUNT       (60 * 5)
+#define M_JVM_START_COUNT       (60 * 10)
 
 #if 0
 #define LOGD_BTCTRACE(...)
