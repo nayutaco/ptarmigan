@@ -325,7 +325,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 
     uint8_t node_id[BTC_SZ_PUBKEY];
     if (get_node_id_from_channel_announcement(pChannel, node_id, msg.short_channel_id, dir)) {
-        //found
+        //found(including own channel)
         if (!btc_keys_check_pub(node_id)) {
             LOGE("fail: invalid pubkey\n");
             return false;
@@ -338,10 +338,8 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 #endif
     } else {
         //not found
-        //  BOLT#11
-        //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
-        //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
-        LOGD("through: not found channel_announcement in DB, but save\n");
+        LOGD("skip: not found channel_announcement in DB\n");
+        return true;
     }
 
     //BOLT07
@@ -886,14 +884,16 @@ static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_
         }
         memcpy(pNodeId, Dir ? msg.p_node_id_2 : msg.p_node_id_1, BTC_SZ_PUBKEY);
     } else {
+        // 自分のchannelの場合は、r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
+        //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
         if (ShortChannelId != pChannel->short_channel_id) goto LABEL_EXIT;
         btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
         if ( ((order == BTC_SCRYPT_PUBKEY_ORDER_ASC) && (Dir == 0)) ||
              ((order == BTC_SCRYPT_PUBKEY_ORDER_OTHER) && (Dir == 1)) ) {
-            LOGD("this channel: my node\n");
+            LOGD("own channel: my node\n");
             memcpy(pNodeId, ln_node_get_id(), BTC_SZ_PUBKEY);
         } else {
-            LOGD("this channel: peer node\n");
+            LOGD("own channel: peer node\n");
             memcpy(pNodeId, pChannel->peer_node_id, BTC_SZ_PUBKEY);
         }
     }
