@@ -66,6 +66,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimage_search, ln_db_func_preimage_t, void*);
 FAKE_VALUE_FUNC(bool, ln_db_cnlupd_need_to_prune, uint64_t , uint32_t );
 FAKE_VALUE_FUNC(bool, ln_db_cnlupd_save, const utl_buf_t *, const ln_msg_channel_update_t *, const uint8_t *);
 FAKE_VALUE_FUNC(bool, ln_db_cnlanno_load, utl_buf_t *, uint64_t );
+FAKE_VALUE_FUNC(bool, ln_db_channel_owned_check, bool*, uint64_t);
 
 FAKE_VALUE_FUNC(time_t, utl_time_time);
 FAKE_VALUE_FUNC(const char *, utl_time_str_time, char *);
@@ -242,6 +243,7 @@ protected:
         RESET_FAKE(ln_db_cnlupd_need_to_prune)
         RESET_FAKE(ln_db_cnlupd_save)
         RESET_FAKE(ln_db_cnlanno_load)
+        RESET_FAKE(ln_db_channel_owned_check);
 
         RESET_FAKE(ln_msg_channel_update_read)
         RESET_FAKE(ln_msg_channel_update_verify)
