@@ -1910,11 +1910,9 @@ static bool anno_senddata(
  */
 static bool anno_prev_check(uint64_t short_channel_id, uint32_t timestamp)
 {
-    bool ret;
-    bool exist;
+    bool ret = true;
 
-    ret = ln_db_channel_owned_check(&exist, short_channel_id);
-    if (ret && exist) {
+    if (ln_db_channel_owned_check(short_channel_id)) {
         return true;
     }
 
@@ -1925,8 +1923,6 @@ static bool anno_prev_check(uint64_t short_channel_id, uint32_t timestamp)
         char time[UTL_SZ_TIME_FMT_STR + 1];
         LOGD("older channel_update: prune(%016" PRIx64 "): %s(now=%" PRIu32 ", tm=%" PRIu32 ")\n", short_channel_id, utl_time_fmt(time, timestamp), now, timestamp);
         ret = false;
-    } else {
-        ret = true;
     }
 
     return ret;
