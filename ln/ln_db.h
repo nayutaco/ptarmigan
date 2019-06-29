@@ -566,12 +566,11 @@ bool ln_db_channel_owned_save(uint64_t ShortChannelId);
 
 /** 自short_channel_idチェック
  *
- * @param[out]  pExist      true:自short_channel_id DBに登録あり
- * @retval  true    取得成功
+ * @retval  true    自short_channel_id DBに登録あり
  * @attention
  *      #ln_db_anno_transaction()でtransaction取得済みであること
  */
-bool ln_db_channel_owned_check(bool *pExist, uint64_t ShortChannelId);
+bool ln_db_channel_owned_check(uint64_t ShortChannelId);
 
 
 /** 自short_channel_id削除

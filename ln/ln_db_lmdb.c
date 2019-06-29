@@ -1439,9 +1439,7 @@ bool ln_db_cnlanno_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId)
 
     retval = cnlanno_load(&db, pCnlAnno, ShortChannelId);
     if (retval) {
-        if (retval != MDB_NOTFOUND) {
-            LOGE("ERR: %s\n", mdb_strerror(retval));
-        }
+        LOGE("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
 
@@ -2253,49 +2251,36 @@ bool ln_db_channel_owned_save(uint64_t ShortChannelId)
 /*
  * dbi: "channel_owned"
  */
-bool ln_db_channel_owned_check(bool *pExist, uint64_t ShortChannelId)
+bool ln_db_channel_owned_check(uint64_t ShortChannelId)
 {
-    bool ret = true;
     int             retval;
     ln_lmdb_db_t    db;
     MDB_val         key, data;
-    bool            b_abort = false;
 
     if (mpTxnAnno == NULL) {
-        ln_db_anno_transaction();
-        b_abort = true;
+        LOGE("fail: no txn\n");
+        return false;
     }
 
     retval = MDB_DBI_OPEN(mpTxnAnno, M_DBI_CNL_OWNED, 0, &db.dbi);
     if (retval) {
-        if (retval == MDB_NOTFOUND) {
-            *pExist = false;
-        } else {
+        if (retval != MDB_NOTFOUND) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
-            ret = false;
         }
-        goto LABEL_EXIT;
+        return false;
     }
 
     key.mv_size = sizeof(uint64_t);
     key.mv_data = (uint8_t *)&ShortChannelId;
     retval = mdb_get(mpTxnAnno, db.dbi, &key, &data);
     if (retval) {
-        if (retval == MDB_NOTFOUND) {
-            *pExist = false;
-        } else {
+        if (retval != MDB_NOTFOUND) {
             LOGE("ERR: %s\n", mdb_strerror(retval));
-            ret = false;
         }
-    } else {
-        *pExist = true;
+        return false;
     }
 
-LABEL_EXIT:
-    if (b_abort) {
-        ln_db_anno_commit(false);
-    }
-    return ret;
+    return true;
 }
 
 

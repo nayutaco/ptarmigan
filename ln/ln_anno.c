@@ -341,14 +341,7 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         //  BOLT#11
         //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
         //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
-        bool exist;
-        bool ret = ln_db_channel_owned_check(&exist, msg.short_channel_id);
-        if (ret && !exist) {
-            LOGD("skip: not found channel_announcement in DB\n");
-            return true;
-        } else {
-            LOGD("through: not found channel_announcement in DB, but save\n");
-        }
+        LOGD("through: not found channel_announcement in DB, but save\n");
     }
 
     //BOLT07
