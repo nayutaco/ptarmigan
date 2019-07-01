@@ -42,7 +42,10 @@
  * macros
  **************************************************************************/
 
-#define M_JVM_START_COUNT       (60 * 10)
+#define M_JVM_START_COUNT       (60 * 2)
+#define M_FILE_STARTUP          "./logs/bitcoinj_startup.log"
+#define M_STARTUP_BLOCK         "BLOCK="
+
 
 #if 0
 #define LOGD_BTCTRACE(...)
@@ -201,6 +204,7 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
+static bool check_spv_start(uint32_t *pPrevHeight);
 static void stop(void);
 static void call_jni(btcj_method_t Method, void *pParam);
 
@@ -329,12 +333,17 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
     //こちらでタイムアウトの監視をする必要はない。
     //しかし、bitcoinjが戻ってこないままになったらどうする？
     //その場合は、btcj_init()
+    uint32_t prev_height = 0;
     while ((mLoopJni == JNILOOP_INI) && (count > 0)) {
         //mLoopJni changes in thread_jni_start()
         sleep(1);
         fprintf(stderr, ".");
         LOGD("count=%d\n", count);
-        count--;
+        if (check_spv_start(&prev_height)) {
+            count = M_JVM_START_COUNT;
+        } else {
+            count--;
+        }
     }
     if ((mLoopJni != JNILOOP_WORK) || (count <= 0)) {
         if (count == 0) {
@@ -723,9 +732,64 @@ bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
 }
 
 
+void btcrpcj_write_startuplog(const char *pLog)
+{
+    FILE *fp = fopen(M_FILE_STARTUP, "w");
+    if (fp == NULL) {
+        LOGE("fopen\n");
+        return;
+    }
+    LOGD("SPV log: %s\n", pLog);
+    fputs(pLog, fp);
+    fclose(fp);
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
+
+/**
+ *
+ * @retval  true    progressing
+ * @retval  false
+ */
+static bool check_spv_start(uint32_t *pPrevHeight)
+{
+    FILE *fp = fopen(M_FILE_STARTUP, "r");
+    if (fp == NULL) {
+        LOGE("fopen\n");
+        return false;
+    }
+
+    bool ret = false;
+    char line[256];
+    if (fgets(line, sizeof(line), fp) == NULL) {
+        LOGE("fgets\n");
+        goto LABEL_EXIT;
+    }
+    if (strncmp(line, M_STARTUP_BLOCK, sizeof(M_STARTUP_BLOCK) - 1) != 0) {
+        LOGE("block: %s\n", line);
+        goto LABEL_EXIT;
+    }
+    uint32_t height;
+    if (!utl_str_scan_u32(&height, line + sizeof(M_STARTUP_BLOCK) - 1)) {
+        LOGE("str_scan\n");
+        goto LABEL_EXIT;
+    }
+    LOGD("log: height=%" PRIu32 "\n", height);
+    if (height == *pPrevHeight) {
+        LOGE("same height\n");
+        goto LABEL_EXIT;
+    }
+    *pPrevHeight = height;
+    ret = true;
+
+LABEL_EXIT:
+    fclose(fp);
+    return ret;
+}
+
 
 static void stop(void)
 {

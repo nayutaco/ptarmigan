@@ -523,6 +523,9 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
 
     LOGD("short_channel_id=%016" PRIx64 "\n", ln_short_channel_id(pChannel));
 
+#if defined(USE_BITCOINJ)
+    btcrpcj_write_startuplog("CONT=update...");
+#endif
     btcrpc_set_channel(ln_remote_node_id(pChannel),
             ln_short_channel_id(pChannel),
             ln_funding_info_txid(&pChannel->funding_info),
@@ -539,4 +542,8 @@ static void set_channels(void)
 {
     LOGD("\n");
     ln_db_channel_search_readonly(comp_func_cnl, NULL);
+
+#if defined(USE_BITCOINJ)
+    btcrpcj_write_startuplog("STOP=Done!");
+#endif
 }
