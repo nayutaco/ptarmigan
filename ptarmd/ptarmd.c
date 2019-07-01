@@ -524,7 +524,11 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
     LOGD("short_channel_id=%016" PRIx64 "\n", ln_short_channel_id(pChannel));
 
 #if defined(USE_BITCOINJ)
-    btcrpcj_write_startuplog("CONT=update...");
+    char log[256];
+    char peer[32];
+    utl_str_bin2str(peer, ln_remote_node_id(pChannel), 3);
+    snprintf(log, sizeof(log), "CONT=ch:%s..", peer);
+    btcrpcj_write_startuplog(log);
 #endif
     btcrpc_set_channel(ln_remote_node_id(pChannel),
             ln_short_channel_id(pChannel),
