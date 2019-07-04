@@ -380,7 +380,7 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
         LOGE("fail: getcwd()\n");
         return;
     }
-    snprintf(script, sizeof(script), "%s/" M_SCRIPT_DIR "/%s",
+    snprintf(script, sizeof(script), "%.1024s/" M_SCRIPT_DIR "/%.1024s",
                     path,
                     kSCRIPT[event]);
     LOGD("event=0x%02x(%s)\n", (int)event, script);
