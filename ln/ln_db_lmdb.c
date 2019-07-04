@@ -812,9 +812,9 @@ const char *ln_lmdb_get_payment_db_path(void)
 void ln_lmdb_get_closed_db_path(char *pPath, const char *pChannelStr)
 {
     if (pChannelStr == NULL) {
-        snprintf(pPath, PATH_MAX, "%s/" M_CLOSED_ENV_DIR, mPath);
+        snprintf(pPath, PATH_MAX, "%.1024s/" M_CLOSED_ENV_DIR, mPath);
     } else {
-        snprintf(pPath, PATH_MAX, "%s/" M_CLOSED_ENV_DIR "/%s", mPath, pChannelStr);
+        snprintf(pPath, PATH_MAX, "%.1024s/" M_CLOSED_ENV_DIR "/%.1024s", mPath, pChannelStr);
     }
 }
 
@@ -3661,7 +3661,7 @@ bool ln_db_reset(void)
     char bak_tgz[PATH_MAX];
     char cmdline[512];
     snprintf(bak_tgz, sizeof(bak_tgz), "bak_db_%" PRIu64 ".tgz", (uint64_t)utl_time_time());
-    snprintf(cmdline, sizeof(cmdline), "tar zcf %s db", bak_tgz);
+    snprintf(cmdline, sizeof(cmdline), "tar zcf %.500s db", bak_tgz);
     system(cmdline);
 
     //remove other directories
@@ -4661,9 +4661,9 @@ static void channel_copy_closed(MDB_txn *pTxn, const char *pChannelStr)
     ln_lmdb_db_t    db_ver;
     char            path_env[M_DB_PATH_STR_MAX + 1];
 
-    snprintf(path_env, sizeof(path_env), "%s/" M_CLOSED_ENV_DIR, mPath);
+    snprintf(path_env, sizeof(path_env), "%.500s/" M_CLOSED_ENV_DIR, mPath);
     mkdir(path_env, 0755);
-    snprintf(path_env, sizeof(path_env), "%s/" M_CLOSED_ENV_DIR "/%s", mPath, pChannelStr);
+    snprintf(path_env, sizeof(path_env), "%.500s/" M_CLOSED_ENV_DIR "/%.500s", mPath, pChannelStr);
 
     init_param_t init_param;
     init_param.pp_env = &p_env_closed;
@@ -6513,7 +6513,7 @@ static int lmdb_compaction(const init_param_t  *p_param)
     size_t prev_me_last_pgno = info.me_last_pgno;
 
     char tmppath[M_DB_PATH_STR_MAX + 16 + 1];
-    snprintf(tmppath, M_DB_PATH_STR_MAX, "%s/tmpdir", mPath);
+    snprintf(tmppath, M_DB_PATH_STR_MAX, "%.1024s/tmpdir", mPath);
     mkdir(tmppath, 0755);
     retval = mdb_env_copy2(*p_param->pp_env, tmppath, MDB_CP_COMPACT);
     if (retval) {

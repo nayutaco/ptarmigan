@@ -532,7 +532,7 @@ static void optfunc_getinfo(int *pOption, bool *pConn)
             strncat(mBuf, optarg, BUFFER_SIZE);
         }
     }
-    strncat(mBuf, "]}", BUFFER_SIZE);
+    strncat(mBuf, "]}", BUFFER_SIZE - 2);
 
     *pOption = M_OPT_GETINFO;
 }
