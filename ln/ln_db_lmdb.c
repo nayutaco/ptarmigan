@@ -1439,7 +1439,9 @@ bool ln_db_cnlanno_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId)
 
     retval = cnlanno_load(&db, pCnlAnno, ShortChannelId);
     if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+        }
         goto LABEL_EXIT;
     }
 
