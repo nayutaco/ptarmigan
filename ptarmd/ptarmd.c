@@ -544,10 +544,14 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
 
 static void set_channels(void)
 {
+#if defined(USE_BITCOINJ)
+    btcrpcj_write_startuplog("CONT=Channels..");
+#endif
+
     LOGD("\n");
     ln_db_channel_search_readonly(comp_func_cnl, NULL);
 
 #if defined(USE_BITCOINJ)
-    btcrpcj_write_startuplog("STOP=Done!");
+    btcrpcj_write_startuplog("STOP=All synced!");
 #endif
 }
