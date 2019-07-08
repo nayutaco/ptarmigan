@@ -1848,6 +1848,7 @@ LABEL_EXIT:
 static bool revoke_and_ack_send(ln_channel_t *pChannel)
 {
     LOGD("BEGIN\n");
+    bool irrevocably = false;
 
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
     ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
@@ -1885,7 +1886,7 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
     utl_buf_free(&buf);
 
     if (ln_update_info_irrevocably_committed_htlcs_exists(&pChannel->update_info)) {
-        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL);
+        irrevocably = true;
     }
 
     for (uint32_t idx = 0; idx < ARRAY_SIZE(pChannel->update_info.updates); idx++) {
@@ -1914,6 +1915,10 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
 
     ln_update_info_clear_irrevocably_committed_updates(&pChannel->update_info);
     M_DB_CHANNEL_SAVE(pChannel);
+
+    if (irrevocably) {
+        ln_callback(pChannel, LN_CB_TYPE_NOTIFY_REV_AND_ACK_EXCHANGE, NULL);
+    }
 
     LOGD("END\n");
     return true;
