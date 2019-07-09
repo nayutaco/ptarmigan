@@ -74,6 +74,9 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
 bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid);
 
 
+bool btcrpc_get_confirmations_funding_tx(uint32_t *pConfm, const ln_funding_info_t *pFundingInfo);
+
+
 /** [bitcoin IF]get short_channel_id calculation parameter
  *
  * @param[in]   pPeerId
