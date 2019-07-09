@@ -7,7 +7,7 @@ import * as LRU from "lru-cache";
 export class CacheService {
 
     private cache = new LRU();
-    private logger = new Logger('RedisService');
+    private logger = new Logger('CacheService');
 
     constructor() { }
 
