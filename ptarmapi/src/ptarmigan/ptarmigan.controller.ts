@@ -18,7 +18,7 @@ import { PaymentIdDto } from 'src/model/payment-id';
 import { SendPaymentDto } from 'src/model/send-payment';
 import { ListPaymentDto } from 'src/model/list-payment';
 import { AddFinalDto } from 'src/model/addfinal';
-import { ListInvoiceResponseDto } from 'src/model/list-Invoice-response';
+import { ListInvoiceResponseDto } from 'src/model/list-invoice-response';
 import { CacheService } from '../cache/cache.servies'
 import { InvoicesGateway } from '../notifications/invoices.gateway';
 
