@@ -109,12 +109,15 @@ bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
 bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     if (!pChannel->funding_info.state) { //XXX: not after `funding_locked`
-        LOGE("fail: not open peer\n");
+        LOGE("through: not open peer\n");
         return true;
     }
 
     if (!pChannel->cnl_anno.buf) {
-        if (!create_local_channel_announcement(pChannel)) return true;
+        if (!create_local_channel_announcement(pChannel)) {
+            LOGE("through: I have no short_channel_id\n");
+            return true;
+        }
     }
 
     uint8_t *p_sig_node;
@@ -124,11 +127,11 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
 
     ln_msg_announcement_signatures_t msg;
     if (!ln_msg_announcement_signatures_read(&msg, pData, Len)) {
-        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
+        LOGE("through: read message\n");
         return true;
     }
     if (!msg.short_channel_id) {
-        M_SET_ERR(pChannel, LNERR_MSG_READ, "read message");
+        LOGE("through: message have no short_channel_id\n");
         return true;
     }
     memcpy(p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
@@ -141,8 +144,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
 
     if (pChannel->short_channel_id) {
         if (msg.short_channel_id != pChannel->short_channel_id) {
-            LOGE("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pChannel->short_channel_id, msg.short_channel_id);
-            M_SET_ERR(pChannel, LNERR_MSG_READ, "read message"); //XXX:
+            LOGE("through: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pChannel->short_channel_id, msg.short_channel_id);
             return true;
         }
     }
@@ -150,14 +152,14 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
     if (!(pChannel->anno_flag & LN_ANNO_FLAG_END)) {
         pChannel->short_channel_id = msg.short_channel_id;
         if (!ln_msg_channel_announcement_update_short_channel_id(pChannel->cnl_anno.buf, pChannel->short_channel_id)) {
-            LOGE("fail: update short_channel_id\n");
+            LOGE("through: update short_channel_id\n");
             return true;
         }
         if (!ln_msg_channel_announcement_sign(
-            pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
-            pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
-            order)) {
-            LOGE("fail: sign\n");
+                pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
+                pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
+                order)) {
+            LOGE("through: sign\n");
             return true;
         }
         pChannel->anno_flag |= M_ANNO_FLAG_RECV;
