@@ -459,6 +459,12 @@ bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid)
 }
 
 
+bool btcrpc_get_confirmations_funding_tx(uint32_t *pConfm, const ln_funding_info_t *pFundingInfo)
+{
+    return btcrpc_get_confirmations(pConfm, ln_funding_info_txid(pFundingInfo));
+}
+
+
 bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
 {
     LOGD_BTCTRACE("\n");

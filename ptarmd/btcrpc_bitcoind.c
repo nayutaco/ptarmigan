@@ -305,6 +305,89 @@ LABEL_EXIT:
 }
 
 
+bool btcrpc_get_confirmations_funding_tx(uint32_t *pConfm, const ln_funding_info_t *pFundingInfo)
+{
+    bool        ret = false;
+    char        *p_json = NULL;
+    json_t      *p_root = NULL;
+    json_t      *p_result;
+    utl_buf_t   scriptpk = UTL_BUF_INIT;
+    char        scriptpk_str[BTC_SZ_WITPROG_P2WSH * 2 + 1];
+
+    *pConfm = 0;
+
+    if (!getrawtx(&p_root, &p_result, &p_json, ln_funding_info_txid(pFundingInfo))) {
+        LOGE("fail: getrawtransaction_rpc\n");
+        goto LABEL_EXIT;
+    }
+
+    if (!btc_script_p2wsh_create_scriptpk(&scriptpk, &pFundingInfo->wit_script)) {
+        goto LABEL_EXIT;
+    }
+    if (scriptpk.len != BTC_SZ_WITPROG_P2WSH) {
+        goto LABEL_EXIT;
+    }
+    utl_str_bin2str(scriptpk_str, scriptpk.buf, scriptpk.len);
+
+    json_t *p_vouts = NULL;
+    p_vouts = json_object_get(p_result, "vout");
+    if (!json_is_array(p_vouts)) {
+        goto LABEL_EXIT;
+    }
+
+    json_t *p_vout = NULL;
+    p_vout = json_array_get(p_vouts, pFundingInfo->txindex);
+    if (!json_is_object(p_vout)) {
+        goto LABEL_EXIT;
+    }
+
+    json_t *p_value = NULL;
+    p_value = json_object_get(p_vout, "value");
+    if (!json_is_real(p_value)) {
+        goto LABEL_EXIT;
+    }
+    if (BTC_BTC2SATOSHI(json_real_value(p_value)) != pFundingInfo->funding_satoshis) {
+        goto LABEL_EXIT;
+    }
+
+    json_t *p_scriptpk = NULL;
+    p_scriptpk = json_object_get(p_vout, "scriptPubKey");
+    if (!json_is_object(p_scriptpk)) {
+        goto LABEL_EXIT;
+    }
+
+    json_t *p_hex = NULL;
+    p_hex = json_object_get(p_scriptpk, "hex");
+    if (!json_is_string(p_hex)) {
+        goto LABEL_EXIT;
+    }
+    if (strcmp((const char *)json_string_value(p_hex), scriptpk_str)) {
+        goto LABEL_EXIT;
+    }
+
+    json_t *p_confm = NULL;
+    p_confm = json_object_get(p_result, M_CONFIRMATIONS);
+    if (!json_is_integer(p_confm)) {
+        goto LABEL_EXIT;
+    }
+    if (json_integer_value(p_confm) <= 0) {
+        LOGE("fail: ???\n");
+        goto LABEL_EXIT;
+    }
+    *pConfm = (uint32_t)json_integer_value(p_confm);
+
+    ret = true;
+
+LABEL_EXIT:
+    if (p_root) {
+        json_decref(p_root);
+    }
+    UTL_DBG_FREE(p_json);
+    utl_buf_free(&scriptpk);
+    return ret;
+}
+
+
 bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
 {
     (void)pPeerId;

@@ -338,7 +338,8 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
     ln_channel_t    *p_channel = &pConf->channel;
 
     p_param->confm = 0;
-    bool b_get = btcrpc_get_confirmations(&p_param->confm, ln_funding_info_txid(&p_channel->funding_info));
+    bool b_get = btcrpc_get_confirmations_funding_tx(
+        &p_param->confm, &p_channel->funding_info);
     if (b_get) {
         if (p_param->confm > pConf->funding_confirm) {
             pConf->funding_confirm = p_param->confm;
