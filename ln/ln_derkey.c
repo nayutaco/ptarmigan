@@ -263,6 +263,7 @@ void HIDDEN ln_derkey_storage_create_secret(uint8_t *pSecret, const uint8_t *pSe
     //    return P
 
     derive_secret(pSecret, pSeed, 47, Index);
+    LOGD("END\n");
 }
 
 
@@ -274,6 +275,8 @@ void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
 
 bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret, uint64_t Index)
 {
+    LOGD("BEGIN\n");
+
     //insert_secret(secret, I):
     //    B = where_to_put_secret(secret, I)
     //
@@ -299,6 +302,7 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
     }
     memcpy(pStorage->storage[bit].secret, pSecret, BTC_SZ_PRIVKEY);
     pStorage->storage[bit].index = Index;
+    LOGD("END\n");
     return true;
 }
 
