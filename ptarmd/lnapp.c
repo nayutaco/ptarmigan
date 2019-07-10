@@ -1263,6 +1263,9 @@ static void *thread_recv_start(void *pArg)
         }
         if (!ln_recv(&p_conf->channel, buf_recv.buf, buf_recv.len)) {
             LOGD("DISC: fail recv message\n");
+            if (strlen(p_conf->channel.err_msg) != 0) {
+                ptarmd_eventlog(ln_channel_id(&p_conf->channel), p_conf->channel.err_msg);
+            }
             lnapp_close_channel_force(p_conf);
             pthread_mutex_unlock(&p_conf->mux_conf); //unlock
             break;
