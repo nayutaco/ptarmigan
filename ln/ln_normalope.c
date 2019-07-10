@@ -540,13 +540,22 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
         return false;
     }
 
-    ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
-    if (!M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate)) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw from current");
-        return false;
+    btc_block_chain_t gtype = btc_block_get_chain(ln_genesishash_get());
+    if (gtype == BTC_BLOCK_CHAIN_BTCMAIN) {
+        ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
+        if (!M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate)) {
+            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw from current");
+            return false;
+        }
+        if (!M_UPDATEFEE_CHK_MAX_OK(msg.feerate_per_kw, rate)) {
+            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw from current");
+            return false;
+        }
+    } else {
+        LOGD("skip: feerate range check\n");
     }
-    if (!M_UPDATEFEE_CHK_MAX_OK(msg.feerate_per_kw, rate)) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw from current");
+    if (rate < LN_FEERATE_PER_KW_MIN) {
+        M_SET_ERR(pChannel, LNERR_INV_VALUE, "feerate_per_kw < 253");
         return false;
     }
 
