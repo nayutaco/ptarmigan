@@ -25,13 +25,17 @@ json=$(cat << EOS
 EOS
 )
 
+if [ "${API_TOKEN:-unknown}" == unknown ]; then
+  API_TOKEN=ptarmigan
+fi
+
 curl=`cat <<EOS
 curl
  -s -o
- --verbose
  --request POST
  http://0.0.0.0:3000/notification/addfinal
  --header 'Content-Type: application/json'
+ --header "Authorization: Bearer $API_TOKEN"
  --data '$json'
 EOS`
 eval ${curl}

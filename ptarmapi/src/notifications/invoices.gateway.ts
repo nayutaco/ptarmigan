@@ -8,7 +8,8 @@ import {
     OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'ws';
-import { Logger } from '@nestjs/common';
+import { Logger, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
 @WebSocketGateway({ path: '/ws' })
 export class InvoicesGateway implements OnGatewayConnection, OnGatewayInit, OnGatewayDisconnect {
@@ -16,6 +17,7 @@ export class InvoicesGateway implements OnGatewayConnection, OnGatewayInit, OnGa
     private logger = new Logger('InvoicesGateway');
     clients: Socket[] = [];
 
+    @UseGuards(AuthGuard())
     @WebSocketServer()
     server: Server;
 

@@ -16,12 +16,16 @@ cat << EOS | jq -e '.'
 }
 EOS
 
+if [ "${API_TOKEN:-unknown}" == unknown ]; then
+  API_TOKEN=ptarmigan
+fi
+
 curl=`cat <<EOS
 curl
  -s -o
- --verbose
  --request POST
  http://0.0.0.0:3000/notification/htlcchanged
  --header 'Content-Type: application/json'
+ --header "Authorization: Bearer $API_TOKEN"
 EOS`
 eval ${curl}

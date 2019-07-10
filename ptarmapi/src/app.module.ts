@@ -7,13 +7,14 @@ import { ConfigModule } from 'nestjs-config';
 import { BitcoinService } from './bitcoin/bitcoin.service';
 import { CacheService } from './cache/cache.servies';
 import { InvoicesGateway } from './notifications/invoices.gateway';
-
+import { AuthModule } from './auth/auth.module';
 import * as path from 'path';
 
 @Module({
   controllers: [AppController, PtarmiganController],
   providers: [AppService, PtarmiganService, BitcoinService, CacheService, InvoicesGateway],
   imports: [
+    AuthModule,
     ConfigModule.load(path.resolve(__dirname, 'config', '**/!(*.d).{ts,js}')),
   ],
 })
