@@ -1,8 +1,8 @@
-import { Controller, Get, Patch, Put, Param, Post, Body, Delete, Logger, Query, Next } from '@nestjs/common';
+import { Controller, Get, Patch, Put, Param, Post, Body, Delete, Logger, Query, Next, UseGuards } from '@nestjs/common';
 import { exec, execSync } from 'child_process';
 import { PtarmiganService } from './ptarmigan.service';
 import { BitcoinService } from '../bitcoin/bitcoin.service';
-import { ApiUseTags, ApiModelProperty, ApiImplicitQuery, ApiCreatedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
+import { ApiUseTags, ApiModelProperty, ApiImplicitQuery, ApiCreatedResponse, ApiForbiddenResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Validate, Matches } from 'class-validator';
 import { FeeDto } from 'src/model/fee';
 import { InvoiceDto } from 'src/model/invoice';
@@ -21,6 +21,7 @@ import { AddFinalDto } from 'src/model/addfinal';
 import { ListInvoiceResponseDto } from 'src/model/list-invoice-response';
 import { CacheService } from '../cache/cache.servies'
 import { InvoicesGateway } from '../notifications/invoices.gateway';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiUseTags('ptarmigan')
 @Controller('/')
@@ -30,50 +31,68 @@ export class PtarmiganController {
         private readonly ptarmiganService: PtarmiganService,
         private readonly bitcoinService: BitcoinService,
         private readonly cacheService: CacheService,
-        private readonly invoicesGateway: InvoicesGateway
+        private readonly invoicesGateway: InvoicesGateway,
     ) {
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('stop') // stop -> stop
     async executeStop() {
         return await this.ptarmiganService.requestTCP('stop', []);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('getinfo') // getinfo -> getinfo
     async executeGetInfo(): Promise<string> {
         return await this.ptarmiganService.requestTCP('getinfo', []);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('setfeerate') // setfeerate -> setfeerate
     async executeSetFeerate(@Body() dto: FeeDto) {
         return await this.ptarmiganService.requestTCP('setfeerate', [dto.feeratePerKw]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('estimatefundingfee') // estimatefundingfee -> dev-estimatefundingfee
     async executeEstimateFundingFee(@Body() dto: FeeDto) {
         return await this.ptarmiganService.requestTCP('estimatefundingfee', [dto.feeratePerKw]);
     }
-
+    
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('createinvoice') // createinvoice -> invoice
     async executeCreateInvoice(@Body() dto: InvoiceDto) {
         return await this.ptarmiganService.requestTCP('invoice', [dto.amountMsat, dto.minFinalCltvExpiry, dto.description, dto.invoiceExpiry]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('removeinvoice') // eraseinvoice -> removeinvoice
     async executeEraseInvoice(@Body() dto: PaymentHashDto) {
         return await this.ptarmiganService.requestTCP('eraseinvoice', [dto.paymentHash]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('removeallinvoices') // eraseinvoice -> removeallinvoices
     async executeRemoveAllInvoices() {
         return await this.ptarmiganService.requestTCP('eraseinvoice', ['']);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('listinvoices') // listinvoice -> listinvoices
     async executeListInvoice(@Body() dto: ListInvoiceDto) {
         return await this.ptarmiganService.requestTCP('listinvoice', [dto.paymentHash]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('decodeinvoice') // none -> decodeinvoice
     async executeDecodeInvoice(@Body() dto: Bolt11Dto) {
         return await this.ptarmiganService.requestTCP('decodeinvoice', [dto.bolt11]);
@@ -82,21 +101,30 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // peer
     // ------------------------------------------------------------------------------
+
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('connect') // connect -> connectpeer
     async executeConnect(@Body() dto: PeerDto) {
         return await this.ptarmiganService.requestTCP('connect', [dto.peerNodeId, dto.peerAddr, dto.peerPort]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('disconnect') // disconnect -> disconnectpeer
     async executeDisconnect(@Body() dto: PeerNodeDto) {
         return await this.ptarmiganService.requestTCP('disconnect', [dto.peerNodeId, '0.0.0.0', 0]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('getlasterror') // getlasterror -> getlasterror
     async executeGetLastErrort(@Body() dto: PeerNodeDto) {
         return await this.ptarmiganService.requestTCP('getlasterror', [dto.peerNodeId, '0.0.0.0', 0]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('dev-disautoconn') // disautoconn -> dev-disableautoconnect
     @ApiImplicitQuery({
         name: 'enable',
@@ -106,6 +134,8 @@ export class PtarmiganController {
         return await this.ptarmiganService.requestTCP('disautoconn', [enable.toString(10)]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('dev-listtransactions') // getcommittx -> dev-listtransactions
     async executeGetCommitTx(@Body() dto: PeerNodeDto) {
         return await this.ptarmiganService.requestTCP('getcommittx', [dto.peerNodeId, '0.0.0.0', 0]);
@@ -114,26 +144,37 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // channel
     // ------------------------------------------------------------------------------
+    
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('openchannel') // fund -> openchannel
     async executeOpenChannel(@Body() dto: FundDto) {
         return await this.ptarmiganService.commandExecuteOpenChannel(dto.peerNodeId, dto.fundingSat, dto.pushMsat, dto.feeratePerKw);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('close') // close -> closechannel
     async executeCloseChannel(@Body() dto: PeerNodeDto) {
         return await this.ptarmiganService.requestTCP('close', [dto.peerNodeId, '0.0.0.0', 0]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('forceclose') // close -> closechannel
     async executeForceCloseChannel(@Body() dto: PeerNodeDto) {
         return await this.ptarmiganService.requestTCP('close', [dto.peerNodeId, '0.0.0.0', 0, 'force']);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('dev-removechannel/:channelId') // removechannel -> dev-removechannel
     async executeRemoveChannel(@Param('channelId') channelId: string) {
         return await this.ptarmiganService.requestTCP('removechannel', [channelId]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('resetroutestate') // removechannel -> dev-removechannel
     async executeResetRouteState() {
         return await this.ptarmiganService.requestTCP('resetroutestate', []);
@@ -142,21 +183,30 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // payment
     // ------------------------------------------------------------------------------
+   
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('sendpayment') // routepay -> sendpayment
     async executeSendPayment(@Body() dto: SendPaymentDto) {
         return await this.ptarmiganService.requestTCP('routepay', [dto.bolt11, dto.addAmountMsat]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('listpayments') // listpayment -> listpayments
     async executeListPaymentsState() {
         return await this.ptarmiganService.requestTCP('listpayment', []);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('listpayment') // listpayment -> listpayment=0
     async executeListPaymentState(@Body() dto: ListPaymentDto) {
         return await this.ptarmiganService.requestTCP('listpayment', [dto.listpayment]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('removepayment') // removepayment -> removepayment
     async executeRemovePaymentState(@Body() dto: PaymentIdDto) {
         return await this.ptarmiganService.requestTCP('removepayment', [dto.paymentId]);
@@ -165,21 +215,30 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // fund
     // ------------------------------------------------------------------------------
+    
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('getwalletinfo') // getnewaddress
     async executeGetWalletInfo(): Promise<string> {
         return await this.bitcoinService.requestHTTP('getwalletinfo', []);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('getnewaddress') // getnewaddress
     async executeGetNewAddress(): Promise<string> {
         return await this.bitcoinService.requestHTTP('getnewaddress', ['', 'p2sh-segwit']);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('listunspent') // listunspent
     async executeListUnspent(@Body() dto: ListUnspentDto): Promise<string> {
         return await this.bitcoinService.requestHTTP('listunspent', [dto.minconf, dto.maxconf, dto.addresses]);
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('listchannels')
     async executeListChannels(): Promise<string> {
         try {
@@ -189,6 +248,8 @@ export class PtarmiganController {
         }
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('listnodes')
     async executeListNodes(): Promise<string> {
         try {
@@ -198,6 +259,8 @@ export class PtarmiganController {
         }
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('getroute')
     async executeGetRoute(@Body() dto: RouteNodeDto): Promise<string> {
         try {
@@ -211,6 +274,8 @@ export class PtarmiganController {
     // invoice notifications
     // ------------------------------------------------------------------------------
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('notification/htlcchanged') // addfinal.sh -> websocket
     async executeHtlcChangedNotification() {
         try {
@@ -234,16 +299,18 @@ export class PtarmiganController {
                 }
             }
         } catch (error) {
-            return 'error';
+            return error;
         }
     }
 
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard())
     @Post('notification/addfinal') // addfinal.sh -> lru-cache
     async executeAddFinalNotification(@Body() dto: AddFinalDto) {
         try {
             await this.cacheService.write(dto);
         } catch (error) {
-            return 'error';
+            return error;
         }
     }
 

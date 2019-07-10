@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder, SwaggerBaseConfig } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from 'nestjs-config';
@@ -14,6 +14,7 @@ async function bootstrap() {
   const options = new DocumentBuilder()
     .setTitle('ptarmigan REST-API')
     .setDescription('Lightning Network implementation ptarmigan REST-API')
+    .addBearerAuth('Authorization', 'header')
     .setVersion('0.2')
     .build();
   const document = SwaggerModule.createDocument(app, options);
@@ -24,6 +25,7 @@ async function bootstrap() {
   Logger.log('ptarmdHost: + ' + config.get('ptarmigan.ptarmdHost'));
   Logger.log('bitcoindRpcPort: ' + config.get('ptarmigan.bitcoindRpcPort'));
   Logger.log('bitcoindHost: ' + config.get('ptarmigan.bitcoindHost'));
+  Logger.log('bitcoindHost: ' + config.get('ptarmigan.apiToken'));
 
   await app.listen(3000);
 }

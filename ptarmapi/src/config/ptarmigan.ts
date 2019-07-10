@@ -7,4 +7,5 @@ export default {
     bitcoindHost: process.env.BITCOIND_HOST || 'localhost',
     bitcoindUser: process.env.BITCOIND_USER || 'bitcoinuser',
     bitcoindPassword: process.env.BITCOIND_PASSWORD || 'bitcoinpassword',
+    apiToken: process.env.API_TOKEN || 'ptarmigan',
 };
