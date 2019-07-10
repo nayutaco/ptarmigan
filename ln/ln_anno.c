@@ -65,7 +65,7 @@
  * prototypes
  **************************************************************************/
 
-static void proc_announcement_signatures(ln_channel_t *pChannel);
+static bool proc_announcement_signatures(ln_channel_t *pChannel);
 static bool create_local_channel_announcement(ln_channel_t *pChannel);
 static bool get_node_id_from_channel_announcement(ln_channel_t *pChannel, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);
 static bool create_channel_update(ln_channel_t *pChannel, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
@@ -77,6 +77,11 @@ static bool create_channel_update(ln_channel_t *pChannel, ln_msg_channel_update_
 
 bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
 {
+    if (pChannel->short_channel_id == 0) {
+        LOGE("fail: short_channel_id == 0\n");
+        return false;
+    }
+
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
     if (!pChannel->cnl_anno.buf) {
@@ -99,10 +104,12 @@ bool /*HIDDEN*/ ln_announcement_signatures_send(ln_channel_t *pChannel)
     utl_buf_free(&buf);
 
     pChannel->anno_flag |= M_ANNO_FLAG_SEND;
-    proc_announcement_signatures(pChannel);
-    M_DB_CHANNEL_SAVE(pChannel);
-    pChannel->init_flag |= M_INIT_ANNOSIG_SENT;
-    return true;
+    bool ret = proc_announcement_signatures(pChannel);
+    if (ret) {
+        M_DB_CHANNEL_SAVE(pChannel);
+        pChannel->init_flag |= M_INIT_ANNOSIG_SENT;
+    }
+    return ret;
 }
 
 
@@ -131,24 +138,25 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
         return true;
     }
     if (!msg.short_channel_id) {
-        LOGE("through: message have no short_channel_id\n");
-        return true;
+        M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "no short_channel_id");
+        return false;
     }
     memcpy(p_sig_node, msg.p_node_signature, LN_SZ_SIGNATURE);
     memcpy(p_sig_btc, msg.p_bitcoin_signature, LN_SZ_SIGNATURE);
 
     if (!ln_check_channel_id(msg.p_channel_id, pChannel->channel_id)) {
         M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "channel_id not match");
-        return true;
+        return false;
     }
 
     if (pChannel->short_channel_id) {
         if (msg.short_channel_id != pChannel->short_channel_id) {
-            LOGE("through: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pChannel->short_channel_id, msg.short_channel_id);
-            return true;
+            M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pChannel->short_channel_id, msg.short_channel_id);
+            return false;
         }
     }
 
+    bool ret = true;
     if (!(pChannel->anno_flag & LN_ANNO_FLAG_END)) {
         pChannel->short_channel_id = msg.short_channel_id;
         if (!ln_msg_channel_announcement_update_short_channel_id(pChannel->cnl_anno.buf, pChannel->short_channel_id)) {
@@ -159,12 +167,14 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
                 pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
                 pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
                 order)) {
-            LOGE("through: sign\n");
-            return true;
+            M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "fail: sign");
+            return false;
         }
         pChannel->anno_flag |= M_ANNO_FLAG_RECV;
-        proc_announcement_signatures(pChannel);
-        M_DB_CHANNEL_SAVE(pChannel);
+        ret = proc_announcement_signatures(pChannel);
+        if (ret) {
+            M_DB_CHANNEL_SAVE(pChannel);
+        }
     } else if ((pChannel->init_flag & M_INIT_ANNOSIG_SENT) == 0) {
         //BOLT07
         //  MUST respond to the first announcement_signatures message with its own announcement_signatures message.
@@ -174,7 +184,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
         pChannel->init_flag |= M_INIT_ANNOSIG_SENT;
     }
 
-    return true;
+    return ret;
 }
 
 
@@ -783,36 +793,42 @@ bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_
  * private functions
  ********************************************************************/
 
-static void proc_announcement_signatures(ln_channel_t *pChannel)
+/** after sending/receiving announcement_signatures
+ *
+ * @retval  false   fail the channel
+ */
+static bool proc_announcement_signatures(ln_channel_t *pChannel)
 {
     if (pChannel->anno_flag != (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         LOGD("yet: anno_flag=%02x\n", pChannel->anno_flag);
-        return;
+        return true;
     }
     if (pChannel->short_channel_id == 0) {
         LOGD("yet: no short_channel_id\n");
-        return;
+        return true;
     }
     //announcement_signatures have been exchanged
     LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", pChannel->short_channel_id);
 
     //channel_announcement
+    bool ret = true;
     {
         //verify
         ln_msg_channel_announcement_t msg;
         if (!ln_msg_channel_announcement_read(&msg, pChannel->cnl_anno.buf, pChannel->cnl_anno.len)) {
             LOGE("fail: read\n");
-            return;
+            return false;
         }
         if (!ln_msg_channel_announcement_verify(&msg, pChannel->cnl_anno.buf, pChannel->cnl_anno.len)) {
             LOGE("fail: verify\n");
-            return;
+            return false;
         }
         if (ln_db_cnlanno_save(
-            &pChannel->cnl_anno, pChannel->short_channel_id, NULL, ln_remote_node_id(pChannel), ln_node_get_id())) {
+                &pChannel->cnl_anno, pChannel->short_channel_id, NULL, ln_remote_node_id(pChannel), ln_node_get_id())) {
             utl_buf_free(&pChannel->cnl_anno);
         } else {
             LOGE("fail\n");
+            ret = false;
         }
     }
 
@@ -824,11 +840,13 @@ static void proc_announcement_signatures(ln_channel_t *pChannel)
             ln_db_cnlupd_save(&buf, &msg, NULL);
         } else {
             LOGE("fail\n");
+            ret = false;
         }
         utl_buf_free(&buf);
     }
 
     pChannel->anno_flag |= LN_ANNO_FLAG_END;
+    return ret;
 }
 
 
