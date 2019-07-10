@@ -510,7 +510,8 @@ static void ln_print_channel(const ln_channel_t *pChannel)
                     pChannel->last_connected_addr.addr[3],
                     pChannel->last_connected_addr.port);
     }
-    printf(INDENT3 M_QQ("err") ": %d\n", pChannel->err);
+    printf(INDENT3 M_QQ("err") ": %d,\n", pChannel->err);
+    printf(INDENT3 M_QQ("err_msg") ": " M_QQ("%s") "\n", pChannel->err_msg);
 
     printf(INDENT2 "}");
 }
