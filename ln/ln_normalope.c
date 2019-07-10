@@ -513,7 +513,6 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     LOGD("BEGIN\n");
 
     ln_msg_update_fee_t msg;
-    uint32_t rate;
     uint32_t old_fee;
 
     if (!ln_msg_update_fee_read(&msg, pData, Len)) {
@@ -542,6 +541,7 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
 
     btc_block_chain_t gtype = btc_block_get_chain(ln_genesishash_get());
     if (gtype == BTC_BLOCK_CHAIN_BTCMAIN) {
+        uint32_t rate;
         ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
         if (!M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate)) {
             M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw from current");
@@ -553,10 +553,6 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
         }
     } else {
         LOGD("skip: feerate range check\n");
-    }
-    if (rate < LN_FEERATE_PER_KW_MIN) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "feerate_per_kw < 253");
-        return false;
     }
 
     uint16_t update_idx;
