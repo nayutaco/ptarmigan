@@ -4,10 +4,10 @@ import { HttpStrategy } from './http.strategy';
 import { PassportModule } from '@nestjs/passport';
 
 @Module({
- imports: [
-  PassportModule.register({ defaultStrategy: 'bearer' }),
- ],
- providers: [AuthService, HttpStrategy],
- exports: [PassportModule, AuthService],
+    imports: [
+        PassportModule.register({ defaultStrategy: 'bearer' }),
+    ],
+    providers: [AuthService, HttpStrategy],
+    exports: [PassportModule, AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

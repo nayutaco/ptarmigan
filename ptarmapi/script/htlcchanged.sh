@@ -27,5 +27,6 @@ curl
  http://0.0.0.0:3000/notification/htlcchanged
  --header 'Content-Type: application/json'
  --header "Authorization: Bearer $API_TOKEN"
+ --data ''
 EOS`
 eval ${curl}
