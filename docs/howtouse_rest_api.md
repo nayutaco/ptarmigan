@@ -1,6 +1,6 @@
-# ptarmigan-api
+# How to use Ptarmigan REST API
 
-[ptarmigan rest-api](../ptarmapi) Lightning Network implementation ptarmigan REST-API
+[Ptarmigan REST API](../ptarmapi) Lightning Network implementation Ptarmigan REST API
 
 ## Configration
 
@@ -23,6 +23,15 @@ $ sudo apt-get install npm
 $ npm install
 ```
 
+If use `invoice notifications api`, please install this.
+
+[What's invoice notifications api](./about_invoice_notifications.md)
+
+```bash
+$ sudo apt install -y curl
+```
+
+
 ## Running the app
 
 ```bash
@@ -30,10 +39,21 @@ $ npm install
 $ npm run start
 ```
 
+Not use invoice notifications.
+
+```bash
+$ npm run start:not-use-invoices-notification
+```
+
+
 ## Example
+
+Default API token is `ptarmigan`.
+
 ```
-$ curl -X POST "http://localhost:3000/getinfo" -H "accept: application/json"
+$ curl -X POST "http://localhost:3000/getinfo" -H "accept: application/json/" -H "Authorization: Bearer ptarmigan"
 ```
+
 
 ## Browser of local PC
 
