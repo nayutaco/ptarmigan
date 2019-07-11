@@ -11,7 +11,11 @@ API use [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_
 ## How it works
 
 ```
-addfinal.sh -> notification/addfinal(ptarmigan rest api) -> cache for paymenthash -> htlcchanged.sh -> notification/htlcchanged(ptarmigan rest api) -> WebSocket(use cached paymenthash) -> notify to client(status, paymenthash...etc)
+addfinal.sh -> notification/addfinal(ptarmigan rest api) -> cache for paymenthash -> htlcchanged.sh ->
+
+-> notification/htlcchanged(ptarmigan rest api) -> WebSocket(use cached paymenthash) -> 
+
+-> notify to client(status, paymenthash...etc)
 ```
 
 
