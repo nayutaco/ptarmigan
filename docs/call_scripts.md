@@ -4,18 +4,18 @@
 
 ptarmd call `install/<NODE DIR>/scripts/*.sh` on event happens.
 
-1. [started.sh](#started.sh)
-2. [connected.sh](#connected.sh)
-3. [disconnected.sh](#disconnected.sh)
-4. [established.sh](#established.sh)
-5. [payment.sh](#payment.sh)
-6. [addfinal.sh](#addfinal.sh)
-7. [fulfill.sh](#fulfill.sh)
-8. [fail.sh](#fail.sh)
-9. [htlcchanged.sh](#htlcchanged.sh)
-10. [closed.sh](#closed.sh)
-11. [dbclosed.sh](#dbclosed.sh)
-12. [error.sh](#error.sh)
+1. [started.sh](#startedsh)
+2. [connected.sh](#connectedsh)
+3. [disconnected.sh](#disconnectedsh)
+4. [established.sh](#establishedsh)
+5. [payment.sh](#paymentsh)
+6. [addfinal.sh](#addfinalsh)
+7. [fulfill.sh](#fulfillsh)
+8. [fail.sh](#failsh)
+9. [htlcchanged.sh](#htlcchangedsh)
+10. [closed.sh](#closedsh)
+11. [dbclosed.sh](#dbclosedsh)
+12. [error.sh](#errorsh)
 
 ### started.sh
 
@@ -47,13 +47,19 @@ This is useful for faster receiving action.
 
 ### fulfill.sh
 
+.
+
 ### fail.sh
+
+.
 
 ### htlcchanged.sh
 
 `revoke_and_ack` message exchanged.
 
 ### closed.sh
+
+channel closed.
 
 ### dbclosed.sh
 
