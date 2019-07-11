@@ -2301,10 +2301,15 @@ static int json_connect_name(cJSON *params, int *pIndex, peer_conn_t *pConn)
     char addr_str[LN_SZ_ADDRESS + 1] = "";
     int port = -1;
     int results = sscanf(json->valuestring, "%66s@%" LN_SZ_ADDRESS_STR "[^:]:%d", node_id_str, addr_str, &port);
+    if ( (results == 2) && (port == -1)) {
+        LOGD("use default port number\n");
+        results = 3;
+        port = 9735;
+    }
     if ( (results != 3) ||
-         (strlen(node_id_str) != BTC_SZ_PUBKEY * 2) ||
-         (strlen(addr_str) < 3) ||      // shortest name: x.x
-         (port <= 0) || (0x10000 <= port) ) {
+            (strlen(node_id_str) != BTC_SZ_PUBKEY * 2) ||
+            (strlen(addr_str) < 3) ||      // shortest name: x.x
+            (port <= 0) || (0x10000 <= port) ) {
         LOGE("fail: invalid string(%s)\n", json->valuestring);
         return RPCERR_PARSE;
     }
