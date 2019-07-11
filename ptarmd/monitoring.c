@@ -470,6 +470,9 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
                 &bheight, &bindex, mined_hash,
                 ln_funding_info_txid(&p_channel->funding_info));
             if (ret) {
+                LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
+                ln_short_channel_id_set_param(p_channel, bheight, bindex);
+
                 //mined block hash
                 ln_funding_blockhash_set(p_channel, mined_hash);
 
@@ -698,12 +701,12 @@ static bool node_connect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint1
  *  ptarmcli paytowalletでvinとして使用可能かどうかのチェックは容易である。
  *  また、TXIDが展開済みかどうかもmempoolの段階でチェックするため、btcrpc_is_tx_broadcasted()で
  *  事前にチェックできてしまう。
- * 
+ *
  *  bitcoinjの場合、今のところminingされた情報しか取得できていない。
  *  また、展開済みかどうかも同じ要領で確認しているため、bitcoindよりも１テンポ遅れる。
  *  そしてもう1つ、bitcoinjではconfirmationが簡単には取得できない。
  *  そのため、miningされたblockcountを保持して、現在のheightからの差分でconfirmationを計算している。
- * 
+ *
  * こうした理由から、set_wallet_data()の前後でbitcoind/bitcoinjによる違いが生じている。
  * wallet.cにも類似した実装がある。
  */
