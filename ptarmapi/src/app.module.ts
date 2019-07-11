@@ -16,6 +16,6 @@ import * as path from 'path';
   imports: [
     AuthModule,
     ConfigModule.load(path.resolve(__dirname, 'config', '**/!(*.d).{ts,js}')),
-  ],
+  ]
 })
 export class AppModule { }

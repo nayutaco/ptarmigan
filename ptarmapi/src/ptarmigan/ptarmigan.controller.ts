@@ -62,7 +62,7 @@ export class PtarmiganController {
     async executeEstimateFundingFee(@Body() dto: FeeDto) {
         return await this.ptarmiganService.requestTCP('estimatefundingfee', [dto.feeratePerKw]);
     }
-    
+
     @ApiBearerAuth()
     @UseGuards(AuthGuard())
     @Post('createinvoice') // createinvoice -> invoice
@@ -144,7 +144,7 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // channel
     // ------------------------------------------------------------------------------
-    
+
     @ApiBearerAuth()
     @UseGuards(AuthGuard())
     @Post('openchannel') // fund -> openchannel
@@ -183,7 +183,7 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // payment
     // ------------------------------------------------------------------------------
-   
+
     @ApiBearerAuth()
     @UseGuards(AuthGuard())
     @Post('sendpayment') // routepay -> sendpayment
@@ -215,7 +215,7 @@ export class PtarmiganController {
     // ------------------------------------------------------------------------------
     // fund
     // ------------------------------------------------------------------------------
-    
+
     @ApiBearerAuth()
     @UseGuards(AuthGuard())
     @Post('getwalletinfo') // getnewaddress
