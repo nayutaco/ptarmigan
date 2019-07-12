@@ -10,4 +10,5 @@ grep -n -e "\/E" -e "fail\:" -e "fail$" $LOG_FILES | \
         -e "already connected" \
         -e "cmd_json_connect]fail: connect test" \
         -e "Connection reset by peer" \
+        -e "confirm=fail" \
         -e "handshake" || :

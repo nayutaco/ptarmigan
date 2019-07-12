@@ -2,7 +2,6 @@
 INSTALL_DIR=`pwd`/../../install
 CONFFILE=`pwd`/regtest.conf
 DATADIR=`pwd`/regtest
-SLEEP_TM=3
 
 cli() {
 	bitcoin-cli -conf=$CONFFILE -datadir=$DATADIR $@
@@ -24,8 +23,16 @@ ln -s ../testfiles/getrawtx.sh getrawtx.sh
 ln -s ../testfiles/sendrawtx.sh sendrawtx.sh
 
 bitcoind -conf=$CONFFILE -datadir=$DATADIR -daemon
-sleep $SLEEP_TM
+RET=$?
+if [ ${RET} -ne 0 ]; then
+	echo bitcoind not start.
+	exit 1
+fi
+
+sleep 3
 ./generate.sh 432
+
+sleep 3
 
 # 1台のPCで複数ノードを立ち上げるので、ディレクトリをそれぞれ作る。
 # 起動したディレクトリに関連ファイルを作成するためだ。

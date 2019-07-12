@@ -1,5 +1,7 @@
 #!/bin/bash -ue
 
+SLEEP_SEC=6
+
 msat3=0
 msat4=0
 msat5=0
@@ -103,12 +105,11 @@ echo st1 end
 
 echo st2 start
 ./example_st2.sh
-sleep 5 # wait conf file
 echo st2 end
 
 echo st3 start
 ./example_st3j.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st3 end
 
 check_live
@@ -117,7 +118,7 @@ get_amount
 
 echo st4c start
 ./example_st4c.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4c end
 
 check_live
@@ -127,7 +128,7 @@ check_amount
 FEERATE_PER_KW=600
 echo update_fee $FEERATE_PER_KW start
 ./example_st_update_fee_all.sh $FEERATE_PER_KW
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo update_fee $FEERATE_PER_KW end
 
 check_live
@@ -136,7 +137,7 @@ check_amount same
 
 echo st4d start
 ./example_st4d.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4d end
 
 check_live
@@ -145,7 +146,7 @@ check_amount
 
 echo st4e start
 ./example_st4e.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4e end
 
 check_live
@@ -154,7 +155,7 @@ check_amount
 
 echo st4f start
 ./example_st4f.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4f end
 
 check_live
@@ -183,7 +184,7 @@ check_amount same
 
 echo st4c start
 ./example_st4c.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4c end
 
 check_live
@@ -192,7 +193,7 @@ check_amount
 
 echo st4d start
 ./example_st4d.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4d end
 
 check_live
@@ -202,7 +203,7 @@ check_amount
 FEERATE_PER_KW=700
 echo update_fee $FEERATE_PER_KW start
 ./example_st_update_fee_all.sh $FEERATE_PER_KW
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo update_fee $FEERATE_PER_KW end
 
 check_live
@@ -211,7 +212,7 @@ check_amount same
 
 echo st4e start
 ./example_st4e.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4e end
 
 check_live
@@ -220,7 +221,7 @@ check_amount
 
 echo st4f start
 ./example_st4f.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st4f end
 
 check_live
@@ -229,7 +230,7 @@ check_amount
 
 echo st5 start
 ./example_st5.sh
-sleep 5 # XXX: TODO
+sleep ${SLEEP_SEC} # XXX: TODO
 echo st5 end
 
 check_live
