@@ -528,6 +528,9 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
 
 bool HIDDEN ln_funding_signed_send(ln_channel_t *pChannel)
 {
+    //wait funding_tx
+    start_funding_wait(pChannel, false);
+
     ln_msg_funding_signed_t msg;
     msg.p_channel_id = pChannel->channel_id;
     msg.p_signature = pChannel->commit_info_remote.remote_sig;
@@ -536,8 +539,6 @@ bool HIDDEN ln_funding_signed_send(ln_channel_t *pChannel)
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
-    //wait funding_tx
-    start_funding_wait(pChannel, false);
     return true;
 }
 
