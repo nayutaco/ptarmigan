@@ -60,10 +60,13 @@ bool btcj_getgenesisblockhash(uint8_t *pHash);
 /** get confirmation
  * 
  *  @param[in]      pTxid
+ *  @param[in]      voutIndex       ==-1:no care voutIndex,pVoutWitProg,amount
+ *  @param[in]      pVoutWitProg
+ *  @param[in]      amount
  *  @retval     >0  confirmation count
  *  @retval     <=0 fail
  */
-uint32_t btcj_gettxconfirm(const uint8_t *pTxid);
+uint32_t btcj_gettxconfirm(const uint8_t *pTxid, int voutIndex, const uint8_t *pVoutWitProg, uint64_t amount);
 
 
 bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int32_t *pbIndex, uint8_t *pMinedHash);
