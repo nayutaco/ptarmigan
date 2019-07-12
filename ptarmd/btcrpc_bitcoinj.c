@@ -28,6 +28,7 @@
 
 #define LOG_TAG     "btcrpc"
 #include "utl_log.h"
+#include "utl_int.h"
 #include "utl_dbg.h"
 #include "utl_mem.h"
 #include "utl_str.h"
@@ -93,6 +94,9 @@ typedef struct {
     bool            ret;
     uint32_t        *p_confirm;
     const uint8_t   *p_txid;
+    int             vout_index;
+    uint8_t         vout_witprog[BTC_SZ_WITPROG_P2WSH];
+    uint64_t        vout_amount;
 } getconfirmation_t;
 
 
@@ -449,6 +453,7 @@ bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid)
     getconfirmation_t param;
     param.p_confirm = pConfm;
     param.p_txid = pTxid;
+    param.vout_index = -1;
     call_jni(METHOD_PTARM_GETCONFIRMATION, &param);
     if (param.ret) {
         LOGD_BTCRESULT("confirm=%" PRId32 "\n", *pConfm);
@@ -461,7 +466,36 @@ bool btcrpc_get_confirmations(uint32_t *pConfm, const uint8_t *pTxid)
 
 bool btcrpc_get_confirmations_funding_tx(uint32_t *pConfm, const ln_funding_info_t *pFundingInfo)
 {
-    return btcrpc_get_confirmations(pConfm, ln_funding_info_txid(pFundingInfo));
+    getconfirmation_t param;
+    utl_buf_t   scriptpk = UTL_BUF_INIT;
+
+    LOGD_BTCTRACE("\n");
+
+    param.ret = false;
+    if (!btc_script_p2wsh_create_scriptpk(&scriptpk, &pFundingInfo->wit_script)) {
+        LOGE("fail: bad witScript\n");
+        goto LABEL_EXIT;
+    }
+    if (scriptpk.len != BTC_SZ_WITPROG_P2WSH) {
+        LOGE("fail: bad script len\n");
+        goto LABEL_EXIT;
+    }
+
+    param.p_confirm = pConfm;
+    param.p_txid = ln_funding_info_txid(pFundingInfo);
+    param.vout_index = ln_funding_info_txindex(pFundingInfo);
+    memcpy(param.vout_witprog, scriptpk.buf, BTC_SZ_WITPROG_P2WSH);
+    param.vout_amount = pFundingInfo->funding_satoshis;
+    call_jni(METHOD_PTARM_GETCONFIRMATION, &param);
+    if (param.ret) {
+        LOGD_BTCRESULT("confirm=%" PRId32 "\n", *pConfm);
+    } else {
+        LOGD_BTCFAIL("confirm=fail\n");
+    }
+
+LABEL_EXIT:
+    utl_buf_free(&scriptpk);
+    return param.ret;
 }
 
 
@@ -775,7 +809,7 @@ static bool check_spv_start(uint32_t *pPrevHeight)
         goto LABEL_EXIT;
     }
     if (strncmp(line, M_STARTUP_BLOCK, sizeof(M_STARTUP_BLOCK) - 1) != 0) {
-        LOGE("block: %s\n", line);
+        LOGD("block: %s\n", line);
         goto LABEL_EXIT;
     }
     uint32_t height;
@@ -913,7 +947,7 @@ static void jni_get_txconfirm(void *pArg)
     LOGD("\n");
 
     getconfirmation_t *p = (getconfirmation_t *)pArg;
-    int32_t val = btcj_gettxconfirm(p->p_txid);
+    int32_t val = btcj_gettxconfirm(p->p_txid, p->vout_index, p->vout_witprog, p->vout_amount);
     LOGD("val=%d\n", (int)val);
     if (val > 0) {
         *p->p_confirm = (uint32_t)val;

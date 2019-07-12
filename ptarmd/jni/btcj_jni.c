@@ -81,7 +81,7 @@ const struct {
     // METHOD_PTARM_GETGENESISBLOCKHASH,
     { "getGenesisBlockHash", "()[B" },
     // METHOD_PTARM_GETCONFIRMATION,
-    { "getTxConfirmation", "([B)I" },
+    { "getTxConfirmation", "([BI[BJ)I" },
     // METHOD_PTARM_GETSHORTCHANNELPARAM,
     { "getShortChannelParam", "([B)Lco/nayuta/lightning/Ptarmigan$ShortChannelParam;" },
     // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
@@ -430,17 +430,21 @@ bool btcj_getgenesisblockhash(uint8_t *pHash)
     return true;
 }
 //-----------------------------------------------------------------------------
-uint32_t btcj_gettxconfirm(const uint8_t *pTxid)
+uint32_t btcj_gettxconfirm(const uint8_t *pTxid, int voutIndex, const uint8_t *pVoutWitProg, uint64_t amount)
 {
     LOGD("txid=");
     TXIDD(pTxid);
 
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
     jobject txHash = buf2jbarray(&buf);
-    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETCONFIRMATION], txHash);
+    const btcj_buf_t buf_wit = { (CONST_CAST uint8_t *)pVoutWitProg, BTC_SZ_WITPROG_P2WSH };
+    jobject witProg = buf2jbarray(&buf_wit);
+    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETCONFIRMATION],
+                            txHash, voutIndex, witProg, amount);
     check_exception(env);
     LOGD("ret=%" PRIu32 "\n", ret);
     //
+    (*env)->DeleteLocalRef(env, witProg);
     (*env)->DeleteLocalRef(env, txHash);
     //
     return ret;
