@@ -156,7 +156,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 static int cmd_invoice_proc(
     char **ppInvoice,
     uint8_t *pPaymentHash,
-    uint8_t *pRFieldNum,
+    bool bNoRField, uint8_t *pRFieldNum,
     uint64_t AmountMsat,
     uint32_t MinFinalCltvExpiry,
     uint32_t InvoiceExpiry,
@@ -575,6 +575,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     char *p_invoice = NULL;
     ln_invoice_desc_t desc;
     uint8_t r_fieldnum = 0;
+    bool no_rfield = false;
 
     if (params == NULL) {
         goto LABEL_EXIT;
@@ -617,6 +618,14 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         invoice_expiry = json->valueint;
         LOGD("invoice_expiry=%d\n", invoice_expiry);
     }
+    //no-rfield
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        if (json->valueint != 0) {
+            LOGD("no-rfield\n");
+            no_rfield = true;
+        }
+    }
 
     size_t desc_len = strlen(description);
     if (desc_len > LN_INVOICE_DESC_MAX) {
@@ -632,7 +641,8 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     uint8_t preimage_hash[BTC_SZ_HASH256];
     err = cmd_invoice_proc(
-            &p_invoice, preimage_hash, &r_fieldnum,
+            &p_invoice, preimage_hash,
+            no_rfield, &r_fieldnum,
             amount_msat, min_final_cltv_expiry, invoice_expiry, &desc);
     utl_buf_free(&desc.data);
 
@@ -647,7 +657,7 @@ LABEL_EXIT:
             cJSON_AddItemToObject(result, "amount_msat", cJSON_CreateNumber64(amount_msat));
             cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
 #ifdef M_RFIELD_AMOUNT
-            if (r_fieldnum == 0) {
+            if (!no_rfield && (r_fieldnum == 0)) {
                 cJSON_AddItemToObject(result, "note", cJSON_CreateString("no payable-amount channel"));
             }
 #endif  //M_RFIELD_AMOUNT
@@ -2003,7 +2013,7 @@ LABEL_EXIT:
 static int cmd_invoice_proc(
     char **ppInvoice,
     uint8_t *pPaymentHash,
-    uint8_t *pRFieldNum,
+    bool bNoRField, uint8_t *pRFieldNum,
     uint64_t AmountMsat,
     uint32_t MinFinalCltvExpiry,
     uint32_t InvoiceExpiry,
@@ -2022,7 +2032,11 @@ static int cmd_invoice_proc(
     ln_payment_hash_calc(pPaymentHash, preimage.preimage);
 
     ln_r_field_t *p_r_field = NULL;
-    create_bolt11_r_field(&p_r_field, pRFieldNum, AmountMsat);
+    if (!bNoRField) {
+        create_bolt11_r_field(&p_r_field, pRFieldNum, AmountMsat);
+    } else {
+        *pRFieldNum = 0;
+    }
     *ppInvoice = create_bolt11(
                         pPaymentHash, AmountMsat,
                         pDesc,

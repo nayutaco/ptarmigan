@@ -87,6 +87,7 @@
 #define M_OPT_INVOICE_DESC          '\x0d'
 #define M_OPT_INVOICE_EXPIRY        '\x0e'
 #define M_OPT_CONNADDR              '\x0f'
+#define M_OPT_INVOICE_NORFIELD      '\x10'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -128,7 +129,7 @@ static uint8_t      mInitRouteSync;
 static uint8_t      mPrivChannel;
 static char         mInvoiceDesc[LN_INVOICE_DESC_MAX + 1] = "";
 static uint32_t     mInvoiceExpiry = LN_INVOICE_EXPIRY;
-
+static bool         mInvoiceNoRField = false;
 
 /********************************************************************
  * prototypes
@@ -242,6 +243,7 @@ int main(int argc, char *argv[])
         { "decodeinvoice", required_argument, NULL, M_OPT_DECODEINVOICE },
         { "description", required_argument, NULL, M_OPT_INVOICE_DESC },
         { "invoiceexpiry", required_argument, NULL, M_OPT_INVOICE_EXPIRY },
+        { "no-rfield", no_argument, NULL, M_OPT_INVOICE_NORFIELD },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
@@ -280,6 +282,9 @@ int main(int argc, char *argv[])
                 print_error("invalid invoice expiry");
                 return -1;
             }
+            break;
+        case M_OPT_INVOICE_NORFIELD:
+            mInvoiceNoRField = true;
             break;
         case M_OPT_CONN:
             optfunc_conn_param(&option, &conn);
@@ -331,6 +336,10 @@ int main(int argc, char *argv[])
         print_error("invalid option: --invoiceexpiry");
         return -1;
     }
+    if (mInvoiceNoRField && (option != M_OPT_INVOICE)) {
+        print_error("invalid option: --no-rfield");
+        return -1;
+    }
 
     uint16_t port = 0;
     if (optind == argc) {
@@ -375,7 +384,7 @@ static void print_help(void)
     fprintf(stderr, "\n");
 
     fprintf(stderr, "\tINVOICE:\n");
-    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT [--description=DESCRIPTION] [--invoiceexpiry=INVOICE_EXPIRY_SECOND] : create invoice and add list\n");
+    fprintf(stderr, "\t\t--createinvoice AMOUNT_MSAT [--description=DESCRIPTION] [--invoiceexpiry=INVOICE_EXPIRY_SECOND] [--no-rfield]: create invoice and add list\n");
     fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
     fprintf(stderr, "\t\t--listinvoice[=PAYMENT_HASH] : list created invoices\n");
     fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
@@ -664,10 +673,10 @@ static void optfunc_invoice(int *pOption, bool *pConn)
                 M_STR("method", "invoice") M_NEXT
                 M_QQ("params") ":[ "
                     //invoice
-                    "%" PRIu64 ",%" PRIu32 "," M_QQ("%s") ",%" PRIu32
+                    "%" PRIu64 ",%" PRIu32 "," M_QQ("%s") ",%" PRIu32 ", %s"
                 " ]"
             "}",
-                amount, min_final_cltv_expiry, mInvoiceDesc, mInvoiceExpiry);
+                amount, min_final_cltv_expiry, mInvoiceDesc, mInvoiceExpiry, (mInvoiceNoRField ? "1" : "0"));
 
         *pOption = M_OPT_INVOICE;
     } else {
