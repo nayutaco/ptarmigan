@@ -69,7 +69,7 @@ mk_lmdb:
 	cp lmdb/libraries/liblmdb/lmdb.h $(INSTALL_DIR)/include/
 
 mk_mbedtls:
-	CFLAGS="-I`pwd`/mbedtls_config -DMBEDTLS_CONFIG_FILE='\"config-ptarm.h\"' $(ADD_CFLAGS)" CC=$(GNU_PREFIX)gcc $(MAKE) -C mbedtls
+	CFLAGS="-I`pwd`/mbedtls_config -DMBEDTLS_CONFIG_FILE='\"config-ptarm.h\"' $(ADD_CFLAGS)" CC=$(GNU_PREFIX)gcc PYTHON=python3 $(MAKE) -C mbedtls
 	cp mbedtls/library/libmbedcrypto.a $(INSTALL_DIR)/lib/
 	cp -ra mbedtls/include/* $(INSTALL_DIR)/include/
 	cp mbedtls_config/* $(INSTALL_DIR)/include/mbedtls/
