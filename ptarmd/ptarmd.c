@@ -221,10 +221,11 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode, btc_block_chain_t Gen
         // method: started
         // $1: 0
         // $2: node_id
+        // $3: local_msat
         char param[256];
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
-        sprintf(param, "0x0x0 %s", node_id);
+        sprintf(param, "0x0x0 %s %" PRIu64, node_id, total_amount);
         ptarmd_call_script(PTARMD_EVT_STARTED, param);
     }
 
