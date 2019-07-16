@@ -423,7 +423,7 @@ bool HIDDEN ln_revoke_and_ack_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //update per_commitment_point
     memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
     memcpy(pChannel->keys_remote.per_commitment_point, msg.p_next_per_commitment_point, BTC_SZ_PUBKEY);
-    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
+    ln_derkey_remote_update_script_pubkeys(&pChannel->keys_remote, &pChannel->keys_local);
     //ln_print_keys(&pChannel->funding_info_local, &pChannel->funding_info_remote);
 
     pChannel->commit_info_remote.revoke_num = pChannel->commit_info_remote.commit_num - 1;
@@ -1858,7 +1858,7 @@ static bool revoke_and_ack_send(ln_channel_t *pChannel)
     uint8_t prev_secret[BTC_SZ_PRIVKEY];
     ln_derkey_local_storage_create_prev_per_commitment_secret(&pChannel->keys_local, prev_secret, NULL);
     ln_derkey_local_storage_update_per_commitment_point(&pChannel->keys_local);
-    ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
+    ln_derkey_local_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote);
     pChannel->commit_info_local.revoke_num++;
 
     //XXX: ???
