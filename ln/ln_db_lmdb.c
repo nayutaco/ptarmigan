@@ -3664,7 +3664,8 @@ bool ln_db_reset(void)
     char cmdline[512];
     snprintf(bak_tgz, sizeof(bak_tgz), "bak_db_%" PRIu64 ".tgz", (uint64_t)utl_time_time());
     snprintf(cmdline, sizeof(cmdline), "tar zcf %.500s db", bak_tgz);
-    system(cmdline);
+    retval = system(cmdline);
+    LOGD(" system=%d\n", retval);
 
     //remove other directories
     const char *DELPATH[] = {
@@ -3677,7 +3678,8 @@ bool ln_db_reset(void)
     for (size_t lp = 0; lp < ARRAY_SIZE(DELPATH); lp++) {
         snprintf(cmdline, sizeof(cmdline), "rm -rf %s", DELPATH[lp]);
         fprintf(stderr, "  remove %s\n", DELPATH[lp]);
-        system(cmdline);
+        retval = system(cmdline);
+        LOGD(" system=%d\n", retval);
     }
 
     MDB_val key;

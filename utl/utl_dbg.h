@@ -83,7 +83,7 @@ void utl_dbg_malloc_cnt_reset(void);
  */
 void utl_dbg_dump(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
 #else
-#define utl_dbg_dumpbin(...)
+#define utl_dbg_dump(...)
 #endif  //PTARM_USE_PRINTFUNC
 
 

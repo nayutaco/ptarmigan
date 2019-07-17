@@ -253,11 +253,13 @@ int main(int argc, char *argv[])
             printf("!!!!!!!!!!!!!!\n\n");
             printf("This command delete all channel data from DB.\n");
             printf("Do you execute ? : (YES or no)\n");
-            fgets(prompt, sizeof(prompt), stdin);
-            if (memcmp(prompt, "YES\n", 4) == 0) {
-                (void)ln_db_reset();
-            } else {
-                printf("canceled.\n");
+            {
+                char *ret = fgets(prompt, sizeof(prompt), stdin);
+                if ((ret != NULL) && (memcmp(prompt, "YES\n", 4) == 0)) {
+                    (void)ln_db_reset();
+                } else {
+                    printf("canceled.\n");
+                }
             }
             return 0;
 #if defined(USE_BITCOIND)

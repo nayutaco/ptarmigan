@@ -138,8 +138,8 @@ lib:
 	$(MAKE) -C ../libs
 
 debug: CFLAGS += -DDEBUG -DPTARM_DEBUG
-debug: CFLAGS += -ggdb3 -O0
-debug: LDFLAGS += -ggdb3 -O0
+debug: CFLAGS += -ggdb3 -O3
+debug: LDFLAGS += -ggdb3 -O3
 debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
 	@echo [DEBUG]CFLAGS=$(CFLAGS) $(CFLAGS_ONLY)

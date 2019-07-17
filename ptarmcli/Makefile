@@ -82,6 +82,10 @@ LIBS += -L$(COMMON_PATH)/btc -lbtc
 LIBS += -L$(COMMON_PATH)/utl -lutl
 LIBS += -llmdb -lbase58 -lmbedcrypto -lstdc++
 
+ifeq ($(USE_OPENSSL),1)
+	LIBS += -lssl -lcrypto
+endif
+
 
 ######################################
 #target
