@@ -819,16 +819,6 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len)
 
     btc_tx_free(&tx);
 }
-#else
-void btc_tx_print(const btc_tx_t *pTx)
-{
-    (void)pTx;
-}
-
-void btc_tx_print_raw(const uint8_t *pData, uint32_t Len)
-{
-    (void)pData; (void)Len;
-}
 #endif  //PTARM_USE_PRINTFUNC
 
 

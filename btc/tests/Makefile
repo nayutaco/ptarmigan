@@ -34,6 +34,9 @@ CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-pro
 LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58
 LDFLAGS  += -Wl,--gc-sections
 
+ifeq ($(USE_OPENSSL),1)
+	LDFLAGS += -lssl -lcrypto
+endif
 
 TEST_SRC_FILE_NAMES = $(notdir $(TEST_TARGET_SRC))
 TEST_PATHS = $(call remduplicates, $(dir $(TEST_TARGET_SRC) ) )

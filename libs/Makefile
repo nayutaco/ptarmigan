@@ -1,14 +1,19 @@
 INSTALL_DIR = $(CURDIR)/install
 BOOST_VER = 1.68.0
 BOOST_VER_FILE = boost_1_68_0
+OPENSSL_VER = 1.1.1c
+OPENSSL_FILE = openssl-$(OPENSSL_VER).tar.gz
 
 include ../options.mak
 
-ifneq ("$GNU_PREFIX","arm-linux-gnueabihf-")
+ifeq ("$(GNU_PREFIX)","arm-linux-gnueabihf-")
 	HOST=arm-linux
 	BOOST_CONV="using gcc : arm : arm-linux-gnueabihf-g++"
+	OPENSSL_ARCH=linux-armv4
+	CROSS_COMPILE="CROSS_COMPILE=$(GNU_PREFIX)"
 else
 	BOOST_CONV="using gcc"
+	OPENSSL_ARCH=linux-x86_64
 endif
 
 ifeq ("$(BUILD_PTARMD)","LIB")
@@ -19,7 +24,7 @@ endif
 
 all: lib
 
-lib: mk_install mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl
+lib: mk_install mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl mk_openssl
 
 mk_install:
 	@mkdir -p $(INSTALL_DIR)
@@ -75,18 +80,15 @@ clean_mbedtls:
 mbedtls_all: clean_mbedtls mk_mbedtls
 
 mk_boost:
-	-@if [ ! -f $(BOOST_VER_FILE).tar.gz ]; then\
-		rm -rf boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz ;\
-		wget -O boost.tgz https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz &&\
-		mv boost.tgz $(BOOST_VER_FILE).tar.gz ;\
+	-@if [ ! -f boost.tgz ]; then\
+		rm -rf boost ;\
+		wget -O boost.tgz https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz ;\
 	fi
-	@if [ ! -f $(BOOST_VER_FILE).tar.gz ]; then\
-		wget -O boost.tgz https://sourceforge.net/projects/boost/files/boost/$(BOOST_VER)/$(BOOST_VER_FILE).tar.gz/download &&\
-		mv boost.tgz $(BOOST_VER_FILE).tar.gz ;\
+	@if [ ! -f boost.tgz ]; then\
+		wget -O boost.tgz https://sourceforge.net/projects/boost/files/boost/$(BOOST_VER)/$(BOOST_VER_FILE).tar.gz/download ;\
 	fi
 	if [ ! -d boost ]; then\
-		rm -rf $(BOOST_VER_FILE) ;\
-		tar zxf $(BOOST_VER_FILE).tar.gz ;\
+		tar zxf boost.tgz ;\
 		ln -s $(BOOST_VER_FILE) boost ;\
 	fi
 	cd boost; \
@@ -105,7 +107,7 @@ mk_jansson:
 
 mk_zlib:
 	cd zlib; \
-	CC=$(GNU_PREFIX)gcc ./configure --prefix=$(INSTALL_DIR) ; $(MAKE) ; \
+	CC=$(GNU_PREFIX)gcc ./configure --prefix=$(INSTALL_DIR) --static; $(MAKE) ; \
 	$(MAKE) CFLAGS=$(ADD_CFLAGS); \
 	$(MAKE) install ; \
 	cd ..
@@ -118,6 +120,23 @@ mk_curl:
 	$(MAKE) install ; \
 	cd ..
 
+mk_openssl:
+ifeq ($(USE_OPENSSL),1)
+	if [ ! -f openssl.tgz ]; then\
+		rm -rf openssl ;\
+		wget -O openssl.tgz https://www.openssl.org/source/$(OPENSSL_FILE) ;\
+		tar zxf openssl.tgz ;\
+		mv openssl-$(OPENSSL_VER) openssl ;\
+	fi
+	cd openssl; \
+	./Configure $(OPENSSL_ARCH) no-shared no-asm no-ecdh no-des no-dso $(CROSS_COMPILE) --prefix=$(INSTALL_DIR) --openssldir=$(INSTALL_DIR); \
+	$(MAKE) $(CROSS_COMPILE) libcrypto.a; \
+	$(MAKE) install ; \
+	cd ..
+else
+	@echo NO openssl
+endif
+
 clean:
 	-$(MAKE) -C jsonrpc-c clean
 	-$(MAKE) -C inih/extra -f Makefile.static clean
@@ -128,5 +147,5 @@ clean:
 	-$(MAKE) -C jansson clean
 	-$(MAKE) -C curl clean
 	-$(MAKE) -C zlib clean
-	-$(RM) -rf $(INSTALL_DIR) bech32 boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz
-
+	-$(MAKE) -C openssl clean
+	-$(RM) -rf $(INSTALL_DIR) bech32 boost boost.tgz openssl openssl.tgz

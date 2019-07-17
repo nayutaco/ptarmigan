@@ -2471,7 +2471,10 @@ static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
         close(sock);
         return retval;
     }
-    write(sock, pSend, strlen(pSend));
+    retval = write(sock, pSend, strlen(pSend));
+    if (retval != (int)strlen(pSend)) {
+        LOGD("write ret=%d\n", retval);
+    }
 
     //受信を待つとDBの都合でロックしてしまうため、すぐに閉じる
 

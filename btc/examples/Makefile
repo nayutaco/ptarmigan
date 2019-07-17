@@ -10,6 +10,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/tx_create.c
 #CFLAGS += -DUNITTEST
 INC_PATHS +=
 
+include ../../options.mak
 
 ######################################
 #COMMANDS
@@ -91,6 +92,10 @@ LDFLAGS += -pthread
 #Link Library
 LIBS += $(LD_PATHS)
 LIBS += -lbtc -lutl -llmdb -lmbedcrypto -lbase58 -lstdc++
+
+ifeq ($(USE_OPENSSL),1)
+	LIBS += -lssl -lcrypto -ldl
+endif
 
 
 #default target - first one defined

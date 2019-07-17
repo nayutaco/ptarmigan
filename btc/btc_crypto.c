@@ -25,6 +25,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#ifdef USE_OPENSSL
+#include <openssl/ripemd.h>
+#include <openssl/sha.h>
+#include <openssl/obj_mac.h>
+#include <openssl/ec.h>
+#endif
+
 #include "mbedtls/error.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/md.h"
@@ -81,13 +88,29 @@ static mbedtls_ctr_drbg_context mRng;
 
 void btc_md_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
 {
+#ifndef USE_OPENSSL
     mbedtls_ripemd160(pData, Len, pRipemd160);
+#else
+    RIPEMD160_CTX context;
+
+    RIPEMD160_Init(&context);
+    RIPEMD160_Update(&context, pData, Len);
+    RIPEMD160_Final(pRipemd160, &context);
+#endif
 }
 
 
 void btc_md_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
 {
+#ifndef USE_OPENSSL
     mbedtls_sha256(pData, Len, pSha256, 0);
+#else
+    SHA256_CTX context;
+
+    SHA256_Init(&context);
+    SHA256_Update(&context, pData, Len);
+    SHA256_Final(pSha256, &context);
+#endif
 }
 
 
@@ -109,6 +132,7 @@ void btc_md_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 
 void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
 {
+#ifndef USE_OPENSSL
     mbedtls_sha256_context ctx;
 
     mbedtls_sha256_init(&ctx);
@@ -117,6 +141,14 @@ void btc_md_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, co
     mbedtls_sha256_update(&ctx, pData2, Len2);
     mbedtls_sha256_finish(&ctx, pSha256);
     mbedtls_sha256_free(&ctx);
+#else
+    SHA256_CTX context;
+
+    SHA256_Init(&context);
+    SHA256_Update(&context, pData1, Len1);
+    SHA256_Update(&context, pData2, Len2);
+    SHA256_Final(pSha256, &context);
+#endif
 }
 
 

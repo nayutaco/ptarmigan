@@ -376,8 +376,8 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
     char path[PATH_MAX];
 
     errno = 0;
-    getcwd(path, sizeof(path));
-    if (errno != 0) {
+    char* retcwd = getcwd(path, sizeof(path));
+    if ((retcwd == NULL) || (errno != 0)) {
         LOGE("fail: getcwd()\n");
         return;
     }
@@ -391,7 +391,8 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
         char *cmdline = (char *)UTL_DBG_MALLOC(sclen);    //UTL_DBG_FREE: この中   //+64は余裕を持たせている
         snprintf(cmdline, sclen, "%s %s", script, param);
         LOGD("cmdline: %s\n", cmdline);
-        system(cmdline);
+        int ret = system(cmdline);
+        LOGD("sytem=%d\n", ret);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
     }
 }
