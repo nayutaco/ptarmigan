@@ -471,6 +471,10 @@ bool btcrpc_get_confirmations_funding_tx(uint32_t *pConfm, const ln_funding_info
     LOGD_BTCTRACE("\n");
 
     param.ret = false;
+    if (utl_mem_is_all_zero(ln_funding_info_txid(pFundingInfo), BTC_SZ_TXID)) {
+        LOGE("fail: invalid txid\n");
+        goto LABEL_EXIT;
+    }
     if (!btc_script_p2wsh_create_scriptpk(&scriptpk, &pFundingInfo->wit_script)) {
         LOGE("fail: bad witScript\n");
         goto LABEL_EXIT;
