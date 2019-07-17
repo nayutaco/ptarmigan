@@ -29,6 +29,12 @@
 #include "mbedtls/ripemd160.h"
 #include "mbedtls/ecp.h"
 
+#ifdef USE_OPENSSL
+#include <openssl/sha.h>
+#include <openssl/obj_mac.h>
+#include <openssl/ec.h>
+#endif
+
 #include "btc.h"
 #include "btc_crypto.h"
 
@@ -52,16 +58,15 @@ static int where_to_put_secret(uint64_t Index);
 bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
             const uint8_t *pBasePoint, const uint8_t *pPerCommitPoint)
 {
-    int ret;
-
     //sha256(per-commitment-point || basepoint)
     uint8_t hash[BTC_SZ_HASH256];
     btc_md_sha256cat(hash, pPerCommitPoint, BTC_SZ_PUBKEY, pBasePoint, BTC_SZ_PUBKEY);
 
+#ifndef USE_OPENSSL
     mbedtls_mpi h;
     mbedtls_mpi_init(&h);
     mbedtls_mpi_read_binary(&h, hash, sizeof(hash));
-    ret = btc_ecc_ecp_add(pPubKey, pBasePoint, &h);
+    int ret = btc_ecc_ecp_add(pPubKey, pBasePoint, &h);
     mbedtls_mpi_free(&h);
 
 #ifdef M_DBG_PRINT
@@ -74,6 +79,56 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
 #endif
 
     return ret == 0;
+#else
+    //pBasePoint[33] + hash[32]*G
+    EC_GROUP *curve = EC_GROUP_new_by_curve_name(NID_secp256k1);
+
+    bool ret = false;
+    int retval;
+    
+    //compressed pubkey ==> EC_POINT
+    EC_POINT *q = EC_POINT_new(curve);
+    EC_POINT *r = EC_POINT_new(curve);
+    BIGNUM *n = NULL;
+    BIGNUM *bn_basepoint = BN_bin2bn(pBasePoint + 1, BTC_SZ_PUBKEY - 1, NULL);
+    retval = EC_POINT_set_compressed_coordinates_GFp(curve,
+                q, bn_basepoint, (pBasePoint[0] == 0x02 ? 0 : 1), NULL);
+    BN_free(bn_basepoint);
+    if (retval != 1) {
+        LOGE("fail: EC_POINT_set_compressed_coordinates_GFp\n");
+        goto LABEL_EXIT;
+    }
+
+    //r = generator * n + q * m
+    //      n = hash[32]
+    //      q = pBasePoint[33]
+    //      m = 1
+    n = BN_bin2bn(hash, sizeof(hash), NULL);
+    retval = EC_POINT_mul(curve, r, n, q, BN_value_one(), NULL);
+    BN_free(n);
+    if (retval != 1) {
+        LOGE("fail: EC_POINT_mul\n");
+        goto LABEL_EXIT;
+    }
+
+    retval = (int)EC_POINT_point2oct(curve, r, POINT_CONVERSION_COMPRESSED, pPubKey, BTC_SZ_PUBKEY, NULL);
+    if (retval != BTC_SZ_PUBKEY) {
+        LOGE("fail: EC_POINT_point2oct=%d\n", retval);
+        goto LABEL_EXIT;
+    }
+
+    ret = true;
+
+LABEL_EXIT:
+    if (r != NULL) {
+        EC_POINT_free(r);
+    }
+    if (q != NULL) {
+        EC_POINT_free(q);
+    }
+    return ret;
+
+#endif
 }
 
 
@@ -263,6 +318,7 @@ void HIDDEN ln_derkey_storage_create_secret(uint8_t *pSecret, const uint8_t *pSe
     //    return P
 
     derive_secret(pSecret, pSeed, 47, Index);
+    LOGD("END\n");
 }
 
 
@@ -274,6 +330,8 @@ void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
 
 bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret, uint64_t Index)
 {
+    LOGD("BEGIN\n");
+
     //insert_secret(secret, I):
     //    B = where_to_put_secret(secret, I)
     //
@@ -299,6 +357,7 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const
     }
     memcpy(pStorage->storage[bit].secret, pSecret, BTC_SZ_PRIVKEY);
     pStorage->storage[bit].index = Index;
+    LOGD("END\n");
     return true;
 }
 

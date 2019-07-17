@@ -104,6 +104,15 @@ struct Fee {
     uint16_t    cltv_expiry_delta;
     uint64_t    weight;
     const uint8_t   *node_id;
+
+    Fee() {
+        short_channel_id = 0;
+        fee_base_msat = 0;
+        fee_prop_millionths = 0;
+        cltv_expiry_delta = 0;
+        weight = 0;
+        node_id = NULL;
+    }
 };
 
 typedef adjacency_list <

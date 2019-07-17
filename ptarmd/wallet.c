@@ -352,8 +352,8 @@ LABEL_EXIT:
         utl_str_bin2str_rev(outpoint, pWallet->p_txid, BTC_SZ_TXID);
         char idx[5];
         (void)utl_str_itoa(idx, sizeof(idx), pWallet->index);
-        strncat(outpoint, ":", sizeof(outpoint) - 1);
-        strncat(outpoint, idx, sizeof(outpoint));
+        strncat(outpoint, ":", 1);
+        strncat(outpoint, idx, sizeof(idx) - 1);
         outpoint[sizeof(outpoint) - 1] = '\0';
         cJSON_AddStringToObject(p_json, "outpoint", outpoint);
         cJSON_AddNumber64ToObject(p_json, "amount", pWallet->amount);

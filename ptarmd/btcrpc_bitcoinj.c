@@ -561,13 +561,14 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
     param.p_vout = pVout;
     call_jni(METHOD_PTARM_SEARCHVOUT, &param);
     if (param.ret) {
+#if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
         int len = pTxBuf->len / sizeof(utl_buf_t);
         const utl_buf_t *p_buf = (const utl_buf_t *)pTxBuf->buf;
         for (int lp = 0; lp < len; lp++) {
             LOGD_BTCRESULT("----[%d]----\n", lp);
-            const btc_tx_t *p = (const btc_tx_t *)p_buf[lp].buf;
-            btc_tx_print(p);
+            btc_tx_print((const btc_tx_t *)p_buf[lp].buf);
         }
+#endif
     } else {
         LOGD_BTCFAIL("fail\n");
     }
