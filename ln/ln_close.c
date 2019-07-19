@@ -233,7 +233,7 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     pChannel->shutdown_flag |= LN_SHDN_FLAG_SEND_CLSN;
     if (pClosingSignedMsg) {
         //XXX: send the same fee now
-        pChannel->status = LN_STATUS_CLOSE_WAIT;
+        ln_status_set(pChannel, LN_STATUS_CLOSE_WAIT);
     }
     M_DB_CHANNEL_SAVE(pChannel);
     return true;
@@ -312,7 +312,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         //clearはDB削除に任せる
         //channel_clear(pChannel);
 
-        pChannel->status = LN_STATUS_CLOSE_WAIT;
+        ln_status_set(pChannel, LN_STATUS_CLOSE_WAIT);
         M_DB_CHANNEL_SAVE(pChannel);
     } else {
         LOGD("different fee!\n");
