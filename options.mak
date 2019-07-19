@@ -19,6 +19,7 @@ USE_OPENSSL=0
 
 # 0: enable print func 1:disable
 #  priority higher than PTARM_USE_PRINTFUNC
+#       NOTICE: if active this option, some `showdb` parameter cannot shown.
 DISABLE_PRINTFUND=0
 
 # 0: disable gcov 1:enable
