@@ -955,7 +955,7 @@ static void start_funding_wait(ln_channel_t *pChannel, bool bSendTx)
     //save the channel
     //  we should save the channel before broadcasting the funding tx
     //  don't forget it even if the process aborts
-    pChannel->status = LN_STATUS_ESTABLISH;
+    ln_status_set(pChannel, LN_STATUS_ESTABLISH);
     M_DB_SECRET_SAVE(pChannel);
     M_DB_CHANNEL_SAVE(pChannel);
 

@@ -374,7 +374,7 @@ static bool monfunc(lnapp_conf_t *pConf, void *pDbParam, void *pParam)
 
     if (del) {
         bool ret;
-        p_channel->status = LN_STATUS_CLOSED; //XXX:
+        ln_status_set(p_channel, LN_STATUS_CLOSED); //XXX:
 
         LOGD("delete from DB\n");
         char str_ci[LN_SZ_CHANNEL_ID_STR * 2 + 1];

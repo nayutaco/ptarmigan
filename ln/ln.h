@@ -824,6 +824,15 @@ void ln_short_channel_id_clr(ln_channel_t *pChannel);
 void *ln_get_param(ln_channel_t *pChannel);
 
 
+/** set status
+ *
+ * @param[in,out]       pChannel        channel info
+ * @param[in]           status          new status
+ * @return  true:success
+ */
+bool ln_status_set(ln_channel_t *pChannel, ln_status_t status);
+
+
 /** get status
  *
  * @param[in]           pChannel        channel info
