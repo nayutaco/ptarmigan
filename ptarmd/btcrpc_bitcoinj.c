@@ -930,8 +930,14 @@ static void jni_get_blockcount(void *pArg)
     LOGD("\n");
 
     getblockcount_t *p = (getblockcount_t *)pArg;
-    *p->p_cnt = btcj_getblockcount(p->p_hash);
-    p->ret = true;
+    int32_t cnt = btcj_getblockcount(p->p_hash);
+    if (cnt > 0) {
+        *p->p_cnt = cnt;
+        p->ret = true;
+    } else {
+        LOGE("fail: getblockcount\n");
+        p->ret = false;
+    }
 }
 
 
