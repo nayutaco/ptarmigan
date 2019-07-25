@@ -374,7 +374,6 @@ uint64_t HIDDEN ln_short_channel_id_calc(uint32_t Height, uint32_t BIndex, uint3
 void ln_short_channel_id_set_param(ln_channel_t *pChannel, uint32_t Height, uint32_t Index)
 {
     pChannel->short_channel_id = ln_short_channel_id_calc(Height, Index, ln_funding_info_txindex(&pChannel->funding_info));
-    ln_status_set(pChannel, LN_STATUS_NORMAL_OPE);
     M_DB_CHANNEL_SAVE(pChannel);
 }
 

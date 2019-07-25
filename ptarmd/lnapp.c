@@ -1136,6 +1136,9 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
         return false;
     }
 
+    // funding_locked exchange == "normal operation"
+    ln_status_set(&p_conf->channel, LN_STATUS_NORMAL_OPE);
+
     //set short_channel_id
     (void)set_short_channel_id(p_conf);
 
