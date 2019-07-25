@@ -2094,6 +2094,14 @@ static void show_channel_have_chan(const lnapp_conf_t *pAppConf, cJSON *result)
     }
     //feerate_per_kw
     cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(p_channel)));
+    //announcement_signatures
+    const char *p_annosig;
+    if (p_channel->anno_flag & LN_ANNO_FLAG_END) {
+        p_annosig = "exchanged";
+    } else {
+        p_annosig = "not exchanged";
+    }
+    cJSON_AddItemToObject(result, "announcement_signatures", cJSON_CreateString(p_annosig));
 
     //local
     cJSON *local = cJSON_CreateObject();
