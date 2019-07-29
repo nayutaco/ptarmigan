@@ -168,7 +168,7 @@ void lnapp_manager_term_node(const uint8_t *pNodeId)
 }
 
 
-void lnapp_manager_prune_node()
+void lnapp_manager_prune_node(void)
 {
     pthread_mutex_lock(&mMuxAppconf);
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {

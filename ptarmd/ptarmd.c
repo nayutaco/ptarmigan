@@ -235,6 +235,7 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode, btc_block_chain_t Gen
     cmd_json_start(RpcPort != 0 ? RpcPort : p_addr->port + 1);
 
     //ptarmd_stop()待ち
+    LOGD("$$$ STOP\n");
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -261,9 +262,11 @@ void ptarmd_stop(void)
     if (mRunning) {
         mRunning = false;
         LOGD("$$$ stopage order\n");
-        cmd_json_stop();
+        monitor_disable_autoconn(true);
+        cmd_json_exit();
         monitor_stop();
         p2p_stop();
+        LOGD("$$$ stopage order: done\n");
     } else {
         LOGD("$$$ stopped\n");
     }
@@ -392,7 +395,7 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
         snprintf(cmdline, sclen, "%s %s", script, param);
         LOGD("cmdline: %s\n", cmdline);
         int ret = system(cmdline);
-        LOGD("sytem=%d\n", ret);
+        LOGD("system=%d\n", ret);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
     }
 }

@@ -45,7 +45,7 @@ void lnapp_manager_each_node(void (*pCallback)(lnapp_conf_t *pConf, void *pParam
 lnapp_conf_t *lnapp_manager_get_new_node(
     const uint8_t *pNodeId, void *(*pThreadChannelStart)(void *pArg));
 void lnapp_manager_free_node_ref(lnapp_conf_t *pConf);
-void lnapp_manager_prune_node();
+void lnapp_manager_prune_node(void);
 
 
 #ifdef __cplusplus

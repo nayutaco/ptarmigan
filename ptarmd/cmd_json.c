@@ -121,6 +121,7 @@ static cJSON *cmd_connect_nores(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_exit(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -151,7 +152,6 @@ static cJSON *cmd_dev_send_error(jrpc_context *ctx, cJSON *params, cJSON *id);
 
 static int cmd_connect_proc(const peer_conn_t *pConn);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
-static int cmd_stop_proc(void);
 static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jrpc_context *ctx);
 static int cmd_invoice_proc(
     char **ppInvoice,
@@ -214,6 +214,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_disconnect,  "disconnect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_exit,        "EXIT", NULL);
     jrpc_register_procedure(&mJrpc, cmd_fund,        "fund", NULL);
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
@@ -276,6 +277,19 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
                         nodestr, pIpAddr, Port);
 
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
+    LOGD("retval=%d\n", retval);
+
+    return retval;
+}
+
+
+/*
+ * jsonrpc-cを終了させたいのだが、別スレッドからjrpc_server_stop()を呼び出しても終わってくれなかった。
+ * そのため、jsonrpc-cからjrpc_server_stop()を実行してもらう。
+ */
+int cmd_json_exit(void)
+{
+    int retval = send_json("{\"method\":\"EXIT\",\"params\":[]}", "127.0.0.1", mJrpc.port_number);
     LOGD("retval=%d\n", retval);
 
     return retval;
@@ -453,25 +467,31 @@ LABEL_EXIT:
  */
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    (void)ctx; (void)params; (void)id;
-
-    cJSON *result = NULL;
-
     LOGD("$$$: [JSONRPC]stop\n");
 
-    monitor_disable_autoconn(true);
-    int err = cmd_stop_proc();
-    if (err == 0) {
-        result = cJSON_CreateString(kOK);
-    } else {
-        ctx->error_code = err;
-        ctx->error_message = error_str_cjson(err);
-    }
+    cmd_exit(ctx, params, id);
+    ptarmd_stop();
+
+    LOGD("exit\n");
+    return cJSON_CreateString(kOK);
+}
+
+
+/** ノード終了 : ptarmcli --EXIT
+ *
+ */
+static cJSON *cmd_exit(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)ctx; (void)params; (void)id;
+
+    LOGD("$$$: [JSONRPC]EXIT\n");
+
     if (mJrpc.port_number != 0) {
         jrpc_server_stop(&mJrpc);
     }
+
     LOGD("exit\n");
-    return result;
+    return cJSON_CreateString(kOK);
 }
 
 
@@ -1901,20 +1921,6 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
     }
 
     return err;
-}
-
-
-/** node終了
- *
- * @retval  エラーコード
- */
-static int cmd_stop_proc(void)
-{
-    LOGD("stop\n");
-
-    ptarmd_stop();
-
-    return 0;
 }
 
 
