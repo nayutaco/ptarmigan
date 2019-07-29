@@ -55,7 +55,7 @@
  * macros
  ********************************************************************/
 
-#define M_TIMEOUT_MSEC              (TM_WAIT_CONNECT * 1000)    ///< poll timeout[msec]
+#define M_TIMEOUT_MSEC              (1000)  ///< poll timeout[msec]
 
 
 /********************************************************************
