@@ -51,6 +51,7 @@ typedef enum {
 
 bool btcj_init(btc_block_chain_t Gen);
 bool btcj_release(void);
+bool btcj_exception_happen(void);
 int btcj_spv_start(btc_block_chain_t Gen);
 void btcj_setcreationhash(const uint8_t *pHash);
 int32_t btcj_getblockcount(uint8_t *pHash);

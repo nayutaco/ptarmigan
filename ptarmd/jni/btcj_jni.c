@@ -60,6 +60,8 @@ static jmethodID system_exit_method;
 static jfieldID ptarmcls_field[M_FIELD_PTARMCHAN_MAX];
 static jfieldID searchoutpoint_field[M_FIELD_SEARCHOUTPOINT_MAX];
 
+static bool mExceptionHappen;
+
 static uint8_t* hash2bytes(jobject hash_obj);
 static jbyteArray buf2jbarray(const btcj_buf_t *buf);
 static btcj_buf_t* jbarray2buf(jbyteArray jbarray);
@@ -138,6 +140,7 @@ const struct {
 //-----------------------------------------------------------------------------
 bool btcj_init(btc_block_chain_t Gen)
 {
+    mExceptionHappen = false;
     jclass cls;
     char optjar[PATH_MAX];
     snprintf(optjar, sizeof(optjar),
@@ -359,6 +362,11 @@ bool btcj_release(void)
     }
     //
     return true;
+}
+//-----------------------------------------------------------------------------
+bool btcj_exception_happen(void)
+{
+    return mExceptionHappen;
 }
 //-----------------------------------------------------------------------------
 int btcj_spv_start(btc_block_chain_t Gen)
@@ -824,6 +832,7 @@ static inline void _check_exception(JNIEnv *env, const char *pFuncName, int Line
     if ((*env)->ExceptionCheck(env)) {
         LOGE("fail: exception(%s(): %d)!!\n", pFuncName, Line);
         (*env)->ExceptionClear(env);
-        abort();
+        //abort();
+        mExceptionHappen = true;
     }
 }

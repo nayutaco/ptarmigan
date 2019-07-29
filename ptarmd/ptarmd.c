@@ -533,7 +533,7 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
     char peer[32];
     utl_str_bin2str(peer, ln_remote_node_id(pChannel), 3);
     snprintf(log, sizeof(log), "CONT=ch:%s..", peer);
-    btcrpcj_write_startuplog(log);
+    btcrpc_write_startuplog(log);
 #endif
     btcrpc_set_channel(ln_remote_node_id(pChannel),
             ln_short_channel_id(pChannel),
@@ -549,14 +549,10 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
 
 static void set_channels(void)
 {
-#if defined(USE_BITCOINJ)
-    btcrpcj_write_startuplog("CONT=Channels..");
-#endif
+    btcrpc_write_startuplog("CONT=Channels..");
 
     LOGD("\n");
     ln_db_channel_search_readonly(comp_func_cnl, NULL);
 
-#if defined(USE_BITCOINJ)
-    btcrpcj_write_startuplog("STOP=All synced!");
-#endif
+    btcrpc_write_startuplog("STOP=All synced!");
 }
