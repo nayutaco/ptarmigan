@@ -248,11 +248,15 @@ bool btcrpc_get_balance(uint64_t *pAmount);
 bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr);
 
 
-#if defined(USE_BITCOINJ)
 /**
- * bitcoinj startup log
+ * bitcoin node startup log
  */
-void btcrpcj_write_startuplog(const char *pLog);
-#endif
+void btcrpc_write_startuplog(const char *pLog);
+
+
+/**
+ * bitcoin node happen exception
+ */
+bool btcrpc_exception_happen(void);
 
 #endif /* BTCRPC_H__ */

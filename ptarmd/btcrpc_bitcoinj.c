@@ -776,7 +776,7 @@ bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
 }
 
 
-void btcrpcj_write_startuplog(const char *pLog)
+void btcrpc_write_startuplog(const char *pLog)
 {
     FILE *fp = fopen(M_FILE_STARTUP, "w");
     if (fp == NULL) {
@@ -786,6 +786,12 @@ void btcrpcj_write_startuplog(const char *pLog)
     LOGD("SPV log: %s\n", pLog);
     fputs(pLog, fp);
     fclose(fp);
+}
+
+
+bool btcrpc_exception_happen(void)
+{
+    return btcj_exception_happen();
 }
 
 

@@ -178,6 +178,7 @@ void *monitor_start(void *pArg)
         if (!(lp % M_WAIT_MON_PROC_INACTIVE_NODE_SEC)) {
             lnapp_manager_each_node(proc_inactive_channel, NULL);
         }
+        mActive = !btcrpc_exception_happen();
         sleep(1);
     }
     LOGD("[exit]monitor thread\n");

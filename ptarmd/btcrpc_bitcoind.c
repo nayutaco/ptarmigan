@@ -803,6 +803,18 @@ bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
 }
 
 
+void btcrpc_write_startuplog(const char *pLog)
+{
+    (void)pLog;
+}
+
+
+bool btcrpc_exception_happen(void)
+{
+    return false;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
