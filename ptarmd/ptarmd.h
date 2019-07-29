@@ -62,8 +62,6 @@ extern "C" {
 #define SZ_CONN_STR                 (INET6_ADDRSTRLEN + 1 + 5)   ///< <IP addr>:<port>
 #define SZ_NODECONN_STR             (BTC_SZ_HASH256 * 2 + 1 + SZ_CONN_STR)  ///< <node_id>@<IP addr>:<port>
 
-#define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
-
 #define FNAME_CONF_ANNO             "anno.conf"
 #define FNAME_CONF_CHANNEL          "channel.conf"
 #define FNAME_CONF_CONNLIST         "connlist.conf"
