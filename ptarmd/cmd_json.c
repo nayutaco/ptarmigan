@@ -467,9 +467,10 @@ LABEL_EXIT:
  */
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)ctx; (void)params; (void)id;
+
     LOGD("$$$: [JSONRPC]stop\n");
 
-    cmd_exit(ctx, params, id);
     ptarmd_stop();
 
     LOGD("exit\n");
