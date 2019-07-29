@@ -50,4 +50,10 @@ void cmd_json_stop(void);
 int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 
+/** send JSONRPC "EXIT" to myself
+ * 
+ */
+int cmd_json_exit(void);
+
+
 #endif  //CMD_JSON_H__
