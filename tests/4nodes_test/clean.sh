@@ -1,5 +1,5 @@
 #!/bin/sh
-killall ptarmd
+bash kill_ptarmd.sh
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest stop
 sleep 1
 rm -rf \
@@ -9,4 +9,4 @@ rm -rf \
     tmp.*
 
 # remove synbolic link
-rm ptarmcli ptarmd showdb routing regtest.conf generate.sh getrawtx.sh sendrawtx.sh default_conf.sh
+rm ptarmcli ptarmd showdb routing regtest.conf generate.sh getrawtx.sh sendrawtx.sh default_conf.sh kill_ptarmd.sh

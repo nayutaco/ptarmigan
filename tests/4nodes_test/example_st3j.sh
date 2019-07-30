@@ -79,7 +79,7 @@ sleep 3
 
 # 少し待つ
 echo wait...
-sleep 2
+sleep 5
 
 # mining
 ./generate.sh 6

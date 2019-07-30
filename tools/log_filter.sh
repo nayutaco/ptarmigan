@@ -11,4 +11,5 @@ grep -n -e "\/E" -e "fail\:" -e "fail$" $LOG_FILES | \
         -e "cmd_json_connect]fail: connect test" \
         -e "Connection reset by peer" \
         -e "confirm=fail" \
+        -e "btcrpc_get_confirmations_funding_tx]fail: invalid txid" \
         -e "handshake" || :

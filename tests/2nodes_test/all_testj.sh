@@ -3,6 +3,7 @@ set -eu
 
 START=`date +%s`
 
+source ../../install/jdk.sh
 ./testj_prepare.sh
 ./test_after.sh BITCOINJ
 

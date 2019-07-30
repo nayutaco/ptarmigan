@@ -71,7 +71,7 @@ check_amount() {
 function check_live() {
 	echo check proc count start
 	PROC_COUNT=`ps -C ptarmd | grep ptarmd | wc -l`
-	test $PROC_COUNT == 4
+	test $PROC_COUNT -ge 4
 	echo check proc count end
 }
 
