@@ -122,7 +122,7 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
 
     if (!pChannel->cnl_anno.buf) {
         if (!create_local_channel_announcement(pChannel)) {
-            LOGE("through: I have no short_channel_id\n");
+            LOGE("through: fail annosig signature\n");
             return true;
         }
     }
@@ -149,26 +149,12 @@ bool HIDDEN ln_announcement_signatures_recv(ln_channel_t *pChannel, const uint8_
         return false;
     }
 
-    if (pChannel->short_channel_id) {
-        if (msg.short_channel_id != pChannel->short_channel_id) {
-            M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pChannel->short_channel_id, msg.short_channel_id);
-            return false;
-        }
-    }
-
     bool ret = true;
     if (!(pChannel->anno_flag & LN_ANNO_FLAG_END)) {
-        pChannel->short_channel_id = msg.short_channel_id;
-        if (!ln_msg_channel_announcement_update_short_channel_id(pChannel->cnl_anno.buf, pChannel->short_channel_id)) {
+        if (!ln_msg_channel_announcement_update_short_channel_id(
+                pChannel->cnl_anno.buf, msg.short_channel_id)) {
             LOGE("through: update short_channel_id\n");
             return true;
-        }
-        if (!ln_msg_channel_announcement_sign(
-                pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
-                pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
-                order)) {
-            M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "fail: sign");
-            return false;
         }
         pChannel->anno_flag |= M_ANNO_FLAG_RECV;
         ret = proc_announcement_signatures(pChannel);
@@ -324,6 +310,10 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         LOGD("through: chain_hash mismatch\n");
         return true;
     }
+    if (msg.short_channel_id == 0) {
+        LOGD("through: invalid short_channel_id\n");
+        return true;
+    }
     int dir = msg.channel_flags & LN_CNLUPD_CHFLAGS_DIRECTION;
 
     //timestamp check
@@ -350,8 +340,12 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
 #endif
     } else {
         //not found
-        LOGD("skip: not found channel_announcement in DB\n");
-        return true;
+        if (msg.short_channel_id == pChannel->short_channel_id) {
+            LOGD("continue: own channel\n");
+        } else {
+            LOGD("skip: not found channel_announcement in DB\n");
+            return true;
+        }
     }
 
     //BOLT07
@@ -804,9 +798,18 @@ static bool proc_announcement_signatures(ln_channel_t *pChannel)
         return true;
     }
     if (pChannel->short_channel_id == 0) {
-        LOGD("yet: no short_channel_id\n");
-        return true;
+        LOGE("fail: no short_channel_id\n");
+        return false;
     }
+    if (ln_msg_channel_announcement_get_short_channel_id(pChannel->cnl_anno.buf) != pChannel->short_channel_id) {
+        //BOLT#07
+        //  * if the short_channel_id is NOT correct:
+        //    * SHOULD fail the channel.
+        LOGE("fail: short_channel_id not match\n");
+        M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "fail: sign");
+        return false;
+    }
+
     //announcement_signatures have been exchanged
     LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", pChannel->short_channel_id);
 
@@ -814,13 +817,12 @@ static bool proc_announcement_signatures(ln_channel_t *pChannel)
     bool ret = true;
     {
         //verify
-        ln_msg_channel_announcement_t msg;
-        if (!ln_msg_channel_announcement_read(&msg, pChannel->cnl_anno.buf, pChannel->cnl_anno.len)) {
-            LOGE("fail: read\n");
-            return false;
-        }
-        if (!ln_msg_channel_announcement_verify(&msg, pChannel->cnl_anno.buf, pChannel->cnl_anno.len)) {
-            LOGE("fail: verify\n");
+        btc_script_pubkey_order_t order = ln_node_id_order(pChannel, NULL);
+        if (!ln_msg_channel_announcement_sign(
+                pChannel->cnl_anno.buf, pChannel->cnl_anno.len,
+                pChannel->keys_local.secrets[LN_BASEPOINT_IDX_FUNDING],
+                order)) {
+            M_SET_ERR(pChannel, LNERR_INV_CHANNEL, "fail: sign");
             return false;
         }
         if (ln_db_cnlanno_save(
@@ -854,7 +856,7 @@ static bool create_local_channel_announcement(ln_channel_t *pChannel)
 {
     LOGD("short_channel_id=%016" PRIx64 "\n", pChannel->short_channel_id);
     if (pChannel->short_channel_id == 0) {
-        return false;
+        LOGD("memo: funding_tx mining not detect\n");
     }
     utl_buf_free(&pChannel->cnl_anno);
 
