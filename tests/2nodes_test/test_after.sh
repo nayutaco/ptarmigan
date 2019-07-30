@@ -4,7 +4,12 @@ msat3=0
 msat4=0
 
 amount() {
-    echo `./ptarmcli -l $1 | jq -e '.result.total_local_msat'`
+    RET=`./ptarmcli -l $1 | jq -e '.result.total_local_msat'`
+    expr ${RET} + 1 > /dev/null 2>&1
+    if [ $? -gt 1 ]; then
+        RET=0
+    fi
+    echo ${RET}
 }
 
 get_amount() {
@@ -69,7 +74,6 @@ echo st4f end
 echo disconnect start
 ./example_st_quit.sh
 sleep 5
-check_amount
 echo disconnect end
 
 echo clear skip route

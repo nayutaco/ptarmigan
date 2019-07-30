@@ -23,14 +23,13 @@ ln -s ../testfiles/getrawtx.sh getrawtx.sh
 ln -s ../testfiles/sendrawtx.sh sendrawtx.sh
 
 bitcoind -conf=$CONFFILE -datadir=$DATADIR -daemon
-RET=$?
-if [ ${RET} -ne 0 ]; then
-	echo bitcoind not start.
+sleep 5
+./generate.sh 432 > /dev/null
+COUNT=`cli getblockcount`
+if [ "${COUNT}" != "432" ]; then
+	echo fail bitcoind
 	exit 1
 fi
-
-sleep 3
-./generate.sh 432
 
 sleep 3
 
