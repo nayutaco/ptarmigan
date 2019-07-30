@@ -370,6 +370,12 @@ void HIDDEN ln_msg_channel_announcement_get_sigs(uint8_t *pData, uint8_t **ppSig
 bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, uint64_t ShortChannelId);
 
 
+/** get short_channel_id from channel_announcement
+ * 
+ */
+uint64_t HIDDEN ln_msg_channel_announcement_get_short_channel_id(const uint8_t *pData);
+
+
 /** write node_announcement
  *
  * @param[out]      pBuf    生成データ

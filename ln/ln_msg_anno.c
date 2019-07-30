@@ -362,6 +362,18 @@ bool HIDDEN ln_msg_channel_announcement_update_short_channel_id(uint8_t *pData, 
 }
 
 
+uint64_t HIDDEN ln_msg_channel_announcement_get_short_channel_id(const uint8_t *pData)
+{
+    uint16_t pos = sizeof(uint16_t); //type
+    pos += LN_SZ_SIGNATURE * 4; //sigs
+    uint16_t len = utl_int_pack_u16be(pData + pos);
+    pos += 2; //len
+    pos += len; //features
+    pos += BTC_SZ_HASH256; //channel_hash
+    return utl_int_pack_u64be(pData + pos);
+}
+
+
 /********************************************************************
  * node_announcement
  ********************************************************************/
