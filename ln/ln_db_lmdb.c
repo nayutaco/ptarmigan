@@ -5451,7 +5451,7 @@ static void anno_del_prune(void)
     while (ln_db_cnlanno_cur_get(p_cur, &short_channel_id, &type, &timestamp, &buf_cnlanno)) {
         fprintf(stderr, ".");
         utl_buf_free(&buf_cnlanno);
-        if (type != LN_DB_CNLANNO_UPD0 || type != LN_DB_CNLANNO_UPD1) continue;
+        if ((type != LN_DB_CNLANNO_UPD0) && (type != LN_DB_CNLANNO_UPD1)) continue;
         if (!ln_db_cnlupd_need_to_prune(now, timestamp)) continue;
 
         MDB_cursor *p_cursor = ((lmdb_cursor_t *)p_cur)->p_cursor;
