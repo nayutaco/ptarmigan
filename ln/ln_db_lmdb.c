@@ -5395,7 +5395,7 @@ static void annoinfo_cur_add(MDB_cursor *pCursor, const uint8_t *pNodeId)
             if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY)) continue;
             break;
         }
-        if (lp == nums) continue;
+        if (lp < nums) continue;
 
         if (!my_mdb_val_alloccopy(&key, &key)) {
             LOGE("fail: ???");
