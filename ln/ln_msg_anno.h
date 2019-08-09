@@ -356,6 +356,7 @@ bool HIDDEN ln_msg_channel_announcement_verify(const ln_msg_channel_announcement
  *
  */
 bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len);
+void HIDDEN ln_msg_channel_announcement_msg_print(const ln_msg_channel_announcement_t *pMsg);
 
 
 /** get the addrs of sigs from channel_announcement
