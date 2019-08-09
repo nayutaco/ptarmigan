@@ -243,10 +243,6 @@ bool /*HIDDEN*/ ln_msg_channel_announcement_read(ln_msg_channel_announcement_t *
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_bitcoin_key_1, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
     if (!btc_buf_r_get_pos_and_seek(&buf_r, &pMsg->p_bitcoin_key_2, BTC_SZ_PUBKEY)) goto LABEL_ERROR_SYNTAX;
 
-#ifdef DBG_PRINT_READ_CNL
-    LOGD("@@@@@ %s @@@@@\n", __func__);
-    channel_announcement_print(pMsg);
-#endif  //DBG_PRINT_READ_CNL
     return true;
 
 LABEL_ERROR_SYNTAX:
@@ -326,10 +322,14 @@ bool HIDDEN ln_msg_channel_announcement_print(const uint8_t *pData, uint16_t Len
 {
     ln_msg_channel_announcement_t msg;
     if (!ln_msg_channel_announcement_read(&msg, pData, Len)) return false;
-#ifndef DBG_PRINT_READ_CNL //ln_msg_channel_announcement_read don't print
     channel_announcement_print(&msg);
-#endif
     return true;
+}
+
+
+void HIDDEN ln_msg_channel_announcement_msg_print(const ln_msg_channel_announcement_t *pMsg)
+{
+    channel_announcement_print(pMsg);
 }
 
 

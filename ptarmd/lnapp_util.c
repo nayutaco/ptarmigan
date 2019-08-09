@@ -64,6 +64,15 @@
 
 
 /********************************************************************
+ * prototypes
+ ********************************************************************/
+
+#ifdef M_DEBUG_ANNO
+extern void ln_print_announce(const uint8_t *pData, uint16_t Len);
+#endif  //M_DEBUG_ANNO
+
+
+/********************************************************************
  * public functions
  ********************************************************************/
 
@@ -123,6 +132,12 @@ bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 {
     uint16_t type = utl_int_pack_u16be(pBuf->buf);
     LOGD("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_msg_name(type), p_conf->sock, pBuf->len);
+
+#ifdef M_DEBUG_ANNO
+    if ((0x0100 <= type) && (type <= 0x0102)) {
+        ln_print_announce(pBuf->buf, pBuf->len);
+    }
+#endif  //M_DEBUG_ANNO
 
     pthread_mutex_lock(&p_conf->mux_send); //lock mux_send
 
