@@ -56,7 +56,7 @@ time_t utl_time_time(void);
 
 /** get current time
  *
- * @param[out]      pStr        current time (string formated)
+ * @param[out]      pStr        current time (string formatted)
  * @return          pStr addr
  */
 const char *utl_time_str_time(char pStr[UTL_SZ_TIME_FMT_STR + 1]);
@@ -64,7 +64,7 @@ const char *utl_time_str_time(char pStr[UTL_SZ_TIME_FMT_STR + 1]);
 
 /** format unix time
  *
- * @param[out]      pStr        string formated time
+ * @param[out]      pStr        string formatted time
  * @param[in]       Time        unix time
  * @return          pStr addr
  */

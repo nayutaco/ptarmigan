@@ -28,7 +28,7 @@ $ sudo apt install -y curl
 ```
 
 
-## Configration
+## Configuration
 
 Be sure to specify the following environment variables before starting Ptarmigan.
 

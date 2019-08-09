@@ -834,7 +834,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
                 btc_script_p2wsh_create_scriptpk(&pChannel->p_revoked_vout[htlc_idx], &pChannel->p_revoked_wit[htlc_idx]);
                 pChannel->p_revoked_type[htlc_idx] = type;
 
-                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
+                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_COMMIT_TX_OUTPUT_TYPE_OFFERED) ? "offered" : "received", type, htlc_idx);
                 htlc_cnt++;
             } else {
                 LOGD("[%d]not detect\n", lp);

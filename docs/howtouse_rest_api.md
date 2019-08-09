@@ -2,7 +2,7 @@
 
 [Ptarmigan REST API](../ptarmapi) Lightning Network implementation Ptarmigan REST API
 
-## Configration
+## Configuration
 
 
 ```
@@ -61,7 +61,7 @@ Use this rest-api in a closed network.
 Use ssh port forwarding without exposing the port.
 
 ```
-# ssh port foward from localhost 3333 to server 3000
+# ssh port forward from localhost 3333 to server 3000
 $ ssh user@ipaddress -L 3333:localhost:3000
 # access to ptarmigan rest-api OpenAPI(swagger) http://localhost:3333/api
 ```

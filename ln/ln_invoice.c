@@ -30,7 +30,7 @@
 #define M_SZ_R_FIELD                (51)
 
 #define M_NUMBER_100THOUSAND        100000
-#define M_NUMBER_100MILION          100000000
+#define M_NUMBER_100MILLION         100000000
 #define M_NUMBER_100BILLION         UINT64_C(100000000000)
 
 #define M_SZ_PREFIX_MAX             (16)
@@ -360,11 +360,11 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         if (!(p_invoice_data->amount_msat % M_NUMBER_100BILLION)) { //10 ^ 11
             multiplier = '\0';
             amount = p_invoice_data->amount_msat / M_NUMBER_100BILLION;
-        } else if (!(p_invoice_data->amount_msat % M_NUMBER_100MILION)) { //10 ^ 8
+        } else if (!(p_invoice_data->amount_msat % M_NUMBER_100MILLION)) { //10 ^ 8
             //milli 10 ^ -3
             //  10 ^ (11 - 3)
             multiplier = 'm';
-            amount = p_invoice_data->amount_msat / M_NUMBER_100MILION;
+            amount = p_invoice_data->amount_msat / M_NUMBER_100MILLION;
         } else if (!(p_invoice_data->amount_msat % M_NUMBER_100THOUSAND)) { //10 ^ 5
             //micro 10 ^ -6
             //  10 ^ (11 - 6)
@@ -531,7 +531,7 @@ uint64_t mul_bignums(uint64_t a, uint64_t b) {
 bool check_amt_len(size_t len) {
     //UINT64_MAX == 18446744073709551615 > 10 ^ 19
     //max. 10 ^ 19 - 1
-    if (len > 19) return false; //check roughtly
+    if (len > 19) return false; //check roughly
     return true;
 }
 
@@ -565,7 +565,7 @@ static bool read_amount(uint64_t *amount_msat, size_t *len, char *hrp)
         switch (multiplier) {
         case 'm': //milli 10 ^ -3
         case 'M':
-            *amount_msat = mul_bignums(btc, M_NUMBER_100MILION); //10 ^ (11 - 3)
+            *amount_msat = mul_bignums(btc, M_NUMBER_100MILLION); //10 ^ (11 - 3)
             break;
         case 'u': //micro 10 ^ -6
         case 'U':

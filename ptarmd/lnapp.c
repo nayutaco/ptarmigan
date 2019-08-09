@@ -734,7 +734,7 @@ void *lnapp_thread_channel_start(void *pArg)
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
-        // $4: recieved_localfeatures
+        // $4: received_localfeatures
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_channel));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];

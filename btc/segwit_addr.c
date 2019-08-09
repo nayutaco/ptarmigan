@@ -115,7 +115,7 @@ bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t da
  *                 of entries in data.
  *  In: input:     Pointer to a null-terminated Bech32 string.
  *      ln:        Invoice for Lightning Network.
- *  Returns true if succesful.
+ *  Returns true if successful.
  */
 bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input, bool ln) {
     uint32_t chk = 1;

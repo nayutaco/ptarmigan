@@ -58,7 +58,7 @@ testnet=1
 bitcoid -daemon
 ```
 
-3. Wait untill fully synchronized with bitcoin testnet blockchain (it may take a few hours)
+3. Wait until fully synchronized with bitcoin testnet blockchain (it may take a few hours)
 
 4. Generate bitcoin address by `bitcoind`. Get testnet bitcoin from bitcoin faucet WEB
 
@@ -99,7 +99,7 @@ Open another Ubuntu window and control `ptarmd` from such window, because `ptarm
 ```
 
 When ptarmd successfully connect other node, you receive the large amount of node information from peer node.  
-You should wait untill finishing log output.
+You should wait until finishing log output.
 
 9. Confirm connection between  `ptarmd` and peer
 
@@ -124,7 +124,7 @@ fund channel 10mBTC, and give 500000msat for peer node.
 ../ptarmcli -l | jq
 ```
 
-Number of comfirmation is depend on peer node(`c-lightning` default value is 1. `lnd` default value is 3).  
+Number of confirmation is depend on peer node(`c-lightning` default value is 1. `lnd` default value is 3).
 Display node status.  
 When channel is established, status change from `"wait_minimum_depth"` to `"established"`.  
 You should wait 6 confirmation, because broadcasting of channel start after 6 confirmation.  
@@ -155,7 +155,7 @@ Display the node status.
 
 Execute payment from ptarmigan.  
 When payment starts, ptarmigan show message "Progressing".  
-If payment for starblocks successfuly executed, starblocks WEB changes status.
+If payment for starblocks successfully executed, starblocks WEB changes status.
 
 Because Lightning Network is P2P payment, payment does not complete if even one node on the path doesn't correspond correctly.  
 When payment is not completed, ptarmigan execute path re-serach.

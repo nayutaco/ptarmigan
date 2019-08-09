@@ -12,7 +12,7 @@
 
 ## Set up nodes in separate computers
 
-* First, IP adresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `eclair` and `ptarmigan`.
+* First, IP addresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `eclair` and `ptarmigan`.
 
 ### Steps
 
@@ -111,7 +111,7 @@ chmod u+x eclair-cli
 
 10. [btc] Waiting for generating a block
 
-The channel is gererated after reaching two blocks.  
+The channel is generated after reaching two blocks.
 
 When status is established in a result of -l, we can confirm that if the channel is generated.  
 Combining `watch` and `jq` is also available for observing it.

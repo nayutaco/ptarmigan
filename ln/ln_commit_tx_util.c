@@ -266,7 +266,7 @@ void HIDDEN ln_commit_tx_info_sub_fee_and_trim_outputs(ln_commit_tx_info_t *pCom
             assert(0);
         }
         if (output_sat >=  pCommitTxInfo->base_fee_info.dust_limit_satoshi + fee) {
-            LOGD("scirpt.len=%d\n", pCommitTxInfo->pp_htlc_info[lp]->wit_script.len);
+            LOGD("script.len=%d\n", pCommitTxInfo->pp_htlc_info[lp]->wit_script.len);
             //btc_script_print(pCommitTxInfo->pp_htlc_info[lp]->wit_script.buf, pCommitTxInfo->pp_htlc_info[lp]->wit_script.len);
         } else {
             LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n",

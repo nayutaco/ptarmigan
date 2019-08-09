@@ -88,7 +88,7 @@ static bool create_local_set_vin0_and_verify(
     const uint8_t *pSigLocal,
     const uint8_t *pSigRemote);
 
-//local vefiry
+//local verify
 static bool create_local_verify_htlcs(
     const ln_commit_info_t *pCommitInfo,
     ln_update_info_t *pUpdateInfo,

@@ -51,7 +51,7 @@
  * static variables
  **************************************************************************/
 
-/// init.localfeatures defalt value
+/// init.localfeatures default value
 static uint8_t mInitLocalFeatures[1];
 
 
@@ -142,7 +142,7 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
 
     pChannel->lfeature_remote = 0x00;
     if (msg.lflen) {
-        //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
+        //2018/06/27(commit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
         //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
         //  bit0 : option_data_loss_protect
         //  bit2 : (none)

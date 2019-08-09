@@ -12,7 +12,7 @@
 
 ## Set up nodes in separate computers
 
-* First, IP adresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `c-lightning` and `ptarmigan`.
+* First, IP addresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `c-lightning` and `ptarmigan`.
 
 ### Steps
 
@@ -74,7 +74,7 @@ rm -rf ~/.lightning
 
 10. [btc] Waiting for generating a block
 
-The channel is gererated after reaching one block.  
+The channel is generated after reaching one block.
 
 When status is established in a result of `ptarmcli -l`, we can confirm that if the channel is generated.  
 Combining `watch` and `jq` is also available for observing it.

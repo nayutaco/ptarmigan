@@ -125,7 +125,7 @@
 #define M_DBI_PREIMAGE          "preimage"                  ///< preimage
 #define M_DBI_PAYMENT_HASH      "payment_hash"              ///< revoked transaction close用
 #define M_DBI_WALLET            "wallet"                    ///< wallet
-#define M_DBI_VERSION           "version"                   ///< verion
+#define M_DBI_VERSION           "version"                   ///< version
 #define M_DBI_PAYMENT           "payment"                   ///< payment
 #define M_DBI_SHARED_SECRETS    "shared_secrets"            ///< shared secrets
 #define M_DBI_ROUTE             "route"                     ///< route

@@ -223,7 +223,7 @@ bool HIDDEN ln_closing_signed_send(ln_channel_t *pChannel, ln_msg_closing_signed
     msg.fee_satoshis = pChannel->close_fee_sat;
     msg.p_signature = pChannel->commit_info_remote.remote_sig;
     if (!ln_msg_closing_signed_write(&buf, &msg)) {
-        LOGE("fail: create closeing_signed\n");
+        LOGE("fail: create closing_signed\n");
         return false;
     }
     pChannel->close_last_fee_sat = pChannel->close_fee_sat;
@@ -292,7 +292,7 @@ bool HIDDEN ln_closing_signed_recv(ln_channel_t *pChannel, const uint8_t *pData,
         LOGD("same fee!\n");
         utl_buf_t txbuf = UTL_BUF_INIT;
         if (!btc_tx_write(&pChannel->tx_closing, &txbuf)) {
-            LOGE("fail: create closeing_tx\n");
+            LOGE("fail: create closing_tx\n");
             return false;
         }
         ln_cb_param_notify_closing_end_t closed;

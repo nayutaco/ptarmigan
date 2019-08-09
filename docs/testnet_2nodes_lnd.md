@@ -12,7 +12,7 @@
 
 ## Set up nodes in separate computers
 
-* First, IP adresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `lnd` and `ptarmigan`.
+* First, IP addresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `lnd` and `ptarmigan`.
 
 ### Steps
 
@@ -119,7 +119,7 @@ lncli --no-macaroons getinfo
 
 10. [btc] Waiting for generating a block
 
-The channel is gererated after reaching three blocks.  
+The channel is generated after reaching three blocks.
 
 When status is established in a result of `ptarmcli -l`, we can confirm that if the channel is generated.  
 Combining `watch` and `jq` is also available for observing it.
