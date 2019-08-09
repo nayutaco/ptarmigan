@@ -31,6 +31,9 @@ ENABLE_DEVELOPER_MODE=0
 # 0: log to file 1: stdout
 ENABLE_PLOG_TO_STDOUT_PTARMD=0
 
+# 1: use gossip_queries
+ENABLE_GOSSIP_QUERY=0
+
 # max channels("conntct to"(MAX_CHANNELS) and "conect from"(MAX_CHANNELS))
 MAX_CHANNELS=10
 
@@ -126,7 +129,10 @@ ifeq ($(USE_OPENSSL),1)
     CFLAGS += -DUSE_OPENSSL
 endif
 
-#CFLAGS += -DUSE_GOSSIP_QUERY
+ifeq ($(ENABLE_GOSSIP_QUERY),1)
+    $(info - USE GOSSIP_QUERY)
+    CFLAGS += -DUSE_GOSSIP_QUERY
+endif
 
 # for syscall()
 CFLAGS += -D_GNU_SOURCE

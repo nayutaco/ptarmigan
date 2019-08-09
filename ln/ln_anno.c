@@ -775,7 +775,16 @@ bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_
     }
 
     ln_msg_gossip_timestamp_filter_t msg;
-    ln_msg_gossip_timestamp_filter_read(&msg, pData, Len);
+    if (!ln_msg_gossip_timestamp_filter_read(&msg, pData, Len)) {
+        LOGD("through: read packet\n");
+        return true;
+    }
+
+    if (!ln_db_annoinfos_del_timestamp(ln_remote_node_id(pChannel),
+                msg.first_timestamp, msg.timestamp_range)) {
+        LOGD("through: time filter\n");
+        return true;
+    }
     return true;
 #else
     (void)pChannel; (void)pData; (void)Len;

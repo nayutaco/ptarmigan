@@ -778,7 +778,7 @@ void *lnapp_thread_channel_start(void *pArg)
 #ifdef USE_GOSSIP_QUERY
     ret = ln_query_channel_range_send(p_channel, 0, UINT32_MAX);
     if (ret) {
-        (void)ln_gossip_timestamp_filter_send(p_channel);
+        ret = ln_gossip_timestamp_filter_send(p_channel);
     } else {
         LOGE("fail: ln_query_channel_range_send\n");
     }
@@ -1660,7 +1660,7 @@ static void gossip_proc(lnapp_conf_t *p_conf)
                         p_list->encoded_short_ids.len);
         if (ret) {
             //remove
-            SLIST_REMOVE_HEAD(p_list, list);
+            SLIST_REMOVE_HEAD(&p_channel->gossip_query.request.send_encoded_ids, list);
             utl_buf_free(&p_list->encoded_short_ids);
             UTL_DBG_FREE(p_list);
         } else {

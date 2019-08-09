@@ -601,6 +601,16 @@ bool ln_db_annoinfos_del_node_id(const uint8_t *pNodeId, const uint64_t *pShortC
 bool ln_db_annoinfos_add_node_id(const uint8_t *pNodeId);
 
 
+/** channel_announcement/channel_update/node_announcement送受信ノード情報削除
+ * announcement送信済みnode_idから削除する。
+ *
+ * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
+ * @param[in]       TimeFirst
+ * @param[in]       TimeRange
+ */
+bool ln_db_annoinfos_del_timestamp(const uint8_t *pNodeId, uint32_t TimeFirst, uint32_t TimeRange);
+
+
 /********************************************************************
  * skip routing list
  ********************************************************************/
