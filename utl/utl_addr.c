@@ -43,7 +43,7 @@ bool utl_addr_ipv4_str2bin(uint8_t b[4], const char *s)
             if (decc == 1 && s[si - 1] == '0') return false;
 
             decc++;
-        } else if (s[si] == '.' || s[si] == '\0') { //separater
+        } else if (s[si] == '.' || s[si] == '\0') { //separator
             //over
             if (bi == 4) return false;
 

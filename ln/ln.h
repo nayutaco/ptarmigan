@@ -350,7 +350,7 @@ typedef struct {
     //      可能性として、query_short_channel_idsで要求された個数よりも
     //          現状の数が少ないことがありうる(closeされた場合など)。
     //      その場合はsent_reply_anno_numを進めて続けるので、どちらかといえばindexか？
-    // uint32_t        sent_reply_anno_num;    ///< sent announcment count
+    // uint32_t        sent_reply_anno_num;    ///< sent announcement count
     // uint32_t        reply_anno_num;         ///< p_reply_short_ids count
     // uint64_t        *p_reply_short_ids;     ///< decoded short_channel_ids
 
@@ -668,7 +668,7 @@ void HIDDEN ln_channel_id_calc(uint8_t *pChannelId, const uint8_t *pTxid, uint16
  * @param[in]           pChannel    channel info
  * @param[out]          pCnlUpd     検索したchannel_updateパケット
  * @param[out]          pMsg        (非NULL)pCnlUpdデコード結果
- * @retval      ture    成功
+ * @retval      true    成功
  */
 bool ln_channel_update_get_peer(const ln_channel_t *pChannel, utl_buf_t *pCnlUpd, ln_msg_channel_update_t *pMsg);
 
@@ -706,7 +706,7 @@ void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void
  *
  * @param[in,out]       pChannel    channel info
  * @param[out]          pClose      生成したトランザクション
- * @retval      ture    成功
+ * @retval      true    成功
  * @note
  *      - pCloseは @ln_close_free_forcetx()で解放すること
  */
@@ -717,7 +717,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
  *
  * @param[in,out]       pChannel    channel info
  * @param[out]          pClose      生成したトランザクション
- * @retval      ture    成功
+ * @retval      true    成功
  * @note
  *      - pCloseは @ln_close_free_forcetx()で解放すること
  */
@@ -736,7 +736,7 @@ void ln_close_free_forcetx(ln_close_force_t *pClose);
  * @param[in,out]       pChannel    channel info
  * @param[in]           pRevokedTx  revoked transaction
  * @param[in,out]       pDbParam    DBパラメータ
- * @retval      ture    成功
+ * @retval      true    成功
  * @note
  *      - pChannel->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
  *      - pChannel->wit にto_localのwitnessProgramを設定する

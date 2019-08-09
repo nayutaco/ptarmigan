@@ -215,7 +215,7 @@ static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
 
 bool HIDDEN ln_channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    //always return ture
+    //always return true
     //don't close the channel
 
     /*ignore*/channel_announcement_recv(pChannel, pData, Len);
@@ -260,7 +260,7 @@ static bool node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
 bool HIDDEN ln_node_announcement_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-    //always return ture
+    //always return true
     //don't close the channel
 
     /*ignore*/node_announcement_recv(pChannel, pData, Len);
@@ -947,7 +947,7 @@ LABEL_EXIT:
  * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
  * @param[in]           TimeStamp       作成時刻とするEPOCH time
  * @param[in]           Flag            flagsにORする値
- * @retval      ture    成功
+ * @retval      true    成功
  */
 static bool create_channel_update(
     ln_channel_t *pChannel, ln_msg_channel_update_t *pUpd, utl_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag)

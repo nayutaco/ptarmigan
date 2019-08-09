@@ -34,7 +34,7 @@ ENABLE_PLOG_TO_STDOUT_PTARMD=0
 # 1: use gossip_queries
 ENABLE_GOSSIP_QUERY=0
 
-# max channels("conntct to"(MAX_CHANNELS) and "conect from"(MAX_CHANNELS))
+# max channels("conntct to"(MAX_CHANNELS) and "connect from"(MAX_CHANNELS))
 MAX_CHANNELS=10
 
 # gcc prefix

@@ -1426,7 +1426,7 @@ static bool close_revoked_to_remote(const ln_channel_t *pChannel, const btc_tx_t
 }
 
 
-//Offered/Recieved HTLCを取り戻す
+//Offered/Received HTLCを取り戻す
 static bool close_revoked_htlc(const ln_channel_t *pChannel, const btc_tx_t *pTx, int VIndex, int WitIndex)
 {
     btc_tx_t tx = BTC_TX_INIT;

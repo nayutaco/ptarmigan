@@ -685,7 +685,7 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
         uint16_t update_idx;
         if (ln_update_info_get_update_add_htlc_forwarded_send(
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
-            //XXX: has registerd
+            //XXX: has registered
             utl_buf_free(&buf);
             utl_buf_free(&reason);
             continue;
@@ -816,7 +816,7 @@ static bool poll_update_add_htlc_forward_inactive(ln_channel_t *pChannel)
         uint16_t update_idx;
         if (ln_update_info_get_update_add_htlc_forwarded_send(
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
-            //XXX: has registerd
+            //XXX: has registered
             utl_buf_free(&buf);
             continue;
         }
@@ -870,7 +870,7 @@ static bool poll_update_add_htlc_forward_closing(ln_channel_t *pChannel)
         uint16_t update_idx;
         if (ln_update_info_get_update_add_htlc_forwarded_send(
             &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
-            //XXX: has registerd
+            //XXX: has registered
             utl_buf_free(&buf);
             continue;
         }
@@ -1236,7 +1236,7 @@ void ln_idle_proc_inactive(ln_channel_t *pChannel)
 
     //this function load update_fulfill/fail_htlc
     //  but the updates are cleared by `ln_update_info_clear_pending_updates`
-    //  but preimages are remaind
+    //  but preimages remain
     /*ignore*/poll_update_del_htlc_forward(pChannel);
 }
 

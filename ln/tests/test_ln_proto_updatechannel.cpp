@@ -405,7 +405,7 @@ TEST_F(ln, recv_updatechannel_ok)
     bool ret = ln_channel_update_recv(&channel, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, ln_db_cnlupd_need_to_prune_fake.call_count);
-    //ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count); //XXX: dissable to vefiry sigs
+    //ASSERT_EQ(1, ln_msg_channel_update_verify_fake.call_count); //XXX: dissable to verify sigs
     ASSERT_EQ(1, ln_db_cnlupd_save_fake.call_count);
     ASSERT_EQ(1, callback_called);
 

@@ -5,7 +5,7 @@
 ```bash
 cd ptarmigan
 ./tools/rpi_bj.sh
-# edit options.mak and install/jdk.sh for Raspbery Pi
+# edit options.mak and install/jdk.sh for Raspberry Pi
 ```
 
 ## Build

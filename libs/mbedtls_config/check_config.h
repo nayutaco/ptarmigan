@@ -595,14 +595,14 @@
     !defined(MBEDTLS_SSL_PROTO_TLS1)   &&      \
     !defined(MBEDTLS_SSL_PROTO_TLS1_1) &&      \
     !defined(MBEDTLS_SSL_PROTO_TLS1_2)
-#error "MBEDTLS_SSL_ENCRYPT_THEN_MAC defined, but not all prerequsites"
+#error "MBEDTLS_SSL_ENCRYPT_THEN_MAC defined, but not all prerequisites"
 #endif
 
 #if defined(MBEDTLS_SSL_EXTENDED_MASTER_SECRET) && \
     !defined(MBEDTLS_SSL_PROTO_TLS1)   &&          \
     !defined(MBEDTLS_SSL_PROTO_TLS1_1) &&          \
     !defined(MBEDTLS_SSL_PROTO_TLS1_2)
-#error "MBEDTLS_SSL_EXTENDED_MASTER_SECRET defined, but not all prerequsites"
+#error "MBEDTLS_SSL_EXTENDED_MASTER_SECRET defined, but not all prerequisites"
 #endif
 
 #if defined(MBEDTLS_SSL_TICKET_C) && !defined(MBEDTLS_CIPHER_C)
@@ -686,7 +686,7 @@
 /*
  * Avoid warning from -pedantic. This is a convenient place for this
  * workaround since this is included by every single file before the
- * #if defined(MBEDTLS_xxx_C) that results in emtpy translation units.
+ * #if defined(MBEDTLS_xxx_C) that results in empty translation units.
  */
 typedef int mbedtls_iso_c_forbids_empty_translation_units;
 

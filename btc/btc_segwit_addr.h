@@ -73,7 +73,7 @@ bool btc_bech32_encode(
  *                    of entries in data.
  *  In: input:        Pointer to a null-terminated Bech32 string.
  *      ln:           Invoice for Lightning Network.
- *  Returns true if succesful.
+ *  Returns true if successful.
  */
 bool btc_bech32_decode(
     char* hrp,

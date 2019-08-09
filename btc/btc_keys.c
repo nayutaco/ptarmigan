@@ -377,7 +377,7 @@ bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr)
             ret = false;
         }
     } else {
-        LOGE("unknonw address\n");
+        LOGE("unknown address\n");
         ret = false;
     }
 

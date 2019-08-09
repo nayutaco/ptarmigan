@@ -273,7 +273,7 @@ if [ $blockcount -ne $((BASECOUNT+32)) ]; then
 fi
 
 echo 最後の送金をマイニングして確定させる。
-echo bitcoindならlisttransactionsで2つrecieveが見えるはず。
+echo bitcoindならlisttransactionsで2つreceiveが見えるはず。
 ./generate.sh 1
 
 if [ "$1" = "BITCOIND" ]; then

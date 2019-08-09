@@ -33,14 +33,14 @@ export class CacheService {
 
     public getPaymentHashs(): AddFinalDto[] {
         try {
-            const hashs: AddFinalDto[] = [];
+            const hashes: AddFinalDto[] = [];
             this.cache.forEach((value, key) => {
-                hashs.push({
+                hashes.push({
                     id: key,
                     paymentHash: value
                 });
             });
-            return hashs;
+            return hashes;
         } catch (error) {
             this.logger.log(error);
         }

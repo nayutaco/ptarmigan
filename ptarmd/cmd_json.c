@@ -2093,11 +2093,11 @@ static void cmd_routepay_save_info(
     utl_str_bin2str(str_payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
     sprintf(fname, FNAME_INVOICE_LOG, str_payment_hash);
 
-    //file existance check
+    //file existence check
     struct stat buf;
     int ret = stat(fname, &buf);
     if ((ret == 0) && S_ISREG(buf.st_mode)) {
-        //if already exist file, skip writting info.
+        //if already exist file, skip writing info.
         return;
     }
 
