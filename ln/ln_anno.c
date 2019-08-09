@@ -182,7 +182,9 @@ static bool channel_announcement_recv(ln_channel_t *pChannel, const uint8_t *pDa
         LOGE("fail: do nothing\n");
         return false;
     }
+#ifdef DEVELOPER_MODE
     ln_msg_channel_announcement_msg_print(&msg);
+#endif  //DEVELOPER_MODE
     if (!msg.short_channel_id) {
         LOGE("fail: do nothing\n");
         return false;
