@@ -52,4 +52,4 @@ This output is same as pay config file format(`ptarmcli -p`).
 
 ## AUTHOR
 
-Nayuta Inc.
+Ptarmigan Project
