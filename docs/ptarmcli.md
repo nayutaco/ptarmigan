@@ -196,4 +196,4 @@ ptarmcli -r lntb1u1pdgjjwwpp50h7wjfp56ye392ajz82grpkeyerkh9ssaq9z7pgceqfkj8enugv
 
 ## AUTHOR
 
-Nayuta Inc.
+Ptarmigan Project

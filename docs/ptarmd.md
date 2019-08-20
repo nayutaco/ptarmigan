@@ -95,4 +95,4 @@ min_depth=[minimum_depth]
 
 ## AUTHOR
 
-Nayuta Inc.
+Ptarmigan Project

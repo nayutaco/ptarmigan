@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019, Nayuta, Inc. All Rights Reserved
+ *  Copyright (C) 2019 Ptarmigan Project
  *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed to the Apache Software Foundation (ASF) under one

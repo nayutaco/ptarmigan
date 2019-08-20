@@ -30,4 +30,4 @@ Show information in `ptarmd` database.
 
 ## AUTHOR
 
-Nayuta Inc.
+Ptarmigan Project
