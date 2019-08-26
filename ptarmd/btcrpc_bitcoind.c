@@ -1216,7 +1216,7 @@ static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *p
 
             p = json_object_get(p_value, "amount");
             if (p && json_is_real(p)) {
-                tmp_amount = (uint64_t)(json_real_value(p) * (uint64_t)100000000);
+                tmp_amount = (uint64_t)(json_real_value(p) * (uint64_t)100000000 + 0.5);
             } else {
                 continue;
             }
