@@ -60,6 +60,12 @@
 //#define M_DEBUG
 
 
+typedef struct {
+    rpc_conf_t          *pconf;
+    const char          *section;
+} rpc_conf_local_t;
+
+
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -90,26 +96,34 @@ void conf_btcrpc_init(rpc_conf_t *pRpcConf)
 bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf, btc_block_chain_t Chain)
 {
     LOGD("load bitcoin.conf: %s\n", pConfFile);
-    if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
+    rpc_conf_local_t localconf;
+    localconf.pconf = pRpcConf;
+    uint16_t rpcport;
+    switch (Chain) {
+    case BTC_BLOCK_CHAIN_BTCMAIN:
+        localconf.section = "main";
+        rpcport = 8332;
+        break;
+    case BTC_BLOCK_CHAIN_BTCTEST:
+        localconf.section = "test";
+        rpcport = 18332;
+        break;
+    case BTC_BLOCK_CHAIN_BTCREGTEST:
+        localconf.section = "regtest";
+        rpcport = 18443;
+        break;
+    default:
+        localconf.section = "";
+        rpcport = 0;
+        break;
+    }
+    if (ini_parse(pConfFile, handler_btcrpc_conf, &localconf) != 0) {
         LOGE("fail bitcoin.conf parse[%s]\n", pConfFile);
         fprintf(stderr, "fail bitcoin.conf parse[%s]\n", pConfFile);
         return false;
     }
     if (pRpcConf->rpcport == 0) {
-        switch (Chain) {
-        case BTC_BLOCK_CHAIN_BTCMAIN:
-            pRpcConf->rpcport = 8332;
-            break;
-        case BTC_BLOCK_CHAIN_BTCTEST:
-            pRpcConf->rpcport = 18332;
-            break;
-        case BTC_BLOCK_CHAIN_BTCREGTEST:
-            pRpcConf->rpcport = 18443;
-            break;
-        default:
-            LOGE("unknown chain\n");
-            break;
-        }
+        pRpcConf->rpcport = rpcport;
     }
     if (strlen(pRpcConf->rpcurl) == 0) {
         strcpy(pRpcConf->rpcurl, "127.0.0.1");
@@ -206,10 +220,18 @@ bool conf_connect_load(const char *pConfFile, connect_conf_t *pConnConf)
 #ifdef USE_BITCOIND
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value)
 {
-    (void)section;
-
-    rpc_conf_t* pconfig = (rpc_conf_t *)user;
-
+    rpc_conf_local_t *plocal = (rpc_conf_local_t *)user;
+    rpc_conf_t* pconfig = plocal->pconf;
+    size_t len_sec;
+    if (section != NULL) {
+        len_sec = strlen(section);
+    } else {
+        len_sec = 0;
+    }
+    if ((len_sec > 0) && (strcmp(plocal->section, section) != 0)) {
+        //ignore
+        return 1;
+    }
     if ((strcmp(name, "rpcuser") == 0) && (strlen(value) < SZ_RPC_USER)) {
         strcpy(pconfig->rpcuser, value);
     } else if ((strcmp(name, "rpcpassword") == 0) && (strlen(value) < SZ_RPC_PASSWD)) {

@@ -1804,7 +1804,7 @@ static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        LOGD("send to=%" PRIu32 "\n", json->valuestring);
+        LOGD("send to=%s\n", json->valuestring);
     } else {
         err = RPCERR_PARSE;
         goto LABEL_EXIT;
