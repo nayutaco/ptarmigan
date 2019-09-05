@@ -68,6 +68,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln_update_info.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_funding_info.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_commit_info.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_payment.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln_tlv.c
 
 CPP_SOURCE_FILES += $(PRJ_PATH)/ln_routing.cpp
 
