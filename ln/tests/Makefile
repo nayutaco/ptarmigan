@@ -19,7 +19,8 @@ TEST_TARGET_SRC += \
 	test_ln_proto_acceptchannel.cpp \
 	test_ln_proto_updateaddhtlc.cpp \
 	test_ln_proto_updatefee.cpp \
-	test_ln_bech32.cpp
+	test_ln_bech32.cpp \
+	test_ln_tlv.cpp
 
 # TEST_TARGET_SRC += \
 # 	test_ln_msg_anno_gossip.cpp \
