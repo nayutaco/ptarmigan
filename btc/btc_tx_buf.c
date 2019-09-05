@@ -96,3 +96,66 @@ bool btc_tx_buf_w_write_varint_len_data(btc_buf_w_t *pBufW, const void *pData, u
     if (!btc_tx_buf_w_write_data(pBufW, pData, Len)) return false;
     return true;
 }
+
+
+bool btc_tx_buf_r_read_varint_be(btc_buf_r_t *pBufR, uint64_t *pValue)
+{
+    if (pBufR->_pos + 1 > pBufR->_data_len) return false;
+    const uint8_t *data_pos = pBufR->_data + pBufR->_pos;
+    if (*(data_pos) < 0xfd) {
+        *pValue = *data_pos;
+        pBufR->_pos += 1;
+    } else if (*(data_pos) == 0xfd) {
+        if (pBufR->_pos + 3 > pBufR->_data_len) return false;
+        *pValue = utl_int_pack_u16be(data_pos + 1);
+        if (*pValue < 0xfd) return false;
+        pBufR->_pos += 3;
+    } else if (*(data_pos) == 0xfe) {
+        if (pBufR->_pos + 5 > pBufR->_data_len) return false;
+        *pValue = utl_int_pack_u32be(data_pos + 1);
+        if (*pValue < 0x10000) return false;
+        pBufR->_pos += 5;
+    } else if (*(data_pos) == 0xff) {
+        if (pBufR->_pos + 9 > pBufR->_data_len) return false;
+        *pValue = utl_int_pack_u64be(data_pos + 1);
+        if (*pValue < 0x100000000) return false;
+        pBufR->_pos += 9;
+    } else {
+        assert(false);
+        return false;
+    }
+    return true;
+}
+
+
+bool btc_tx_buf_w_write_varint_be_len(btc_buf_w_t *pBufW, uint64_t Size)
+{
+    uint8_t buf[9];
+    uint32_t len;
+
+    if (Size < 0xfd) {
+        len = 1;
+        buf[0] = (uint8_t)Size;
+    } else if (Size <= UINT16_MAX) {
+        len = 3;
+        buf[0] = 0xfd;
+        utl_int_unpack_u16be(buf + 1, (uint16_t)Size);
+    } else if (Size <= UINT32_MAX) {
+        len = 5;
+        buf[0] = 0xfe;
+        utl_int_unpack_u32be(buf + 1, (uint32_t)Size);
+    } else {
+        len = 9;
+        buf[0] = 0xff;
+        utl_int_unpack_u64be(buf + 1, Size);
+    }
+    return btc_tx_buf_w_write_data(pBufW, buf, len);
+}
+
+
+bool btc_tx_buf_w_write_varint_be_len_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len)
+{
+    if (!btc_tx_buf_w_write_varint_be_len(pBufW, Len)) return false;
+    if (!btc_tx_buf_w_write_data(pBufW, pData, Len)) return false;
+    return true;
+}

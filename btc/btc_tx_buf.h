@@ -70,4 +70,9 @@ bool btc_tx_buf_w_write_varint_len_data(btc_buf_w_t *pBufW, const void *pData, u
 #define btc_tx_buf_w_truncate       btc_buf_w_truncate
 
 
+#define btc_tx_buf_w_write_data_rev     btc_buf_w_write_data_rev
+bool btc_tx_buf_r_read_varint_be(btc_buf_r_t *pBufR, uint64_t *pValue);
+bool btc_tx_buf_w_write_varint_be_len(btc_buf_w_t *pBufW, uint64_t Size);
+bool btc_tx_buf_w_write_varint_be_len_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
+
 #endif /* BTC_TX_BUF_H__ */
