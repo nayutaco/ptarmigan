@@ -28,7 +28,10 @@
 #include <unistd.h>
 
 #include "utl_common.h"
+#include "utl_dbg.h"
 #include "utl_int.h"
+#define LOG_TAG "ln_tlv"
+#include "utl_log.h"
 
 #include "btc_tx_buf.h"
 #include "ln_tlv.h"
@@ -81,6 +84,7 @@ bool ln_tlv_read(ln_tlv_record_t **ppTlvRec, const uint8_t *pData, uint32_t Len)
 
 bool ln_tlv_write(utl_buf_t *pBuf, const ln_tlv_record_t *pTlvRec)
 {
+    (void)pBuf; (void)pTlvRec;
     return false;
 }
 
