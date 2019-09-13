@@ -307,7 +307,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
         return;
     }
 
-    btcrpc_set_channel(
+    p_cb_param->ret = btcrpc_set_channel(
         ln_remote_node_id(&pConf->channel),
         ln_short_channel_id(&pConf->channel),
         ln_funding_info_txid(&pConf->channel.funding_info),
@@ -315,6 +315,14 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
         ln_funding_info_wit_script(&pConf->channel.funding_info),
         bhash,
         0);
+    if (!p_cb_param->ret) {
+        LOGE("fail: set_channel\n");
+        ptarmd_eventlog(
+            ln_channel_id(&pConf->channel),
+            "fail: set_channel\n");
+        lnapp_stop_threads(pConf);
+        return;
+    }
 
     if (p_cb_param->b_send) {
         uint8_t txid[BTC_SZ_TXID];

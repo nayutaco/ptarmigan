@@ -41,6 +41,7 @@
 #include "p2p.h"
 #include "lnapp.h"
 #include "lnapp_manager.h"
+#include "lnapp_util.h"
 #include "btcrpc.h"
 #include "cmd_json.h"
 #include "monitoring.h"
@@ -477,7 +478,7 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
                 //mined block hash
                 ln_funding_blockhash_set(p_channel, mined_hash);
 
-                btcrpc_set_channel(
+                ret = btcrpc_set_channel(
                     ln_remote_node_id(p_channel),
                     ln_short_channel_id(p_channel),
                     ln_funding_info_txid(&p_channel->funding_info),
@@ -485,6 +486,13 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
                     ln_funding_info_wit_script(&p_channel->funding_info),
                     ln_funding_blockhash(p_channel),
                     pParam->confm);
+                if (!ret) {
+                    LOGE("fail: set_channel\n");
+                    ptarmd_eventlog(
+                        ln_channel_id(&pConf->channel),
+                        "fail: set_channel\n");
+                    lnapp_stop_threads(pConf);
+                }
             }
         }
     }

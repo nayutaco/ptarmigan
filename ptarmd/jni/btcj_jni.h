@@ -80,7 +80,7 @@ bool btcj_is_tx_broadcasted(const uint8_t *pPeerId, const uint8_t *pTxid);
 bool btcj_check_unspent(const uint8_t *pPeerId, bool *pUnspent, const uint8_t *pTxid, uint32_t VIndex);
 bool btcj_getnewaddress(char *pAddr);
 bool btcj_estimatefee(uint64_t *pFeeSatoshi, int Blks);
-void btcj_set_channel(
+bool btcj_set_channel(
     const uint8_t *pPeerId,
     uint64_t ShortChannelId,
     const uint8_t *pFundingTxid,

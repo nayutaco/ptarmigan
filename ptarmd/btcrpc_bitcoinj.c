@@ -175,6 +175,7 @@ typedef struct {
 
 
 typedef struct {
+    bool            ret;
     const uint8_t   *p_peer_id;
     uint64_t        short_channel_id;
     const uint8_t   *p_fundingtxid;
@@ -700,7 +701,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 }
 
 
-void btcrpc_set_channel(const uint8_t *pPeerId,
+bool btcrpc_set_channel(const uint8_t *pPeerId,
                 uint64_t ShortChannelId,
                 const uint8_t *pFundingTxid,
                 int FundingIdx,
@@ -722,6 +723,7 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
     param.mined_hash = pMinedHash;
     param.last_confirm = LastConfirm;
     call_jni(METHOD_PTARM_SETCHANNEL, &param);
+    return param.ret;
 }
 
 
@@ -1126,7 +1128,7 @@ static void jni_set_channel(void *pArg)
     TXIDD(p->mined_hash);
     LOGD("last_confirm=%" PRIu32 "\n", p->last_confirm);
 
-    btcj_set_channel(p->p_peer_id,
+    p->ret = btcj_set_channel(p->p_peer_id,
                 p->short_channel_id,
                 p->p_fundingtxid,
                 p->fundingidx,
