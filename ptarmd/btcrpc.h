@@ -207,7 +207,7 @@ void btcrpc_set_creationhash(const uint8_t *pHash);
  * @param[in]   pMinedHash      funding_tx mined blockhash(not change if NULL)
  * @param[in]   LastConfirm     last checked funding_tx confirmation
  */
-void btcrpc_set_channel(const uint8_t *pPeerId,
+bool btcrpc_set_channel(const uint8_t *pPeerId,
                 uint64_t ShortChannelId,
                 const uint8_t *pFundingTxid,
                 int FundingIdx,

@@ -524,7 +524,9 @@ static void load_channel_settings(btc_block_chain_t GenType)
  */
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param)
 {
-    (void)p_db_param; (void)p_param;
+    (void)p_db_param;
+
+    bool *p_stop = (bool *)p_param;
 
     LOGD("short_channel_id=%016" PRIx64 "\n", ln_short_channel_id(pChannel));
 
@@ -535,15 +537,21 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
     snprintf(log, sizeof(log), "CONT=ch:%s..", peer);
     btcrpc_write_startuplog(log);
 #endif
-    btcrpc_set_channel(ln_remote_node_id(pChannel),
-            ln_short_channel_id(pChannel),
-            ln_funding_info_txid(&pChannel->funding_info),
-            ln_funding_info_txindex(&pChannel->funding_info),
-            ln_funding_info_wit_script(&pChannel->funding_info),
-            ln_funding_blockhash(pChannel),
-            ln_funding_last_confirm_get(pChannel));
-
-    return false;
+    bool ret = btcrpc_set_channel(ln_remote_node_id(pChannel),
+        ln_short_channel_id(pChannel),
+        ln_funding_info_txid(&pChannel->funding_info),
+        ln_funding_info_txindex(&pChannel->funding_info),
+        ln_funding_info_wit_script(&pChannel->funding_info),
+        ln_funding_blockhash(pChannel),
+        ln_funding_last_confirm_get(pChannel));
+    if (!ret) {
+        LOGE("fail: set_channel\n");
+        ptarmd_eventlog(
+            ln_channel_id(pChannel),
+            "fail: set_channel\n");
+        *p_stop = true;
+    }
+    return *p_stop;
 }
 
 
@@ -552,7 +560,8 @@ static void set_channels(void)
     btcrpc_write_startuplog("CONT=Channels..");
 
     LOGD("\n");
-    ln_db_channel_search_readonly(comp_func_cnl, NULL);
+    bool b_stop = false;
+    ln_db_channel_search_readonly(comp_func_cnl, &b_stop);
 
     btcrpc_write_startuplog("STOP=All synced!");
 }

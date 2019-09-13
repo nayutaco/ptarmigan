@@ -764,7 +764,7 @@ void btcrpc_set_creationhash(const uint8_t *pHash)
 }
 
 
-void btcrpc_set_channel(const uint8_t *pPeerId,
+bool btcrpc_set_channel(const uint8_t *pPeerId,
                         uint64_t ShortChannelId,
                         const uint8_t *pFundingTxid,
                         int FundingIdx,
@@ -774,6 +774,7 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
 {
     (void)pPeerId; (void)ShortChannelId; (void)pFundingTxid;
     (void)FundingIdx; (void)pRedeemScript; (void)pMinedHash; (void)LastConfirm;
+    return true;
 }
 
 

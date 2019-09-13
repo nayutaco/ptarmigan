@@ -102,7 +102,7 @@ const struct {
     // METHOD_PTARM_ESTIMATEFEE,
     { "estimateFee", "()J" },
     // METHOD_PTARM_SETCHANNEL,
-    { "setChannel", "([BJ[BI[B[BI)V" },
+    { "setChannel", "([BJ[BI[B[BI)Z" },
     // METHOD_PTARM_DELCHANNEL,
     { "delChannel", "([B)V" },
     // METHOD_PTARM_SETCOMMITTXID,
@@ -670,7 +670,7 @@ bool btcj_estimatefee(uint64_t *pFeeSatoshi, int Blks)
     return true;
 }
 //-----------------------------------------------------------------------------
-void btcj_set_channel(
+bool btcj_set_channel(
     const uint8_t *pPeerId,
     uint64_t ShortChannelId,
     const uint8_t *pFundingTxid,
@@ -694,16 +694,17 @@ void btcj_set_channel(
     jobject blkhash = buf2jbarray(&bufmined);
 
     LOGD("sci=%016" PRIx64 "\n", sci);
-    (*env)->CallVoidMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
+    jboolean ret = (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
                            aryPeer, sci, txHash, FundingIndex, aryScriptPubKey,
                            blkhash, last_confirm);
-    LOGD("called\n");
+    LOGD("called: ret=%d\n", ret);
     check_exception(env);
     //
     (*env)->DeleteLocalRef(env, blkhash);
     (*env)->DeleteLocalRef(env, aryScriptPubKey);
     (*env)->DeleteLocalRef(env, txHash);
     (*env)->DeleteLocalRef(env, aryPeer);
+    return ret;
 }
 //-----------------------------------------------------------------------------
 void btcj_del_channel(const uint8_t *pPeerId)
