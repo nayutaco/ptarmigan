@@ -82,11 +82,11 @@ const struct {
     // METHOD_PTARM_GETCONFIRMATION,
     { "getTxConfirmation", "([BI[BJ)I" },
     // METHOD_PTARM_GETSHORTCHANNELPARAM,
-    { "getShortChannelParam", "([B)Lco/nayuta/lightning/Ptarmigan$ShortChannelParam;" },
-    // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
-    { "getTxidFromShortChannelId", "(J)[B" },
+    { "getShortChannelParam", "([B)Lco/nayuta/lightning/ShortChannelParam;" },
+    // // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
+    // { "getTxidFromShortChannelId", "(J)[B" },
     // METHOD_PTARM_SEARCHOUTPOINT,
-    { "searchOutPoint", "(I[BI)Lco/nayuta/lightning/Ptarmigan$SearchOutPointResult;" },
+    { "searchOutPoint", "(I[BI)Lco/nayuta/lightning/SearchOutPointResult;" },
     // METHOD_PTARM_SEARCHVOUT,
     { "searchVout", "(ILjava/util/List;)Ljava/util/List;" },
     // METHOD_PTARM_SIGNRAWTX,
@@ -105,8 +105,8 @@ const struct {
     { "setChannel", "([BJ[BI[B[BI)Z" },
     // METHOD_PTARM_DELCHANNEL,
     { "delChannel", "([B)V" },
-    // METHOD_PTARM_SETCOMMITTXID,
-    { "setCommitTxid", "([BIILorg/bitcoinj/core/Sha256Hash;)V" },
+    // // METHOD_PTARM_SETCOMMITTXID,
+    // { "setCommitTxid", "([BIILorg/bitcoinj/core/Sha256Hash;)V" },
     // METHOD_PTARM_GETBALANCE,
     { "getBalance", "()J" },
     // METHOD_PTARM_EMPTYWALLET,
@@ -223,7 +223,7 @@ bool btcj_init(btc_block_chain_t Gen)
     }
 
     LOGD("Class: ShortChannelParam\n");
-    cls = (*env)->FindClass(env, "co/nayuta/lightning/Ptarmigan$ShortChannelParam");
+    cls = (*env)->FindClass(env, "co/nayuta/lightning/ShortChannelParam");
     if (cls == NULL) {
         LOGE("fail: FindClass()\n");
         return false;
@@ -243,7 +243,7 @@ bool btcj_init(btc_block_chain_t Gen)
     }
 
     LOGD("Class: SearchOutPointResult\n");
-    cls = (*env)->FindClass(env, "co/nayuta/lightning/Ptarmigan$SearchOutPointResult");
+    cls = (*env)->FindClass(env, "co/nayuta/lightning/SearchOutPointResult");
     if (cls == NULL) {
         LOGE("fail: FindClass()\n");
         return false;
@@ -468,22 +468,22 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
     return param_obj != NULL;
 }
 //-----------------------------------------------------------------------------
-bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid)
-{
-    jbyteArray hash_obj = (*env)->CallObjectMethod(
-                             env, ptarm_obj,
-                             ptarm_method[METHOD_PTARM_GETTXIDFROMSHORTCHANNELID],
-                             ShortChannelId);
-    check_exception(env);
-    if (hash_obj != NULL) {
-        btcj_buf_t *p_hash = jbarray2buf(hash_obj);
-        *ppTxid = p_hash->buf;
-        LOGD("success\n");
-    } else {
-        LOGE("fail: txid\n");
-    }
-    return hash_obj != NULL;
-}
+// bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid)
+// {
+//     jbyteArray hash_obj = (*env)->CallObjectMethod(
+//                              env, ptarm_obj,
+//                              ptarm_method[METHOD_PTARM_GETTXIDFROMSHORTCHANNELID],
+//                              ShortChannelId);
+//     check_exception(env);
+//     if (hash_obj != NULL) {
+//         btcj_buf_t *p_hash = jbarray2buf(hash_obj);
+//         *ppTxid = p_hash->buf;
+//         LOGD("success\n");
+//     } else {
+//         LOGE("fail: txid\n");
+//     }
+//     return hash_obj != NULL;
+// }
 //-----------------------------------------------------------------------------
 bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t *pMined, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {

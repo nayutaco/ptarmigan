@@ -29,7 +29,7 @@ typedef enum {
     METHOD_PTARM_GETGENESISBLOCKHASH,
     METHOD_PTARM_GETCONFIRMATION,
     METHOD_PTARM_GETSHORTCHANNELPARAM,
-    METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
+    // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
     METHOD_PTARM_SEARCHOUTPOINT,
     METHOD_PTARM_SEARCHVOUT,
     METHOD_PTARM_SIGNRAWTX,
@@ -40,7 +40,7 @@ typedef enum {
     METHOD_PTARM_ESTIMATEFEE,
     METHOD_PTARM_SETCHANNEL,
     METHOD_PTARM_DELCHANNEL,
-    METHOD_PTARM_SETCOMMITTXID,
+    // METHOD_PTARM_SETCOMMITTXID,
     METHOD_PTARM_GETBALANCE,
     METHOD_PTARM_EMPTYWALLET,
     METHOD_PTARM_EXIT,
@@ -71,7 +71,7 @@ uint32_t btcj_gettxconfirm(const uint8_t *pTxid, int voutIndex, const uint8_t *p
 
 
 bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int32_t *pbIndex, uint8_t *pMinedHash);
-bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid);
+// bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid);
 bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t *pMined, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
 bool btcj_search_vout(btcj_buf_t **ppTxBuf, uint32_t blks, const btcj_buf_t *pVout);
 bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_t **ppTxData);

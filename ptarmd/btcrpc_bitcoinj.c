@@ -218,7 +218,7 @@ static void jni_get_blockcount(void *pArg);
 static void jni_get_genesisblockhash(void *pArg);
 static void jni_get_txconfirm(void *pArg);
 static void jni_get_short_channel_param(void *pArg);
-static void jni_get_txid_from_short_channel_id(void *pArg);
+// static void jni_get_txid_from_short_channel_id(void *pArg);
 static void jni_search_outpoint(void *pArg);
 static void jni_search_vout(void *pArg);
 static void jni_sign_rawtx(void *pArg);
@@ -229,7 +229,7 @@ static void jni_get_newaddress(void *pArg);
 static void jni_estimatefee(void *pArg);
 static void jni_set_channel(void *pArg);
 static void jni_del_channel(void *pArg);
-static void jni_set_committxid(void *pArg);
+//static void jni_set_committxid(void *pArg);
 static void jni_get_balance(void *pArg);
 static void jni_empty_wallet(void *pArg);
 static void jni_exit(void *pArg);
@@ -277,8 +277,8 @@ static const struct {
     { jni_get_txconfirm },
     // METHOD_PTARM_GETSHORTCHANNELPARAM,
     { jni_get_short_channel_param },
-    // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
-    { jni_get_txid_from_short_channel_id },
+    // // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
+    // { jni_get_txid_from_short_channel_id },
     // METHOD_PTARM_SEARCHOUTPOINT,
     { jni_search_outpoint },
     // METHOD_PTARM_SEARCHVOUT,
@@ -299,8 +299,8 @@ static const struct {
     { jni_set_channel },
     // METHOD_PTARM_DELCHANNEL,
     { jni_del_channel },
-    // METHOD_PTARM_SETCOMMITTXID,
-    { jni_set_committxid },
+    // // METHOD_PTARM_SETCOMMITTXID,
+    // { jni_set_committxid },
     // METHOD_PTARM_GETBALANCE,
     { jni_get_balance },
     // METHOD_PTARM_EMPTYWALLET,
@@ -986,13 +986,13 @@ static void jni_get_short_channel_param(void *pArg)
 }
 
 
-//METHOD_PTARM_GETTXIDFROMSHORTCHANNELID
-static void jni_get_txid_from_short_channel_id(void *pArg)
-{
-    LOGD("\n");
+// //METHOD_PTARM_GETTXIDFROMSHORTCHANNELID
+// static void jni_get_txid_from_short_channel_id(void *pArg)
+// {
+//     LOGD("\n");
 
-    (void)pArg;
-}
+//     (void)pArg;
+// }
 
 
 //METHOD_PTARM_SEARCHOUTPOINT
@@ -1150,13 +1150,13 @@ static void jni_del_channel(void *pArg)
 }
 
 
-//METHOD_PTARM_SETCOMMITTXID
-static void jni_set_committxid(void *pArg)
-{
-    LOGD("\n");
+// //METHOD_PTARM_SETCOMMITTXID
+// static void jni_set_committxid(void *pArg)
+// {
+//     LOGD("\n");
 
-    (void)pArg;
-}
+//     (void)pArg;
+// }
 
 
 //METHOD_PTARM_GETBALANCE
