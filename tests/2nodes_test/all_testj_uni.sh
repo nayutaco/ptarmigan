@@ -1,6 +1,11 @@
 #!/bin/bash
 set -eu
 
+if [ $# -eq 0 ]; then
+    echo param1=1~4
+    exit 1
+fi
+
 if [ ! -f ./test_after_uni$1.sh ]; then
     echo unknown test pattern
     exit 1
