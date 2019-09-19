@@ -130,7 +130,7 @@ bool lnapp_send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 //peer送信(Noise Protocol送信)
 bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 {
-    uint16_t type = utl_int_pack_u16be(pBuf->buf);
+    uint16_t type = ln_msg_type(NULL, pBuf->buf, pBuf->len);
     LOGD("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_msg_name(type), p_conf->sock, pBuf->len);
 
 #ifdef M_DEBUG_ANNO
