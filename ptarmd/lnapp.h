@@ -38,6 +38,18 @@ extern "C" {
 
 
 /********************************************************************
+ * macros
+ ********************************************************************/
+
+//lnapp_conf_t.flag_recv
+#define LNAPP_FLAGRECV_INIT             (0x01)  ///< receive init
+#define LNAPP_FLAGRECV_INIT_EXCHANGED   (0x02)  ///< exchange init
+#define LNAPP_FLAGRECV_REESTABLISH      (0x04)  ///< receive channel_reestablish
+#define LNAPP_FLAGRECV_FUNDINGLOCKED    (0x08)  ///< receive funding locked
+#define LNAPP_FLAGRECV_END              (0x80)  ///< 初期化完了
+
+
+/********************************************************************
  * typedefs
  ********************************************************************/
 

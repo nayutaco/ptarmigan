@@ -78,13 +78,6 @@
  * macros
  **************************************************************************/
 
-//lnapp_conf_t.flag_recv
-#define M_FLAGRECV_INIT             (0x01)  ///< receive init
-#define M_FLAGRECV_INIT_EXCHANGED   (0x02)  ///< exchange init
-#define M_FLAGRECV_REESTABLISH      (0x04)  ///< receive channel_reestablish
-#define M_FLAGRECV_FUNDINGLOCKED    (0x08)  ///< receive funding locked
-#define M_FLAGRECV_END              (0x80)  ///< 初期化完了
-
 #define M_SZ_SCRIPT_PARAM       (512)
 
 #if 1
@@ -238,7 +231,7 @@ static void cb_init_recv(lnapp_conf_t *pConf, void *pParam)
     DBGTRACE_BEGIN
 
     //init受信待ち合わせ解除(*1)
-    pConf->flag_recv |= M_FLAGRECV_INIT;
+    pConf->flag_recv |= LNAPP_FLAGRECV_INIT;
 }
 
 
@@ -249,7 +242,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *pConf, void *pParam)
     DBGTRACE_BEGIN
 
     //channel_reestablish受信待ち合わせ解除(*3)
-    pConf->flag_recv |= M_FLAGRECV_REESTABLISH;
+    pConf->flag_recv |= LNAPP_FLAGRECV_REESTABLISH;
 }
 
 
@@ -392,7 +385,7 @@ static void cb_funding_locked(lnapp_conf_t *pConf, void *pParam)
     (void)pParam;
     DBGTRACE_BEGIN
 
-    if ((pConf->flag_recv & M_FLAGRECV_REESTABLISH) == 0) {
+    if ((pConf->flag_recv & LNAPP_FLAGRECV_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&pConf->channel));
@@ -403,7 +396,7 @@ static void cb_funding_locked(lnapp_conf_t *pConf, void *pParam)
     }
 
     //funding_locked受信待ち合わせ解除(*4)
-    pConf->flag_recv |= M_FLAGRECV_FUNDINGLOCKED;
+    pConf->flag_recv |= LNAPP_FLAGRECV_FUNDINGLOCKED;
 }
 
 
