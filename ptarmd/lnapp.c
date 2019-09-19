@@ -1117,6 +1117,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
         return false;
     }
 
+    if (ln_status_get(&p_conf->channel) < LN_STATUS_NORMAL_OPE) {
         //コールバックでのfunding_locked受信通知待ち
         LOGD("wait: funding_locked\n");
         while (p_conf->active && ((p_conf->flag_recv & LNAPP_FLAGRECV_FUNDINGLOCKED) == 0)) {
@@ -1129,7 +1130,6 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
         }
 
         // funding_locked exchange == "normal operation"
-    if (ln_status_get(&p_conf->channel) < LN_STATUS_NORMAL_OPE) {
         LOGD("Normal Operation!\n");
         ln_status_set(&p_conf->channel, LN_STATUS_NORMAL_OPE);
     }
