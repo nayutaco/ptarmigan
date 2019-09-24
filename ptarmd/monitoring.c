@@ -754,15 +754,16 @@ static bool close_unilateral_local(ln_channel_t *pChannel, void *pDbParam, uint3
         } else if (lp == LN_CLOSE_IDX_TO_LOCAL) {
             if (p_tx->vin_cnt <= 0) {
                 LOGD("skip to_local: tx[%d]\n", lp);
-            }
-            if (MinedHeight > 0) {
-                LOGD("$$$ to_local tx ==> DB\n");
-                ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
-                set_wallet_data(&wlt, p_tx);
-                wlt.mined_height = MinedHeight;
-                (void)ln_db_wallet_save(&wlt);
             } else {
-                LOGD("MinedHeight==0\n");
+                if (MinedHeight > 0) {
+                    LOGD("$$$ to_local tx ==> DB\n");
+                    ln_db_wallet_t wlt = LN_DB_WALLET_INIT(LN_DB_WALLET_TYPE_TO_LOCAL);
+                    set_wallet_data(&wlt, p_tx);
+                    wlt.mined_height = MinedHeight;
+                    (void)ln_db_wallet_save(&wlt);
+                } else {
+                    LOGD("MinedHeight==0\n");
+                }
             }
         } else if (lp == LN_CLOSE_IDX_TO_REMOTE) {
             LOGD("$$$ to_remote tx\n");
