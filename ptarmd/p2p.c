@@ -145,6 +145,17 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     }
     fcntl(sock, F_SETFL, O_NONBLOCK);
 
+    //for lnapp_handshake()
+    //  LND disconnect within 5 seconds after handshake connection.
+    //  ln_init() takes a lot of time for low spec machine and disconnect by LND.
+    lnapp_conf_t conf; //dummy
+    peer_conn_handshake_t conn_handshake;
+    conn_handshake.initiator = true;
+    conn_handshake.sock = sock;
+    conn_handshake.conn = *pConn;
+    lnapp_conf_init(&conf, pConn->node_id, NULL);
+    ln_init(&conf.channel, NULL, NULL, NULL, NULL);
+
     ret = connect_byname(sock, pConn->ipaddr, pConn->port);
     if ((ret < 0) && (errno == EINPROGRESS)) {
         //timeout check
@@ -177,6 +188,9 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
         //ノード接続失敗リストに追加(自動接続回避用)
         ptarmd_nodefail_add(pConn->node_id, pConn->ipaddr, pConn->port, LN_ADDR_DESC_TYPE_IPV4);
 
+        ln_term(&conf.channel);
+        lnapp_conf_term(&conf);
+
         goto LABEL_EXIT;
     }
     LOGD("connected: sock=%d\n", sock);
@@ -185,11 +199,10 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
     fprintf(stderr, "[client]node_id=");
     utl_dbg_dump(stderr, pConn->node_id, BTC_SZ_PUBKEY, true);
 
-    peer_conn_handshake_t conn_handshake;
-    conn_handshake.initiator = true;
-    conn_handshake.sock = sock;
-    conn_handshake.conn = *pConn;
-    if (!lnapp_handshake(&conn_handshake)) {
+    bool b_shake = lnapp_handshake(&conn_handshake, &conf);
+    ln_term(&conf.channel);
+    lnapp_conf_term(&conf);
+    if (!b_shake) {
         LOGE("fail: handshake\n");
         *pErrCode = RPCERR_CONNECT;
         goto LABEL_EXIT;
@@ -323,7 +336,14 @@ void *p2p_listener_start(void *pArg)
         conn_handshake.initiator = false;
         conn_handshake.sock = sock_2;
         memset(&conn_handshake.conn, 0x00, sizeof(conn_handshake.conn));
-        if (!lnapp_handshake(&conn_handshake)) {
+
+        lnapp_conf_t conf;
+        lnapp_conf_init(&conf, conn_handshake.conn.node_id, NULL);
+        ln_init(&conf.channel, NULL, NULL, NULL, NULL);
+        bool b_shake = lnapp_handshake(&conn_handshake, &conf);
+        ln_term(&conf.channel);
+        lnapp_conf_term(&conf);
+        if (!b_shake) {
             LOGE("fail: handshake\n");
             close(sock_2);
             continue;
