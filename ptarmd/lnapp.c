@@ -280,50 +280,44 @@ void lnapp_conf_stop(lnapp_conf_t *pAppConf)
 }
 
 
-bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake)
+bool lnapp_handshake(peer_conn_handshake_t *pConnHandshake, lnapp_conf_t *pConf)
 {
     bool ret = false;
 
-    lnapp_conf_t conf; //dummy
-    lnapp_conf_init(&conf, pConnHandshake->conn.node_id, NULL);
-    ln_init(&conf.channel, NULL, NULL, NULL, NULL);
-
-    conf.active = true;
-    conf.sock = pConnHandshake->sock;
-    conf.initiator = pConnHandshake->initiator;
+    pConf->active = true;
+    pConf->sock = pConnHandshake->sock;
+    pConf->initiator = pConnHandshake->initiator;
 
     LOGD("wait peer connected...\n");
-    if (!wait_peer_connected(&conf)) {
+    if (!wait_peer_connected(pConf)) {
         goto LABEL_EXIT;
     }
 
-    strncpy(conf.conn_str, pConnHandshake->conn.ipaddr, SZ_CONN_STR);
-    conf.conn_str[SZ_CONN_STR] = '\0';
-    conf.conn_port = pConnHandshake->conn.port;
-    conf.routesync = pConnHandshake->conn.routesync;
+    strncpy(pConf->conn_str, pConnHandshake->conn.ipaddr, SZ_CONN_STR);
+    pConf->conn_str[SZ_CONN_STR] = '\0';
+    pConf->conn_port = pConnHandshake->conn.port;
+    pConf->routesync = pConnHandshake->conn.routesync;
 
-    if (!noise_handshake(&conf)) {
+    if (!noise_handshake(pConf)) {
         ptarmd_nodefail_add(
-            conf.node_id, conf.conn_str, conf.conn_port, LN_ADDR_DESC_TYPE_IPV4);
+            pConf->node_id, pConf->conn_str, pConf->conn_port, LN_ADDR_DESC_TYPE_IPV4);
         goto LABEL_EXIT;
     }
 
     (void)ptarmd_nodefail_get(
-        conf.node_id, conf.conn_str, conf.conn_port, LN_ADDR_DESC_TYPE_IPV4, true);
+        pConf->node_id, pConf->conn_str, pConf->conn_port, LN_ADDR_DESC_TYPE_IPV4, true);
 
-    LOGD("connected peer(sock=%d): ", conf.sock);
-    DUMPD(conf.node_id, BTC_SZ_PUBKEY);
+    LOGD("connected peer(sock=%d): ", pConf->sock);
+    DUMPD(pConf->node_id, BTC_SZ_PUBKEY);
     fprintf(stderr, "connected peer: ");
-    utl_dbg_dump(stderr, conf.node_id, BTC_SZ_PUBKEY, true);
+    utl_dbg_dump(stderr, pConf->node_id, BTC_SZ_PUBKEY, true);
 
-    memcpy(pConnHandshake->conn.node_id, conf.node_id, BTC_SZ_PUBKEY);
-    pConnHandshake->noise = conf.noise;
+    memcpy(pConnHandshake->conn.node_id, pConf->node_id, BTC_SZ_PUBKEY);
+    pConnHandshake->noise = pConf->noise;
 
     ret = true;
 
 LABEL_EXIT:
-    ln_term(&conf.channel);
-    lnapp_conf_term(&conf);
     return ret;
 }
 
