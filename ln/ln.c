@@ -1005,7 +1005,10 @@ void *ln_get_param(ln_channel_t *pChannel)
 
 bool ln_status_set(ln_channel_t *pChannel, ln_status_t status)
 {
-    pChannel->status = status;
+    if (pChannel->status != status) {
+        LOGD("%d ==> %d\n", pChannel->status, status);
+        pChannel->status = status;
+    }
     return true;
 }
 

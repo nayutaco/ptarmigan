@@ -62,7 +62,7 @@ void lnapp_manager_term(void)
 {
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         if (!mAppConf[lp].enabled) continue;
-        lnapp_stop(&mAppConf[lp]);
+        lnapp_stop_and_join(&mAppConf[lp]);
         lnapp_conf_term(&mAppConf[lp]);
     }
 }
@@ -183,6 +183,7 @@ void lnapp_manager_prune_node(void)
             continue;
         }
         if (mAppConf[lp].ref_counter) continue;
+        lnapp_join(&mAppConf[lp]);
         LOGD("prune node: ");
         DUMPD(mAppConf[lp].node_id, BTC_SZ_PUBKEY);
         lnapp_conf_term(&mAppConf[lp]);

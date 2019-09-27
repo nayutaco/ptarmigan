@@ -1913,7 +1913,7 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
     int err;
     lnapp_conf_t *p_conf = ptarmd_search_connected_node_id(pNodeId);
     if (p_conf) {
-        lnapp_stop(p_conf);
+        lnapp_stop_and_join(p_conf);
         err = 0;
         lnapp_manager_free_node_ref(p_conf);
         p_conf = NULL;
@@ -2218,7 +2218,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
         return RPCERR_NOCHANNEL;
     }
 
-    lnapp_stop(p_conf);
+    lnapp_stop_and_join(p_conf);
 
     //XXX: block reconnection
 
