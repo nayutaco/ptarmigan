@@ -138,16 +138,29 @@ void lnapp_conf_start(
 void lnapp_conf_stop(lnapp_conf_t *pAppConf);
 
 
-/** [lnapp]開始
+/** [lnapp]channel start
  *
  */
 void lnapp_start(lnapp_conf_t *pAppConf);
 
 
-/** [lnapp]停止
+/** [lnapp]channel stop and join
+ *
+ *  call #lnapp_stop() and #lnapp_join()
+ */
+void lnapp_stop_and_join(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]channel stop request
  *
  */
 void lnapp_stop(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]wait channel stop
+ *
+ */
+void lnapp_join(lnapp_conf_t *pAppConf);
 
 
 /** [lnapp]チャネル接続開始

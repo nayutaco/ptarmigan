@@ -203,7 +203,7 @@ bool p2p_initiator_start(const peer_conn_t *pConn, int *pErrCode)
             *pErrCode = RPCERR_NOOPEN;
             goto LABEL_EXIT;
         }
-        lnapp_stop(p_conf);
+        lnapp_stop_and_join(p_conf);
     } else {
         LOGD("new node: ");
         DUMPD(conn_handshake.conn.node_id, BTC_SZ_PUBKEY);
@@ -338,7 +338,7 @@ void *p2p_listener_start(void *pArg)
                 close(sock_2);
                 continue;
             }
-            lnapp_stop(p_conf);
+            lnapp_stop_and_join(p_conf);
         } else {
             LOGD("new node: ");
             DUMPD(conn_handshake.conn.node_id, BTC_SZ_PUBKEY);

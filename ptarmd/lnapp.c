@@ -341,6 +341,15 @@ void lnapp_start(lnapp_conf_t *pAppConf)
 }
 
 
+void lnapp_stop_and_join(lnapp_conf_t *pAppConf)
+{
+    LOGD("$$$ stop and join\n");
+    lnapp_stop(pAppConf);
+    lnapp_join(pAppConf);
+    LOGD("$$$ exit\n");
+}
+
+
 void lnapp_stop(lnapp_conf_t *pAppConf)
 {
     LOGD("$$$ stop\n");
@@ -360,14 +369,23 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
         LOGD("$$$ stopped\n");
     }
     pthread_mutex_unlock(&pAppConf->mux_conf);
+}
 
-    //wait for the thread to finish
 
+//wait for the thread to finish
+void lnapp_join(lnapp_conf_t *pAppConf)
+{
+    if (pAppConf->active) {
+        LOGE("this channel is still active\n");
+    }
+
+    LOGD("$$$ join\n");
     pthread_mutex_lock(&pAppConf->mux_th);
     if (pAppConf->th) {
+        LOGD("wait join: lnapp\n");
         pthread_join(pAppConf->th, NULL);
-        LOGD("join: lnapp\n");
         pAppConf->th = 0;
+        LOGD("join: lnapp\n");
     }
     pthread_mutex_unlock(&pAppConf->mux_th);
 }
@@ -1474,6 +1492,13 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 
     if (p_conf->funding_confirm >= ln_funding_info_minimum_depth(&p_conf->channel.funding_info)) {
         LOGD("confirmation OK: %d\n", p_conf->funding_confirm);
+
+        if (ln_status_get(&p_conf->channel) != LN_STATUS_ESTABLISH) {
+            // maybe unilateral close(remote) before funding
+            LOGE("not LN_STATUS_ESTABLISH\n");
+            return;
+        }
+
         //funding_tx確定
         bool ret = set_short_channel_id(p_conf);
         if (ret) {
