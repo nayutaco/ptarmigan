@@ -45,6 +45,11 @@
 #define HIDDEN __attribute__((visibility("hidden")))
 #define CONST_CAST      /* const外しキャストを検索しやすくするため */
 
+#define PATH_STR_MAX    (PATH_MAX - 1)  //path max but exclude null char
+#define PATH_NAME_MAX   (64)
+#define PATH_DELIMIT    (1)
+#define PATH_DIR_MAX    (PATH_STR_MAX - (PATH_NAME_MAX + PATH_DELIMIT))
+
 
 /**************************************************************************
  * macro functions
