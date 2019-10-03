@@ -92,6 +92,9 @@
 #define M_CLOSED_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
 #define M_DB_PATH_STR_MAX       (PATH_MAX - 1)              //path max but exclude null char
+#define M_DB_PATH_NAME_MAX      (64)
+#define M_DB_PATH_DELIMIT       (1)
+#define M_DB_PATH_DIR_MAX       (M_DB_PATH_STR_MAX - (M_DB_PATH_NAME_MAX + M_DB_PATH_DELIMIT))
 #define M_DB_DIR                "db"
 #define M_CHANNEL_ENV_DIR       "channel"                   ///< channel
 #define M_NODE_ENV_DIR          "node"                      ///< node
@@ -4191,8 +4194,9 @@ LABEL_EXIT:
 
 static bool set_path(char *pPath, size_t Size, const char *pDir, const char *pName)
 {
-    if (strlen(pDir) + 1 + strlen(pName) > M_DB_PATH_STR_MAX) return false;
-    snprintf(pPath, Size, "%s/%s", pDir, pName);
+    if (strlen(pName) > M_DB_PATH_NAME_MAX) return false;
+    if (strlen(pDir) > M_DB_PATH_DIR_MAX) return false;
+    snprintf(pPath, Size, "%.*s/%s", M_DB_PATH_DIR_MAX, pDir, pName);
     return true;
 }
 
