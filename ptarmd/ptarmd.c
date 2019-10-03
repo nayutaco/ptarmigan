@@ -375,8 +375,8 @@ const ln_establish_param_t *ptarmd_get_establish_param(void)
 void ptarmd_call_script(ptarmd_event_t event, const char *param)
 {
     struct stat buf;
-    char script[PATH_MAX];
-    char path[PATH_MAX];
+    char script[PATH_STR_MAX + 1];
+    char path[PATH_STR_MAX + 1];
 
     errno = 0;
     char* retcwd = getcwd(path, sizeof(path));
@@ -384,9 +384,9 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
         LOGE("fail: getcwd()\n");
         return;
     }
-    snprintf(script, sizeof(script), "%.1024s/" M_SCRIPT_DIR "/%.1024s",
-                    path,
-                    kSCRIPT[event]);
+    snprintf(script, sizeof(script), "%.*s/" M_SCRIPT_DIR "/%.*s",
+                PATH_DIR_MAX - PATH_DELIMIT - (int)sizeof(M_SCRIPT_DIR), path,
+                PATH_NAME_MAX, kSCRIPT[event]);
     LOGD("event=0x%02x(%s)\n", (int)event, script);
     int ret = stat(script, &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
