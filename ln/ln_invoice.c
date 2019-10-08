@@ -332,6 +332,8 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     btc_buf_w_t buf_w_r_field;
     btc_buf_w_t buf_w_preimage;
 
+    LOGD("start\n");
+
     *pp_invoice = NULL;
 
     btc_buf_w_init(&buf_w, 0);
@@ -358,32 +360,39 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         char multiplier = '\0';
         uint64_t amount;
         if (!(p_invoice_data->amount_msat % M_NUMBER_100BILLION)) { //10 ^ 11
+            LOGD("100 billion\n");
             multiplier = '\0';
             amount = p_invoice_data->amount_msat / M_NUMBER_100BILLION;
         } else if (!(p_invoice_data->amount_msat % M_NUMBER_100MILLION)) { //10 ^ 8
             //milli 10 ^ -3
             //  10 ^ (11 - 3)
+            LOGD("100 million(m)\n");
             multiplier = 'm';
             amount = p_invoice_data->amount_msat / M_NUMBER_100MILLION;
         } else if (!(p_invoice_data->amount_msat % M_NUMBER_100THOUSAND)) { //10 ^ 5
             //micro 10 ^ -6
             //  10 ^ (11 - 6)
+            LOGD("100 thousand(u)\n");
             multiplier = 'u';
             amount = p_invoice_data->amount_msat / M_NUMBER_100THOUSAND;
         } else if (!(p_invoice_data->amount_msat % 100)) { //10 ^ 2
             //nano 10 ^ -9
             //  10 ^ (11 - 9)
+            LOGD("100(n)\n");
             multiplier = 'n';
             amount = p_invoice_data->amount_msat / 100;
         } else { //10 ^ -1
             //pico 10 ^ -12
             //  10 ^ (11 - 12)
+            LOGD("10(p)\n");
             multiplier = 'p';
             amount = p_invoice_data->amount_msat * 10;
         }
         char amount_str[M_UINT64_MAX_DIGIT];
         sprintf(amount_str, "%" PRIu64 "%c", amount, multiplier);
         strcat(hrp, amount_str);
+    } else {
+        LOGD("no amount\n");
     }
 
     //timestamp
@@ -401,11 +410,15 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     if (!btc_buf_w_write_byte(&buf_w, 19)) goto LABEL_EXIT; //type
     if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(264))) goto LABEL_EXIT;
     if (!write_convert_bits_8to5(&buf_w, p_invoice_data->pubkey, BTC_SZ_PUBKEY, true)) goto LABEL_EXIT;
+    LOGD("payee: ");
+    DUMPD(p_invoice_data->pubkey, BTC_SZ_PUBKEY);
 
     //256-bit SHA256 payment_hash
     if (!btc_buf_w_write_byte(&buf_w, 1)) goto LABEL_EXIT; //type
     if (!write_convert_bits_8to5_value_10bits(&buf_w, M_5BIT_BYTES_LEN(256))) goto LABEL_EXIT;
     if (!write_convert_bits_8to5(&buf_w, p_invoice_data->payment_hash, BTC_SZ_HASH256, true)) goto LABEL_EXIT;
+    LOGD("payment_hash: ");
+    DUMPD(p_invoice_data->payment_hash, BTC_SZ_HASH256);
 
     //short description
     uint8_t type;
@@ -415,6 +428,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
             LOGE("too long\n");
             goto LABEL_EXIT;
         }
+        LOGD("description: string\n");
         type = 13;
         break;
     case LN_INVOICE_DESC_TYPE_HASH256:
@@ -422,6 +436,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
             LOGE("not hash length\n");
             goto LABEL_EXIT;
         }
+        LOGD("description: hash\n");
         type = 23;
         break;
     default:
@@ -438,6 +453,9 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         int len = convert_bits_8to5_value_len(p_invoice_data->expiry);
         if (!write_convert_bits_8to5_value_10bits(&buf_w, len)) goto LABEL_EXIT;
         if (!write_convert_bits_8to5_value(&buf_w, p_invoice_data->expiry)) goto LABEL_EXIT;
+        LOGD("expiry: %d\n", p_invoice_data->expiry);
+    } else {
+        LOGD("expiry: default value\n");
     }
 
     //min_final_cltv_expiry
@@ -446,6 +464,9 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         int len = convert_bits_8to5_value_len(p_invoice_data->min_final_cltv_expiry);
         if (!write_convert_bits_8to5_value_10bits(&buf_w, len)) goto LABEL_EXIT;
         if (!write_convert_bits_8to5_value(&buf_w, p_invoice_data->min_final_cltv_expiry)) goto LABEL_EXIT;
+        LOGD("min_final_cltv_expiry: %d\n", p_invoice_data->min_final_cltv_expiry);
+    } else {
+        LOGD("min_final_cltv_expiry: default value\n");
     }
 
     //r field
@@ -463,6 +484,9 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
             if (!btc_buf_w_write_u16be(&buf_w_r_field, r->cltv_expiry_delta)) goto LABEL_EXIT;
         }
         if (!write_convert_bits_8to5(&buf_w, btc_buf_w_get_data(&buf_w_r_field), btc_buf_w_get_len(&buf_w_r_field), true)) goto LABEL_EXIT;
+        LOGD("r-field: %d\n", p_invoice_data->r_field_num);
+    } else {
+        LOGD("r-field: none\n");
     }
 
     //hash
@@ -472,12 +496,15 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     if (!write_convert_bits_5to8(&buf_w_preimage, btc_buf_w_get_data(&buf_w), btc_buf_w_get_len(&buf_w), true)) goto LABEL_EXIT;
     uint8_t hash[BTC_SZ_HASH256];
     btc_md_sha256(hash, btc_buf_w_get_data(&buf_w_preimage), btc_buf_w_get_len(&buf_w_preimage));
+    LOGD("signature hash\n");
 
     //signature
     uint8_t sign[BTC_SZ_SIGN_RS + 1]; //with recovery id
     if (!ln_node_sign_nodekey(sign, hash)) goto LABEL_EXIT;
+    LOGD("signature\n");
     int recid;
     if (!btc_sig_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash)) goto LABEL_EXIT;
+    LOGD("recovery id\n");
     sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
     if (!write_convert_bits_8to5(&buf_w, sign, sizeof(sign), true)) goto LABEL_EXIT;
 
@@ -494,6 +521,8 @@ LABEL_EXIT:
     btc_buf_w_free(&buf_w);
     btc_buf_w_free(&buf_w_r_field);
     btc_buf_w_free(&buf_w_preimage);
+
+    LOGD("ret=%d\n", ret);
     return ret;
 }
 
@@ -730,6 +759,8 @@ bool ln_invoice_create(
 
     ln_invoice_t *p_invoice_data;
 
+    LOGD("amount=%" PRIu64 ", expiry=%d\n", Amount, Expiry);
+
     size_t sz = sizeof(ln_invoice_t);
     if (RFieldNum) {
         if (!pRField) return false;
@@ -751,6 +782,8 @@ bool ln_invoice_create(
 
     bool ret = ln_invoice_encode(ppInvoice, p_invoice_data);
     ln_invoice_decode_free(p_invoice_data);
+
+    LOGD("ret=%d\n", ret);
 
     return ret;
 }
