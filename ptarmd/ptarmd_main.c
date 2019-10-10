@@ -44,6 +44,9 @@
 #include "jansson.h"
 #include "lmdb.h"
 #include "zlib.h"
+#ifdef USE_OPENSSL
+#include "openssl/opensslv.h"
+#endif
 #include "../version.h"
 #include "ln_version.h"
 
@@ -470,6 +473,9 @@ static void show_version(void)
     fprintf(stderr, "\tlibev: %s\n", event_get_version());
     fprintf(stderr, "\tzlib: %s\n", ZLIB_VERSION);
     fprintf(stderr, "\tboost: %s\n", BOOST_LIB_VERSION);
+#ifdef USE_OPENSSL
+    fprintf(stderr, "\t" OPENSSL_VERSION_TEXT  "\n");
+#endif
     // no version API
     fprintf(stderr, "\tinih: r45\n");
     fprintf(stderr, "\tlibbase58: commit 1cb26b5bfff6b52995a2d88a4b7e1041df589d35\n");

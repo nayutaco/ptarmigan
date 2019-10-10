@@ -1,7 +1,7 @@
 INSTALL_DIR = $(CURDIR)/install
 BOOST_VER = 1.68.0
 BOOST_VER_FILE = boost_1_68_0
-OPENSSL_VER = 1.1.1c
+OPENSSL_VER = 1.1.1d
 OPENSSL_FILE = openssl-$(OPENSSL_VER).tar.gz
 
 include ../options.mak
