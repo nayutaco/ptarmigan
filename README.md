@@ -98,6 +98,7 @@ Try the newer REST API interface.
 
 * download
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
+  * [OpenSSL](https://www.openssl.org/) (only `USE_OPENSSL`)
 
 * reference code
   * [sipa/bech32](https://github.com/sipa/bech32)
