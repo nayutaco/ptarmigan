@@ -146,7 +146,7 @@ static const char *kSCRIPT[] = {
 
 static void load_channel_settings(btc_block_chain_t GenType);
 static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_param);
-static void set_channels(void);
+static bool set_channels(void);
 
 
 /********************************************************************
@@ -193,7 +193,9 @@ int ptarmd_start(uint16_t RpcPort, const ln_node_t *pNode, btc_block_chain_t Gen
 
     load_channel_settings(GenType);
     btcrpc_set_creationhash(ln_creationhash_get());
-    set_channels();
+    if (!set_channels()) {
+        return -2;
+    }
     lnapp_global_init();
     lnapp_manager_init();
     if (!lnapp_manager_start_origin_node(lnapp_thread_channel_origin_start)) {
@@ -555,13 +557,19 @@ static bool comp_func_cnl(ln_channel_t *pChannel, void *p_db_param, void *p_para
 }
 
 
-static void set_channels(void)
+static bool set_channels(void)
 {
     btcrpc_write_startuplog("CONT=Channels..");
 
     LOGD("\n");
     bool b_stop = false;
     ln_db_channel_search_readonly(comp_func_cnl, &b_stop);
-
-    btcrpc_write_startuplog("STOP=All synced!");
+    const char *p_str;
+    if (!b_stop) {
+        p_str = "STOP=All synced!";
+    } else {
+        p_str = "STOP=sync fail. retry..";
+    }
+    btcrpc_write_startuplog(p_str);
+    return !b_stop;
 }
