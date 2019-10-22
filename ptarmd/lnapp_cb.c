@@ -95,6 +95,7 @@
 
 static void cb_channel_quit(lnapp_conf_t *pConf, void *pParam);
 static void cb_error_recv(lnapp_conf_t *pConf, void *pParam);
+static void cb_error_send(lnapp_conf_t *pConf, void *pParam);
 static void cb_init_recv(lnapp_conf_t *pConf, void *pParam);
 static void cb_channel_reestablish_recv(lnapp_conf_t *pConf, void *pParam);
 static void cb_funding_tx_sign(lnapp_conf_t *pConf, void *pParam);
@@ -136,6 +137,7 @@ void lnapp_notify_cb(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificP
     } MAP[] = {
         { "  LN_CB_TYPE_STOP_CHANNEL: channel quit", cb_channel_quit },
         { "  LN_CB_TYPE_NOTIFY_ERROR: error receive", cb_error_recv },
+        { "  LN_CB_TYPE_SEND_ERROR: error send", cb_error_send },
         { "  LN_CB_TYPE_NOTIFY_INIT_RECV: init receive", cb_init_recv },
         { "  LN_CB_TYPE_NOTIFY_REESTABLISH_RECV: channel_reestablish receive", cb_channel_reestablish_recv },
         { "  LN_CB_TYPE_SIGN_FUNDING_TX: funding_tx sign request", cb_funding_tx_sign },
@@ -191,7 +193,8 @@ static void cb_error_recv(lnapp_conf_t *pConf, void *pParam)
     } else {
         p_channel_id = p_msg->p_channel_id;
     }
-
+    char node_id_str[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(node_id_str, ln_remote_node_id(&pConf->channel), BTC_SZ_PUBKEY);
 
     bool b_printable = true;
     for (uint16_t lp = 0; lp < p_msg->len; lp++) {
@@ -200,20 +203,18 @@ static void cb_error_recv(lnapp_conf_t *pConf, void *pParam)
             break;
         }
     }
+    char *p_data;
     if (b_printable) {
-        char *p_data = (char *)UTL_DBG_MALLOC(p_msg->len + 1);
+        p_data = (char *)UTL_DBG_MALLOC(p_msg->len + 1);
         memcpy(p_data, p_msg->p_data, p_msg->len);
         p_data[p_msg->len] = '\0';
-        lnapp_set_last_error(pConf, RPCERR_PEER_ERROR, p_data);
-        ptarmd_eventlog(p_channel_id, "error message(ascii): %s", p_data);
-        UTL_DBG_FREE(p_data);
     } else {
-        char *p_data = (char *)UTL_DBG_MALLOC(p_msg->len * 2 + 1);
+        p_data = (char *)UTL_DBG_MALLOC(p_msg->len * 2 + 1);
         utl_str_bin2str(p_data, (const uint8_t *)p_msg->p_data, p_msg->len);
-        lnapp_set_last_error(pConf, RPCERR_PEER_ERROR, p_data);
-        ptarmd_eventlog(p_channel_id, "error message(dump): %s", p_data);
-        UTL_DBG_FREE(p_data);
     }
+    ptarmd_eventlog(p_channel_id, "error message[from node=%s]: %s", node_id_str, p_data);
+    lnapp_set_last_error(pConf, RPCERR_PEER_ERROR, p_data, node_id_str, true);
+    UTL_DBG_FREE(p_data);
 
     if (pConf->funding_waiting) {
         LOGD("stop funding by error\n");
@@ -221,6 +222,42 @@ static void cb_error_recv(lnapp_conf_t *pConf, void *pParam)
     }
 
     lnapp_stop_threads(pConf);
+}
+
+
+//LN_CB_TYPE_SEND_ERROR: error送信
+static void cb_error_send(lnapp_conf_t *pConf, void *pParam)
+{
+    const ln_msg_error_t *p_msg = (const ln_msg_error_t *)pParam;
+    const uint8_t *p_channel_id;
+    if ( (ln_short_channel_id(&pConf->channel) == 0) ||
+          utl_mem_is_all_zero(p_msg->p_channel_id, LN_SZ_CHANNEL_ID) ) {
+        p_channel_id = NULL;
+    } else {
+        p_channel_id = p_msg->p_channel_id;
+    }
+    char node_id_str[BTC_SZ_PUBKEY * 2 + 1];
+    utl_str_bin2str(node_id_str, ln_remote_node_id(&pConf->channel), BTC_SZ_PUBKEY);
+
+    bool b_printable = true;
+    for (uint16_t lp = 0; lp < p_msg->len; lp++) {
+        if (!isprint(p_msg->p_data[lp])) {
+            b_printable = false;
+            break;
+        }
+    }
+    char *p_data;
+    if (b_printable) {
+        p_data = (char *)UTL_DBG_MALLOC(p_msg->len + 1);
+        memcpy(p_data, p_msg->p_data, p_msg->len);
+        p_data[p_msg->len] = '\0';
+    } else {
+        p_data = (char *)UTL_DBG_MALLOC(p_msg->len * 2 + 1);
+        utl_str_bin2str(p_data, (const uint8_t *)p_msg->p_data, p_msg->len);
+    }
+    ptarmd_eventlog(p_channel_id, "send error message[to node=%s]: %s", node_id_str, p_data);
+    lnapp_set_last_error(pConf, RPCERR_ERROR, p_data, node_id_str, false);
+    UTL_DBG_FREE(p_data);
 }
 
 
@@ -712,7 +749,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *pConf, ln_cb_param_start_bwd_del
         UTL_DBG_FREE(onionerr.p_data);
     } else {
         //デコード失敗
-        lnapp_set_last_error(pConf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE);
+        lnapp_set_last_error(pConf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE, true);
     }
     if (!lnapp_payment_route_del(pCbParam->prev_htlc_id)) {
         LOGE("fail: ???\n");
@@ -848,8 +885,11 @@ static void cb_send_req(lnapp_conf_t *pConf, void *pParam)
 //LN_CB_TYPE_GET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw取得
 static void cb_get_latest_feerate(lnapp_conf_t *pConf, void *pParam)
 {
+    (void)pConf;
+
     uint32_t *p_rate = (uint32_t *)pParam;
-    *p_rate = pConf->feerate_per_kw;
+    *p_rate = monitor_btc_feerate_per_kw();
+    LOGD("feerate_per_kw=%d\n", *p_rate);
 }
 
 

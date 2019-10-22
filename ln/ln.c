@@ -1095,7 +1095,7 @@ void ln_feerate_limit_get(uint32_t *pMin, uint32_t *pMax, uint32_t feerate_per_k
 {
     *pMin = (uint32_t)(feerate_per_kw * mFeerateMin / 100);
     *pMax = (uint32_t)(feerate_per_kw * mFeerateMax / 100);
-    LOGD("feerate_limit_get: min=%d, max=%d\n", *pMin, *pMax);
+    LOGD("feerate_limit_get: feerate_per_kw=%d, min=%d, max=%d\n", feerate_per_kw, *pMin, *pMax);
 }
 
 
