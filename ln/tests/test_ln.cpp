@@ -227,3 +227,53 @@ TEST_F(ln, calc_short2)
     uint64_t sid = ln_short_channel_id_calc(1116104, 33, 0);
     ASSERT_EQ(0x1107c80000210000, sid);
 }
+
+
+////////////////////////////////////////////////////////////////////////
+
+TEST_F(ln, ln_feerate_limit_set)
+{
+    ln_feerate_limit_set(65535, 0);
+    ASSERT_EQ(65535, mFeerateMin);
+    ASSERT_EQ(0, mFeerateMax);
+
+    ln_feerate_limit_set(0, 65535);
+    ASSERT_EQ(0, mFeerateMin);
+    ASSERT_EQ(65535, mFeerateMax);
+}
+
+
+TEST_F(ln, ln_feerate_limit_get)
+{
+    uint32_t min, max;
+
+    mFeerateMin = 0;
+    mFeerateMax = 0;
+    ln_feerate_limit_get(&min, &max, 253);
+    ASSERT_EQ(0, min);
+    ASSERT_EQ(0, max);
+
+    mFeerateMin = 100;
+    mFeerateMax = 200;
+    ln_feerate_limit_get(&min, &max, 253);
+    ASSERT_EQ(253, min);
+    ASSERT_EQ(506, max);
+
+    mFeerateMin = 5;
+    mFeerateMax = 2000;
+    ln_feerate_limit_get(&min, &max, 253);
+    ASSERT_EQ(12, min);
+    ASSERT_EQ(5060, max);
+
+    mFeerateMin = 5;
+    mFeerateMax = 2000;
+    ln_feerate_limit_get(&min, &max, 50000);
+    ASSERT_EQ(2500, min);
+    ASSERT_EQ(1000000, max);
+
+    mFeerateMin = 0;
+    mFeerateMax = 0;
+    ln_feerate_limit_get(&min, &max, 50000);
+    ASSERT_EQ(0, min);
+    ASSERT_EQ(0, max);
+}
