@@ -513,6 +513,7 @@ static void load_channel_settings(btc_block_chain_t GenType)
     mEstablishParam.min_depth = econf.min_depth;
 
     ln_init_localfeatures_set(econf.localfeatures);
+    ln_feerate_limit_set(econf.feerate_min, econf.feerate_max);
 }
 
 

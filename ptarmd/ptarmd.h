@@ -251,6 +251,8 @@ typedef struct {
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
 
     uint8_t     localfeatures;                      ///< init.localfeatures
+    uint16_t    feerate_min;                        ///< feerate_per_kw limit min percent(0..all OK)
+    uint16_t    feerate_max;                        ///< feerate_per_kw limit max percent(0..all OK)
 } channel_conf_t;
 
 

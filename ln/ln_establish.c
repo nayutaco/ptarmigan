@@ -58,12 +58,6 @@
  * macros
  **************************************************************************/
 
-//feerate: receive open_channel
-// #define M_FEERATE_CHK_MIN_OK(local,remote)   ( 0.5 * (local) < 1.0 * (remote))  ///< feerate_per_kwのmin判定
-// #define M_FEERATE_CHK_MAX_OK(local,remote)   (10.0 * (local) > 1.0 * (remote))  ///< feerate_per_kwのmax判定
-#define M_FEERATE_CHK_MIN_OK(local,remote)      (true)  ///< feerate_per_kwのmin判定(ALL OK)
-#define M_FEERATE_CHK_MAX_OK(local,remote)      (true)  ///< feerate_per_kwのmax判定(ALL OK)
-
 #define M_FUNDING_INDEX                         (0)     ///< funding_txのvout
 
 
@@ -224,14 +218,20 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
 
     //check feerate_per_kw
     uint32_t feerate_per_kw;
+    uint32_t feerate_min;
+    uint32_t feerate_max;
     ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &feerate_per_kw);
-    if ( (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
-         !M_FEERATE_CHK_MIN_OK(feerate_per_kw, msg.feerate_per_kw) ) {
+    ln_feerate_limit_get(&feerate_min, &feerate_max, feerate_per_kw);
+    if (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
         M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too low");
         return false;
     }
-    if (!M_FEERATE_CHK_MAX_OK(feerate_per_kw, msg.feerate_per_kw)) {
-        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too large");
+    if ((feerate_min != 0) && (msg.feerate_per_kw < feerate_min)) {
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too low from current");
+        return false;
+    }
+    if ((feerate_max != 0) && (msg.feerate_per_kw > feerate_max)) {
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too large from current");
         return false;
     }
 

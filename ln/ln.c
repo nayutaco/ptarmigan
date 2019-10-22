@@ -176,6 +176,10 @@ static uint8_t mGenesisChainHash[BTC_SZ_HASH256];
 //  usage: search blockchain limit
 static uint8_t mCreationBlockHash[BTC_SZ_HASH256];
 
+// feerate_per_kw limit percent
+static uint16_t mFeerateMin;
+static uint16_t mFeerateMax;
+
 static unsigned long mDebug;
 
 
@@ -1084,6 +1088,21 @@ bool ln_need_init_routing_sync(const ln_channel_t *pChannel)
 bool ln_is_announced(const ln_channel_t *pChannel)
 {
     return (pChannel->anno_flag & LN_ANNO_FLAG_END);
+}
+
+
+void ln_feerate_limit_get(uint32_t *pMin, uint32_t *pMax, uint32_t feerate_per_kw)
+{
+    *pMin = (uint32_t)(feerate_per_kw * mFeerateMin / 100);
+    *pMax = (uint32_t)(feerate_per_kw * mFeerateMax / 100);
+    LOGD("feerate_limit_get: min=%d, max=%d\n", *pMin, *pMax);
+}
+
+
+void ln_feerate_limit_set(uint16_t Min, uint16_t Max)
+{
+    mFeerateMin = Min;
+    mFeerateMax = Max;
 }
 
 

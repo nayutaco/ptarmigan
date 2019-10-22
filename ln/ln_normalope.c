@@ -69,9 +69,6 @@
 #define M_HYSTE_CLTV_EXPIRY_SOON            (1)             ///< BOLT4 check:cltv_expiryのhysteresis
 #define M_HYSTE_CLTV_EXPIRY_FAR             (144 * 15)      ///< BOLT4 check:cltv_expiryのhysteresis(15日)
 
-#define M_UPDATEFEE_CHK_MIN_OK(val,rate)    (val >= (uint32_t)(rate * 0.2))
-#define M_UPDATEFEE_CHK_MAX_OK(val,rate)    (val <= (uint32_t)(rate * 20))
-
 #define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
 
 
@@ -542,12 +539,15 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     btc_block_chain_t gtype = btc_block_get_chain(ln_genesishash_get());
     if (gtype == BTC_BLOCK_CHAIN_BTCMAIN) {
         uint32_t rate;
+        uint32_t feerate_min;
+        uint32_t feerate_max;
         ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
-        if (!M_UPDATEFEE_CHK_MIN_OK(msg.feerate_per_kw, rate)) {
+        ln_feerate_limit_get(&feerate_min, &feerate_max, rate);
+        if (msg.feerate_per_kw < feerate_min) {
             M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw from current");
             return false;
         }
-        if (!M_UPDATEFEE_CHK_MAX_OK(msg.feerate_per_kw, rate)) {
+        if (msg.feerate_per_kw > feerate_max) {
             M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw from current");
             return false;
         }
