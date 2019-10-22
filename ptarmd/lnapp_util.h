@@ -48,7 +48,7 @@ extern "C" {
 void lnapp_stop_threads(lnapp_conf_t *p_conf);
 bool lnapp_send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 bool lnapp_send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
-void lnapp_set_last_error(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
+void lnapp_set_last_error(lnapp_conf_t *p_conf, int Err, const char *pErrStr, const char *pPeerStr, bool bRecv);
 
 
 #ifdef __cplusplus

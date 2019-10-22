@@ -185,7 +185,7 @@ LABEL_ERROR:
 /** エラー文字列設定
  *
  */
-void lnapp_set_last_error(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
+void lnapp_set_last_error(lnapp_conf_t *p_conf, int Err, const char *pErrStr, const char *pPeerStr, bool bRecv)
 {
     p_conf->err = Err;
     if (p_conf->p_errstr != NULL) {
@@ -193,24 +193,27 @@ void lnapp_set_last_error(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         p_conf->p_errstr = NULL;
     }
     if ((Err != 0) && (pErrStr != NULL)) {
-        size_t len_max = strlen(pErrStr) + 128;
+        size_t len_max = strlen(pErrStr) + 512;
         p_conf->p_errstr = (char *)UTL_DBG_MALLOC(len_max);        //UTL_DBG_FREE: thread_channel_start()
         strcpy(p_conf->p_errstr, pErrStr);
-        LOGD("$$$[ERROR RECEIVED] %s\n", p_conf->p_errstr);
+        const char *p_dir = (bRecv) ? "received" : "sent";
+        LOGD("$$$[ERROR dir=%s] %s\n", p_dir, p_conf->p_errstr);
 
         // method: error
         // $1: short_channel_id
         // $2: node_id
         // $3: err_str
+        // $4: direction
+        // $5: peer_id
         char str_sci[LN_SZ_SHORT_CHANNEL_ID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(&p_conf->channel));
         char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_str_bin2str(node_id, ln_node_get_id(), BTC_SZ_PUBKEY);
         snprintf(param, len_max, "%s %s "
-                    "\"%s\"",
+                    "\"%s\" %s %s",
                     str_sci, node_id,
-                    p_conf->p_errstr);
+                    p_conf->p_errstr, p_dir, pPeerStr);
         ptarmd_call_script(PTARMD_EVT_ERROR, param);
         UTL_DBG_FREE(param);        //UTL_DBG_MALLOC: この中
     }

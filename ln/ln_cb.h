@@ -47,6 +47,7 @@ typedef struct ln_channel_t ln_channel_t;
 typedef enum {
     LN_CB_TYPE_STOP_CHANNEL,                ///< チャネルを停止(closeはしない)
     LN_CB_TYPE_NOTIFY_ERROR,                ///< エラー通知
+    LN_CB_TYPE_SEND_ERROR,                  ///< エラー送信
     LN_CB_TYPE_NOTIFY_INIT_RECV,            ///< init受信通知
     LN_CB_TYPE_NOTIFY_REESTABLISH_RECV,     ///< channel_reestablish受信通知
     LN_CB_TYPE_SIGN_FUNDING_TX,             ///< funding_tx署名要求

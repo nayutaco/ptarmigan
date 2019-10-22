@@ -192,6 +192,7 @@ bool /*HIDDEN*/ ln_error_send(ln_channel_t *pChannel)
     utl_buf_t buf = UTL_BUF_INIT;
     ln_msg_error_write(&buf, &msg);
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
+    ln_callback(pChannel, LN_CB_TYPE_SEND_ERROR, &msg);
     utl_buf_free(&buf);
     return true;
 }
