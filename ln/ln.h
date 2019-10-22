@@ -927,6 +927,18 @@ bool ln_need_init_routing_sync(const ln_channel_t *pChannel);
 bool ln_is_announced(const ln_channel_t *pChannel);
 
 
+/** get feerate_per_kw limit
+ * 
+ */
+void ln_feerate_limit_get(uint32_t *pMin, uint32_t *pMax, uint32_t feerate_per_kw);
+
+
+/** set feerate_per_kw limit percent
+ * 
+ */
+void ln_feerate_limit_set(uint16_t Min, uint16_t Max);
+
+
 /** estimatesmartfee --> feerate_per_kw
  *
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB

@@ -44,7 +44,7 @@
 #define M_FEE_BASE_MSAT                 (10)
 #define M_FEE_PROP_MILLIONTHS           (100)
 
-//  establish
+//  channel
 #define M_DUST_LIMIT_SAT                (546)
 #define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT32_MAX)
 #define M_CHANNEL_RESERVE_SAT           (700)
@@ -56,6 +56,9 @@
 
 //  init
 #define M_LOCALFEATURES                 (LN_INIT_LF_OPT_DATALOSS)
+//  feerate
+#define M_FEERATE_MIN                   (0)
+#define M_FEERATE_MAX                   (0)
 
 //#define M_DEBUG
 
@@ -183,6 +186,8 @@ void conf_channel_init(channel_conf_t *pChannConf, btc_block_chain_t GenType)
     pChannConf->max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
     pChannConf->min_depth = (GenType == BTC_BLOCK_CHAIN_BTCMAIN) ? M_MIN_DEPTH_MAINNET : M_MIN_DEPTH;
     pChannConf->localfeatures = M_LOCALFEATURES;
+    pChannConf->feerate_min = M_FEERATE_MIN;
+    pChannConf->feerate_max = M_FEERATE_MAX;
 }
 
 
@@ -325,6 +330,10 @@ static int handler_channel_conf(void* user, const char* section, const char* nam
         }
     } else if (strcmp(name, "localfeatures") == 0) {
         pconfig->localfeatures = (uint8_t)strtoul(value, NULL, 10);
+    } else if (strcmp(name, "feerate_min") == 0) {
+        pconfig->feerate_min = (uint16_t)strtoul(value, NULL, 10);
+    } else if (strcmp(name, "feerate_max") == 0) {
+        pconfig->feerate_max = (uint16_t)strtoul(value, NULL, 10);
     } else {
         /* unknown section/name */
     }
