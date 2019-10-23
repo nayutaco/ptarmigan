@@ -491,7 +491,7 @@ static bool funding_unspent(lnapp_conf_t *pConf, monparam_t *pParam, void *pDbPa
                     ptarmd_eventlog(
                         ln_channel_id(&pConf->channel),
                         "fail: set_channel\n");
-                    lnapp_stop_threads(pConf);
+                    ptarmd_stop();
                 }
             }
         }
