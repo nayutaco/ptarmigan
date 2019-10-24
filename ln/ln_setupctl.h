@@ -45,10 +45,12 @@
 #define M_INIT_FLAG_REEST_RECV              (0x08)
 #define M_INIT_FLAG_REEST_EXCG              (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV)
 #define M_INIT_FLAG_REEST_EXCHNAGED(flag)   (((flag) & M_INIT_FLAG_REEST_EXCG) == M_INIT_FLAG_REEST_EXCG)
-#define M_INIT_FLAG_ALL                     (M_INIT_FLAG_EXCG | M_INIT_FLAG_REEST_EXCG)
-#define M_INIT_CH_EXCHANGED(flag)           (((flag) & M_INIT_FLAG_ALL) == M_INIT_FLAG_ALL)
 #define M_INIT_ANNOSIG_SENT                 (0x10)          ///< announcement_signatures送信/再送済み
 #define M_INIT_GOSSIP_QUERY                 (0x20)          ///< gossip_queries
+#define M_INIT_FLAG_FLOCK_SEND              (0x40)
+#define M_INIT_FLAG_FLOCK_RECV              (0x80)
+#define M_INIT_FLAG_FLOCK_EXCG              (M_INIT_FLAG_FLOCK_SEND | M_INIT_FLAG_FLOCK_RECV)
+#define M_INIT_FLAG_FLOCK_EXCHNAGED(flag)   (((flag) & M_INIT_FLAG_FLOCK_EXCG) == M_INIT_FLAG_FLOCK_EXCG)
 
 
 #define M_SET_ERR(pChannel, err, fmt,...) { \

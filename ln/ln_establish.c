@@ -596,8 +596,7 @@ bool /*HIDDEN*/ ln_funding_locked_send(ln_channel_t *pChannel)
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
 
-    //channel_reestablishと同じ扱いにする
-    pChannel->init_flag |= M_INIT_FLAG_REEST_SEND;
+    pChannel->init_flag |= M_INIT_FLAG_FLOCK_SEND;
 
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
     return true;
@@ -641,8 +640,7 @@ bool HIDDEN ln_funding_locked_recv(ln_channel_t *pChannel, const uint8_t *pData,
 
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_FUNDING_LOCKED_RECV, NULL);
 
-    //channel_reestablishと同じ扱いにする
-    pChannel->init_flag |= M_INIT_FLAG_REEST_RECV;
+    pChannel->init_flag |= M_INIT_FLAG_FLOCK_RECV;
 
     LN_DBG_COMMIT_NUM_PRINT(pChannel);
 
@@ -853,6 +851,7 @@ void ln_channel_reestablish_after(ln_channel_t *pChannel)
         }
         utl_buf_free(&buf);
     }
+    LN_DBG_COMMIT_NUM_PRINT(pChannel);
 }
 
 

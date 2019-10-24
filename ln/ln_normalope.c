@@ -1151,8 +1151,11 @@ void ln_idle_proc(ln_channel_t *pChannel, uint32_t FeeratePerKw)
 {
     //XXX: should return the return code or SET_ERR
 
-    if (!M_INIT_CH_EXCHANGED(pChannel->init_flag)) return;
-    if (!M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag)) return;
+    if (!M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) return;
+    if ( !M_INIT_FLAG_REEST_EXCHNAGED(pChannel->init_flag) &&
+         !M_INIT_FLAG_FLOCK_EXCHNAGED(pChannel->init_flag) ) {
+        return;
+    }
     if (pChannel->status != LN_STATUS_NORMAL_OPE) return;
 
     if (ln_is_shutdowning(pChannel)) {

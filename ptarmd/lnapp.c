@@ -1488,8 +1488,13 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         LOGD("confirmation OK: %d\n", p_conf->funding_confirm);
 
         if (ln_status_get(&p_conf->channel) != LN_STATUS_ESTABLISH) {
-            // maybe unilateral close(remote) before funding
-            LOGE("not LN_STATUS_ESTABLISH\n");
+            if (ln_status_get(&p_conf->channel) == LN_STATUS_NORMAL_OPE) {
+                LOGD("already LN_STATUS_NORMAL_OPE\n");
+                p_conf->funding_waiting = false;
+            } else {
+                // maybe unilateral close(remote) before funding
+                LOGE("not LN_STATUS_ESTABLISH\n");
+            }
             return;
         }
 
