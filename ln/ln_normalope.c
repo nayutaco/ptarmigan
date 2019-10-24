@@ -532,27 +532,22 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
     }
 
     if (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
-        M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw");
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw");
         return false;
     }
 
-    btc_block_chain_t gtype = btc_block_get_chain(ln_genesishash_get());
-    if (gtype == BTC_BLOCK_CHAIN_BTCMAIN) {
-        uint32_t rate;
-        uint32_t feerate_min;
-        uint32_t feerate_max;
-        ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
-        ln_feerate_limit_get(&feerate_min, &feerate_max, rate);
-        if ((feerate_min != 0) && (msg.feerate_per_kw < feerate_min)) {
-            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw(%" PRIu32 "<%" PRIu32 ")", msg.feerate_per_kw, feerate_min);
-            return false;
-        }
-        if ((feerate_max != 0) && (msg.feerate_per_kw > feerate_max)) {
-            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw(%" PRIu32 ">%" PRIu32 ")", msg.feerate_per_kw, feerate_max);
-            return false;
-        }
-    } else {
-        LOGD("skip: feerate range check\n");
+    uint32_t rate;
+    uint32_t feerate_min;
+    uint32_t feerate_max;
+    ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
+    ln_feerate_limit_get(&feerate_min, &feerate_max, rate);
+    if ((feerate_min != 0) && (msg.feerate_per_kw < feerate_min)) {
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw(%" PRIu32 "<%" PRIu32 ")", msg.feerate_per_kw, feerate_min);
+        return false;
+    }
+    if ((feerate_max != 0) && (msg.feerate_per_kw > feerate_max)) {
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw(%" PRIu32 ">%" PRIu32 ")", msg.feerate_per_kw, feerate_max);
+        return false;
     }
 
     uint16_t update_idx;
