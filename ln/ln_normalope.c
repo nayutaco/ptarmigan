@@ -543,12 +543,12 @@ bool HIDDEN ln_update_fee_recv(ln_channel_t *pChannel, const uint8_t *pData, uin
         uint32_t feerate_max;
         ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &rate);
         ln_feerate_limit_get(&feerate_min, &feerate_max, rate);
-        if (msg.feerate_per_kw < feerate_min) {
-            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw from current");
+        if ((feerate_min != 0) && (msg.feerate_per_kw < feerate_min)) {
+            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too low feerate_per_kw(%" PRIu32 "<%" PRIu32 ")", msg.feerate_per_kw, feerate_min);
             return false;
         }
-        if (msg.feerate_per_kw > feerate_max) {
-            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw from current");
+        if ((feerate_max != 0) && (msg.feerate_per_kw > feerate_max)) {
+            M_SET_ERR(pChannel, LNERR_INV_VALUE, "too large feerate_per_kw(%" PRIu32 ">%" PRIu32 ")", msg.feerate_per_kw, feerate_max);
             return false;
         }
     } else {
