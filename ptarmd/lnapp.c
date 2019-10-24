@@ -335,7 +335,7 @@ void lnapp_start(lnapp_conf_t *pAppConf)
 }
 
 
-void lnapp_stop_and_join(lnapp_conf_t *pAppConf)
+void _lnapp_stop_and_join(lnapp_conf_t *pAppConf)
 {
     LOGD("$$$ stop and join\n");
     lnapp_stop(pAppConf);

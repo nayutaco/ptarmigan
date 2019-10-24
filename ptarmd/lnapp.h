@@ -148,7 +148,8 @@ void lnapp_start(lnapp_conf_t *pAppConf);
  *
  *  call #lnapp_stop() and #lnapp_join()
  */
-void lnapp_stop_and_join(lnapp_conf_t *pAppConf);
+#define lnapp_stop_and_join(conf)   LOGD("call lnapp_stop_and_join()\n"); _lnapp_stop_and_join(conf)
+void _lnapp_stop_and_join(lnapp_conf_t *pAppConf);
 
 
 /** [lnapp]channel stop request
