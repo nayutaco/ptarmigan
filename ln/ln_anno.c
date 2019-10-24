@@ -346,8 +346,9 @@ static bool channel_update_recv(ln_channel_t *pChannel, const uint8_t *pData, ui
         if (msg.short_channel_id == pChannel->short_channel_id) {
             LOGD("continue: own channel\n");
         } else {
-            LOGD("skip: not found channel_announcement in DB\n");
-            return true;
+            //issue#1627:
+            //LOGD("skip: not found channel_announcement in DB\n");
+            //return true;
         }
     }
 
