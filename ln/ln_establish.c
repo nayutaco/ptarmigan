@@ -223,15 +223,15 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     ln_callback(pChannel, LN_CB_TYPE_GET_LATEST_FEERATE, &feerate_per_kw);
     ln_feerate_limit_get(&feerate_min, &feerate_max, feerate_per_kw);
     if (msg.feerate_per_kw < LN_FEERATE_PER_KW_MIN) {
-        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too low");
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "feerate_per_kw is too low");
         return false;
     }
     if ((feerate_min != 0) && (msg.feerate_per_kw < feerate_min)) {
-        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too low from current");
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "feerate_per_kw is too low(%" PRIu32 "<%" PRIu32 ")", msg.feerate_per_kw, feerate_min);
         return false;
     }
     if ((feerate_max != 0) && (msg.feerate_per_kw > feerate_max)) {
-        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "%s", "fail: feerate_per_kw is too large from current");
+        M_SEND_ERR(pChannel, LNERR_INV_VALUE, "feerate_per_kw is too large(%" PRIu32 ">%" PRIu32 ")", msg.feerate_per_kw, feerate_max);
         return false;
     }
 
