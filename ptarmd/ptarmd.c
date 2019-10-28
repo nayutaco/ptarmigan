@@ -569,7 +569,7 @@ static bool set_channels(void)
     if (!b_stop) {
         p_str = "STOP=All synced!";
     } else {
-        p_str = "STOP=continue";
+        p_str = "CONT=continue";
     }
     btcrpc_write_startuplog(p_str);
     return !b_stop;
