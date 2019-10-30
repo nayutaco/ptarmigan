@@ -597,6 +597,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
     funding_conf_t fundconf;
 
     conf_funding_init(&fundconf);
+    const char *p_error_str = "funding";
     const char *param = strtok(optarg, ",");
     char *endp = NULL;
     fundconf.funding_sat = (uint64_t)strtoul(param, &endp, 10);
@@ -604,7 +605,13 @@ static void optfunc_funding(int *pOption, bool *pConn)
         //変換失敗
         LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
     } else {
-        bret = true;
+        if ( (fundconf.funding_sat >= LN_FUNDING_SATOSHIS_MIN) &&
+             (fundconf.funding_sat <= LN_FUNDING_SATOSHIS_MAX) ) {
+            bret = true;
+        } else {
+            snprintf(mErrStr, sizeof(mErrStr), "funding satoshis is out of range(%d - %d)", LN_FUNDING_SATOSHIS_MIN, LN_FUNDING_SATOSHIS_MAX);
+            p_error_str = NULL;
+        }
     }
     if (bret) {
         param = strtok(NULL, ",");
@@ -647,7 +654,9 @@ static void optfunc_funding(int *pOption, bool *pConn)
         *pConn = false;
         *pOption = M_OPT_FUND;
     } else {
-        strcpy(mErrStr, "funding");
+        if (p_error_str != NULL) {
+            strcpy(mErrStr, p_error_str);
+        }
         *pOption = M_OPTIONS_ERR;
     }
 }
