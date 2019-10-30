@@ -29,7 +29,7 @@ extern "C" {
 // #include "../../btc/btc_segwit_addr.c"
 // #include "../../btc/btc_test_util.c"
 
-//#undef LOG_TAG
+#undef LOG_TAG
 #include "ln_tlv.c"
 }
 

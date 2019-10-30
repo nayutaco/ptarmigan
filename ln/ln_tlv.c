@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017 Ptarmigan Project
+ *  Copyright (C) 2019 Ptarmigan Project
  *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed to the Apache Software Foundation (ASF) under one
@@ -113,14 +113,12 @@ static bool read_tlv(ln_tlv_t *pTlv, btc_buf_r_t *pBuf)
         LOGE("fail: type\n");
         return false;
     }
-LOGD("type=%d\n", pTlv->type);
     //length
     ret = btc_tx_buf_r_read_varint_be(pBuf, &length);
     if (!ret) {
         LOGE("fail: length\n");
         return false;
     }
-LOGD("length=%d\n", length);
     //value
     utl_buf_alloccopy(&pTlv->value,
             btc_buf_r_get_pos(pBuf), length);
