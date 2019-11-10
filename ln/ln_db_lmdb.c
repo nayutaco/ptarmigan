@@ -4696,7 +4696,7 @@ static bool channel_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWrita
         }
 
         found = true;
-        LOGD("match !\n");
+        LOGD("stop searching\n");
         if (!bCont) {
             break;
         }
