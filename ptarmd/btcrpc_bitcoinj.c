@@ -233,6 +233,7 @@ static void jni_del_channel(void *pArg);
 static void jni_get_balance(void *pArg);
 static void jni_empty_wallet(void *pArg);
 static void jni_exit(void *pArg);
+static void jni_remove_suspend_block(void *pArg);
 
 
 /**************************************************************************
@@ -307,6 +308,8 @@ static const struct {
     { jni_empty_wallet },
     // METHOD_PTARM_EXIT,
     { jni_exit },
+    // METHOD_PTARM_REMOVESUSPENDBLOCK
+    { jni_remove_suspend_block },
 };
 
 
@@ -788,6 +791,11 @@ void btcrpc_write_startuplog(const char *pLog)
     LOGD("SPV log: %s\n", pLog);
     fputs(pLog, fp);
     fclose(fp);
+    
+    if ((strlen(pLog) >= 4) && (strncmp(pLog, "STOP", 4) == 0)) {
+        //
+        call_jni(METHOD_PTARM_REMOVESUSPENDBLOCK, NULL);
+    }
 }
 
 
@@ -1186,4 +1194,14 @@ static void jni_exit(void *pArg)
     LOGD("\n");
 
     btcj_release();
+}
+
+
+//METHOD_PTARM_REMOVESUSPENDBLOCK
+static void jni_remove_suspend_block(void *pArg)
+{
+    (void)pArg;
+    LOGD("\n");
+    
+    btcj_remove_suspend_block();
 }

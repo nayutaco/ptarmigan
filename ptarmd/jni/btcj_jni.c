@@ -113,6 +113,8 @@ const struct {
     { "emptyWallet", "(Ljava/lang/String;)[B" },
     // METHOD_PARAM_EXIT
     { NULL, NULL },
+    // METHOD_PTARM_REMOVESUSPENDBLOCK
+    { "removeSuspendBlock", "()V" },
 };
 
 
@@ -754,6 +756,12 @@ bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid)
 void btcj_exit(void)
 {
     (*env)->CallStaticVoidMethod(env, system_cls, system_exit_method, 0);
+    check_exception(env);
+}
+//-----------------------------------------------------------------------------
+void btcj_remove_suspend_block(void)
+{
+    (*env)->CallVoidMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_REMOVESUSPENDBLOCK]);
     check_exception(env);
 }
 //-----------------------------------------------------------------------------

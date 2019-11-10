@@ -44,6 +44,7 @@ typedef enum {
     METHOD_PTARM_GETBALANCE,
     METHOD_PTARM_EMPTYWALLET,
     METHOD_PTARM_EXIT,
+    METHOD_PTARM_REMOVESUSPENDBLOCK,
     //
     METHOD_PTARM_MAX
 } btcj_method_t;
@@ -93,5 +94,6 @@ void btcj_del_channel(const uint8_t *pPeerId);
 bool btcj_getbalance(uint64_t *pAmount);
 bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid);
 void btcj_exit(void);
+void btcj_remove_suspend_block(void);
 
 #endif
