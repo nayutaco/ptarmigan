@@ -35,10 +35,10 @@
  **************************************************************************/
 
 #define M_IPV4_ADDR_PACK(b0, b1, b2, b3) ( \
-    (const uint8_t)b0 <<  24 | \
-    (const uint8_t)b1 << 16 | \
-    (const uint8_t)b2 << 8 | \
-    (const uint8_t)b3 \
+    ((uint8_t)(b0) <<  24) | \
+    ((uint8_t)(b1) << 16) | \
+    ((uint8_t)(b2) << 8) | \
+    (uint8_t)(b3) \
 )
 
 #define M_IPV4_ADDR_MASK_EXPAND(mask_bit_num)  ((uint32_t)(0xffffffff << (32 - mask_bit_num)))
