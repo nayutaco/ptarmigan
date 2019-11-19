@@ -34,6 +34,7 @@
 #include "utl_buf.h"
 
 #include "btc_tx.h"
+#include "btc_crypto.h"
 
 
 #ifdef __cplusplus
