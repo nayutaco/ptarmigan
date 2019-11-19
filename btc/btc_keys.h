@@ -197,7 +197,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr);
 
 /** scriptPubKeyからBitcoinアドレスを求める
  *
- * @param[out]  pAddr       Bitcoinアドレス(#BTC_SZ_ADDR_MAX+1)
+ * @param[out]  pAddr       Bitcoinアドレス(#BTC_SZ_ADDR_STR_MAX+1)
  * @param[in]   pScriptPk   scriptPubKey
  * @return      true:成功
  */
