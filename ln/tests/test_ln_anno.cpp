@@ -30,6 +30,7 @@ extern "C" {
 // #include "../../btc/btc_test_util.c"
 
 #undef LOG_TAG
+#include "ln_setupctl.h"
 #include "ln_anno.c"
 #include "ln.c"
 }
@@ -52,6 +53,13 @@ FAKE_VALUE_FUNC(bool, ln_msg_gossip_timestamp_filter_read, ln_msg_gossip_timesta
 FAKE_VALUE_FUNC(bool, ln_msg_gossip_ids_encode, utl_buf_t *, const uint64_t *, size_t );
 FAKE_VALUE_FUNC(bool, ln_msg_gossip_ids_decode, uint64_t **, size_t *, const uint8_t *, size_t );
 
+FAKE_VALUE_FUNC(bool, ln_db_annoinfos_del_node_id, const uint8_t *, const uint64_t *, size_t);
+FAKE_VALUE_FUNC(bool, ln_db_anno_transaction)
+FAKE_VOID_FUNC(ln_db_anno_commit, bool)
+FAKE_VALUE_FUNC(bool, ln_db_anno_cur_open, void **, ln_db_cur_t);
+FAKE_VOID_FUNC(ln_db_anno_cur_close, void *);
+FAKE_VALUE_FUNC(bool, ln_db_cnlanno_cur_get, void*, uint64_t*, char *, uint32_t *, utl_buf_t *);
+FAKE_VALUE_FUNC(bool, ln_db_annoinfos_del_timestamp, const uint8_t *, uint32_t , uint32_t );
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -65,7 +73,7 @@ namespace LN_DUMMY {
 class ln: public testing::Test {
 protected:
     virtual void SetUp() {
-        //utl_log_init_stderr();
+        utl_log_init_stderr();
         RESET_FAKE(ln_msg_query_short_channel_ids_write)
         RESET_FAKE(ln_msg_reply_short_channel_ids_end_write)
         RESET_FAKE(ln_msg_query_channel_range_write)

@@ -346,3 +346,45 @@ TEST_F(ln, init_recv_lf1)
         ASSERT_TRUE(b_called);
     }
 }
+
+
+TEST_F(ln, init_recv_lf2)
+{
+    ln_channel_t channel;
+    LnInit(&channel);
+
+    static bool b_called;
+    static uint8_t lf[sizeof(uint16_t)];
+    class dummy {
+    public:
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            pMsg->gflen = 0;
+            pMsg->lflen = sizeof(lf);
+            pMsg->p_localfeatures = lf;
+            return true;
+        }
+        static void callback(ln_cb_type_t Type, void *pCommonParam, void *pTypeSpecificParam) {
+            (void)pCommonParam; (void)pTypeSpecificParam;
+            if (Type == LN_CB_TYPE_NOTIFY_INIT_RECV) {
+                b_called = true;
+            }
+        }
+    };
+    channel.p_callback = dummy::callback;
+    ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read;
+
+    bool ret;
+    
+    channel.init_flag = 0;
+    channel.lfeature_remote = 0;
+    b_called = false;
+
+    lf[0] = 0xaa;
+    lf[1] = 0xaa;
+    ret = ln_init_recv(&channel, NULL, 0);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(lf[0], channel.lfeature_remote >> 8);
+    ASSERT_EQ(lf[1], channel.lfeature_remote & 0xff);
+    ASSERT_EQ(M_INIT_FLAG_RECV, channel.init_flag);
+    ASSERT_TRUE(b_called);
+}
