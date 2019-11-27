@@ -123,12 +123,23 @@ static void init_print(const ln_msg_init_t *pMsg)
     LOGD("-[init]-------------------------------\n");
     LOGD("globalfeatures: ");
     DUMPD(pMsg->p_globalfeatures, pMsg->gflen);
-    LOGD("localfeatures: ");
+    LOGD("features: ");
     DUMPD(pMsg->p_localfeatures, pMsg->lflen);
-    LOGD("  option_data_loss_protect:       %d\n", (pMsg->p_localfeatures[0] & 0x03));
-    LOGD("  initial_routing_sync:           %d\n", (pMsg->p_localfeatures[0] & 0x0c) >> 2);
-    LOGD("  option_upfront_shutdown_script: %d\n", (pMsg->p_localfeatures[0] & 0x30) >> 4);
-    LOGD("  gossip_queries:                 %d\n", (pMsg->p_localfeatures[0] & 0xc0) >> 6);
+    //b7-0
+    if (pMsg->lflen > 0) {
+        const uint8_t feature = pMsg->p_localfeatures[pMsg->lflen - 1];
+        LOGD("  option_data_loss_protect:       %d\n", (feature & 0x03));
+        LOGD("  initial_routing_sync:           %d\n", (feature & 0x0c) >> 2);
+        LOGD("  option_upfront_shutdown_script: %d\n", (feature & 0x30) >> 4);
+        LOGD("  gossip_queries:                 %d\n", (feature & 0xc0) >> 6);
+    }
+    //b15-8
+    if (pMsg->lflen > 1) {
+        const uint8_t feature = pMsg->p_localfeatures[pMsg->lflen - 2];
+        LOGD("  var_onion_optin:                %d\n", (feature & 0x03));
+        LOGD("  gossip_queries_ex:              %d\n", (feature & 0x0c) >> 2);
+        LOGD("  option_static_remotekey:        %d\n", (feature & 0x30) >> 4);
+    }
     LOGD("--------------------------------\n");
 #else
     (void)pMsg;

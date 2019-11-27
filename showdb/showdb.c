@@ -327,7 +327,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     printf(INDENT3 "},\n");
 
     //init
-    printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("0x%02x") ",\n", pChannel->lfeature_remote);
+    //printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("0x%04x") ",\n", pChannel->lfeature_remote);
 
     //close
     printf(INDENT3 M_QQ("close") ": {\n");

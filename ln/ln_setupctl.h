@@ -72,7 +72,7 @@
  * 未設定の場合はデフォルト値が使用される。
  *
  */
-void ln_init_localfeatures_set(uint8_t lf);
+void ln_init_localfeatures_set(uint16_t lf);
 
 void /*HIDDEN*/ ln_error_set(ln_channel_t *pChannel, int Err, const char *pFormat, ...);
 

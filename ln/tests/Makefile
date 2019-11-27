@@ -6,29 +6,25 @@ MK := mkdir
 RM := rm -rf
 
 TEST_TARGET_SRC += \
-	test_ln_proto_updatechannel.cpp \
-	test_ln_msg_close.cpp \
-	test_ln_msg_normalope.cpp \
-	test_ln_msg_anno.cpp \
+	test_ln_anno.cpp \
+	test_ln_bech32.cpp \
 	test_ln_bolt.cpp \
 	test_ln_htlcflag.cpp \
-	test_ln.cpp \
+	test_ln_msg_anno_gossip_zlib.cpp \
+	test_ln_msg_anno_gossip.cpp \
+	test_ln_msg_anno.cpp \
+	test_ln_msg_close.cpp \
+	test_ln_msg_normalope.cpp \
 	test_ln_node.cpp \
+	test_ln_proto_acceptchannel.cpp \
 	test_ln_proto_init.cpp \
 	test_ln_proto_openchannel.cpp \
-	test_ln_proto_acceptchannel.cpp \
 	test_ln_proto_updateaddhtlc.cpp \
+	test_ln_proto_updatechannel.cpp \
 	test_ln_proto_updatefee.cpp \
-	test_ln_bech32.cpp \
-	test_ln_tlv.cpp
-
-# TEST_TARGET_SRC += \
-# 	test_ln_msg_anno_gossip.cpp \
-# 	test_ln_anno.cpp
-
-# #remove -lz
-# TEST_TARGET_SRC += \
-# 	test_ln_msg_anno_gossip_zlib.cpp
+	test_ln_tlv.cpp \
+	test_ln_init.cpp \
+	test_ln.cpp
 
 include ../../options.mak
 

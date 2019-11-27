@@ -55,7 +55,11 @@
 #define M_MIN_DEPTH                     (1)
 
 //  init
-#define M_LOCALFEATURES                 (LN_INIT_LF_OPT_DATALOSS)
+#ifdef USE_GOSSIP_QUERY
+#define M_LOCALFEATURES                 ((uint16_t)(LN_INIT_LF_OPT_DATALOSS | LN_INIT_LF_OPT_GSP_QUERY))
+#else
+#define M_LOCALFEATURES                 ((uint16_t)LN_INIT_LF_OPT_DATALOSS)
+#endif  //USE_GOSSIP_QUERY
 //  feerate
 #define M_FEERATE_MIN                   (0)
 #define M_FEERATE_MAX                   (0)
@@ -329,7 +333,7 @@ static int handler_channel_conf(void* user, const char* section, const char* nam
             pconfig->min_depth = val;
         }
     } else if (strcmp(name, "localfeatures") == 0) {
-        pconfig->localfeatures = (uint8_t)strtoul(value, NULL, 10);
+        pconfig->localfeatures = (uint16_t)strtoul(value, NULL, 10);
     } else if (strcmp(name, "feerate_min") == 0) {
         pconfig->feerate_min = (uint16_t)strtoul(value, NULL, 10);
     } else if (strcmp(name, "feerate_max") == 0) {

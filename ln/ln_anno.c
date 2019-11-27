@@ -398,7 +398,6 @@ bool ln_channel_update_disable(ln_channel_t *pChannel)
 
 bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEncodedIds, uint16_t Len)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -419,16 +418,11 @@ bool ln_query_short_channel_ids_send(ln_channel_t *pChannel, const uint8_t *pEnc
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
-#else
-    (void)pChannel; (void)pEncodedIds; (void)Len;
-    return false;
-#endif
 }
 
 
 bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGD("through: not gossip_queries\n");
         return true;
@@ -442,24 +436,21 @@ bool HIDDEN ln_query_short_channel_ids_recv(ln_channel_t *pChannel, const uint8_
     uint64_t *p_short_channel_ids;
     size_t ids;
     if (!ln_msg_gossip_ids_decode(&p_short_channel_ids, &ids, msg.p_encoded_short_ids, msg.len)) {
+        LOGE("fail: ids decode\n");
         return false;
     }
     if (!ln_db_annoinfos_del_node_id(ln_remote_node_id(pChannel), p_short_channel_ids, ids)) {
+        LOGE("fail: annoinfo del\n");
         return false;
     }
     UTL_DBG_FREE(p_short_channel_ids);
 
     return true;
-#else
-    (void)pChannel; (void)pData; (void)Len;
-    return false;
-#endif
 }
 
 
 bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_query_short_channel_ids_t *pMsg)
 {
-#ifdef USE_GOSSIP_QUERY
     (void)pMsg;
 
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
@@ -476,16 +467,11 @@ bool ln_reply_short_channel_ids_end_send(ln_channel_t *pChannel, const ln_msg_qu
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
-#else
-    (void)pChannel; (void)pMsg;
-    return false;
-#endif
 }
 
 
 bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -500,16 +486,11 @@ bool HIDDEN ln_reply_short_channel_ids_end_recv(ln_channel_t *pChannel, const ui
     }
     pChannel->gossip_query.request.wait_query_short_channel_ids_end = false;
     return true;
-#else
-    (void)pChannel; (void)pData; (void)Len;
-    return false;
-#endif
 }
 
 
 bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, uint32_t Num)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -536,16 +517,11 @@ bool ln_query_channel_range_send(ln_channel_t *pChannel, uint32_t FirstBlock, ui
     pChannel->gossip_query.request.first_blocknum = FirstBlock;
     pChannel->gossip_query.request.rest_blocks = Num;
     return true;
-#else
-    (void)pChannel; (void)FirstBlock; (void)Num;
-    return false;
-#endif
 }
 
 
 bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGD("through: not gossip_queries\n");
         return true;
@@ -559,16 +535,11 @@ bool HIDDEN ln_query_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
         return false;
     }
     return true;
-#else
-    (void)pChannel; (void)pData; (void)Len;
-    return false;
-#endif
 }
 
 
 bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_channel_range_t *pMsg)
 {
-#ifdef USE_GOSSIP_QUERY
     bool ret;
 
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
@@ -630,16 +601,11 @@ bool ln_reply_channel_range_send(ln_channel_t *pChannel, const ln_msg_query_chan
     utl_buf_free(&buf);
     utl_buf_free(&encoded_ids);
     return true;
-#else
-    (void)pChannel; (void)pMsg;
-    return false;
-#endif
 }
 
 
 bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -737,16 +703,11 @@ bool HIDDEN ln_reply_channel_range_recv(ln_channel_t *pChannel, const uint8_t *p
         }
     }
     return true;
-#else
-    (void)pChannel; (void)pData; (void)Len;
-    return false;
-#endif
 }
 
 
 bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGE("fail: not gossip_queries\n");
         return false;
@@ -761,16 +722,11 @@ bool ln_gossip_timestamp_filter_send(ln_channel_t *pChannel)
     ln_callback(pChannel, LN_CB_TYPE_SEND_MESSAGE, &buf);
     utl_buf_free(&buf);
     return true;
-#else
-    (void)pChannel;
-    return false;
-#endif
 }
 
 
 bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
-#ifdef USE_GOSSIP_QUERY
     if ((pChannel->init_flag & M_INIT_GOSSIP_QUERY) == 0) {
         LOGD("through: not gossip_queries\n");
         return true;
@@ -788,10 +744,6 @@ bool HIDDEN ln_gossip_timestamp_filter_recv(ln_channel_t *pChannel, const uint8_
         return true;
     }
     return true;
-#else
-    (void)pChannel; (void)pData; (void)Len;
-    return false;
-#endif
 }
 
 

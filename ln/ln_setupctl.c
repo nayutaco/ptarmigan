@@ -52,7 +52,7 @@
  **************************************************************************/
 
 /// init.localfeatures default value
-static uint8_t mInitLocalFeatures[1];
+static uint16_t mInitLocalFeatures;
 
 
 /**************************************************************************
@@ -63,10 +63,10 @@ static uint8_t mInitLocalFeatures[1];
  * public functions
  **************************************************************************/
 
-void ln_init_localfeatures_set(uint8_t lf)
+void ln_init_localfeatures_set(uint16_t lf)
 {
-    LOGD("localfeatures=0x%02x\n", lf);
-    mInitLocalFeatures[0] = lf;
+    LOGD("localfeatures=0x%04x\n", lf);
+    mInitLocalFeatures = lf;
 }
 
 
@@ -94,12 +94,21 @@ bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool b
     ln_msg_init_t msg;
     msg.gflen = 0;
     msg.p_globalfeatures = NULL;
-    pChannel->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
-#ifdef USE_GOSSIP_QUERY
-    pChannel->lfeature_local |= LN_INIT_LF_OPT_GSP_QUERY;
-#endif  //USE_GOSSIP_QUERY
+    pChannel->lfeature_local = mInitLocalFeatures | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
     msg.lflen = sizeof(pChannel->lfeature_local);
-    msg.p_localfeatures = &pChannel->lfeature_local;
+    uint8_t lfeature[sizeof(uint16_t)];
+    utl_int_unpack_u16be(lfeature, pChannel->lfeature_local);
+
+    //shorten
+    const uint8_t *p_lfeature = lfeature;
+    for (size_t lp = 0; lp < sizeof(lfeature); lp++) {
+        if (*p_lfeature == 0) {
+            p_lfeature++;
+            msg.lflen--;
+        }
+    }
+    msg.p_localfeatures = p_lfeature;
+
     LOGD("localfeatures: ");
     DUMPD(msg.p_localfeatures, msg.lflen);
     utl_buf_t buf = UTL_BUF_INIT;
@@ -119,6 +128,7 @@ bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool b
 bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
+    uint16_t feature = 0;
 
     if (pChannel->init_flag & M_INIT_FLAG_RECV) {
         //TODO: multiple init error
@@ -133,6 +143,13 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
     }
 
     //globalfeatures not assigned
+    if ( (msg.gflen > 2) ||
+         ((msg.gflen == 2) && ((msg.p_globalfeatures[0] & 0xc0) != 0)) ) {
+        // BOLT1:
+        //  - SHOULD NOT set features greater than 13 in globalfeatures.
+        LOGE("fail: globalfeature greater than 13.\n");
+        goto LABEL_EXIT;
+    }
     for (uint32_t lp = 0; lp < msg.gflen; lp++) {
         if (msg.p_globalfeatures[lp] & 0x55) { //even bits
             LOGE("fail: unknown bit(globalfeatures)\n");
@@ -140,27 +157,64 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
         }
     }
 
-    pChannel->lfeature_remote = 0x00;
-    if (msg.lflen) {
-        //2018/06/27(commit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
-        //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
-        //  bit0 : option_data_loss_protect
-        //  bit2 : (none)
-        //  bit4 : option_upfront_shutdown_script
-        //  bit6 : gossip_queries
-        if (msg.p_localfeatures[0] & (LN_INIT_LF_OPT_UPF_SHDN_REQ | LN_INIT_LF_OPT_GSP_QUERY_REQ)) { //even bits
-            LOGE("fail: unknown bit(localfeatures)\n");
-            goto LABEL_EXIT;
-        }
-
-        for (uint32_t lp = 1; lp < msg.lflen; lp++) {
-            if (msg.p_localfeatures[lp] & 0x55) { //even bits
-                LOGE("fail: unknown bit(localfeatures)\n");
+    //2019/11/27(commit: 8e69306e0a93375a1bbb1a0099f7ce3025ae4c0f)
+    //      https://github.com/lightningnetwork/lightning-rfc/commit/8e69306e0a93375a1bbb1a0099f7ce3025ae4c0f
+    //  bit 1/ 0 : option_data_loss_protect
+    //  bit 3/ - : initial_routing_sync
+    //  bit 5/ 4 : option_upfront_shutdown_script
+    //  bit 7/ 6 : gossip_queries
+    //  bit 9/ 8 : var_onion_optin
+    //  bit11/10 : gossip_queries_ex
+    //  bit13/12 : option_static_remotekey
+    if (msg.lflen > 0) {
+        feature = msg.p_localfeatures[msg.lflen - 1];
+    }
+    if (msg.lflen > 1) {
+        feature |= msg.p_localfeatures[msg.lflen - 2] << 8;
+    }
+    if (msg.lflen > 2) {
+        for (int lp = 0; lp < msg.lflen - 2; lp++) {
+            if (msg.p_localfeatures[msg.lflen - lp] && 0x55) {
+                LOGE("fail: Ptarmigan not support\n");
                 goto LABEL_EXIT;
             }
         }
-        pChannel->lfeature_remote = msg.p_localfeatures[0];
     }
+
+    //require feature
+    if (feature & LN_INIT_LF_ROUTE_SYNC_REQ) {
+        LOGE("fail: invalid feature bit 2\n");
+        goto LABEL_EXIT;
+    }
+    if (feature & LN_INIT_LF_OPT_UPF_SHDN_REQ) {
+        LOGE("fail: Ptarmigan not support: option_upfront_shutdown_script\n");
+        goto LABEL_EXIT;
+    }
+    if (feature & LN_INIT_LF_OPT_GSP_QUERY_REQ) {
+#ifdef USE_GOSSIP_QUERY
+        LOGD("support: gossip_queries\n");
+#else
+        LOGE("fail: Ptarmigan not support: gossip_queries\n");
+        goto LABEL_EXIT;
+#endif
+    }
+    if (feature & LN_INIT_LF_OPT_VAR_ONION_REQ) {
+        LOGE("fail: Ptarmigan not support: var_onion_optin\n");
+        goto LABEL_EXIT;
+    }
+    if (feature & LN_INIT_LF_OPT_GQUERY_EX_REQ) {
+        LOGE("fail: Ptarmigan not support: gossip_queries_ex\n");
+        goto LABEL_EXIT;
+    }
+    if (feature & LN_INIT_LF_OPT_STATIC_RKEY_REQ) {
+        LOGE("fail: Ptarmigan not support: option_static_remotekey\n");
+        goto LABEL_EXIT;
+    }
+    if (feature & LN_INIT_LF_OPT_15_14_REQ) {
+        LOGE("fail: invalid feature bit 15/14\n");
+        goto LABEL_EXIT;
+    }
+    pChannel->lfeature_remote = feature;
 
     //gossip_queries
     if ( (pChannel->lfeature_local & LN_INIT_LF_OPT_GSP_QUERIES) &&
