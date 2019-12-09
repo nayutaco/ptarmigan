@@ -108,6 +108,13 @@ bool wallet_from_ptarm(void *pJson, bool bToSend, const char *pAddr, uint32_t Fe
     wallet.tx.vout[0].value -= fee;
     vout_amount = wallet.tx.vout[0].value;
 
+    ret = btc_tx_add_vout_fee(&wallet.tx, fee);
+    if (!ret) {
+        strcpy(str_msg, "btc_tx_add_vout_fee");
+        LOGE("%s\n", str_msg);
+        goto LABEL_EXIT;
+    }
+
     //署名
     for (uint32_t lp = 0; lp < wallet.tx.vin_cnt; lp++) {
         btc_vin_t *p_vin = &wallet.tx.vin[lp];

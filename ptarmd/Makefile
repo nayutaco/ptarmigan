@@ -78,7 +78,11 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += $(INC_PATHS)
 
 ifeq ($(NODE_TYPE),BITCOIND)
-	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
+	ifeq ($(ENABLE_ELEMENTS),1)
+		C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_elementsd.c
+	else
+		C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
+	endif
 endif
 ifeq ($(NODE_TYPE),BITCOINJ)
 	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoinj.c

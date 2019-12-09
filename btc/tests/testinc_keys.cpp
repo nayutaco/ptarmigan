@@ -120,12 +120,12 @@ TEST_F(keys, keys_1)
     uint8_t pkh2[BTC_SZ_HASH_MAX];
     char addr[BTC_SZ_ADDR_STR_MAX + 1];
     char waddr[BTC_SZ_ADDR_STR_MAX + 1];
-    btc_chain_t chain;
+    bool is_test;
 
-    ret = btc_keys_wif2priv(priv, &chain, WIF);
+    ret = btc_keys_wif2priv(priv, &is_test, WIF);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, priv, sizeof(PRIV)));
-    ASSERT_EQ(BTC_TESTNET, chain);
+    ASSERT_TRUE(is_test);
 
     char wif[BTC_SZ_WIF_STR_MAX + 1];
     ret = btc_keys_priv2wif(wif, priv);

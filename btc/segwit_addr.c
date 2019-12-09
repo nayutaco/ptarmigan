@@ -45,9 +45,6 @@ static const char charset[] = {
     's', '3', 'j', 'n', '5', '4', 'k', 'h',
     'c', 'e', '6', 'm', 'u', 'a', '7', 'l'
 };
-static const char *hrp_str[] = {
-    "bc", "tb", "bcrt", "BC", "TB", "BCRT", "lnbc", "lntb", "lnbcrt"
-};
 static const int8_t charset_rev[128] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -59,16 +56,6 @@ static const int8_t charset_rev[128] = {
      1,  0,  3, 16, 11, 28, 12, 14,  6,  4,  2, -1, -1, -1, -1, -1
 };
 
-/** Encode a Bech32 string
- *
- *  Out: output:  Pointer to a buffer of size strlen(hrp) + data_len + 8 that
- *                will be updated to contain the null-terminated Bech32 string.
- *  In: hrp :     Pointer to the non-null-terminated human readable part(length=2).
- *      data :    Pointer to an array of 5-bit values.
- *      data_len: Length of the data array.
- *      ln:       Invoice for Lightning Network.
- *  Returns true if successful.
- */
 bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t data_len, bool ln) {
     uint32_t chk = 1;
     size_t i = 0;
@@ -90,7 +77,7 @@ bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t da
     }
     *(output++) = '1';
     for (i = 0; i < data_len; ++i) {
-        if (*data >> 5) return false; //check that upper bits are zeros
+        if (*data >> 5) return false;
         chk = bech32_polymod_step(chk) ^ (*data);
         *(output++) = charset[*(data++)];
     }
@@ -105,18 +92,6 @@ bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t da
     return true;
 }
 
-/** Decode a Bech32 string
- *
- *  Out: hrp:      Pointer to a buffer of size strlen(input) - 6. Will be
- *                 updated to contain the null-terminated human readable part.
- *       data:     Pointer to a buffer of size strlen(input) - 8 that will
- *                 hold the encoded 5-bit data values.
- *       data_len: Pointer to a size_t that will be updated to be the number
- *                 of entries in data.
- *  In: input:     Pointer to a null-terminated Bech32 string.
- *      ln:        Invoice for Lightning Network.
- *  Returns true if successful.
- */
 bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input, bool ln) {
     uint32_t chk = 1;
     size_t i;
@@ -128,7 +103,7 @@ bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input
             return false;
         }
     } else {
-        if ((input_len < 8) || (90 < input_len)) {
+        if ((input_len < 8) || (input_len > 90)) {
             return false;
         }
     }
@@ -211,27 +186,25 @@ bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input
     return true;
 }
 
-bool segwit_addr_encode(char* output, uint8_t hrp_type, int witver, const uint8_t* witprog, size_t witprog_len) {
+bool segwit_addr_encode(char* output, const char* hrp, int witver, const uint8_t* witprog, size_t witprog_len) {
     uint8_t data[65];
     size_t datalen = 0;
     if (witver > 16) return false;
     if (witver == 0 && witprog_len != 20 && witprog_len != 32) return false;
     if (witprog_len < 2 || witprog_len > 40) return false;
-    if ((hrp_type != SEGWIT_ADDR_MAINNET) && (hrp_type != SEGWIT_ADDR_TESTNET) && (hrp_type != SEGWIT_ADDR_REGTEST)) return false;
     data[0] = witver;
     if (!convert_bits(data + 1, &datalen, 5, witprog, witprog_len, 8, true)) return false;
     ++datalen;
-    return bech32_encode(output, hrp_str[hrp_type], data, datalen, false);
+    return bech32_encode(output, hrp, data, datalen, false);
 }
 
-bool segwit_addr_decode(int* witver, uint8_t* witdata, size_t* witdata_len, uint8_t hrp_type, const char* addr) {
+bool segwit_addr_decode(int* witver, uint8_t* witdata, size_t* witdata_len, const char* hrp, const char* addr) {
     uint8_t data[84];
     char hrp_actual[84];
     size_t data_len;
-    if ((hrp_type != SEGWIT_ADDR_MAINNET) && (hrp_type != SEGWIT_ADDR_TESTNET) && (hrp_type != SEGWIT_ADDR_REGTEST)) return false;
     if (!bech32_decode(hrp_actual, data, &data_len, addr, false)) return false;
     if (data_len == 0 || data_len > 65) return false;
-    if (strncmp(hrp_str[hrp_type], hrp_actual, 2) != 0) return false;
+    if (strncmp(hrp, hrp_actual, 84) != 0) return false;
     if (data[0] > 16) return false;
     *witdata_len = 0;
     if (!convert_bits(witdata, witdata_len, 8, data + 1, data_len - 1, 5, false)) return false;
@@ -240,8 +213,3 @@ bool segwit_addr_decode(int* witver, uint8_t* witdata, size_t* witdata_len, uint
     *witver = data[0];
     return true;
 }
-
-size_t hrp_len(uint8_t hrp_type) {
-    return strlen(hrp_str[hrp_type]);
-}
-

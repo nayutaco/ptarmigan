@@ -518,7 +518,7 @@ TEST_F(extendedkey, read_fail_init)
     b = btc_extkey_create_data(buf_extkey, NULL, &extkey);
     ASSERT_TRUE(b);
 
-    mPref[BTC_PREF_CHAIN] = 0;
+    mInitialized = false;
     b = btc_extkey_read(&extkey, buf_extkey, sizeof(buf_extkey));
     ASSERT_FALSE(b);
 }
@@ -529,7 +529,7 @@ TEST_F(extendedkey, create_fail)
     bool b;
     uint8_t buf_extkey[BTC_SZ_EXTKEY];
 
-    mPref[BTC_PREF_CHAIN] = 0;
+    mInitialized = false;
     b = btc_extkey_create_data(buf_extkey, NULL, &extkey);
     ASSERT_FALSE(b);
 }

@@ -50,8 +50,8 @@
 
 #define M_MIN_BITCOIND_VERSION  (170000)        //必要とするバージョン
 
-// #define M_DBG_SHOWRPC       //RPCの命令
-// #define M_DBG_SHOWREPLY     //RPCの応答
+#define M_DBG_SHOWRPC       //RPCの命令
+#define M_DBG_SHOWREPLY     //RPCの応答
 
 
 /**************************************************************************
@@ -89,6 +89,7 @@ static bool getblock_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, cons
 static bool getblockhash_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, int BHeight);
 static bool getblockcount_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
+static bool validateaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pConfAddress);
 static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, int nBlock);
 static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 static bool listunspent_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
@@ -118,6 +119,7 @@ static const char *M_ERROR          =   "error";
 static const char *M_MESSAGE        =   "message";
 static const char *M_CODE           =   "code";
 static const char *M_FEERATE        =   "feerate";
+static const char *M_UNCONF         =   "unconfidential";
 
 
 /**************************************************************************
@@ -251,14 +253,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
     } else {
         LOGE("fail: getblockhash_rpc\n");
     }
-    if (ret) {
-        // https://github.com/lightningnetwork/lightning-rfc/issues/237
-        for (int lp = 0; lp < BTC_SZ_HASH256 / 2; lp++) {
-            uint8_t tmp = pHash[lp];
-            pHash[lp] = pHash[BTC_SZ_HASH256 - lp - 1];
-            pHash[BTC_SZ_HASH256 - lp - 1] = tmp;
-        }
-    }
+    // c-lightning for Elements uses RPC-endian Genesis Block Hash
     if (p_root != NULL) {
         json_decref(p_root);
     }
@@ -596,6 +591,7 @@ bool btcrpc_sign_fundingtx(btc_tx_t *pTx, const utl_buf_t *pWitProg, uint64_t Am
             return false;
         }
     }
+    btc_tx_add_vout_fee(&tx_nosign, txfee);
 
     utl_buf_t buf_rawtx = UTL_BUF_INIT;
     ret = btc_tx_write(&tx_nosign, &buf_rawtx);
@@ -690,16 +686,35 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_STR_MAX + 1])
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
+    char addr[BTC_SZ_ADDR_STR_MAX + 1];
 
     ret = getnewaddress_rpc(&p_root, &p_result, &p_json);
     if (ret) {
         if (json_is_string(p_result) && (json_string_length(p_result) <= BTC_SZ_ADDR_STR_MAX)) {
-            strcpy(pAddr,  (const char *)json_string_value(p_result));
-            result = true;
+            strcpy(addr,  (const char *)json_string_value(p_result));
         }
     } else {
         LOGE("fail: getnewaddress_rpc()\n");
+        goto LABEL_EXIT;
     }
+    if (p_root != NULL) {
+        json_decref(p_root);
+        p_root = NULL;
+    }
+    UTL_DBG_FREE(p_json);
+
+    ret = validateaddress_rpc(&p_root, &p_result, &p_json, addr);
+    if (ret) {
+        json_t *p = json_object_get(p_result, M_UNCONF);
+        if (p && json_is_string(p)) {
+            strncpy(pAddr, json_string_value(p), BTC_SZ_ADDR_STR_MAX);
+            result = true;
+        }
+    } else {
+        LOGE("fail: validateaddress_rpc()\n");
+    }
+
+LABEL_EXIT:
     if (p_root != NULL) {
         json_decref(p_root);
     }
@@ -747,11 +762,9 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 
     if (!result) {
         //regtest
-        if (btc_block_get_chain(ln_genesishash_get()) == BTC_BLOCK_CHAIN_BTCREGTEST) {
-            LOGD("force regtest feerate\n");
-            *pFeeSatoshi = 4 * LN_FEERATE_PER_KW;
-            result = true;
-        }
+        LOGD("force fixed feerate\n");
+        *pFeeSatoshi = 4 * LN_FEERATE_PER_KW;
+        result = true;
     }
 
     return result;
@@ -1273,19 +1286,20 @@ static int create_funding_input(btc_tx_t *pTx, uint64_t *pSumAmount, uint64_t *p
             //[unit:weight]
             //
             // version(4*4)
-            // mark,flags(2)
+            // flags(1)
             // vin_cnt(4*n)
             // vin(signature length=73)
             //     native P2WPKH(273) = 4*(outpoint(36) + scriptSig(1) + sequence(4)) + witness(1 + 1+73 + 1+33)
             //     nested P2WPKH(361) = 4*(outpoint(36) + scriptSig(23) + sequence(4)) + witness(1 + 1+73 + 1+33)
             //     P2PKH(596)         = 4*(outpoint(36) + scriptSig(1 + 1+73 + 1+33) + sequence(4))
             // vout_cnt(4*1)
-            // vout(4*75)
-            //     mainoutput(172) = 4*(amount(8) + native P2WSH(1 + 34))
-            //     change(128)     = 4*(amount(8) + nested P2WPKH(1 + 23))
+            // vout(4*189)
+            //     mainoutput(312) = 4*(asset(1+32) + amount(1+8) + nonce(1) + native P2WSH(1+34))
+            //     change(268)     = 4*(asset(1+32) + amount(1+8) + nonce(1) + nested P2WPKH(1+23))
+            //     fee(176)        = 4*(asset(1+32) + amount(1+8) + nonce(1) + "fee"(1)
             // locktime(4*4)
-            //     (version + vout_cnt + vout + locktime) + mark,flags = 4*86 = 338
-            const uint64_t OTHERS = 4 * (4 + 1 + 75 + 4) + 2;
+            //     others = (version + vout_cnt + vout + locktime) + flags
+            const uint64_t OTHERS = 4 * (4 + 1 + 189 + 4) + 1;
             uint64_t estimate_weight = OTHERS + (p2wpkh * 273 + p2sh * 361 + p2pkh * 596);
             txfee_sat = (estimate_weight * FeeratePerKw + 999) / 1000;
             if (FundingSat + txfee_sat < sum_amount) {
@@ -1551,6 +1565,30 @@ static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
              "}");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
+
+    return ret;
+}
+
+
+/** [cURL]validateaddress
+ *
+ */
+static bool validateaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pConfAddress)
+{
+    size_t len = 256 + strlen(pConfAddress);
+    char *data = (char *)UTL_DBG_MALLOC(len);
+    snprintf(data, len,
+             "{"
+             ///////////////////////////////////////////
+             M_RPCHEADER M_NEXT
+
+             ///////////////////////////////////////////
+             M_JSON_STR("method", "validateaddress") M_NEXT
+             M_QQ("params") ":[" M_QQ("%s") "]"
+             "}", pConfAddress);
+
+    bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
+    UTL_DBG_FREE(data);
 
     return ret;
 }

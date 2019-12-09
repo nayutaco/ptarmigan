@@ -108,7 +108,7 @@ bool ln_node_init(const ln_node_t *pNode)
 {
     bool ret = false;
     char wif[BTC_SZ_WIF_STR_MAX + 1];
-    btc_chain_t chain;
+    bool is_test;
     utl_buf_t buf_node_old = UTL_BUF_INIT;
     utl_buf_t buf_node_new = UTL_BUF_INIT;
     utl_buf_t buf_addrs = UTL_BUF_INIT;
@@ -126,9 +126,11 @@ bool ln_node_init(const ln_node_t *pNode)
         goto LABEL_EXIT;
     }
 
-    if (!btc_keys_wif2keys(&mNode.keys, &chain, wif)) goto LABEL_EXIT;
-    LOGD("chain=%d, get_chain=%d\n", chain, btc_get_chain());
-    if (chain != btc_get_chain()) goto LABEL_EXIT;
+    if (!btc_keys_wif2keys(&mNode.keys, &is_test, wif)) goto LABEL_EXIT;
+    if (is_test != btc_get_param()->is_test) {
+        LOGE("fail: not same: WIF chain and DB chain\n");
+        goto LABEL_EXIT;
+    }
 
     //create new
     {
@@ -445,19 +447,11 @@ static void print_node(void)
         printf("port=%d\n", mNode.addr.port);
     }
     printf("chain: ");
-    switch (btc_block_get_chain(ln_genesishash_get())) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        printf("bitcoin mainnet\n");
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-        printf("bitcoin testnet\n");
-        break;
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        printf("bitcoin regtest\n");
-        break;
-    default:
+    const btc_block_param_t *p_chain = btc_get_param();
+    if (p_chain != NULL) {
+        printf("%s\n", p_chain->chain_name);
+    } else {
         printf("unknown chain\n");
-        break;
     }
     printf("=============================================\n");
 }

@@ -4,7 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "btc.h"
+#include "btc_crypto.h"
+#include "btc_tx.h"
 #include "utl_log.h"
+#include "utl_dbg.h"
 #include "mbedtls/sha256.h"
 
 
@@ -50,7 +53,11 @@ static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 int main(void)
 {
     utl_log_init_stderr();
+#if defined(USE_BITCOIN)
     btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
+#elif defined(USE_ELEMENTS)
+    btc_init(BTC_BLOCK_CHAIN_LIQREGTEST, true);
+#endif
 
 #if 0
     printf("=======================================\n");
@@ -78,9 +85,19 @@ int main(void)
 
 #if 1
     printf("=======================================\n");
-    const char TXSTR[] = "0200000001516aef63107e8d4e909e3cd7a8e5b0bef1bd92a6a2a301ea06837ce26404da2a00000000002350528002882e000000000000220020eb474b65fe06d3c94bbf1cf6752859a6da090408e1af72bde932050a192a1bed90340800000000001600141e7cf6d85b86f2aca987b5519871e5891cd9b1d42a247220";
+#if defined(USE_BITCOIN)
+    //testnet: 364451d26ede19bf9af66766c73dad221410a52bb7ab2601cd26ac91f23a1c9a
+    //  weight=669byte
+    //  vsize=168byte
+    const char TXSTR[] = "020000000001014859f84e131cb30c0258b685867abc9fd813841d4415307a81cdff515f0b16630100000017160014ad3bac99120815f8dfd72f8eb3129a69c97da900feffffff02a4942d040000000017a9140ab15aebc79f1610a181ce0fc165c351dd955e248740420f00000000001976a9143e8720f6486b4e6681e802a955be61b46fbb6e5788ac02473044022012f9ff774b07ddd87a71fc6a85a8dbcab86edd55ac34320f952c06f883c8847d02201953be46b8d89302b0cdfb797e72e9befd6dcb02796569505e75f45a7fd320f6012103e64c663159fe5bbf699a5979bef59fa1fed13303e8c7f6baaeefdaf3e93b551f5da51400";
+#elif defined(USE_ELEMENTS)
+    //elementsregtest: 5d25915f3ddc914832c1c85e213ee87d7e316d5c69cacc895f644cd257d7568d
+    //  weight=1128byte
+    //  vsize=282byte
+    const char TXSTR[] = "020000000101200414c08a781527c56c8ce492a011d8e13f4d1969191b35e8321e6e9fce7be20000000017160014d187d71e28111ed4da49784fed999578fcd56c49fdffffff0301230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010003baf8270dbf000017a91454dd3bfc29ca216f6144cef1c24d89bf6fb2a6e98701230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f569000017a91400c7dd68a8cc06ecd92a838c58f8a9ed2a6669af8701230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000000000000160800002e01000000000247304402204cb4b94a4a009f74b676637f7ec385fd2340378da91324e81f9dd363c679dabe02203d78d14089010c5cd1b1dad82ec4b058af0cfeaec928c06a4efd37fb391676dd0121032f7789f47f68b30abea8d1b59b5801d89951482d55f800996ca9bfe6bf74262f00000000000000";
+#endif
     size_t len = strlen(TXSTR);
-    uint8_t *tx = (uint8_t *)UTL_DBG_MALLOC(len / 2);
+    uint8_t *tx = (uint8_t *)malloc(len / 2);
     misc_str2bin(tx, len/2, TXSTR);
 
     const uint8_t byte = 0;
@@ -91,12 +108,12 @@ int main(void)
         printf("%02x", h256[lp]);
     }
     printf("\n");
-    btc_print_rawtx(tx, len/2);
+    btc_tx_print_raw(tx, len/2);
 
     uint32_t vsize = btc_tx_get_vbyte_raw(tx, len/2);
     printf("vsize=%" PRIu32 "\n", vsize);
 
-    UTL_DBG_FREE(tx);
+    free(tx);
 #endif
 
     printf("=======================================\n");

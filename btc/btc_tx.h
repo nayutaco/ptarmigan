@@ -34,6 +34,7 @@
 #include "utl_buf.h"
 
 #include "btc_keys.h"
+#include "btc_crypto.h"
 
 
 #ifdef __cplusplus
@@ -51,6 +52,19 @@ extern "C" {
 #define BTC_TX_SEQUENCE                 ((uint32_t)0xffffffff)
 #define BTC_TX_LOCKTIME_LIMIT           ((uint32_t)500000000)
 #define BTC_TX_PUBKEYS_PER_MULTISIG_MAX (20)
+
+#ifdef USE_ELEMENTS
+#define BTC_TX_ELE_VOUT_VER_NULL        (0x00)
+#define BTC_TX_ELE_VOUT_VER_EXPLICIT    (0x01)
+
+#define BTC_TX_ELE_VOUT_ADDR            (1)
+#define BTC_TX_ELE_VOUT_DATA            (2)
+#define BTC_TX_ELE_VOUT_BURN            (3)
+#define BTC_TX_ELE_VOUT_FEE             (4)
+
+#define BTC_TX_ELE_IDX_ISSUANCE         ((uint32_t)0x80000000)
+#define BTC_TX_ELE_IDX_PEGIN            ((uint32_t)0x40000000)
+#endif
 
 
 /**************************************************************************
@@ -90,6 +104,10 @@ typedef struct {
     uint32_t    wit_item_cnt;           ///< witness数(0のとき、witnessは無視)
     utl_buf_t   *witness;               ///< witness(配列的に使用する)
     uint32_t    sequence;               ///< sequence
+#ifdef USE_ELEMENTS
+    bool        issuance;
+    bool        pegin;
+#endif
 } btc_vin_t;
 
 
@@ -103,6 +121,10 @@ typedef struct {
                                         //  ln_htlc_tx_create()でln_commit_tx_output_type_tに設定
                                         //  ln_commit_tx_create()でln_tx_cmt_t.pp_htlc_info[]のindex値
                                         //  (or LN_COMMIT_TX_OUTPUT_TYPE_TO_LOCAL/REMOTE)に設定
+#ifdef USE_ELEMENTS
+    uint8_t     asset[BTC_SZ_HASH256];
+    uint8_t     type;
+#endif
 } btc_vout_t;
 
 
@@ -228,6 +250,17 @@ bool btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript
  * @return      true:success
  */
 bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+
+
+/** add FEE vout(for Elements)
+ *
+ * @param[in,out]       pTx
+ * @param[in]           Value
+ * @return      true:success
+ * @note
+ *      - ignore if defined USE_BITCOIN
+ */
+bool btc_tx_add_vout_fee(btc_tx_t *pTx, uint64_t Value);
 
 
 /** create scriptPubKey
@@ -495,9 +528,11 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
 uint32_t btc_tx_get_weight_raw(const uint8_t *pData, uint32_t Len);
 
 
-/** トランザクションをBIP69に従ってソートする
+/** BIP69 sort(vins and vouts)
  *
- * @param[in,out]   pTx     処理対象のトランザクション
+ * @param[in,out]   pTx     transaction for sort
+ * @note
+ *      - (Elements)vout fee add after calling btc_tx_sort_bip69() for c-lightning
  */
 void btc_tx_sort_bip69(btc_tx_t *pTx);
 
@@ -520,23 +555,6 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
 #define btc_tx_print(...)
 #define btc_tx_print_raw(...)
 #endif  //PTARM_USE_PRINTFUNC
-
-
-/**************************************************************************
- * package functions
- **************************************************************************/
-
-/** トランザクションデータ作成
- *
- * @param[out]      pBuf            変換後データ
- * @param[in]       pTx             対象データ
- * @param[in]       enableSegWit    false:pTxがsegwitでも、witnessを作らない(TXID計算用)
- *
- * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
- *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
- */
-bool HIDDEN btc_tx_write_2(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
 
 
 #ifdef __cplusplus

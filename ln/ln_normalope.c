@@ -679,7 +679,7 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
 
         uint16_t update_idx;
         if (ln_update_info_get_update_add_htlc_forwarded_send(
-            &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
+                &pChannel->update_info, &update_idx, prev_short_channel_id, prev_htlc_id)) {
             //XXX: has registered
             utl_buf_free(&buf);
             utl_buf_free(&reason);
@@ -692,13 +692,13 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
                 if (check_recv_add_htlc_bolt4_after_forward(pChannel, &reason, &msg)) {
                     succeeded = true;
                 } else {
-                    LOGE("fail: ???\n");
+                    LOGE("fail: check_recv_add_htlc_bolt4_after_forward\n");
                 }
             } else {
                 succeeded = true;
             }
         } else {
-            LOGE("fail: ???\n");
+            LOGE("fail: ln_msg_x_update_add_htlc_read\n");
             utl_push_t push_reason;
             utl_push_init(&push_reason, &reason, 0);
             utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
@@ -706,20 +706,20 @@ static bool poll_update_add_htlc_forward(ln_channel_t *pChannel)
 
         if (succeeded) {
             if (!set_add_htlc_send(
-                pChannel, &reason, msg.p_onion_routing_packet, msg.amt_to_forward, msg.outgoing_cltv_value, msg.p_payment_hash,
-                prev_short_channel_id, prev_htlc_id)) {
-                LOGE("fail: ???\n");
+                    pChannel, &reason, msg.p_onion_routing_packet, msg.amt_to_forward, msg.outgoing_cltv_value, msg.p_payment_hash,
+                    prev_short_channel_id, prev_htlc_id)) {
+                LOGE("fail: set_add_htlc_send\n");
                 succeeded = false;
             }
         }
 
         if (!succeeded) {
             if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
-                LOGE("fail: ???\n");
+                LOGE("fail: ln_db_forward_add_htlc_cur_del\n");
             }
             if (!ln_update_fail_htlc_forward_2(
-                prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
-                LOGE("fail: ???\n");
+                    prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
+                LOGE("fail: ln_update_fail_htlc_forward_2\n");
             }
             b_commit = true;
         }

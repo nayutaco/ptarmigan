@@ -34,6 +34,9 @@ ENABLE_PLOG_TO_STDOUT_PTARMD=0
 # 1: use gossip_queries
 ENABLE_GOSSIP_QUERY=0
 
+# 0: use bitcoin 1: use elements
+ENABLE_ELEMENTS=0
+
 # max channels("conntct to"(MAX_CHANNELS) and "connect from"(MAX_CHANNELS))
 MAX_CHANNELS=10
 
@@ -49,11 +52,14 @@ $(info -----------------------------)
 $(info options.mak)
 
 ifeq ($(NODE_TYPE),BITCOIND)
-    $(info - bitcoind version)
+    $(info - BITCOIND version)
     CFLAGS += -DUSE_BITCOIND
     NODESET=1
 endif
 ifeq ($(NODE_TYPE),BITCOINJ)
+    ifneq ($(ENABLE_ELEMENTS),0)
+        $(error Elements not supported.)
+    endif
     CFLAGS += -DUSE_BITCOINJ
     NODESET=1
     ifneq ($(strip $(GNU_PREFIX)),)
@@ -98,6 +104,16 @@ endif
 
 ifneq ($(NODESET),1)
     $(error You must set correct NODE_TYPE in options.mak.)
+endif
+
+ifeq ($(ENABLE_ELEMENTS),0)
+    CFLAGS += -DUSE_BITCOIN
+else
+    $(info - USE ELEMENTS)
+    ifneq ($(NODE_TYPE),BITCOIND)
+        $(error Elements need USE_BITCOIND.)
+    endif
+    CFLAGS += -DUSE_ELEMENTS
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)

@@ -26,22 +26,56 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define SEGWIT_ADDR_MAINNET     ((uint8_t)0)
-#define SEGWIT_ADDR_TESTNET     ((uint8_t)1)
-#define SEGWIT_ADDR_REGTEST     ((uint8_t)2)
-#define SEGWIT_ADDR_MAINNET2    ((uint8_t)3)
-#define SEGWIT_ADDR_TESTNET2    ((uint8_t)4)
-#define SEGWIT_ADDR_REGTEST2    ((uint8_t)5)
-
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus
+
+
+/** Encode a SegWit address
+ *
+ *  Out: output:   Pointer to a buffer of size 73 + strlen(hrp) that will be
+ *                 updated to contain the null-terminated address.
+ *  In:  hrp:      Pointer to the null-terminated human readable part to use
+ *                 (chain/network specific).
+ *       ver:      Version of the witness program (between 0 and 16 inclusive).
+ *       prog:     Data bytes for the witness program (between 2 and 40 bytes).
+ *       prog_len: Number of data bytes in prog.
+ *  Returns true if successful.
+ */
+bool segwit_addr_encode(
+    char* output,
+    const char* hrp,
+    int ver,
+    const uint8_t* prog,
+    size_t prog_len
+);
+
+/** Decode a SegWit address
+ *
+ *  Out: ver:      Pointer to an int that will be updated to contain the witness
+ *                 program version (between 0 and 16 inclusive).
+ *       prog:     Pointer to a buffer of size 40 that will be updated to
+ *                 contain the witness program bytes.
+ *       prog_len: Pointer to a size_t that will be updated to contain the length
+ *                 of bytes in prog.
+ *       hrp:      Pointer to the null-terminated human readable part that is
+ *                 expected (chain/network specific).
+ *       addr:     Pointer to the null-terminated address.
+ *  Returns true if successful.
+ */
+bool segwit_addr_decode(
+    int* ver,
+    uint8_t* prog,
+    size_t* prog_len,
+    const char* hrp,
+    const char* addr
+);
 
 /** Encode a Bech32 string
  *
  *  Out: output:  Pointer to a buffer of size strlen(hrp) + data_len + 8 that
  *                will be updated to contain the null-terminated Bech32 string.
- *  In: hrp :     Pointer to the non-null-terminated human readable part(length=2).
+ *  In: hrp :     Pointer to the null-terminated human readable part.
  *      data :    Pointer to an array of 5-bit values.
  *      data_len: Length of the data array.
  *      ln:       Invoice for Lightning Network.
@@ -73,48 +107,6 @@ bool bech32_decode(
     size_t *data_len,
     const char *input,
     bool ln
-);
-
-/** Encode a SegWit address
- *
- *  Out: output:   Pointer to a buffer of size 73 + strlen(hrp) that will be
- *                 updated to contain the null-terminated address.
- *  In:  hrp_type: SEGWIT_ADDR_MAINNET or SEGWIT_ADDR_TESTNET
- *       ver:      Version of the witness program (between 0 and 16 inclusive).
- *       prog:     Data bytes for the witness program (between 2 and 40 bytes).
- *       prog_len: Number of data bytes in prog.
- *  Returns true if successful.
- */
-bool segwit_addr_encode(
-    char* output,
-    uint8_t hrp_type,
-    int ver,
-    const uint8_t* prog,
-    size_t prog_len
-);
-
-/** Decode a SegWit address
- *
- *  Out: ver:      Pointer to an int that will be updated to contain the witness
- *                 program version (between 0 and 16 inclusive).
- *       prog:     Pointer to a buffer of size 40 that will be updated to
- *                 contain the witness program bytes.
- *       prog_len: Pointer to a size_t that will be updated to contain the length
- *                 of bytes in prog.
- *       hrp_type: SEGWIT_ADDR_MAINNET or SEGWIT_ADDR_TESTNET
- *       addr:     Pointer to the null-terminated address.
- *  Returns true if successful.
- */
-bool segwit_addr_decode(
-    int* ver,
-    uint8_t* prog,
-    size_t* prog_len,
-    uint8_t hrp_type,
-    const char* addr
-);
-
-size_t hrp_len(
-    uint8_t hrp_type
 );
 
 bool convert_bits(

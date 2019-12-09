@@ -47,10 +47,15 @@
 
 #define M_SZ_OBSCURED_COMMIT_NUM            (6)
 
-//https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#fee-calculation
-#define M_FEE_HTLC_TIMEOUT_WEIGHT           (663ULL)
-#define M_FEE_HTLC_SUCCESS_WEIGHT           (703ULL)
-#define M_FEE_COMMIT_HTLC_WEIGHT            (172ULL)
+#if defined(USE_BITCOIN)
+// https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#fee-calculation
+#define M_FEE_HTLC_TIMEOUT_WEIGHT           ((uint64_t)663)
+#define M_FEE_HTLC_SUCCESS_WEIGHT           ((uint64_t)703)
+#elif defined(USE_ELEMENTS)
+// https://github.com/ElementsProject/lightning/blob/a30ee2b7cd08053a2269712150204e9007976b04/common/htlc_tx.h#L22
+#define M_FEE_HTLC_TIMEOUT_WEIGHT           ((uint64_t)(663 + 330))
+#define M_FEE_HTLC_SUCCESS_WEIGHT           ((uint64_t)(703 + 330))
+#endif
 
 
 /**************************************************************************
@@ -124,14 +129,14 @@ void HIDDEN ln_commit_tx_base_fee_calc(
         switch (ppHtlcInfo[lp]->type) {
         case LN_COMMIT_TX_OUTPUT_TYPE_OFFERED:
             if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pBaseFeeInfo->dust_limit_satoshi + pBaseFeeInfo->htlc_timeout_fee) {
-                commit_fee_weight += M_FEE_COMMIT_HTLC_WEIGHT;
+                commit_fee_weight += LN_FEE_COMMIT_HTLC_WEIGHT;
             } else {
                 dust_msat += ppHtlcInfo[lp]->amount_msat;
             }
             break;
         case LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED:
             if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pBaseFeeInfo->dust_limit_satoshi + pBaseFeeInfo->htlc_success_fee) {
-                commit_fee_weight += M_FEE_COMMIT_HTLC_WEIGHT;
+                commit_fee_weight += LN_FEE_COMMIT_HTLC_WEIGHT;
             } else {
                 dust_msat += ppHtlcInfo[lp]->amount_msat;
             }
@@ -141,7 +146,7 @@ void HIDDEN ln_commit_tx_base_fee_calc(
         }
     }
     pBaseFeeInfo->commit_fee = commit_fee_weight * pBaseFeeInfo->feerate_per_kw / 1000;
-    LOGD("pBaseFeeInfo->commit_fee= %" PRIu64 "(feerate_per_kw=%" PRIu32 ")\n", pBaseFeeInfo->commit_fee, pBaseFeeInfo->feerate_per_kw);
+    LOGD("pBaseFeeInfo->commit_fee= %" PRIu64 "(weight=%" PRIu64 ", feerate_per_kw=%" PRIu32 ")\n", pBaseFeeInfo->commit_fee, commit_fee_weight, pBaseFeeInfo->feerate_per_kw);
 
 
     //XXX: probably not correct
@@ -153,10 +158,14 @@ void HIDDEN ln_commit_tx_base_fee_calc(
 
 
 bool HIDDEN ln_commit_tx_create(
-    btc_tx_t *pTx, utl_buf_t *pSig, const ln_commit_tx_info_t *pCommitTxInfoTrimmed, const ln_derkey_local_keys_t *pLocalKeys)
+    btc_tx_t *pTx,
+    utl_buf_t *pSig,
+    const ln_commit_tx_info_t *pCommitTxInfoTrimmed,
+    const ln_derkey_local_keys_t *pLocalKeys,
+    uint64_t AmountInputs)
 {
     uint8_t sig[LN_SZ_SIGNATURE];
-    if (!ln_commit_tx_create_rs(pTx, sig, pCommitTxInfoTrimmed, pLocalKeys)) return false;
+    if (!ln_commit_tx_create_rs(pTx, sig, pCommitTxInfoTrimmed, pLocalKeys, AmountInputs)) return false;
     if (!btc_sig_rs2der(pSig, sig)) return false;
     return true;
 }
@@ -166,7 +175,8 @@ bool HIDDEN ln_commit_tx_create_rs(
     btc_tx_t *pTx,
     uint8_t *pSig,
     const ln_commit_tx_info_t *pCommitTxInfoTrimmed,
-    const ln_derkey_local_keys_t *pLocalKeys)
+    const ln_derkey_local_keys_t *pLocalKeys,
+    uint64_t AmountInputs)
 {
     assert(pCommitTxInfoTrimmed->b_trimmed);
 
@@ -205,6 +215,20 @@ bool HIDDEN ln_commit_tx_create_rs(
     //sort vin/vout
     btc_tx_sort_bip69(pTx);
 
+#ifdef USE_ELEMENTS
+    if (pCommitTxInfoTrimmed->base_fee_info.commit_fee > 0) {
+        for (uint16_t lp = 0; lp < pTx->vout_cnt; lp++) {
+            AmountInputs -= pTx->vout[lp].value;
+        }
+        if (!btc_tx_add_vout_fee(pTx, AmountInputs)) return false;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_COMMIT_TX_OUTPUT_TYPE_TO_REMOTE;
+    } else {
+        LOGE("THROUGH: no fee value(bug?)\n");
+    }
+#else
+    (void)AmountInputs;
+#endif
+
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
     if (!btc_sw_sighash_p2wsh_wit(
@@ -234,6 +258,9 @@ void HIDDEN ln_commit_tx_info_sub_fee_and_trim_outputs(ln_commit_tx_info_t *pCom
     } else {
         LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n",
             pCommitTxInfo->to_local.satoshi, pCommitTxInfo->base_fee_info.dust_limit_satoshi, fee_local);
+#ifdef USE_ELEMENTS
+        pCommitTxInfo->base_fee_info.commit_fee += pCommitTxInfo->to_local.satoshi;
+#endif
         pCommitTxInfo->to_local.satoshi = 0; //trimmed
     }
 
@@ -244,6 +271,9 @@ void HIDDEN ln_commit_tx_info_sub_fee_and_trim_outputs(ln_commit_tx_info_t *pCom
     } else {
         LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n",
             pCommitTxInfo->to_remote.satoshi, pCommitTxInfo->base_fee_info.dust_limit_satoshi, fee_remote);
+#ifdef USE_ELEMENTS
+        pCommitTxInfo->base_fee_info.commit_fee += pCommitTxInfo->to_remote.satoshi;
+#endif
         pCommitTxInfo->to_remote.satoshi = 0; //trimmed
     }
 
@@ -271,6 +301,9 @@ void HIDDEN ln_commit_tx_info_sub_fee_and_trim_outputs(ln_commit_tx_info_t *pCom
         } else {
             LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n",
                 output_sat, pCommitTxInfo->base_fee_info.dust_limit_satoshi, fee);
+#ifdef USE_ELEMENTS
+            pCommitTxInfo->base_fee_info.commit_fee += output_sat;
+#endif
             pCommitTxInfo->pp_htlc_info[lp]->amount_msat = 0; //trimmed
         }
     }

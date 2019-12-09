@@ -218,7 +218,8 @@ bool HIDDEN ln_commit_tx_create_local(
     pCommitInfo->local_msat = commit_tx_info.local_msat;
     pCommitInfo->remote_msat = commit_tx_info.remote_msat;
     pCommitInfo->num_htlc_outputs = commit_tx_info.num_htlc_outputs;
-    if (!ln_commit_tx_create_rs(&tx_commit, local_sig, &commit_tx_info, pKeysLocal)) {
+    if (!ln_commit_tx_create_rs(&tx_commit, local_sig,
+            &commit_tx_info, pKeysLocal, pCommitInfo->p_funding_info->funding_satoshis)) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
@@ -280,7 +281,8 @@ bool HIDDEN ln_commit_tx_create_local_close(
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
-    if (!ln_commit_tx_create_rs(&tx_commit, local_sig, &commit_tx_info, pKeysLocal)) {
+    if (!ln_commit_tx_create_rs(&tx_commit, local_sig, &commit_tx_info, pKeysLocal,
+            pCommitInfo->p_funding_info->funding_satoshis)) {
         LOGE("fail\n");
         goto LABEL_EXIT;
     }
@@ -535,7 +537,10 @@ bool ln_commit_tx_create_remote(
     //check num_htlc_outputs
     pCommitInfo->num_htlc_outputs = commit_tx_info.num_htlc_outputs;
 
-    if (!ln_commit_tx_create_rs(&tx_commit, pCommitInfo->remote_sig, &commit_tx_info, pKeysLocal)) goto LABEL_EXIT;
+    if (!ln_commit_tx_create_rs(&tx_commit, pCommitInfo->remote_sig, &commit_tx_info, pKeysLocal,
+            pCommitInfo->p_funding_info->funding_satoshis)) {
+        goto LABEL_EXIT;
+    }
     LOGD("++++++++++++++ remote commit tx: tx_commit\n");
     M_DBG_PRINT_TX(&tx_commit);
 
@@ -549,12 +554,16 @@ bool ln_commit_tx_create_remote(
     if (ppHtlcSigs) {
         if (commit_tx_info.num_htlc_outputs) {
             *ppHtlcSigs = (uint8_t (*)[LN_SZ_SIGNATURE])UTL_DBG_MALLOC(LN_SZ_SIGNATURE * commit_tx_info.num_htlc_outputs);
-            if (!*ppHtlcSigs) goto LABEL_EXIT;
+            if (!*ppHtlcSigs) {
+                goto LABEL_EXIT;
+            }
             p_htlc_sigs = *ppHtlcSigs;
         }
         if (!create_remote_sign_htlcs(
-            pCommitInfo, p_htlc_sigs, &tx_commit, &commit_tx_info,
-            pKeysLocal, pKeysRemote)) goto LABEL_EXIT;
+                pCommitInfo, p_htlc_sigs, &tx_commit, &commit_tx_info,
+                pKeysLocal, pKeysRemote)) {
+            goto LABEL_EXIT;
+        }
     }
 
     ret = true;
@@ -562,6 +571,9 @@ bool ln_commit_tx_create_remote(
 LABEL_EXIT:
     if (!ret) {
         UTL_DBG_FREE(p_htlc_sigs);
+        if (ppHtlcSigs) {
+            *ppHtlcSigs = NULL;
+        }
     }
     btc_tx_free(&tx_commit);
     ln_commit_tx_info_free(&commit_tx_info);
@@ -607,7 +619,10 @@ bool ln_commit_tx_create_remote_close(
         goto LABEL_EXIT;
     }
     uint8_t remote_sig[LN_SZ_SIGNATURE];    //local (remote's remote) signature
-    if (!ln_commit_tx_create_rs(&tx_commit, remote_sig, &commit_tx_info, pKeysLocal)) goto LABEL_EXIT;
+    if (!ln_commit_tx_create_rs(&tx_commit, remote_sig, &commit_tx_info, pKeysLocal,
+            pCommitInfo->p_funding_info->funding_satoshis)) {
+        goto LABEL_EXIT;
+    }
     // XXX: the sigs not match in second last remote unilateral close now
     //if (memcmp(remote_sig, pCommitInfo->remote_sig, LN_SZ_SIGNATURE)) {
     //    LOGE("fail\n");
@@ -877,31 +892,36 @@ static bool create_local_spend_tx(
             //htlc tx
             btc_tx_t htlc_tx = BTC_TX_INIT;
             if (!ln_htlc_tx_create(
-                &htlc_tx, (pTxCommit->vout[vout_idx].value - fee_sat),
-                &pCommitTxInfo->to_local.wit_script,
-                p_htlc_info->type, p_htlc_info->cltv_expiry, pCommitInfo->txid, vout_idx)) {
+                    &htlc_tx, (pTxCommit->vout[vout_idx].value - fee_sat),
+                    &pCommitTxInfo->to_local.wit_script,
+                    p_htlc_info->type, p_htlc_info->cltv_expiry, pCommitInfo->txid, vout_idx)) {
                 btc_tx_free(&htlc_tx);
                 return false;
             }
             if (!create_local_htlc_tx(
-                &htlc_tx, pTxCommit->vout[vout_idx].value, p_htlc_info,
-                pUpdateInfo, &htlckey)) {
+                    &htlc_tx, pTxCommit->vout[vout_idx].value, p_htlc_info,
+                    pUpdateInfo, &htlckey)) {
                 LOGE("fail: sign vout[%d]\n", vout_idx);
                 btc_tx_free(&htlc_tx);
                 return false;
             }
+#ifdef USE_ELEMENTS
+            btc_tx_add_vout_fee(&htlc_tx, fee_sat);
+#endif
             //return `htlc_tx` to the caller
             memcpy(&p_close_tx_htlcs[htlc_num], &htlc_tx, sizeof(btc_tx_t));
 
             //spending tx for the htlc tx
             btc_tx_t spend_tx = BTC_TX_INIT;
             if (!create_local_spend_htlc_tx(
-                &htlc_tx, &spend_tx, &pCommitTxInfo->to_local.wit_script,
-                pCommitInfo->to_self_delay,
-                pKeysLocal, pKeysRemote)) {
+                    &htlc_tx, &spend_tx, &pCommitTxInfo->to_local.wit_script,
+                    pCommitInfo->to_self_delay,
+                    pKeysLocal, pKeysRemote)) {
                 btc_tx_free(&spend_tx);
                 return false;
             }
+            LOGD("++++++++++++++ local commit tx: htlc_tx\n");
+            M_DBG_PRINT_TX(&htlc_tx);
 
             //return `spend_tx` to the caller
             if (!utl_push_data(&wallet_infos, &spend_tx, sizeof(btc_tx_t))) {
@@ -969,14 +989,19 @@ static bool create_local_verify_htlcs(
 
         btc_tx_t tx = BTC_TX_INIT;
         if (!ln_htlc_tx_create(
-            &tx, (pTxCommit->vout[vout_idx].value - fee_sat), &pCommitTxInfo->to_local.wit_script,
-            p_htlc_info->type, p_htlc_info->cltv_expiry, pCommitInfo->txid, vout_idx)) {
+                &tx, (pTxCommit->vout[vout_idx].value - fee_sat), &pCommitTxInfo->to_local.wit_script,
+                p_htlc_info->type, p_htlc_info->cltv_expiry, pCommitInfo->txid, vout_idx)) {
             btc_tx_free(&tx);
             return false;
         }
+#ifdef USE_ELEMENTS
+        btc_tx_add_vout_fee(&tx, fee_sat);
+#endif
+        LOGD("++++++++++++++ local htlc_tx verify\n");
+        M_DBG_PRINT_TX(&tx);
         if (!create_local_verify_htlc(
-            &tx, pHtlcSigs[htlc_num], &p_htlc_info->wit_script, pTxCommit->vout[vout_idx].value,
-            pKeysLocal)) {
+                &tx, pHtlcSigs[htlc_num], &p_htlc_info->wit_script, pTxCommit->vout[vout_idx].value,
+                pKeysLocal)) {
             btc_tx_free(&tx);
             return false;
         }
@@ -1392,14 +1417,21 @@ static bool create_remote_sign_htlc(
     LOGD("---HTLC[%d]\n", VoutIdx);
     btc_tx_t tx = BTC_TX_INIT;
     if (!ln_htlc_tx_create(
-        &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScriptToLocal, pHtlcInfo->type,
-        pHtlcInfo->cltv_expiry, pCommitInfo->txid, VoutIdx)) goto LABEL_EXIT;
+            &tx, pTxCommit->vout[VoutIdx].value - Fee, pWitScriptToLocal, pHtlcInfo->type,
+            pHtlcInfo->cltv_expiry, pCommitInfo->txid, VoutIdx)) {
+        goto LABEL_EXIT;
+    }
+#ifdef USE_ELEMENTS
+    btc_tx_add_vout_fee(&tx, Fee);
+#endif
 
     if (!ln_htlc_tx_sign_rs(
-        &tx, pHtlcSig, pTxCommit->vout[VoutIdx].value, pHtlcKey, &pHtlcInfo->wit_script)) {
+            &tx, pHtlcSig, pTxCommit->vout[VoutIdx].value, pHtlcKey, &pHtlcInfo->wit_script)) {
         LOGE("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
         goto LABEL_EXIT;
     }
+    LOGD("++++++++++++++ remote commit tx: tx\n");
+    M_DBG_PRINT_TX(&tx);
 
     ret = true;
 

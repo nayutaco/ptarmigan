@@ -364,8 +364,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *pConf, void *pParam)
         if (p_cb_param->ret) {
             LOGD("$$$ broadcast funding_tx\n");
         } else {
-            LOGE("fail: broadcast funding_tx, but should ignore it\n");
-            p_cb_param->ret = true;
+            LOGE("fail: broadcast funding_tx\n");
         }
         utl_buf_free(&buf_tx);
     } else {

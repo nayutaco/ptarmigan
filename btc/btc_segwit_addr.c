@@ -66,18 +66,18 @@ bool btc_bech32_decode(char* hrp, size_t hrp_len, uint8_t *data, size_t *data_le
     return bech32_decode(hrp, data, data_len, input, ln);
 }
 
-bool btc_segwit_addr_encode(char* output, size_t output_len, uint8_t hrp_type, int ver, const uint8_t* prog, size_t prog_len)
+bool btc_segwit_addr_encode(char* output, size_t output_len, const char *hrp, int ver, const uint8_t* prog, size_t prog_len)
 {
-    if (output_len < 73 + hrp_len(hrp_type)) return false;
+    if (output_len < 73 + strlen(hrp)) return false;
     //if (ver != 0) return false;
-    return segwit_addr_encode(output, hrp_type, ver, prog, prog_len);
+    return segwit_addr_encode(output, hrp, ver, prog, prog_len);
 }
 
 
-bool btc_segwit_addr_decode(int* ver, uint8_t* prog, size_t* prog_len, uint8_t hrp_type, const char* addr)
+bool btc_segwit_addr_decode(int* ver, uint8_t* prog, size_t* prog_len, const char* hrp, const char* addr)
 {
     if (*prog_len < 40) return false;
-    return segwit_addr_decode(ver, prog, prog_len, hrp_type, addr);
+    return segwit_addr_decode(ver, prog, prog_len, hrp, addr);
 }
 
 size_t btc_convert_bits_buf_len(int outbits, size_t inlen, int inbits)

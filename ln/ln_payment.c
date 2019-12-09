@@ -143,7 +143,7 @@ ln_payment_error_t ln_payment_retry(uint64_t PaymentId, uint32_t BlockCount)
         &route, payment_hash, (const char *)buf_invoice.buf, buf_invoice.len,
         info.additional_amount_msat, BlockCount);
     if (retval != LN_PAYMENT_OK) {
-        LOGE("fail: ???\n");
+        LOGE("fail: route_invoice\n");
         goto LABEL_ERROR;
     }
 

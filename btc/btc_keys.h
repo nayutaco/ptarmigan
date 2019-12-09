@@ -75,11 +75,11 @@ typedef struct {
 /** WIF形式秘密鍵をRAW形式に変換
  *
  * @param[out]      pPrivKey        変換後データ(#BTC_SZ_PRIVKEY)
- * @param[out]      pChain          WIFのblockchain種別
+ * @param[out]      pIsTest         true: testnet/regtest
  * @param[in]       pWifPriv        対象データ(WIF compressed, \0 terminate)
  * @return      true:成功
  */
-bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv);
+bool btc_keys_wif2priv(uint8_t *pPrivKey, bool *pIsTest, const char *pWifPriv);
 
 
 /** RAW秘密鍵をWIF形式秘密鍵に変換
@@ -207,11 +207,11 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk);
 /** extract keys from WIF
  *
  * @param[out]      pKeys           keys
- * @param[out]      pChain          chain
+ * @param[out]      pIsTest         true: testnet/regtest
  * @param[in]       pWifPriv        WIF compressed formatted private key
  * @return      true    success
  */
-bool btc_keys_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
+bool btc_keys_wif2keys(btc_keys_t *pKeys, bool *pIsTest, const char *pWifPriv);
 
 
 /** generate private key from RNG

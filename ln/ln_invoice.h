@@ -6,10 +6,7 @@
 
 #include "btc_keys.h"
 #include "btc_crypto.h"
-
-#define LN_INVOICE_MAINNET      ((uint8_t)4)
-#define LN_INVOICE_TESTNET      ((uint8_t)5)
-#define LN_INVOICE_REGTEST      ((uint8_t)6)
+#include "btc_segwit_addr.h"
 
 #define LN_INVOICE_DESC_MAX     (32)
 
@@ -49,7 +46,7 @@ typedef struct {
  *  @brief  BOLT#11 invoice
  */
 typedef struct {
-    uint8_t     hrp_type;
+    ln_invoice_hrptype_t hrp_type;
     uint64_t    amount_msat;
     uint64_t    timestamp;
     uint32_t    expiry;
@@ -102,7 +99,7 @@ void ln_invoice_decode_free(ln_invoice_t *p_invoice_data);
  */
 bool ln_invoice_create(
             char **ppInvoice,
-            uint8_t Type,
+            ln_invoice_hrptype_t Type,
             const uint8_t *pPaymentHash,
             uint64_t Amount,
             uint32_t Expiry,

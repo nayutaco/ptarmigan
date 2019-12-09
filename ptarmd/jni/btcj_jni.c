@@ -355,23 +355,16 @@ bool btcj_exception_happen(void)
 int btcj_spv_start(btc_block_chain_t Gen)
 {
     LOGD("\n");
-    const char *p_chain;
-    switch (Gen) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        p_chain = "main";
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-        p_chain = "test";
-        break;
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        p_chain = "regtest";
-        break;
-    default:
+    const char *p_chain_name;
+    const btc_block_param_t *p_chain = btc_block_get_param_from_chain(Gen);
+    if (p_chain != NULL) {
+        p_chain_name = btc_block_get_real_chainname(p_chain->chain_name);
+    } else {
         LOGE("fail: unknown genesis block hash\n");
         assert(0);
         return false;
     }
-    jstring param = (*env)->NewStringUTF(env, p_chain);
+    jstring param = (*env)->NewStringUTF(env, p_chain_name);
     jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SPV_START], param);
     check_exception(env);
     LOGD("ret=%d\n", ret);

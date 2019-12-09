@@ -85,7 +85,15 @@ extern "C" {
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
 #define LN_INVOICE_EXPIRY_MIN           (60)        ///< invoice expiry minimum
 
+#if defined(USE_BITCOIN)
+// BOLT3: https://github.com/lightningnetwork/lightning-rfc/blob/8555709811e6b2326f80dc479021b161e850bf03/03-transactions.md#fee-calculation
 #define LN_FEE_COMMIT_BASE_WEIGHT       (724ULL)    ///< commit_tx base weight for the fee calculation
+#define LN_FEE_COMMIT_HTLC_WEIGHT       (172ULL)
+#elif defined(USE_ELEMENTS)
+// https://github.com/cdecker/lightning/blob/8aca09597ee26af75c0d3111aac2a98875ffabd7/common/initial_commit_tx.h#L44-L62
+#define LN_FEE_COMMIT_BASE_WEIGHT       (1194ULL)   ///< commit_tx base weight for the fee calculation
+#define LN_FEE_COMMIT_HTLC_WEIGHT       (312ULL)
+#endif
 
 // channel_update.channel_flags
 #define LN_CNLUPD_CHFLAGS_DIRECTION     (0x01)      ///< b0: direction

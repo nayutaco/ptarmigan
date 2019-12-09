@@ -77,7 +77,7 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
-#ifdef USE_BITCOIND
+#if defined(USE_BITCOIND)
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 #endif  //USE_BITCOIND
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
@@ -106,23 +106,14 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf, btc_block_cha
     rpc_conf_local_t localconf;
     localconf.pconf = pRpcConf;
     uint16_t rpcport;
-    switch (Chain) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        localconf.section = "main";
-        rpcport = 8332;
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-        localconf.section = "test";
-        rpcport = 18332;
-        break;
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        localconf.section = "regtest";
-        rpcport = 18443;
-        break;
-    default:
+
+    const btc_block_param_t *p_chain = btc_block_get_param_from_chain(Chain);
+    if (p_chain != NULL) {
+        localconf.section = btc_block_get_real_chainname(p_chain->chain_name);
+        rpcport = p_chain->rpcport;
+    } else {
         localconf.section = "";
         rpcport = 0;
-        break;
     }
     if (ini_parse(pConfFile, handler_btcrpc_conf, &localconf) != 0) {
         LOGE("fail bitcoin.conf parse[%s]\n", pConfFile);
@@ -188,7 +179,12 @@ void conf_channel_init(channel_conf_t *pChannConf, btc_block_chain_t GenType)
     pChannConf->htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
     pChannConf->to_self_delay = M_TO_SELF_DELAY;
     pChannConf->max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
+#if defined(USE_BITCOIN)
     pChannConf->min_depth = (GenType == BTC_BLOCK_CHAIN_BTCMAIN) ? M_MIN_DEPTH_MAINNET : M_MIN_DEPTH;
+#elif defined(USE_ELEMENTS)
+    (void)GenType;
+    pChannConf->min_depth = M_MIN_DEPTH;
+#endif
     pChannConf->localfeatures = M_LOCALFEATURES;
     pChannConf->feerate_min = M_FEERATE_MIN;
     pChannConf->feerate_max = M_FEERATE_MAX;
@@ -226,7 +222,7 @@ bool conf_connect_load(const char *pConfFile, connect_conf_t *pConnConf)
  * private functions
  **************************************************************************/
 
-#ifdef USE_BITCOIND
+#if defined(USE_BITCOIND)
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value)
 {
     rpc_conf_local_t *plocal = (rpc_conf_local_t *)user;

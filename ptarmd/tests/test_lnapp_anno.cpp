@@ -26,8 +26,6 @@ extern "C" {
 
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
-// FAKE_VALUE_FUNC(bool, btc_init, btc_chain_t , bool );
-// FAKE_VOID_FUNC(btc_term);
 
 FAKE_VOID_FUNC(ln_node_term);
 FAKE_VALUE_FUNC(const uint8_t *,ln_remote_node_id, const ln_channel_t *);

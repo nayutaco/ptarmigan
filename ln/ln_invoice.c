@@ -35,9 +35,9 @@
 
 #define M_SZ_PREFIX_MAX             (16)
 
-static const char *ln_prefix_str[] = {
-    "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
-};
+const char *kInvoicePrefix = "ln";
+#define M_SZ_INVOICEPREFIX  (2)
+
 
 static bool convert_bits_8to5(uint8_t* out, size_t* outlen, const uint8_t* in, size_t inlen, bool pad)
 {
@@ -342,16 +342,15 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 
     char hrp[M_SZ_PREFIX_MAX + M_UINT64_MAX_DIGIT + 1]; //prefix | amount | multiplier
 
-    if (p_invoice_data->hrp_type != LN_INVOICE_MAINNET &&
-        p_invoice_data->hrp_type != LN_INVOICE_TESTNET &&
-        p_invoice_data->hrp_type != LN_INVOICE_REGTEST) goto LABEL_EXIT;
-
-
     //prefix
-    const char *tmp_cstr;
-    tmp_cstr = ln_prefix_str[p_invoice_data->hrp_type];
-    if (strlen(tmp_cstr) > M_SZ_PREFIX_MAX) goto LABEL_EXIT;
-    strcpy(hrp, tmp_cstr);
+    const btc_block_param_t *p_param = btc_block_get_param_from_hrptype(p_invoice_data->hrp_type);
+    if (p_param == NULL) {
+        LOGE("fail: hrp type not found: %d\n", p_invoice_data->hrp_type);
+        goto LABEL_EXIT;
+    }
+    snprintf(hrp, sizeof(hrp),
+        "%s%s", kInvoicePrefix, p_param->segwit_hrp);
+    if (strlen(hrp) > M_SZ_PREFIX_MAX) goto LABEL_EXIT;
 
     //amount
     // 1BTC = 10 ^ 8 Satoshi
@@ -526,28 +525,31 @@ LABEL_EXIT:
     return ret;
 }
 
-static bool read_prefix(uint8_t *type, size_t *len, char *hrp)
+static bool read_prefix(ln_invoice_hrptype_t *type, size_t *len, const char *hrp)
 {
-    const char *s;
+    // "ln"
+    if (strlen(hrp) < M_SZ_INVOICEPREFIX + 2) return false;
+    if (strncmp(hrp, kInvoicePrefix, M_SZ_INVOICEPREFIX) != 0) return false;
+    hrp += M_SZ_INVOICEPREFIX;
 
-    //note: check from the longer one for the longest match
-    s  = ln_prefix_str[LN_INVOICE_REGTEST];
-    if (!strncasecmp(hrp, s, 6)) {
-        *type = LN_INVOICE_REGTEST;
-        *len = 6;
-        return true;
+    // prefix(except separator('1') and LN amount)
+    uint8_t lp = 0;
+    const btc_block_param_t *p_param;
+    size_t hrp_in_len;
+    for (hrp_in_len = 0; hrp_in_len < strlen(hrp); hrp_in_len++) {
+        if (isdigit(hrp[hrp_in_len])) {
+            break;
+        }
     }
-    s  = ln_prefix_str[LN_INVOICE_MAINNET];
-    if (!strncasecmp(hrp, s, 4)) {
-        *type = LN_INVOICE_MAINNET;
-        *len = 4;
-        return true;
-    }
-    s  = ln_prefix_str[LN_INVOICE_TESTNET];
-    if (!strncasecmp(hrp, s, 4)) {
-        *type = LN_INVOICE_TESTNET;
-        *len = 4;
-        return true;
+    while ((p_param = btc_block_get_param_from_index(lp)) != NULL) {
+        size_t hrp_len = strlen(p_param->segwit_hrp);
+        if ( (hrp_len == hrp_in_len) &&
+             (strncasecmp(hrp, p_param->segwit_hrp, hrp_len) == 0)) {
+            *type = p_param->invoice_hrp_type;
+            *len = M_SZ_INVOICEPREFIX + hrp_len;
+            return true;
+        }
+        lp++;
     }
     return false;
 }
@@ -748,7 +750,7 @@ void ln_invoice_decode_free(ln_invoice_t *p_invoice_data) {
 
 bool ln_invoice_create(
             char **ppInvoice,
-            uint8_t Type,
+            ln_invoice_hrptype_t Type,
             const uint8_t *pPaymentHash,
             uint64_t Amount,
             uint32_t Expiry,
