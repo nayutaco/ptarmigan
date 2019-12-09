@@ -105,12 +105,12 @@ TEST_F(ln_bolt3_b, fuding2)
     };
 
     bool ret;
-    btc_chain_t chain;
+    bool is_test;
 
-    ret = btc_keys_wif2keys(&keys, &chain, WIF_PRIV);
+    ret = btc_keys_wif2keys(&keys, &is_test, WIF_PRIV);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, keys.priv, sizeof(PRIV)));
-    ASSERT_EQ(BTC_TESTNET, chain);
+    ASSERT_TRUE(is_test);
 }
 
 

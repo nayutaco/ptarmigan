@@ -29,16 +29,27 @@
 #include "stddef.h"
 #include "stdint.h"
 
+#include "segwit_addr.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus
 
-#define BTC_SEGWIT_ADDR_MAINNET     ((uint8_t)0)
-#define BTC_SEGWIT_ADDR_TESTNET     ((uint8_t)1)
-#define BTC_SEGWIT_ADDR_REGTEST     ((uint8_t)2)
-#define BTC_SEGWIT_ADDR_MAINNET2    ((uint8_t)3)
-#define BTC_SEGWIT_ADDR_TESTNET2    ((uint8_t)4)
-#define BTC_SEGWIT_ADDR_REGTEST2    ((uint8_t)5)
+typedef enum {
+#if defined(USE_BITCOIN)
+    LN_INVOICE_MAINNET = 0,
+    LN_INVOICE_TESTNET = 1,
+    LN_INVOICE_REGTEST = 2,
+#elif defined(USE_ELEMENTS)
+    LN_INVOICE_LIQUID = 0,
+    LN_INVOICE_ELEMENTS = 1,
+    LN_INVOICE_DUMMY = 2,
+    LN_INVOICE_MAINNET = LN_INVOICE_LIQUID,
+    LN_INVOICE_TESTNET = LN_INVOICE_DUMMY,
+    LN_INVOICE_REGTEST = LN_INVOICE_ELEMENTS,
+#endif
+} ln_invoice_hrptype_t;
+
 
 size_t btc_bech32_encode_buf_len(const char *hrp, size_t data_len);
 
@@ -89,7 +100,8 @@ bool btc_bech32_decode(
  *  Out: output:    Pointer to a buffer of size 73 + strlen(hrp) that will be
  *                  updated to contain the null-terminated address.
  *  In: output_len: Length of the output array.
- *      hrp_type:   SEGWIT_ADDR_MAINNET or SEGWIT_ADDR_TESTNET
+ *      hrp:        Pointer to the null-terminated human readable part to use
+ *                 (chain/network specific).
  *      ver:        Version of the witness program (between 0 and 16 inclusive).
  *      prog:       Data bytes for the witness program (between 2 and 40 bytes).
  *      prog_len:   Number of data bytes in prog.
@@ -98,7 +110,7 @@ bool btc_bech32_decode(
 bool btc_segwit_addr_encode(
     char* output,
     size_t output_len,
-    uint8_t hrp_type,
+    const char* hrp,
     int ver,
     const uint8_t* prog,
     size_t prog_len
@@ -112,7 +124,8 @@ bool btc_segwit_addr_encode(
  *                    contain the witness program bytes.
  *  In/Out: prog_len: Pointer to a size_t that will be updated to contain the length
  *                    of bytes in prog.
- *  Out: hrp_type:    SEGWIT_ADDR_MAINNET or SEGWIT_ADDR_TESTNET
+ *       hrp:         Pointer to the null-terminated human readable part that is
+ *                    expected (chain/network specific).
  *       addr:        Pointer to the null-terminated address.
  *  Returns true if successful.
  */
@@ -120,7 +133,7 @@ bool btc_segwit_addr_decode(
     int* ver,
     uint8_t* prog,
     size_t* prog_len,
-    uint8_t hrp_type,
+    const char* hrp,
     const char* addr
 );
 

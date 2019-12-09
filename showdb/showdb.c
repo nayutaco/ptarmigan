@@ -1028,8 +1028,8 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         retval = ln_db_lmdb_get_my_node_id(txn, dbi, &version, wif, alias, &port, genesis);
         if (retval == 0) {
             btc_keys_t keys;
-            btc_chain_t chain;
-            btc_keys_wif2keys(&keys, &chain, wif);
+            bool is_test;
+            btc_keys_wif2keys(&keys, &is_test, wif);
             // printf(INDENT2 M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
             // printf(INDENT2 M_QQ("node_secret") ": \"");
             // utl_dbg_dump(stdout, keys.priv, BTC_SZ_PRIVKEY, false);
@@ -1042,19 +1042,12 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             printf(INDENT2 M_QQ("genesis") ": \"");
             btc_dbg_dump_txid(stdout, genesis);
             printf("\",\n");
-            const char *p_net;
             btc_block_chain_t bchain = btc_block_get_chain(ln_genesishash_get());
-            switch(bchain) {
-            case BTC_BLOCK_CHAIN_BTCMAIN:
-                p_net = "mainnet";
-                break;
-            case BTC_BLOCK_CHAIN_BTCTEST:
-                p_net = "testnet";
-                break;
-            case BTC_BLOCK_CHAIN_BTCREGTEST:
-                p_net = "regtest";
-                break;
-            default:
+            const btc_block_param_t *p_chain = btc_block_get_param_from_chain(bchain);
+            const char *p_net;
+            if (p_chain != NULL) {
+                p_net = p_chain->chain_name;
+            } else {
                 p_net = "unknown";
             }
             printf(INDENT2 M_QQ("network") ": " M_QQ("%s") ",\n", p_net);

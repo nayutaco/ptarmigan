@@ -167,6 +167,10 @@ static bool open_channel_check(const ln_msg_open_channel_t *pMsg)
 {
     if (memcmp(ln_genesishash_get(), pMsg->p_chain_hash, BTC_SZ_HASH256)) {
         LOGE("fail: chain_hash mismatch\n");
+        LOGE("  own:");
+        DUMPE(ln_genesishash_get(), BTC_SZ_HASH256);
+        LOGE("  msg:");
+        DUMPE(pMsg->p_chain_hash, BTC_SZ_HASH256);
         return false;
     }
     if (pMsg->funding_satoshis > (uint64_t)LN_FUNDING_SATOSHIS_MAX) {

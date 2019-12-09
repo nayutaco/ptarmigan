@@ -51,6 +51,8 @@
 #define btc_tx_buf_r_read_byte      btc_buf_r_read_byte
 #define btc_tx_buf_r_read_u32le     btc_buf_r_read_u32le
 #define btc_tx_buf_r_read_u64le     btc_buf_r_read_u64le
+#define btc_tx_buf_r_read_u32be     btc_buf_r_read_u32be
+#define btc_tx_buf_r_read_u64be     btc_buf_r_read_u64be
 #define btc_tx_buf_r_seek           btc_buf_r_seek
 #define btc_tx_buf_r_remains        btc_buf_r_remains
 bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue);
@@ -65,6 +67,8 @@ bool btc_tx_buf_r_read_varint(btc_buf_r_t *pBufR, uint64_t *pValue);
 #define btc_tx_buf_w_write_byte     btc_buf_w_write_byte
 #define btc_tx_buf_w_write_u32le    btc_buf_w_write_u32le
 #define btc_tx_buf_w_write_u64le    btc_buf_w_write_u64le
+#define btc_tx_buf_w_write_u32be    btc_buf_w_write_u32be
+#define btc_tx_buf_w_write_u64be    btc_buf_w_write_u64be
 bool btc_tx_buf_w_write_varint_len(btc_buf_w_t *pBufW, uint64_t Size);
 bool btc_tx_buf_w_write_varint_len_data(btc_buf_w_t *pBufW, const void *pData, uint32_t Len);
 #define btc_tx_buf_w_truncate       btc_buf_w_truncate

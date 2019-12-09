@@ -97,7 +97,11 @@ bool HIDDEN ln_htlc_tx_sign_rs(
     const utl_buf_t *pWitScript)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
+#if defined(USE_BITCOIN)
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
+#elif defined(USE_ELEMENTS)
+    if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 2)) {
+#endif
         LOGE("fail: invalid vin/vout\n");
         return false;
     }
@@ -249,7 +253,11 @@ bool HIDDEN ln_htlc_tx_verify(
         LOGE("fail: invalid arguments\n");
         return false;
     }
+#if defined(USE_BITCOIN)
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
+#elif defined(USE_ELEMENTS)
+    if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 2)) {
+#endif
         LOGE("fail: invalid vin/vout\n");
         return false;
     }

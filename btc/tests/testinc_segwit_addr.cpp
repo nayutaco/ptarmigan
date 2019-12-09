@@ -30,25 +30,6 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
-
-static int get_hrp_type(const char *hrp) {
-    if (strcmp(hrp, "bc") == 0) {
-        return SEGWIT_ADDR_MAINNET;
-    }
-    if (strcmp(hrp, "tb") == 0) {
-        return SEGWIT_ADDR_TESTNET;
-    }
-    if (strcmp(hrp, "BC") == 0) {
-        return SEGWIT_ADDR_MAINNET2;
-    }
-    if (strcmp(hrp, "TB") == 0) {
-        return SEGWIT_ADDR_TESTNET2;
-    }
-    printf("hrp=%s\n", hrp);
-    assert(0);
-    return -1;
-}
-
 static const char* valid_checksum[] = {
     "A12UEL5L",
     "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
@@ -228,25 +209,24 @@ TEST_F(segwit_addr, segwit_valid)
         uint8_t witprog[40];
         size_t witprog_len;
         int witver;
-        int hrp_type;
+        const char* hrp = "bc";
         uint8_t scriptpubkey[42];
         size_t scriptpubkey_len;
         char rebuild[93];
         bool ret;
 
-        hrp_type = SEGWIT_ADDR_MAINNET;
-        ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         if (!ret) {
-            hrp_type = SEGWIT_ADDR_TESTNET;
-            ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+            hrp = "tb";
+            ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         }
         if (!ret) {
-            hrp_type = SEGWIT_ADDR_MAINNET2;
-            ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+            hrp = "BC";
+            ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         }
         if (!ret) {
-            hrp_type = SEGWIT_ADDR_TESTNET2;
-            ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+            hrp = "TB";
+            ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         }
         ASSERT_TRUE(ret);
 
@@ -254,7 +234,7 @@ TEST_F(segwit_addr, segwit_valid)
         ASSERT_EQ(scriptpubkey_len, valid_address[i].scriptPubKeyLen);
         ASSERT_EQ(0, memcmp(scriptpubkey, valid_address[i].scriptPubKey, scriptpubkey_len));
 
-        ret = segwit_addr_encode(rebuild, hrp_type, witver, witprog, witprog_len);
+        ret = segwit_addr_encode(rebuild, hrp, witver, witprog, witprog_len);
         ASSERT_TRUE(ret);
 
         ASSERT_EQ(0, my_strncasecmp(valid_address[i].address, rebuild, 93));
@@ -272,10 +252,10 @@ TEST_F(segwit_addr, segwit_invalid_dec)
         int witver;
         bool ret;
 
-        ret = segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_MAINNET, invalid_address[i]);
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, "bc", invalid_address[i]);
         ASSERT_FALSE(ret);
 
-        ret = segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_TESTNET, invalid_address[i]);
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, "tb", invalid_address[i]);
         ASSERT_FALSE(ret);
     }
 }
@@ -289,7 +269,7 @@ TEST_F(segwit_addr, segwit_invalid_enc)
         char rebuild[93];
         static const uint8_t program[42] = {0};
 
-        bool ret = segwit_addr_encode(rebuild, get_hrp_type(invalid_address_enc[i].hrp), invalid_address_enc[i].version, program, invalid_address_enc[i].program_length);
+        bool ret = segwit_addr_encode(rebuild, invalid_address_enc[i].hrp, invalid_address_enc[i].version, program, invalid_address_enc[i].program_length);
         ASSERT_FALSE(ret);
     }
 }
@@ -341,29 +321,28 @@ TEST_F(segwit_addr, btc_segwit_valid)
         uint8_t witprog[40];
         size_t witprog_len;
         int witver;
-        int hrp_type;
+        const char* hrp = "bc";
         uint8_t scriptpubkey[42];
         size_t scriptpubkey_len;
         char rebuild[93];
         bool ret;
 
-        hrp_type = SEGWIT_ADDR_MAINNET;
         witprog_len = sizeof(witprog);
-        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         if (!ret) {
-            hrp_type = SEGWIT_ADDR_TESTNET;
+            hrp = "tb";
             witprog_len = sizeof(witprog);
-            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         }
         if (!ret) {
-            hrp_type = SEGWIT_ADDR_MAINNET2;
+            hrp = "BC";
             witprog_len = sizeof(witprog);
-            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         }
         if (!ret) {
-            hrp_type = SEGWIT_ADDR_TESTNET2;
+            hrp = "TB";
             witprog_len = sizeof(witprog);
-            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp, valid_address[i].address);
         }
         ASSERT_TRUE(ret);
 
@@ -371,7 +350,7 @@ TEST_F(segwit_addr, btc_segwit_valid)
         ASSERT_EQ(scriptpubkey_len, valid_address[i].scriptPubKeyLen);
         ASSERT_EQ(0, memcmp(scriptpubkey, valid_address[i].scriptPubKey, scriptpubkey_len));
 
-        ret = btc_segwit_addr_encode(rebuild, sizeof(rebuild), hrp_type, witver, witprog, witprog_len);
+        ret = btc_segwit_addr_encode(rebuild, sizeof(rebuild), hrp, witver, witprog, witprog_len);
         ASSERT_TRUE(ret);
 
         ASSERT_EQ(0, my_strncasecmp(valid_address[i].address, rebuild, 93));
@@ -390,11 +369,11 @@ TEST_F(segwit_addr, btc_segwit_invalid_dec)
         bool ret;
 
         witprog_len = sizeof(witprog);
-        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_MAINNET, invalid_address[i]);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, "bc", invalid_address[i]);
         ASSERT_FALSE(ret);
 
         witprog_len = sizeof(witprog);
-        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_TESTNET, invalid_address[i]);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, "tb", invalid_address[i]);
         ASSERT_FALSE(ret);
     }
 }
@@ -408,7 +387,7 @@ TEST_F(segwit_addr, btc_segwit_invalid_enc)
         char rebuild[93];
         static const uint8_t program[42] = {0};
 
-        bool ret = btc_segwit_addr_encode(rebuild, sizeof(rebuild), get_hrp_type(invalid_address_enc[i].hrp), invalid_address_enc[i].version, program, invalid_address_enc[i].program_length);
+        bool ret = btc_segwit_addr_encode(rebuild, sizeof(rebuild), invalid_address_enc[i].hrp, invalid_address_enc[i].version, program, invalid_address_enc[i].program_length);
         ASSERT_FALSE(ret);
     }
 }

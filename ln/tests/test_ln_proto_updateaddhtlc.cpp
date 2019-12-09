@@ -17,6 +17,7 @@ extern "C" {
 #include "../../utl/utl_str.c"
 #undef LOG_TAG
 #include "../../btc/btc.c"
+#include "../../btc/btc_block.c"
 #include "../../btc/btc_buf.c"
 #include "../../btc/btc_extkey.c"
 #include "../../btc/btc_keys.c"
@@ -460,8 +461,8 @@ TEST_F(ln, update_add_htlc_recv1)
     ln_channel_t channel;
     LnInit(&channel);
 
-    btc_chain_t chain;
-    btc_keys_wif2keys(&mNode.keys, &chain, LN_UPDATE_ADD_HTLC_A::WIF);
+    bool is_test;
+    btc_keys_wif2keys(&mNode.keys, &is_test, LN_UPDATE_ADD_HTLC_A::WIF);
     channel.p_callback = dummy::callback;
     memcpy(channel.peer_node_id, LN_UPDATE_ADD_HTLC_A::PEER_NODE_ID, BTC_SZ_PUBKEY);
     memcpy(channel.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));
@@ -534,8 +535,8 @@ TEST_F(ln, update_add_htlc_recv2)
     ln_channel_t channel;
     LnInit(&channel);
 
-    btc_chain_t chain;
-    btc_keys_wif2keys(&mNode.keys, &chain, LN_UPDATE_ADD_HTLC_A::WIF);
+    bool is_test;
+    btc_keys_wif2keys(&mNode.keys, &is_test, LN_UPDATE_ADD_HTLC_A::WIF);
     channel.p_callback = dummy::callback;
     memcpy(channel.peer_node_id, LN_UPDATE_ADD_HTLC_A::PEER_NODE_ID, BTC_SZ_PUBKEY);
     memcpy(channel.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));

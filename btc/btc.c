@@ -31,6 +31,7 @@
 #include "btc_local.h"
 #include "btc.h"
 #include "btc_crypto.h"
+#include "btc_block.h"
 
 #ifndef __ORDER_LITTLE_ENDIAN__
 #error Only Little Endian
@@ -46,13 +47,16 @@
  * package variables
  **************************************************************************/
 
-uint8_t HIDDEN  mPref[BTC_PREF_MAX];        ///< prefix関連
 bool HIDDEN     mNativeSegwit = true;       ///< true:segwitのトランザクションをnativeで生成
 
 
 /**************************************************************************
  * private variables
  **************************************************************************/
+
+static bool mInitialized;
+static btc_block_chain_t mChain;
+static const btc_block_param_t *mCurrentChain;
 
 
 /**************************************************************************
@@ -61,72 +65,45 @@ bool HIDDEN     mNativeSegwit = true;       ///< true:segwitのトランザク�
 
 bool btc_init(btc_block_chain_t chain, bool bSegNative)
 {
-    bool ret = false;
+    bool ret = true;
 
-    if (mPref[BTC_PREF_WIF]) {
+    if (mInitialized) {
         LOGE("multiple init\n");
         assert(0);
         return false;
     }
-
-    mPref[BTC_PREF_CHAINDETAIL] = chain;
-    switch (chain) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        LOGD("$$$[mainnet]\n");
-        mPref[BTC_PREF_CHAIN] = (uint8_t)BTC_MAINNET;
-        mPref[BTC_PREF_WIF] = 0x80;
-        mPref[BTC_PREF_P2PKH] = 0x00;
-        mPref[BTC_PREF_P2SH] = 0x05;
-        mPref[BTC_PREF_ADDRVER] = 0x06;
-        mPref[BTC_PREF_ADDRVER_SH] = 0x0a;
-        ret = true;
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        LOGD("$$$[testnet/regtest]\n");
-        mPref[BTC_PREF_CHAIN] = (uint8_t)BTC_TESTNET;
-        mPref[BTC_PREF_WIF] = 0xef;
-        mPref[BTC_PREF_P2PKH] = 0x6f;
-        mPref[BTC_PREF_P2SH] = 0xc4;
-        mPref[BTC_PREF_ADDRVER] = 0x03;
-        mPref[BTC_PREF_ADDRVER_SH] = 0x28;
-        ret = true;
-        break;
-    default:
-        LOGE("fail: unknown chain\n");
+    mCurrentChain = btc_block_get_param_from_chain(chain);
+    if (mCurrentChain == NULL) {
+        LOGE("unknown chain\n");
         assert(0);
-        break;
+        return false;
     }
 
+    mChain = chain;
     mNativeSegwit = bSegNative;
+    ret = btc_rng_init();
 
     if (ret) {
-        ret = btc_rng_init();
+        mInitialized = true;
     }
-
-//#ifdef PTARM_DEBUG
-//    char mbedver[18];
-//    mbedtls_version_get_string_full(mbedver); //XXX: mbed
-//    LOGD("%s\n", mbedver);
-
-//    //TODO: テスト用
-//    if (!ret) {
-//        abort();
-//    }
-//#endif  //PTARM_DEBUG
-
     return ret;
 }
 
 
 void btc_term(void)
 {
-    mPref[BTC_PREF_WIF] = BTC_UNKNOWN;
     btc_rng_free();
+    mInitialized = false;
 }
 
 
-btc_chain_t btc_get_chain(void)
+bool btc_is_initialized(void)
 {
-    return (btc_chain_t)mPref[BTC_PREF_CHAIN];
+    return mInitialized;
+}
+
+
+const btc_block_param_t *btc_get_param(void)
+{
+    return mCurrentChain;
 }

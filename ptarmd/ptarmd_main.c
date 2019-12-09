@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
 
 
     conf_btcrpc_init(&rpc_conf);
-    btc_block_chain_t chain = BTC_BLOCK_CHAIN_BTCMAIN;
+    btc_block_chain_t chain = btc_block_get_param_from_index(0)->chain;
 
     char prompt[5];
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
@@ -219,14 +219,14 @@ int main(int argc, char *argv[])
             break;
         case 'N':
             //network
-            if (strcmp(optarg, "mainnet") == 0) {
-                chain = BTC_BLOCK_CHAIN_BTCMAIN;
-            } else if (strcmp(optarg, "testnet") == 0) {
-                chain = BTC_BLOCK_CHAIN_BTCTEST;
-            } else if (strcmp(optarg, "regtest") == 0) {
-                chain = BTC_BLOCK_CHAIN_BTCREGTEST;
-            } else {
-                goto LABEL_EXIT;
+            {
+                const btc_block_param_t *p_chain = btc_block_get_param_from_name(optarg);
+                if (p_chain != NULL) {
+                    chain = p_chain->chain;
+                } else {
+                    fprintf(stderr, "fail: invalid network(%s).\n", optarg);
+                    return -1;
+                }
             }
             break;
         case 'P':
@@ -248,6 +248,7 @@ int main(int argc, char *argv[])
             exit(0);
         case 'h':
             //help
+            fprintf(stderr, "show help\n");
             goto LABEL_EXIT;
         case M_OPT_CLEARCHANNELDB:
             //clear_channel_db
@@ -308,6 +309,7 @@ int main(int argc, char *argv[])
     if (strlen(bitcoinconf) > 0) {
         bret = conf_btcrpc_load(bitcoinconf, &rpc_conf, chain);
         if (!bret) {
+            fprintf(stderr, "fail: load bitcoin conf.\n");
             goto LABEL_EXIT;
         }
     }
@@ -392,15 +394,28 @@ LABEL_EXIT:
     fprintf(stderr, "\n");
     fprintf(stderr, "\t\t--help : help\n");
     fprintf(stderr, "\t\t--version : version\n");
-    fprintf(stderr, "\t\t--network NETWORK : chain(mainnet/testnet/regtest)(default: mainnet)\n");
+    fprintf(stderr, "\t\t--network NETWORK : chain(");
+    const btc_block_param_t *p_param;
+    uint8_t lp = 0;
+    while ((p_param = btc_block_get_param_from_index(lp)) != NULL) {
+        if (lp != 0) {
+            fprintf(stderr, "/");
+        }
+        fprintf(stderr, "%s", p_param->chain_name);
+        if (lp == 0) {
+            fprintf(stderr, "(default)");
+        }
+        lp++;
+    }
+    fprintf(stderr, ")\n");
     fprintf(stderr, "\t\t--port PORT : node port(default: 9735 or previous saved)\n");
     fprintf(stderr, "\t\t--alias NAME : alias name(default: \"node_xxxxxxxxxxxx\" or previous saved)\n");
 #if defined(USE_BITCOIND)
     fprintf(stderr, "\t\t--conf BITCOIN_CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
-    fprintf(stderr, "\t\t--bitcoinuser USER : bitcoin RPC user\n");
-    fprintf(stderr, "\t\t--bitcoinpassword PASS : bitcoin RPC password\n");
-    fprintf(stderr, "\t\t--bitcoinurl URL : bitcoin RPC URL\n");
-    fprintf(stderr, "\t\t--bitcoinport PORT : bitcoin RPC port number\n");
+    fprintf(stderr, "\t\t--bitcoinrpcuser USER : bitcoin RPC user\n");
+    fprintf(stderr, "\t\t--bitcoinrpcpassword PASS : bitcoin RPC password\n");
+    fprintf(stderr, "\t\t--bitcoinrpcurl URL : bitcoin RPC URL\n");
+    fprintf(stderr, "\t\t--bitcoinrpcport PORT : bitcoin RPC port number\n");
     fprintf(stderr, "\t\t--announceip IPADDRv4 : announce IPv4 address(default: none)\n");
 #endif
     fprintf(stderr, "\t\t--datadir DIR_PATH : working directory(default: current)\n");

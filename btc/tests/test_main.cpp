@@ -18,6 +18,7 @@ extern "C" {
 #include "../../utl/utl_str.c"
 #undef LOG_TAG
 #include "btc.c"
+#include "btc_block.c"
 #include "btc_buf.c"
 #include "btc_extkey.c"
 #include "btc_keys.c"
@@ -51,12 +52,7 @@ TEST_F(btc, btc_setnet_testnet_false)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_BLOCK_CHAIN_BTCTEST, false);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[BTC_PREF_CHAIN]);
-    ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
-    ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
-    ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
-    ASSERT_EQ(0x03, mPref[BTC_PREF_ADDRVER]);
-    ASSERT_EQ(2, mPref[BTC_PREF_CHAINDETAIL]);
+    ASSERT_EQ(BTC_BLOCK_CHAIN_BTCTEST, mChain);
     ASSERT_FALSE(mNativeSegwit);
     btc_term();
 }
@@ -66,12 +62,7 @@ TEST_F(btc, btc_setnet_testnet_true)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[BTC_PREF_CHAIN]);
-    ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
-    ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
-    ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
-    ASSERT_EQ(0x03, mPref[BTC_PREF_ADDRVER]);
-    ASSERT_EQ(2, mPref[BTC_PREF_CHAINDETAIL]);
+    ASSERT_EQ(BTC_BLOCK_CHAIN_BTCTEST, mChain);
     ASSERT_TRUE(mNativeSegwit);
     btc_term();
 }
@@ -81,12 +72,7 @@ TEST_F(btc, btc_setnet_regtest)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_BLOCK_CHAIN_BTCREGTEST, true);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[BTC_PREF_CHAIN]);
-    ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
-    ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
-    ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
-    ASSERT_EQ(0x03, mPref[BTC_PREF_ADDRVER]);
-    ASSERT_EQ(3, mPref[BTC_PREF_CHAINDETAIL]);
+    ASSERT_EQ(BTC_BLOCK_CHAIN_BTCREGTEST, mChain);
     ASSERT_TRUE(mNativeSegwit);
     btc_term();
 }
@@ -96,12 +82,7 @@ TEST_F(btc, btc_setnet_mainnet)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_BLOCK_CHAIN_BTCMAIN, false);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(1, mPref[BTC_PREF_CHAIN]);
-    ASSERT_EQ(0x80, mPref[BTC_PREF_WIF]);
-    ASSERT_EQ(0x00, mPref[BTC_PREF_P2PKH]);
-    ASSERT_EQ(0x05, mPref[BTC_PREF_P2SH]);
-    ASSERT_EQ(0x06, mPref[BTC_PREF_ADDRVER]);
-    ASSERT_EQ(1, mPref[BTC_PREF_CHAINDETAIL]);
+    ASSERT_EQ(BTC_BLOCK_CHAIN_BTCMAIN, mChain);
     ASSERT_FALSE(mNativeSegwit);
     btc_term();
 }

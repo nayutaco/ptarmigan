@@ -106,9 +106,11 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     // [transaction version : 4]
     // [hash_prevouts : 32]
     // [hash_sequence : 32]
+    //E[hash_issuance : 32]
     // [outpoint : 32 + 4]
     // [scriptcode : xx]
-    // [amount : 8]
+    // [amount : 8](E:big endian)
+    //E[asset_issuance](not NULL)
     // [sequence : 4]
     // [hash_outputs : 32]
     // [locktime : 4]
@@ -118,6 +120,7 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     btc_buf_w_t buf_w;
     btc_buf_w_t buf_w_tmp;
     uint32_t lp;
+    uint32_t index;
 
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) {
@@ -140,7 +143,12 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
         btc_vin_t *vin = &pTx->vin[lp];
 
         if (!btc_buf_w_write_data(&buf_w_tmp, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
-        if (!btc_buf_w_write_u32le(&buf_w_tmp, vin->index)) goto LABEL_EXIT;
+        uint32_t index = vin->index;
+#ifdef USE_ELEMENTS
+        if (vin->issuance) index |= BTC_TX_ELE_IDX_ISSUANCE;
+        if (vin->pegin) index |= BTC_TX_ELE_IDX_PEGIN;
+#endif
+        if (!btc_buf_w_write_u32le(&buf_w_tmp, index)) goto LABEL_EXIT;
     }
     if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
@@ -151,15 +159,47 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     }
     if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
 
+#ifdef USE_ELEMENTS
+    //hashIssuance
+    btc_buf_w_truncate(&buf_w_tmp);
+    for (lp = 0; lp < pTx->vin_cnt; lp++) {
+        if (pTx->vin[lp].issuance) {
+            LOGE("NOT UNSUPPORTED\n");
+            assert(false);
+        } else {
+            if (!btc_buf_w_write_byte(&buf_w_tmp, 0x00)) goto LABEL_EXIT;
+        }
+    }
+    if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
+#endif
+
     //outpoint: txid(32) | Index(4)
     if (!btc_buf_w_write_data(&buf_w, pTx->vin[Index].txid, BTC_SZ_TXID)) goto LABEL_EXIT;
-    if (!btc_buf_w_write_u32le(&buf_w, pTx->vin[Index].index)) goto LABEL_EXIT;
+    index = pTx->vin[Index].index;
+#ifdef USE_ELEMENTS
+        if (pTx->vin[Index].issuance) index |= BTC_TX_ELE_IDX_ISSUANCE;
+        if (pTx->vin[Index].pegin) index |= BTC_TX_ELE_IDX_PEGIN;
+#endif
+    if (!btc_buf_w_write_u32le(&buf_w, index)) goto LABEL_EXIT;
 
     //scriptcode
     if (!btc_buf_w_write_data(&buf_w, pScriptCode->buf, pScriptCode->len)) goto LABEL_EXIT;
 
     //amount
+#if defined(USE_BITCOIN)
     if (!btc_buf_w_write_u64le(&buf_w, Value)) goto LABEL_EXIT;
+#elif defined(USE_ELEMENTS)
+    if (!btc_buf_w_write_byte(&buf_w, BTC_TX_ELE_VOUT_VER_EXPLICIT)) goto LABEL_EXIT;
+    if (!btc_buf_w_write_u64be(&buf_w, Value)) goto LABEL_EXIT;
+#endif
+
+#ifdef USE_ELEMENTS
+    //assetIssuance
+    if (pTx->vin[Index].issuance) {
+        LOGE("NOT UNSUPPORTED\n");
+        assert(false);
+    }
+#endif
 
     //sequence
     if (!btc_buf_w_write_u32le(&buf_w, pTx->vin[Index].sequence)) goto LABEL_EXIT;
@@ -171,11 +211,23 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     btc_buf_w_truncate(&buf_w_tmp);
     for (lp = 0; lp < pTx->vout_cnt; lp++) {
         btc_vout_t *vout = &pTx->vout[lp];
+#if defined(USE_BITCOIN)
         if (!btc_buf_w_write_u64le(&buf_w_tmp, vout->value)) goto LABEL_EXIT;
         if (!btc_tx_buf_w_write_varint_len(&buf_w_tmp, vout->script.len)) goto LABEL_EXIT;
         if (!btc_buf_w_write_data(&buf_w_tmp, vout->script.buf, vout->script.len)) goto LABEL_EXIT;
+#elif defined(USE_ELEMENTS)
+        if (!btc_buf_w_write_byte(&buf_w_tmp, BTC_TX_ELE_VOUT_VER_EXPLICIT)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_data(&buf_w_tmp, vout->asset, BTC_SZ_HASH256)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_byte(&buf_w_tmp, BTC_TX_ELE_VOUT_VER_EXPLICIT)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_u64be(&buf_w_tmp, vout->value)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_byte(&buf_w_tmp, BTC_TX_ELE_VOUT_VER_NULL)) goto LABEL_EXIT;
+        if (!btc_tx_buf_w_write_varint_len(&buf_w_tmp, vout->script.len)) goto LABEL_EXIT;
+        if (!btc_buf_w_write_data(&buf_w_tmp, vout->script.buf, vout->script.len)) goto LABEL_EXIT;
+#endif
     }
     if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
+LOGD("HASH_OUTPUTS=");
+DUMPD(btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp));
 
     //locktime
     if (!btc_buf_w_write_u32le(&buf_w, pTx->locktime)) goto LABEL_EXIT;
@@ -183,11 +235,17 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
     //hashtype
     if (!btc_buf_w_write_u32le(&buf_w, SIGHASH_ALL)) goto LABEL_EXIT;
 
+    LOGD("SIGHASH=");
+    DUMPD(btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
+
     btc_md_hash256(pTxHash, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
 
     ret = true;
 
 LABEL_EXIT:
+    if (!ret) {
+        LOGE("fail: sign\n");
+    }
     btc_tx_buf_w_free(&buf_w);
     btc_tx_buf_w_free(&buf_w_tmp);
 

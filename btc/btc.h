@@ -43,16 +43,15 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define BTC_PREF_CHAIN          (0)             ///< Prefix: 1:mainnet, 2:testnet
-#define BTC_PREF_WIF            (1)             ///< Prefix: WIF
-#define BTC_PREF_P2PKH          (2)             ///< Prefix: P2PKH
-#define BTC_PREF_P2SH           (3)             ///< Prefix: P2SH
-#define BTC_PREF_ADDRVER        (4)             ///< Prefix: Address Version
-#define BTC_PREF_ADDRVER_SH     (5)             ///< Prefix: Address Version(Script)
-#define BTC_PREF_P2WPKH         (6)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
-#define BTC_PREF_P2WSH          (7)             ///< Prefix: Native Pay-to-Witness-Script-Hash
-#define BTC_PREF_CHAINDETAIL    (8)             ///< mainnet/testnet/regtest
-#define BTC_PREF_MAX            (9)             ///< mPref size
+// btc_block_param_t.pref[BTC_PREF_MAX]
+#define BTC_PREF_P2PKH          (0)             ///< Prefix: P2PKH
+#define BTC_PREF_P2SH           (1)             ///< Prefix: P2SH
+#define BTC_PREF_ADDRVER        (2)             ///< Prefix: Address Version
+#define BTC_PREF_ADDRVER_SH     (3)             ///< Prefix: Address Version(Script)
+#define BTC_PREF_MAX            (4)             ///< pref[] size
+
+#define BTC_PREF_P2WPKH         (4)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
+#define BTC_PREF_P2WSH          (5)             ///< Prefix: Native Pay-to-Witness-Script-Hash
 
 #define BTC_DUST_LIMIT          ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
                                                 // 2018/02/11 17:54(JST)
@@ -95,18 +94,16 @@ extern "C" {
 #define BTC_IS_DUST(amount)         (BTC_DUST_LIMIT > (amount))
 
 
+#if defined(USE_BITCOIN)
+#define BTC_UNIT    "BTC"
+#elif defined(USE_ELEMENTS)
+#define BTC_UNIT    "ELE"
+#endif
+
+
 /**************************************************************************
  * typedefs
  **************************************************************************/
-
-/** @enum   btc_chain_t
- *  @brief  blockchain種別
- */
-typedef enum {
-    BTC_UNKNOWN,
-    BTC_MAINNET,          ///< mainnet
-    BTC_TESTNET           ///< testnet, regtest
-} btc_chain_t;
 
 /** @enum btc_block_chain_t */
 typedef enum {
@@ -114,14 +111,19 @@ typedef enum {
     BTC_BLOCK_CHAIN_BTCMAIN,            ///< Bitcoin mainnet
     BTC_BLOCK_CHAIN_BTCTEST,            ///< Bitcoin testnet
     BTC_BLOCK_CHAIN_BTCREGTEST,         ///< Bitcoin regtest
+    BTC_BLOCK_CHAIN_LIQUIDV1,           ///< liquidv1
+    BTC_BLOCK_CHAIN_LIQREGTEST,         ///< liquidregtest
+    BTC_BLOCK_CHAIN_TESTCHAIN1,         ///< testchain1
 } btc_block_chain_t;
+
+
+typedef struct btc_block_param_t btc_block_param_t;
 
 
 /**************************************************************************
  * package variables
  **************************************************************************/
 
-extern uint8_t  HIDDEN mPref[BTC_PREF_MAX];
 extern bool     HIDDEN mNativeSegwit;
 
 
@@ -144,11 +146,17 @@ bool btc_init(btc_block_chain_t net, bool bSegNative);
 void btc_term(void);
 
 
-/** blockchain種別取得
- *
+/** btc is initialized
+ * 
+ * @retval  true    initialized
  */
-btc_chain_t btc_get_chain(void);
+bool btc_is_initialized(void);
 
+
+/** get current block parameter
+ * 
+ */
+const btc_block_param_t *btc_get_param(void);
 
 #ifdef __cplusplus
 }

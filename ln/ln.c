@@ -73,6 +73,7 @@
  * macros
  **************************************************************************/
 
+#if defined(USE_BITCOIN)
 #define M_SZ_TO_LOCAL_TX(len)                   (213 + len) ///< to_local transaction長[byte]
                                                             // <version> 4
                                                             // <flag><marker> 2
@@ -104,6 +105,53 @@
                                                             //      amount 8
                                                             //      scriptpk 1+len
                                                             // locktime 4
+#elif defined(USE_ELEMENTS)
+#define M_SZ_TO_LOCAL_TX(len)                   (253 + len) ///< to_local transaction長[byte]
+                                                            // <version> 4
+                                                            // <flag> 1
+                                                            // vin_cnt 1
+                                                            //      outpoint 36
+                                                            //      scriptSig 1
+                                                            //      sequence 4
+                                                            // vout_cnt 1
+                                                            //      asset 1+32
+                                                            //      amount 1+8
+                                                            //      nonce 1
+                                                            //      scriptpk 1+len
+                                                            // locktime 4
+                                                            // witness
+                                                            //      issuance_amount 1
+                                                            //      inflactionkey 1
+                                                            //      wit_cnt 1
+                                                            //      sig 73
+                                                            //      script 1+77
+                                                            //      pegin 1
+                                                            //      surjection 1
+                                                            //      range 1
+
+#define M_SZ_TO_REMOTE_TX(len)                  (209 + len) ///< to_remote transaction長[byte]
+                                                            // <version> 4
+                                                            // <flag> 1
+                                                            // vin_cnt 1
+                                                            //      outpoint 36
+                                                            //      scriptSig 1
+                                                            //      sequence 4
+                                                            // vout_cnt 1
+                                                            //      asset 1+32
+                                                            //      amount 1+8
+                                                            //      nonce 1
+                                                            //      scriptpk 1+len
+                                                            // locktime 4
+                                                            // witness
+                                                            //      issuance_amount 1
+                                                            //      inflactionkey 1
+                                                            //      wit_cnt 1
+                                                            //      sig 73
+                                                            //      pubkey 1+33
+                                                            //      pegin 1
+                                                            //      surjection 1
+                                                            //      range 1
+#endif
 
 #define M_SZ_TO_LOCAL_PENALTY               (324)
 #define M_SZ_OFFERED_PENALTY                (407)
@@ -578,11 +626,35 @@ void ln_close_change_stat(ln_channel_t *pChannel, const btc_tx_t *pCloseTx, void
             return;
         }
 
-        if ( (ln_shutdown_scriptpk_local(pChannel)->len > 0) &&
+        bool is_mutual;
+#if defined(USE_BITCOIN)
+        is_mutual = (ln_shutdown_scriptpk_local(pChannel)->len > 0) &&
              (ln_shutdown_scriptpk_remote(pChannel)->len > 0) &&
              (pCloseTx->vout_cnt <= 2) &&
              ( utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(pChannel)) ||
-               utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(pChannel)) ) ) {
+               utl_buf_equal(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(pChannel)) );
+#elif defined(USE_ELEMENTS)
+        is_mutual = (ln_shutdown_scriptpk_local(pChannel)->len > 0) &&
+             (ln_shutdown_scriptpk_remote(pChannel)->len > 0) &&
+             (pCloseTx->vout_cnt <= 3);
+        LOGD("is_mutual1: %d\n", is_mutual);
+        if (is_mutual) {
+            is_mutual = false;
+            uint16_t lp;
+            for (lp = 0; lp < pCloseTx->vout_cnt; lp++) {
+                LOGD("vout type=%d\n", pCloseTx->vout[lp].type);
+                if (pCloseTx->vout[lp].type == BTC_TX_ELE_VOUT_ADDR) {
+                    is_mutual = (
+                        utl_buf_equal(&pCloseTx->vout[lp].script, ln_shutdown_scriptpk_local(pChannel)) ||
+                        utl_buf_equal(&pCloseTx->vout[lp].script, ln_shutdown_scriptpk_remote(pChannel))
+                    );
+                    break;
+                }
+            }
+        }
+        LOGD("is_mutual2: %d\n", is_mutual);
+#endif
+        if (is_mutual) {
             ln_status_set(pChannel, LN_STATUS_CLOSE_MUTUAL);
         } else if (memcmp(txid, pChannel->commit_info_local.txid, BTC_SZ_TXID) == 0) {
             ln_status_set(pChannel, LN_STATUS_CLOSE_UNI_LOCAL);
@@ -864,6 +936,9 @@ bool ln_revokedhtlc_create_spenttx(const ln_channel_t *pChannel, btc_tx_t *pTx, 
 
     ln_htlc_tx_create(pTx, Value - fee, NULL, pChannel->p_revoked_type[WitIndex], 0, pTxid, Index);
     btc_tx_add_vout_spk(pTx, Value - fee, &pChannel->shutdown_scriptpk_local);
+#ifdef USE_ELEMENTS
+    btc_tx_add_vout_fee(pTx, fee);
+#endif
     M_DBG_PRINT_TX2(pTx);
 
     btc_keys_t signkey;

@@ -37,6 +37,7 @@
 #include "bip39_wordlist_english.h"
 #endif  //BTC_ENABLE_GEN_MNEMONIC
 #include "btc_extkey.h"
+#include "btc_block.h"
 
 
 /**************************************************************************
@@ -320,11 +321,13 @@ bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEx
     const uint8_t *p_fgr = (const uint8_t *)&pExtKey->fingerprint;
     const uint8_t *p_num = (const uint8_t *)&pExtKey->child_number;
 
-    if ((mPref[BTC_PREF_CHAIN] & 0x03) == 0) {
-        //btc_init()未実施
+    if (!btc_is_initialized()) {
+        LOGE("fail: btc not initialized\n");
         return false;
     }
-    ver = VERSION_BYTES[mPref[BTC_PREF_CHAIN] - 1][pExtKey->type];
+
+    int index = (btc_get_param()->is_test) ? 1 : 0;
+    ver = VERSION_BYTES[index][pExtKey->type];
 
     for (int lp = 0; lp < 4; lp++) {
         pData[3 - lp] = *p_ver++;           //[0- 3]version bytes
@@ -368,15 +371,19 @@ bool btc_extkey_read(btc_extkey_t *pExtKey, const uint8_t *pData, int Len)
         //printf("Not extended key.");
         return false;
     }
+    if (!btc_is_initialized()) {
+        LOGE("fail: btc not initialized\n");
+        return false;
+    }
 
     const uint8_t *p = pData;
 
     uint32_t ver = (*p << 24) | (*(p + 1) << 16) | (*(p + 2) << 8) | *(p + 3);
-    int net;
+    bool is_test = false;
     switch (ver & 0xffff0000) {
     case 0x04880000:
         //mainnet
-        net = BTC_MAINNET;
+        is_test = false;
 
         switch (ver & 0x0000ffff) {
         case 0xade4:
@@ -391,7 +398,7 @@ bool btc_extkey_read(btc_extkey_t *pExtKey, const uint8_t *pData, int Len)
         break;
     case 0x04350000:
         //testnet
-        net = BTC_TESTNET;
+        is_test = true;
 
         switch (ver & 0x0000ffff) {
         case 0x8394:
@@ -407,7 +414,7 @@ bool btc_extkey_read(btc_extkey_t *pExtKey, const uint8_t *pData, int Len)
     default:
         return false;
     }
-    if (net != mPref[BTC_PREF_CHAIN]) {
+    if (is_test != btc_get_param()->is_test) {
         return false;
     }
     p += 4;
@@ -576,17 +583,7 @@ static bool extkey_bip_prepare(btc_extkey_t *pExtKey, uint32_t Bip, uint32_t Acc
     }
 
     //depth=2は、coin_type(Chain m/4x'/coin_type')
-    uint32_t child_num;
-    switch (btc_get_chain()) {
-    case BTC_MAINNET:
-        child_num = 0;
-        break;
-    case BTC_TESTNET:
-        child_num = 1;
-        break;
-    default:
-        return false;
-    }
+    uint32_t child_num = (btc_get_param()->is_test) ? 1 : 0;
     b = btc_extkey_generate(pExtKey, BTC_EXTKEY_PRIV, 2, BTC_EXTKEY_HARDENED | child_num, pExtKey->key, NULL, 0);
     if (!b) {
         LOGE("fail: extkey depth 2\n");

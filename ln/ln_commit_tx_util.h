@@ -64,6 +64,7 @@ typedef enum {
     LN_COMMIT_TX_OUTPUT_TYPE_NONE,                              ///< 未設定
     LN_COMMIT_TX_OUTPUT_TYPE_OFFERED,                           ///< Offered HTLC
     LN_COMMIT_TX_OUTPUT_TYPE_RECEIVED,                          ///< Received HTLC
+    LN_COMMIT_TX_OUTPUT_TYPE_FEE         = UINT16_MAX - 2,      ///< vout=fee(Elements)
     LN_COMMIT_TX_OUTPUT_TYPE_TO_LOCAL    = UINT16_MAX - 1,      ///< vout=to_local
     LN_COMMIT_TX_OUTPUT_TYPE_TO_REMOTE   = UINT16_MAX,          ///< vout=to_remote
 } ln_commit_tx_output_type_t;
@@ -181,14 +182,23 @@ void HIDDEN ln_commit_tx_base_fee_calc(
  * @param[out]      pSig        local署名
  * @param[in]       pCommitTxInfoTrimmed   Commitment Transaction情報
  * @param[in]       pLocalKeys
+ * @param[in]       AmountInputs    all input amount
  * @return      true:成功
  */
 bool HIDDEN ln_commit_tx_create(
-    btc_tx_t *pTx, utl_buf_t *pSig, const ln_commit_tx_info_t *pCommitTxInfoTrimmed, const ln_derkey_local_keys_t *pLocalKeys);
+    btc_tx_t *pTx,
+    utl_buf_t *pSig,
+    const ln_commit_tx_info_t *pCommitTxInfoTrimmed,
+    const ln_derkey_local_keys_t *pLocalKeys,
+    uint64_t AmountInputs);
 
 
 bool HIDDEN ln_commit_tx_create_rs(
-    btc_tx_t *pTx, uint8_t *pSig, const ln_commit_tx_info_t *pCommitTxInfoTrimmed, const ln_derkey_local_keys_t *pLocalKeys);
+    btc_tx_t *pTx,
+    uint8_t *pSig,
+    const ln_commit_tx_info_t *pCommitTxInfoTrimmed,
+    const ln_derkey_local_keys_t *pLocalKeys,
+    uint64_t AmountInputs);
 
 
 void HIDDEN ln_commit_tx_info_sub_fee_and_trim_outputs(ln_commit_tx_info_t *pCommitTxInfo, bool ToLocalIsFounder);

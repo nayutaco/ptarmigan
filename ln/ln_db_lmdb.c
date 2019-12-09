@@ -3590,15 +3590,14 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain)
     }
 
     btc_keys_t key;
-    btc_chain_t chain;
-    if (!btc_keys_wif2keys(&key, &chain, wif)) {
+    bool is_test;
+    if (!btc_keys_wif2keys(&key, &is_test, wif)) {
         goto LABEL_EXIT;
     }
 
     btc_block_chain_t type = btc_block_get_chain(genesis);
-    if (((chain == BTC_MAINNET) && (type == BTC_BLOCK_CHAIN_BTCMAIN)) ||
-        ((chain == BTC_TESTNET) && (type == BTC_BLOCK_CHAIN_BTCTEST)) ||
-        ((chain == BTC_TESTNET) && (type == BTC_BLOCK_CHAIN_BTCREGTEST))) {
+    const btc_block_param_t *p_chain = btc_block_get_param_from_chain(type);
+    if ((p_chain != NULL) && (p_chain->is_test == is_test)) {
         //ok
     } else {
         goto LABEL_EXIT;

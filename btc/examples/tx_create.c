@@ -16,6 +16,7 @@ static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 static bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
+#if defined(USE_BITCOIN)
 /* P2WPKH(nested in BIP16 P2SH) --> P2WPKH(nested in BIP16 P2SH)
  *
  * bitcoind v0.16
@@ -79,8 +80,8 @@ int tx_create1(void)
     btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
     btc_keys_t prev_keys;
-    btc_chain_t chain;
-    btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool is_test;
+    btc_keys_wif2keys(&prev_keys, &is_test, PREV_WIF);
     bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
@@ -191,8 +192,8 @@ int tx_create2(void)
     btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
     btc_keys_t prev_keys;
-    btc_chain_t chain;
-    btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool is_test;
+    btc_keys_wif2keys(&prev_keys, &is_test, PREV_WIF);
     bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
@@ -302,8 +303,8 @@ int tx_create3(void)
     btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
     btc_keys_t prev_keys;
-    btc_chain_t chain;
-    btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool is_test;
+    btc_keys_wif2keys(&prev_keys, &is_test, PREV_WIF);
     bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
@@ -402,8 +403,8 @@ int tx_create4(void)
     btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
     btc_keys_t prev_keys;
-    btc_chain_t chain;
-    btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool is_test;
+    btc_keys_wif2keys(&prev_keys, &is_test, PREV_WIF);
     bool ret = btc_test_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
@@ -506,8 +507,8 @@ int tx_create5(void)
     btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
     btc_keys_t prev_keys;
-    btc_chain_t chain;
-    btc_keys_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool is_test;
+    btc_keys_wif2keys(&prev_keys, &is_test, PREV_WIF);
     bool ret = btc_test_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
@@ -548,15 +549,123 @@ int tx_create5(void)
     return 0;
 }
 
+#elif defined(USE_ELEMENTS)
+int tx_create_ele1(void)
+{
+    btc_init(BTC_BLOCK_CHAIN_LIQREGTEST, false);
+
+    //
+    //previous vout
+    //      P2WPKH nested in BIP16 P2SH
+    //
+
+    // 062c49302d5a56e94e2cd3e7d06d79ec84b34ab8540843f73ce862a558fb661d: vout#1
+    // {
+    //   "value": 1.99390420,
+    //   "asset": "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23",
+    //   "commitmentnonce": "",
+    //   "commitmentnonce_fully_valid": false,
+    //   "n": 1,
+    //   "scriptPubKey": {
+    //     "asm": "OP_HASH160 d9055d0f9b3fdac0f3d40b23d585d947ce9e855a OP_EQUAL",
+    //     "hex": "a914d9055d0f9b3fdac0f3d40b23d585d947ce9e855a87",
+    //     "reqSigs": 1,
+    //     "type": "scripthash",
+    //     "addresses": [
+    //       "XX8juSEjnPy8cmzY8HPvqcQG2BZPtnEoPX"
+    //     ]
+    //   }
+    // },
+
+    const char PREV_TXID_STR[] = "062c49302d5a56e94e2cd3e7d06d79ec84b34ab8540843f73ce862a558fb661d";
+    const int PREV_TXINDEX = 1;
+    const uint64_t PREV_AMOUNT = (uint64_t)199390420;
+
+    // $ e1-cli dumpprivkey XX8juSEjnPy8cmzY8HPvqcQG2BZPtnEoPX
+    const char PREV_WIF[] = "cV4h6oZwjnvnkpuDbhrptZsBNykd1ArM3fpPVvJemT1FsW4EofSS";
+
+    btc_tx_t tx = BTC_TX_INIT;
+    uint8_t PREV_TXID[BTC_SZ_TXID];
+    misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
+    btc_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+
+    //
+    //vout#0
+    //
+    {
+        const char VOUT_ADDR[] = "ert1qp62saumthukmzdl5n8zyhclcm2nzw6f39vasypzsfdhw0wxfdgxs4vcw5c";
+        const uint64_t AMOUNT = 100000;
+        btc_tx_add_vout_addr(&tx, AMOUNT, VOUT_ADDR);
+    }
+
+    //
+    //vout#1
+    //
+    {
+        const char VOUT_ADDR[] = "XX8juSEjnPy8cmzY8HPvqcQG2BZPtnEoPX";
+        const uint64_t AMOUNT = 199290070;
+        btc_tx_add_vout_addr(&tx, AMOUNT, VOUT_ADDR);
+    }
+
+    //
+    //vout#2
+    //
+    {
+        const uint64_t AMOUNT = 350;
+        btc_tx_add_vout_fee(&tx, AMOUNT);
+    }
+
+    btc_keys_t prev_keys;
+    bool is_test;
+    btc_keys_wif2keys(&prev_keys, &is_test, PREV_WIF);
+    LOGD("privkey= ");
+    DUMPD(prev_keys.priv, BTC_SZ_PRIVKEY);
+    LOGD("pubkey= ");
+    DUMPD(prev_keys.pub, BTC_SZ_PUBKEY);
+    utl_buf_t script_code = UTL_BUF_INIT;
+    btc_script_p2wpkh_create_scriptcode(&script_code, prev_keys.pub);
+    LOGD("scriptCode= ");
+    DUMPD(script_code.buf, script_code.len);
+
+    bool ret = btc_test_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    printf("ret=%d\n", ret);
+
+    btc_tx_print(&tx);
+
+    //txid: 88d9554413c9b189061049ca682021e03dcd68d418955a75482df6a3c90edcd8
+    //  raw: 0200000001011d66fb58a562e83cf7430854b84ab384ec796dd0e7d32c4ee9565a2d30492c060100000017160014bc4f5624e3a8e8e575560dee505029b69eb5ee5affffffff0301230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000186a0002200200e950ef36bbf2db137f499c44be3f8daa62769312b3b0204504b6ee7b8c96a0d01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000000000be0ecd60017a914d9055d0f9b3fdac0f3d40b23d585d947ce9e855a8701230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000000000000015e00000000000000000247304402207e5771f6654468e74c429db9b28506015bba0f8147caa0153e76f1e0299b2b02022072480dfd733755a5a49804fde7ae2a301bde4da3a7fcd3af90304cdf9a7af8e1012102a7490c7e5d569aa2c722e7df8e10569ab9e809179e7e39b2ac9ca6b25b5f73e300000000000000
+    const uint8_t TX_SIGNED[] = {0x02,0x00,0x00,0x00,0x01,0x01,0x1d,0x66,0xfb,0x58,0xa5,0x62,0xe8,0x3c,0xf7,0x43,0x08,0x54,0xb8,0x4a,0xb3,0x84,0xec,0x79,0x6d,0xd0,0xe7,0xd3,0x2c,0x4e,0xe9,0x56,0x5a,0x2d,0x30,0x49,0x2c,0x06,0x01,0x00,0x00,0x00,0x17,0x16,0x00,0x14,0xbc,0x4f,0x56,0x24,0xe3,0xa8,0xe8,0xe5,0x75,0x56,0x0d,0xee,0x50,0x50,0x29,0xb6,0x9e,0xb5,0xee,0x5a,0xff,0xff,0xff,0xff,0x03,0x01,0x23,0x0f,0x4f,0x5d,0x4b,0x7c,0x6f,0xa8,0x45,0x80,0x6e,0xe4,0xf6,0x77,0x13,0x45,0x9e,0x1b,0x69,0xe8,0xe6,0x0f,0xce,0xe2,0xe4,0x94,0x0c,0x7a,0x0d,0x5d,0xe1,0xb2,0x01,0x00,0x00,0x00,0x00,0x00,0x01,0x86,0xa0,0x00,0x22,0x00,0x20,0x0e,0x95,0x0e,0xf3,0x6b,0xbf,0x2d,0xb1,0x37,0xf4,0x99,0xc4,0x4b,0xe3,0xf8,0xda,0xa6,0x27,0x69,0x31,0x2b,0x3b,0x02,0x04,0x50,0x4b,0x6e,0xe7,0xb8,0xc9,0x6a,0x0d,0x01,0x23,0x0f,0x4f,0x5d,0x4b,0x7c,0x6f,0xa8,0x45,0x80,0x6e,0xe4,0xf6,0x77,0x13,0x45,0x9e,0x1b,0x69,0xe8,0xe6,0x0f,0xce,0xe2,0xe4,0x94,0x0c,0x7a,0x0d,0x5d,0xe1,0xb2,0x01,0x00,0x00,0x00,0x00,0x0b,0xe0,0xec,0xd6,0x00,0x17,0xa9,0x14,0xd9,0x05,0x5d,0x0f,0x9b,0x3f,0xda,0xc0,0xf3,0xd4,0x0b,0x23,0xd5,0x85,0xd9,0x47,0xce,0x9e,0x85,0x5a,0x87,0x01,0x23,0x0f,0x4f,0x5d,0x4b,0x7c,0x6f,0xa8,0x45,0x80,0x6e,0xe4,0xf6,0x77,0x13,0x45,0x9e,0x1b,0x69,0xe8,0xe6,0x0f,0xce,0xe2,0xe4,0x94,0x0c,0x7a,0x0d,0x5d,0xe1,0xb2,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x5e,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x47,0x30,0x44,0x02,0x20,0x7e,0x57,0x71,0xf6,0x65,0x44,0x68,0xe7,0x4c,0x42,0x9d,0xb9,0xb2,0x85,0x06,0x01,0x5b,0xba,0x0f,0x81,0x47,0xca,0xa0,0x15,0x3e,0x76,0xf1,0xe0,0x29,0x9b,0x2b,0x02,0x02,0x20,0x72,0x48,0x0d,0xfd,0x73,0x37,0x55,0xa5,0xa4,0x98,0x04,0xfd,0xe7,0xae,0x2a,0x30,0x1b,0xde,0x4d,0xa3,0xa7,0xfc,0xd3,0xaf,0x90,0x30,0x4c,0xdf,0x9a,0x7a,0xf8,0xe1,0x01,0x21,0x02,0xa7,0x49,0x0c,0x7e,0x5d,0x56,0x9a,0xa2,0xc7,0x22,0xe7,0xdf,0x8e,0x10,0x56,0x9a,0xb9,0xe8,0x09,0x17,0x9e,0x7e,0x39,0xb2,0xac,0x9c,0xa6,0xb2,0x5b,0x5f,0x73,0xe3,0x00,0x00,0x00,0x00,0x00,0x00,0x00,};
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_write(&tx, &txbuf);
+    DUMPD(txbuf.buf, txbuf.len);
+    if ((sizeof(TX_SIGNED) == txbuf.len) && (memcmp(TX_SIGNED, txbuf.buf, sizeof(TX_SIGNED)) == 0)) {
+        printf("OK\n");
+    } else {
+        printf("fail: signed tx not same\n");
+        assert(false);
+    }
+    utl_buf_free(&txbuf);
+    btc_tx_free(&tx);
+
+    btc_term();
+
+    return 0;
+}
+#endif
+
 int main(void)
 {
-    utl_log_init_stderr();
+    utl_log_init_stdout();
 
+#if defined(USE_BITCOIN)
     tx_create1();
     tx_create2();
     tx_create3();
     tx_create4();
     tx_create5();
+#elif defined(USE_ELEMENTS)
+    tx_create_ele1();
+#endif
 
     return 0;
 }

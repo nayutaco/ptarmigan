@@ -776,20 +776,12 @@ static cJSON *cmd_decodeinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     result = cJSON_CreateObject();
 
-    const char *chain;
-    switch (p_invoice_data->hrp_type) {
-    case LN_INVOICE_MAINNET:
-        chain = "bitcoin mainnet";
-        break;
-    case LN_INVOICE_TESTNET:
-        chain = "bitcoin testnet";
-        break;
-    case LN_INVOICE_REGTEST:
-        chain = "bitcoin regtest";
-        break;
-    default:
-        chain = "unknown";
+    const btc_block_param_t *p_param = btc_block_get_param_from_hrptype(p_invoice_data->hrp_type);
+    if (p_param == NULL) {
+        LOGE("fail: hrp type not found: %d\n", p_invoice_data->hrp_type);
+        goto LABEL_EXIT;
     }
+    const char *chain = p_param->chain_name;
     cJSON_AddItemToObject(result, "chain", cJSON_CreateString(chain));
 
     //amount_msat
@@ -2030,6 +2022,7 @@ static int cmd_invoice_proc(
 
     LOGD("invoice\n");
 
+    int retcode = 0;
     ln_db_preimage_t preimage;
     btc_rng_rand(preimage.preimage, LN_SZ_PREIMAGE);
     preimage.amount_msat = AmountMsat;
@@ -2052,9 +2045,14 @@ static int cmd_invoice_proc(
                         MinFinalCltvExpiry);
     UTL_DBG_FREE(p_r_field);
 
-    ln_db_preimage_save(&preimage, *ppInvoice, NULL);
+    if (*ppInvoice != NULL) {
+        ln_db_preimage_save(&preimage, *ppInvoice, NULL);
+    } else {
+        LOGE("fail: create_bolt11\n");
+        retcode = RPCERR_INVOICE_FAIL;
+    }
 
-    return 0;
+    return retcode;
 }
 
 
@@ -2431,25 +2429,11 @@ static char *create_bolt11(
                 uint8_t RFieldNum,
                 uint32_t MinFinalCltvExpiry)
 {
-    uint8_t type;
-    btc_block_chain_t gtype = btc_block_get_chain(ln_genesishash_get());
-    switch (gtype) {
-    case BTC_BLOCK_CHAIN_BTCMAIN:
-        type = LN_INVOICE_MAINNET;
-        break;
-    case BTC_BLOCK_CHAIN_BTCTEST:
-        type = LN_INVOICE_TESTNET;
-        break;
-    case BTC_BLOCK_CHAIN_BTCREGTEST:
-        type = LN_INVOICE_REGTEST;
-        break;
-    default:
-        type = BTC_BLOCK_CHAIN_UNKNOWN;
-        break;
-    }
     char *p_invoice = NULL;
-    if (type != BTC_BLOCK_CHAIN_UNKNOWN) {
-        ln_invoice_create(&p_invoice, type,
+    const btc_block_param_t *p_chain = btc_get_param();
+    if (p_chain != NULL) {
+        ln_invoice_create(&p_invoice,
+                p_chain->invoice_hrp_type,
                 pPaymentHash, Amount, Expiry, pDesc,
                 pRField, RFieldNum, MinFinalCltvExpiry);
     }
@@ -2593,7 +2577,7 @@ static char *error_str_cjson(int errCode)
 }
 
 
-int payment_error_to_rpc_error(ln_payment_error_t PayErr)
+static int payment_error_to_rpc_error(ln_payment_error_t PayErr)
 {
     switch (PayErr) {
     case LN_PAYMENT_OK: return 0;

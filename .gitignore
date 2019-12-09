@@ -37,3 +37,4 @@ ptarm_node_*.conf
 *.swo
 *.swn
 .exrc
+core

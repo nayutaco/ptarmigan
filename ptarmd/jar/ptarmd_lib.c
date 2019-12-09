@@ -68,9 +68,7 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
 
     utl_log_init();
 
-    btc_chain_t chain;
-    chain = BTC_BLOCK_CHAIN_BTCTEST;
-    bret = btc_init(chain, true);
+    bret = btc_init(BTC_BLOCK_CHAIN_BTCTEST, true);
     if (!bret) {
         fprintf(stderr, "fail: btc_init()\n");
         return -1;

@@ -20,6 +20,7 @@ extern "C" {
 #include "../../utl/utl_net.c"
 #undef LOG_TAG
 #include "../../btc/btc.c"
+#include "../../btc/btc_block.c"
 #include "../../btc/btc_buf.c"
 // #include "../../btc/btc_extkey.c"
 #include "../../btc/btc_keys.c"

@@ -707,7 +707,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1430,7 +1430,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -2152,7 +2152,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -2813,7 +2813,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -3474,7 +3474,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -4071,7 +4071,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -4668,7 +4668,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -5204,7 +5204,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -5740,7 +5740,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -6215,7 +6215,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -6691,7 +6691,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -6989,7 +6989,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -7289,7 +7289,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 
@@ -7582,7 +7582,7 @@ TEST_F(ln_bolt3_c, committx_commit)
 
     ln_commit_tx_info_sub_fee_and_trim_outputs(&commit_tx, true);
     commit_tx.num_htlc_outputs = ln_commit_tx_info_get_num_htlc_outputs(&commit_tx);
-    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys);
+    ret = ln_commit_tx_create(&tx, &buf_sig_local, &commit_tx, &local_keys, 0);
     ASSERT_TRUE(ret);
 
 

@@ -371,14 +371,17 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
     bool vout_local = (LN_MSAT2SATOSHI(pChannel->commit_info_local.local_msat) > fee_local + BTC_DUST_LIMIT);
     bool vout_remote = (LN_MSAT2SATOSHI(pChannel->commit_info_local.remote_msat) > fee_remote + BTC_DUST_LIMIT);
 
+    uint64_t amount_outputs = 0;
     if (vout_local) {
         vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_info_local.local_msat) - fee_local);
         utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_local.buf, pChannel->shutdown_scriptpk_local.len);
+        amount_outputs += vout->value;
     }
     //vout#1 - remote
     if (vout_remote) {
         vout = btc_tx_add_vout(pTx, LN_MSAT2SATOSHI(pChannel->commit_info_local.remote_msat) - fee_remote);
         utl_buf_alloccopy(&vout->script, pChannel->shutdown_scriptpk_remote.buf, pChannel->shutdown_scriptpk_remote.len);
+        amount_outputs += vout->value;
     }
 
     //vin
@@ -386,6 +389,15 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
 
     //BIP69
     btc_tx_sort_bip69(pTx);
+
+#ifdef USE_ELEMENTS
+    if (FeeSat > 0) {
+        if (!btc_tx_add_vout_fee(pTx, pChannel->funding_info.funding_satoshis - amount_outputs)) return false;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_COMMIT_TX_OUTPUT_TYPE_FEE;
+    } else {
+        LOGE("THROUGH: no fee value(bug?)\n");
+    }
+#endif
 
     //sign
     uint8_t sighash[BTC_SZ_HASH256];
@@ -399,6 +411,9 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
         btc_tx_free(pTx);
         return false;
     }
+
+    LOGD("+++++++++++++ closing_tx[%016" PRIx64 "]\n", pChannel->short_channel_id);
+    M_DBG_PRINT_TX(pTx);
 
     //set vin[0]
     if (bVerify) {
@@ -416,9 +431,6 @@ static bool create_closing_tx(ln_channel_t *pChannel, btc_tx_t *pTx, uint64_t Fe
     } else {
         LOGD("no verify\n");
     }
-
-    LOGD("+++++++++++++ closing_tx[%016" PRIx64 "]\n", pChannel->short_channel_id);
-    M_DBG_PRINT_TX(pTx);
 
     //LOGD("END ret=%d\n", ret);
     //return ret;
