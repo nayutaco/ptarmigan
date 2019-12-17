@@ -525,7 +525,7 @@ TEST_F(ln, ln_init_recv_odd_lfeature2)
 }
 
 
-TEST_F(ln, ln_init_recv_even_lfeature_req_no)
+TEST_F(ln, ln_init_recv_even_lfeature_req_no2)
 {
     ln_channel_t channel;
     LnInit(&channel);
@@ -566,7 +566,46 @@ TEST_F(ln, ln_init_recv_even_lfeature_req_no)
     }
 }
 
-TEST_F(ln, ln_init_recv_even_lfeature_req_ok)
+TEST_F(ln, ln_init_recv_even_lfeature_req_no3)
+{
+    ln_channel_t channel;
+    LnInit(&channel);
+    
+    const int LEN = 10;
+    uint8_t lfeature[LEN];
+    static const uint8_t *pLFeature = lfeature;
+    class dummy {
+    public:
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            (void)pData; (void)Len;
+            pMsg->gflen = 0;
+            pMsg->p_globalfeatures = NULL;
+            pMsg->lflen = LEN;
+            pMsg->p_localfeatures = pLFeature;
+            return true;
+        }
+    };
+    ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read; 
+
+    for (size_t lp = 0; lp < LEN; lp++) {
+        const uint8_t MASK[] = { 0x01, 0x04, 0x10, 0x40 };
+        for (size_t lp2 = 0; lp2 < sizeof(MASK); lp2++) {
+            memset(lfeature, 0x00, sizeof(lfeature));
+            if ((lp == LEN - 1) && ((lp2 == 0) || (lp2 == 1))) {
+                continue;
+            }
+            lfeature[lp] = MASK[lp2];
+            channel.init_flag = 0;
+            channel.lfeature_remote = 0;
+            DumpBin(lfeature, sizeof(lfeature));
+            ASSERT_FALSE(ln_init_recv(&channel, NULL, 0));
+            ASSERT_EQ(0, channel.lfeature_remote);
+        }
+    }
+
+}
+
+TEST_F(ln, ln_init_recv_even_lfeature_req_ok2)
 {
     ln_channel_t channel;
     LnInit(&channel);
@@ -605,6 +644,42 @@ TEST_F(ln, ln_init_recv_even_lfeature_req_ok)
         ASSERT_TRUE(ln_init_recv(&channel, NULL, 0));
         ASSERT_EQ(pLFeature[0], channel.lfeature_remote>>8);
         ASSERT_EQ(pLFeature[1], channel.lfeature_remote & 0xff);
+    }
+}
+
+TEST_F(ln, ln_init_recv_even_lfeature_ok10)
+{
+    ln_channel_t channel;
+    LnInit(&channel);
+    
+    const int LEN = 10;
+    static uint8_t lfeature[LEN] = {0};
+    static const uint8_t *pLFeature = lfeature;
+    class dummy {
+    public:
+        static bool ln_msg_init_read(ln_msg_init_t *pMsg, const uint8_t *pData, uint16_t Len) {
+            (void)pData; (void)Len;
+            pMsg->gflen = 0;
+            pMsg->p_globalfeatures = NULL;
+            pMsg->lflen = LEN;
+            pMsg->p_localfeatures = pLFeature;
+            return true;
+        }
+    };
+    ln_msg_init_read_fake.custom_fake = dummy::ln_msg_init_read; 
+
+    for (size_t lp = 0; lp < LEN; lp++) {
+        const uint8_t MASK[] = { 0x02, 0x08, 0x20, 0x80 };
+        for (size_t lp2 = 0; lp2 < sizeof(MASK); lp2++) {
+            memset(lfeature, 0, LEN);
+            lfeature[lp] = MASK[lp2];
+            channel.init_flag = 0;
+            channel.lfeature_remote = 0;
+            DumpBin(lfeature, sizeof(lfeature));
+            ASSERT_TRUE(ln_init_recv(&channel, NULL, 0));
+            ASSERT_EQ(lfeature[sizeof(lfeature) - 2], channel.lfeature_remote >> 8);
+            ASSERT_EQ(lfeature[sizeof(lfeature) - 1], channel.lfeature_remote & 0xff);
+        }
     }
 }
 
