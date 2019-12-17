@@ -290,6 +290,7 @@ bool HIDDEN ln_open_channel_recv(ln_channel_t *pChannel, const uint8_t *pData, u
     pChannel->funding_info.state = (ln_funding_state_t)(
         ((msg.channel_flags & 1) ? LN_FUNDING_STATE_STATE_NO_ANNO_CH : 0) |
         LN_FUNDING_STATE_STATE_FUNDING);
+    pChannel->keys_static_remotekey = pChannel->init_flag & M_INIT_FLAG_STATIC_REMOTEKEY;
 
     //generate keys
     ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote, pChannel->keys_static_remotekey);
@@ -410,6 +411,8 @@ bool HIDDEN ln_accept_channel_recv(ln_channel_t *pChannel, const uint8_t *pData,
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(pChannel->keys_remote.prev_per_commitment_point, pChannel->keys_remote.per_commitment_point, BTC_SZ_PUBKEY);
 
+    pChannel->keys_static_remotekey = pChannel->init_flag & M_INIT_FLAG_STATIC_REMOTEKEY;
+
     //generate keys
     ln_derkey_update_script_pubkeys(&pChannel->keys_local, &pChannel->keys_remote, pChannel->keys_static_remotekey);
     ln_print_keys(pChannel);
@@ -483,6 +486,7 @@ bool HIDDEN ln_funding_created_recv(ln_channel_t *pChannel, const uint8_t *pData
         return false;
     }
 
+    pChannel->keys_static_remotekey = pChannel->init_flag & M_INIT_FLAG_STATIC_REMOTEKEY;
     pChannel->funding_info.txindex = msg.funding_output_index;
 
     //署名チェック用
