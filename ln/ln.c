@@ -273,6 +273,7 @@ bool ln_init(
 
     //seed
     ln_derkey_init(&pChannel->keys_local, &pChannel->keys_remote);
+    pChannel->keys_static_remotekey = false;
 
     pChannel->commit_info_local.commit_num = 0;
     pChannel->commit_info_remote.commit_num = 0;

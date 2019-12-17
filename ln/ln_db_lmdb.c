@@ -338,6 +338,7 @@ static const fixed_item_t DBCHANNEL_VALUES[] = {
     MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, storage),                   //[KEYS_02]
     MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, per_commitment_point),      //[KEYS_02]
     MM_ITEM(ln_channel_t, keys_remote, ln_derkey_remote_keys_t, prev_per_commitment_point), //[KEYS_02]
+    M_ITEM(ln_channel_t, keys_static_remotekey), //[KEYS_03]
 
     //
     //fund
@@ -595,6 +596,7 @@ static int lmdb_compaction(const init_param_t  *p_param);
 
 static bool auto_update_68_to_69(void);
 static bool auto_update_69_to_70(void);
+static bool auto_update_70_to_71(void);
 
 #ifndef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *pEnv, MDB_txn *pParent, unsigned int Flags, MDB_txn **ppTxn, int Line) {
@@ -962,6 +964,9 @@ void ln_db_term(void)
  * channel
  ********************************************************************/
 
+/**
+ * see ln_init() for initialize pChannel.
+ */
 int ln_lmdb_channel_load(ln_channel_t *pChannel, MDB_txn *pTxn, MDB_dbi Dbi, bool bRestore)
 {
     int             retval;
@@ -5933,6 +5938,12 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
                     *pVer = -70;
                 }
             }
+            if ((*pVer == -70) && (LN_DB_VERSION <= -71)) {
+                auto_update &= auto_update_70_to_71();
+                if (auto_update) {
+                    *pVer = -71;
+                }
+            }
         }
         if (!auto_update) {
             fprintf(stderr, "FAIL\n\n");
@@ -6929,3 +6940,14 @@ static bool auto_update_69_to_70(void)
     return !have_wallet;
 }
 #endif
+
+
+/** auto update: -70 ==> -71
+ *
+    -71: add `ln_channel_t::keys_static_remotekey`
+ */
+static bool auto_update_70_to_71(void)
+{
+    LOGD("\n");
+    return true;
+}

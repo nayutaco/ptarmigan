@@ -396,6 +396,7 @@ struct ln_channel_t {
     //key storage
     ln_derkey_local_keys_t      keys_local;                     ///< [KEYS_01]local keys
     ln_derkey_remote_keys_t     keys_remote;                    ///< [KEYS_02]remote keys
+    bool                        keys_static_remotekey;          ///< [KEYS_03]static_remotekey
 
     //funding
     ln_funding_info_t           funding_info;                   ///< [FUND_01]funding info

@@ -311,6 +311,7 @@ static void ln_print_channel(const ln_channel_t *pChannel)
     }
     printf("\n");
     printf(INDENT3 "},\n");
+    printf(INDENT3 M_QQ("static_remotekey") ": %s,\n", (pChannel->keys_static_remotekey) ? "true" : "false");
     printf(INDENT3 M_QQ("obscured_commit_num_mask") ": " M_QQ("0x%016" PRIx64) ",\n", pChannel->commit_info_local.obscured_commit_num_mask);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
     // utl_dbg_dump(stdout, pChannel->funding_info.wit_script.buf, pChannel->funding_info.wit_script.len, false);
