@@ -4548,7 +4548,7 @@ static int channel_secret_load(ln_channel_t *pChannel, ln_lmdb_db_t *pDb)
 
 static int channel_secret_restore(ln_channel_t *pChannel)
 {
-    if (!ln_derkey_restore(&pChannel->keys_local, &pChannel->keys_remote)) {
+    if (!ln_derkey_restore(&pChannel->keys_local, &pChannel->keys_remote, pChannel->keys_static_remotekey)) {
         LOGE("ERR\n");
         return -1;
     }

@@ -716,7 +716,7 @@ bool ln_close_create_unilateral_tx(ln_channel_t *pChannel, ln_close_force_t *pCl
         keys_remote_work.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_derkey_update_script_pubkeys(&keys_local_work, &keys_remote_work);
+    ln_derkey_update_script_pubkeys(&keys_local_work, &keys_remote_work, pChannel->keys_static_remotekey);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + pChannel->commit_info_local.num_htlc_outputs);
@@ -770,7 +770,7 @@ bool ln_close_create_tx(ln_channel_t *pChannel, ln_close_force_t *pClose)
         keys_remote_work.prev_per_commitment_point, BTC_SZ_PUBKEY);
 
     //update keys
-    ln_derkey_update_script_pubkeys(&keys_local_work, &keys_remote_work);
+    ln_derkey_update_script_pubkeys(&keys_local_work, &keys_remote_work, pChannel->keys_static_remotekey);
     ln_print_keys_2(&pChannel->funding_info, &keys_local_work, &keys_remote_work);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
@@ -863,7 +863,7 @@ bool ln_close_remote_revoked(ln_channel_t *pChannel, const btc_tx_t *pRevokedTx,
     ln_derkey_local_storage_update_per_commitment_point_force(&keys_local_work, (uint64_t)(LN_SECRET_INDEX_INIT - commit_num));
 
     //鍵の復元
-    ln_derkey_update_script_pubkeys(&keys_local_work, &keys_remote_work);
+    ln_derkey_update_script_pubkeys(&keys_local_work, &keys_remote_work, pChannel->keys_static_remotekey);
     ln_print_keys_2(&pChannel->funding_info, &keys_local_work, &keys_remote_work);
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。

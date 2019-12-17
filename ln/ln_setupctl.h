@@ -37,21 +37,21 @@
  ********************************************************************/
 
 // ln_channel_t.init_flag //XXX:
-#define M_INIT_FLAG_SEND                    (0x01)
-#define M_INIT_FLAG_RECV                    (0x02)
+#define M_INIT_FLAG_SEND                    (0x0001)
+#define M_INIT_FLAG_RECV                    (0x0002)
 #define M_INIT_FLAG_EXCG                    (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)
 #define M_INIT_FLAG_EXCHNAGED(flag)         (((flag) & M_INIT_FLAG_EXCG) == M_INIT_FLAG_EXCG)
-#define M_INIT_FLAG_REEST_SEND              (0x04)
-#define M_INIT_FLAG_REEST_RECV              (0x08)
+#define M_INIT_FLAG_REEST_SEND              (0x0004)
+#define M_INIT_FLAG_REEST_RECV              (0x0008)
 #define M_INIT_FLAG_REEST_EXCG              (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV)
 #define M_INIT_FLAG_REEST_EXCHNAGED(flag)   (((flag) & M_INIT_FLAG_REEST_EXCG) == M_INIT_FLAG_REEST_EXCG)
-#define M_INIT_ANNOSIG_SENT                 (0x10)          ///< announcement_signatures送信/再送済み
-#define M_INIT_GOSSIP_QUERY                 (0x20)          ///< gossip_queries
-#define M_INIT_FLAG_FLOCK_SEND              (0x40)
-#define M_INIT_FLAG_FLOCK_RECV              (0x80)
+#define M_INIT_ANNOSIG_SENT                 (0x0010)          ///< announcement_signatures送信/再送済み
+#define M_INIT_GOSSIP_QUERY                 (0x0020)          ///< gossip_queries
+#define M_INIT_FLAG_FLOCK_SEND              (0x0040)
+#define M_INIT_FLAG_FLOCK_RECV              (0x0080)
 #define M_INIT_FLAG_FLOCK_EXCG              (M_INIT_FLAG_FLOCK_SEND | M_INIT_FLAG_FLOCK_RECV)
 #define M_INIT_FLAG_FLOCK_EXCHNAGED(flag)   (((flag) & M_INIT_FLAG_FLOCK_EXCG) == M_INIT_FLAG_FLOCK_EXCG)
-
+#define M_INIT_FLAG_STATIC_REMOTEKEY        (0x0100)
 
 #define M_SET_ERR(pChannel, err, fmt,...) { \
         ln_error_set(pChannel, err, fmt, ##__VA_ARGS__); \
