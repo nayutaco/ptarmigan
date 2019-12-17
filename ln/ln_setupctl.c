@@ -178,7 +178,7 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
     }
     if (msg.lflen > 2) {
         for (int lp = 0; lp < msg.lflen - 2; lp++) {
-            if (msg.p_localfeatures[msg.lflen - lp] && 0x55) {
+            if (msg.p_localfeatures[lp] & 0x55) { //even bits
                 LOGE("fail: Ptarmigan not support\n");
                 goto LABEL_EXIT;
             }
