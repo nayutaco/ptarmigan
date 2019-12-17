@@ -49,6 +49,9 @@
  **************************************************************************/
 
 static bool btc_tx_write_2(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
+#ifdef USE_ELEMENTS
+static bool read_elements_vout_value(btc_buf_r_t *pTxBuf, uint8_t *pVersion, uint64_t *pValue, uint8_t *pCommitValue);
+#endif
 
 
 /**************************************************************************
@@ -554,81 +557,197 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     //      surjectionProof
     //      rangeProof
 
-    if (!btc_tx_buf_r_read_byte(&txbuf, &flag)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_byte(&txbuf, &flag)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
     segwit = flag & 0x01;
     LOGD("segwit=%d\n", segwit);
 
     //txin count
-    if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-    if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+        LOGE("fail: read vin_cnt\n");
+        goto LABEL_EXIT;
+    }
+    if (tmp_u64 > UINT32_MAX) {
+        LOGE("fail: too many vin_cnt\n");
+        goto LABEL_EXIT;
+    }
     pTx->vin_cnt = (uint32_t)tmp_u64;
     //XXX: if (pTx->vin_cnt == 0) goto LABEL_EXIT;
 
     //XXX:
     pTx->vin = (btc_vin_t *)UTL_DBG_MALLOC(sizeof(btc_vin_t) * pTx->vin_cnt);
-    if (!pTx->vin) goto LABEL_EXIT;
+    if (!pTx->vin) {
+        LOGE("fail: vin_cnt==0\n");
+        goto LABEL_EXIT;
+    }
     memset(pTx->vin, 0x00, sizeof(btc_vin_t) * pTx->vin_cnt);
+    //LOGD("vin_cnt=%d\n", (int)pTx->vin_cnt);
 
     //txin
     for (i = 0; i < pTx->vin_cnt; i++) {
         btc_vin_t *vin = &(pTx->vin[i]);
 
         //txid
-        if (!btc_tx_buf_r_read(&txbuf, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read(&txbuf, vin->txid, BTC_SZ_TXID)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
 
         //index
-        if (!btc_tx_buf_r_read_u32le(&txbuf, &vin->index)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_u32le(&txbuf, &vin->index)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
         vin->issuance = !!(vin->index & BTC_TX_ELE_IDX_ISSUANCE);
         vin->pegin = !!(vin->index & BTC_TX_ELE_IDX_PEGIN);
         vin->index &= 0x3fffffff;
 
         //scriptSig
-        if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-        if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-        if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
-        if (!utl_buf_alloccopy(&vin->script, btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
-        if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (tmp_u64 > UINT32_MAX) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (!utl_buf_alloccopy(&vin->script, btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
 
         //sequence
-        if (!btc_tx_buf_r_read_u32le(&txbuf, &vin->sequence)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_u32le(&txbuf, &vin->sequence)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+
+        if (vin->issuance) {
+            uint8_t asset_blinding_nonce[32];
+            uint8_t asset_entropy[32];
+            uint64_t asset_amount;
+            uint64_t token_amount;
+            btc_tx_buf_r_read(&txbuf, asset_blinding_nonce, 32);
+            btc_tx_buf_r_read(&txbuf, asset_entropy, 32);
+            uint8_t version;
+            read_elements_vout_value(&txbuf, &version, &asset_amount, NULL);
+            read_elements_vout_value(&txbuf, &version, &token_amount, NULL);
+        }
     }
 
     //txout count
-    if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-    if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
+    if (tmp_u64 > UINT32_MAX) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
     pTx->vout_cnt = (uint32_t)tmp_u64;
     //XXX: if (pTx->vout_cnt == 0) goto LABEL_EXIT;
+    //LOGD("vout_cnt=%d\n", (int)pTx->vout_cnt);
 
     //XXX:
     pTx->vout = (btc_vout_t *)UTL_DBG_MALLOC(sizeof(btc_vout_t) * pTx->vout_cnt);
-    if (!pTx->vout) goto LABEL_EXIT;
+    if (!pTx->vout) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
     memset(pTx->vout, 0x00, sizeof(btc_vout_t) * pTx->vout_cnt);
 
     //txout
     for (i = 0; i < pTx->vout_cnt; i++) {
         btc_vout_t *vout = &(pTx->vout[i]);
+        uint8_t dummy[BTC_TX_ELE_VOUT_EXPLICIT_SIZE];
         uint8_t version;
 
         //asset
-        if (!btc_tx_buf_r_read_byte(&txbuf, &version)) goto LABEL_EXIT;
-        if (version != BTC_TX_ELE_VOUT_VER_EXPLICIT) goto LABEL_EXIT;
-        if (!btc_tx_buf_r_read(&txbuf, vout->asset, BTC_SZ_HASH256)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_byte(&txbuf, &version)) {
+            LOGE("fail: version\n");
+            goto LABEL_EXIT;
+        }
+        switch (version) {
+        case BTC_TX_ELE_VOUT_VER_NULL:
+            break;
+        case BTC_TX_ELE_VOUT_VER_EXPLICIT:
+            if (!btc_tx_buf_r_read(&txbuf, vout->asset, BTC_SZ_HASH256)) {
+                LOGE("fail: asset\n");
+                goto LABEL_EXIT;
+            }
+            break;
+        case BTC_TX_ELE_VOUT_VER_ASSET_PFA:
+        case BTC_TX_ELE_VOUT_VER_ASSET_PFB:
+            if (!btc_tx_buf_r_read(&txbuf, dummy, BTC_TX_ELE_VOUT_EXPLICIT_SIZE)) {
+                LOGE("fail: confidential asset\n");
+                goto LABEL_EXIT;
+            }
+            break;
+        default:
+            LOGE("fail: version=%02x\n", version);
+            goto LABEL_EXIT;
+        }
+        vout->ver_asset = version;
 
         //value
-        if (!btc_tx_buf_r_read_byte(&txbuf, &version)) goto LABEL_EXIT;
-        if (version != BTC_TX_ELE_VOUT_VER_EXPLICIT) goto LABEL_EXIT;
-        if (!btc_tx_buf_r_read_u64be(&txbuf, &vout->value)) goto LABEL_EXIT;
+        if (!read_elements_vout_value(&txbuf, &vout->ver_value, &vout->value, dummy)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
 
         //nonce
-        if (!btc_tx_buf_r_read_byte(&txbuf, &version)) goto LABEL_EXIT;
-        if (version != BTC_TX_ELE_VOUT_VER_NULL) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_byte(&txbuf, &version)) {
+            LOGE("fail: version\n");
+            goto LABEL_EXIT;
+        }
+        switch (version) {
+        case BTC_TX_ELE_VOUT_VER_NULL:
+            break;
+        case BTC_TX_ELE_VOUT_VER_EXPLICIT:
+        case BTC_TX_ELE_VOUT_VER_NONCE_PFA:
+        case BTC_TX_ELE_VOUT_VER_NONCE_PFB:
+            if (!btc_tx_buf_r_read(&txbuf, dummy, BTC_TX_ELE_VOUT_EXPLICIT_SIZE)) {
+                LOGE("fail: nonce\n");
+                goto LABEL_EXIT;
+            }
+            break;
+        default:
+            LOGE("fail: version=%02x\n", version);
+            goto LABEL_EXIT;
+        }
+        vout->ver_nonce = version;
 
         //scriptPubKey
-        if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-        if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-        if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
-        if (!utl_buf_alloccopy(&vout->script, btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
-        if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (tmp_u64 > UINT32_MAX) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (!utl_buf_alloccopy(&vout->script, btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
+        if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) {
+            LOGE("fail\n");
+            goto LABEL_EXIT;
+        }
 
         if (vout->value > 0) {
             //address or fee or burn
@@ -646,45 +765,105 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     }
 
     //locktime
-    if (!btc_tx_buf_r_read_u32le(&txbuf, &pTx->locktime)) goto LABEL_EXIT;
+    if (!btc_tx_buf_r_read_u32le(&txbuf, &pTx->locktime)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
 
     //witness
     if (segwit) {
         //vinsegwit
         for (i = 0; i < pTx->vin_cnt; i++) {
             //issuanceAmountRangeProof
-            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-            if (tmp_u64 != 0) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (tmp_u64 != 0) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
             //inflationKeyRangeProof
-            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-            if (tmp_u64 != 0) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (tmp_u64 != 0) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
             //witnessScripts
-            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-            if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-            if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (tmp_u64 > UINT32_MAX) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
             pTx->vin[i].wit_item_cnt = (uint32_t)tmp_u64;
             pTx->vin[i].witness = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pTx->vin[i].wit_item_cnt);
-            if (!pTx->vin[i].witness) goto LABEL_EXIT;
+            if (!pTx->vin[i].witness) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
             memset(pTx->vin[i].witness, 0x00, sizeof(utl_buf_t) * pTx->vin[i].wit_item_cnt);
             for (uint32_t lp = 0; lp < pTx->vin[i].wit_item_cnt; lp++) {
-                if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-                if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
-                if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
-                if (!utl_buf_alloccopy(&pTx->vin[i].witness[lp], btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
-                if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+                if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                    LOGE("fail\n");
+                    goto LABEL_EXIT;
+                }
+                if (tmp_u64 > UINT32_MAX) {
+                    LOGE("fail\n");
+                    goto LABEL_EXIT;
+                }
+                if (tmp_u64 > btc_tx_buf_r_remains(&txbuf)) {
+                    LOGE("fail\n");
+                    goto LABEL_EXIT;
+                }
+                if (!utl_buf_alloccopy(&pTx->vin[i].witness[lp], btc_tx_buf_r_get_pos(&txbuf), (uint32_t)tmp_u64)) {
+                    LOGE("fail\n");
+                    goto LABEL_EXIT;
+                }
+                if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) {
+                    LOGE("fail\n");
+                    goto LABEL_EXIT;
+                }
             }
             //pegInWitness
-            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-            if (tmp_u64 != 0) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
         }
         //voutsegwit
         for (i = 0; i < pTx->vout_cnt; i++) {
             //surjectionProof
-            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-            if (tmp_u64 != 0) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
             //rangeProof
-            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
-            if (tmp_u64 != 0) goto LABEL_EXIT;
+            if (!btc_tx_buf_r_read_varint(&txbuf, &tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
+            if (!btc_tx_buf_r_seek(&txbuf, (uint32_t)tmp_u64)) {
+                LOGE("fail\n");
+                goto LABEL_EXIT;
+            }
         }
     }
 #else
@@ -692,12 +871,16 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 #endif
 
     //check the end of the data
-    if (btc_tx_buf_r_remains(&txbuf)) goto LABEL_EXIT;
+    if (btc_tx_buf_r_remains(&txbuf)) {
+        LOGE("fail\n");
+        goto LABEL_EXIT;
+    }
 
     ret = true;
 
 LABEL_EXIT:
     if (!ret) {
+        LOGE("fail: read_tx\n");
         btc_tx_free(pTx);
     }
     return ret;
@@ -1037,7 +1220,11 @@ void btc_tx_print(const btc_tx_t *pTx)
     LOGD2(" txout_cnt= %u\n", pTx->vout_cnt);
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         LOGD2(" [vout #%u]\n", lp);
-#ifdef USE_ELEMENTS
+#if defined(USE_BITCOIN)
+        LOGD2("  value= %llu (%-.8lf " BTC_UNIT ")\n", (unsigned long long)pTx->vout[lp].value, BTC_SATOSHI2BTC(pTx->vout[lp].value));
+        //DUMPD(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
+        //LOGD2("    %10.5f m" BTC_UNIT ", %10.8f " BTC_UNIT "\n", BTC_SATOSHI2MBTC(pTx->vout[lp].value), BTC_SATOSHI2BTC(pTx->vout[lp].value));
+#elif defined(USE_ELEMENTS)
         const char *p_type_str;
         switch (pTx->vout[lp].type) {
         case BTC_TX_ELE_VOUT_ADDR:
@@ -1056,12 +1243,34 @@ void btc_tx_print(const btc_tx_t *pTx)
             p_type_str = "unknown";
         }
         LOGD2("  type=%s\n", p_type_str);
-        LOGD2("  asset=");
-        DUMPD(pTx->vout[lp].asset, BTC_SZ_HASH256);
+        LOGD2("  asset(version=0x%02x)=", pTx->vout[lp].ver_asset);
+        if (pTx->vout[lp].ver_asset == BTC_TX_ELE_VOUT_VER_EXPLICIT) {
+            DUMPD(pTx->vout[lp].asset, BTC_SZ_HASH256);
+        } else {
+            LOGD2("<confidential>\n");
+        }
+
+        LOGD2("  value(version=0x%02x)=", pTx->vout[lp].ver_value);
+        if (pTx->vout[lp].ver_value == BTC_TX_ELE_VOUT_VER_EXPLICIT) {
+            LOGD2("%llu (%-.8lf " BTC_UNIT ")\n",
+                    (unsigned long long)pTx->vout[lp].value,
+                    BTC_SATOSHI2BTC(pTx->vout[lp].value));
+        } else {
+            LOGD2("<confidential>\n");
+        }
+
+        LOGD2("  nonce(version=0x%02x)=", pTx->vout[lp].ver_nonce);
+        switch (pTx->vout[lp].ver_nonce) {
+        case BTC_TX_ELE_VOUT_VER_NULL:
+            LOGD2("<NULL>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_EXPLICIT:
+            LOGD2("...\n");
+            break;
+        default:
+            LOGD2("<confidential>\n");
+        }
 #endif
-        LOGD2("  value= %llu (%-.8lf " BTC_UNIT ")\n", (unsigned long long)pTx->vout[lp].value, BTC_SATOSHI2BTC(pTx->vout[lp].value));
-        //DUMPD(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
-        //LOGD2("    %10.5f m" BTC_UNIT ", %10.8f " BTC_UNIT "\n", BTC_SATOSHI2MBTC(pTx->vout[lp].value), BTC_SATOSHI2BTC(pTx->vout[lp].value));
         utl_buf_t *buf = &(pTx->vout[lp].script);
         LOGD2("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
@@ -1289,3 +1498,45 @@ LABEL_EXIT:
  * private functions
  **************************************************************************/
 
+#ifdef USE_ELEMENTS
+static bool read_elements_vout_value(btc_buf_r_t *pTxBuf, uint8_t *pVersion, uint64_t *pValue, uint8_t *pCommitValue)
+{
+    uint8_t version;
+
+    if (!btc_tx_buf_r_read_byte(pTxBuf, &version)) {
+        LOGE("fail: version\n");
+        return false;
+    }
+    switch (version) {
+    case BTC_TX_ELE_VOUT_VER_NULL:
+        break;
+    case BTC_TX_ELE_VOUT_VER_EXPLICIT:
+        if (pValue == NULL) {
+            return false;
+        }
+        if (!btc_tx_buf_r_read_u64be(pTxBuf, pValue)) {
+            LOGE("fail: value\n");
+            return false;
+        }
+        break;
+    case BTC_TX_ELE_VOUT_VER_VALUE_PFA:
+    case BTC_TX_ELE_VOUT_VER_VALUE_PFB:
+        if (pCommitValue == NULL) {
+            return false;
+        }
+        if (!btc_tx_buf_r_read(pTxBuf, pCommitValue, BTC_TX_ELE_VOUT_EXPLICIT_SIZE)) {
+            LOGE("fail: confidential value\n");
+            return false;
+        }
+        break;
+    default:
+        LOGE("fail: version=%02x\n", version);
+        return false;
+    }
+    if (pVersion != NULL) {
+        *pVersion = version;
+    }
+
+    return true;
+}
+#endif

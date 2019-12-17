@@ -56,6 +56,13 @@ extern "C" {
 #ifdef USE_ELEMENTS
 #define BTC_TX_ELE_VOUT_VER_NULL        (0x00)
 #define BTC_TX_ELE_VOUT_VER_EXPLICIT    (0x01)
+#define BTC_TX_ELE_VOUT_VER_ASSET_PFA   (0x0a)  //asset prefixA
+#define BTC_TX_ELE_VOUT_VER_ASSET_PFB   (0x0b)  //asset prefixB
+#define BTC_TX_ELE_VOUT_VER_VALUE_PFA   (0x08)  //value prefixA
+#define BTC_TX_ELE_VOUT_VER_VALUE_PFB   (0x09)  //value prefixB
+#define BTC_TX_ELE_VOUT_VER_NONCE_PFA   (0x02)  //nonce prefixA
+#define BTC_TX_ELE_VOUT_VER_NONCE_PFB   (0x03)  //nonce prefixB
+#define BTC_TX_ELE_VOUT_EXPLICIT_SIZE   (32)
 
 #define BTC_TX_ELE_VOUT_ADDR            (1)
 #define BTC_TX_ELE_VOUT_DATA            (2)
@@ -124,6 +131,9 @@ typedef struct {
 #ifdef USE_ELEMENTS
     uint8_t     asset[BTC_SZ_HASH256];
     uint8_t     type;
+    uint8_t     ver_asset;
+    uint8_t     ver_value;
+    uint8_t     ver_nonce;
 #endif
 } btc_vout_t;
 
