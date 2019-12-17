@@ -56,9 +56,9 @@
 
 //  init
 #ifdef USE_GOSSIP_QUERY
-#define M_LOCALFEATURES                 ((uint16_t)(LN_INIT_LF_OPT_DATALOSS | LN_INIT_LF_OPT_GSP_QUERY))
+#define M_LOCALFEATURES                 ((uint16_t)(LN_INIT_LF_OPT_DATALOSS | LN_INIT_LF_OPT_GSP_QUERY | LN_INIT_LF_OPT_STATIC_RKEY))
 #else
-#define M_LOCALFEATURES                 ((uint16_t)LN_INIT_LF_OPT_DATALOSS)
+#define M_LOCALFEATURES                 ((uint16_t)(LN_INIT_LF_OPT_DATALOSS | LN_INIT_LF_OPT_STATIC_RKEY))
 #endif  //USE_GOSSIP_QUERY
 //  feerate
 #define M_FEERATE_MIN                   (0)

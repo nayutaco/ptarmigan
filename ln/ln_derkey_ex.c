@@ -232,9 +232,8 @@ bool HIDDEN ln_derkey_local_update_script_pubkeys(
     bool static_remotekey)
 {
     //pubkey (for `to_remote` output)
-    //LOGD("pubkey\n");
     if (static_remotekey) {
-        assert(false);
+        memcpy(pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY], pRemoteKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT], BTC_SZ_PUBKEY);
     } else {
         if (!ln_derkey_pubkey(
             pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY],
@@ -243,28 +242,24 @@ bool HIDDEN ln_derkey_local_update_script_pubkeys(
     }
 
     //local_htlckey
-    //LOGD("local_htlckey\n");
     if (!ln_derkey_pubkey(
         pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
         pLocalKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pLocalKeys->per_commitment_point)) return false;
 
     //remote_htlckey
-    //LOGD("remote_htlckey\n");
     if (!ln_derkey_pubkey(
         pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
         pRemoteKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pLocalKeys->per_commitment_point)) return false;
 
     //local_delayedkey
-    //LOGD("delayedkey\n");
     if (!ln_derkey_pubkey(
         pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
         pLocalKeys->basepoints[LN_BASEPOINT_IDX_DELAYED],
         pLocalKeys->per_commitment_point)) return false;
 
     //revocationkey
-    //LOGD("revocationkey\n");
     if (!ln_derkey_revocation_pubkey(
         pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
         pRemoteKeys->basepoints[LN_BASEPOINT_IDX_REVOCATION],
@@ -280,9 +275,8 @@ bool HIDDEN ln_derkey_remote_update_script_pubkeys(
     bool static_remotekey)
 {
     //pubkey (for `to_remote` output)
-    //LOGD("pubkey\n");
     if (static_remotekey) {
-        assert(false);
+        memcpy(pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY], pLocalKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT], BTC_SZ_PUBKEY);
     } else {
         if (!ln_derkey_pubkey(
             pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY],
@@ -291,28 +285,24 @@ bool HIDDEN ln_derkey_remote_update_script_pubkeys(
     }
 
     //local_htlckey
-    //LOGD("local_htlckey\n");
     if (!ln_derkey_pubkey(
         pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_LOCAL_HTLCKEY],
         pRemoteKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pRemoteKeys->per_commitment_point)) return false;
 
     //remote_htlckey
-    //LOGD("remote_htlckey\n");
     if (!ln_derkey_pubkey(
         pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_REMOTE_HTLCKEY],
         pLocalKeys->basepoints[LN_BASEPOINT_IDX_HTLC],
         pRemoteKeys->per_commitment_point)) return false;
 
     //local_delayedkey
-    //LOGD("delayedkey\n");
     if (!ln_derkey_pubkey(
         pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_DELAYEDKEY],
         pRemoteKeys->basepoints[LN_BASEPOINT_IDX_DELAYED],
         pRemoteKeys->per_commitment_point)) return false;
 
     //revocationkey
-    //LOGD("revocationkey\n");
     if (!ln_derkey_revocation_pubkey(
         pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_REVOCATIONKEY],
         pLocalKeys->basepoints[LN_BASEPOINT_IDX_REVOCATION],
