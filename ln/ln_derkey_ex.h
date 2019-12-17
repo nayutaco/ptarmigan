@@ -176,15 +176,20 @@ uint64_t ln_derkey_remote_storage_get_next_index(const ln_derkey_remote_keys_t *
 
 
 bool HIDDEN ln_derkey_local_update_script_pubkeys(
-    ln_derkey_local_keys_t *pLocalKeys, const ln_derkey_remote_keys_t *pRemoteKeys);
+    ln_derkey_local_keys_t *pLocalKeys,
+    const ln_derkey_remote_keys_t *pRemoteKeys,
+    bool static_remotekey);
 
 
 bool HIDDEN ln_derkey_remote_update_script_pubkeys(
-    ln_derkey_remote_keys_t *pRemoteKeys, const ln_derkey_local_keys_t *pLocalKeys);
+    ln_derkey_remote_keys_t *pRemoteKeys,
+    const ln_derkey_local_keys_t *pLocalKeys,
+    bool static_remotekey);
 
 
 bool HIDDEN ln_derkey_update_script_pubkeys(
-    ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
+    ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys,
+    bool static_remotekey);
 
 
 bool HIDDEN ln_derkey_local_restore(ln_derkey_local_keys_t *pKeys);
@@ -193,7 +198,10 @@ bool HIDDEN ln_derkey_local_restore(ln_derkey_local_keys_t *pKeys);
 bool HIDDEN ln_derkey_remote_restore(ln_derkey_remote_keys_t *pKeys);
 
 
-bool HIDDEN ln_derkey_restore(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys);
+bool HIDDEN ln_derkey_restore(
+    ln_derkey_local_keys_t *pLocalKeys,
+    ln_derkey_remote_keys_t *pRemoteKeys,
+    bool static_remotekey);
 
 
 #endif /* LN_DERKEY_EX_H__ */

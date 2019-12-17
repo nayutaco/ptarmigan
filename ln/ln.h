@@ -139,6 +139,7 @@ extern "C" {
 #define LN_INIT_LF_OPT_15_14_REQ        (1 << 14)   ///< RFU bit 15/14
 
 #define LN_INIT_LF_OPT_GSP_QUERIES      (LN_INIT_LF_OPT_GSP_QUERY_REQ | LN_INIT_LF_OPT_GSP_QUERY)
+#define LN_INIT_LF_OPT_STATIC_RKEYS     (LN_INIT_LF_OPT_STATIC_RKEY_REQ | LN_INIT_LF_OPT_STATIC_RKEY)
 
 //XXX:
 #define LN_MAX_ACCEPTED_HTLCS_MAX       (483)
@@ -411,7 +412,7 @@ struct ln_channel_t {
     utl_buf_t                   cnl_anno;                       ///< [ANNO_03]自channel_announcement
 
     //msg:establish
-    uint8_t                     init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
+    uint16_t                    init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
     uint16_t                    lfeature_local;                 ///< [INIT_02]initで送信したfeature
     uint16_t                    lfeature_remote;                ///< [INIT_03]initで取得したfeature
     uint64_t                    reest_next_local_commit_num;    ///< [INIT_04]channel_reestablish.next_local_commitment_number

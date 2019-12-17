@@ -59,6 +59,9 @@ static uint16_t mInitLocalFeatures;
  * prototypes
  **************************************************************************/
 
+static void proc_init_exchanged(ln_channel_t *pChannel);
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
@@ -116,6 +119,7 @@ bool /*HIDDEN*/ ln_init_send(ln_channel_t *pChannel, bool bInitRouteSync, bool b
         return false;
     }
     pChannel->init_flag |= M_INIT_FLAG_SEND;
+    proc_init_exchanged(pChannel);
 
     M_DB_CHANNEL_SAVE(pChannel);
 
@@ -215,15 +219,8 @@ bool HIDDEN ln_init_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
         goto LABEL_EXIT;
     }
     pChannel->lfeature_remote = feature;
-
-    //gossip_queries
-    if ( (pChannel->lfeature_local & LN_INIT_LF_OPT_GSP_QUERIES) &&
-         (pChannel->lfeature_remote & LN_INIT_LF_OPT_GSP_QUERIES) ) {
-        //gossip_queries negotiate
-        pChannel->init_flag |= M_INIT_GOSSIP_QUERY;
-    }
-
     pChannel->init_flag |= M_INIT_FLAG_RECV;
+    proc_init_exchanged(pChannel);
 
     ln_callback(pChannel, LN_CB_TYPE_NOTIFY_INIT_RECV, NULL);
 
@@ -335,3 +332,26 @@ bool HIDDEN ln_pong_recv(ln_channel_t *pChannel, const uint8_t *pData, uint16_t 
 /********************************************************************
  * private functions
  ********************************************************************/
+
+static void proc_init_exchanged(ln_channel_t *pChannel)
+{
+    if (M_INIT_FLAG_EXCHNAGED(pChannel->init_flag)) {
+        //gossip_queries
+        if ( (pChannel->lfeature_local & LN_INIT_LF_OPT_GSP_QUERIES) &&
+            (pChannel->lfeature_remote & LN_INIT_LF_OPT_GSP_QUERIES) ) {
+            pChannel->init_flag |= M_INIT_GOSSIP_QUERY;
+            LOGD("init: gossip_query\n");
+        } else {
+            LOGD("init: NO gossip_query\n");
+        }
+
+        //static_remotekey
+        if ( (pChannel->lfeature_local & LN_INIT_LF_OPT_STATIC_RKEYS) &&
+            (pChannel->lfeature_remote & LN_INIT_LF_OPT_STATIC_RKEYS) ) {
+            pChannel->init_flag |= M_INIT_FLAG_STATIC_REMOTEKEY;
+            LOGD("init: static_remotekey\n");
+        } else {
+            LOGD("init: NO static_remotekey\n");
+        }
+    }
+}

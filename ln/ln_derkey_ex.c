@@ -227,14 +227,20 @@ uint64_t ln_derkey_remote_storage_get_next_index(const ln_derkey_remote_keys_t *
 
 
 bool HIDDEN ln_derkey_local_update_script_pubkeys(
-    ln_derkey_local_keys_t *pLocalKeys, const ln_derkey_remote_keys_t *pRemoteKeys)
+    ln_derkey_local_keys_t *pLocalKeys,
+    const ln_derkey_remote_keys_t *pRemoteKeys,
+    bool static_remotekey)
 {
     //pubkey (for `to_remote` output)
     //LOGD("pubkey\n");
-    if (!ln_derkey_pubkey(
-        pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY],
-        pRemoteKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
-        pLocalKeys->per_commitment_point)) return false;
+    if (static_remotekey) {
+        assert(false);
+    } else {
+        if (!ln_derkey_pubkey(
+            pLocalKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY],
+            pRemoteKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
+            pLocalKeys->per_commitment_point)) return false;
+    }
 
     //local_htlckey
     //LOGD("local_htlckey\n");
@@ -269,14 +275,20 @@ bool HIDDEN ln_derkey_local_update_script_pubkeys(
 
 
 bool HIDDEN ln_derkey_remote_update_script_pubkeys(
-    ln_derkey_remote_keys_t *pRemoteKeys, const ln_derkey_local_keys_t *pLocalKeys)
+    ln_derkey_remote_keys_t *pRemoteKeys,
+    const ln_derkey_local_keys_t *pLocalKeys,
+    bool static_remotekey)
 {
     //pubkey (for `to_remote` output)
     //LOGD("pubkey\n");
-    if (!ln_derkey_pubkey(
-        pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY],
-        pLocalKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
-        pRemoteKeys->per_commitment_point)) return false;
+    if (static_remotekey) {
+        assert(false);
+    } else {
+        if (!ln_derkey_pubkey(
+            pRemoteKeys->script_pubkeys[LN_SCRIPT_IDX_PUBKEY],
+            pLocalKeys->basepoints[LN_BASEPOINT_IDX_PAYMENT],
+            pRemoteKeys->per_commitment_point)) return false;
+    }
 
     //local_htlckey
     //LOGD("local_htlckey\n");
@@ -312,10 +324,11 @@ bool HIDDEN ln_derkey_remote_update_script_pubkeys(
 
 //https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
 bool HIDDEN ln_derkey_update_script_pubkeys(
-    ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys)
+    ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys,
+    bool static_remotekey)
 {
-    if (!ln_derkey_local_update_script_pubkeys(pLocalKeys, pRemoteKeys)) return false;
-    if (!ln_derkey_remote_update_script_pubkeys(pRemoteKeys, pLocalKeys)) return false;
+    if (!ln_derkey_local_update_script_pubkeys(pLocalKeys, pRemoteKeys, static_remotekey)) return false;
+    if (!ln_derkey_remote_update_script_pubkeys(pRemoteKeys, pLocalKeys, static_remotekey)) return false;
     return true;
 }
 
@@ -339,11 +352,14 @@ bool HIDDEN ln_derkey_remote_restore(ln_derkey_remote_keys_t *pKeys)
 }
 
 
-bool HIDDEN ln_derkey_restore(ln_derkey_local_keys_t *pLocalKeys, ln_derkey_remote_keys_t *pRemoteKeys)
+bool HIDDEN ln_derkey_restore(
+    ln_derkey_local_keys_t *pLocalKeys,
+    ln_derkey_remote_keys_t *pRemoteKeys,
+    bool static_remotekey)
 {
     if (!ln_derkey_local_restore(pLocalKeys)) return false;
     if (!ln_derkey_remote_restore(pRemoteKeys)) return false;
-    if (!ln_derkey_update_script_pubkeys(pLocalKeys, pRemoteKeys)) return false;
+    if (!ln_derkey_update_script_pubkeys(pLocalKeys, pRemoteKeys, static_remotekey)) return false;
     return true;
 }
 
