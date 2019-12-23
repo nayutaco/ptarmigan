@@ -130,8 +130,8 @@ typedef struct {
                                         //  (or LN_COMMIT_TX_OUTPUT_TYPE_TO_LOCAL/REMOTE)に設定
 #ifdef USE_ELEMENTS
     uint8_t     asset[BTC_SZ_HASH256];
-    uint8_t     type;
-    uint8_t     ver_asset;
+    uint8_t     type;                   //BTC_TX_ELE_VOUT_xxx
+    uint8_t     ver_asset;              //BTC_TX_ELE_VOUT_VER_xxx
     uint8_t     ver_value;
     uint8_t     ver_nonce;
 #endif

@@ -239,7 +239,10 @@ btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value)
     vout->opt = 0;
 #ifdef USE_ELEMENTS
     memcpy(vout->asset, btc_get_param()->asset, BTC_SZ_HASH256);
-    vout->type = BTC_TX_ELE_VOUT_VER_EXPLICIT;
+    vout->type = BTC_TX_ELE_VOUT_ADDR;
+    vout->ver_asset = BTC_TX_ELE_VOUT_VER_EXPLICIT;
+    vout->ver_value = BTC_TX_ELE_VOUT_VER_EXPLICIT;
+    vout->ver_nonce = BTC_TX_ELE_VOUT_VER_NULL;
 #endif
     return vout;
 }
@@ -1244,19 +1247,41 @@ void btc_tx_print(const btc_tx_t *pTx)
         }
         LOGD2("  type=%s\n", p_type_str);
         LOGD2("  asset(version=0x%02x)=", pTx->vout[lp].ver_asset);
-        if (pTx->vout[lp].ver_asset == BTC_TX_ELE_VOUT_VER_EXPLICIT) {
+        switch (pTx->vout[lp].ver_asset) {
+        case BTC_TX_ELE_VOUT_VER_NULL:
+            LOGD2("<NULL>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_EXPLICIT:
             DUMPD(pTx->vout[lp].asset, BTC_SZ_HASH256);
-        } else {
-            LOGD2("<confidential>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_ASSET_PFA:
+            LOGD2("<confidential:prefixA>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_ASSET_PFB:
+            LOGD2("<confidential:prefixB>\n");
+            break;
+        default:
+            LOGD2("<confidential:unknown>\n");
         }
 
         LOGD2("  value(version=0x%02x)=", pTx->vout[lp].ver_value);
-        if (pTx->vout[lp].ver_value == BTC_TX_ELE_VOUT_VER_EXPLICIT) {
+        switch (pTx->vout[lp].ver_value) {
+        case BTC_TX_ELE_VOUT_VER_NULL:
+            LOGD2("<NULL>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_EXPLICIT:
             LOGD2("%llu (%-.8lf " BTC_UNIT ")\n",
                     (unsigned long long)pTx->vout[lp].value,
                     BTC_SATOSHI2BTC(pTx->vout[lp].value));
-        } else {
-            LOGD2("<confidential>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_VALUE_PFA:
+            LOGD2("<confidential:prefixA>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_VALUE_PFB:
+            LOGD2("<confidential:prefixB>\n");
+            break;
+        default:
+            LOGD2("<confidential:unknown>\n");
         }
 
         LOGD2("  nonce(version=0x%02x)=", pTx->vout[lp].ver_nonce);
@@ -1267,8 +1292,14 @@ void btc_tx_print(const btc_tx_t *pTx)
         case BTC_TX_ELE_VOUT_VER_EXPLICIT:
             LOGD2("...\n");
             break;
+        case BTC_TX_ELE_VOUT_VER_NONCE_PFA:
+            LOGD2("<confidential:prefixA>\n");
+            break;
+        case BTC_TX_ELE_VOUT_VER_NONCE_PFB:
+            LOGD2("<confidential:prefixB>\n");
+            break;
         default:
-            LOGD2("<confidential>\n");
+            LOGD2("<confidential:unknown>\n");
         }
 #endif
         utl_buf_t *buf = &(pTx->vout[lp].script);
