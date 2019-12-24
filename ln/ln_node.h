@@ -33,7 +33,7 @@
  ********************************************************************/
 
 #define LN_NODE_ADDR_INIT               { LN_ADDR_DESC_TYPE_NONE, "", 0}
-#define LN_NODE_INIT                    { {{0},{0}}, "", {0}, LN_NODE_ADDR_INIT }
+#define LN_NODE_INIT                    { {{0},{0}}, "", {0}, LN_NODE_ADDR_INIT, false }
 
 #define LN_SZ_ADDRESS                   (250)
 #define LN_SZ_ADDRESS_STR               "250"
@@ -61,6 +61,7 @@ typedef struct {
     char                alias[LN_SZ_ALIAS_STR + 1];     ///< ノード名(\0 terminate)
     uint8_t             color[LN_SZ_RGB_COLOR];         ///< RGB
     ln_node_addr_t      addr;                           ///< ノードアドレス
+    bool                is_private;                     ///< true:private node
 } ln_node_t;
 
 

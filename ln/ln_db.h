@@ -185,11 +185,12 @@ typedef bool (*ln_db_func_wallet_t)(const ln_db_wallet_t *pWallet, void *pParam)
  * @param[in,out]   pWif            ノードの秘密鍵
  * @param[in,out]   pNodeName       ノード名
  * @param[in,out]   pPort           ポート番号
+ * @param[in,out]   pbPrivate       true:private node
  * @param[in]       bAutoUpdate     true:auto version update(if it can)
  * @param[in]       bStdErr         エラーをstderrに出力
  * @retval  true    初期化成功
  */
-bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bAutoUpdate, bool bStdErr);
+bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool *pbPrivate, bool bAutoUpdate, bool bStdErr);
 
 
 /** db終了

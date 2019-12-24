@@ -346,8 +346,9 @@ int main(int argc, char *argv[])
         if (ln_db_have_db_dir()) {
             char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
             char alias[LN_SZ_ALIAS_STR + 1] = "";
+            bool is_private = false;
 
-            (void)ln_db_init(wif, alias, &port, false, false);
+            (void)ln_db_init(wif, alias, &port, &is_private, false, false);
             if (port != 0) {
                 port++;
             }

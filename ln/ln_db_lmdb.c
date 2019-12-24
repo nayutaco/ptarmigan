@@ -134,6 +134,7 @@
 #define M_DBI_ROUTE             "route"                     ///< route
 #define M_DBI_PAYMENT_INVOICE   "invoice"                   ///< payment invoice
 #define M_DBI_PAYMENT_INFO      "payment_info"              ///< payment info
+#define M_DBI_NODEPARAM         "nodeparam"                 ///< node parameter
 
 #define M_SZ_CHANNEL_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_FORWARD_DB_NAME_STR    (M_SZ_PREF_STR + LN_SZ_SHORT_CHANNEL_ID * 2)
@@ -546,7 +547,9 @@ static bool preimage_search(ln_db_func_preimage_t pFunc, bool bCommit, void *pFu
 static int wallet_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
 
 static int version_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
-static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis, bool bAutoUpdate);
+static int version_read(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis, bool bAutoUpdate);
+static int nodeparam_write(MDB_txn *p_txn, bool bPrivate);
+static int nodeparam_read(MDB_txn *p_txn, bool *pbPrivate);
 
 static bool forward_create(uint64_t NextShortChannelId, const char *pDbNamePrefix);
 static int forward_db_open(ln_lmdb_db_t *pDb, const char *pDbName, int OptTxn, int OptDb);
@@ -597,6 +600,7 @@ static int lmdb_compaction(const init_param_t  *p_param);
 static bool auto_update_68_to_69(void);
 static bool auto_update_69_to_70(void);
 static bool auto_update_70_to_71(void);
+static bool auto_update_71_to_72(MDB_txn *p_txn);
 
 #ifndef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *pEnv, MDB_txn *pParent, unsigned int Flags, MDB_txn **ppTxn, int Line) {
@@ -835,7 +839,7 @@ void ln_lmdb_get_closed_db_path(char *pPath, const char *pChannelStr)
 }
 
 
-bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bAutoUpdate, bool bStdErr)
+bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool *pbPrivate, bool bAutoUpdate, bool bStdErr)
 {
     int             retval;
     ln_lmdb_db_t    db;
@@ -898,7 +902,14 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bAutoUpdate, 
         LOGD("port=%d\n", *pPort);
         retval = version_write(&db, pWif, pNodeName, *pPort);
         if (retval) {
-            if (bStdErr) fprintf(stderr, "create version db\n");
+            if (bStdErr) fprintf(stderr, "fail: create version db\n");
+            MDB_TXN_ABORT(db.p_txn);
+            goto LABEL_EXIT;
+        }
+
+        retval = nodeparam_write(db.p_txn, *pbPrivate);
+        if (retval) {
+            if (bStdErr) fprintf(stderr, "fail: node param db\n");
             MDB_TXN_ABORT(db.p_txn);
             goto LABEL_EXIT;
         }
@@ -908,7 +919,10 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bAutoUpdate, 
 
     int32_t ver;
     uint8_t genesis[BTC_SZ_HASH256];
-    retval = version_check(&db, &ver, pWif, pNodeName, pPort, genesis, bAutoUpdate);
+    retval = version_read(&db, &ver, pWif, pNodeName, pPort, genesis, bAutoUpdate);
+    if (retval == 0) {
+        (void)nodeparam_read(db.p_txn, pbPrivate);
+    }
     MDB_TXN_COMMIT(db.p_txn);
     MDB_DBI_CLOSE(mpEnvChannel, db.dbi);
     if (retval) {
@@ -3588,7 +3602,7 @@ bool ln_db_version_check(uint8_t *pMyNodeId, btc_block_chain_t *pBlockChain)
     char        alias[LN_SZ_ALIAS_STR + 1] = "";
     uint16_t    port = 0;
     uint8_t     genesis[BTC_SZ_HASH256];
-    retval = version_check(&db, &ver, wif, alias, &port, genesis, false);
+    retval = version_read(&db, &ver, wif, alias, &port, genesis, false);
     if (retval) {
         MDB_TXN_ABORT(db.p_txn);
         return false;
@@ -3623,13 +3637,20 @@ LABEL_EXIT:
 
 
 int ln_db_lmdb_get_my_node_id(
-    MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis)
+    MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis, bool *pbPrivate)
 {
+    int retval;
     ln_lmdb_db_t    db;
 
     db.p_txn = pTxn;
     db.dbi = Dbi;
-    return version_check(&db, pVersion, pWif, pAlias, pPort, pGenesis, false);
+    retval = version_read(&db, pVersion, pWif, pAlias, pPort, pGenesis, false);
+    if (retval) {
+        return retval;
+    }
+
+    retval = nodeparam_read(db.p_txn, pbPrivate);
+    return retval;
 }
 
 
@@ -5905,7 +5926,7 @@ static int version_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeN
  * @param[in]       bAutoUpdate     true: auto version update(if it can)
  * @retval  0   DBバージョン一致
  */
-static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis, bool bAutoUpdate)
+static int version_read(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis, bool bAutoUpdate)
 {
     int         retval;
     MDB_val key, data;
@@ -5942,6 +5963,12 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
                 auto_update &= auto_update_70_to_71();
                 if (auto_update) {
                     *pVer = -71;
+                }
+            }
+            if ((*pVer == -71) && (LN_DB_VERSION <= -72)) {
+                auto_update &= auto_update_71_to_72(pDb->p_txn);
+                if (auto_update) {
+                    *pVer = -72;
                 }
             }
         }
@@ -6022,6 +6049,59 @@ static int version_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNo
             LOGE("fail: %s\n", mdb_strerror(retval));
             return retval;
         }
+    }
+    return 0;
+}
+
+
+static int nodeparam_write(MDB_txn *p_txn, bool bPrivate)
+{
+    int         retval;
+    MDB_val     key, data;
+    MDB_dbi     dbi;
+    const char kKEY[] = "is_private";
+
+    retval = MDB_DBI_OPEN(p_txn, M_DBI_NODEPARAM, MDB_CREATE, &dbi);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+
+    key.mv_size = LN_DB_KEY_LEN(kKEY);
+    key.mv_data = (CONST_CAST char*)kKEY;
+    data.mv_size = sizeof(bPrivate);
+    data.mv_data = &bPrivate;
+    retval = mdb_put(p_txn, dbi, &key, &data, 0);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+    return 0;
+}
+
+
+static int nodeparam_read(MDB_txn *p_txn, bool *pbPrivate)
+{
+    int         retval;
+    MDB_val     key, data;
+    MDB_dbi     dbi;
+    const char kKEY[] = "is_private";
+
+    retval = MDB_DBI_OPEN(p_txn, M_DBI_NODEPARAM, 0, &dbi);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+
+    key.mv_size = LN_DB_KEY_LEN(kKEY);
+    key.mv_data = (CONST_CAST char*)kKEY;
+    retval = mdb_get(p_txn, dbi, &key, &data);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+    if (data.mv_size == sizeof(*pbPrivate)) {
+        *pbPrivate = *(const bool *)data.mv_data;
     }
     return 0;
 }
@@ -6950,4 +7030,33 @@ static bool auto_update_70_to_71(void)
 {
     LOGD("\n");
     return true;
+}
+
+
+/** auto update: -71 ==> -72
+ *
+    -72: add `ln_node_t::is_private`
+ */
+static bool auto_update_71_to_72(MDB_txn *p_txn)
+{
+    LOGD("\n");
+
+    int             retval;
+    ln_lmdb_db_t    db;
+
+    db.p_txn = p_txn;
+    retval = MDB_DBI_OPEN(db.p_txn, M_DBI_VERSION, 0, &db.dbi);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = nodeparam_write(db.p_txn, false);
+    if (retval) {
+        LOGE("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return retval == 0;
 }

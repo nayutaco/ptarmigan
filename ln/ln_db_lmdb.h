@@ -294,7 +294,7 @@ int ln_lmdb_nodeanno_cur_load(MDB_cursor *pCur, utl_buf_t *pBuf, uint32_t *pTime
 ln_lmdb_db_type_t ln_lmdb_get_db_type(const MDB_env *pEnv, const char *pDbName);
 
 
-int ln_db_lmdb_get_my_node_id(MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis);
+int ln_db_lmdb_get_my_node_id(MDB_txn *pTxn, MDB_dbi Dbi, int32_t *pVersion, char *pWif, char *pAlias, uint16_t *pPort, uint8_t *pGenesis, bool *pbPrivate);
 
 
 bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc, void *pFuncParam);

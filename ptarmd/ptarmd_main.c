@@ -63,6 +63,7 @@
 #define M_OPT_BITCOINRPCURL             '\x13'
 #define M_OPT_BITCOINRPCPORT            '\x14'
 #define M_OPT_ANNOUNCEIP_FORCE          '\x15'
+#define M_OPT_PRIVATENODE               '\x16'
 
 
 /********************************************************************
@@ -107,6 +108,7 @@ int main(int argc, char *argv[])
         { "datadir", required_argument, NULL, 'd' },
         { "color", required_argument, NULL, 'C' },
         { "rpcport", required_argument, NULL, 'P' },
+        { "private", no_argument, NULL, M_OPT_PRIVATENODE },
         { "version", no_argument, NULL, 'v' },
         { "clear_channel_db", no_argument, NULL, M_OPT_CLEARCHANNELDB },
 #if defined(USE_BITCOIND)
@@ -242,6 +244,10 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "fail: invalid color(%s).\n", optarg);
                 return -1;
             }
+            break;
+        case M_OPT_PRIVATENODE:
+            LOGD("private node\n");
+            node.is_private = true;
             break;
         case 'v':
             show_version();
