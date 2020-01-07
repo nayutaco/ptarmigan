@@ -226,8 +226,6 @@ bool btc_sw_sighash(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint6
 #endif
     }
     if (!btc_buf_w_write_hash256(&buf_w, btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp))) goto LABEL_EXIT;
-LOGD("HASH_OUTPUTS=");
-DUMPD(btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp));
 
     //locktime
     if (!btc_buf_w_write_u32le(&buf_w, pTx->locktime)) goto LABEL_EXIT;
@@ -235,8 +233,8 @@ DUMPD(btc_tx_buf_w_get_data(&buf_w_tmp), btc_tx_buf_w_get_len(&buf_w_tmp));
     //hashtype
     if (!btc_buf_w_write_u32le(&buf_w, SIGHASH_ALL)) goto LABEL_EXIT;
 
-    LOGD("SIGHASH=");
-    DUMPD(btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
+    // LOGD("SIGHASH=");
+    // DUMPD(btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
 
     btc_md_hash256(pTxHash, btc_tx_buf_w_get_data(&buf_w), btc_tx_buf_w_get_len(&buf_w));
 

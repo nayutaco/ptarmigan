@@ -204,5 +204,3 @@ static bool create_base_tx(btc_tx_t *pTx,
     }
     return true;
 }
-
-
