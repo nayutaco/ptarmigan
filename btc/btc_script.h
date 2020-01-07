@@ -71,6 +71,9 @@
 #define BTC_OP_CSV              "\xb2"          ///< OP_CHECKSEQUENCEVERIFY
 #define BTC_OP_HASH160          "\xa9"          ///< OP_HASH160
 #define BTC_OP_HASH256          "\xaa"          ///< OP_HASH256
+#define BTC_OP_CHECKSIGVERIFY   "\xad"
+#define BTC_OP_CHECKLOCKTIMEVERIFY  BTC_OP_CLTV
+#define BTC_OP_CHECKSEQUENCEVERIFY  BTC_OP_CSV
 
 #define BTC_OP_SZ1              "\x01"          ///< 1byte値
 #define BTC_OP_SZ20             "\x14"          ///< 20byte値
@@ -227,9 +230,28 @@ bool btc_script_p2wpkh_create_witness(utl_buf_t **pWitness, uint32_t *pWitItemCn
 bool btc_script_p2wpkh_create_scriptcode(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 
 
-//XXX: comment
+/** create scriptPubKey from witnessScript
+ * 
+ * `0x00 0x20 <sha256(witnessScript)>`
+ * 
+ * @param[out]  pScriptPk   scriptPubKey
+ * @param[in]   pWitScript  witnessScript
+ * @retval  true    success
+ */
 bool btc_script_p2wsh_create_scriptpk(utl_buf_t *pScriptPk, const utl_buf_t *pWitScript);
+
+
+/** create witness
+ * 
+ * @param[out] ppWitness
+ * @param[in,out] pWitItemCnt
+ * @param[in] pWitness
+ * @param[in] Num
+ * @retval  true    success
+ */
 bool btc_script_p2wsh_create_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCnt, const utl_buf_t *pWitness[], int Num);
+
+
 /** P2WSH署名計算で使用するScript Code取得
  *
  * @param[out]      pScriptCode     P2WPKH用Script Code
