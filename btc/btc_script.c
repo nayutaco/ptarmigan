@@ -585,6 +585,9 @@ bool btc_script_p2wsh_create_witness(utl_buf_t **ppWitness, uint32_t *pWitItemCn
     for (int lp = 0; lp < Num; lp++) {
         utl_buf_t *p = add_wit_item(ppWitness, pWitItemCnt);
         if (!p) return false;
+        // https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2016-August/013014.html
+        //  non-mandatory-script-verify-flag (OP_IF/NOTIF argument must be minimal)
+        if ((pWitness[lp]->len == 1) && (pWitness[lp]->buf[0] == 0x00)) return false;
         if (!utl_buf_alloccopy(p, pWitness[lp]->buf, pWitness[lp]->len)) return false;
     }
     return true;
