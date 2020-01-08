@@ -1,7 +1,3 @@
-#if !defined(USE_BITCOIN)
-#error not USE_BITCOIN
-#endif
-
 #define LOG_TAG "ex"
 #include <stdio.h>
 #include <inttypes.h>
@@ -77,7 +73,7 @@ int tx_send_to_htlc(void)
     //previous vout
     //      P2WPKH native
     //
-    const char PREV_TXID_STR[] = "ded7fec1fd5ecb6b114609108386053f341493ac2ba91414d4ef8b16ebda1277";
+    const char PREV_TXID_STR[] = "d2729da5201d4a80729a5f7fb179032945750838c8e9c299b1d66f5843e09c9d";
     const int PREV_TXINDEX = 0;
 
     const uint64_t PREV_AMOUNT = (uint64_t)1000000;
@@ -121,6 +117,8 @@ int tx_send_to_htlc(void)
     // HTLC
     utl_buf_t buf_script = UTL_BUF_INIT;
     utl_push_t push;
+
+    //BOLT3風
     assert(utl_push_init(&push, &buf_script, 77));
     assert(utl_push_data(&push, BTC_OP_IF BTC_OP_HASH160 BTC_OP_SZ20, 3));
     assert(utl_push_data(&push, hashed_hash, BTC_SZ_HASH160));
@@ -132,6 +130,7 @@ int tx_send_to_htlc(void)
     assert(utl_push_data(&push, key_b.pub, BTC_SZ_PUBKEY));
     assert(utl_push_data(&push, BTC_OP_ENDIF BTC_OP_CHECKSIG, 2));
 
+    //miniscript: or(and(hash160(H),pk(A)),and(older(5),pk(B)))
     // assert(utl_push_data(&push, BTC_OP_SZ_PUBKEY, 1));
     // assert(utl_push_data(&push, key_a.pub, BTC_SZ_PUBKEY));
     // assert(utl_push_data(&push, BTC_OP_CHECKSIG BTC_OP_NOTIF BTC_OP_SZ_PUBKEY, 3));
@@ -142,7 +141,8 @@ int tx_send_to_htlc(void)
     // assert(utl_push_data(&push, hashed_hash, BTC_SZ_HASH160));
     // assert(utl_push_data(&push, BTC_OP_EQUAL BTC_OP_ENDIF, 2));
     // assert(utl_push_trim(&push));
-    //DUMPD(buf_script.buf, buf_script.len);
+
+
 
     utl_buf_t buf_scriptpk = UTL_BUF_INIT;
     assert(btc_script_p2wsh_create_scriptpk(&buf_scriptpk, &buf_script));

@@ -45,12 +45,15 @@ btconly:
 	$(MAKE) -C btc
 	mkdir -p $(INSTALL_DIR)/ptarmbtc/include
 	mkdir -p $(INSTALL_DIR)/ptarmbtc/lib
+	mkdir -p $(INSTALL_DIR)/ptarmbtc/src
 	cp utl/libutl.a $(INSTALL_DIR)/ptarmbtc/lib/
 	cp btc/libbtc.a $(INSTALL_DIR)/ptarmbtc/lib/
 	cp -ra utl/*.h $(INSTALL_DIR)/ptarmbtc/include/
 	cp -ra btc/*.h $(INSTALL_DIR)/ptarmbtc/include/
 	cp libs/install/lib/libbase58.a $(INSTALL_DIR)/ptarmbtc/lib/
 	cp libs/install/lib/libmbedcrypto.a $(INSTALL_DIR)/ptarmbtc/lib/
+	cp btc/examples/Makefile_ptarmbtc $(INSTALL_DIR)/ptarmbtc/Makefile
+	cp btc/examples/tx_create_copy.c $(INSTALL_DIR)/ptarmbtc/src/
 
 clean:
 	$(MAKE) -C gtest clean
