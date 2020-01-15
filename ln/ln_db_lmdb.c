@@ -2750,7 +2750,9 @@ bool ln_db_preimage_save(const ln_db_preimage_t *pPreimage, const char *pBolt11,
     p_info->expiry = pPreimage->expiry;
     p_info->state = LN_DB_PREIMAGE_STATE_UNUSED;
     p_info->bolt11[0] = '\0';
-    memcpy(p_info->bolt11, pBolt11, invoice_len + 1);   //copy include '\0'
+    if (pBolt11 != NULL) {
+        memcpy(p_info->bolt11, pBolt11, invoice_len + 1);   //copy include '\0'
+    }
     data.mv_data = p_info;
     int retval = mdb_put(db.p_txn, db.dbi, &key, &data, 0);
     UTL_DBG_FREE(p_info);

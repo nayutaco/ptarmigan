@@ -88,6 +88,7 @@
 #define M_OPT_INVOICE_EXPIRY        '\x0e'
 #define M_OPT_CONNADDR              '\x0f'
 #define M_OPT_INVOICE_NORFIELD      '\x10'
+#define M_OPT_IMPORT_PREIMAGE       '\x11'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -167,6 +168,9 @@ static void optfunc_noinitroutesync(int *pOption, bool *pConn);
 static void optfunc_listpayment(int *pOption, bool *pConn);
 static void optfunc_removepayment(int *pOption, bool *pConn);
 static void optfunc_decodeinvoice(int *pOption, bool *pConn);
+#ifdef USE_CMD_IMPORTPREIMAGE
+static void optfunc_import_preimage(int *pOption, bool *pConn);
+#endif
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -209,6 +213,9 @@ static const struct {
     { M_OPT_LISTPAYMENT,        optfunc_listpayment },
     { M_OPT_REMOVEPAYMENT,      optfunc_removepayment },
     { M_OPT_DECODEINVOICE,      optfunc_decodeinvoice },
+#ifdef USE_CMD_IMPORTPREIMAGE
+    { M_OPT_IMPORT_PREIMAGE,    optfunc_import_preimage },
+#endif
     //
     { M_OPT_DEBUG,              optfunc_debug },
 };
@@ -244,6 +251,9 @@ int main(int argc, char *argv[])
         { "description", required_argument, NULL, M_OPT_INVOICE_DESC },
         { "invoiceexpiry", required_argument, NULL, M_OPT_INVOICE_EXPIRY },
         { "no-rfield", no_argument, NULL, M_OPT_INVOICE_NORFIELD },
+#ifdef USE_CMD_IMPORTPREIMAGE
+        { "importpreimage", required_argument, NULL, M_OPT_IMPORT_PREIMAGE },
+#endif
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
@@ -388,6 +398,9 @@ static void print_help(void)
     fprintf(stderr, "\t\t--decodeinvoice BOLT11_INVOICE : decode invoice\n");
     fprintf(stderr, "\t\t--listinvoice[=PAYMENT_HASH] : list created invoices\n");
     fprintf(stderr, "\t\t--removeinvoice PAYMENT_HASH or ALL : erase payment_hash\n");
+#ifdef USE_CMD_IMPORTPREIMAGE
+    fprintf(stderr, "\t\t--importpreimage PREIMAGE,AMOUNT_MSAT : import preimage\n");
+#endif
     fprintf(stderr, "\tPAYMENT:\n");
     fprintf(stderr, "\t\t--sendpayment BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
     fprintf(stderr, "\t\t--listpayment : list payments\n");
@@ -599,7 +612,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
     conf_funding_init(&fundconf);
     const char *param = strtok(optarg, ",");
     char *endp = NULL;
-    fundconf.funding_sat = (uint64_t)strtoul(param, &endp, 10);
+    fundconf.funding_sat = (uint64_t)strtoull(param, &endp, 10);
     if ((endp != NULL) && (*endp != 0x00)) {
         //変換失敗
         LOGE("fail: *endp = %p(%02x)\n", endp, *endp);
@@ -875,6 +888,75 @@ static void optfunc_getlasterr(int *pOption, bool *pConn)
     *pConn = false;
     *pOption = M_OPT_GETLASTERROR;
 }
+
+
+#ifdef USE_CMD_IMPORTPREIMAGE
+static void optfunc_import_preimage(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    uint8_t preimage[LN_SZ_PREIMAGE];
+    char preimage_str[LN_SZ_PREIMAGE * 2 + 1];
+    uint64_t amount_msat = 0;
+    uint32_t expiry = 60 * 15;      //ToDo: 暫定
+
+    //preimage
+    const char *param = strtok(optarg, ",");
+    if (strlen(param) != LN_SZ_PREIMAGE * 2) {
+        strcpy(mErrStr, "invalid preimage length");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+    strcpy(preimage_str, param);
+    bool ret = utl_str_str2bin(preimage, LN_SZ_PREIMAGE, param);
+    if (!ret) {
+        strcpy(mErrStr, "invalid preimage string");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+
+    //amount_msat
+    param = strtok(NULL, ",");
+    if (param == NULL) {
+        strcpy(mErrStr, "no amount_msat");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+    char *endp = NULL;
+    amount_msat = (uint64_t)strtoull(param, &endp, 10);
+    if ((endp != NULL) && (*endp != 0x00)) {
+        strcpy(mErrStr, "invaid amount_msat");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+
+    //expiry
+    param = strtok(NULL, ",");
+    if (param != NULL) {
+        endp = NULL;
+        expiry = (uint32_t)strtoul(param, &endp, 10);
+        if ((endp != NULL) && (*endp != 0x00)) {
+            strcpy(mErrStr, "invaid expiry");
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
+    }
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "importpreimage") M_NEXT
+            M_QQ("params") ":[ "
+                //preimage, amount_msat, expiry
+                M_QQ("%s") ",%" PRIu64 ",%" PRIu32
+            " ]"
+        "}",
+            preimage_str, amount_msat, expiry);
+
+    *pOption = M_OPT_IMPORT_PREIMAGE;
+}
+#endif
 
 
 static void optfunc_debug(int *pOption, bool *pConn)

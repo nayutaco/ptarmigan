@@ -141,6 +141,9 @@ static cJSON *cmd_paytowallet(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listpayment(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listpayment_json(void *p_cur, uint64_t PaymentId, const ln_payment_info_t *pInfo);
 static cJSON *cmd_removepayment(jrpc_context *ctx, cJSON *params, cJSON *id);
+#ifdef USE_CMD_IMPORTPREIMAGE
+static cJSON *cmd_importpreimage(jrpc_context *ctx, cJSON *params, cJSON *id);
+#endif
 #ifdef USE_BITCOINJ
 static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -234,6 +237,9 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_paytowallet, "paytowallet", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listpayment, "listpayment", NULL);
     jrpc_register_procedure(&mJrpc, cmd_removepayment, "removepayment", NULL);
+#ifdef USE_CMD_IMPORTPREIMAGE
+    jrpc_register_procedure(&mJrpc, cmd_importpreimage, "importpreimage", NULL);
+#endif
 #ifdef USE_BITCOINJ
     jrpc_register_procedure(&mJrpc, cmd_getnewaddress,  "getnewaddress", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
@@ -1724,6 +1730,58 @@ LABEL_EXIT:
 }
 
 
+#ifdef USE_CMD_IMPORTPREIMAGE
+static cJSON *cmd_importpreimage(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    cJSON *result = NULL;
+    ln_db_preimage_t pre;
+    bool ret = false;
+    int err = 0;
+
+    cJSON *json = cJSON_GetArrayItem(params, 0);
+    if (json && (json->type == cJSON_String)) {
+        ret = utl_str_str2bin(pre.preimage, LN_SZ_PREIMAGE, json->valuestring);
+    }
+    json = cJSON_GetArrayItem(params, 1);
+    if (ret && json && (json->type == cJSON_Number)) {
+        pre.amount_msat = json->valueu64;
+    } else {
+        ret = false;
+    }
+    json = cJSON_GetArrayItem(params, 2);
+    if (ret && json && (json->type == cJSON_Number)) {
+        pre.expiry = json->valueint;
+    } else {
+        ret = false;
+    }
+    if (ret) {
+        pre.creation_time = (uint64_t)utl_time_time();
+        LOGD("preimage=");
+        DUMPD(pre.preimage, LN_SZ_PREIMAGE);
+        LOGD("amount_msat=%" PRIu64 "\n", pre.amount_msat);
+        LOGD("expiry=%" PRIu32 "\n", pre.expiry);
+        ret = ln_db_preimage_save(&pre, NULL, NULL);
+        if (!ret) {
+            err = RPCERR_INVOICE_FAIL;
+        }
+    } else {
+        err = RPCERR_PARSE;
+    }
+
+    if (ret) {
+        result = cJSON_CreateString(kOK);
+    } else {
+        ctx->error_code = err;
+        ctx->error_message = error_str_cjson(err);
+    }
+
+    return result;
+}
+#endif
+
+
 #ifdef USE_BITCOINJ
 /** fund-inアドレス出力 : ptarmcli -F
  *
@@ -2046,7 +2104,11 @@ static int cmd_invoice_proc(
     UTL_DBG_FREE(p_r_field);
 
     if (*ppInvoice != NULL) {
-        ln_db_preimage_save(&preimage, *ppInvoice, NULL);
+        bool ret = ln_db_preimage_save(&preimage, *ppInvoice, NULL);
+        if (!ret) {
+            LOGE("fail: save invoice\n");
+            retcode = RPCERR_INVOICE_FAIL;
+        }
     } else {
         LOGE("fail: create_bolt11\n");
         retcode = RPCERR_INVOICE_FAIL;

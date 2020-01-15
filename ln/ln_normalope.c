@@ -81,7 +81,14 @@ static bool check_recv_add_htlc_bolt4(ln_channel_t *pChannel, uint16_t update_id
 static bool check_recv_add_htlc_bolt4_after_forward(
     ln_channel_t *pChannel, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam);
 static bool check_recv_add_htlc_bolt4_final(
-    ln_channel_t *pChannel, uint8_t *pPreimage, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam);
+        ln_channel_t *pChannel,
+        uint8_t *pPreimage,
+        utl_buf_t *pReason,
+        ln_msg_x_update_add_htlc_t *pForwardParam
+#ifdef USE_CMD_IMPORTPREIMAGE
+        , bool *pbContinue
+#endif
+);
 static uint64_t forward_fee(uint64_t AmountMsat, ln_msg_channel_update_t* pMsg);
 static bool load_channel_update_local(
     ln_channel_t *pChannel, utl_buf_t *pBuf, ln_msg_channel_update_t* pMsg, uint64_t ShortChannelId);
@@ -909,13 +916,19 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
     while (ln_db_forward_add_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
         utl_buf_t   reason = UTL_BUF_INIT;
         bool        succeeded = false;
+#ifdef USE_CMD_IMPORTPREIMAGE
+        bool        fail_continue = false;
+#endif
 
         ln_msg_x_update_add_htlc_t msg;
         uint8_t preimage[LN_SZ_PREIMAGE];
         if (ln_msg_x_update_add_htlc_read(&msg, buf.buf, buf.len)) {
-            if (check_recv_add_htlc_bolt4_final(pChannel, preimage, &reason, &msg)) {
-                succeeded = true;
-            }
+            succeeded = check_recv_add_htlc_bolt4_final(
+                pChannel, preimage, &reason, &msg
+#ifdef USE_CMD_IMPORTPREIMAGE
+                , &fail_continue
+#endif
+            );
         } else {
             LOGE("fail: ???\n");
             utl_push_t push_reason;
@@ -923,9 +936,18 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
             utl_push_u16be(&push_reason, LNONION_TMP_NODE_FAIL);
         }
 
+#ifdef USE_CMD_IMPORTPREIMAGE
+        if (succeeded || (!succeeded && !fail_continue)) {
+            // keep DB if !succeeded && fail_continue
+            if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
+                LOGE("fail: ???\n");
+            }
+        }
+#else
         if (!ln_db_forward_add_htlc_cur_del(p_cur)) {
             LOGE("fail: ???\n");
         }
+#endif
 
         if (succeeded) {
             if (!ln_update_fulfill_htlc_forward_2(
@@ -936,6 +958,11 @@ static bool poll_update_add_htlc_forward_origin(ln_channel_t *pChannel)
             param.p_add_htlc = &msg;
             ln_callback(pChannel, LN_CB_TYPE_NOTIFY_ADDFINAL_HTLC_RECV, &param);
         } else {
+#ifdef USE_CMD_IMPORTPREIMAGE
+            if (fail_continue) {
+                LOGD("importpreimage: continue\n");
+            } else
+#endif
             if (!ln_update_fail_htlc_forward_2(
                 prev_short_channel_id, prev_htlc_id, reason.buf, reason.len, p_cur)) {
                 LOGE("fail: ???\n");
@@ -1622,7 +1649,14 @@ LABEL_ERROR:
 
 
 static bool check_recv_add_htlc_bolt4_final(
-    ln_channel_t *pChannel, uint8_t *pPreimage, utl_buf_t *pReason, ln_msg_x_update_add_htlc_t *pForwardParam)
+        ln_channel_t *pChannel,
+        uint8_t *pPreimage,
+        utl_buf_t *pReason,
+        ln_msg_x_update_add_htlc_t *pForwardParam
+#ifdef USE_CMD_IMPORTPREIMAGE
+        , bool *pbContinue
+#endif
+    )
 {
     utl_push_t push_reason;
     int32_t height = 0;
@@ -1643,9 +1677,14 @@ static bool check_recv_add_htlc_bolt4_final(
     preimage.expiry = 0;
     void *p_cur;
     if (!ln_db_preimage_cur_open(&p_cur)) { //XXX: internal error?
+#ifdef USE_CMD_IMPORTPREIMAGE
+        LOGE("no preimage. but continue\n");
+        *pbContinue = true;
+#else
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
         utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
         utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
+#endif
         return false;
     }
     bool detect = false;
@@ -1661,6 +1700,10 @@ static bool check_recv_add_htlc_bolt4_final(
     }
     ln_db_preimage_cur_close(p_cur, false);
     if (!detect) {
+#ifdef USE_CMD_IMPORTPREIMAGE
+        LOGE("preimage not found. but continue\n");
+        *pbContinue = true;
+#else
         //C1. if the payment hash has already been paid:
         //      ★(採用)MAY treat the payment hash as unknown.★
         //      MAY succeed in accepting the HTLC.
@@ -1669,6 +1712,7 @@ static bool check_recv_add_htlc_bolt4_final(
         M_SET_ERR(pChannel, LNERR_INV_VALUE, "preimage mismatch");
         utl_push_u16be(&push_reason, LNONION_INCRR_OR_UNKNOWN_PAY);
         utl_push_u64be(&push_reason, pForwardParam->amount_msat); //[8:htlc_msat]
+#endif
         return false;
     }
     //LOGD("match preimage: ");

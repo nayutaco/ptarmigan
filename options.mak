@@ -37,6 +37,9 @@ ENABLE_GOSSIP_QUERY=0
 # 0: use bitcoin 1: use elements
 ENABLE_ELEMENTS=0
 
+# 1: enable JSON-RPC "importpreimage"
+ENABLE_CMD_IMPORTPREIMAGE=0
+
 # max channels("conntct to"(MAX_CHANNELS) and "connect from"(MAX_CHANNELS))
 MAX_CHANNELS=10
 
@@ -148,6 +151,11 @@ endif
 ifeq ($(ENABLE_GOSSIP_QUERY),1)
     $(info - USE GOSSIP_QUERY)
     CFLAGS += -DUSE_GOSSIP_QUERY
+endif
+
+ifeq ($(ENABLE_CMD_IMPORTPREIMAGE),1)
+    $(info - USE CMD_IMPORTPREIMAGE)
+    CFLAGS += -DUSE_CMD_IMPORTPREIMAGE
 endif
 
 # for syscall()
