@@ -1,6 +1,6 @@
 INSTALL_DIR = $(CURDIR)/install
-BOOST_VER = 1.68.0
-BOOST_VER_FILE = boost_1_68_0
+BOOST_VER = 1.72.0
+BOOST_VER_FILE = boost_1_72_0
 OPENSSL_VER = 1.1.1d
 OPENSSL_FILE = openssl-$(OPENSSL_VER).tar.gz
 
@@ -8,7 +8,7 @@ include ../options.mak
 
 ifeq ("$(GNU_PREFIX)","arm-linux-gnueabihf-")
 	HOST=arm-linux
-	BOOST_CONV="using gcc : arm : arm-linux-gnueabihf-g++"
+	BOOST_CONV="using gcc : arm : $(GNU_PREFIX)g++"
 	OPENSSL_ARCH=linux-armv4
 	CROSS_COMPILE="CROSS_COMPILE=$(GNU_PREFIX)"
 else
@@ -84,11 +84,16 @@ mk_boost:
 		rm -rf boost ;\
 		wget -O boost.tgz https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz ;\
 	fi
+	if [ -f boost.tgz ] && [ ! -s boost.tgz ]; then\
+		rm boost.tgz ;\
+	fi
 	@if [ ! -f boost.tgz ]; then\
 		wget -O boost.tgz https://sourceforge.net/projects/boost/files/boost/$(BOOST_VER)/$(BOOST_VER_FILE).tar.gz/download ;\
 	fi
-	if [ ! -d boost ]; then\
+	@if [ ! -d $(BOOST_VER_FILE) ]; then\
 		tar zxf boost.tgz ;\
+	fi
+	@if [ ! -d boost ]; then\
 		ln -s $(BOOST_VER_FILE) boost ;\
 	fi
 	cd boost; \
@@ -148,4 +153,4 @@ clean:
 	-$(MAKE) -C curl clean
 	-$(MAKE) -C zlib clean
 	-$(MAKE) -C openssl clean
-	-$(RM) -rf $(INSTALL_DIR) bech32 boost boost.tgz openssl openssl.tgz
+	-$(RM) -rf $(INSTALL_DIR) bech32 boost boost.tgz $(BOOST_VER_FILE) openssl openssl.tgz

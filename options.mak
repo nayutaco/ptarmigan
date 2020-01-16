@@ -105,6 +105,11 @@ ifeq ($(NODE_TYPE),BITCOINJ)
     endif
 endif
 
+#check gcc compiler
+ifeq (, $(shell which $(GNU_PREFIX)gcc))
+    $(error $(GNU_PREFIX)gcc not found.)
+endif
+
 ifneq ($(NODESET),1)
     $(error You must set correct NODE_TYPE in options.mak.)
 endif
