@@ -492,7 +492,7 @@ static void show_version(void)
     fprintf(stderr, "\t" OPENSSL_VERSION_TEXT  "\n");
 #endif
     // no version API
-    fprintf(stderr, "\tinih: r45\n");
+    fprintf(stderr, "\tinih: r47\n");
     fprintf(stderr, "\tlibbase58: commit 1cb26b5bfff6b52995a2d88a4b7e1041df589d35\n");
     fprintf(stderr, "\tjsonrpc-c(customized): localonly_r2\n");
 }
