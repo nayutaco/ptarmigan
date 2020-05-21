@@ -83,7 +83,7 @@
 #define OP_0                    (0x00)
 #define OP_PUSHDATA1            (0x4c)
 #define OP_PUSHDATA2            (0x4d)
-#define OP_PUSHDATA3            (0x4e)
+#define OP_PUSHDATA4            (0x4e)
 #define OP_1NEGATE              (0x4f)
 #define OP_1                    (0x51)
 #define OP_2                    (0x52)
