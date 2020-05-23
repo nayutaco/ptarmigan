@@ -883,7 +883,7 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
                 ret = false;
                 break;
             }
-            LOGD("%sOP_PUSHDATA3 0x%02x ", INDENT, len);
+            LOGD("%sOP_PUSHDATA4 0x%02x ", INDENT, len);
             DUMPD(pData, len);
             pData += len;
         } else {
