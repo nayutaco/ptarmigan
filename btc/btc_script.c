@@ -871,7 +871,7 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
             LOGD("%sOP_PUSHDATA2 0x%02x ", INDENT, len);
             DUMPD(pData, len);
             pData += len;
-        } else if (*pData == OP_PUSHDATA3) {
+        } else if (*pData == OP_PUSHDATA4) {
             //pushdata
             if (pData + 5 > end) {
                 ret = false;
