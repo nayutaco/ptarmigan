@@ -37,7 +37,8 @@
  **************************************************************************/
 
 #define LN_FUNDING_SATOSHIS_MIN         (100000)        ///< minimum funding_sat(BOLTに規定はない)
-#define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
+//#define LN_FUNDING_SATOSHIS_MAX         (0x1000000 - 1) //2^24-1
+#define LN_FUNDING_SATOSHIS_MAX         (5000000)       ///< maximum funding_sat
 
 
 #define LN_FUNDING_ROLE_FUNDEE                      (0x00)
