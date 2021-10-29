@@ -67,7 +67,8 @@
 
 #define M_MAPSIZE_REMAIN_LIMIT  (2)                         ///< DB compactionを実施する残りpage
 
-#define M_DEFAULT_MAPSIZE       ((size_t)10485760)          // DB最大長[byte](LMDBのデフォルト値)
+#define M_DEFAULT_MAPSIZE       ((size_t)0xa00000)          ///< DB最大長[byte](LMDBのデフォルト値)
+                                                            //      MAPSIZEは0x1000(getconf PAGE_SIZE)の倍数であること
 #define M_CHANNEL_MAXDBS        (12 * 2 * MAX_CHANNELS)     ///< 同時オープンできるDB数
 #define M_CHANNEL_MAPSIZE       M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
@@ -75,9 +76,11 @@
 #define M_NODE_MAPSIZE          M_DEFAULT_MAPSIZE           // DB最大長[byte]
 
 #define M_ANNO_MAXDBS           (50)                        ///< 同時オープンできるDB数
-//#define M_ANNO_MAPSIZE        ((size_t)4294963200)        // DB最大長[byte] Ubuntu 18.04(64bit)で使用できたサイズ
-#define M_ANNO_MAPSIZE          ((size_t)2147483648)        // DB最大長[byte] Raspberry Piで使用できたサイズ
+//#define M_ANNO_MAPSIZE        ((size_t)0xfffff000)        // DB最大長[byte] Ubuntu 18.04(64bit)で使用できたサイズ
+#define M_ANNO_MAPSIZE          ((size_t)0x80000000)        // DB最大長[byte] Raspberry Pi Zeroで使用できたサイズ
                                                             // 32bit環境ではsize_tが4byteになるため、32bitの範囲内にすること
+#define M_ANNO_MAPRETRY         (0x40 - 1)                  // mdb_env_open()==ENOMEM時の最大retry回数
+#define M_ANNO_MAPDEC           ((size_t)0x1000000)         // retry時にMAPSIZEから引いていくサイズ
 
 #define M_WALLET_MAXDBS         (MAX_CHANNELS)              ///< 同時オープンできるDB数
 #define M_WALLET_MAPSIZE        M_DEFAULT_MAPSIZE           // DB最大長[byte]
@@ -235,6 +238,7 @@ typedef struct {
     const char      *p_path;
     MDB_dbi         maxdbs;         //mdb_env_set_maxdbs()
     size_t          mapsize;        //mdb_env_set_mapsize()
+    int             retry_mapsize;
     unsigned int    open_flag;      //mdb_env_open()
 } init_param_t;
 
@@ -468,12 +472,12 @@ static const fixed_item_t DBHTLC_VALUES[] = {
 
 // LMDB initialize parameter
 static const init_param_t INIT_PARAM[] = {
-    { &mpEnvChannel, mPathChannel, M_CHANNEL_MAXDBS, M_CHANNEL_MAPSIZE, 0 },
-    { &mpEnvNode, mPathNode, M_NODE_MAXDBS, M_NODE_MAPSIZE, 0 },
-    { &mpEnvAnno, mPathAnno, M_ANNO_MAXDBS, M_ANNO_MAPSIZE, MDB_NOSYNC },
-    { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 0 },
-    { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 0 },
-    { &mpEnvPayment, mPathPayment, M_PAYMENT_MAXDBS, M_PAYMENT_MAPSIZE, 0 },
+    { &mpEnvChannel, mPathChannel, M_CHANNEL_MAXDBS, M_CHANNEL_MAPSIZE, 1, 0 },
+    { &mpEnvNode, mPathNode, M_NODE_MAXDBS, M_NODE_MAPSIZE, 1, 0 },
+    { &mpEnvAnno, mPathAnno, M_ANNO_MAXDBS, M_ANNO_MAPSIZE, M_ANNO_MAPRETRY, MDB_NOSYNC },
+    { &mpEnvWallet, mPathWallet, M_WALLET_MAXDBS, M_WALLET_MAPSIZE, 1, 0 },
+    { &mpEnvForward, mPathForward, M_FORWARD_MAXDBS, M_FORWARD_MAPSIZE, 1, 0 },
+    { &mpEnvPayment, mPathPayment, M_PAYMENT_MAXDBS, M_PAYMENT_MAPSIZE, 1, 0 },
 };
 
 
@@ -4743,6 +4747,7 @@ static void channel_copy_closed(MDB_txn *pTxn, const char *pChannelStr)
     init_param.p_path = path_env;
     init_param.maxdbs = M_CLOSED_MAXDBS;
     init_param.mapsize = M_CLOSED_MAPSIZE;
+    init_param.retry_mapsize = 1;
     init_param.open_flag = 0;
     retval = init_db_env(&init_param);
     if (retval) {
@@ -6703,28 +6708,47 @@ static int init_db_env(const init_param_t  *p_param)
 
 static int lmdb_init(const init_param_t  *p_param)
 {
-    int retval;
+    int retval = EPERM;
 
     LOGD("BEGIN(%s)\n", p_param->p_path);
 
     mkdir(p_param->p_path, 0755);
 
-    retval = mdb_env_create(p_param->pp_env);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        return retval;
+    int retry = p_param->retry_mapsize;
+    size_t mapsize = p_param->mapsize;
+    while (retry--) {
+        retval = mdb_env_create(p_param->pp_env);
+        if (retval) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            break;
+        }
+        retval = mdb_env_set_maxdbs(*p_param->pp_env, p_param->maxdbs);
+        if (retval) {
+            LOGE("ERR: %s\n", mdb_strerror(retval));
+            break;
+        }
+        retval = mdb_env_set_mapsize(*p_param->pp_env, mapsize);
+        if (retval) {
+            LOGE("mdb_env_set_mapsize: %s\n", mdb_strerror(retval));
+            break;
+        }
+        retval = mdb_env_open(*p_param->pp_env, p_param->p_path, p_param->open_flag, 0644);
+        if (retval == 0) {
+            LOGD("mdb_env_open: 0x%08x\n", mapsize);
+            break;
+        } else {
+            LOGE("mdb_env_open: %s\n", mdb_strerror(retval));
+        }
+        if ((retry > 0) && (retval == ENOMEM)) {
+            mapsize -= M_ANNO_MAPDEC;
+            LOGD("mdb_env_set_mapsize: retry=0x%08x\n", mapsize);
+            //close pp_env to clear error status
+            mdb_env_close(*p_param->pp_env);
+        } else {
+            LOGE("ERR: mdb_env_set_mapsize / mdb_env_open\n");
+            break;
+        }
     }
-    retval = mdb_env_set_maxdbs(*p_param->pp_env, p_param->maxdbs);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        return retval;
-    }
-    retval = mdb_env_set_mapsize(*p_param->pp_env, p_param->mapsize);
-    if (retval) {
-        LOGE("ERR: %s\n", mdb_strerror(retval));
-        return retval;
-    }
-    retval = mdb_env_open(*p_param->pp_env, p_param->p_path, p_param->open_flag, 0644);
     if (retval) {
         LOGE("ERR: %s\n", mdb_strerror(retval));
         return retval;
