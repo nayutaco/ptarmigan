@@ -81,8 +81,22 @@ const char *ln_msg_name(uint16_t Type)
 }
 
 
-uint16_t ln_msg_type(const uint8_t *pData, uint16_t Len)
+uint16_t ln_msg_type(ln_msg_groupt_t *pGrp, const uint8_t *pData, uint16_t Len)
 {
     if (Len < 2) return 0x0000;
-    return utl_int_pack_u16be(pData);
+    uint16_t type = utl_int_pack_u16be(pData);
+    if (pGrp != NULL) {
+        if (/*(0 <= type) &&*/ (type <= 31)) {
+            *pGrp = MSGGROUP_SETUP_CTRL;
+        } else if ((32 <= type) && (type <= 127)) {
+            *pGrp = MSGGROUP_CHANNEL;
+        } else if ((128 <= type) && (type <= 255)) {
+            *pGrp = MSGGROUP_COMMIT;
+        } else if ((256 <= type) && (511 <= type)) {
+            *pGrp = MSGGROUP_ROUTING;
+        } else {
+            *pGrp = MSGGROUP_UNKNOWN;
+        }
+    }
+    return type;
 }

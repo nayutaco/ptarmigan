@@ -754,7 +754,7 @@ static bool poll_update_del_htlc_forward(ln_channel_t *pChannel)
     bool        b_commit = false;
     utl_buf_t   buf = UTL_BUF_INIT;
     while (ln_db_forward_del_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
-        uint32_t type = ln_msg_type(buf.buf, buf.len);
+        uint32_t type = ln_msg_type(NULL, buf.buf, buf.len);
         if (type == MSGTYPE_X_UPDATE_FULFILL_HTLC) {
             ln_msg_x_update_fulfill_htlc_t msg;
             if (!ln_msg_x_update_fulfill_htlc_read(&msg, buf.buf, buf.len)) {
@@ -1089,7 +1089,7 @@ static bool poll_update_del_htlc_forward_origin(ln_channel_t *pChannel)
     bool        b_commit = false;
     utl_buf_t   buf = UTL_BUF_INIT;
     while (ln_db_forward_del_htlc_cur_get(p_cur, &prev_short_channel_id, &prev_htlc_id, &buf)) {
-        uint32_t type = ln_msg_type(buf.buf, buf.len);
+        uint32_t type = ln_msg_type(NULL, buf.buf, buf.len);
         if (type == MSGTYPE_X_UPDATE_FULFILL_HTLC) {
             ln_msg_x_update_fulfill_htlc_t msg;
             if (!ln_msg_x_update_fulfill_htlc_read(&msg, buf.buf, buf.len)) {

@@ -70,6 +70,19 @@
 
 
 /**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef enum ln_msg_groupt_t {
+    MSGGROUP_UNKNOWN,       ///< unknown group
+    MSGGROUP_SETUP_CTRL,    ///< Setup & Control (types 0-31)
+    MSGGROUP_CHANNEL,       ///< Channel (types 32-127)
+    MSGGROUP_COMMIT,        ///< Commitment (types 128-255)
+    MSGGROUP_ROUTING,       ///< Routing (types 256-511)
+} ln_msg_groupt_t;
+
+
+/**************************************************************************
  * prototypes
  **************************************************************************/
 
@@ -81,7 +94,7 @@
 const char *ln_msg_name(uint16_t Type);
 
 
-uint16_t ln_msg_type(const uint8_t *pData, uint16_t Len);
+uint16_t ln_msg_type(ln_msg_groupt_t *pGrp, const uint8_t *pData, uint16_t Len);
 
 
 #endif /* LN_MSG_H__ */
