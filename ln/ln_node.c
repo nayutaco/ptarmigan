@@ -115,16 +115,25 @@ bool ln_node_init(const ln_node_t *pNode)
     ln_msg_node_announcement_t msg;
     ln_msg_node_announcement_addresses_t addrs;
 
-    LOGD("alias: %s\n", pNode->alias);
-    LOGD("color: %02x%02x%02x\n", pNode->color[0], pNode->color[1], pNode->color[2]);
-    LOGD("addr type: %d\n", pNode->addr.type);
-    LOGD("port: %d\n", pNode->addr.port);
+    LOGD("before:\n");
+    LOGD("  alias: %s\n", pNode->alias);
+    LOGD("  color: %02x%02x%02x\n", pNode->color[0], pNode->color[1], pNode->color[2]);
+    LOGD("  addr type: %d\n", pNode->addr.type);
+    LOGD("  port: %d\n", pNode->addr.port);
+    LOGD("  is_private: %d\n", pNode->is_private);
 
     memcpy(&mNode, pNode, sizeof(ln_node_t));
-    if (!ln_db_init(wif, mNode.alias, &mNode.addr.port, true, true)) {
+    if (!ln_db_init(wif, mNode.alias, &mNode.addr.port, &mNode.is_private, true, true)) {
         LOGE("fail: db init\n");
         goto LABEL_EXIT;
     }
+
+    LOGD("after:\n");
+    LOGD("  alias: %s\n", mNode.alias);
+    LOGD("  color: %02x%02x%02x\n", mNode.color[0], mNode.color[1], mNode.color[2]);
+    LOGD("  addr type: %d\n", mNode.addr.type);
+    LOGD("  port: %d\n", mNode.addr.port);
+    LOGD("  is_private: %d\n", mNode.is_private);
 
     if (!btc_keys_wif2keys(&mNode.keys, &is_test, wif)) goto LABEL_EXIT;
     if (is_test != btc_get_param()->is_test) {
@@ -192,6 +201,13 @@ LABEL_EXIT:
 void ln_node_term(void)
 {
     memset(&mNode, 0, sizeof(ln_node_t));
+}
+
+
+bool ln_node_is_private(void)
+{
+    LOGD("mNode.is_private: %d\n", mNode.is_private);
+    return mNode.is_private;
 }
 
 

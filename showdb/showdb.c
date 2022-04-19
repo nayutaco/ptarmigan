@@ -1023,10 +1023,11 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         char alias[LN_SZ_ALIAS_STR + 1] = "";
         uint16_t port = 0;
         uint8_t genesis[BTC_SZ_HASH256];
+        bool is_private = false;
 
         printf(INDENT1 M_QQ("version") ": {\n");
 
-        retval = ln_db_lmdb_get_my_node_id(txn, dbi, &version, wif, alias, &port, genesis);
+        retval = ln_db_lmdb_get_my_node_id(txn, dbi, &version, wif, alias, &port, genesis, &is_private);
         if (retval == 0) {
             btc_keys_t keys;
             bool is_test;
@@ -1055,7 +1056,8 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             printf(INDENT2 M_QQ("version") ": %d,\n", version);
             printf(INDENT2 M_QQ("creation_bhash") ": \"");
             btc_dbg_dump_txid(stdout, ln_creationhash_get());
-            printf("\"\n");
+            printf("\",\n");
+            printf(INDENT2 M_QQ("is_private") ": %s\n", ((is_private) ? "true" : "false"));
         } else {
             printf(INDENT2 M_QQ("node_id") ": " M_QQ("fail") ",\n");
         }

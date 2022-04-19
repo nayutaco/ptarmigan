@@ -4,7 +4,7 @@
 /** @def    LN_DB_VERSION
  *  @brief  database version
  */
-#define LN_DB_VERSION    ((int32_t)(-71))
+#define LN_DB_VERSION    ((int32_t)(-72))
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -117,6 +117,7 @@
     -69: add `ln_db_preimage_t::status` (auto update: -68 ==> -69)
     -70: add `ln_db_wallet_t::mined_height` (bitcoind auto update: -69 ==> -70)
     -71: add `ln_channel_t::keys_static_remotekey`
+    -72: add `ln_node_t::is_private`
  */
 
 #endif /* LN_VERSION_H__ */

@@ -1259,6 +1259,13 @@ bool ln_node_init(const ln_node_t *pNode);
 void ln_node_term(void);
 
 
+/** is private node
+ *
+ */
+bool ln_node_is_private(void);
+
+
+
 /** channel情報検索(node_idから)
  *
  *      pChannel DBから、channelの相手になっているpeerのnode_idが一致するchannelを検索する。

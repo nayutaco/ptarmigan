@@ -1990,6 +1990,12 @@ static bool anno_senddata_node(lnapp_conf_t *p_conf, utl_push_t *p_push, void *p
     utl_buf_t buf_node = UTL_BUF_INIT;
 
     for (int lp = 0; lp < 2; lp++) {
+        if (ln_node_is_private()) {
+            if (memcmp(node[lp], ln_node_get_id(), BTC_SZ_PUBKEY) == 0) {
+                LOGD("I am a private node.\n");
+                continue;
+            }
+        }
         ret = ln_db_nodeanno_info_search_node_id(p_cur_infonode, node[lp], ln_remote_node_id(&p_conf->channel));
         if (!ret) {
             ret = ln_db_nodeanno_cur_load(p_cur_node, &buf_node, NULL, node[lp]);
